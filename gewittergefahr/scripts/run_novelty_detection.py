@@ -8,6 +8,7 @@ arXiv e-prints, 1806, https://arxiv.org/abs/1806.08340
 
 import os.path
 import argparse
+import numpy
 from keras import backend as K
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.deep_learning import cnn
@@ -74,7 +75,7 @@ PERCENT_VARIANCE_HELP_STRING = (
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file.  Will be written by '
-    '`novelty_detection.write_results`.')
+    '`novelty_detection.write_standard_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -137,9 +138,9 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
     :param cnn_feature_layer_name: Same.
     :param percent_svd_variance_to_keep: Same.
     :param output_file_name: Same.
+    :raises: ValueError: if dimensions of first CNN input matrix != dimensions
+        of upconvnet output.
     """
-
-    # TODO(thunderhoser): Ensure that CNN is 2-D, not 3-D.
 
     print 'Reading trained CNN from: "{0:s}"...'.format(cnn_file_name)
     cnn_model_object = cnn.read_model(cnn_file_name)
@@ -150,16 +151,30 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
     print 'Reading trained upconvnet from: "{0:s}"...'.format(
         upconvnet_file_name)
     upconvnet_model_object = cnn.read_model(upconvnet_file_name)
-    upconvnet_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(upconvnet_file_name)[0]
+
+    ucn_output_dimensions = numpy.array(
+        upconvnet_model_object.output.get_shape().as_list()[1:], dtype=int
     )
+
+    if isinstance(cnn_model_object.input, list):
+        first_cnn_input_tensor = cnn_model_object.input[0]
+    else:
+        first_cnn_input_tensor = cnn_model_object.input
+
+    cnn_input_dimensions = numpy.array(
+        first_cnn_input_tensor.get_shape().as_list()[1:], dtype=int
+    )
+
+    if not numpy.array_equal(cnn_input_dimensions, ucn_output_dimensions):
+        error_string = (
+            'Dimensions of first CNN input matrix ({0:s}) should equal '
+            'dimensions of upconvnet output ({1:s}).'
+        ).format(str(cnn_input_dimensions), str(ucn_output_dimensions))
+
+        raise ValueError(error_string)
 
     print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
     cnn_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
-
-    print 'Reading upconvnet metadata from: "{0:s}"...'.format(
-        upconvnet_metafile_name)
-    upconvnet_metadata_dict = cnn.read_model_metadata(upconvnet_metafile_name)
 
     print 'Reading metadata for baseline examples from: "{0:s}"...'.format(
         baseline_storm_metafile_name)
@@ -205,7 +220,7 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
 
     print SEPARATOR_STRING
 
-    novelty_dict = novelty_detection.do_novelty_detection_new(
+    novelty_dict = novelty_detection.do_novelty_detection(
         list_of_baseline_input_matrices=list_of_baseline_input_matrices,
         list_of_trial_input_matrices=list_of_trial_input_matrices,
         cnn_model_object=cnn_model_object,
@@ -216,12 +231,28 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
 
     print SEPARATOR_STRING
 
-    print 'Denormalizing novelty-detection output...'
+    print 'Adding metadata to novelty-detection results...'
+    novelty_dict = novelty_detection.add_metadata(
+        novelty_dict=novelty_dict, baseline_storm_ids=baseline_storm_ids,
+        baseline_storm_times_unix_sec=baseline_times_unix_sec,
+        trial_storm_ids=trial_storm_ids,
+        trial_storm_times_unix_sec=trial_times_unix_sec,
+        cnn_file_name=cnn_file_name, upconvnet_file_name=upconvnet_file_name)
 
-    novelty_dict[novelty_detection.NOVEL_EXAMPLES_ACTUAL_KEY] = (
+    print 'Denormalizing inputs and outputs of novelty detection...'
+
+    novelty_dict[novelty_detection.BASELINE_INPUTS_KEY] = (
         model_interpretation.denormalize_data(
             list_of_input_matrices=novelty_dict[
-                novelty_detection.NOVEL_EXAMPLES_ACTUAL_KEY
+                novelty_detection.BASELINE_INPUTS_KEY
+            ],
+            model_metadata_dict=cnn_metadata_dict)
+    )
+
+    novelty_dict[novelty_detection.TRIAL_INPUTS_KEY] = (
+        model_interpretation.denormalize_data(
+            list_of_input_matrices=novelty_dict[
+                novelty_detection.TRIAL_INPUTS_KEY
             ],
             model_metadata_dict=cnn_metadata_dict)
     )
@@ -245,7 +276,9 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
             model_metadata_dict=cnn_metadata_dict)
     )[0]
 
-    # TODO(thunderhoser): Write output file.
+    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    novelty_detection.write_standard_file(novelty_dict=novelty_dict,
+                                          pickle_file_name=output_file_name)
 
 
 if __name__ == '__main__':

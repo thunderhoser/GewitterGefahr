@@ -11,37 +11,36 @@ import numpy
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
-
-# TODO(thunderhoser): Fix IO methods.
 
 DEFAULT_PCT_VARIANCE_TO_KEEP = 97.5
-NUM_EXAMPLES_PER_CNN_BATCH = 1000
+NUM_EXAMPLES_PER_BATCH = 1000
 
 EOF_MATRIX_KEY = 'eof_matrix'
 FEATURE_MEANS_KEY = 'feature_means'
 FEATURE_STDEVS_KEY = 'feature_standard_deviations'
 
-NOVEL_IMAGES_ACTUAL_KEY = 'novel_image_matrix_actual'
+BASELINE_INPUTS_KEY = 'list_of_baseline_input_matrices'
+TRIAL_INPUTS_KEY = 'list_of_trial_input_matrices'
+NOVEL_INDICES_KEY = 'novel_indices'
 NOVEL_IMAGES_UPCONV_KEY = 'novel_image_matrix_upconv'
 NOVEL_IMAGES_UPCONV_SVD_KEY = 'novel_image_matrix_upconv_svd'
-
-BASELINE_IMAGES_KEY = 'baseline_image_matrix'
-TEST_IMAGES_KEY = 'test_image_matrix'
-UCN_FILE_NAME_KEY = 'ucn_file_name'
 PERCENT_VARIANCE_KEY = 'percent_svd_variance_to_keep'
-NORM_FUNCTION_KEY = 'norm_function_name'
-DENORM_FUNCTION_KEY = 'denorm_function_name'
-
-NOVEL_EXAMPLES_ACTUAL_KEY = 'list_of_novel_input_matrices'
 CNN_FEATURE_LAYER_KEY = 'cnn_feature_layer_name'
 MULTIPASS_KEY = 'multipass'
 
-REQUIRED_KEYS = [
-    NOVEL_IMAGES_ACTUAL_KEY, NOVEL_IMAGES_UPCONV_KEY,
-    NOVEL_IMAGES_UPCONV_SVD_KEY, BASELINE_IMAGES_KEY, TEST_IMAGES_KEY,
-    UCN_FILE_NAME_KEY, PERCENT_VARIANCE_KEY, NORM_FUNCTION_KEY,
-    DENORM_FUNCTION_KEY
+BASELINE_STORM_IDS_KEY = 'baseline_storm_ids'
+BASELINE_STORM_TIMES_KEY = 'baseline_storm_times_unix_sec'
+TRIAL_STORM_IDS_KEY = 'trial_storm_ids'
+TRIAL_STORM_TIMES_KEY = 'trial_storm_times_unix_sec'
+CNN_FILE_KEY = 'cnn_file_name'
+UPCONVNET_FILE_KEY = 'upconvnet_file_name'
+
+STANDARD_FILE_KEYS = [
+    BASELINE_INPUTS_KEY, TRIAL_INPUTS_KEY, NOVEL_INDICES_KEY,
+    NOVEL_IMAGES_UPCONV_KEY, NOVEL_IMAGES_UPCONV_SVD_KEY, PERCENT_VARIANCE_KEY,
+    CNN_FEATURE_LAYER_KEY, MULTIPASS_KEY,
+    BASELINE_STORM_IDS_KEY, BASELINE_STORM_TIMES_KEY, TRIAL_STORM_IDS_KEY,
+    TRIAL_STORM_TIMES_KEY, CNN_FILE_KEY, UPCONVNET_FILE_KEY
 ]
 
 
@@ -204,10 +203,10 @@ def _apply_cnn(cnn_model_object, list_of_predictor_matrices, output_layer_name,
     num_examples = list_of_predictor_matrices[0].shape[0]
     feature_matrix = None
 
-    for i in range(0, num_examples, NUM_EXAMPLES_PER_CNN_BATCH):
+    for i in range(0, num_examples, NUM_EXAMPLES_PER_BATCH):
         this_first_index = i
         this_last_index = min(
-            [i + NUM_EXAMPLES_PER_CNN_BATCH - 1, num_examples - 1]
+            [i + NUM_EXAMPLES_PER_BATCH - 1, num_examples - 1]
         )
 
         if verbose:
@@ -221,11 +220,11 @@ def _apply_cnn(cnn_model_object, list_of_predictor_matrices, output_layer_name,
         if len(list_of_predictor_matrices) == 1:
             this_feature_matrix = intermediate_model_object.predict(
                 list_of_predictor_matrices[0][these_indices, ...],
-                batch_size=NUM_EXAMPLES_PER_CNN_BATCH)
+                batch_size=NUM_EXAMPLES_PER_BATCH)
         else:
             this_feature_matrix = intermediate_model_object.predict(
                 [a[these_indices, ...] for a in list_of_predictor_matrices],
-                batch_size=NUM_EXAMPLES_PER_CNN_BATCH)
+                batch_size=NUM_EXAMPLES_PER_BATCH)
 
         if feature_matrix is None:
             feature_matrix = this_feature_matrix + 0.
@@ -234,272 +233,6 @@ def _apply_cnn(cnn_model_object, list_of_predictor_matrices, output_layer_name,
                 (feature_matrix, this_feature_matrix), axis=0)
 
     return feature_matrix
-
-
-def gg_norm_function(radar_field_names, normalization_type_string,
-                     normalization_param_file_name, min_normalized_value=0.,
-                     max_normalized_value=1.):
-    """Creates normalization function for GewitterGefahr radar data.
-
-    This function satisfies the requirements for the input arg `norm_function`
-    to the method `do_novelty_detection`.
-
-    :param radar_field_names: See doc for
-        `deep_learning_utils.normalize_radar_images`.
-    :param normalization_type_string: Same.
-    :param normalization_param_file_name: Same.
-    :param min_normalized_value: Same.
-    :param max_normalized_value: Same.
-    :return: norm_function: Function (see below).
-    """
-
-    def norm_function(radar_image_matrix):
-        """Normalizes GewitterGefahr radar data.
-
-        :param radar_image_matrix: See doc for
-            `deep_learning_utils.normalize_radar_images`.
-        :return: radar_image_matrix: Normalized version of input.
-        """
-
-        return dl_utils.normalize_radar_images(
-            radar_image_matrix=radar_image_matrix,
-            field_names=radar_field_names,
-            normalization_type_string=normalization_type_string,
-            normalization_param_file_name=normalization_param_file_name,
-            min_normalized_value=min_normalized_value,
-            max_normalized_value=max_normalized_value)
-
-    return norm_function
-
-
-def gg_denorm_function(radar_field_names, normalization_type_string,
-                       normalization_param_file_name, min_normalized_value=0.,
-                       max_normalized_value=1.):
-    """Creates *de*normalization function for GewitterGefahr radar data.
-
-    This function satisfies the requirements for the input arg `denorm_function`
-    to the method `do_novelty_detection`.
-
-    :param radar_field_names: See doc for
-        `deep_learning_utils.denormalize_radar_images`.
-    :param normalization_type_string: Same.
-    :param normalization_param_file_name: Same.
-    :param min_normalized_value: Same.
-    :param max_normalized_value: Same.
-    :return: denorm_function: Function (see below).
-    """
-
-    def denorm_function(radar_image_matrix):
-        """Denormalizes GewitterGefahr radar data.
-
-        :param radar_image_matrix: See doc for
-            `deep_learning_utils.denormalize_radar_images`.
-        :return: radar_image_matrix: Denormalized version of input.
-        """
-
-        return dl_utils.denormalize_radar_images(
-            radar_image_matrix=radar_image_matrix,
-            field_names=radar_field_names,
-            normalization_type_string=normalization_type_string,
-            normalization_param_file_name=normalization_param_file_name,
-            min_normalized_value=min_normalized_value,
-            max_normalized_value=max_normalized_value)
-
-    return denorm_function
-
-
-def do_novelty_detection_old(
-        baseline_image_matrix, test_image_matrix, cnn_model_object,
-        cnn_feature_layer_name, ucn_model_object, num_novel_test_images,
-        norm_function, denorm_function,
-        percent_svd_variance_to_keep=DEFAULT_PCT_VARIANCE_TO_KEEP):
-    """Does novelty detection.
-
-    Specifically, this method follows the procedure in Wagstaff et al. (2018)
-    to determine which images in the test set are most novel with respect to the
-    baseline set.
-
-    B = number of baseline examples
-    T = number of test examples
-    M = number of rows in each image
-    N = number of columns in each image
-    H = number of heights in each image (optional)
-    C = number of channels (predictor variables)
-
-    If `norm_function is None` and `denorm_function is None`, this method will
-    assume that the input images (`baseline_image_matrix` and
-    `test_image_matrix`) are normalized and will return normalized images.
-    Otherwise, will assume that input images are *de*normalized and will return
-    *de*normalized images.
-
-    :param baseline_image_matrix: numpy array (either B x M x N x C or
-        B x M x N x H x C) of baseline images.
-    :param test_image_matrix: numpy array (either T x M x N x C or
-        T x M x N x H x C) of baseline images.
-    :param cnn_model_object: Trained CNN model (instance of
-        `keras.models.Model`).  Will be used to turn images into scalar
-        features.
-    :param cnn_feature_layer_name: The "scalar features" will be the set of
-        activations from this layer.
-    :param ucn_model_object: Trained UCN model (instance of
-        `keras.models.Model`).  Will be used to turn scalar features into
-        images.
-    :param num_novel_test_images: Number of novel test images to find.
-    :param norm_function: Function used to normalize images.  Must have the
-        following inputs and outputs.
-    Input: image_matrix: numpy array (either E x M x N x C or E x M x N x H x C,
-        where E = number of examples) of denormalized images.
-    Output: image_matrix_norm: numpy array (equivalent shape) of normalized
-        images.
-
-    :param denorm_function: Function used to *de*normalize images.  Must have
-        the following inputs and outputs.
-    Input: image_matrix: numpy array (either E x M x N x C or E x M x N x H x C,
-        where E = number of examples) of normalized images.
-    Output: image_matrix_norm: numpy array (equivalent shape) of denormalized
-        images.
-
-    :param percent_svd_variance_to_keep: See doc for `_fit_svd`.
-
-    :return: novelty_dict: Dictionary with the following keys.  In the following
-        discussion, Q = number of novel test images found.
-    novelty_dict['novel_image_matrix_actual']: Q-by-M-by-N-by-C numpy array of
-        novel test images.
-    novelty_dict['novel_image_matrix_upconv']: Same as
-        "novel_image_matrix_actual" but reconstructed by the upconvnet.
-    novelty_dict['novel_image_matrix_upconv_svd']: Same as
-        "novel_image_matrix_actual" but reconstructed by SVD (singular-value
-        decomposition) and the upconvnet.
-
-    novelty_dict['baseline_image_matrix']: Same as input.
-    novelty_dict['test_image_matrix']: Same as input.
-    novelty_dict['percent_svd_variance_to_keep']: Same as input.
-    novelty_dict['norm_function_name']: Name of input `norm_function`.
-    novelty_dict['denorm_function_name']: Name of input `denorm_function`.
-    """
-
-    # TODO(thunderhoser): Move this method to GeneralExam repository.
-
-    error_checking.assert_is_numpy_array_without_nan(baseline_image_matrix)
-    num_dimensions = len(baseline_image_matrix.shape)
-    error_checking.assert_is_geq(num_dimensions, 4)
-    error_checking.assert_is_leq(num_dimensions, 5)
-
-    error_checking.assert_is_numpy_array_without_nan(test_image_matrix)
-
-    num_test_examples = test_image_matrix.shape[0]
-    expected_dimensions = numpy.array(
-        (num_test_examples,) + baseline_image_matrix.shape[1:], dtype=int)
-    error_checking.assert_is_numpy_array(
-        test_image_matrix, exact_dimensions=expected_dimensions)
-
-    error_checking.assert_is_integer(num_novel_test_images)
-    error_checking.assert_is_geq(num_novel_test_images, 1)
-    error_checking.assert_is_leq(num_novel_test_images, num_test_examples)
-
-    inputs_normalized = norm_function is None and denorm_function is None
-
-    if inputs_normalized:
-        baseline_image_matrix_norm = baseline_image_matrix
-        test_image_matrix_norm = test_image_matrix
-    else:
-        baseline_image_matrix_norm = norm_function(baseline_image_matrix)
-        test_image_matrix_norm = norm_function(test_image_matrix)
-
-    baseline_feature_matrix = _apply_cnn(
-        cnn_model_object=cnn_model_object,
-        list_of_predictor_matrices=[baseline_image_matrix_norm],
-        output_layer_name=cnn_feature_layer_name, verbose=False)
-
-    test_feature_matrix = _apply_cnn(
-        cnn_model_object=cnn_model_object,
-        list_of_predictor_matrices=[test_image_matrix_norm],
-        output_layer_name=cnn_feature_layer_name, verbose=False)
-
-    novel_indices = []
-    novel_image_matrix_upconv = None
-    novel_image_matrix_upconv_svd = None
-
-    for k in range(num_novel_test_images):
-        print('Finding {0:d}th of {1:d} novel test images...'.format(
-            k + 1, num_novel_test_images))
-
-        if len(novel_indices) == 0:
-            this_baseline_feature_matrix = baseline_feature_matrix + 0.
-            this_test_feature_matrix = test_feature_matrix + 0.
-        else:
-            novel_indices_numpy = numpy.array(novel_indices, dtype=int)
-            this_baseline_feature_matrix = numpy.concatenate(
-                (baseline_feature_matrix,
-                 test_feature_matrix[novel_indices_numpy, ...]),
-                axis=0)
-
-            this_test_feature_matrix = numpy.delete(
-                test_feature_matrix, obj=novel_indices_numpy, axis=0)
-
-        svd_dictionary = _fit_svd(
-            baseline_feature_matrix=this_baseline_feature_matrix,
-            test_feature_matrix=this_test_feature_matrix,
-            percent_variance_to_keep=percent_svd_variance_to_keep)
-
-        svd_errors = numpy.full(num_test_examples, numpy.nan)
-        test_feature_matrix_svd = numpy.full(
-            test_feature_matrix.shape, numpy.nan)
-
-        for i in range(num_test_examples):
-            if i in novel_indices:
-                continue
-
-            test_feature_matrix_svd[i, ...] = _apply_svd(
-                feature_vector=test_feature_matrix[i, ...],
-                svd_dictionary=svd_dictionary)
-
-            svd_errors[i] = numpy.linalg.norm(
-                test_feature_matrix_svd[i, ...] - test_feature_matrix[i, ...]
-            )
-
-        new_novel_index = numpy.nanargmax(svd_errors)
-        novel_indices.append(new_novel_index)
-
-        new_image_matrix_upconv = ucn_model_object.predict(
-            test_feature_matrix[[new_novel_index], ...], batch_size=1)
-
-        new_image_matrix_upconv_svd = ucn_model_object.predict(
-            test_feature_matrix_svd[[new_novel_index], ...], batch_size=1)
-
-        if novel_image_matrix_upconv is None:
-            novel_image_matrix_upconv = new_image_matrix_upconv + 0.
-            novel_image_matrix_upconv_svd = new_image_matrix_upconv_svd + 0.
-        else:
-            novel_image_matrix_upconv = numpy.concatenate(
-                (novel_image_matrix_upconv, new_image_matrix_upconv), axis=0)
-            novel_image_matrix_upconv_svd = numpy.concatenate(
-                (novel_image_matrix_upconv_svd, new_image_matrix_upconv_svd),
-                axis=0)
-
-    novel_indices = numpy.array(novel_indices, dtype=int)
-
-    if inputs_normalized:
-        norm_function_name = None
-        denorm_function_name = None
-    else:
-        novel_image_matrix_upconv = denorm_function(novel_image_matrix_upconv)
-        novel_image_matrix_upconv_svd = denorm_function(
-            novel_image_matrix_upconv_svd)
-
-        norm_function_name = norm_function.__name__
-        denorm_function_name = denorm_function.__name__
-
-    return {
-        NOVEL_IMAGES_ACTUAL_KEY: test_image_matrix[novel_indices, ...],
-        NOVEL_IMAGES_UPCONV_KEY: novel_image_matrix_upconv,
-        NOVEL_IMAGES_UPCONV_SVD_KEY: novel_image_matrix_upconv_svd,
-        BASELINE_IMAGES_KEY: baseline_image_matrix,
-        TEST_IMAGES_KEY: test_image_matrix,
-        PERCENT_VARIANCE_KEY: percent_svd_variance_to_keep,
-        NORM_FUNCTION_KEY: norm_function_name,
-        DENORM_FUNCTION_KEY: denorm_function_name
-    }
 
 
 def do_novelty_detection(
@@ -539,15 +272,18 @@ def do_novelty_detection(
     :param percent_svd_variance_to_keep: See doc for `_fit_svd`.
     :return: novelty_dict: Dictionary with the following keys, letting
         Q = `num_novel_examples`.
+    novelty_dict['list_of_baseline_input_matrices']: Same as input.
+    novelty_dict['list_of_trial_input_matrices']: Same as input.
     novelty_dict['novel_indices']: length-Q numpy array with indices of novel
-        examples, where novel_indices[k] is the index of the [k]th-most novel.
-        These are indices into the first axis of each array in
+        examples, where novel_indices[k] is the index of the [k]th-most novel
+        example.  These are indices into the first axis of each array in
         `list_of_trial_input_matrices`.
     novelty_dict['novel_image_matrix_upconv']: numpy array with upconvnet
-        reconstructions of novel examples.  The first axis has length Q.
-    novelty_dict['novel_image_matrix_upconv_svd']: Same as
-        "novel_image_matrix_upconv", except that images were reconstructed by
-        SVD and then the upconvnet.
+        reconstructions of the most novel examples.  The first axis has length
+        Q.
+    novelty_dict['novel_image_matrix_upconv_svd']: numpy array with upconvnet
+        reconstructions of SVD reconstructions of the most novel examples.
+        Same dimensions as `novel_image_matrix_upconv`.
     novelty_dict['percent_svd_variance_to_keep']: Same as input.
     novelty_dict['cnn_feature_layer_name']: Same as input.
     novelty_dict['multipass']: Same as input.
@@ -633,8 +369,9 @@ def do_novelty_detection(
                 axis=0)
 
     return {
-        NOVEL_EXAMPLES_ACTUAL_KEY:
-            [a[novel_indices, ...] for a in list_of_trial_input_matrices],
+        BASELINE_INPUTS_KEY: list_of_baseline_input_matrices,
+        TRIAL_INPUTS_KEY: list_of_trial_input_matrices,
+        NOVEL_INDICES_KEY: novel_indices,
         NOVEL_IMAGES_UPCONV_KEY: novel_image_matrix_upconv,
         NOVEL_IMAGES_UPCONV_SVD_KEY: novel_image_matrix_upconv_svd,
         PERCENT_VARIANCE_KEY: percent_svd_variance_to_keep,
@@ -643,26 +380,100 @@ def do_novelty_detection(
     }
 
 
-def write_results(novelty_dict, pickle_file_name):
+def add_metadata(
+        novelty_dict, baseline_storm_ids, baseline_storm_times_unix_sec,
+        trial_storm_ids, trial_storm_times_unix_sec, cnn_file_name,
+        upconvnet_file_name):
+    """Adds metadata to novelty-detection results.
+
+    B = number of baseline examples
+    T = number of trial examples
+
+    :param novelty_dict: Dictionary created by `do_novelty_detection`.
+    :param baseline_storm_ids: length-B list of storm IDs (strings) for baseline
+        examples.
+    :param baseline_storm_times_unix_sec: length-B numpy array of valid times
+        for baseline examples.
+    :param trial_storm_ids: length-T list of storm IDs (strings) for trial
+        examples.
+    :param trial_storm_times_unix_sec: length-T numpy array of valid times for
+        baseline examples.
+    :param cnn_file_name: Path to file with CNN used for novelty detection
+        (readable by `cnn.read_model`).
+    :param upconvnet_file_name: Path to file with upconvnet used for novelty
+        detection (readable by `cnn.read_model`).
+
+    :return: novelty_dict: Dictionary with the following keys.
+    novelty_dict['list_of_baseline_input_matrices']: See doc for
+        `do_novelty_detection`.
+    novelty_dict['list_of_trial_input_matrices']: Same.
+    novelty_dict['novel_indices']: Same.
+    novelty_dict['novel_image_matrix_upconv']: Same.
+    novelty_dict['novel_image_matrix_upconv_svd']: Same.
+    novelty_dict['percent_svd_variance_to_keep']: Same.
+    novelty_dict['cnn_feature_layer_name']: Same.
+    novelty_dict['multipass']: Same.
+    novelty_dict['baseline_storm_ids']: See input doc for this method.
+    novelty_dict['baseline_storm_times_unix_sec']: Same.
+    novelty_dict['trial_storm_ids']: Same.
+    novelty_dict['trial_storm_times_unix_sec']: Same.
+    novelty_dict['cnn_file_name']: Same.
+    novelty_dict['upconvnet_file_name']: Same.
+    """
+
+    num_baseline_examples = novelty_dict[BASELINE_INPUTS_KEY][0].shape[0]
+    these_expected_dim = numpy.array([num_baseline_examples], dtype=int)
+
+    error_checking.assert_is_string_list(baseline_storm_ids)
+    error_checking.assert_is_numpy_array(
+        numpy.array(baseline_storm_ids), these_expected_dim)
+    error_checking.assert_is_integer_numpy_array(baseline_storm_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        baseline_storm_times_unix_sec, these_expected_dim)
+
+    num_trial_examples = novelty_dict[TRIAL_INPUTS_KEY][0].shape[0]
+    these_expected_dim = numpy.array([num_trial_examples], dtype=int)
+
+    error_checking.assert_is_string_list(trial_storm_ids)
+    error_checking.assert_is_numpy_array(
+        numpy.array(trial_storm_ids), these_expected_dim)
+    error_checking.assert_is_integer_numpy_array(trial_storm_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        trial_storm_times_unix_sec, these_expected_dim)
+
+    error_checking.assert_is_string(cnn_file_name)
+    error_checking.assert_is_string(upconvnet_file_name)
+
+    novelty_dict.update({
+        BASELINE_STORM_IDS_KEY: baseline_storm_ids,
+        BASELINE_STORM_TIMES_KEY: baseline_storm_times_unix_sec,
+        TRIAL_STORM_IDS_KEY: trial_storm_ids,
+        TRIAL_STORM_TIMES_KEY: trial_storm_times_unix_sec,
+        CNN_FILE_KEY: cnn_file_name,
+        UPCONVNET_FILE_KEY: upconvnet_file_name
+    })
+
+    return novelty_dict
+
+
+def write_standard_file(novelty_dict, pickle_file_name):
     """Writes novelty-detection results to Pickle file.
 
-    :param novelty_dict: Dictionary created by `do_novelty_detection`, plus one
-        extra key.
-    novelty_dict['ucn_file_name']: Path to file with upconvnet used for novelty
-        detection.  This should be an HDF5 file, readable by
-        `keras.models.load_model`.
-
+    :param novelty_dict: Dictionary created by `add_metadata`.
     :param pickle_file_name: Path to output file.
-    :raises: ValueError: if any expected key is not found.
+    :raises: ValueError: if any expected key is missing from the dictionary.
     """
 
     missing_keys = list(
-        set(REQUIRED_KEYS) - set(novelty_dict.keys())
+        set(STANDARD_FILE_KEYS) - set(novelty_dict.keys())
     )
 
     if len(missing_keys) > 0:
-        error_string = 'Cannot find the following expected keys.\n{0:s}'.format(
-            str(missing_keys))
+        error_string = (
+            '\n{0:s}\nKeys listed above were expected, but not found, in the '
+            'dictionary.'
+        ).format(str(missing_keys))
+
         raise ValueError(error_string)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -672,24 +483,26 @@ def write_results(novelty_dict, pickle_file_name):
     pickle_file_handle.close()
 
 
-def read_results(pickle_file_name):
+def read_standard_file(pickle_file_name):
     """Reads novelty-detection results from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: novelty_dict: See doc for `write_results`.
+    :return: novelty_dict: Dictionary with keys listed in output doc for
+        `add_metadata`.
+    :raises: ValueError: if any expected key is missing from the dictionary.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     novelty_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    missing_keys = list(
-        set(REQUIRED_KEYS) - set(novelty_dict.keys())
-    )
-
+    missing_keys = list(set(STANDARD_FILE_KEYS) - set(novelty_dict.keys()))
     if len(missing_keys) == 0:
         return novelty_dict
 
-    error_string = 'Cannot find the following expected keys.\n{0:s}'.format(
-        str(missing_keys))
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
     raise ValueError(error_string)
