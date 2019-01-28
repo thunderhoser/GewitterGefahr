@@ -600,7 +600,7 @@ def train_cnn_gridrad_2d_reduced(
 
 def apply_2d_or_3d_cnn(
         model_object, radar_image_matrix, sounding_matrix=None,
-        num_examples_per_batch=100, return_features=False,
+        num_examples_per_batch=100, verbose=False, return_features=False,
         feature_layer_name=None):
     """Applies CNN to either 2-D or 3-D radar images (and possibly soundings).
 
@@ -613,6 +613,7 @@ def apply_2d_or_3d_cnn(
     :param num_examples_per_batch: Number of examples per batch.  Will apply CNN
         to this many examples at once.  If `num_examples_per_batch is None`, will
         apply CNN to all predictions at once.
+    :param verbose: Boolean flag.  If True, will print progress messages.
     :param return_features: Boolean flag.  If True, this method will return
         features (activations of an intermediate layer).  If False, this method
         will return probabilistic predictions.
@@ -650,6 +651,7 @@ def apply_2d_or_3d_cnn(
         error_checking.assert_is_greater(num_examples_per_batch, 0)
 
     num_examples_per_batch = min([num_examples_per_batch, num_examples])
+    error_checking.assert_is_boolean(verbose)
     error_checking.assert_is_boolean(return_features)
 
     if return_features:
@@ -669,6 +671,11 @@ def apply_2d_or_3d_cnn(
         these_indices = numpy.linspace(
             this_first_index, this_last_index,
             num=this_last_index - this_first_index + 1, dtype=int)
+
+        if verbose:
+            print (
+                'Applying model to examples {0:d}-{1:d} of {2:d}...'
+            ).format(this_first_index + 1, this_last_index + 1, num_examples)
 
         if sounding_matrix is None:
             these_outputs = model_object_to_use.predict(
@@ -696,7 +703,7 @@ def apply_2d_or_3d_cnn(
 
 def apply_2d3d_cnn(
         model_object, reflectivity_matrix_dbz, azimuthal_shear_matrix_s01,
-        sounding_matrix=None, num_examples_per_batch=100,
+        sounding_matrix=None, num_examples_per_batch=100, verbose=False,
         return_features=False, feature_layer_name=None):
     """Applies CNN to both 2-D and 3-D radar images (and possibly soundings).
 
@@ -711,6 +718,7 @@ def apply_2d3d_cnn(
         storm-centered azimuthal-shear images.
     :param sounding_matrix: See doc for `apply_2d_or_3d_cnn`.
     :param num_examples_per_batch: Same.
+    :param verbose: Same.
     :param return_features: Same.
     :param feature_layer_name: Same.
 
@@ -750,6 +758,7 @@ def apply_2d3d_cnn(
         error_checking.assert_is_greater(num_examples_per_batch, 0)
 
     num_examples_per_batch = min([num_examples_per_batch, num_examples])
+    error_checking.assert_is_boolean(verbose)
     error_checking.assert_is_boolean(return_features)
 
     if return_features:
@@ -769,6 +778,11 @@ def apply_2d3d_cnn(
         these_indices = numpy.linspace(
             this_first_index, this_last_index,
             num=this_last_index - this_first_index + 1, dtype=int)
+
+        if verbose:
+            print (
+                'Applying model to examples {0:d}-{1:d} of {2:d}...'
+            ).format(this_first_index + 1, this_last_index + 1, num_examples)
 
         if sounding_matrix is None:
             these_outputs = model_object_to_use.predict(
