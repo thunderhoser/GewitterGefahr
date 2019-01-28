@@ -198,7 +198,7 @@ def _apply_cnn(cnn_model_object, list_of_predictor_matrices, output_layer_name,
     """
 
     intermediate_model_object = cnn.model_to_feature_generator(
-        model_object=cnn_model_object, output_layer_name=output_layer_name)
+        model_object=cnn_model_object, feature_layer_name=output_layer_name)
 
     num_examples = list_of_predictor_matrices[0].shape[0]
     feature_matrix = None

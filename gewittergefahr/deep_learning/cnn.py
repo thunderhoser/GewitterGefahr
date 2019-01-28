@@ -218,7 +218,27 @@ def _remove_data_augmentation(validation_option_dict):
     return validation_option_dict
 
 
-def model_to_feature_generator(model_object, output_layer_name):
+def _binary_probabilities_to_matrix(binary_probabilities):
+    """Converts probabilities of binary event to 2-class probability matrix.
+
+    E = number of examples
+
+    :param binary_probabilities: length-E numpy array of probabilities.
+    :return: class_probability_matrix: E-by-2 numpy array, where
+        class_probability_matrix[i, k] = probability of [k]th class.
+    """
+
+    num_dimensions = len(binary_probabilities.shape)
+    if num_dimensions == 2 and binary_probabilities.shape[1] > 1:
+        return binary_probabilities
+
+    binary_probabilities = numpy.reshape(
+        binary_probabilities, (len(binary_probabilities), 1)
+    )
+    return numpy.hstack((1. - binary_probabilities, binary_probabilities))
+
+
+def model_to_feature_generator(model_object, feature_layer_name):
     """Reduces Keras model from predictor to feature-generator.
 
     Specifically, this method turns an intermediate layer H into the output
@@ -226,15 +246,15 @@ def model_to_feature_generator(model_object, output_layer_name):
     model will consist of activations from layer H, rather than predictions.
 
     :param model_object: Instance of `keras.models.Model`.
-    :param output_layer_name: Name of new output layer.
+    :param feature_layer_name: Name of new output layer.
     :return: intermediate_model_object: Same as input, except that all layers
         after H are removed.
     """
 
-    error_checking.assert_is_string(output_layer_name)
+    error_checking.assert_is_string(feature_layer_name)
     return keras.models.Model(
         inputs=model_object.input,
-        outputs=model_object.get_layer(name=output_layer_name).output)
+        outputs=model_object.get_layer(name=feature_layer_name).output)
 
 
 def read_model(hdf5_file_name):
@@ -578,10 +598,11 @@ def train_cnn_gridrad_2d_reduced(
             callbacks=list_of_callback_objects)
 
 
-def apply_2d_cnn(
+def apply_2d_or_3d_cnn(
         model_object, radar_image_matrix, sounding_matrix=None,
-        return_features=False, output_layer_name=None):
-    """Applies CNN to 2-D radar images.
+        num_examples_per_batch=100, return_features=False,
+        feature_layer_name=None):
+    """Applies CNN to either 2-D or 3-D radar images (and possibly soundings).
 
     :param model_object: Trained instance of `keras.models.Model` or
         `keras.models.Sequential`.
@@ -589,10 +610,13 @@ def apply_2d_cnn(
         radar images.
     :param sounding_matrix: [may be None]
         numpy array (E x H_s x F_s) of storm-centered sounding.
+    :param num_examples_per_batch: Number of examples per batch.  Will apply CNN
+        to this many examples at once.  If `num_examples_per_batch is None`, will
+        apply CNN to all predictions at once.
     :param return_features: Boolean flag.  If True, this method will return
         features (activations of an intermediate layer).  If False, this method
         will return probabilistic predictions.
-    :param output_layer_name: [used only if return_features = True]
+    :param feature_layer_name: [used only if return_features = True]
         Name of layer for which features will be returned.
 
     If return_features = True...
@@ -612,183 +636,164 @@ def apply_2d_cnn(
     dl_utils.check_radar_images(
         radar_image_matrix=radar_image_matrix, min_num_dimensions=4,
         max_num_dimensions=4)
-    error_checking.assert_is_boolean(return_features)
 
     num_examples = radar_image_matrix.shape[0]
+
     if sounding_matrix is not None:
         dl_utils.check_soundings(
             sounding_matrix=sounding_matrix, num_examples=num_examples)
 
-    if return_features:
-        intermediate_model_object = model_to_feature_generator(
-            model_object=model_object, output_layer_name=output_layer_name)
-
-        if sounding_matrix is None:
-            return intermediate_model_object.predict(
-                radar_image_matrix, batch_size=num_examples)
-
-        return intermediate_model_object.predict(
-            [radar_image_matrix, sounding_matrix], batch_size=num_examples)
-
-    if sounding_matrix is None:
-        these_probabilities = model_object.predict(
-            radar_image_matrix, batch_size=num_examples)
+    if num_examples_per_batch is None:
+        num_examples_per_batch = num_examples + 0
     else:
-        these_probabilities = model_object.predict(
-            [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+        error_checking.assert_is_integer(num_examples_per_batch)
+        error_checking.assert_is_greater(num_examples_per_batch, 0)
 
-    if these_probabilities.shape[-1] > 1:
-        return these_probabilities
-
-    these_probabilities = numpy.reshape(
-        these_probabilities, (len(these_probabilities), 1)
-    )
-    return numpy.hstack((1. - these_probabilities, these_probabilities))
-
-
-def apply_3d_cnn(
-        model_object, radar_image_matrix, sounding_matrix=None,
-        return_features=False, output_layer_name=None):
-    """Applies CNN to 3-D radar images.
-
-    :param model_object: Trained instance of `keras.models.Model` or
-        `keras.models.Sequential`.
-    :param radar_image_matrix: numpy array (E x M x N x H_r x F_r) of
-        storm-centered radar images.
-    :param sounding_matrix: See doc for `apply_2d_cnn`.
-    :param return_features: Same.
-    :param output_layer_name: Same.
-
-    If return_features = True...
-
-    :return: feature_matrix: See doc for `apply_2d_cnn`.
-
-    If return_features = False...
-
-    :return: class_probability_matrix: See doc for `apply_2d_cnn`.
-    """
-
-    dl_utils.check_radar_images(
-        radar_image_matrix=radar_image_matrix, min_num_dimensions=5,
-        max_num_dimensions=5)
+    num_examples_per_batch = min([num_examples_per_batch, num_examples])
     error_checking.assert_is_boolean(return_features)
 
-    num_examples = radar_image_matrix.shape[0]
-    if sounding_matrix is not None:
-        dl_utils.check_soundings(
-            sounding_matrix=sounding_matrix, num_examples=num_examples)
-
     if return_features:
-        intermediate_model_object = model_to_feature_generator(
-            model_object=model_object, output_layer_name=output_layer_name)
+        model_object_to_use = model_to_feature_generator(
+            model_object=model_object, feature_layer_name=feature_layer_name)
+    else:
+        model_object_to_use = model_object
+
+    output_matrix = None
+
+    for i in range(0, num_examples, num_examples_per_batch):
+        this_first_index = i
+        this_last_index = min(
+            [i + num_examples_per_batch - 1, num_examples - 1]
+        )
+
+        these_indices = numpy.linspace(
+            this_first_index, this_last_index,
+            num=this_last_index - this_first_index + 1, dtype=int)
 
         if sounding_matrix is None:
-            return intermediate_model_object.predict(
-                radar_image_matrix, batch_size=num_examples)
+            these_outputs = model_object_to_use.predict(
+                radar_image_matrix[these_indices, ...],
+                batch_size=len(these_indices)
+            )
+        else:
+            these_outputs = model_object_to_use.predict(
+                [radar_image_matrix[these_indices, ...],
+                 sounding_matrix[these_indices, ...]],
+                batch_size=len(these_indices)
+            )
 
-        return intermediate_model_object.predict(
-            [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+        if output_matrix is None:
+            output_matrix = these_outputs + 0.
+        else:
+            output_matrix = numpy.concatenate(
+                (output_matrix, these_outputs), axis=0)
 
-    if sounding_matrix is None:
-        these_probabilities = model_object.predict(
-            radar_image_matrix, batch_size=num_examples)
-    else:
-        these_probabilities = model_object.predict(
-            [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+    if return_features:
+        return output_matrix
 
-    if these_probabilities.shape[-1] > 1:
-        return these_probabilities
-
-    these_probabilities = numpy.reshape(
-        these_probabilities, (len(these_probabilities), 1)
-    )
-    return numpy.hstack((1. - these_probabilities, these_probabilities))
+    return _binary_probabilities_to_matrix(output_matrix)
 
 
 def apply_2d3d_cnn(
-        model_object, reflectivity_image_matrix_dbz, az_shear_image_matrix_s01,
-        sounding_matrix=None, return_features=False, output_layer_name=None):
-    """Applies CNN to both 2-D and 3-D radar images.
+        model_object, reflectivity_matrix_dbz, azimuthal_shear_matrix_s01,
+        sounding_matrix=None, num_examples_per_batch=100,
+        return_features=False, feature_layer_name=None):
+    """Applies CNN to both 2-D and 3-D radar images (and possibly soundings).
 
     M = number of rows in each reflectivity image
     N = number of columns in each reflectivity image
 
     :param model_object: Trained instance of `keras.models.Model` or
         `keras.models.Sequential`.
-    :param reflectivity_image_matrix_dbz: numpy array (E x M x N x H_r x 1) of
+    :param reflectivity_matrix_dbz: numpy array (E x M x N x H_r x 1) of
         storm-centered reflectivity images.
-    :param az_shear_image_matrix_s01: numpy array (E x 2M x 2N x C) of
+    :param azimuthal_shear_matrix_s01: numpy array (E x 2M x 2N x C) of
         storm-centered azimuthal-shear images.
-    :param sounding_matrix: See doc for `apply_2d_cnn`.
+    :param sounding_matrix: See doc for `apply_2d_or_3d_cnn`.
+    :param num_examples_per_batch: Same.
     :param return_features: Same.
-    :param output_layer_name: Same.
+    :param feature_layer_name: Same.
 
     If return_features = True...
 
-    :return: feature_matrix: See doc for `apply_2d_cnn`.
+    :return: feature_matrix: See doc for `apply_2d_or_3d_cnn`.
 
     If return_features = False...
 
-    :return: class_probability_matrix: See doc for `apply_2d_cnn`.
+    :return: class_probability_matrix: See doc for `apply_2d_or_3d_cnn`.
     """
 
     dl_utils.check_radar_images(
-        radar_image_matrix=reflectivity_image_matrix_dbz, min_num_dimensions=5,
+        radar_image_matrix=reflectivity_matrix_dbz, min_num_dimensions=5,
         max_num_dimensions=5)
 
     dl_utils.check_radar_images(
-        radar_image_matrix=az_shear_image_matrix_s01,
+        radar_image_matrix=azimuthal_shear_matrix_s01,
         min_num_dimensions=4, max_num_dimensions=4)
-
-    error_checking.assert_is_boolean(return_features)
-
-    expected_dimensions = numpy.array(
-        reflectivity_image_matrix_dbz.shape[:-1] + (1,))
-    error_checking.assert_is_numpy_array(
-        reflectivity_image_matrix_dbz, exact_dimensions=expected_dimensions)
-
-    num_examples = reflectivity_image_matrix_dbz.shape[0]
-    expected_dimensions = numpy.array(
-        (num_examples,) + az_shear_image_matrix_s01[1:]
-    )
-    error_checking.assert_is_numpy_array(
-        az_shear_image_matrix_s01, exact_dimensions=expected_dimensions)
 
     if sounding_matrix is not None:
         dl_utils.check_soundings(
-            sounding_matrix=sounding_matrix, num_examples=num_examples)
+            sounding_matrix=sounding_matrix,
+            num_examples=reflectivity_matrix_dbz.shape[0]
+        )
+        dl_utils.check_soundings(
+            sounding_matrix=sounding_matrix,
+            num_examples=azimuthal_shear_matrix_s01.shape[0]
+        )
+
+    num_examples = reflectivity_matrix_dbz.shape[0]
+
+    if num_examples_per_batch is None:
+        num_examples_per_batch = num_examples + 0
+    else:
+        error_checking.assert_is_integer(num_examples_per_batch)
+        error_checking.assert_is_greater(num_examples_per_batch, 0)
+
+    num_examples_per_batch = min([num_examples_per_batch, num_examples])
+    error_checking.assert_is_boolean(return_features)
 
     if return_features:
-        intermediate_model_object = model_to_feature_generator(
-            model_object=model_object, output_layer_name=output_layer_name)
+        model_object_to_use = model_to_feature_generator(
+            model_object=model_object, feature_layer_name=feature_layer_name)
+    else:
+        model_object_to_use = model_object
+
+    output_matrix = None
+
+    for i in range(0, num_examples, num_examples_per_batch):
+        this_first_index = i
+        this_last_index = min(
+            [i + num_examples_per_batch - 1, num_examples - 1]
+        )
+
+        these_indices = numpy.linspace(
+            this_first_index, this_last_index,
+            num=this_last_index - this_first_index + 1, dtype=int)
 
         if sounding_matrix is None:
-            return intermediate_model_object.predict(
-                [reflectivity_image_matrix_dbz, az_shear_image_matrix_s01],
-                batch_size=num_examples)
+            these_outputs = model_object_to_use.predict(
+                [reflectivity_matrix_dbz[these_indices, ...],
+                 azimuthal_shear_matrix_s01[these_indices, ...]],
+                batch_size=len(these_indices)
+            )
+        else:
+            these_outputs = model_object_to_use.predict(
+                [reflectivity_matrix_dbz[these_indices, ...],
+                 azimuthal_shear_matrix_s01[these_indices, ...],
+                 sounding_matrix[these_indices, ...]],
+                batch_size=len(these_indices)
+            )
 
-        return intermediate_model_object.predict(
-            [reflectivity_image_matrix_dbz, az_shear_image_matrix_s01,
-             sounding_matrix],
-            batch_size=num_examples)
+        if output_matrix is None:
+            output_matrix = these_outputs + 0.
+        else:
+            output_matrix = numpy.concatenate(
+                (output_matrix, these_outputs), axis=0)
 
-    if sounding_matrix is None:
-        these_probabilities = model_object.predict(
-            [reflectivity_image_matrix_dbz, az_shear_image_matrix_s01],
-            batch_size=num_examples)
-    else:
-        these_probabilities = model_object.predict(
-            [reflectivity_image_matrix_dbz, az_shear_image_matrix_s01,
-             sounding_matrix],
-            batch_size=num_examples)
+    if return_features:
+        return output_matrix
 
-    if these_probabilities.shape[-1] > 1:
-        return these_probabilities
-
-    these_probabilities = numpy.reshape(
-        these_probabilities, (len(these_probabilities), 1)
-    )
-    return numpy.hstack((1. - these_probabilities, these_probabilities))
+    return _binary_probabilities_to_matrix(output_matrix)
 
 
 def write_features(

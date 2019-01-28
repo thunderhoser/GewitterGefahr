@@ -269,7 +269,8 @@ def trainval_generator_2d_radar(
     option_dict[trainval_io.FLIP_Y_KEY] = False
 
     partial_cnn_model_object = cnn.model_to_feature_generator(
-        model_object=cnn_model_object, output_layer_name=cnn_feature_layer_name)
+        model_object=cnn_model_object,
+        feature_layer_name=cnn_feature_layer_name)
 
     if list_of_layer_operation_dicts is None:
         cnn_generator_object = trainval_io.generator_2d_or_3d(option_dict)
@@ -310,7 +311,8 @@ def testing_generator_2d_radar(
     """
 
     partial_cnn_model_object = cnn.model_to_feature_generator(
-        model_object=cnn_model_object, output_layer_name=cnn_feature_layer_name)
+        model_object=cnn_model_object,
+        feature_layer_name=cnn_feature_layer_name)
 
     if list_of_layer_operation_dicts is None:
         cnn_generator_object = testing_io.generator_2d_or_3d(

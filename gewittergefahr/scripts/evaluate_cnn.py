@@ -199,8 +199,8 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
 
             this_probability_matrix = cnn.apply_2d3d_cnn(
                 model_object=model_object,
-                reflectivity_image_matrix_dbz=these_predictor_matrices[0],
-                az_shear_image_matrix_s01=these_predictor_matrices[1],
+                reflectivity_matrix_dbz=these_predictor_matrices[0],
+                azimuthal_shear_matrix_s01=these_predictor_matrices[1],
                 sounding_matrix=this_sounding_matrix)
         else:
             if len(these_predictor_matrices) == 2:
@@ -211,12 +211,12 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
             num_radar_dimensions = len(these_predictor_matrices[0].shape) - 2
 
             if num_radar_dimensions == 2:
-                this_probability_matrix = cnn.apply_2d_cnn(
+                this_probability_matrix = cnn.apply_2d_or_3d_cnn(
                     model_object=model_object,
                     radar_image_matrix=these_predictor_matrices[0],
                     sounding_matrix=this_sounding_matrix)
             else:
-                this_probability_matrix = cnn.apply_3d_cnn(
+                this_probability_matrix = cnn.apply_2d_or_3d_cnn(
                     model_object=model_object,
                     radar_image_matrix=these_predictor_matrices[0],
                     sounding_matrix=this_sounding_matrix)

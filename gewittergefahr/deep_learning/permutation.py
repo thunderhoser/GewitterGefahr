@@ -55,7 +55,7 @@ def prediction_function_2d_cnn(model_object, list_of_input_matrices):
     else:
         sounding_matrix = None
 
-    return cnn.apply_2d_cnn(
+    return cnn.apply_2d_or_3d_cnn(
         model_object=model_object, radar_image_matrix=list_of_input_matrices[0],
         sounding_matrix=sounding_matrix)
 
@@ -78,7 +78,7 @@ def prediction_function_3d_cnn(model_object, list_of_input_matrices):
     else:
         sounding_matrix = None
 
-    return cnn.apply_3d_cnn(
+    return cnn.apply_2d_or_3d_cnn(
         model_object=model_object, radar_image_matrix=list_of_input_matrices[0],
         sounding_matrix=sounding_matrix)
 
@@ -103,8 +103,8 @@ def prediction_function_2d3d_cnn(model_object, list_of_input_matrices):
 
     return cnn.apply_2d3d_cnn(
         model_object=model_object,
-        reflectivity_image_matrix_dbz=list_of_input_matrices[0],
-        az_shear_image_matrix_s01=list_of_input_matrices[1],
+        reflectivity_matrix_dbz=list_of_input_matrices[0],
+        azimuthal_shear_matrix_s01=list_of_input_matrices[1],
         sounding_matrix=sounding_matrix)
 
 

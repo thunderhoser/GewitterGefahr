@@ -275,10 +275,10 @@ def _run(model_file_name, layer_names, top_example_dir_name,
 
             feature_matrix_by_layer[k] = cnn.apply_2d3d_cnn(
                 model_object=model_object,
-                reflectivity_image_matrix_dbz=list_of_predictor_matrices[0],
-                az_shear_image_matrix_s01=list_of_predictor_matrices[1],
+                reflectivity_matrix_dbz=list_of_predictor_matrices[0],
+                azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
                 sounding_matrix=sounding_matrix,
-                return_features=True, output_layer_name=layer_names[k])
+                return_features=True, feature_layer_name=layer_names[k])
         else:
             if len(list_of_predictor_matrices) == 2:
                 sounding_matrix = list_of_predictor_matrices[-1]
@@ -288,17 +288,17 @@ def _run(model_file_name, layer_names, top_example_dir_name,
             num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
             if num_radar_dimensions == 2:
-                feature_matrix_by_layer[k] = cnn.apply_2d_cnn(
+                feature_matrix_by_layer[k] = cnn.apply_2d_or_3d_cnn(
                     model_object=model_object,
                     radar_image_matrix=list_of_predictor_matrices[0],
                     sounding_matrix=sounding_matrix,
-                    return_features=True, output_layer_name=layer_names[k])
+                    return_features=True, feature_layer_name=layer_names[k])
             else:
-                feature_matrix_by_layer[k] = cnn.apply_3d_cnn(
+                feature_matrix_by_layer[k] = cnn.apply_2d_or_3d_cnn(
                     model_object=model_object,
                     radar_image_matrix=list_of_predictor_matrices[0],
                     sounding_matrix=sounding_matrix,
-                    return_features=True, output_layer_name=layer_names[k])
+                    return_features=True, feature_layer_name=layer_names[k])
 
     for k in range(num_layers):
         this_output_dir_name = '{0:s}/{1:s}'.format(
