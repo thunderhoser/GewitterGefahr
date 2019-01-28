@@ -65,7 +65,7 @@ LAST_VALIDN_TIME_KEY = 'last_validn_time_unix_sec'
 TRAINING_OPTION_DICT_KEY = 'training_option_dict'
 LAYER_OPERATIONS_KEY = 'list_of_layer_operation_dicts'
 
-REQUIRED_METADATA_KEYS = [
+METADATA_KEYS = [
     TARGET_NAME_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
     NUM_VALIDATION_BATCHES_KEY, MONITOR_STRING_KEY, WEIGHT_LOSS_FUNCTION_KEY,
     USE_2D3D_CONVOLUTION_KEY, VALIDATION_FILES_KEY, FIRST_VALIDN_TIME_KEY,
@@ -311,11 +311,13 @@ def write_model_metadata(
     metadata_dict.update({TRAINING_OPTION_DICT_KEY: training_option_dict})
     metadata_dict.update({LAYER_OPERATIONS_KEY: list_of_layer_operation_dicts})
 
-    missing_keys = list(set(REQUIRED_METADATA_KEYS) - set(metadata_dict.keys()))
+    missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
+
     if len(missing_keys):
         error_string = (
             'The following keys are missing from `metadata_dict`.\n{0:s}'
         ).format(str(missing_keys))
+
         raise ValueError(error_string)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -341,7 +343,16 @@ def read_model_metadata(pickle_file_name):
     if LAYER_OPERATIONS_KEY not in metadata_dict:
         metadata_dict[LAYER_OPERATIONS_KEY] = None
 
-    return metadata_dict
+    missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
+    if len(missing_keys) == 0:
+        return metadata_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
 
 
 def train_cnn_2d_or_3d(
@@ -612,7 +623,7 @@ def apply_2d_or_3d_cnn(
         numpy array (E x H_s x F_s) of storm-centered sounding.
     :param num_examples_per_batch: Number of examples per batch.  Will apply CNN
         to this many examples at once.  If `num_examples_per_batch is None`, will
-        apply CNN to all predictions at once.
+        apply CNN to all examples at once.
     :param verbose: Boolean flag.  If True, will print progress messages.
     :param return_features: Boolean flag.  If True, this method will return
         features (activations of an intermediate layer).  If False, this method
@@ -694,6 +705,9 @@ def apply_2d_or_3d_cnn(
         else:
             output_matrix = numpy.concatenate(
                 (output_matrix, these_outputs), axis=0)
+
+    if verbose:
+        print 'Have applied model to all {0:d} examples!'.format(num_examples)
 
     if return_features:
         return output_matrix
@@ -803,6 +817,9 @@ def apply_2d3d_cnn(
         else:
             output_matrix = numpy.concatenate(
                 (output_matrix, these_outputs), axis=0)
+
+    if verbose:
+        print 'Have applied model to all {0:d} examples!'.format(num_examples)
 
     if return_features:
         return output_matrix

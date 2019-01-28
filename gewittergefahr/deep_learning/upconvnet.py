@@ -1,6 +1,7 @@
 """Methods for setting up, training, and applying upconvolution networks."""
 
 import copy
+import pickle
 import numpy
 import keras
 from gewittergefahr.gg_utils import file_system_utils
@@ -23,6 +24,26 @@ DEFAULT_HALF_SMOOTHING_COLUMNS = 2
 
 MIN_MSE_DECREASE_FOR_EARLY_STOP = 0.005
 NUM_EPOCHS_FOR_EARLY_STOP = 6
+
+CNN_FILE_KEY = 'cnn_file_name'
+CNN_FEATURE_LAYER_KEY = 'cnn_feature_layer_name'
+NUM_EPOCHS_KEY = 'num_epochs'
+NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
+NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
+TRAINING_FILES_KEY = 'training_example_file_names'
+FIRST_TRAINING_TIME_KEY = 'first_training_time_unix_sec'
+LAST_TRAINING_TIME_KEY = 'last_training_time_unix_sec'
+NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
+VALIDATION_FILES_KEY = 'validation_example_file_names'
+FIRST_VALIDATION_TIME_KEY = 'first_validation_time_unix_sec'
+LAST_VALIDATION_TIME_KEY = 'last_validation_time_unix_sec'
+
+METADATA_KEYS = [
+    CNN_FILE_KEY, CNN_FEATURE_LAYER_KEY, NUM_EPOCHS_KEY,
+    NUM_EXAMPLES_PER_BATCH_KEY, NUM_TRAINING_BATCHES_KEY, TRAINING_FILES_KEY,
+    FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY, NUM_VALIDATION_BATCHES_KEY,
+    VALIDATION_FILES_KEY, FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY
+]
 
 
 def create_smoothing_filter(
@@ -255,9 +276,25 @@ def trainval_generator_2d_radar(
         be inputs (predictors) for the upconvnet.
     :return: radar_matrix: E-by-M-by-N-by-C numpy array of radar images.  These
         will be outputs (targets) for the upconvnet.
+    :raises: ValueError: if the first input tensor to `cnn_model_object` does
+        not have exactly 2 spatial dimensions.
     """
 
-    # TODO(thunderhoser): May need more input-checking.
+    if isinstance(cnn_model_object.input, list):
+        radar_input_tensor = cnn_model_object.input[0]
+    else:
+        radar_input_tensor = cnn_model_object.input
+
+    these_dimensions = radar_input_tensor.get_shape().as_list()
+    num_spatial_dimensions = len(these_dimensions) - 2
+
+    if num_spatial_dimensions != 2:
+        error_string = (
+            'First input tensor to CNN should have 2 (not {0:d}) spatial '
+            'dimensions.'
+        ).format(num_spatial_dimensions)
+
+        raise TypeError(error_string)
 
     option_dict[trainval_io.LOOP_ONCE_KEY] = False
     option_dict[trainval_io.X_TRANSLATIONS_KEY] = None
@@ -308,7 +345,25 @@ def testing_generator_2d_radar(
     :param list_of_layer_operation_dicts: Same.
     :return: feature_matrix: Same.
     :return: radar_matrix: Same.
+    :raises: ValueError: if the first input tensor to `cnn_model_object` does
+        not have exactly 2 spatial dimensions.
     """
+
+    if isinstance(cnn_model_object.input, list):
+        radar_input_tensor = cnn_model_object.input[0]
+    else:
+        radar_input_tensor = cnn_model_object.input
+
+    these_dimensions = radar_input_tensor.get_shape().as_list()
+    num_spatial_dimensions = len(these_dimensions) - 2
+
+    if num_spatial_dimensions != 2:
+        error_string = (
+            'First input tensor to CNN should have 2 (not {0:d}) spatial '
+            'dimensions.'
+        ).format(num_spatial_dimensions)
+
+        raise TypeError(error_string)
 
     partial_cnn_model_object = cnn.model_to_feature_generator(
         model_object=cnn_model_object,
@@ -442,3 +497,182 @@ def train_upconvnet(
         verbose=1, callbacks=list_of_callback_objects,
         validation_data=validation_generator,
         validation_steps=num_validation_batches_per_epoch)
+
+
+def write_model_metadata(
+        cnn_file_name, cnn_feature_layer_name, num_epochs,
+        num_examples_per_batch, num_training_batches_per_epoch,
+        training_example_file_names, first_training_time_unix_sec,
+        last_training_time_unix_sec, num_validation_batches_per_epoch,
+        validation_example_file_names, first_validation_time_unix_sec,
+        last_validation_time_unix_sec, pickle_file_name):
+    """Writes metadata to Pickle file.
+
+    :param cnn_file_name: Path to file with trained CNN (readable by
+        `cnn.read_model`).
+    :param cnn_feature_layer_name: See doc for `train_upconvnet`.
+    :param num_epochs: Same.
+    :param num_examples_per_batch: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param training_example_file_names: Same.
+    :param first_training_time_unix_sec: Same.
+    :param last_training_time_unix_sec: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param validation_example_file_names: Same.
+    :param first_validation_time_unix_sec: Same.
+    :param last_validation_time_unix_sec: Same.
+    :param pickle_file_name: Path to output file.
+    """
+
+    error_checking.assert_is_string(cnn_file_name)
+    error_checking.assert_is_string(cnn_feature_layer_name)
+    error_checking.assert_is_integer(num_epochs)
+    error_checking.assert_is_greater(num_epochs, 0)
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_greater(num_examples_per_batch, 0)
+    error_checking.assert_is_integer(num_training_batches_per_epoch)
+    error_checking.assert_is_greater(num_training_batches_per_epoch, 0)
+    error_checking.assert_is_integer(num_validation_batches_per_epoch)
+    error_checking.assert_is_greater(num_validation_batches_per_epoch, 0)
+
+    error_checking.assert_is_string_list(training_example_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(training_example_file_names), num_dimensions=1)
+
+    error_checking.assert_is_integer(first_training_time_unix_sec)
+    error_checking.assert_is_integer(last_training_time_unix_sec)
+    error_checking.assert_is_greater(
+        last_training_time_unix_sec, first_training_time_unix_sec)
+
+    error_checking.assert_is_string_list(validation_example_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(validation_example_file_names), num_dimensions=1)
+
+    error_checking.assert_is_integer(first_validation_time_unix_sec)
+    error_checking.assert_is_integer(last_validation_time_unix_sec)
+    error_checking.assert_is_greater(
+        last_validation_time_unix_sec, first_validation_time_unix_sec)
+
+    metadata_dict = {
+        CNN_FILE_KEY: cnn_file_name,
+        CNN_FEATURE_LAYER_KEY: cnn_feature_layer_name,
+        NUM_EPOCHS_KEY: num_epochs,
+        NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
+        NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
+        TRAINING_FILES_KEY: training_example_file_names,
+        FIRST_TRAINING_TIME_KEY: first_training_time_unix_sec,
+        LAST_TRAINING_TIME_KEY: last_training_time_unix_sec,
+        NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
+        VALIDATION_FILES_KEY: validation_example_file_names,
+        FIRST_VALIDATION_TIME_KEY: first_validation_time_unix_sec,
+        LAST_VALIDATION_TIME_KEY: last_validation_time_unix_sec
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_model_metadata(pickle_file_name):
+    """Reads metadata from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict['cnn_file_name']: See doc for `read_model_metadata`.
+    metadata_dict['cnn_feature_layer_name']: Same.
+    metadata_dict['num_epochs']: Same.
+    metadata_dict['num_examples_per_batch']: Same.
+    metadata_dict['num_training_batches_per_epoch']: Same.
+    metadata_dict['training_example_file_names']: Same.
+    metadata_dict['first_training_time_unix_sec']: Same.
+    metadata_dict['last_training_time_unix_sec']: Same.
+    metadata_dict['num_validation_batches_per_epoch']: Same.
+    metadata_dict['validation_example_file_names']: Same.
+    metadata_dict['first_validation_time_unix_sec']: Same.
+    metadata_dict['last_validation_time_unix_sec']: Same.
+
+    :raises: ValueError: if any expected key is missing from the dictionary.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    metadata_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
+    if len(missing_keys) == 0:
+        return metadata_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
+
+
+def apply_upconvnet(model_object, feature_matrix, num_examples_per_batch=100,
+                    verbose=False):
+    """Applies upconvnet to one or more feature vectors.
+
+    E = number of examples
+    Z = number of scalar features
+
+    :param model_object: Trained upconvnet (instance of `keras.models.Model` or
+        `keras.models.Sequential`).
+    :param feature_matrix: E-by-Z numpy array of features (inputs to upconvnet).
+    :param num_examples_per_batch: Number of examples per batch.  Will apply
+        upconvnet to this many examples at once.  If
+        `num_examples_per_batch is None`, will apply to all examples at once.
+    :param verbose: Boolean flag.  If True, will print progress messages.
+    :return: reconstructed_image_matrix: numpy array of reconstructed images.
+        The array should have <= 2 dimensions, and the first axis should have
+        length E.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(feature_matrix)
+    error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=2)
+
+    num_examples = feature_matrix.shape[0]
+
+    if num_examples_per_batch is None:
+        num_examples_per_batch = num_examples + 0
+    else:
+        error_checking.assert_is_integer(num_examples_per_batch)
+        error_checking.assert_is_greater(num_examples_per_batch, 0)
+
+    num_examples_per_batch = min([num_examples_per_batch, num_examples])
+    error_checking.assert_is_boolean(verbose)
+
+    reconstructed_image_matrix = None
+
+    for i in range(0, num_examples, num_examples_per_batch):
+        this_first_index = i
+        this_last_index = min(
+            [i + num_examples_per_batch - 1, num_examples - 1]
+        )
+
+        these_indices = numpy.linspace(
+            this_first_index, this_last_index,
+            num=this_last_index - this_first_index + 1, dtype=int)
+
+        if verbose:
+            print (
+                'Applying model to examples {0:d}-{1:d} of {2:d}...'
+            ).format(this_first_index + 1, this_last_index + 1, num_examples)
+
+        this_image_matrix = model_object.predict(
+            feature_matrix[these_indices, ...], batch_size=len(these_indices)
+        )
+
+        if reconstructed_image_matrix is None:
+            reconstructed_image_matrix = this_image_matrix + 0.
+        else:
+            reconstructed_image_matrix = numpy.concatenate(
+                (reconstructed_image_matrix, this_image_matrix), axis=0)
+
+    if verbose:
+        print 'Have applied model to all {0:d} examples!'.format(num_examples)
+
+    return reconstructed_image_matrix
