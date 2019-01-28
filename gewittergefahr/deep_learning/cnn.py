@@ -636,7 +636,7 @@ def apply_2d_or_3d_cnn(
 
     dl_utils.check_radar_images(
         radar_image_matrix=radar_image_matrix, min_num_dimensions=4,
-        max_num_dimensions=4)
+        max_num_dimensions=5)
 
     num_examples = radar_image_matrix.shape[0]
 
