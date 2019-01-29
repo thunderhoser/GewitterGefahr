@@ -298,7 +298,7 @@ def run_permutation_test(
                         these_input_matrices[q].shape[0]),
                     axis=0)
 
-                for other_name in remaining_predictor_names_by_matrix[q]:
+                for other_name in predictor_names_by_matrix[q]:
                     other_index = predictor_names_by_matrix[q].index(other_name)
 
                     print other_name
