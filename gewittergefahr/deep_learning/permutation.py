@@ -299,12 +299,6 @@ def run_permutation_test(
                         these_example_indices, ..., this_predictor_index]
                 )
 
-                # for i in range(num_examples):
-                #     these_input_matrices[q][
-                #         i, ..., this_predictor_index
-                #     ] = numpy.random.permutation(
-                #         these_input_matrices[q][i, ..., this_predictor_index])
-
                 this_probability_matrix = prediction_function(
                     model_object, these_input_matrices)
                 this_cost = cost_function(
@@ -322,8 +316,9 @@ def run_permutation_test(
                 highest_cost = this_cost + 0.
                 best_matrix_index = q + 0
                 best_predictor_name = this_predictor_name + ''
-                best_predictor_permuted_values = these_input_matrices[q][
-                    ..., this_predictor_index]
+                best_predictor_permuted_values = (
+                    these_input_matrices[q][..., this_predictor_index] + 0.
+                )
 
         if stopping_criterion:  # No more predictors to permute.
             break
@@ -338,9 +333,10 @@ def run_permutation_test(
         # Leave values of best predictor permuted.
         this_best_predictor_index = predictor_names_by_matrix[
             best_matrix_index].index(best_predictor_name)
+
         list_of_input_matrices[best_matrix_index][
             ..., this_best_predictor_index
-        ] = best_predictor_permuted_values
+        ] = best_predictor_permuted_values + 0.
 
         print 'Best predictor = "{0:s}" ... new cost = {1:.4e}'.format(
             best_predictor_name, highest_cost)

@@ -2,7 +2,6 @@
 
 import numpy
 import matplotlib
-
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import error_checking
@@ -16,7 +15,7 @@ TEXT_COLOUR = numpy.full(3, 0.)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
-FONT_SIZE = 30
+FONT_SIZE = 20
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -83,13 +82,13 @@ def plot_lakshmanan_results(
         y_coords, x_coords, color=bar_face_colour, edgecolor=bar_edge_colour,
         linewidth=bar_edge_width)
 
-    pyplot.yticks([], [])
-    pyplot.ylabel('Predictor permuted')
+    axes_object.set_yticks([], [])
+    axes_object.set_ylabel('Predictor permuted')
 
     if plot_percent_increase:
-        pyplot.xlabel('Cost (percentage of original)')
+        axes_object.set_xlabel('Cross-entropy (percentage of original)')
     else:
-        pyplot.xlabel('Cost')
+        axes_object.set_xlabel('Cross-entropy (absolute)')
 
     _label_bars(axes_object=axes_object, y_coords=y_coords, y_strings=y_strings)
 
@@ -138,12 +137,12 @@ def plot_breiman_results(result_dict, axes_object, plot_percent_increase=False,
         y_coords, x_coords, color=bar_face_colour, edgecolor=bar_edge_colour,
         linewidth=bar_edge_width)
 
-    pyplot.yticks([], [])
-    pyplot.ylabel('Predictor permuted')
+    axes_object.set_yticks([], [])
+    axes_object.set_ylabel('Predictor permuted')
 
     if plot_percent_increase:
-        pyplot.xlabel('Cost (percentage of original)')
+        axes_object.set_xlabel('Cross-entropy (percentage of original)')
     else:
-        pyplot.xlabel('Cost')
+        axes_object.set_xlabel('Cross-entropy (absolute)')
 
     _label_bars(axes_object=axes_object, y_coords=y_coords, y_strings=y_strings)
