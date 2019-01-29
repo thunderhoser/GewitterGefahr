@@ -351,7 +351,7 @@ def write_pmm_file(
         error_checking.assert_is_numpy_array(
             threshold_count_matrix, exact_dimensions=spatial_dimensions)
 
-    saliency_dict = {
+    mean_saliency_dict = {
         MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
         MEAN_SALIENCY_MATRICES_KEY: list_of_mean_saliency_matrices,
         THRESHOLD_COUNTS_KEY: threshold_count_matrix,
@@ -361,7 +361,7 @@ def write_pmm_file(
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(saliency_dict, pickle_file_handle)
+    pickle.dump(mean_saliency_dict, pickle_file_handle)
     pickle_file_handle.close()
 
 

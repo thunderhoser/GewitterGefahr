@@ -43,6 +43,19 @@ STANDARD_FILE_KEYS = [
     TRIAL_STORM_TIMES_KEY, CNN_FILE_KEY, UPCONVNET_FILE_KEY
 ]
 
+MEAN_NOVEL_IMAGE_KEY = 'mean_novel_image_matrix'
+MEAN_NOVEL_IMAGE_UPCONV_KEY = 'mean_novel_image_matrix_upconv'
+MEAN_NOVEL_IMAGE_UPCONV_SVD_KEY = 'mean_novel_image_matrix_upconv_svd'
+THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
+STANDARD_FILE_NAME_KEY = 'standard_novelty_file_name'
+PMM_METADATA_KEY = 'pmm_metadata_dict'
+
+PMM_FILE_KEYS = [
+    MEAN_NOVEL_IMAGE_KEY, MEAN_NOVEL_IMAGE_UPCONV_KEY,
+    MEAN_NOVEL_IMAGE_UPCONV_SVD_KEY, THRESHOLD_COUNTS_KEY,
+    STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
+]
+
 
 def _normalize_features(feature_matrix, feature_means=None,
                         feature_standard_deviations=None):
@@ -499,6 +512,104 @@ def read_standard_file(pickle_file_name):
     missing_keys = list(set(STANDARD_FILE_KEYS) - set(novelty_dict.keys()))
     if len(missing_keys) == 0:
         return novelty_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
+
+
+def write_pmm_file(
+        pickle_file_name, mean_novel_image_matrix,
+        mean_novel_image_matrix_upconv, mean_novel_image_matrix_upconv_svd,
+        threshold_count_matrix, standard_novelty_file_name, pmm_metadata_dict):
+    """Writes mean novelty-detection results to Pickle file.
+
+    This is a mean over many examples, created by PMM (probability-matched
+    means).
+
+    :param pickle_file_name: Path to output file.
+    :param mean_novel_image_matrix: numpy array with mean image over all trial
+        examples.
+    :param mean_novel_image_matrix_upconv: numpy array (same dimensions as
+        `mean_novel_image_matrix`) with mean upconvnet-reconstructed image over
+        all trial examples.
+    :param mean_novel_image_matrix_upconv_svd: numpy array (same dimensions as
+        `mean_novel_image_matrix`) with mean upconvnet-and-SVD-reconstructed
+        image over all trial examples.
+    :param threshold_count_matrix: See doc for
+        `prob_matched_means.run_pmm_many_variables`.
+    :param standard_novelty_file_name: Path to file with standard
+        novelty-detection output (readable by `read_standard_file`).
+    :param pmm_metadata_dict: Dictionary created by
+        `prob_matched_means.check_input_args`.
+    """
+
+    error_checking.assert_is_string(standard_novelty_file_name)
+
+    error_checking.assert_is_numpy_array_without_nan(mean_novel_image_matrix)
+    error_checking.assert_is_geq(len(mean_novel_image_matrix.shape), 2)
+    these_expected_dim = numpy.array(mean_novel_image_matrix.shape, dtype=int)
+
+    error_checking.assert_is_numpy_array_without_nan(
+        mean_novel_image_matrix_upconv)
+    error_checking.assert_is_numpy_array(
+        mean_novel_image_matrix_upconv, exact_dimensions=these_expected_dim)
+
+    error_checking.assert_is_numpy_array_without_nan(
+        mean_novel_image_matrix_upconv_svd)
+    error_checking.assert_is_numpy_array(
+        mean_novel_image_matrix_upconv_svd, exact_dimensions=these_expected_dim)
+
+    if threshold_count_matrix is not None:
+        error_checking.assert_is_integer_numpy_array(threshold_count_matrix)
+        error_checking.assert_is_geq_numpy_array(threshold_count_matrix, 0)
+
+        spatial_dimensions = numpy.array(
+            mean_novel_image_matrix.shape[:-1], dtype=int)
+        error_checking.assert_is_numpy_array(
+            threshold_count_matrix, exact_dimensions=spatial_dimensions)
+
+    mean_novelty_dict = {
+        MEAN_NOVEL_IMAGE_KEY: mean_novel_image_matrix,
+        MEAN_NOVEL_IMAGE_UPCONV_KEY: mean_novel_image_matrix_upconv,
+        MEAN_NOVEL_IMAGE_UPCONV_SVD_KEY: mean_novel_image_matrix_upconv_svd,
+        THRESHOLD_COUNTS_KEY: threshold_count_matrix,
+        STANDARD_FILE_NAME_KEY: standard_novelty_file_name,
+        PMM_METADATA_KEY: pmm_metadata_dict
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(mean_novelty_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_pmm_file(pickle_file_name):
+    """Reads mean novelty-detection results from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: mean_novelty_dict: Dictionary with the following keys.
+    mean_novelty_dict['mean_novel_image_matrix']: See doc for `write_pmm_file`.
+    mean_novelty_dict['mean_novel_image_matrix_upconv']: Same.
+    mean_novelty_dict['mean_novel_image_matrix_upconv_svd']: Same.
+    mean_novelty_dict['threshold_count_matrix']: Same.
+    mean_novelty_dict['standard_novelty_file_name']: Same.
+    mean_novelty_dict['pmm_metadata_dict']: Same.
+
+    :raises: ValueError: if any of the aforelisted keys are missing from the
+        dictionary.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    mean_novelty_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    missing_keys = list(set(PMM_FILE_KEYS) - set(mean_novelty_dict.keys()))
+    if len(missing_keys) == 0:
+        return mean_novelty_dict
 
     error_string = (
         '\n{0:s}\nKeys listed above were expected, but not found, in file '

@@ -16,12 +16,14 @@ from gewittergefahr.gg_utils import prob_matched_means as pmm
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import gradcam
 from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
+from gewittergefahr.deep_learning import novelty_detection
 
 NONE_STRINGS = ['', 'None']
 
 SALIENCY_FILE_ARG_NAME = 'input_saliency_file_name'
 GRADCAM_FILE_ARG_NAME = 'input_gradcam_file_name'
 BWO_FILE_ARG_NAME = 'input_bwo_file_name'
+NOVELTY_FILE_ARG_NAME = 'input_novelty_file_name'
 MAX_PERCENTILE_ARG_NAME = 'max_percentile_level'
 THRESHOLD_INDEX_ARG_NAME = 'radar_channel_idx_for_thres'
 THRESHOLD_VALUE_ARG_NAME = 'threshold_value'
@@ -41,7 +43,14 @@ GRADCAM_FILE_HELP_STRING = (
 BWO_FILE_HELP_STRING = (
     'Path to backwards-optimization file (will be read by '
     '`backwards_optimization.read_standard_file`).  If you are compositing '
-    'something other than backwards-optimized maps, leave this argument alone.')
+    'something other than backwards-optimization results, leave this argument'
+    'alone.')
+
+NOVELTY_FILE_HELP_STRING = (
+    'Path to novelty-detection file (will be read by '
+    '`novelty_detection.read_standard_file`).  If you are compositing '
+    'something other than novelty-detection results, leave this argument '
+    'alone.')
 
 MAX_PERCENTILE_HELP_STRING = (
     'Max percentile used in PMM procedure.  See '
@@ -84,6 +93,10 @@ INPUT_ARG_PARSER.add_argument(
     help=BWO_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NOVELTY_FILE_ARG_NAME, type=str, required=False,
+    default='', help=NOVELTY_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
     default=pmm.DEFAULT_MAX_PERCENTILE_LEVEL, help=MAX_PERCENTILE_HELP_STRING)
 
@@ -105,8 +118,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
-         max_percentile_level, radar_channel_idx_for_thres, threshold_value,
-         threshold_type_string, output_file_name):
+         input_novelty_file_name, max_percentile_level,
+         radar_channel_idx_for_thres, threshold_value, threshold_type_string,
+         output_file_name):
     """Runs probability-matched means (PMM).
 
     This is effectively the main method.
@@ -114,6 +128,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
     :param input_saliency_file_name: See documentation at top of file.
     :param input_gradcam_file_name: Same.
     :param input_bwo_file_name: Same.
+    :param input_novelty_file_name: Same.
     :param max_percentile_level: Same.
     :param radar_channel_idx_for_thres: Same.
     :param threshold_value: Same.
@@ -124,12 +139,19 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
     if input_saliency_file_name not in NONE_STRINGS:
         input_gradcam_file_name = None
         input_bwo_file_name = None
+        input_novelty_file_name = None
     elif input_gradcam_file_name not in NONE_STRINGS:
         input_saliency_file_name = None
         input_bwo_file_name = None
+        input_novelty_file_name = None
+    elif input_bwo_file_name not in NONE_STRINGS:
+        input_saliency_file_name = None
+        input_gradcam_file_name = None
+        input_novelty_file_name = None
     else:
         input_saliency_file_name = None
         input_gradcam_file_name = None
+        input_bwo_file_name = None
 
     if radar_channel_idx_for_thres < 0:
         radar_channel_idx_for_thres = None
@@ -147,10 +169,23 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
         gradcam_dict = gradcam.read_standard_file(input_gradcam_file_name)
         list_of_input_matrices = gradcam_dict[gradcam.INPUT_MATRICES_KEY]
 
-    else:
+    elif input_bwo_file_name is not None:
         print 'Reading data from: "{0:s}"...'.format(input_bwo_file_name)
         bwo_dictionary = backwards_opt.read_standard_file(input_bwo_file_name)
         list_of_input_matrices = bwo_dictionary[backwards_opt.INIT_FUNCTION_KEY]
+
+    else:
+        print 'Reading data from: "{0:s}"...'.format(input_novelty_file_name)
+        novelty_dict = novelty_detection.read_standard_file(
+            input_novelty_file_name)
+
+        list_of_input_matrices = novelty_dict[
+            novelty_detection.TRIAL_INPUTS_KEY]
+        novel_indices = novelty_dict[novelty_detection.NOVEL_INDICES_KEY]
+
+        list_of_input_matrices = [
+            a[novel_indices, ...] for a in list_of_input_matrices
+        ]
 
     print 'Running PMM on denormalized predictor matrices...'
 
@@ -239,26 +274,52 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
 
         return
 
-    print 'Running PMM on backwards-optimized maps...'
-    list_of_optimized_matrices = bwo_dictionary[
-        backwards_opt.OPTIMIZED_MATRICES_KEY]
+    if input_bwo_file_name is not None:
+        print 'Running PMM on backwards-optimization output...'
+        list_of_optimized_matrices = bwo_dictionary[
+            backwards_opt.OPTIMIZED_MATRICES_KEY]
 
-    num_input_matrices = len(list_of_input_matrices)
-    list_of_mean_optimized_matrices = [None] * num_input_matrices
+        num_input_matrices = len(list_of_input_matrices)
+        list_of_mean_optimized_matrices = [None] * num_input_matrices
 
-    for i in range(num_input_matrices):
-        list_of_mean_optimized_matrices[i] = pmm.run_pmm_many_variables(
-            input_matrix=list_of_optimized_matrices[i],
-            max_percentile_level=max_percentile_level
-        )[0]
+        for i in range(num_input_matrices):
+            list_of_mean_optimized_matrices[i] = pmm.run_pmm_many_variables(
+                input_matrix=list_of_optimized_matrices[i],
+                max_percentile_level=max_percentile_level
+            )[0]
+
+        print 'Writing output to: "{0:s}"...'.format(output_file_name)
+        backwards_opt.write_pmm_file(
+            pickle_file_name=output_file_name,
+            list_of_mean_input_matrices=list_of_mean_input_matrices,
+            list_of_mean_optimized_matrices=list_of_mean_optimized_matrices,
+            threshold_count_matrix=threshold_count_matrix,
+            standard_bwo_file_name=input_bwo_file_name,
+            pmm_metadata_dict=pmm_metadata_dict)
+
+        return
+
+    print 'Running PMM on novelty-detection output...'
+
+    mean_novel_image_matrix_upconv = pmm.run_pmm_many_variables(
+        input_matrix=novelty_dict[novelty_detection.NOVEL_IMAGES_UPCONV_KEY],
+        max_percentile_level=max_percentile_level
+    )[0]
+
+    mean_novel_image_matrix_upconv_svd = pmm.run_pmm_many_variables(
+        input_matrix=novelty_dict[
+            novelty_detection.NOVEL_IMAGES_UPCONV_SVD_KEY],
+        max_percentile_level=max_percentile_level
+    )[0]
 
     print 'Writing output to: "{0:s}"...'.format(output_file_name)
-    backwards_opt.write_pmm_file(
+    novelty_detection.write_pmm_file(
         pickle_file_name=output_file_name,
-        list_of_mean_input_matrices=list_of_mean_input_matrices,
-        list_of_mean_optimized_matrices=list_of_mean_optimized_matrices,
+        mean_novel_image_matrix=list_of_mean_input_matrices[0],
+        mean_novel_image_matrix_upconv=mean_novel_image_matrix_upconv,
+        mean_novel_image_matrix_upconv_svd=mean_novel_image_matrix_upconv_svd,
         threshold_count_matrix=threshold_count_matrix,
-        standard_bwo_file_name=input_bwo_file_name,
+        standard_novelty_file_name=input_novelty_file_name,
         pmm_metadata_dict=pmm_metadata_dict)
 
 
@@ -271,6 +332,8 @@ if __name__ == '__main__':
         input_gradcam_file_name=getattr(
             INPUT_ARG_OBJECT, GRADCAM_FILE_ARG_NAME),
         input_bwo_file_name=getattr(INPUT_ARG_OBJECT, BWO_FILE_ARG_NAME),
+        input_novelty_file_name=getattr(
+            INPUT_ARG_OBJECT, NOVELTY_FILE_ARG_NAME),
         max_percentile_level=getattr(INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         radar_channel_idx_for_thres=getattr(
             INPUT_ARG_OBJECT, THRESHOLD_INDEX_ARG_NAME),
