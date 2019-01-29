@@ -11,6 +11,7 @@ Lakshmanan, V., C. Karstens, J. Krause, K. Elmore, A. Ryzhkov, and S. Berkseth,
     1209-1223.
 """
 
+import copy
 import pickle
 import numpy
 import keras.utils
@@ -251,10 +252,11 @@ def run_permutation_test(
     original_cost = cost_function(target_values, class_probability_matrix)
     print 'Original cost (no permutation): {0:.4e}'.format(original_cost)
 
-    orig_input_matrices = list_of_input_matrices + []
+    orig_input_matrices = copy.deepcopy(list_of_input_matrices)
 
     # Initialize output variables.
-    remaining_predictor_names_by_matrix = predictor_names_by_matrix + []
+    remaining_predictor_names_by_matrix = copy.deepcopy(
+        predictor_names_by_matrix)
     step_num = 0
 
     # Do dirty work.
@@ -286,7 +288,7 @@ def run_permutation_test(
                     'test...'
                 ).format(this_predictor_name, step_num)
 
-                these_input_matrices = list_of_input_matrices + []
+                these_input_matrices = copy.deepcopy(list_of_input_matrices)
                 this_predictor_index = predictor_names_by_matrix[q].index(
                     this_predictor_name)
 
