@@ -289,11 +289,8 @@ def run_permutation_test(
                 these_input_matrices = copy.deepcopy(list_of_input_matrices)
                 this_predictor_index = predictor_names_by_matrix[q].index(
                     this_predictor_name)
-                print this_predictor_index
 
-                this_orig_matrix = (
-                    these_input_matrices[q][..., this_predictor_index] + 0.
-                )
+                this_orig_matrix = these_input_matrices[q] + 0.
 
                 these_input_matrices[q][..., this_predictor_index] = numpy.take(
                     these_input_matrices[q][..., this_predictor_index],
@@ -301,10 +298,14 @@ def run_permutation_test(
                         these_input_matrices[q].shape[0]),
                     axis=0)
 
-                print numpy.mean(numpy.absolute(
-                    this_orig_matrix -
-                    these_input_matrices[q][..., this_predictor_index]
-                ))
+                for other_name in remaining_predictor_names_by_matrix[q]:
+                    other_index = predictor_names_by_matrix[q].index(other_name)
+
+                    print other_name
+                    print numpy.mean(numpy.absolute(
+                        this_orig_matrix[..., other_index] -
+                        these_input_matrices[q][..., other_index]
+                    ))
 
                 this_probability_matrix = prediction_function(
                     model_object, these_input_matrices)
