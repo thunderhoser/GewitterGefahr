@@ -289,15 +289,22 @@ def run_permutation_test(
                 these_input_matrices = copy.deepcopy(list_of_input_matrices)
                 this_predictor_index = predictor_names_by_matrix[q].index(
                     this_predictor_name)
+                print this_predictor_index
 
-                these_example_indices = numpy.linspace(
-                    0, num_examples - 1, num=num_examples, dtype=int)
-                numpy.random.shuffle(these_example_indices)
-
-                these_input_matrices[q][..., this_predictor_index] = (
-                    these_input_matrices[q][
-                        these_example_indices, ..., this_predictor_index]
+                this_orig_matrix = (
+                    these_input_matrices[q, ..., this_predictor_index] + 0.
                 )
+
+                these_input_matrices[q, ..., this_predictor_index] = numpy.take(
+                    these_input_matrices[q, ..., this_predictor_index],
+                    indices=numpy.random.permutation(
+                        these_input_matrices[q].shape[0]),
+                    axis=0)
+
+                print numpy.mean(numpy.absolute(
+                    this_orig_matrix -
+                    these_input_matrices[q, ..., this_predictor_index]
+                ))
 
                 this_probability_matrix = prediction_function(
                     model_object, these_input_matrices)
