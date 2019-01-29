@@ -23,10 +23,8 @@ from gewittergefahr.plotting import sounding_plotting
 # TODO(thunderhoser): This file contains a lot of duplicated code for
 # determining output paths and titles.
 
-SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-
-METRES_TO_KM = 0.001
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TITLE_FONT_SIZE = 20
 FONT_SIZE_WITH_COLOUR_BARS = 16
@@ -44,8 +42,8 @@ INPUT_FILE_HELP_STRING = (
 
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map.  Differences for each predictor will be plotted with '
-    'the same colour map.  For example, if name is "Greys", the colour map used '
-    'will be `pyplot.cm.Greys`.  This argument supports only pyplot colour '
+    'the same colour map.  For example, if name is "Greys", the colour map used'
+    ' will be `pyplot.cm.Greys`.  This argument supports only pyplot colour '
     'maps.')
 
 MAX_PERCENTILE_HELP_STRING = (
