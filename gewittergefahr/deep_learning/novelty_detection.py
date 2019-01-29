@@ -439,20 +439,20 @@ def add_metadata(
 
     error_checking.assert_is_string_list(baseline_storm_ids)
     error_checking.assert_is_numpy_array(
-        numpy.array(baseline_storm_ids), these_expected_dim)
+        numpy.array(baseline_storm_ids), exact_dimensions=these_expected_dim)
     error_checking.assert_is_integer_numpy_array(baseline_storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
-        baseline_storm_times_unix_sec, these_expected_dim)
+        baseline_storm_times_unix_sec, exact_dimensions=these_expected_dim)
 
     num_trial_examples = novelty_dict[TRIAL_INPUTS_KEY][0].shape[0]
     these_expected_dim = numpy.array([num_trial_examples], dtype=int)
 
     error_checking.assert_is_string_list(trial_storm_ids)
     error_checking.assert_is_numpy_array(
-        numpy.array(trial_storm_ids), these_expected_dim)
+        numpy.array(trial_storm_ids), exact_dimensions=these_expected_dim)
     error_checking.assert_is_integer_numpy_array(trial_storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
-        trial_storm_times_unix_sec, these_expected_dim)
+        trial_storm_times_unix_sec, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_string(cnn_file_name)
     error_checking.assert_is_string(upconvnet_file_name)
