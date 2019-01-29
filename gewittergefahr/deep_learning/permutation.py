@@ -292,18 +292,18 @@ def run_permutation_test(
                 print this_predictor_index
 
                 this_orig_matrix = (
-                    these_input_matrices[q, ..., this_predictor_index] + 0.
+                    these_input_matrices[q][..., this_predictor_index] + 0.
                 )
 
-                these_input_matrices[q, ..., this_predictor_index] = numpy.take(
-                    these_input_matrices[q, ..., this_predictor_index],
+                these_input_matrices[q][..., this_predictor_index] = numpy.take(
+                    these_input_matrices[q][..., this_predictor_index],
                     indices=numpy.random.permutation(
                         these_input_matrices[q].shape[0]),
                     axis=0)
 
                 print numpy.mean(numpy.absolute(
                     this_orig_matrix -
-                    these_input_matrices[q, ..., this_predictor_index]
+                    these_input_matrices[q][..., this_predictor_index]
                 ))
 
                 this_probability_matrix = prediction_function(
