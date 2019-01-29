@@ -292,29 +292,33 @@ def run_permutation_test(
                 this_predictor_index = predictor_names_by_matrix[q].index(
                     this_predictor_name)
 
-                this_orig_matrix = orig_input_matrices[q] + 0.
-
                 these_input_matrices[q][..., this_predictor_index] = numpy.take(
                     these_input_matrices[q][..., this_predictor_index],
                     indices=numpy.random.permutation(
                         these_input_matrices[q].shape[0]),
                     axis=0)
 
-                for other_name in predictor_names_by_matrix[q]:
-                    other_index = predictor_names_by_matrix[q].index(other_name)
+                for p in range(num_input_matrices):
+                    for this_other_name in predictor_names_by_matrix[p]:
+                        this_other_index = predictor_names_by_matrix[p].index(
+                            this_other_name)
 
-                    print other_name
-                    print numpy.mean(numpy.absolute(
-                        this_orig_matrix[..., other_index] -
-                        these_input_matrices[q][..., other_index]
-                    ))
+                        this_mean_abs_diff = numpy.mean(numpy.absolute(
+                            orig_input_matrices[p][..., this_other_index] -
+                            these_input_matrices[p][..., this_other_index]
+                        ))
+
+                        print '{0:s} ... mean abs diff = {1:.4f}'.format(
+                            this_other_name, this_mean_abs_diff)
+
+                print '\n'
 
                 this_probability_matrix = prediction_function(
                     model_object, these_input_matrices)
                 this_cost = cost_function(
                     target_values, this_probability_matrix)
 
-                print 'Resulting cost = {0:.4e}'.format(this_cost)
+                print 'Resulting cost = {0:.4e}\n'.format(this_cost)
 
                 if step_num == 1:
                     predictor_names_step1.append(this_predictor_name)
