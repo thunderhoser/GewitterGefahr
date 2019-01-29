@@ -311,7 +311,7 @@ def _run(model_file_name, top_example_dir_name,
         list_of_input_matrices=list_of_predictor_matrices,
         predictor_names_by_matrix=predictor_names_by_matrix,
         target_values=target_values, prediction_function=prediction_function,
-        cost_function=permutation.cross_entropy_function)
+        cost_function=permutation.negative_auc_function)
 
     result_dict[permutation.MODEL_FILE_KEY] = model_file_name
     result_dict[permutation.TARGET_VALUES_KEY] = target_values

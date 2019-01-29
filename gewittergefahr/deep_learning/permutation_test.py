@@ -5,9 +5,11 @@ import numpy
 from sklearn.metrics import log_loss as sklearn_cross_entropy
 from gewittergefahr.deep_learning import permutation
 
+TOLERANCE = 1e-6
 XENTROPY_TOLERANCE = 1e-4
 
-# The following constants are used to test cross_entropy_function.
+# The following constants are used to test cross_entropy_function and
+# negative_auc_function.
 BINARY_TARGET_VALUES = numpy.array([0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0], dtype=int)
 BINARY_PROBABILITY_MATRIX = numpy.array([[0, 1],
                                          [1, 0],
@@ -21,6 +23,7 @@ BINARY_PROBABILITY_MATRIX = numpy.array([[0, 1],
                                          [1, 0],
                                          [0.5, 0.5]])
 
+NEGATIVE_AUC = -0.75
 BINARY_CROSS_ENTROPY = sklearn_cross_entropy(
     BINARY_TARGET_VALUES, BINARY_PROBABILITY_MATRIX[:, 1])
 
@@ -71,6 +74,30 @@ class PermutationTests(unittest.TestCase):
 
         self.assertTrue(numpy.isclose(
             this_cross_entropy, TERNARY_CROSS_ENTROPY, atol=XENTROPY_TOLERANCE))
+
+    def test_negative_auc_function_binary(self):
+        """Ensures correct output from negative_auc_function.
+
+        In this case there are 2 target classes (binary).
+        """
+
+        this_negative_auc = permutation.negative_auc_function(
+            target_values=BINARY_TARGET_VALUES,
+            class_probability_matrix=BINARY_PROBABILITY_MATRIX)
+
+        self.assertTrue(numpy.isclose(
+            this_negative_auc, NEGATIVE_AUC, atol=TOLERANCE))
+
+    def test_negative_auc_function_ternary(self):
+        """Ensures correct output from negative_auc_function.
+
+        In this case there are 3 target classes (ternary).
+        """
+
+        with self.assertRaises(TypeError):
+            permutation.negative_auc_function(
+                target_values=TERNARY_TARGET_VALUES,
+                class_probability_matrix=TERNARY_PROBABILITY_MATRIX)
 
 
 if __name__ == '__main__':

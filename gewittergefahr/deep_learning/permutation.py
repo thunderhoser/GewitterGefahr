@@ -15,6 +15,7 @@ import copy
 import pickle
 import numpy
 import keras.utils
+from sklearn.metrics import roc_auc_score as sklearn_auc
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -146,6 +147,33 @@ def cross_entropy_function(
     ) / num_examples
 
 
+def negative_auc_function(target_values, class_probability_matrix):
+    """Computes negative AUC (area under ROC curve).
+
+    This function works only for binary classification!
+
+    :param target_values: See doc for `run_permutation_test`.
+    :param class_probability_matrix: Same.
+    :return: negative_auc: Negative AUC.
+    :raises: TypeError: if `class_probability_matrix` contains more than 2
+        classes.
+    """
+
+    num_classes = class_probability_matrix.shape[-1]
+
+    if num_classes != 2:
+        error_string = (
+            'This function works only for binary classification, not '
+            '{0:d}-class classification.'
+        ).format(num_classes)
+
+        raise TypeError(error_string)
+
+    return -1 * sklearn_auc(
+        y_true=target_values, y_score=class_probability_matrix[:, -1]
+    )
+
+
 def run_permutation_test(
         model_object, list_of_input_matrices, predictor_names_by_matrix,
         target_values, prediction_function, cost_function):
@@ -252,8 +280,6 @@ def run_permutation_test(
     original_cost = cost_function(target_values, class_probability_matrix)
     print 'Original cost (no permutation): {0:.4e}'.format(original_cost)
 
-    orig_input_matrices = copy.deepcopy(list_of_input_matrices)
-
     # Initialize output variables.
     remaining_predictor_names_by_matrix = copy.deepcopy(
         predictor_names_by_matrix)
@@ -297,21 +323,6 @@ def run_permutation_test(
                     indices=numpy.random.permutation(
                         these_input_matrices[q].shape[0]),
                     axis=0)
-
-                for p in range(num_input_matrices):
-                    for this_other_name in predictor_names_by_matrix[p]:
-                        this_other_index = predictor_names_by_matrix[p].index(
-                            this_other_name)
-
-                        this_mean_abs_diff = numpy.mean(numpy.absolute(
-                            orig_input_matrices[p][..., this_other_index] -
-                            these_input_matrices[p][..., this_other_index]
-                        ))
-
-                        print '{0:s} ... mean abs diff = {1:.4f}'.format(
-                            this_other_name, this_mean_abs_diff)
-
-                print '\n'
 
                 this_probability_matrix = prediction_function(
                     model_object, these_input_matrices)
