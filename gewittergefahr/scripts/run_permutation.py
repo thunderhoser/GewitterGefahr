@@ -165,6 +165,9 @@ def _create_predictor_names(model_metadata_dict, list_of_predictor_matrices):
                         trainval_io.RADAR_HEIGHTS_KEY],
                     include_units=False)
             )
+
+            nice_radar_names = [n[:n.find('\n')] for n in nice_radar_names]
+
         else:
             _, nice_radar_names = (
                 radar_plotting.layer_ops_to_field_and_panel_names(
@@ -172,7 +175,8 @@ def _create_predictor_names(model_metadata_dict, list_of_predictor_matrices):
                     include_units=False)
             )
 
-        nice_radar_names = [n[:n.find('\n')] for n in nice_radar_names]
+            nice_radar_names = [n.replace('\n', ', ') for n in nice_radar_names]
+
         predictor_names_by_matrix = [nice_radar_names]
 
     if training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is None:
