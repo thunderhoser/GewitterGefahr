@@ -409,17 +409,22 @@ def _field_name_to_plotting_units(field_name):
     return field_name
 
 
-def layer_ops_to_field_and_panel_names(list_of_layer_operation_dicts):
+def layer_ops_to_field_and_panel_names(
+        list_of_layer_operation_dicts, include_units=True):
     """Converts list of layer operations to list of field and panel names.
 
     P = number of layer operations = number of panels
 
     :param list_of_layer_operation_dicts: See doc for
         `input_examples.reduce_examples_3d_to_2d`.
+    :param include_units: Boolean flag.  If True, panel names will include
+        units.
     :return: field_name_by_panel: length-P list with names of radar fields.
     :return: panel_names: length-P list of panel names (to be printed at bottoms
         of panels).
     """
+
+    error_checking.assert_is_boolean(include_units)
 
     num_panels = len(list_of_layer_operation_dicts)
     field_name_by_panel = [''] * num_panels
@@ -437,10 +442,17 @@ def layer_ops_to_field_and_panel_names(list_of_layer_operation_dicts):
             this_operation_dict[input_examples.MAX_HEIGHT_KEY] * METRES_TO_KM
         ))
 
-        panel_names[i] = (
-            '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'
-        ).format(
-            FIELD_NAME_TO_VERBOSE_DICT[field_name_by_panel[i]],
+        this_field_name_verbose = FIELD_NAME_TO_VERBOSE_DICT[
+            field_name_by_panel[i]
+        ]
+
+        if not include_units:
+            this_field_name_verbose = this_field_name_verbose[
+                :this_field_name_verbose.find(' (')
+            ]
+
+        panel_names[i] = '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'.format(
+            this_field_name_verbose,
             this_operation_dict[input_examples.OPERATION_NAME_KEY].upper(),
             this_min_height_m_agl, this_max_height_m_agl
         )
@@ -448,7 +460,8 @@ def layer_ops_to_field_and_panel_names(list_of_layer_operation_dicts):
     return field_name_by_panel, panel_names
 
 
-def radar_fields_and_heights_to_panel_names(field_names, heights_m_agl):
+def radar_fields_and_heights_to_panel_names(
+        field_names, heights_m_agl, include_units=True):
     """Converts list of radar field/height pairs to panel names.
 
     P = number of panels
@@ -457,9 +470,13 @@ def radar_fields_and_heights_to_panel_names(field_names, heights_m_agl):
         accepted by `radar_utils.check_field_name`.
     :param heights_m_agl: length-P numpy array of heights (metres above ground
         level).
+    :param include_units: Boolean flag.  If True, panel names will include
+        units.
     :return: panel_names: length-P list of panel names (to be printed at bottoms
         of panels).
     """
+
+    error_checking.assert_is_boolean(include_units)
 
     error_checking.assert_is_string_list(field_names)
     error_checking.assert_is_numpy_array(
@@ -475,10 +492,15 @@ def radar_fields_and_heights_to_panel_names(field_names, heights_m_agl):
     panel_names = [''] * num_panels
 
     for i in range(num_panels):
+        this_field_name_verbose = FIELD_NAME_TO_VERBOSE_DICT[field_names[i]]
+
+        if not include_units:
+            this_field_name_verbose = this_field_name_verbose[
+                :this_field_name_verbose.find(' (')
+            ]
+
         panel_names[i] = '{0:s}\nat {1:.2f} km AGL'.format(
-            FIELD_NAME_TO_VERBOSE_DICT[field_names[i]],
-            heights_m_agl[i] * METRES_TO_KM
-        )
+            this_field_name_verbose, heights_m_agl[i] * METRES_TO_KM)
 
     return panel_names
 

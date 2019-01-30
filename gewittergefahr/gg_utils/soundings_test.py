@@ -533,6 +533,28 @@ SOUNDING_DICT_HEIGHT_COORDS = {
     soundings.FIELD_NAMES_KEY: THESE_FIELD_NAMES
 }
 
+# The following constants are used to test field_name_to_verbose.
+NON_VERBOSE_FIELD_NAMES = [
+    'pressure_pascals', 'virtual_potential_temperature_kelvins',
+    'relative_humidity_unitless', 'specific_humidity',
+    'geopotential_height_metres', 'v_wind_m_s01', 'u_wind_m_s01',
+    'temperature_kelvins'
+]
+
+VERBOSE_FIELD_NAMES_WITH_UNITS = [
+    'Pressure (Pa)', 'Virtual potential temperature (K)',
+    'Relative humidity (fraction)', r'Specific humidity (kg kg$^{-1}$)',
+    'Geopotential height (m)', r'$v$-wind (m s$^{-1}$)',
+    r'$u$-wind (m s$^{-1}$)', 'Temperature (K)'
+]
+
+VERBOSE_FIELD_NAMES_NO_UNITS = [
+    'Pressure', 'Virtual potential temperature',
+    'Relative humidity', 'Specific humidity',
+    'Geopotential height', r'$v$-wind',
+    r'$u$-wind', 'Temperature'
+]
+
 # The following constants are used to test find_sounding_file.
 TOP_DIRECTORY_NAME = 'storm_soundings'
 SPC_DATE_STRING = '20180618'
@@ -819,6 +841,36 @@ class SoundingsTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             soundings.check_field_name(soundings.STORM_ELEVATIONS_KEY)
+
+    def test_field_name_to_verbose_with_units(self):
+        """Ensures correct output from field_name_to_verbose.
+
+        In this case, verbose field names should have units.
+        """
+
+        these_verbose_field_names = [
+            soundings.field_name_to_verbose(field_name=f, include_units=True)
+            for f in NON_VERBOSE_FIELD_NAMES
+        ]
+
+        self.assertTrue(
+            these_verbose_field_names == VERBOSE_FIELD_NAMES_WITH_UNITS
+        )
+
+    def test_field_name_to_verbose_no_units(self):
+        """Ensures correct output from field_name_to_verbose.
+
+        In this case, verbose field names should have no units.
+        """
+
+        these_verbose_field_names = [
+            soundings.field_name_to_verbose(field_name=f, include_units=False)
+            for f in NON_VERBOSE_FIELD_NAMES
+        ]
+
+        self.assertTrue(
+            these_verbose_field_names == VERBOSE_FIELD_NAMES_NO_UNITS
+        )
 
     def test_find_sounding_file_one_time(self):
         """Ensures correct output from find_sounding_file.

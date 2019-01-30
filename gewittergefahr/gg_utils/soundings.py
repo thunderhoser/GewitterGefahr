@@ -69,6 +69,17 @@ VALID_FIELD_NAMES = [
     VIRTUAL_POTENTIAL_TEMPERATURE_NAME, PRESSURE_NAME
 ]
 
+FIELD_NAME_TO_VERBOSE_DICT = {
+    GEOPOTENTIAL_HEIGHT_NAME: 'Geopotential height (m)',
+    RELATIVE_HUMIDITY_NAME: 'Relative humidity (fraction)',
+    TEMPERATURE_NAME: 'Temperature (K)',
+    U_WIND_NAME: r'$u$-wind (m s$^{-1}$)',
+    V_WIND_NAME: r'$v$-wind (m s$^{-1}$)',
+    SPECIFIC_HUMIDITY_NAME: r'Specific humidity (kg kg$^{-1}$)',
+    VIRTUAL_POTENTIAL_TEMPERATURE_NAME: 'Virtual potential temperature (K)',
+    PRESSURE_NAME: 'Pressure (Pa)'
+}
+
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 FIELD_DIMENSION_KEY = 'field'
 HEIGHT_DIMENSION_KEY = 'height_level'
@@ -872,12 +883,31 @@ def check_field_name(field_name):
     """
 
     error_checking.assert_is_string(field_name)
+
     if field_name not in VALID_FIELD_NAMES:
         error_string = (
-            '\n\n{0:s}\nValid field names (listed above) do not include '
-            '"{1:s}".'
+            '\n{0:s}\nValid field names (listed above) do not include "{1:s}"'
         ).format(VALID_FIELD_NAMES, field_name)
+
         raise ValueError(error_string)
+
+
+def field_name_to_verbose(field_name, include_units=True):
+    """Converts field name from underscore-separated format to verbose.
+
+    :param field_name: Field name in default (underscore-separated format).
+    :param include_units: Boolean flag.  If True, verbose name will include
+        units.
+    :return: field_name_verbose: Verbose field name.
+    """
+
+    error_checking.assert_is_boolean(include_units)
+    field_name_verbose = FIELD_NAME_TO_VERBOSE_DICT[field_name]
+
+    if include_units:
+        return field_name_verbose
+
+    return field_name_verbose[:field_name_verbose.find(' (')]
 
 
 def interp_soundings_to_storm_objects(

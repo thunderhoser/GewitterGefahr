@@ -27,8 +27,6 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): I should allow this to be changed.
 TEMPORARY_DIR_NAME = '/condo/swatwork/ralager/best_track_temp'
-file_system_utils.mkdir_recursive_if_necessary(
-    directory_name=TEMPORARY_DIR_NAME)
 
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT_FOR_MESSAGES = '%Y-%m-%d-%H%M%S'
