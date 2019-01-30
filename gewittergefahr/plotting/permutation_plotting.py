@@ -20,7 +20,9 @@ TEXT_COLOUR = numpy.full(3, 0.)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
-FONT_SIZE = 15
+FONT_SIZE = 30
+LABEL_FONT_SIZE = 20
+
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -47,7 +49,8 @@ def _label_bars(axes_object, y_coords, y_strings):
     for j in range(len(y_coords)):
         axes_object.text(
             x_coord_for_text, y_coords[j], y_strings[j], color=TEXT_COLOUR,
-            horizontalalignment='left', verticalalignment='center')
+            horizontalalignment='left', verticalalignment='center',
+            fontsize=LABEL_FONT_SIZE)
 
 
 def plot_breiman_results(

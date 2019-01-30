@@ -7,12 +7,14 @@ import random
 import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import permutation
+from gewittergefahr.plotting import radar_plotting
 
 random.seed(6695)
 numpy.random.seed(6695)
@@ -111,73 +113,81 @@ def _create_predictor_names(model_metadata_dict, list_of_predictor_matrices):
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        predictor_names_by_matrix = [
-            [radar_utils.REFL_NAME],
-            training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-        ]
+        num_radar_dimensions = -1
+    else:
+        num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
-        if len(list_of_predictor_matrices) == 3:
-            predictor_names_by_matrix.append(
-                training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-            )
+    if num_radar_dimensions == -1:
+        nice_refl_names = (
+            radar_plotting.radar_fields_and_heights_to_panel_names(
+                field_names=[radar_utils.REFL_NAME],
+                heights_m_agl=numpy.full(1, 1000), include_units=False)
+        )
 
-        return predictor_names_by_matrix
+        nice_refl_names = [n[:n.find('\n')] for n in nice_refl_names]
 
-    num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
+        basic_az_shear_names = training_option_dict[
+            trainval_io.RADAR_FIELDS_KEY]
 
-    if num_radar_dimensions == 3:
-        predictor_names_by_matrix = [
-            training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-        ]
+        nice_az_shear_names = (
+            radar_plotting.radar_fields_and_heights_to_panel_names(
+                field_names=basic_az_shear_names,
+                heights_m_agl=numpy.full(len(basic_az_shear_names), 1000),
+                include_units=False)
+        )
+
+        predictor_names_by_matrix = [nice_refl_names, nice_az_shear_names]
+
+    elif num_radar_dimensions == 3:
+        basic_radar_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+
+        nice_radar_names = (
+            radar_plotting.radar_fields_and_heights_to_panel_names(
+                field_names=basic_radar_names,
+                heights_m_agl=numpy.full(len(basic_radar_names), 1000),
+                include_units=False)
+        )
+
+        nice_radar_names = [n[:n.find('\n')] for n in nice_radar_names]
+        predictor_names_by_matrix = [nice_radar_names]
+
     else:
         list_of_layer_operation_dicts = model_metadata_dict[
             cnn.LAYER_OPERATIONS_KEY]
 
         if list_of_layer_operation_dicts is None:
-            field_name_by_channel = training_option_dict[
-                trainval_io.RADAR_FIELDS_KEY]
-            height_by_channel_m_agl = training_option_dict[
-                trainval_io.RADAR_HEIGHTS_KEY]
-
-            num_radar_channels = len(field_name_by_channel)
-            radar_channel_names = []
-
-            for m in range(num_radar_channels):
-                this_name = '{0:s}_{1:05d}metres-agl'.format(
-                    field_name_by_channel[m],
-                    int(numpy.round(height_by_channel_m_agl[m]))
-                )
-
-                radar_channel_names.append(this_name)
+            nice_radar_names = (
+                radar_plotting.radar_fields_and_heights_to_panel_names(
+                    field_names=training_option_dict[
+                        trainval_io.RADAR_FIELDS_KEY],
+                    heights_m_agl=training_option_dict[
+                        trainval_io.RADAR_HEIGHTS_KEY],
+                    include_units=False)
+            )
         else:
-            num_radar_channels = len(list_of_layer_operation_dicts)
-            radar_channel_names = []
+            nice_radar_names = (
+                radar_plotting.layer_ops_to_field_and_panel_names(
+                    list_of_layer_operation_dicts=list_of_layer_operation_dicts,
+                    include_units=False)
+            )
 
-            for m in range(num_radar_channels):
-                this_operation_dict = list_of_layer_operation_dicts[m]
+        nice_radar_names = [n[:n.find('\n')] for n in nice_radar_names]
+        predictor_names_by_matrix = [nice_radar_names]
 
-                this_name = '{0:s}_{1:05d}-{2:05d}metres-agl_{3:s}'.format(
-                    this_operation_dict[input_examples.RADAR_FIELD_KEY],
-                    int(numpy.round(
-                        this_operation_dict[input_examples.MIN_HEIGHT_KEY]
-                    )),
-                    int(numpy.round(
-                        this_operation_dict[input_examples.MAX_HEIGHT_KEY]
-                    )),
-                    this_operation_dict[input_examples.OPERATION_NAME_KEY]
-                )
+    if training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is None:
+        return predictor_names_by_matrix
 
-                radar_channel_names.append(this_name)
+    basic_sounding_names = training_option_dict[
+        trainval_io.SOUNDING_FIELDS_KEY]
 
-        predictor_names_by_matrix = [radar_channel_names]
+    nice_sounding_names = [
+        soundings.field_name_to_verbose(
+            field_name=n, include_units=False)
+        for n in basic_sounding_names
+    ]
 
-    if len(list_of_predictor_matrices) == 2:
-        predictor_names_by_matrix.append(
-            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-        )
-
+    predictor_names_by_matrix.append(nice_sounding_names)
     return predictor_names_by_matrix
 
 
