@@ -7,8 +7,6 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import permutation
 
-NEGATIVE_AUC_FUNCTION_NAME = permutation.negative_auc_function.__name__
-
 DEFAULT_REFERENCE_LINE_COLOUR = numpy.array([102, 194, 165], dtype=float) / 255
 DEFAULT_FACE_COLOUR = numpy.array([252, 141, 98], dtype=float) / 255
 DEFAULT_EDGE_COLOUR = numpy.full(3, 0.)
@@ -54,7 +52,7 @@ def _label_bars(axes_object, y_coords, y_strings):
 
 
 def plot_breiman_results(
-        permutation_dict, axes_object, num_predictors=None,
+        permutation_dict, axes_object, num_predictors_to_plot=None,
         plot_percent_increase=False,
         bar_face_colour=DEFAULT_FACE_COLOUR,
         bar_edge_colour=DEFAULT_EDGE_COLOUR,
@@ -67,9 +65,9 @@ def plot_breiman_results(
         `permutation.run_permutation_test`.
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    :param num_predictors: Number of predictors to plot.  Will plot only the K
-        most important, where K = `num_predictors`.  If
-        `num_predictors is None`, will plot all predictors.
+    :param num_predictors_to_plot: Number of predictors to plot.  Will plot only
+        the K most important, where K = `num_predictors_to_plot`.  If
+        `num_predictors_to_plot is None`, will plot all predictors.
     :param plot_percent_increase: Boolean flag.  If True, x-axis will be
         percentage of original cost (before permutation).  If False, will be
         actual cost.
@@ -85,17 +83,17 @@ def plot_breiman_results(
     error_checking.assert_is_boolean(plot_percent_increase)
     predictor_names = permutation_dict[permutation.STEP1_PREDICTORS_KEY]
 
-    if num_predictors is None:
-        num_predictors = len(predictor_names)
+    if num_predictors_to_plot is None:
+        num_predictors_to_plot = len(predictor_names)
 
-    error_checking.assert_is_integer(num_predictors)
-    error_checking.assert_is_greater(num_predictors, 0)
-    num_predictors = min([num_predictors, len(predictor_names)])
+    error_checking.assert_is_integer(num_predictors_to_plot)
+    error_checking.assert_is_greater(num_predictors_to_plot, 0)
+    num_predictors_to_plot = min([num_predictors_to_plot, len(predictor_names)])
 
     original_cost = permutation_dict[permutation.ORIGINAL_COST_KEY]
     cost_by_predictor = permutation_dict[permutation.STEP1_COSTS_KEY]
 
-    sort_indices = numpy.argsort(cost_by_predictor)[-num_predictors:]
+    sort_indices = numpy.argsort(cost_by_predictor)[-num_predictors_to_plot:]
     cost_by_predictor = cost_by_predictor[sort_indices]
     predictor_names = [predictor_names[k] for k in sort_indices]
 
@@ -103,8 +101,7 @@ def plot_breiman_results(
         numpy.full(1, original_cost), cost_by_predictor
     ))
 
-    cost_function_name = permutation_dict[permutation.COST_FUNCTION_KEY]
-    if cost_function_name == NEGATIVE_AUC_FUNCTION_NAME:
+    if numpy.any(x_coords < 0):
         x_coords *= -1
         x_label_string = 'AUC'
     else:
@@ -145,7 +142,7 @@ def plot_breiman_results(
 
 
 def plot_lakshmanan_results(
-        permutation_dict, axes_object, num_steps=None,
+        permutation_dict, axes_object, num_steps_to_plot=None,
         plot_percent_increase=False,
         bar_face_colour=DEFAULT_FACE_COLOUR,
         bar_edge_colour=DEFAULT_EDGE_COLOUR,
@@ -156,7 +153,8 @@ def plot_lakshmanan_results(
 
     :param permutation_dict: See doc for `plot_breiman_results`.
     :param axes_object: Same.
-    :param num_steps: See doc for `num_predictors` in `plot_breiman_results`.
+    :param num_steps_to_plot: See doc for `num_predictors_to_plot` in
+        `plot_breiman_results`.
     :param plot_percent_increase: See doc for `plot_breiman_results`.
     :param bar_face_colour: Same.
     :param bar_edge_colour: Same.
@@ -171,23 +169,22 @@ def plot_lakshmanan_results(
     predictor_name_by_step = permutation_dict[
         permutation.SELECTED_PREDICTORS_KEY]
 
-    if num_steps is None:
-        num_steps = len(highest_cost_by_step)
+    if num_steps_to_plot is None:
+        num_steps_to_plot = len(highest_cost_by_step)
 
-    error_checking.assert_is_integer(num_steps)
-    error_checking.assert_is_greater(num_steps, 0)
-    num_steps = min([num_steps, len(highest_cost_by_step)])
+    error_checking.assert_is_integer(num_steps_to_plot)
+    error_checking.assert_is_greater(num_steps_to_plot, 0)
+    num_steps_to_plot = min([num_steps_to_plot, len(highest_cost_by_step)])
 
-    highest_cost_by_step = highest_cost_by_step[:num_steps]
-    predictor_name_by_step = predictor_name_by_step[:num_steps]
+    highest_cost_by_step = highest_cost_by_step[:num_steps_to_plot]
+    predictor_name_by_step = predictor_name_by_step[:num_steps_to_plot]
 
     original_cost = permutation_dict[permutation.ORIGINAL_COST_KEY]
     x_coords = numpy.concatenate((
         numpy.full(1, original_cost), highest_cost_by_step
     ))
 
-    cost_function_name = permutation_dict[permutation.COST_FUNCTION_KEY]
-    if cost_function_name == NEGATIVE_AUC_FUNCTION_NAME:
+    if numpy.any(x_coords < 0):
         x_coords *= -1
         x_label_string = 'AUC'
     else:

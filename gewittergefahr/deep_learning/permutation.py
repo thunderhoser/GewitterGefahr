@@ -31,8 +31,6 @@ ORIGINAL_COST_KEY = 'original_cost'
 STEP1_PREDICTORS_KEY = 'predictor_names_step1'
 STEP1_COSTS_KEY = 'costs_step1'
 
-COST_FUNCTION_KEY = 'cost_function_name'
-
 # Optional keys in result dictionary (see `write_results`).
 STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
 STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
