@@ -7,15 +7,20 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import permutation
 
-DEFAULT_FACE_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
+NEGATIVE_AUC_FUNCTION_NAME = permutation.negative_auc_function.__name__
+
+DEFAULT_REFERENCE_LINE_COLOUR = numpy.array([102, 194, 165], dtype=float) / 255
+DEFAULT_FACE_COLOUR = numpy.array([252, 141, 98], dtype=float) / 255
 DEFAULT_EDGE_COLOUR = numpy.full(3, 0.)
-DEFAULT_EDGE_WIDTH = 2.
+
+DEFAULT_EDGE_WIDTH = 2
+DEFAULT_REFERENCE_LINE_WIDTH = 4
 
 TEXT_COLOUR = numpy.full(3, 0.)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
-FONT_SIZE = 20
+FONT_SIZE = 15
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -45,64 +50,23 @@ def _label_bars(axes_object, y_coords, y_strings):
             horizontalalignment='left', verticalalignment='center')
 
 
-def plot_lakshmanan_results(
-        result_dict, axes_object, plot_percent_increase=False,
+def plot_breiman_results(
+        permutation_dict, axes_object, num_predictors=None,
+        plot_percent_increase=False,
         bar_face_colour=DEFAULT_FACE_COLOUR,
         bar_edge_colour=DEFAULT_EDGE_COLOUR,
-        bar_edge_width=DEFAULT_EDGE_WIDTH):
-    """Plots results of Lakshmanan (multi-pass) permutation test.
-
-    :param result_dict: See doc for `plot_breiman_results`.
-    :param axes_object: Same.
-    :param plot_percent_increase: Same.
-    :param bar_face_colour: Same.
-    :param bar_edge_colour: Same.
-    :param bar_edge_width: Same.
-    """
-
-    error_checking.assert_is_boolean(plot_percent_increase)
-
-    x_coords = numpy.concatenate((
-        numpy.array([result_dict[permutation.ORIGINAL_COST_KEY]]),
-        result_dict[permutation.HIGHEST_COSTS_KEY]
-    ))
-
-    if plot_percent_increase:
-        x_coords = 100 * x_coords / x_coords[0]
-
-    y_strings = (
-        ['No permutation'] + result_dict[permutation.SELECTED_PREDICTORS_KEY]
-    )
-
-    y_coords = numpy.linspace(
-        0, len(y_strings) - 1, num=len(y_strings), dtype=float
-    )[::-1]
-
-    axes_object.barh(
-        y_coords, x_coords, color=bar_face_colour, edgecolor=bar_edge_colour,
-        linewidth=bar_edge_width)
-
-    axes_object.set_yticks([], [])
-    axes_object.set_ylabel('Predictor permuted')
-
-    if plot_percent_increase:
-        axes_object.set_xlabel('Cross-entropy (percentage of original)')
-    else:
-        axes_object.set_xlabel('Cross-entropy (absolute)')
-
-    _label_bars(axes_object=axes_object, y_coords=y_coords, y_strings=y_strings)
-
-
-def plot_breiman_results(result_dict, axes_object, plot_percent_increase=False,
-                         bar_face_colour=DEFAULT_FACE_COLOUR,
-                         bar_edge_colour=DEFAULT_EDGE_COLOUR,
-                         bar_edge_width=DEFAULT_EDGE_WIDTH):
+        bar_edge_width=DEFAULT_EDGE_WIDTH,
+        reference_line_colour=DEFAULT_REFERENCE_LINE_COLOUR,
+        reference_line_width=DEFAULT_REFERENCE_LINE_WIDTH):
     """Plots results of Breiman (single-pass) permutation test.
 
-    :param result_dict: Dictionary created by
+    :param permutation_dict: Dictionary created by
         `permutation.run_permutation_test`.
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
+    :param num_predictors: Number of predictors to plot.  Will plot only the K
+        most important, where K = `num_predictors`.  If
+        `num_predictors is None`, will plot all predictors.
     :param plot_percent_increase: Boolean flag.  If True, x-axis will be
         percentage of original cost (before permutation).  If False, will be
         actual cost.
@@ -110,21 +74,38 @@ def plot_breiman_results(result_dict, axes_object, plot_percent_increase=False,
         `matplotlib.colors`) of each bar in the graph.
     :param bar_edge_colour: Edge colour of each bar in the graph.
     :param bar_edge_width: Edge width of each bar in the graph.
+    :param reference_line_colour: Colour of reference line (dashed vertical
+        line, showing cost with no permutation).
+    :param reference_line_width: Width of reference line.
     """
 
     error_checking.assert_is_boolean(plot_percent_increase)
+    predictor_names = permutation_dict[permutation.STEP1_PREDICTORS_KEY]
 
-    cost_values = result_dict[permutation.STEP1_COSTS_KEY]
-    predictor_names = result_dict[permutation.STEP1_PREDICTORS_KEY]
+    if num_predictors is None:
+        num_predictors = len(predictor_names)
 
-    sort_indices = numpy.argsort(cost_values)
-    cost_values = cost_values[sort_indices]
+    error_checking.assert_is_integer(num_predictors)
+    error_checking.assert_is_greater(num_predictors, 0)
+    num_predictors = min([num_predictors, len(predictor_names)])
+
+    original_cost = permutation_dict[permutation.ORIGINAL_COST_KEY]
+    cost_by_predictor = permutation_dict[permutation.STEP1_COSTS_KEY]
+
+    sort_indices = numpy.argsort(cost_by_predictor)[-num_predictors:]
+    cost_by_predictor = cost_by_predictor[sort_indices]
     predictor_names = [predictor_names[k] for k in sort_indices]
 
     x_coords = numpy.concatenate((
-        numpy.array([result_dict[permutation.ORIGINAL_COST_KEY]]),
-        cost_values
+        numpy.full(1, original_cost), cost_by_predictor
     ))
+
+    cost_function_name = permutation_dict[permutation.COST_FUNCTION_KEY]
+    if cost_function_name == NEGATIVE_AUC_FUNCTION_NAME:
+        x_coords *= -1
+        x_label_string = 'AUC'
+    else:
+        x_label_string = 'Cost'
 
     if plot_percent_increase:
         x_coords = 100 * x_coords / x_coords[0]
@@ -137,12 +118,108 @@ def plot_breiman_results(result_dict, axes_object, plot_percent_increase=False,
         y_coords, x_coords, color=bar_face_colour, edgecolor=bar_edge_colour,
         linewidth=bar_edge_width)
 
+    reference_x_coords = numpy.full(2, x_coords[0])
+    reference_y_coords = numpy.array(
+        [numpy.min(y_coords) - 0.75, numpy.max(y_coords) + 0.75]
+    )
+
+    axes_object.plot(
+        reference_x_coords, reference_y_coords, color=reference_line_colour,
+        linestyle='--', linewidth=reference_line_width)
+
     axes_object.set_yticks([], [])
     axes_object.set_ylabel('Predictor permuted')
 
     if plot_percent_increase:
-        axes_object.set_xlabel('Cross-entropy (percentage of original)')
+        x_label_string += ' (percentage of original)'
     else:
-        axes_object.set_xlabel('Cross-entropy (absolute)')
+        x_label_string += ' (absolute)'
 
+    axes_object.set_xlabel(x_label_string)
     _label_bars(axes_object=axes_object, y_coords=y_coords, y_strings=y_strings)
+
+    axes_object.set_ylim(numpy.min(y_coords) - 0.75, numpy.max(y_coords) + 0.75)
+
+
+def plot_lakshmanan_results(
+        permutation_dict, axes_object, num_steps=None,
+        plot_percent_increase=False,
+        bar_face_colour=DEFAULT_FACE_COLOUR,
+        bar_edge_colour=DEFAULT_EDGE_COLOUR,
+        bar_edge_width=DEFAULT_EDGE_WIDTH,
+        reference_line_colour=DEFAULT_REFERENCE_LINE_COLOUR,
+        reference_line_width=DEFAULT_REFERENCE_LINE_WIDTH):
+    """Plots results of Lakshmanan (multi-pass) permutation test.
+
+    :param permutation_dict: See doc for `plot_breiman_results`.
+    :param axes_object: Same.
+    :param num_steps: See doc for `num_predictors` in `plot_breiman_results`.
+    :param plot_percent_increase: See doc for `plot_breiman_results`.
+    :param bar_face_colour: Same.
+    :param bar_edge_colour: Same.
+    :param bar_edge_width: Same.
+    :param reference_line_colour: Same.
+    :param reference_line_width: Same.
+    """
+
+    error_checking.assert_is_boolean(plot_percent_increase)
+
+    highest_cost_by_step = permutation_dict[permutation.HIGHEST_COSTS_KEY]
+    predictor_name_by_step = permutation_dict[
+        permutation.SELECTED_PREDICTORS_KEY]
+
+    if num_steps is None:
+        num_steps = len(highest_cost_by_step)
+
+    error_checking.assert_is_integer(num_steps)
+    error_checking.assert_is_greater(num_steps, 0)
+    num_steps = min([num_steps, len(highest_cost_by_step)])
+
+    highest_cost_by_step = highest_cost_by_step[:num_steps]
+    predictor_name_by_step = predictor_name_by_step[:num_steps]
+
+    original_cost = permutation_dict[permutation.ORIGINAL_COST_KEY]
+    x_coords = numpy.concatenate((
+        numpy.full(1, original_cost), highest_cost_by_step
+    ))
+
+    cost_function_name = permutation_dict[permutation.COST_FUNCTION_KEY]
+    if cost_function_name == NEGATIVE_AUC_FUNCTION_NAME:
+        x_coords *= -1
+        x_label_string = 'AUC'
+    else:
+        x_label_string = 'Cost'
+
+    if plot_percent_increase:
+        x_coords = 100 * x_coords / x_coords[0]
+
+    y_strings = ['No permutation'] + predictor_name_by_step
+    y_coords = numpy.linspace(
+        0, len(y_strings) - 1, num=len(y_strings), dtype=float
+    )[::-1]
+
+    axes_object.barh(
+        y_coords, x_coords, color=bar_face_colour, edgecolor=bar_edge_colour,
+        linewidth=bar_edge_width)
+
+    reference_x_coords = numpy.full(2, x_coords[0])
+    reference_y_coords = numpy.array(
+        [numpy.min(y_coords) - 0.75, numpy.max(y_coords) + 0.75]
+    )
+
+    axes_object.plot(
+        reference_x_coords, reference_y_coords, color=reference_line_colour,
+        linestyle='--', linewidth=reference_line_width)
+
+    axes_object.set_yticks([], [])
+    axes_object.set_ylabel('Predictor permuted')
+
+    if plot_percent_increase:
+        x_label_string += ' (percentage of original)'
+    else:
+        x_label_string += ' (absolute)'
+
+    axes_object.set_xlabel(x_label_string)
+    _label_bars(axes_object=axes_object, y_coords=y_coords, y_strings=y_strings)
+
+    axes_object.set_ylim(numpy.min(y_coords) - 0.75, numpy.max(y_coords) + 0.75)
