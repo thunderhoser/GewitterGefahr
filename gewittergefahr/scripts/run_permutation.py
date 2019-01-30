@@ -166,7 +166,7 @@ def _create_predictor_names(model_metadata_dict, list_of_predictor_matrices):
                     include_units=False)
             )
         else:
-            nice_radar_names = (
+            _, nice_radar_names = (
                 radar_plotting.layer_ops_to_field_and_panel_names(
                     list_of_layer_operation_dicts=list_of_layer_operation_dicts,
                     include_units=False)
