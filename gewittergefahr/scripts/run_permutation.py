@@ -266,7 +266,8 @@ def _get_pearson_correlations(
                 )
 
                 correlation_matrix[i, j] = pearsonr(
-                    these_first_values, these_second_values)
+                    these_first_values, these_second_values
+                )[0]
                 correlation_matrix[j, i] = correlation_matrix[i, j]
 
                 continue
@@ -318,7 +319,8 @@ def _get_pearson_correlations(
                 these_second_values = numpy.mean(these_second_values, axis=1)
 
             correlation_matrix[i, j] = pearsonr(
-                these_first_values, these_second_values)
+                these_first_values, these_second_values
+            )[0]
             correlation_matrix[j, i] = correlation_matrix[i, j]
 
     return correlation_matrix, predictor_names
