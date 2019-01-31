@@ -137,7 +137,6 @@ def _run(input_file_name, num_predictors_to_plot, output_dir_name):
         plot_percent_increase=True,
         num_predictors_to_plot=num_predictors_to_plot)
 
-    axes_objects_2d_list[0][0].set_xlabel('Percent of original AUC')
     axes_objects_2d_list[0][0].set_title('Single-pass')
 
     permutation_plotting.plot_lakshmanan_results(
@@ -145,7 +144,6 @@ def _run(input_file_name, num_predictors_to_plot, output_dir_name):
         axes_object=axes_objects_2d_list[0][1],
         plot_percent_increase=True, num_steps_to_plot=num_predictors_to_plot)
 
-    axes_objects_2d_list[0][1].set_xlabel('Percent of original AUC')
     axes_objects_2d_list[0][1].set_ylabel('')
     axes_objects_2d_list[0][1].set_title('Multi-pass')
 
