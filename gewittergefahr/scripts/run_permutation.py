@@ -318,6 +318,24 @@ def _run(model_file_name, top_example_dir_name,
     all_v_winds = numpy.ravel(list_of_predictor_matrices[-1][..., v_wind_index])
     print pearsonr(all_rh_values, all_v_winds)
 
+    bottom_index = numpy.where(
+        training_option_dict[trainval_io.SOUNDING_HEIGHTS_KEY] == 1000
+    )[0]
+    top_index = numpy.where(
+        training_option_dict[trainval_io.SOUNDING_HEIGHTS_KEY] == 3000
+    )[0]
+
+    all_rh_values = numpy.mean(
+        list_of_predictor_matrices[-1][..., rh_index], axis=1)
+
+    refl_index = predictor_names_by_matrix[0].index(
+        'Reflectivity, MAX from 1-3 km AGL')
+    all_refl_values = numpy.mean(
+        list_of_predictor_matrices[0][..., refl_index], axis=(1, 2)
+    )
+
+    print pearsonr(all_rh_values, all_refl_values)
+
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         prediction_function = permutation.prediction_function_2d3d_cnn
     else:
