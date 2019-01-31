@@ -24,6 +24,7 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
 )))
 
+KM_TO_METRES = 1000
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
@@ -196,6 +197,133 @@ def _create_predictor_names(model_metadata_dict, list_of_predictor_matrices):
     return predictor_names_by_matrix
 
 
+def _get_pearson_correlations(
+        list_of_predictor_matrices, predictor_names_by_matrix,
+        sounding_heights_m_agl):
+    """Returns Pearson correlation between each pair of predictors.
+
+    T = number of input tensors to the model
+    P = total number of predictors
+
+    :param list_of_predictor_matrices: length-T list of numpy arrays, where
+        dimensions of list_of_predictor_matrices[i] = dimensions of [i]th input
+        tensor to the model.
+    :param predictor_names_by_matrix: length-T list, where
+        predictor_names_by_matrix[i] is a 1-D list of predictor names for the
+        [i]th input tensor.  Length of predictor_names_by_matrix[i] should equal
+        length of last axis in list_of_predictor_matrices[i].
+    :param sounding_heights_m_agl: 1-D numpy array of sounding heights (metres
+        above ground level), in the order that they appear in sounding matrices.
+    :return: correlation_matrix: P-by-P numpy array of Pearson correlations.
+    :return: predictor_names: length-P list of predictor names.
+    """
+
+    # TODO(thunderhoser): This method works only when the first matrix contains
+    # 2-D radar images and the second contains 1-D soundings.
+
+    # TODO(thunderhoser): This method should go somewhere more general.
+
+    predictor_names = sum(predictor_names_by_matrix, [])
+    num_predictors = len(predictor_names)
+    correlation_matrix = numpy.full((num_predictors, num_predictors), numpy.nan)
+
+    for i in range(num_predictors):
+        for j in range(i, num_predictors):
+            if i == j:
+                correlation_matrix[i, j] = 1
+                continue
+
+            try:
+                this_first_predictor_index = (
+                    predictor_names_by_matrix[0].index(predictor_names[i])
+                )
+                this_first_matrix_index = 0
+            except:
+                this_first_predictor_index = (
+                    predictor_names_by_matrix[1].index(predictor_names[i])
+                )
+                this_first_matrix_index = 1
+
+            try:
+                this_second_predictor_index = (
+                    predictor_names_by_matrix[0].index(predictor_names[j])
+                )
+                this_second_matrix_index = 0
+            except:
+                this_second_predictor_index = (
+                    predictor_names_by_matrix[1].index(predictor_names[j])
+                )
+                this_second_matrix_index = 1
+
+            if this_first_matrix_index == this_second_matrix_index:
+                these_first_values = numpy.ravel(
+                    list_of_predictor_matrices[this_first_matrix_index][
+                        ..., this_first_predictor_index]
+                )
+                these_second_values = numpy.ravel(
+                    list_of_predictor_matrices[this_second_matrix_index][
+                        ..., this_second_predictor_index]
+                )
+
+                correlation_matrix[i, j] = pearsonr(
+                    these_first_values, these_second_values)
+                correlation_matrix[j, i] = correlation_matrix[i, j]
+
+                continue
+
+            if this_first_matrix_index == 0:
+                this_height_string = predictor_names[i].split()[-3]
+            else:
+                this_height_string = predictor_names[j].split()[-3]
+
+            these_height_strings_km_agl = this_height_string.split('-')
+            this_min_height_m_agl = KM_TO_METRES * int(
+                these_height_strings_km_agl[0]
+            )
+            this_max_height_m_agl = KM_TO_METRES * int(
+                these_height_strings_km_agl[1]
+            )
+
+            this_bottom_index = numpy.where(
+                sounding_heights_m_agl == this_min_height_m_agl
+            )[0]
+            this_top_index = numpy.where(
+                sounding_heights_m_agl == this_max_height_m_agl
+            )[0]
+
+            if this_first_matrix_index == 0:
+                these_first_values = list_of_predictor_matrices[0][
+                    ..., this_first_predictor_index]
+
+                these_first_values = numpy.mean(these_first_values, axis=(1, 2))
+            else:
+                these_first_values = list_of_predictor_matrices[1][
+                    ..., this_bottom_index:(this_top_index + 1),
+                    this_first_predictor_index
+                ]
+                these_first_values = numpy.mean(these_first_values, axis=1)
+
+            if this_second_matrix_index == 0:
+                these_second_values = list_of_predictor_matrices[0][
+                    ..., this_second_predictor_index]
+
+                these_second_values = numpy.mean(
+                    these_second_values, axis=(1, 2)
+                )
+            else:
+                these_second_values = list_of_predictor_matrices[1][
+                    ..., this_bottom_index:(this_top_index + 1),
+                    this_second_predictor_index
+                ]
+                these_second_values = numpy.mean(these_second_values, axis=1)
+
+            correlation_matrix[i, j] = pearsonr(
+                these_first_values, these_second_values)
+            correlation_matrix[j, i] = correlation_matrix[i, j]
+
+    return correlation_matrix, predictor_names
+
+
 def _run(model_file_name, top_example_dir_name,
          first_spc_date_string, last_spc_date_string, num_examples,
          class_fraction_keys, class_fraction_values, output_file_name):
@@ -311,30 +439,29 @@ def _run(model_file_name, top_example_dir_name,
 
     print SEPARATOR_STRING
 
-    rh_index = predictor_names_by_matrix[-1].index('Relative humidity')
-    v_wind_index = predictor_names_by_matrix[-1].index(r'$v$-wind')
+    list_of_layer_operation_dicts = model_metadata_dict[
+        cnn.LAYER_OPERATIONS_KEY]
 
-    all_rh_values = numpy.ravel(list_of_predictor_matrices[-1][..., rh_index])
-    all_v_winds = numpy.ravel(list_of_predictor_matrices[-1][..., v_wind_index])
-    print pearsonr(all_rh_values, all_v_winds)
+    if list_of_layer_operation_dicts is not None:
+        correlation_matrix, predictor_names = _get_pearson_correlations(
+            list_of_predictor_matrices=list_of_predictor_matrices,
+            predictor_names_by_matrix=predictor_names_by_matrix,
+            sounding_heights_m_agl=training_option_dict[
+                trainval_io.SOUNDING_HEIGHTS_KEY]
+        )
 
-    bottom_index = numpy.where(
-        training_option_dict[trainval_io.SOUNDING_HEIGHTS_KEY] == 1000
-    )[0]
-    top_index = numpy.where(
-        training_option_dict[trainval_io.SOUNDING_HEIGHTS_KEY] == 3000
-    )[0]
+        for i in range(len(predictor_names)):
+            for j in range(i, len(predictor_names)):
+                print (
+                    'Pearson correlation between "{0:s}" and "{1:s}" = {2:.4f}'
+                ).format(
+                    predictor_names[i], predictor_names[j],
+                    correlation_matrix[i, j]
+                )
 
-    all_rh_values = numpy.mean(
-        list_of_predictor_matrices[-1][..., rh_index], axis=1)
+            print '\n'
 
-    refl_index = predictor_names_by_matrix[0].index(
-        'Reflectivity, MAX from 1-3 km AGL')
-    all_refl_values = numpy.mean(
-        list_of_predictor_matrices[0][..., refl_index], axis=(1, 2)
-    )
-
-    print pearsonr(all_rh_values, all_refl_values)
+    print SEPARATOR_STRING
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         prediction_function = permutation.prediction_function_2d3d_cnn
