@@ -5,6 +5,7 @@ import os.path
 import argparse
 import random
 import numpy
+from scipy.stats import pearsonr
 from keras import backend as K
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
@@ -309,6 +310,13 @@ def _run(model_file_name, top_example_dir_name,
         )
 
     print SEPARATOR_STRING
+
+    rh_index = predictor_names_by_matrix[-1].index('Relative humidity')
+    v_wind_index = predictor_names_by_matrix[-1].index(r'$v$-wind')
+
+    all_rh_values = numpy.ravel(list_of_predictor_matrices[-1][..., rh_index])
+    all_v_winds = numpy.ravel(list_of_predictor_matrices[-1][..., v_wind_index])
+    print pearsonr(all_rh_values, all_v_winds)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         prediction_function = permutation.prediction_function_2d3d_cnn
