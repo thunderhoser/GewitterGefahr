@@ -298,6 +298,10 @@ def _get_pearson_correlations(
                 sounding_heights_m_agl == this_max_height_m_agl
             )[0]
 
+            print this_bottom_index
+            print this_top_index
+            print '\n\n\n'
+
             if this_first_matrix_index == 0:
                 these_first_values = list_of_predictor_matrices[0][
                     ..., this_first_predictor_index]
