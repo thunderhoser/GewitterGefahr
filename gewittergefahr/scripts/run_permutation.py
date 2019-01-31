@@ -293,10 +293,10 @@ def _get_pearson_correlations(
 
             this_bottom_index = numpy.where(
                 sounding_heights_m_agl == this_min_height_m_agl
-            )[0]
+            )[0][0]
             this_top_index = numpy.where(
                 sounding_heights_m_agl == this_max_height_m_agl
-            )[0]
+            )[0][0]
 
             print this_bottom_index
             print this_top_index
