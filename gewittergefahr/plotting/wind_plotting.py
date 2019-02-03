@@ -82,4 +82,4 @@ def plot_wind_barbs(
         v_winds_m_s01 * METRES_PER_SECOND_TO_KT,
         wind_speeds_m_s01 * METRES_PER_SECOND_TO_KT, length=barb_length,
         sizes=size_dict, fill_empty=fill_empty_barb, rounding=False,
-        cmap=colour_map, clim=colour_limits_kt)
+        cmap=colour_map, clim=colour_limits_kt, linewidth=2)
