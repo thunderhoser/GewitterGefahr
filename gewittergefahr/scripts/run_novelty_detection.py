@@ -11,6 +11,7 @@ import argparse
 import numpy
 from keras import backend as K
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
@@ -195,6 +196,22 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
     if 0 < num_trial_examples < len(trial_storm_ids):
         trial_storm_ids = trial_storm_ids[:num_trial_examples]
         trial_times_unix_sec = trial_times_unix_sec[:num_trial_examples]
+
+    bad_baseline_indices = tracking_utils.find_storm_objects(
+        all_storm_ids=baseline_storm_ids,
+        all_times_unix_sec=baseline_times_unix_sec,
+        storm_ids_to_keep=trial_storm_ids,
+        times_to_keep_unix_sec=trial_times_unix_sec, allow_missing=True)
+
+    print 'Removing {0:d} trial examples from baseline set...'.format(
+        len(bad_baseline_indices)
+    )
+
+    baseline_storm_ids = numpy.delete(
+        numpy.array(baseline_storm_ids), bad_baseline_indices)
+    baseline_storm_ids = baseline_storm_ids.tolist()
+    baseline_times_unix_sec = numpy.delete(
+        baseline_times_unix_sec, bad_baseline_indices)
 
     # num_baseline_examples = len(baseline_storm_ids)
     num_trial_examples = len(trial_storm_ids)

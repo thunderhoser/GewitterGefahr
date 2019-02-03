@@ -255,12 +255,6 @@ def _get_pearson_correlations(
                 )
                 this_second_matrix_index = 1
 
-            print this_first_matrix_index
-            print this_first_predictor_index
-            print this_second_matrix_index
-            print this_second_predictor_index
-            print '\n\n\n'
-
             if this_first_matrix_index == this_second_matrix_index:
                 these_first_values = numpy.ravel(
                     list_of_predictor_matrices[this_first_matrix_index][
@@ -297,10 +291,6 @@ def _get_pearson_correlations(
             this_top_index = numpy.where(
                 sounding_heights_m_agl == this_max_height_m_agl
             )[0][0]
-
-            print this_bottom_index
-            print this_top_index
-            print '\n\n\n'
 
             if this_first_matrix_index == 0:
                 these_first_values = list_of_predictor_matrices[0][
