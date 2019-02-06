@@ -200,6 +200,9 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
 
     print 'Reading trained CNN from: "{0:s}"...'.format(input_cnn_file_name)
     cnn_model_object = cnn.read_model(input_cnn_file_name)
+    cnn_model_object.summary()
+    print SEPARATOR_STRING
+
     cnn_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(input_cnn_file_name)[0]
     )
