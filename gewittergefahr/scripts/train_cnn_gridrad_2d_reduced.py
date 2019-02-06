@@ -318,20 +318,20 @@ def _run(input_model_file_name, radar_field_name_by_channel,
         training_option_dict=training_option_dict,
         list_of_layer_operation_dicts=list_of_layer_operation_dicts)
 
-    cnn.train_cnn_gridrad_2d_reduced(
-        model_object=model_object, model_file_name=output_model_file_name,
-        history_file_name=history_file_name,
-        tensorboard_dir_name=tensorboard_dir_name,
-        num_epochs=num_epochs,
-        num_training_batches_per_epoch=num_training_batches_per_epoch,
-        training_option_dict=training_option_dict,
-        list_of_layer_operation_dicts=list_of_layer_operation_dicts,
-        monitor_string=monitor_string,
-        weight_loss_function=weight_loss_function,
-        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        validation_file_names=validation_file_names,
-        first_validn_time_unix_sec=first_validation_time_unix_sec,
-        last_validn_time_unix_sec=last_validation_time_unix_sec)
+    # cnn.train_cnn_gridrad_2d_reduced(
+    #     model_object=model_object, model_file_name=output_model_file_name,
+    #     history_file_name=history_file_name,
+    #     tensorboard_dir_name=tensorboard_dir_name,
+    #     num_epochs=num_epochs,
+    #     num_training_batches_per_epoch=num_training_batches_per_epoch,
+    #     training_option_dict=training_option_dict,
+    #     list_of_layer_operation_dicts=list_of_layer_operation_dicts,
+    #     monitor_string=monitor_string,
+    #     weight_loss_function=weight_loss_function,
+    #     num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+    #     validation_file_names=validation_file_names,
+    #     first_validn_time_unix_sec=first_validation_time_unix_sec,
+    #     last_validn_time_unix_sec=last_validation_time_unix_sec)
 
 
 if __name__ == '__main__':
