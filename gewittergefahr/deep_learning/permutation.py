@@ -352,7 +352,7 @@ def run_permutation_test(
         print '\n'
         step_num += 1
 
-        highest_cost_bs_matrix = numpy.full(3, -numpy.inf)
+        highest_cost_bs_matrix = numpy.full((1, 3), -numpy.inf)
         best_matrix_index = None
         best_predictor_name = None
         best_predictor_permuted_values = None
