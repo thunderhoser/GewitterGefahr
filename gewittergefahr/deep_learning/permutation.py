@@ -29,11 +29,18 @@ MIN_PROBABILITY = 1e-15
 MAX_PROBABILITY = 1. - MIN_PROBABILITY
 
 # Mandatory keys in result dictionary (see `write_results`).
+NUM_BOOTSTRAP_ITERS_KEY = 'num_bootstrap_iters'
+CONFIDENCE_LEVEL_KEY = 'bootstrap_confidence_level'
 SELECTED_PREDICTORS_KEY = 'selected_predictor_name_by_step'
 HIGHEST_COSTS_KEY = 'highest_cost_by_step_bs_matrix'
 ORIGINAL_COST_KEY = 'original_cost_bs_array'
 STEP1_PREDICTORS_KEY = 'step1_predictor_names'
 STEP1_COSTS_KEY = 'step1_cost_bs_matrix'
+
+REQUIRED_KEYS = [
+    NUM_BOOTSTRAP_ITERS_KEY, CONFIDENCE_LEVEL_KEY, SELECTED_PREDICTORS_KEY,
+    HIGHEST_COSTS_KEY, ORIGINAL_COST_KEY, STEP1_PREDICTORS_KEY, STEP1_COSTS_KEY
+]
 
 # Optional keys in result dictionary (see `write_results`).
 STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
@@ -227,25 +234,32 @@ def run_permutation_test(
         method will return the q-percent confidence interval for each cost,
         where q = 100 * `bootstrap_confidence_level`.
 
-    :return: result_dict: Dictionary with the following keys.  S = number of
-        steps (loops through predictor variables) taken by algorithm.  P = total
-        number of predictors.
-    result_dict['selected_predictor_name_by_step']: length-S list with name of
-        predictor selected at each step.
-    result_dict['highest_cost_by_step']: length-S numpy array with corresponding
-        cost at each step.
-    result_dict['original_cost']: Original cost (before permutation).
+    :return: result_dict: Dictionary with the following keys.
+        S = number of steps (loops through predictors) taken by algorithm
+        P = number of predictors
+
+    result_dict['num_bootstrap_iters']: See input.
+    result_dict['bootstrap_confidence_level']: See input.
+    result_dict['selected_predictor_name_by_step']: length-S list with names of
+        selected predictors.
+    result_dict['highest_cost_by_step_bs_matrix']: S-by-3 numpy array, where
+        highest_cost_by_step_bs_matrix[i, 0] = minimum of confidence interval
+        for highest cost at [i]th step; highest_cost_by_step_bs_matrix[i, 1] =
+        mean; and highest_cost_by_step_bs_matrix[i, 2] = max.
+    result_dict['original_cost_bs_array']: length-3 numpy array, where
+        original_cost_bs_array[0] = minimum of confidence interval for cost
+        without permutation; original_cost_bs_array[1] = mean; and
+        original_cost_bs_array[2] = max.
     result_dict['step1_predictor_names']: length-P list of predictor names.
-    result_dict['costs_step1']: length-P list of corresponding costs after
-        permuting at step 1.  These represent results of the Breiman version of
-        the permutation test.
+    result_dict['step1_cost_bs_matrix']: S-by-3 numpy array, where
+        step1_cost_bs_matrix[i, 0] = minimum of confidence interval for cost
+        after permuting only step1_predictor_names[i];
+        step1_cost_bs_matrix[i, 1] = mean; and step1_cost_bs_matrix[i, 2] = max.
 
     :raises: ValueError: if length of `list_of_input_matrices` != length of
         `predictor_names_by_matrix`.
     :raises: ValueError: if any input matrix has < 3 dimensions.
     """
-
-    # TODO(thunderhoser): Add shit to output dict.
 
     # Check input args.
     error_checking.assert_is_integer_numpy_array(target_values)
@@ -446,11 +460,13 @@ def run_permutation_test(
             best_predictor_name, highest_cost_bs_matrix)
 
     return {
+        NUM_BOOTSTRAP_ITERS_KEY: num_bootstrap_iters,
+        CONFIDENCE_LEVEL_KEY: bootstrap_confidence_level,
         SELECTED_PREDICTORS_KEY: selected_predictor_name_by_step,
         HIGHEST_COSTS_KEY: highest_cost_by_step_bs_matrix,
         ORIGINAL_COST_KEY: original_cost_bs_array,
         STEP1_PREDICTORS_KEY: step1_predictor_names,
-        STEP1_COSTS_KEY: numpy.array(step1_cost_bs_matrix)
+        STEP1_COSTS_KEY: step1_cost_bs_matrix
     }
 
 
@@ -460,12 +476,27 @@ def write_results(result_dict, pickle_file_name):
     :param result_dict: Dictionary created by `run_permutation_test`, maybe with
         additional keys.
     :param pickle_file_name: Path to output file.
+    :raises: ValueError: if any required keys are not found in the dictionary.
     """
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
-    pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(result_dict, pickle_file_handle)
-    pickle_file_handle.close()
+    missing_keys = list(set(REQUIRED_KEYS) - set(result_dict.keys()))
+
+    if len(missing_keys) == 0:
+        file_system_utils.mkdir_recursive_if_necessary(
+            file_name=pickle_file_name)
+
+        pickle_file_handle = open(pickle_file_name, 'wb')
+        pickle.dump(result_dict, pickle_file_handle)
+        pickle_file_handle.close()
+
+        return
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in '
+        'dictionary.'
+    ).format(str(missing_keys))
+
+    raise ValueError(error_string)
 
 
 def read_results(pickle_file_name):
@@ -474,10 +505,20 @@ def read_results(pickle_file_name):
     :param pickle_file_name: Path to input file.
     :return: result_dict: Dictionary created by `run_permutation_test`, maybe
         with additional keys.
+    :raises: ValueError: if any required keys are not found in the dictionary.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     result_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return result_dict
+    missing_keys = list(set(REQUIRED_KEYS) - set(result_dict.keys()))
+    if len(missing_keys) == 0:
+        return result_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)

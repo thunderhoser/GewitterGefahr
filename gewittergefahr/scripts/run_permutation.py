@@ -34,6 +34,8 @@ LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
 CLASS_FRACTION_KEYS_ARG_NAME = 'class_fraction_keys'
 CLASS_FRACTION_VALUES_ARG_NAME = 'class_fraction_values'
+NUM_ITERS_ARG_NAME = 'num_bootstrap_iters'
+CONFIDENCE_LEVEL_ARG_NAME = 'bootstrap_confidence_level'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -62,6 +64,14 @@ CLASS_FRACTION_VALUES_HELP_STRING = (
     '`deep_learning_utils.sample_by_class`.  If you do not want class-'
     'conditional sampling, leave this alone.'
 )
+
+NUM_ITERS_HELP_STRING = (
+    'Number of bootstrapping iterations (used to compute the cost function '
+    'after each permutation).  If you do not want bootstrapping, leave this '
+    'argument alone.')
+
+CONFIDENCE_LEVEL_HELP_STRING = (
+    'Confidence level for bootstrapping (in range 0...1, not percentage).')
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output (Pickle) file.  Will be written by'
@@ -95,6 +105,15 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + CLASS_FRACTION_VALUES_ARG_NAME, type=float, nargs='+',
     required=False, default=[0.], help=CLASS_FRACTION_VALUES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_ITERS_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_ITERS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False,
+    default=permutation.DEFAULT_CONFIDENCE_LEVEL,
+    help=CONFIDENCE_LEVEL_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -328,7 +347,8 @@ def _get_pearson_correlations(
 
 def _run(model_file_name, top_example_dir_name,
          first_spc_date_string, last_spc_date_string, num_examples,
-         class_fraction_keys, class_fraction_values, output_file_name):
+         class_fraction_keys, class_fraction_values, num_bootstrap_iters,
+         bootstrap_confidence_level, output_file_name):
     """Runs permutation test for predictor importance.
 
     This is effectively the main method.
@@ -340,6 +360,8 @@ def _run(model_file_name, top_example_dir_name,
     :param num_examples: Same.
     :param class_fraction_keys: Same.
     :param class_fraction_values: Same.
+    :param num_bootstrap_iters: Same.
+    :param bootstrap_confidence_level: Same.
     :param output_file_name: Same.
     """
 
@@ -463,8 +485,6 @@ def _run(model_file_name, top_example_dir_name,
 
             print '\n'
 
-    print SEPARATOR_STRING
-
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         prediction_function = permutation.prediction_function_2d3d_cnn
     else:
@@ -475,12 +495,16 @@ def _run(model_file_name, top_example_dir_name,
         else:
             prediction_function = permutation.prediction_function_3d_cnn
 
+    print SEPARATOR_STRING
     result_dict = permutation.run_permutation_test(
         model_object=model_object,
         list_of_input_matrices=list_of_predictor_matrices,
         predictor_names_by_matrix=predictor_names_by_matrix,
         target_values=target_values, prediction_function=prediction_function,
-        cost_function=permutation.negative_auc_function)
+        cost_function=permutation.negative_auc_function,
+        num_bootstrap_iters=num_bootstrap_iters,
+        bootstrap_confidence_level=bootstrap_confidence_level)
+    print SEPARATOR_STRING
 
     result_dict[permutation.MODEL_FILE_KEY] = model_file_name
     result_dict[permutation.TARGET_VALUES_KEY] = target_values
@@ -507,5 +531,8 @@ if __name__ == '__main__':
         class_fraction_values=numpy.array(
             getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_VALUES_ARG_NAME),
             dtype=float),
+        num_bootstrap_iters=getattr(INPUT_ARG_OBJECT, NUM_ITERS_ARG_NAME),
+        bootstrap_confidence_level=getattr(
+            INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
