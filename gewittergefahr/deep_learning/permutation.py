@@ -456,8 +456,8 @@ def run_permutation_test(
             ..., this_best_predictor_index
         ] = best_predictor_permuted_values + 0.
 
-        print 'Best predictor = "{0:s}" ... new cost = {1:.4e}'.format(
-            best_predictor_name, highest_cost_bs_matrix)
+        print 'Best predictor = "{0:s}" ... new cost = {1:s}'.format(
+            best_predictor_name, str(highest_cost_bs_matrix))
 
     return {
         NUM_BOOTSTRAP_ITERS_KEY: num_bootstrap_iters,
