@@ -212,7 +212,9 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
 
     if num_novel_examples <= 0:
         num_novel_examples = num_trial_examples + 0
+
     num_novel_examples = min([num_novel_examples, num_trial_examples])
+    print 'Number of novel examples to find: {0:d}'.format(num_novel_examples)
 
     bad_baseline_indices = tracking_utils.find_storm_objects(
         all_storm_ids=baseline_storm_ids,
