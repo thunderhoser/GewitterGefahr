@@ -31,6 +31,7 @@ BASELINE_FILE_ARG_NAME = 'input_baseline_metafile_name'
 TRIAL_FILE_ARG_NAME = 'input_trial_metafile_name'
 NUM_BASELINE_EX_ARG_NAME = 'num_baseline_examples'
 NUM_TRIAL_EX_ARG_NAME = 'num_trial_examples'
+NUM_NOVEL_EX_ARG_NAME = 'num_novel_examples'
 FEATURE_LAYER_ARG_NAME = 'cnn_feature_layer_name'
 PERCENT_VARIANCE_ARG_NAME = 'percent_svd_variance_to_keep'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
@@ -65,6 +66,12 @@ NUM_TRIAL_EX_HELP_STRING = (
     '`{0:s}` examples from `{1:s}`.  If you want to use all examples in '
     '`{1:s}`, leave this argument alone.'
 ).format(NUM_BASELINE_EX_ARG_NAME, TRIAL_FILE_ARG_NAME)
+
+NUM_NOVEL_EX_HELP_STRING = (
+    'Number of novel examples (storm objects) to find.  This script will find '
+    'the `{0:s}` most novel examples in the trial set.  To find the novelty of '
+    'every trial example, leave this argument alone.'
+).format(NUM_NOVEL_EX_ARG_NAME)
 
 FEATURE_LAYER_HELP_STRING = (
     'Name of feature layer in CNN.  Outputs of this layer will be inputs to the'
@@ -108,6 +115,10 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_TRIAL_EX_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_NOVEL_EX_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_NOVEL_EX_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + FEATURE_LAYER_ARG_NAME, type=str, required=True,
     help=FEATURE_LAYER_HELP_STRING)
 
@@ -123,8 +134,9 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
          baseline_storm_metafile_name, trial_storm_metafile_name,
-         num_baseline_examples, num_trial_examples, cnn_feature_layer_name,
-         percent_svd_variance_to_keep, output_file_name):
+         num_baseline_examples, num_trial_examples, num_novel_examples,
+         cnn_feature_layer_name, percent_svd_variance_to_keep,
+         output_file_name):
     """Runs novelty detection.
 
     This is effectively the main method.
@@ -136,6 +148,7 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
     :param trial_storm_metafile_name: Same.
     :param num_baseline_examples: Same.
     :param num_trial_examples: Same.
+    :param num_novel_examples: Same.
     :param cnn_feature_layer_name: Same.
     :param percent_svd_variance_to_keep: Same.
     :param output_file_name: Same.
@@ -197,6 +210,10 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         trial_storm_ids = trial_storm_ids[:num_trial_examples]
         trial_times_unix_sec = trial_times_unix_sec[:num_trial_examples]
 
+    if num_novel_examples <= 0:
+        num_novel_examples = num_trial_examples + 0
+    num_novel_examples = min([num_novel_examples, num_trial_examples])
+
     bad_baseline_indices = tracking_utils.find_storm_objects(
         all_storm_ids=baseline_storm_ids,
         all_times_unix_sec=baseline_times_unix_sec,
@@ -246,7 +263,7 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         cnn_model_object=cnn_model_object,
         cnn_feature_layer_name=cnn_feature_layer_name,
         upconvnet_model_object=upconvnet_model_object,
-        num_novel_examples=num_trial_examples, multipass=False,
+        num_novel_examples=num_novel_examples, multipass=False,
         percent_svd_variance_to_keep=percent_svd_variance_to_keep)
 
     print SEPARATOR_STRING
@@ -315,6 +332,7 @@ if __name__ == '__main__':
         num_baseline_examples=getattr(
             INPUT_ARG_OBJECT, NUM_BASELINE_EX_ARG_NAME),
         num_trial_examples=getattr(INPUT_ARG_OBJECT, NUM_TRIAL_EX_ARG_NAME),
+        num_novel_examples=getattr(INPUT_ARG_OBJECT, NUM_NOVEL_EX_ARG_NAME),
         cnn_feature_layer_name=getattr(
             INPUT_ARG_OBJECT, FEATURE_LAYER_ARG_NAME),
         percent_svd_variance_to_keep=getattr(
