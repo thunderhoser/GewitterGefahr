@@ -210,6 +210,8 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         trial_storm_ids = trial_storm_ids[:num_trial_examples]
         trial_times_unix_sec = trial_times_unix_sec[:num_trial_examples]
 
+    num_trial_examples = len(trial_storm_ids)
+
     if num_novel_examples <= 0:
         num_novel_examples = num_trial_examples + 0
 
@@ -233,7 +235,6 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         baseline_times_unix_sec, bad_baseline_indices)
 
     # num_baseline_examples = len(baseline_storm_ids)
-    num_trial_examples = len(trial_storm_ids)
 
     print SEPARATOR_STRING
 
