@@ -122,29 +122,35 @@ def plot_breiman_results(
     error_checking.assert_is_greater(num_predictors_to_plot, 0)
     num_predictors_to_plot = min([num_predictors_to_plot, len(predictor_names)])
 
-    original_cost = permutation_dict[permutation.ORIGINAL_COST_KEY]
-    cost_by_predictor = permutation_dict[permutation.STEP1_COSTS_KEY]
+    original_cost_bs_array = permutation_dict[permutation.ORIGINAL_COST_KEY]
+    cost_by_predictor_bs_matrix = permutation_dict[permutation.STEP1_COSTS_KEY]
 
-    sort_indices = numpy.argsort(cost_by_predictor)[-num_predictors_to_plot:]
-    cost_by_predictor = cost_by_predictor[sort_indices]
+    sort_indices = numpy.argsort(
+        cost_by_predictor_bs_matrix[:, 1]
+    )[-num_predictors_to_plot:]
+
+    cost_by_predictor_bs_matrix = cost_by_predictor_bs_matrix[sort_indices, :]
     predictor_names = [predictor_names[k] for k in sort_indices]
 
-    x_coords = numpy.concatenate((
-        numpy.full(1, original_cost), cost_by_predictor
-    ))
+    original_cost_bs_matrix = numpy.reshape(
+        original_cost_bs_array, (1, original_cost_bs_array.size)
+    )
 
-    if numpy.any(x_coords < 0):
-        x_coords *= -1
+    x_coord_matrix = numpy.concatenate(
+        (original_cost_bs_matrix, cost_by_predictor_bs_matrix), axis=0)
+
+    if numpy.any(x_coord_matrix < 0):
+        x_coord_matrix *= -1
         x_label_string = 'AUC'
 
         if plot_percent_increase:
-            x_coords = 200 * (x_coords - 0.5)
+            x_coord_matrix = 200 * (x_coord_matrix - 0.5)
             x_label_string += ' (percent improvement above 0.5)'
     else:
         x_label_string = 'Cost'
 
         if plot_percent_increase:
-            x_coords = 100 * x_coords / x_coords[0]
+            x_coord_matrix = 100 * x_coord_matrix / x_coord_matrix[0, 1]
             x_label_string += ' (percentage of original)'
 
     y_strings = ['No permutation'] + predictor_names
@@ -157,15 +163,17 @@ def plot_breiman_results(
         ]
         bar_face_colours = [NO_PERMUTATION_COLOUR] + bar_face_colours
 
-        axes_object.barh(
-            y_coords, x_coords, color=bar_face_colours,
-            edgecolor=bar_edge_colour, linewidth=bar_edge_width)
+        for j in range(3):
+            axes_object.barh(
+                y_coords, x_coord_matrix[:, j], color=bar_face_colours,
+                edgecolor=bar_edge_colour, linewidth=bar_edge_width)
     else:
-        axes_object.barh(
-            y_coords, x_coords, color=bar_face_colour,
-            edgecolor=bar_edge_colour, linewidth=bar_edge_width)
+        for j in range(3):
+            axes_object.barh(
+                y_coords, x_coord_matrix[:, j], color=bar_face_colour,
+                edgecolor=bar_edge_colour, linewidth=bar_edge_width)
 
-    reference_x_coords = numpy.full(2, x_coords[0])
+    reference_x_coords = numpy.full(2, x_coord_matrix[0, 1])
     reference_y_coords = numpy.array(
         [numpy.min(y_coords) - 0.75, numpy.max(y_coords) + 0.75]
     )
@@ -205,37 +213,44 @@ def plot_lakshmanan_results(
 
     error_checking.assert_is_boolean(plot_percent_increase)
 
-    highest_cost_by_step = permutation_dict[permutation.HIGHEST_COSTS_KEY]
+    highest_cost_by_step_bs_matrix = permutation_dict[
+        permutation.HIGHEST_COSTS_KEY]
     predictor_name_by_step = permutation_dict[
         permutation.SELECTED_PREDICTORS_KEY]
 
     if num_steps_to_plot is None:
-        num_steps_to_plot = len(highest_cost_by_step)
+        num_steps_to_plot = len(predictor_name_by_step)
 
     error_checking.assert_is_integer(num_steps_to_plot)
     error_checking.assert_is_greater(num_steps_to_plot, 0)
-    num_steps_to_plot = min([num_steps_to_plot, len(highest_cost_by_step)])
+    num_steps_to_plot = min([
+        num_steps_to_plot, len(predictor_name_by_step)
+    ])
 
-    highest_cost_by_step = highest_cost_by_step[:num_steps_to_plot]
+    highest_cost_by_step_bs_matrix = highest_cost_by_step_bs_matrix[
+        :num_steps_to_plot, :]
     predictor_name_by_step = predictor_name_by_step[:num_steps_to_plot]
 
-    original_cost = permutation_dict[permutation.ORIGINAL_COST_KEY]
-    x_coords = numpy.concatenate((
-        numpy.full(1, original_cost), highest_cost_by_step
-    ))
+    original_cost_bs_array = permutation_dict[permutation.ORIGINAL_COST_KEY]
+    original_cost_bs_matrix = numpy.reshape(
+        original_cost_bs_array, (1, original_cost_bs_array.size)
+    )
 
-    if numpy.any(x_coords < 0):
-        x_coords *= -1
+    x_coord_matrix = numpy.concatenate(
+        (original_cost_bs_matrix, highest_cost_by_step_bs_matrix), axis=0)
+
+    if numpy.any(x_coord_matrix < 0):
+        x_coord_matrix *= -1
         x_label_string = 'AUC'
 
         if plot_percent_increase:
-            x_coords = 200 * (x_coords - 0.5)
+            x_coord_matrix = 200 * (x_coord_matrix - 0.5)
             x_label_string += ' (percent improvement above 0.5)'
     else:
         x_label_string = 'Cost'
 
         if plot_percent_increase:
-            x_coords = 100 * x_coords / x_coords[0]
+            x_coord_matrix = 100 * x_coord_matrix / x_coord_matrix[0, 1]
             x_label_string += ' (percentage of original)'
 
     y_strings = ['No permutation'] + predictor_name_by_step
@@ -249,15 +264,17 @@ def plot_lakshmanan_results(
         ]
         bar_face_colours = [NO_PERMUTATION_COLOUR] + bar_face_colours
 
-        axes_object.barh(
-            y_coords, x_coords, color=bar_face_colours,
-            edgecolor=bar_edge_colour, linewidth=bar_edge_width)
+        for j in range(3):
+            axes_object.barh(
+                y_coords, x_coord_matrix[:, j], color=bar_face_colours,
+                edgecolor=bar_edge_colour, linewidth=bar_edge_width)
     else:
-        axes_object.barh(
-            y_coords, x_coords, color=bar_face_colour, edgecolor=bar_edge_colour,
-            linewidth=bar_edge_width)
+        for j in range(3):
+            axes_object.barh(
+                y_coords, x_coord_matrix[:, j], color=bar_face_colour,
+                edgecolor=bar_edge_colour, linewidth=bar_edge_width)
 
-    reference_x_coords = numpy.full(2, x_coords[0])
+    reference_x_coords = numpy.full(2, x_coord_matrix[0, 1])
     reference_y_coords = numpy.array(
         [numpy.min(y_coords) - 0.75, numpy.max(y_coords) + 0.75]
     )
