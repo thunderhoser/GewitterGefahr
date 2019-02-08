@@ -125,6 +125,9 @@ def plot_breiman_results(
     original_cost_bs_array = permutation_dict[permutation.ORIGINAL_COST_KEY]
     cost_by_predictor_bs_matrix = permutation_dict[permutation.STEP1_COSTS_KEY]
 
+    print numpy.argsort(cost_by_predictor_bs_matrix[:, 1])
+    print num_predictors_to_plot
+
     sort_indices = numpy.argsort(
         cost_by_predictor_bs_matrix[:, 1]
     )[-num_predictors_to_plot:]
