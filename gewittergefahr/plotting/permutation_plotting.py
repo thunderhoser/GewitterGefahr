@@ -33,6 +33,10 @@ DEFAULT_REFERENCE_LINE_COLOUR = numpy.full(3, 152. / 255)
 DEFAULT_EDGE_WIDTH = 2
 DEFAULT_REFERENCE_LINE_WIDTH = 4
 
+ERROR_BAR_COLOUR = numpy.full(3, 152. / 255)
+ERROR_BAR_CAP_SIZE = 4
+ERROR_BAR_DICT = {'alpha': 0.5}
+
 TEXT_COLOUR = numpy.full(3, 0.)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -125,9 +129,6 @@ def plot_breiman_results(
     original_cost_bs_array = permutation_dict[permutation.ORIGINAL_COST_KEY]
     cost_by_predictor_bs_matrix = permutation_dict[permutation.STEP1_COSTS_KEY]
 
-    print numpy.argsort(cost_by_predictor_bs_matrix[:, 1])
-    print num_predictors_to_plot
-
     sort_indices = numpy.argsort(
         cost_by_predictor_bs_matrix[:, 1]
     )[-num_predictors_to_plot:]
@@ -164,17 +165,29 @@ def plot_breiman_results(
         bar_face_colours = [
             _predictor_name_to_face_colour(n) for n in predictor_names
         ]
-        bar_face_colours = [NO_PERMUTATION_COLOUR] + bar_face_colours
 
-        for j in range(3):
-            axes_object.barh(
-                y_coords, x_coord_matrix[:, j], color=bar_face_colours,
-                edgecolor=bar_edge_colour, linewidth=bar_edge_width)
+        face_colour_arg = [NO_PERMUTATION_COLOUR] + bar_face_colours
     else:
-        for j in range(3):
-            axes_object.barh(
-                y_coords, x_coord_matrix[:, j], color=bar_face_colour,
-                edgecolor=bar_edge_colour, linewidth=bar_edge_width)
+        face_colour_arg = bar_face_colour
+
+    negative_errors = x_coord_matrix[:, 1] - x_coord_matrix[:, 0]
+    positive_errors = x_coord_matrix[:, 2] - x_coord_matrix[:, 1]
+
+    negative_errors = numpy.reshape(
+        negative_errors, (1, negative_errors.size)
+    )
+    positive_errors = numpy.reshape(
+        positive_errors, (1, positive_errors.size)
+    )
+
+    error_matrix = numpy.hstack((
+        negative_errors, positive_errors))
+
+    axes_object.barh(
+        y_coords, x_coord_matrix[:, 1], color=face_colour_arg,
+        edgecolor=bar_edge_colour, linewidth=bar_edge_width,
+        xerr=error_matrix, ecolor=ERROR_BAR_COLOUR,
+        capsize=ERROR_BAR_CAP_SIZE, error_kw=ERROR_BAR_DICT)
 
     reference_x_coords = numpy.full(2, x_coord_matrix[0, 1])
     reference_y_coords = numpy.array(
@@ -265,17 +278,29 @@ def plot_lakshmanan_results(
         bar_face_colours = [
             _predictor_name_to_face_colour(n) for n in predictor_name_by_step
         ]
-        bar_face_colours = [NO_PERMUTATION_COLOUR] + bar_face_colours
 
-        for j in range(3):
-            axes_object.barh(
-                y_coords, x_coord_matrix[:, j], color=bar_face_colours,
-                edgecolor=bar_edge_colour, linewidth=bar_edge_width)
+        face_colour_arg = [NO_PERMUTATION_COLOUR] + bar_face_colours
     else:
-        for j in range(3):
-            axes_object.barh(
-                y_coords, x_coord_matrix[:, j], color=bar_face_colour,
-                edgecolor=bar_edge_colour, linewidth=bar_edge_width)
+        face_colour_arg = bar_face_colour
+
+    negative_errors = x_coord_matrix[:, 1] - x_coord_matrix[:, 0]
+    positive_errors = x_coord_matrix[:, 2] - x_coord_matrix[:, 1]
+
+    negative_errors = numpy.reshape(
+        negative_errors, (1, negative_errors.size)
+    )
+    positive_errors = numpy.reshape(
+        positive_errors, (1, positive_errors.size)
+    )
+
+    error_matrix = numpy.hstack((
+        negative_errors, positive_errors))
+
+    axes_object.barh(
+        y_coords, x_coord_matrix[:, 1], color=face_colour_arg,
+        edgecolor=bar_edge_colour, linewidth=bar_edge_width,
+        xerr=error_matrix, ecolor=ERROR_BAR_COLOUR,
+        capsize=ERROR_BAR_CAP_SIZE, error_kw=ERROR_BAR_DICT)
 
     reference_x_coords = numpy.full(2, x_coord_matrix[0, 1])
     reference_y_coords = numpy.array(
