@@ -34,8 +34,9 @@ DEFAULT_EDGE_WIDTH = 2
 DEFAULT_REFERENCE_LINE_WIDTH = 4
 
 ERROR_BAR_COLOUR = numpy.full(3, 152. / 255)
-ERROR_BAR_CAP_SIZE = 4
-ERROR_BAR_DICT = {'alpha': 0.5}
+# ERROR_BAR_COLOUR = numpy.full(3, 0.)
+ERROR_BAR_CAP_SIZE = 6
+ERROR_BAR_DICT = {'alpha': 0.75, 'linewidth': 4, 'capthick': 4}
 
 TEXT_COLOUR = numpy.full(3, 0.)
 FIGURE_WIDTH_INCHES = 15
@@ -180,7 +181,7 @@ def plot_breiman_results(
         positive_errors, (1, positive_errors.size)
     )
 
-    error_matrix = numpy.hstack((
+    error_matrix = numpy.vstack((
         negative_errors, positive_errors))
 
     axes_object.barh(
@@ -293,7 +294,7 @@ def plot_lakshmanan_results(
         positive_errors, (1, positive_errors.size)
     )
 
-    error_matrix = numpy.hstack((
+    error_matrix = numpy.vstack((
         negative_errors, positive_errors))
 
     axes_object.barh(
