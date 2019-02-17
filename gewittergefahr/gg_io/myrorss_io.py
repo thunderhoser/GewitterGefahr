@@ -16,7 +16,8 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
 AZIMUTHAL_RADAR_FIELD_NAMES = [
-    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
+]
 
 DEFAULT_FIELDS_TO_REMOVE = [
     radar_utils.ECHO_TOP_18DBZ_NAME, radar_utils.ECHO_TOP_50DBZ_NAME,
@@ -25,7 +26,8 @@ DEFAULT_FIELDS_TO_REMOVE = [
     radar_utils.MESH_NAME, radar_utils.REFL_0CELSIUS_NAME,
     radar_utils.REFL_M10CELSIUS_NAME, radar_utils.REFL_M20CELSIUS_NAME,
     radar_utils.REFL_LOWEST_ALTITUDE_NAME, radar_utils.SHI_NAME,
-    radar_utils.VIL_NAME]
+    radar_utils.VIL_NAME
+]
 
 DEFAULT_REFL_HEIGHTS_TO_REMOVE_M_ASL = radar_utils.get_valid_heights(
     data_source=radar_utils.MYRORSS_SOURCE_ID, field_name=radar_utils.REFL_NAME)
