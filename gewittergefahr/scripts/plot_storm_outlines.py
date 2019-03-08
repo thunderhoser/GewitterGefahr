@@ -21,6 +21,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))
 DUMMY_TRACK_SOURCE_STRING = tracking_utils.SEGMOTION_SOURCE_ID
+SENTINEL_VALUE = -9999
 
 TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 
@@ -35,6 +36,10 @@ FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 STORM_COLOUR_ARG_NAME = 'storm_colour'
 STORM_OPACITY_ARG_NAME = 'storm_opacity'
+MIN_LATITUDE_ARG_NAME = 'min_plot_latitude_deg'
+MAX_LATITUDE_ARG_NAME = 'max_plot_latitude_deg'
+MIN_LONGITUDE_ARG_NAME = 'min_plot_longitude_deg'
+MAX_LONGITUDE_ARG_NAME = 'max_plot_longitude_deg'
 MYRORSS_DIR_ARG_NAME = 'input_myrorss_dir_name'
 RADAR_FIELD_ARG_NAME = 'radar_field_name'
 RADAR_HEIGHT_ARG_NAME = 'radar_height_m_asl'
@@ -55,6 +60,18 @@ STORM_COLOUR_HELP_STRING = (
     'range 0...255).')
 
 STORM_OPACITY_HELP_STRING = 'Opacity of storm outlines (in range 0...1).'
+
+LATITUDE_HELP_STRING = (
+    'Latitude (deg N, in range -90...90).  Plotting area will be '
+    '`{0:s}`...`{1:s}`.  To let plotting area be determined by data, make this '
+    '{2:d}.'
+).format(MIN_LATITUDE_ARG_NAME, MAX_LATITUDE_ARG_NAME, SENTINEL_VALUE)
+
+LONGITUDE_HELP_STRING = (
+    'Longitude (deg E, in range 0...360).  Plotting area will be '
+    '`{0:s}`...`{1:s}`.  To let plotting area be determined by data, make this '
+    '{2:d}.'
+).format(MIN_LONGITUDE_ARG_NAME, MAX_LONGITUDE_ARG_NAME, SENTINEL_VALUE)
 
 MYRORSS_DIR_HELP_STRING = (
     'Name of top-level directory with MYRORSS data.  If you do not want to '
@@ -98,6 +115,22 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + STORM_OPACITY_ARG_NAME, type=float, required=False,
     default=DEFAULT_STORM_OPACITY, help=STORM_OPACITY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_LATITUDE_ARG_NAME, type=float, required=False,
+    default=SENTINEL_VALUE, help=LATITUDE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_LATITUDE_ARG_NAME, type=float, required=False,
+    default=SENTINEL_VALUE, help=LATITUDE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_LONGITUDE_ARG_NAME, type=float, required=False,
+    default=SENTINEL_VALUE, help=LONGITUDE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_LONGITUDE_ARG_NAME, type=float, required=False,
+    default=SENTINEL_VALUE, help=LONGITUDE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MYRORSS_DIR_ARG_NAME, type=str, required=False, default='',
@@ -234,8 +267,10 @@ def _plot_storm_outlines_one_time(
 
 
 def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
-         storm_colour, storm_opacity, top_myrorss_dir_name, radar_field_name,
-         radar_height_m_asl, output_dir_name):
+         storm_colour, storm_opacity, min_plot_latitude_deg,
+         max_plot_latitude_deg, min_plot_longitude_deg, max_plot_longitude_deg,
+         top_myrorss_dir_name, radar_field_name, radar_height_m_asl,
+         output_dir_name):
     """Plots storm outlines (along with IDs) at each time step.
 
     This is effectively the main method.
@@ -245,6 +280,10 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     :param last_spc_date_string: Same.
     :param storm_colour: Same.
     :param storm_opacity: Same.
+    :param min_plot_latitude_deg: Same.
+    :param max_plot_latitude_deg: Same.
+    :param min_plot_longitude_deg: Same.
+    :param max_plot_longitude_deg: Same.
     :param top_myrorss_dir_name: Same.
     :param radar_field_name: Same.
     :param radar_height_m_asl: Same.
@@ -256,6 +295,15 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
     if radar_field_name != radar_utils.REFL_NAME:
         radar_height_m_asl = None
+
+    if min_plot_latitude_deg <= SENTINEL_VALUE:
+        min_plot_latitude_deg = None
+    if max_plot_latitude_deg <= SENTINEL_VALUE:
+        max_plot_latitude_deg = None
+    if min_plot_longitude_deg <= SENTINEL_VALUE:
+        min_plot_longitude_deg = None
+    if max_plot_longitude_deg <= SENTINEL_VALUE:
+        max_plot_longitude_deg = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -281,18 +329,25 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         tracking_file_names)
     print SEPARATOR_STRING
 
-    min_plot_latitude_deg = numpy.min(
-        storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
-    ) - LATLNG_BUFFER_DEG
-    max_plot_latitude_deg = numpy.max(
-        storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
-    ) + LATLNG_BUFFER_DEG
-    min_plot_longitude_deg = numpy.min(
-        storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
-    ) - LATLNG_BUFFER_DEG
-    max_plot_longitude_deg = numpy.max(
-        storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
-    ) + LATLNG_BUFFER_DEG
+    if min_plot_latitude_deg is None:
+        min_plot_latitude_deg = numpy.min(
+            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
+        ) - LATLNG_BUFFER_DEG
+
+    if max_plot_latitude_deg is None:
+        max_plot_latitude_deg = numpy.max(
+            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
+        ) + LATLNG_BUFFER_DEG
+
+    if min_plot_longitude_deg is None:
+        min_plot_longitude_deg = numpy.min(
+            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
+        ) - LATLNG_BUFFER_DEG
+
+    if max_plot_longitude_deg is None:
+        max_plot_longitude_deg = numpy.max(
+            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
+        ) + LATLNG_BUFFER_DEG
 
     valid_times_unix_sec = numpy.unique(
         storm_object_table[tracking_utils.TIME_COLUMN].values)
@@ -375,6 +430,12 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, STORM_COLOUR_ARG_NAME), dtype=float
         ) / 255,
         storm_opacity=getattr(INPUT_ARG_OBJECT, STORM_OPACITY_ARG_NAME),
+        min_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MIN_LATITUDE_ARG_NAME),
+        max_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MAX_LATITUDE_ARG_NAME),
+        min_plot_longitude_deg=getattr(
+            INPUT_ARG_OBJECT, MIN_LONGITUDE_ARG_NAME),
+        max_plot_longitude_deg=getattr(
+            INPUT_ARG_OBJECT, MAX_LONGITUDE_ARG_NAME),
         top_myrorss_dir_name=getattr(INPUT_ARG_OBJECT, MYRORSS_DIR_ARG_NAME),
         radar_field_name=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_ARG_NAME),
         radar_height_m_asl=getattr(INPUT_ARG_OBJECT, RADAR_HEIGHT_ARG_NAME),
