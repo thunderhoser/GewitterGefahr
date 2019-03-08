@@ -240,10 +240,18 @@ def _plot_storm_outlines_one_time(
             radar_plotting.get_default_colour_scheme(radar_field_name)
         )
 
+        latitude_range_deg = max_plot_latitude_deg - min_plot_latitude_deg
+        longitude_range_deg = max_plot_longitude_deg - min_plot_longitude_deg
+
+        if latitude_range_deg > longitude_range_deg:
+            orientation_string = 'vertical'
+        else:
+            orientation_string = 'horizontal'
+
         plotting_utils.add_colour_bar(
             axes_object_or_list=axes_object, values_to_colour=radar_matrix,
             colour_map=colour_map_object, colour_norm_object=colour_norm_object,
-            orientation='horizontal',
+            orientation=orientation_string,
             extend_min=radar_field_name in radar_plotting.SHEAR_VORT_DIV_NAMES,
             extend_max=True, fraction_of_axis_length=0.9)
 
