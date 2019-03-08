@@ -50,8 +50,9 @@ PROJECTION_OBJECT = projections.init_azimuthal_equidistant_projection(
 LOCAL_MAX_X_COORDS_METRES, LOCAL_MAX_Y_COORDS_METRES = (
     projections.project_latlng_to_xy(
         LOCAL_MAX_LATITUDES_DEG, LOCAL_MAX_LONGITUDES_DEG,
-        projection_object=PROJECTION_OBJECT, false_easting_metres=0.,
-        false_northing_metres=0.))
+        projection_object=PROJECTION_OBJECT,
+        false_easting_metres=0., false_northing_metres=0.)
+)
 
 LOCAL_MAX_DICT_SMALL_DISTANCE = {
     echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
@@ -62,11 +63,11 @@ LOCAL_MAX_DICT_SMALL_DISTANCE = {
 }
 
 LOCAL_MAX_DICT_LARGE_DISTANCE = {
-    echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG[1:],
-    echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG[1:],
-    echo_top_tracking.MAX_VALUES_KEY: LOCAL_MAX_VALUES[1:],
-    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES[1:],
-    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES[1:]
+    echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG[:-1],
+    echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG[:-1],
+    echo_top_tracking.MAX_VALUES_KEY: LOCAL_MAX_VALUES[:-1],
+    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES[:-1],
+    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES[:-1]
 }
 
 # The following constants are used to test _link_local_maxima_in_time.
@@ -436,7 +437,8 @@ class EchoTopTrackingTests(unittest.TestCase):
         for this_key in these_keys:
             self.assertTrue(numpy.allclose(
                 this_local_max_dict[this_key], LOCAL_MAX_DICT_LATLNG[this_key],
-                atol=TOLERANCE))
+                atol=TOLERANCE
+            ))
 
     def test_remove_redundant_local_maxima_small_distance(self):
         """Ensures correct output from _remove_redundant_local_maxima.
@@ -445,10 +447,11 @@ class EchoTopTrackingTests(unittest.TestCase):
         """
 
         this_local_max_dict = echo_top_tracking._remove_redundant_local_maxima(
-            local_max_dict_latlng=LOCAL_MAX_DICT_LATLNG,
+            local_max_dict_latlng=copy.deepcopy(LOCAL_MAX_DICT_LATLNG),
             projection_object=PROJECTION_OBJECT,
             min_distance_between_maxima_metres=
-            SMALL_DISTANCE_BETWEEN_MAXIMA_METRES)
+            SMALL_DISTANCE_BETWEEN_MAXIMA_METRES
+        )
 
         these_keys = set(list(this_local_max_dict))
         expected_keys = set(list(LOCAL_MAX_DICT_SMALL_DISTANCE))
@@ -457,7 +460,8 @@ class EchoTopTrackingTests(unittest.TestCase):
         for this_key in these_keys:
             self.assertTrue(numpy.allclose(
                 this_local_max_dict[this_key],
-                LOCAL_MAX_DICT_SMALL_DISTANCE[this_key], atol=TOLERANCE))
+                LOCAL_MAX_DICT_SMALL_DISTANCE[this_key], atol=TOLERANCE
+            ))
 
     def test_remove_redundant_local_maxima_large_distance(self):
         """Ensures correct output from _remove_redundant_local_maxima.
@@ -466,10 +470,11 @@ class EchoTopTrackingTests(unittest.TestCase):
         """
 
         this_local_max_dict = echo_top_tracking._remove_redundant_local_maxima(
-            local_max_dict_latlng=LOCAL_MAX_DICT_LATLNG,
+            local_max_dict_latlng=copy.deepcopy(LOCAL_MAX_DICT_LATLNG),
             projection_object=PROJECTION_OBJECT,
             min_distance_between_maxima_metres=
-            LARGE_DISTANCE_BETWEEN_MAXIMA_METRES)
+            LARGE_DISTANCE_BETWEEN_MAXIMA_METRES
+        )
 
         these_keys = set(list(this_local_max_dict))
         expected_keys = set(list(LOCAL_MAX_DICT_LARGE_DISTANCE))
@@ -478,7 +483,8 @@ class EchoTopTrackingTests(unittest.TestCase):
         for this_key in these_keys:
             self.assertTrue(numpy.allclose(
                 this_local_max_dict[this_key],
-                LOCAL_MAX_DICT_LARGE_DISTANCE[this_key], atol=TOLERANCE))
+                LOCAL_MAX_DICT_LARGE_DISTANCE[this_key], atol=TOLERANCE
+            ))
 
     def test_link_local_maxima_in_time_both_far(self):
         """Ensures correct output from _link_local_maxima_in_time.
@@ -492,9 +498,12 @@ class EchoTopTrackingTests(unittest.TestCase):
                 current_local_max_dict=CURRENT_LOCAL_MAX_DICT_BOTH_FAR,
                 previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
+                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        )
+
         self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_BOTH_FAR))
+            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_BOTH_FAR
+        ))
 
     def test_link_local_maxima_in_time_one_near(self):
         """Ensures correct output from _link_local_maxima_in_time.
@@ -508,9 +517,12 @@ class EchoTopTrackingTests(unittest.TestCase):
                 current_local_max_dict=CURRENT_LOCAL_MAX_DICT_ONE_NEAR,
                 previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
+                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        )
+
         self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_ONE_NEAR))
+            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_ONE_NEAR
+        ))
 
     def test_link_local_maxima_in_time_both_near(self):
         """Ensures correct output from _link_local_maxima_in_time.
@@ -524,9 +536,12 @@ class EchoTopTrackingTests(unittest.TestCase):
                 current_local_max_dict=CURRENT_LOCAL_MAX_DICT_BOTH_NEAR,
                 previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
+                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        )
+
         self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_BOTH_NEAR))
+            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_BOTH_NEAR
+        ))
 
     def test_link_local_maxima_in_time_too_late(self):
         """Ensures correct output from _link_local_maxima_in_time.
@@ -539,9 +554,12 @@ class EchoTopTrackingTests(unittest.TestCase):
                 current_local_max_dict=CURRENT_LOCAL_MAX_DICT_TOO_LATE,
                 previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
+                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        )
+
         self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_TOO_LATE))
+            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_TOO_LATE
+        ))
 
     def test_link_local_maxima_in_time_overlap(self):
         """Ensures correct output from _link_local_maxima_in_time.
@@ -556,9 +574,12 @@ class EchoTopTrackingTests(unittest.TestCase):
                 current_local_max_dict=CURRENT_LOCAL_MAX_DICT_OVERLAP,
                 previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
+                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        )
+
         self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_OVERLAP))
+            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_OVERLAP
+        ))
 
     def test_link_local_maxima_in_time_no_previous_dict(self):
         """Ensures correct output from _link_local_maxima_in_time.
@@ -572,9 +593,12 @@ class EchoTopTrackingTests(unittest.TestCase):
                 current_local_max_dict=CURRENT_LOCAL_MAX_DICT_BOTH_NEAR,
                 previous_local_max_dict=None,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
+                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        )
+
         self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_NO_LINKS))
+            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_NO_LINKS
+        ))
 
     def test_link_local_maxima_in_time_no_previous_maxima(self):
         """Ensures correct output from _link_local_maxima_in_time.
@@ -587,9 +611,12 @@ class EchoTopTrackingTests(unittest.TestCase):
                 current_local_max_dict=CURRENT_LOCAL_MAX_DICT_BOTH_NEAR,
                 previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT_EMPTY,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
+                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        )
+
         self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_NO_LINKS))
+            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_NO_LINKS
+        ))
 
     def test_link_local_maxima_in_time_no_current_maxima(self):
         """Ensures correct output from _link_local_maxima_in_time.
@@ -602,9 +629,12 @@ class EchoTopTrackingTests(unittest.TestCase):
                 current_local_max_dict=CURRENT_LOCAL_MAX_DICT_EMPTY,
                 previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
+                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        )
+
         self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, numpy.array([])))
+            these_current_to_prev_indices, numpy.array([])
+        ))
 
     def test_create_storm_id_first_in_day(self):
         """Ensures correct output from _create_storm_id.
@@ -616,7 +646,8 @@ class EchoTopTrackingTests(unittest.TestCase):
             echo_top_tracking._create_storm_id(
                 storm_start_time_unix_sec=STORM_TIME_UNIX_SEC,
                 prev_numeric_id_used=PREV_NUMERIC_ID_USED,
-                prev_spc_date_string=PREV_SPC_DATE_STRING))
+                prev_spc_date_string=PREV_SPC_DATE_STRING)
+        )
 
         self.assertTrue(this_storm_id == STORM_ID_FIRST_IN_DAY)
         self.assertTrue(this_numeric_id == 0)
@@ -632,7 +663,8 @@ class EchoTopTrackingTests(unittest.TestCase):
             echo_top_tracking._create_storm_id(
                 storm_start_time_unix_sec=STORM_TIME_UNIX_SEC,
                 prev_numeric_id_used=PREV_NUMERIC_ID_USED,
-                prev_spc_date_string=STORM_SPC_DATE_STRING))
+                prev_spc_date_string=STORM_SPC_DATE_STRING)
+        )
 
         self.assertTrue(this_storm_id == STORM_ID_SECOND_IN_DAY)
         self.assertTrue(this_numeric_id == PREV_NUMERIC_ID_USED + 1)
@@ -643,7 +675,9 @@ class EchoTopTrackingTests(unittest.TestCase):
 
         this_storm_object_table = (
             echo_top_tracking._local_maxima_to_storm_tracks(
-                LOCAL_MAX_DICT_BY_TIME))
+                LOCAL_MAX_DICT_BY_TIME)
+        )
+
         self.assertTrue(this_storm_object_table.equals(STORM_OBJECT_TABLE))
 
     def test_remove_short_tracks_short_threshold(self):
@@ -653,9 +687,8 @@ class EchoTopTrackingTests(unittest.TestCase):
         kept.
         """
 
-        this_storm_object_table = copy.deepcopy(STORM_OBJECT_TABLE)
         this_storm_object_table = echo_top_tracking._remove_short_tracks(
-            this_storm_object_table,
+            storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE),
             min_duration_seconds=SMALL_THRESHOLD_DURATION_SEC)
 
         self.assertTrue(this_storm_object_table.equals(STORM_OBJECT_TABLE))
@@ -667,9 +700,8 @@ class EchoTopTrackingTests(unittest.TestCase):
         removed.
         """
 
-        this_storm_object_table = copy.deepcopy(STORM_OBJECT_TABLE)
         this_storm_object_table = echo_top_tracking._remove_short_tracks(
-            this_storm_object_table,
+            storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE),
             min_duration_seconds=LARGE_THRESHOLD_DURATION_SEC)
 
         self.assertTrue(this_storm_object_table.empty)
@@ -685,14 +717,18 @@ class EchoTopTrackingTests(unittest.TestCase):
             echo_top_tracking._get_velocities_one_storm_track(
                 centroid_latitudes_deg=CENTROID_LATS_FOR_VELOCITY_DEG,
                 centroid_longitudes_deg=CENTROID_LNGS_FOR_VELOCITY_DEG,
-                unix_times_sec=TIMES_FOR_VELOCITY_UNIX_SEC, num_points_back=1))
+                unix_times_sec=TIMES_FOR_VELOCITY_UNIX_SEC, num_points_back=1)
+        )
 
         self.assertTrue(numpy.allclose(
             these_east_velocities_m_s01, EAST_VELOCITIES_1POINT_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
+            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
+        ))
+
         self.assertTrue(numpy.allclose(
             these_north_velocities_m_s01, NORTH_VELOCITIES_1POINT_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
+            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
+        ))
 
     def test_get_velocities_one_storm_track_2points(self):
         """Ensures correct output from _get_velocities_one_storm_track.
@@ -705,14 +741,18 @@ class EchoTopTrackingTests(unittest.TestCase):
             echo_top_tracking._get_velocities_one_storm_track(
                 centroid_latitudes_deg=CENTROID_LATS_FOR_VELOCITY_DEG,
                 centroid_longitudes_deg=CENTROID_LNGS_FOR_VELOCITY_DEG,
-                unix_times_sec=TIMES_FOR_VELOCITY_UNIX_SEC, num_points_back=2))
+                unix_times_sec=TIMES_FOR_VELOCITY_UNIX_SEC, num_points_back=2)
+        )
 
         self.assertTrue(numpy.allclose(
             these_east_velocities_m_s01, EAST_VELOCITIES_2POINTS_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
+            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
+        ))
+
         self.assertTrue(numpy.allclose(
             these_north_velocities_m_s01, NORTH_VELOCITIES_2POINTS_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
+            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
+        ))
 
     def test_get_grid_points_in_radius(self):
         """Ensures correct output from _get_grid_points_in_radius."""
@@ -722,12 +762,15 @@ class EchoTopTrackingTests(unittest.TestCase):
                 x_grid_matrix_metres=X_GRID_MATRIX_METRES,
                 y_grid_matrix_metres=Y_GRID_MATRIX_METRES,
                 x_query_metres=X_QUERY_METRES, y_query_metres=Y_QUERY_METRES,
-                radius_metres=CRITICAL_RADIUS_METRES))
+                radius_metres=CRITICAL_RADIUS_METRES)
+        )
 
         self.assertTrue(numpy.array_equal(
-            these_row_indices, ROWS_WITHIN_RADIUS))
+            these_row_indices, ROWS_WITHIN_RADIUS
+        ))
         self.assertTrue(numpy.array_equal(
-            these_column_indices, COLUMNS_WITHIN_RADIUS))
+            these_column_indices, COLUMNS_WITHIN_RADIUS
+        ))
 
     def test_remove_small_polygons_min0(self):
         """Ensures correct output from _remove_small_polygons.
@@ -740,7 +783,8 @@ class EchoTopTrackingTests(unittest.TestCase):
             min_grid_cells_in_polygon=0)
 
         self.assertTrue(_compare_maxima_with_sans_small_polygons(
-            this_local_max_dict, LOCAL_MAX_DICT_WITH_SMALL))
+            this_local_max_dict, LOCAL_MAX_DICT_WITH_SMALL
+        ))
 
     def test_remove_small_polygons_min5(self):
         """Ensures correct output from _remove_small_polygons.
@@ -753,22 +797,24 @@ class EchoTopTrackingTests(unittest.TestCase):
             min_grid_cells_in_polygon=MIN_GRID_CELLS_IN_POLYGON)
 
         self.assertTrue(_compare_maxima_with_sans_small_polygons(
-            this_local_max_dict, LOCAL_MAX_DICT_WITHOUT_SMALL))
+            this_local_max_dict, LOCAL_MAX_DICT_WITHOUT_SMALL
+        ))
 
     def test_join_tracks_between_periods(self):
         """Ensures correct output from _join_tracks_between_periods."""
 
-        this_late_storm_object_table = copy.deepcopy(LATE_STORM_OBJECT_TABLE)
         this_joined_storm_object_table = (
             echo_top_tracking._join_tracks_between_periods(
                 early_storm_object_table=EARLY_STORM_OBJECT_TABLE,
-                late_storm_object_table=this_late_storm_object_table,
+                late_storm_object_table=copy.deepcopy(LATE_STORM_OBJECT_TABLE),
                 projection_object=PROJECTION_OBJECT,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
+                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        )
 
         self.assertTrue(this_joined_storm_object_table.equals(
-            JOINED_STORM_OBJECT_TABLE))
+            JOINED_STORM_OBJECT_TABLE
+        ))
 
     def test_storm_objects_to_tracks_from_scratch(self):
         """Ensures correct output from _storm_objects_to_tracks.
@@ -778,8 +824,10 @@ class EchoTopTrackingTests(unittest.TestCase):
 
         this_storm_track_table = echo_top_tracking._storm_objects_to_tracks(
             storm_object_table=STORM_OBJECT_TABLE_BEFORE_REANALYSIS)
+
         self.assertTrue(this_storm_track_table.equals(
-            STORM_TRACK_TABLE_BEFORE_REANALYSIS))
+            STORM_TRACK_TABLE_BEFORE_REANALYSIS
+        ))
 
     def test_storm_objects_to_tracks_recompute_row(self):
         """Ensures correct output from _storm_objects_to_tracks.
@@ -787,14 +835,14 @@ class EchoTopTrackingTests(unittest.TestCase):
         In this case, only one row of storm_track_table is recomputed.
         """
 
-        this_storm_track_table = copy.deepcopy(STORM_TRACK_TABLE_TAMPERED)
         this_storm_track_table = echo_top_tracking._storm_objects_to_tracks(
             storm_object_table=STORM_OBJECT_TABLE_BEFORE_REANALYSIS,
-            storm_track_table=this_storm_track_table,
+            storm_track_table=copy.deepcopy(STORM_TRACK_TABLE_TAMPERED),
             recompute_for_id=STORM_ID_TAMPERED)
 
         self.assertTrue(this_storm_track_table.equals(
-            STORM_TRACK_TABLE_BEFORE_REANALYSIS))
+            STORM_TRACK_TABLE_BEFORE_REANALYSIS
+        ))
 
     def test_get_extrapolation_error_b_to_a(self):
         """Ensures correct output from _get_extrapolation_error.
@@ -805,9 +853,11 @@ class EchoTopTrackingTests(unittest.TestCase):
         this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
             early_track_id='B', late_track_id='A')
+
         self.assertTrue(numpy.isclose(
             this_extrap_error_metres, EXTRAP_ERROR_B_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES))
+            atol=DIST_TOLERANCE_METRES
+        ))
 
     def test_get_extrapolation_error_c_to_a(self):
         """Ensures correct output from _get_extrapolation_error.
@@ -818,9 +868,11 @@ class EchoTopTrackingTests(unittest.TestCase):
         this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
             early_track_id='C', late_track_id='A')
+
         self.assertTrue(numpy.isclose(
             this_extrap_error_metres, EXTRAP_ERROR_C_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES))
+            atol=DIST_TOLERANCE_METRES
+        ))
 
     def test_get_extrapolation_error_d_to_a(self):
         """Ensures correct output from _get_extrapolation_error.
@@ -831,9 +883,11 @@ class EchoTopTrackingTests(unittest.TestCase):
         this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
             early_track_id='D', late_track_id='A')
+
         self.assertTrue(numpy.isclose(
             this_extrap_error_metres, EXTRAP_ERROR_D_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES))
+            atol=DIST_TOLERANCE_METRES
+        ))
 
     def test_get_extrapolation_error_e_to_a(self):
         """Ensures correct output from _get_extrapolation_error.
@@ -844,9 +898,11 @@ class EchoTopTrackingTests(unittest.TestCase):
         this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
             early_track_id='E', late_track_id='A')
+
         self.assertTrue(numpy.isclose(
             this_extrap_error_metres, EXTRAP_ERROR_E_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES))
+            atol=DIST_TOLERANCE_METRES
+        ))
 
     def test_find_nearby_tracks_for_a(self):
         """Ensures correct output from _find_nearby_tracks; late track is A."""
@@ -936,15 +992,15 @@ class EchoTopTrackingTests(unittest.TestCase):
     def test_reanalyze_tracks(self):
         """Ensures correct output from _reanalyze_tracks."""
 
-        this_storm_object_table = copy.deepcopy(
-            STORM_OBJECT_TABLE_BEFORE_REANALYSIS)
         this_storm_object_table = echo_top_tracking._reanalyze_tracks(
-            storm_object_table=this_storm_object_table,
+            storm_object_table=copy.deepcopy(
+                STORM_OBJECT_TABLE_BEFORE_REANALYSIS),
             max_join_time_sec=MAX_JOIN_TIME_SECONDS,
             max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
 
         self.assertTrue(this_storm_object_table.equals(
-            STORM_OBJECT_TABLE_AFTER_REANALYSIS))
+            STORM_OBJECT_TABLE_AFTER_REANALYSIS
+        ))
 
 
 if __name__ == '__main__':

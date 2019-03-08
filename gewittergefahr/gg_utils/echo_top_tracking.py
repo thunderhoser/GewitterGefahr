@@ -227,7 +227,7 @@ def _remove_redundant_local_maxima(
         DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES):
     """Removes redundant local maxima in radar field.
 
-    P = number of local maxima
+    P = number of local maxima retained
 
     :param local_max_dict_latlng: Dictionary created by _find_local_maxima.
     :param projection_object: `pyproj.Proj` object, which will be used to
@@ -247,31 +247,60 @@ def _remove_redundant_local_maxima(
         local maxima.
     """
 
-    max_x_coords_metres, max_y_coords_metres = projections.project_latlng_to_xy(
+    x_coords_metres, y_coords_metres = projections.project_latlng_to_xy(
         local_max_dict_latlng[LATITUDES_KEY],
         local_max_dict_latlng[LONGITUDES_KEY],
-        projection_object=projection_object, false_easting_metres=0.,
-        false_northing_metres=0.)
+        projection_object=projection_object,
+        false_easting_metres=0., false_northing_metres=0.)
 
-    num_maxima = len(max_x_coords_metres)
+    local_max_dict_latlng.update({
+        X_COORDS_KEY: x_coords_metres,
+        Y_COORDS_KEY: y_coords_metres
+    })
+
+    num_maxima = len(x_coords_metres)
     keep_max_flags = numpy.full(num_maxima, True, dtype=bool)
 
     for i in range(num_maxima):
+        if not keep_max_flags[i]:
+            continue
+
         these_distances_metres = numpy.sqrt(
-            (max_x_coords_metres - max_x_coords_metres[i]) ** 2 +
-            (max_y_coords_metres - max_y_coords_metres[i]) ** 2)
+            (x_coords_metres - x_coords_metres[i]) ** 2 +
+            (y_coords_metres - y_coords_metres[i]) ** 2
+        )
+
         these_distances_metres[i] = numpy.inf
-        keep_max_flags[
-            these_distances_metres < min_distance_between_maxima_metres] = False
+        these_redundant_indices = numpy.where(
+            these_distances_metres < min_distance_between_maxima_metres
+        )[0]
 
-    keep_max_indices = numpy.where(keep_max_flags)[0]
+        if len(these_redundant_indices) == 0:
+            continue
 
-    return {
-        LATITUDES_KEY: local_max_dict_latlng[LATITUDES_KEY][keep_max_indices],
-        LONGITUDES_KEY: local_max_dict_latlng[LONGITUDES_KEY][keep_max_indices],
-        X_COORDS_KEY: max_x_coords_metres[keep_max_indices],
-        Y_COORDS_KEY: max_y_coords_metres[keep_max_indices],
-        MAX_VALUES_KEY: local_max_dict_latlng[MAX_VALUES_KEY][keep_max_indices]}
+        these_redundant_indices = numpy.concatenate((
+            these_redundant_indices, numpy.array([i], dtype=int)
+        ))
+        keep_max_flags[these_redundant_indices] = False
+
+        this_best_index = numpy.argmax(
+            local_max_dict_latlng[MAX_VALUES_KEY][these_redundant_indices]
+        )
+        this_best_index = these_redundant_indices[this_best_index]
+        keep_max_flags[this_best_index] = True
+
+    indices_to_keep = numpy.where(keep_max_flags)[0]
+
+    for this_key in local_max_dict_latlng:
+        if isinstance(local_max_dict_latlng[this_key], list):
+            local_max_dict_latlng[this_key] = [
+                local_max_dict_latlng[this_key][k] for k in indices_to_keep
+            ]
+        elif isinstance(local_max_dict_latlng[this_key], numpy.ndarray):
+            local_max_dict_latlng[this_key] = local_max_dict_latlng[this_key][
+                indices_to_keep]
+
+    return local_max_dict_latlng
 
 
 def _link_local_maxima_in_time(
@@ -1104,6 +1133,7 @@ def _remove_small_polygons(local_max_dict, min_grid_cells_in_polygon):
 
     num_grid_cells_by_polygon = numpy.array(
         [len(r) for r in local_max_dict[GRID_POINT_ROWS_KEY]], dtype=int)
+
     indices_to_keep = numpy.where(
         num_grid_cells_by_polygon >= min_grid_cells_in_polygon
     )[0]
@@ -1755,15 +1785,9 @@ def run_tracking(
             radar_metadata_dict=this_metadata_dict,
             neigh_half_width_in_pixels=this_half_width_in_pixels)
 
-        local_max_dict_by_time[i] = _remove_redundant_local_maxima(
-            local_max_dict_latlng=local_max_dict_by_time[i],
-            projection_object=projection_object,
-            min_distance_between_maxima_metres=
-            min_distance_between_maxima_metres
-        )
-
         local_max_dict_by_time[i].update(
-            {VALID_TIME_KEY: valid_times_unix_sec[i]})
+            {VALID_TIME_KEY: valid_times_unix_sec[i]}
+        )
 
         local_max_dict_by_time[i] = _local_maxima_to_polygons(
             local_max_dict=local_max_dict_by_time[i],
@@ -1776,6 +1800,13 @@ def run_tracking(
         local_max_dict_by_time[i] = _remove_small_polygons(
             local_max_dict=local_max_dict_by_time[i],
             min_grid_cells_in_polygon=min_grid_cells_in_polygon)
+
+        local_max_dict_by_time[i] = _remove_redundant_local_maxima(
+            local_max_dict_latlng=local_max_dict_by_time[i],
+            projection_object=projection_object,
+            min_distance_between_maxima_metres=
+            min_distance_between_maxima_metres
+        )
 
         if i == 0:
             these_current_to_prev_indices = _link_local_maxima_in_time(
