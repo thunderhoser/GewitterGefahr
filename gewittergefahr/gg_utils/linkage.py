@@ -650,9 +650,29 @@ def _find_nearest_storms(
         for j in range(len(these_event_rows)):
             nearest_storm_ids[these_event_rows[j]] = these_nearest_storm_ids[j]
 
-    num_unlinked_events = numpy.sum(numpy.isnan(linkage_distances_metres))
-    print '{0:d} of {1:d} events COULD NOT BE LINKED to a storm.'.format(
-        num_unlinked_events, num_events)
+    bad_event_indices = numpy.where(numpy.isnan(linkage_distances_metres))[0]
+
+    min_storm_latitude_deg = numpy.min(
+        storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values)
+    max_storm_latitude_deg = numpy.max(
+        storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values)
+    min_storm_longitude_deg = numpy.min(
+        storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values)
+    max_storm_longitude_deg = numpy.max(
+        storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values)
+
+    for this_index in bad_event_indices:
+        warning_string = (
+            'Event at ({0:.2f} deg N, {1:.2f} deg E) COULD NOT BE LINKED to any'
+            ' storm in box ({2:.2f}...{3:.2f} deg N, {4:.2f}...{5:.2f} deg E).'
+        ).format(
+            event_table[EVENT_LATITUDE_COLUMN].values[this_index],
+            event_table[EVENT_LONGITUDE_COLUMN].values[this_index],
+            min_storm_latitude_deg, max_storm_latitude_deg,
+            min_storm_longitude_deg, max_storm_longitude_deg
+        )
+
+        warnings.warn(warning_string)
 
     argument_dict = {
         NEAREST_STORM_ID_COLUMN: nearest_storm_ids,
