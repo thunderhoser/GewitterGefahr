@@ -147,10 +147,10 @@ def _plot_storm_outlines_one_time(
     min_plot_longitude_deg = basemap_object.llcrnrlon
     max_plot_longitude_deg = basemap_object.urcrnrlon
 
-    parallel_spacing_deg = (
+    parallel_spacing_deg = numpy.round(
         (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
     )
-    meridian_spacing_deg = (
+    meridian_spacing_deg = numpy.round(
         (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
     )
 
