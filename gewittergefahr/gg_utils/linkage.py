@@ -695,9 +695,13 @@ def _find_nearest_storms(
     num_unlinked_events_in_box = numpy.sum(in_box_flags)
 
     print (
-        'Number of unlinked events = {0:d} ... number of these in unbuffered '
-        'bounding box around storms = {1:d}'
-    ).format(num_unlinked_events, num_unlinked_events_in_box)
+        'Number of events = {0:d} ... number of storm objects = {1:d} ... '
+        'number of unlinked events = {2:d} ... number of these in unbuffered '
+        'bounding box around storms = {3:d}'
+    ).format(
+        len(event_table.index), len(storm_object_table.index),
+        num_unlinked_events, num_unlinked_events_in_box
+    )
 
     argument_dict = {
         NEAREST_STORM_ID_COLUMN: nearest_storm_ids,
