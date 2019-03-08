@@ -382,8 +382,7 @@ def plot_bootstrapped_roc_curve(
 
 
 def plot_performance_diagram(
-        axes_object=None, pod_by_threshold=None,
-        success_ratio_by_threshold=None,
+        axes_object, pod_by_threshold, success_ratio_by_threshold,
         line_colour=DEFAULT_PERF_DIAG_LINE_COLOUR,
         line_width=DEFAULT_PERF_DIAG_LINE_WIDTH,
         bias_line_colour=DEFAULT_FREQ_BIAS_LINE_COLOUR,
