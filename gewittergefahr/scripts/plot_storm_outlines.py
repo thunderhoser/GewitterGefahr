@@ -16,6 +16,7 @@ from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import storm_plotting
 from gewittergefahr.plotting import radar_plotting
+from gewittergefahr.plotting import imagemagick_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -264,6 +265,9 @@ def _plot_storm_outlines_one_time(
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
+
+    imagemagick_utils.trim_whitespace(input_file_name=output_file_name,
+                                      output_file_name=output_file_name)
 
 
 def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
