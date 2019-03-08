@@ -3,10 +3,11 @@
 import numpy
 from descartes import PolygonPatch
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
-DEFAULT_TRACK_COLOUR = numpy.array([0., 0., 0.])
+DEFAULT_TRACK_COLOUR = numpy.full(3, 0.)
 DEFAULT_TRACK_WIDTH = 2.
 DEFAULT_TRACK_STYLE = 'solid'
 DEFAULT_TRACK_START_MARKER = 'o'
@@ -14,12 +15,15 @@ DEFAULT_TRACK_END_MARKER = 'x'
 DEFAULT_TRACK_START_MARKER_SIZE = 8
 DEFAULT_TRACK_END_MARKER_SIZE = 12
 
-DEFAULT_POLYGON_LINE_COLOUR = numpy.array([0., 0., 0.])
+DEFAULT_POLYGON_LINE_COLOUR = numpy.full(3, 0.)
 DEFAULT_POLYGON_LINE_WIDTH = 2
-DEFAULT_POLYGON_HOLE_LINE_COLOUR = numpy.array([152., 152., 152.]) / 255
+DEFAULT_POLYGON_HOLE_LINE_COLOUR = numpy.full(3, 152. / 255)
 DEFAULT_POLYGON_HOLE_LINE_WIDTH = 1
-DEFAULT_POLYGON_FILL_COLOUR = numpy.array([152., 152., 152.]) / 255
+DEFAULT_POLYGON_FILL_COLOUR = numpy.full(3, 152. / 255)
 DEFAULT_POLYGON_FILL_OPACITY = 1.
+
+DEFAULT_FONT_COLOUR = numpy.full(3, 0.)
+DEFAULT_FONT_SIZE = 12
 
 
 def get_storm_track_colours():
@@ -201,3 +205,71 @@ def plot_storm_outline_filled(
         polygon_object_xy, lw=line_width, ec=line_colour, fc=fill_colour,
         alpha=opacity)
     axes_object.add_patch(polygon_patch)
+
+
+def plot_storm_objects(
+        storm_object_table, axes_object, basemap_object,
+        line_width=DEFAULT_POLYGON_LINE_WIDTH,
+        line_colour=DEFAULT_POLYGON_LINE_COLOUR, plot_storm_ids=False,
+        id_colour=DEFAULT_FONT_COLOUR, id_font_size=DEFAULT_FONT_SIZE):
+    """Plots all storm objects in the table (as unfilled outlines).
+
+    Recommended use of this method is for all storm objects at one time step.
+    However, this is not enforced; the method will plot all storm objects in
+    `storm_object_table`.
+
+    :param storm_object_table: See doc for
+        `storm_tracking_io.write_processed_file`.
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param basemap_object: Will use this object (instance of
+        `mpl_toolkits.basemap.Basemap`) to convert between x-y and lat-long
+        coords.
+    :param line_width: Width of each storm outline.
+    :param line_colour: Colour of each storm outline.
+    :param plot_storm_ids: Boolean flag.  If True, will print ID (string) inside
+        each storm object.
+    :param id_colour: [used only if plot_storm_ids = True] Colour for storm IDs.
+    :param id_font_size: [used only if plot_storm_ids = True] Font size for
+        storm IDs.
+    """
+
+    error_checking.assert_is_boolean(plot_storm_ids)
+    num_storm_objects = len(storm_object_table.index)
+
+    for i in range(num_storm_objects):
+        this_polygon_object_latlng = storm_object_table[
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
+
+        this_vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
+            this_polygon_object_latlng)
+
+        these_x_coords_metres, these_y_coords_metres = basemap_object(
+            this_vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
+            this_vertex_dict_latlng[polygons.EXTERIOR_Y_COLUMN]
+        )
+
+        axes_object.plot(
+            these_x_coords_metres, these_y_coords_metres, color=line_colour,
+            linestyle='solid', linewidth=line_width)
+
+        if not plot_storm_ids:
+            continue
+
+        this_label_string = storm_object_table[
+            tracking_utils.STORM_ID_COLUMN
+        ].values[i].split('_')[0]
+
+        try:
+            this_label_string = str(int(this_label_string))
+        except ValueError:
+            pass
+
+        this_index = numpy.argmax(these_x_coords_metres - these_y_coords_metres)
+        this_x_metres = these_x_coords_metres[this_index]
+        this_y_metres = these_y_coords_metres[this_index]
+
+        axes_object.text(
+            this_x_metres, this_y_metres, this_label_string,
+            fontsize=id_font_size, fontweight='bold', color=id_colour,
+            horizontalalignment='left', verticalalignment='top')
