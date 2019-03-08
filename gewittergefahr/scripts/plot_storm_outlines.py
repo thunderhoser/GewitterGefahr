@@ -30,6 +30,8 @@ NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = 0.5
 BORDER_COLOUR = numpy.full(3, 0.)
+ALT_STORM_ID_COLOUR = numpy.full(3, 0.)
+
 FIGURE_RESOLUTION_DPI = 300
 
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
@@ -151,7 +153,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_storm_outlines_one_time(
-        storm_object_table, axes_object, basemap_object, double_size_font_flags,
+        storm_object_table, axes_object, basemap_object, alt_id_colour_flags,
         storm_colour, storm_opacity, output_dir_name, radar_matrix=None,
         radar_field_name=None, radar_latitudes_deg=None,
         radar_longitudes_deg=None):
@@ -163,7 +165,7 @@ def _plot_storm_outlines_one_time(
     :param storm_object_table: See doc for `storm_plotting.plot_storm_objects`.
     :param axes_object: Same.
     :param basemap_object: Same.
-    :param double_size_font_flags: Same.
+    :param alt_id_colour_flags: Same.
     :param storm_colour: See documentation at top of file.
     :param storm_opacity: Same.
     :param output_dir_name: Same.
@@ -261,8 +263,9 @@ def _plot_storm_outlines_one_time(
     storm_plotting.plot_storm_objects(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, line_colour=line_colour,
-        plot_storm_ids=True, id_colour=storm_colour,
-        double_size_font_flags=double_size_font_flags)
+        plot_storm_ids=True, storm_id_colour=storm_colour,
+        alt_id_colour_flags=alt_id_colour_flags,
+        alt_storm_id_colour=ALT_STORM_ID_COLOUR)
 
     valid_time_string = time_conversion.unix_sec_to_string(
         storm_object_table[tracking_utils.TIME_COLUMN].values[0],
@@ -429,8 +432,8 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             tracking_utils.STORM_ID_COLUMN].values
 
         this_num_storm_objects = len(these_storm_ids)
-        these_double_size_flags = numpy.full(
-            this_num_storm_objects, False, dtype=bool)
+        these_alt_colour_flags = numpy.full(
+            this_num_storm_objects, True, dtype=bool)
 
         if i != 0:
             prev_storm_object_table = storm_object_table.loc[
@@ -442,9 +445,9 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 tracking_utils.STORM_ID_COLUMN].values
 
             these_new_flags = numpy.array(
-                [s not in prev_storm_ids for s in these_storm_ids], dtype=bool)
-            these_double_size_flags = numpy.logical_or(
-                these_double_size_flags, these_new_flags)
+                [s in prev_storm_ids for s in these_storm_ids], dtype=bool)
+            these_alt_colour_flags = numpy.logical_and(
+                these_alt_colour_flags, these_new_flags)
 
         if i != num_times - 1:
             next_storm_object_table = storm_object_table.loc[
@@ -456,14 +459,14 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 tracking_utils.STORM_ID_COLUMN].values
 
             these_new_flags = numpy.array(
-                [s not in next_storm_ids for s in these_storm_ids], dtype=bool)
-            these_double_size_flags = numpy.logical_or(
-                these_double_size_flags, these_new_flags)
+                [s in next_storm_ids for s in these_storm_ids], dtype=bool)
+            these_alt_colour_flags = numpy.logical_and(
+                these_alt_colour_flags, these_new_flags)
 
         _plot_storm_outlines_one_time(
             storm_object_table=this_storm_object_table,
             axes_object=this_axes_object, basemap_object=this_basemap_object,
-            double_size_font_flags=these_double_size_flags,
+            alt_id_colour_flags=these_alt_colour_flags,
             storm_colour=storm_colour, storm_opacity=storm_opacity,
             output_dir_name=output_dir_name, radar_matrix=this_radar_matrix,
             radar_field_name=radar_field_name,

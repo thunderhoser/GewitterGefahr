@@ -1,6 +1,9 @@
 """Methods for plotting storm outlines and storm tracks."""
 
 import numpy
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.colors
 from descartes import PolygonPatch
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
@@ -22,8 +25,10 @@ DEFAULT_POLYGON_HOLE_LINE_WIDTH = 1
 DEFAULT_POLYGON_FILL_COLOUR = numpy.full(3, 152. / 255)
 DEFAULT_POLYGON_FILL_OPACITY = 1.
 
-DEFAULT_FONT_COLOUR = numpy.full(3, 0.)
 DEFAULT_FONT_SIZE = 12
+DEFAULT_STORM_ID_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+DEFAULT_OUTLINE_COLOUR = matplotlib.colors.to_rgba(DEFAULT_STORM_ID_COLOUR, 0.5)
+DEFAULT_ALT_STORM_ID_COLOUR = numpy.full(3, 0.)
 
 
 def get_storm_track_colours():
@@ -210,14 +215,17 @@ def plot_storm_outline_filled(
 def plot_storm_objects(
         storm_object_table, axes_object, basemap_object,
         line_width=DEFAULT_POLYGON_LINE_WIDTH,
-        line_colour=DEFAULT_POLYGON_LINE_COLOUR, plot_storm_ids=False,
-        id_colour=DEFAULT_FONT_COLOUR, id_font_size=DEFAULT_FONT_SIZE,
-        double_size_font_flags=None):
+        line_colour=DEFAULT_OUTLINE_COLOUR, plot_storm_ids=False,
+        storm_id_colour=DEFAULT_STORM_ID_COLOUR,
+        storm_id_font_size=DEFAULT_FONT_SIZE, alt_id_colour_flags=None,
+        alt_storm_id_colour=DEFAULT_ALT_STORM_ID_COLOUR):
     """Plots all storm objects in the table (as unfilled outlines).
 
     Recommended use of this method is for all storm objects at one time step.
     However, this is not enforced; the method will plot all storm objects in
     `storm_object_table`.
+
+    N = number of storm objects = number of rows in `storm_object_table`
 
     :param storm_object_table: See doc for
         `storm_tracking_io.write_processed_file`.
@@ -230,28 +238,32 @@ def plot_storm_objects(
     :param line_colour: Colour of each storm outline.
     :param plot_storm_ids: Boolean flag.  If True, will print ID (string) inside
         each storm object.
-    :param id_colour: [used only if plot_storm_ids = True] Colour for storm IDs.
-    :param id_font_size: [used only if plot_storm_ids = True] Font size for
+    :param storm_id_colour: [used only if plot_storm_ids = True] Colour for storm IDs.
+    :param storm_id_font_size: [used only if plot_storm_ids = True] Font size for
         storm IDs.
-    :param double_size_font_flags: [used only if plot_storm_ids = True]
-        length-N numpy array of Boolean flags, where N = number of storm objects
-        = `len(storm_object_table)`.  If double_size_font_flags[i] = True, the
-        [i]th storm ID will be printed in double-size font.
+    :param alt_id_colour_flags: [used only if plot_storm_ids = True]
+        length-N numpy array of Boolean flags.  If alt_id_colour_flags[i] =
+        True, [i]th storm ID will be printed in alternate colour.  If
+        `alt_id_colour_flags = None`, defaults to False for every storm object.
+    :param alt_storm_id_colour:
+        [used only if `plot_storm_ids = True and
+        alt_id_colour_flags is not None`]
+        Alternate colour for storm IDs.
     """
 
     error_checking.assert_is_boolean(plot_storm_ids)
     num_storm_objects = len(storm_object_table.index)
 
     if plot_storm_ids:
-        if double_size_font_flags is None:
-            double_size_font_flags = numpy.full(
+        if alt_id_colour_flags is None:
+            alt_id_colour_flags = numpy.full(
                 num_storm_objects, False, dtype=bool)
 
         these_expected_dim = numpy.array([num_storm_objects], dtype=int)
 
-        error_checking.assert_is_boolean_numpy_array(double_size_font_flags)
+        error_checking.assert_is_boolean_numpy_array(alt_id_colour_flags)
         error_checking.assert_is_numpy_array(
-            double_size_font_flags, exact_dimensions=these_expected_dim)
+            alt_id_colour_flags, exact_dimensions=these_expected_dim)
 
     for i in range(num_storm_objects):
         this_polygon_object_latlng = storm_object_table[
@@ -285,12 +297,12 @@ def plot_storm_objects(
         this_x_metres = these_x_coords_metres[this_index]
         this_y_metres = these_y_coords_metres[this_index]
 
-        if double_size_font_flags[i]:
-            this_font_size = id_font_size * 2
+        if alt_id_colour_flags[i]:
+            this_colour = alt_storm_id_colour
         else:
-            this_font_size = id_font_size * 1
+            this_colour = storm_id_colour
 
         axes_object.text(
             this_x_metres, this_y_metres, this_label_string,
-            fontsize=this_font_size, fontweight='bold', color=id_colour,
+            fontsize=storm_id_font_size, fontweight='bold', color=this_colour,
             horizontalalignment='left', verticalalignment='top')
