@@ -212,7 +212,7 @@ def plot_storm_objects(
         line_width=DEFAULT_POLYGON_LINE_WIDTH,
         line_colour=DEFAULT_POLYGON_LINE_COLOUR, plot_storm_ids=False,
         id_colour=DEFAULT_FONT_COLOUR, id_font_size=DEFAULT_FONT_SIZE,
-        italic_flag_by_object=None):
+        double_size_font_flags=None):
     """Plots all storm objects in the table (as unfilled outlines).
 
     Recommended use of this method is for all storm objects at one time step.
@@ -233,25 +233,25 @@ def plot_storm_objects(
     :param id_colour: [used only if plot_storm_ids = True] Colour for storm IDs.
     :param id_font_size: [used only if plot_storm_ids = True] Font size for
         storm IDs.
-    :param italic_flag_by_object: [used only if plot_storm_ids = True]
+    :param double_size_font_flags: [used only if plot_storm_ids = True]
         length-N numpy array of Boolean flags, where N = number of storm objects
-        = `len(storm_object_table)`.  If italic_flag_by_object[i] = True, the
-        [i]th storm ID will be printed in italics.
+        = `len(storm_object_table)`.  If double_size_font_flags[i] = True, the
+        [i]th storm ID will be printed in double-size font.
     """
 
     error_checking.assert_is_boolean(plot_storm_ids)
     num_storm_objects = len(storm_object_table.index)
 
     if plot_storm_ids:
-        if italic_flag_by_object is None:
-            italic_flag_by_object = numpy.full(
+        if double_size_font_flags is None:
+            double_size_font_flags = numpy.full(
                 num_storm_objects, False, dtype=bool)
 
         these_expected_dim = numpy.array([num_storm_objects], dtype=int)
 
-        error_checking.assert_is_boolean_numpy_array(italic_flag_by_object)
+        error_checking.assert_is_boolean_numpy_array(double_size_font_flags)
         error_checking.assert_is_numpy_array(
-            italic_flag_by_object, exact_dimensions=these_expected_dim)
+            double_size_font_flags, exact_dimensions=these_expected_dim)
 
     for i in range(num_storm_objects):
         this_polygon_object_latlng = storm_object_table[
@@ -285,13 +285,12 @@ def plot_storm_objects(
         this_x_metres = these_x_coords_metres[this_index]
         this_y_metres = these_y_coords_metres[this_index]
 
-        if italic_flag_by_object[i]:
-            this_style = 'italic'
+        if double_size_font_flags[i]:
+            this_font_size = id_font_size * 2
         else:
-            this_style = 'normal'
+            this_font_size = id_font_size * 1
 
         axes_object.text(
             this_x_metres, this_y_metres, this_label_string,
-            fontsize=id_font_size, fontweight='bold', fontstyle=this_style,
-            color=id_colour, horizontalalignment='left',
-            verticalalignment='top')
+            fontsize=this_font_size, fontweight='bold', color=id_colour,
+            horizontalalignment='left', verticalalignment='top')
