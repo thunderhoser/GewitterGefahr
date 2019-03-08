@@ -442,7 +442,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 tracking_utils.STORM_ID_COLUMN].values
 
             these_new_flags = numpy.array(
-                [s in prev_storm_ids for s in these_storm_ids], dtype=bool)
+                [s not in prev_storm_ids for s in these_storm_ids], dtype=bool)
             these_italic_flags = numpy.logical_or(
                 these_italic_flags, these_new_flags)
 
@@ -456,7 +456,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 tracking_utils.STORM_ID_COLUMN].values
 
             these_new_flags = numpy.array(
-                [s in next_storm_ids for s in these_storm_ids], dtype=bool)
+                [s not in next_storm_ids for s in these_storm_ids], dtype=bool)
             these_italic_flags = numpy.logical_or(
                 these_italic_flags, these_new_flags)
 
