@@ -250,7 +250,7 @@ CURRENT_TO_PREV_INDICES_NO_LINKS = numpy.array([-1, -1], dtype=int)
 CURRENT_TO_PREV_INDICES_BOTH_NEAR = numpy.array([0, 1], dtype=int)
 
 # The following constants are used to test _local_maxima_to_storm_tracks.
-LOCAL_MAX_DICT_TIME0 = {
+FIRST_LOCAL_MAX_DICT_LINKED = {
     echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
     echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
     echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
@@ -260,7 +260,7 @@ LOCAL_MAX_DICT_TIME0 = {
         CURRENT_TO_PREV_INDICES_NO_LINKS
 }
 
-LOCAL_MAX_DICT_TIME1 = {
+SECOND_LOCAL_MAX_DICT_LINKED = {
     echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
     echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
     echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
@@ -270,25 +270,34 @@ LOCAL_MAX_DICT_TIME1 = {
         CURRENT_TO_PREV_INDICES_BOTH_NEAR
 }
 
-LOCAL_MAX_DICT_BY_TIME = [LOCAL_MAX_DICT_TIME0, LOCAL_MAX_DICT_TIME1]
+LOCAL_MAX_DICT_BY_TIME = [
+    FIRST_LOCAL_MAX_DICT_LINKED, SECOND_LOCAL_MAX_DICT_LINKED
+]
 
 THESE_STORM_IDS = [
     STORM_ID_FIRST_IN_DAY, STORM_ID_SECOND_IN_DAY, STORM_ID_FIRST_IN_DAY,
-    STORM_ID_SECOND_IN_DAY]
-THESE_TIMES_UNIX_SEC = numpy.array(
-    [PREVIOUS_TIME_UNIX_SEC, PREVIOUS_TIME_UNIX_SEC, CURRENT_TIME_UNIX_SEC,
-     CURRENT_TIME_UNIX_SEC])
+    STORM_ID_SECOND_IN_DAY
+]
+THESE_TIMES_UNIX_SEC = numpy.array([
+    PREVIOUS_TIME_UNIX_SEC, PREVIOUS_TIME_UNIX_SEC, CURRENT_TIME_UNIX_SEC,
+    CURRENT_TIME_UNIX_SEC
+])
 THESE_SPC_DATES_UNIX_SEC = numpy.full(
     4, time_conversion.time_to_spc_date_unix_sec(PREVIOUS_TIME_UNIX_SEC),
     dtype=int)
+
 THESE_CENTROID_LATITUDES_DEG = numpy.concatenate((
-    LOCAL_MAX_LATITUDES_DEG, LOCAL_MAX_LATITUDES_DEG))
+    LOCAL_MAX_LATITUDES_DEG, LOCAL_MAX_LATITUDES_DEG
+))
 THESE_CENTROID_LONGITUDES_DEG = numpy.concatenate((
-    LOCAL_MAX_LONGITUDES_DEG, LOCAL_MAX_LONGITUDES_DEG))
+    LOCAL_MAX_LONGITUDES_DEG, LOCAL_MAX_LONGITUDES_DEG
+))
 THESE_CENTROID_X_METRES = numpy.concatenate((
-    LOCAL_MAX_X_COORDS_METRES, LOCAL_MAX_X_COORDS_METRES))
+    LOCAL_MAX_X_COORDS_METRES, LOCAL_MAX_X_COORDS_METRES
+))
 THESE_CENTROID_Y_METRES = numpy.concatenate((
-    LOCAL_MAX_Y_COORDS_METRES, LOCAL_MAX_Y_COORDS_METRES))
+    LOCAL_MAX_Y_COORDS_METRES, LOCAL_MAX_Y_COORDS_METRES
+))
 
 STORM_OBJECT_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
@@ -299,50 +308,60 @@ STORM_OBJECT_DICT = {
     echo_top_tracking.CENTROID_X_COLUMN: THESE_CENTROID_X_METRES,
     echo_top_tracking.CENTROID_Y_COLUMN: THESE_CENTROID_Y_METRES
 }
+
 STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(STORM_OBJECT_DICT)
 
 # The following constants are used to test _remove_short_tracks.
-SMALL_THRESHOLD_DURATION_SEC = 100
-LARGE_THRESHOLD_DURATION_SEC = 1000
+SHORT_MIN_LIFETIME_SEC = 100
+LONG_MIN_LIFETIME_SEC = 1000
 
 # The following constants are used to test _get_velocities_one_storm_track.
-CENTROID_LATS_FOR_VELOCITY_DEG = numpy.array([40., 40., 41., 41., 40., 40.])
-CENTROID_LNGS_FOR_VELOCITY_DEG = numpy.array(
-    [265., 266., 266., 267., 267., 266.])
-TIMES_FOR_VELOCITY_UNIX_SEC = numpy.array([0, 1, 2, 3, 4, 5], dtype=int)
+ONE_TRACK_LATITUDES_DEG = numpy.array([40, 40, 41, 41, 40, 40], dtype=float)
+ONE_TRACK_LONGITUDES_DEG = numpy.array(
+    [265, 266, 266, 267, 267, 266], dtype=float)
+ONE_TRACK_TIMES_UNIX_SEC = numpy.array([0, 1, 2, 3, 4, 5], dtype=int)
 
-DEG_LAT_TO_METRES = 60. * 1852
+DEGREES_LAT_TO_METRES = 60. * 1852
 DEGREES_TO_RADIANS = numpy.pi / 180
 
-NORTH_VELOCITIES_1POINT_M_S01 = numpy.array(
-    [numpy.nan, 0., DEG_LAT_TO_METRES, 0., -DEG_LAT_TO_METRES, 0.])
-EAST_VELOCITIES_1POINT_M_S01 = numpy.array(
-    [numpy.nan, DEG_LAT_TO_METRES * numpy.cos(40. * DEGREES_TO_RADIANS),
-     0., DEG_LAT_TO_METRES * numpy.cos(41. * DEGREES_TO_RADIANS),
-     0., -DEG_LAT_TO_METRES * numpy.cos(40. * DEGREES_TO_RADIANS)])
+V_VELOCITIES_1POINT_M_S01 = DEGREES_LAT_TO_METRES * numpy.array([
+    numpy.nan, 0, 1, 0, -1, 0])
 
-NORTH_VELOCITIES_2POINTS_M_S01 = numpy.array(
-    [numpy.nan, 0., DEG_LAT_TO_METRES / 2, DEG_LAT_TO_METRES / 2,
-     -DEG_LAT_TO_METRES / 2, -DEG_LAT_TO_METRES / 2])
-EAST_VELOCITIES_2POINTS_M_S01 = numpy.array(
-    [numpy.nan, DEG_LAT_TO_METRES * numpy.cos(40. * DEGREES_TO_RADIANS),
-     DEG_LAT_TO_METRES * numpy.cos(40.5 * DEGREES_TO_RADIANS) / 2,
-     DEG_LAT_TO_METRES * numpy.cos(40.5 * DEGREES_TO_RADIANS) / 2,
-     DEG_LAT_TO_METRES * numpy.cos(40.5 * DEGREES_TO_RADIANS) / 2,
-     -DEG_LAT_TO_METRES * numpy.cos(40.5 * DEGREES_TO_RADIANS) / 2])
+U_VELOCITIES_1POINT_M_S01 = DEGREES_LAT_TO_METRES * numpy.array([
+    numpy.nan, numpy.cos(40 * DEGREES_TO_RADIANS), 0,
+    numpy.cos(41 * DEGREES_TO_RADIANS), 0, -numpy.cos(40 * DEGREES_TO_RADIANS)
+])
+
+V_VELOCITIES_2POINTS_M_S01 = DEGREES_LAT_TO_METRES * numpy.array(
+    [numpy.nan, 0, 0.5, 0.5, -0.5, -0.5])
+
+U_VELOCITIES_2POINTS_M_S01 = DEGREES_LAT_TO_METRES * numpy.array([
+    numpy.nan,
+    numpy.cos(40. * DEGREES_TO_RADIANS),
+    0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS),
+    0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS),
+    0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS),
+    -0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS)
+])
 
 # The following constants are used to test _get_grid_points_in_radius.
-X_GRID_MATRIX_METRES = numpy.array([[0., 1., 2., 3.],
-                                    [1., 2., 3., 4.],
-                                    [2., 3., 4., 5.]])
-Y_GRID_MATRIX_METRES = numpy.array([[5., 7., 9., 11.],
-                                    [10., 12., 14., 16.],
-                                    [15., 17., 19., 21.]])
+X_GRID_MATRIX_METRES = numpy.array([
+    [0, 1, 2, 3],
+    [1, 2, 3, 4],
+    [2, 3, 4, 5]
+], dtype=float)
+
+Y_GRID_MATRIX_METRES = numpy.array([
+    [5, 7, 9, 11],
+    [10, 12, 14, 16],
+    [15, 17, 19, 21]
+], dtype=float)
+
 X_QUERY_METRES = 3.
 Y_QUERY_METRES = 10.
 CRITICAL_RADIUS_METRES = 5.
 ROWS_WITHIN_RADIUS = numpy.array([0, 0, 0, 1, 1, 1], dtype=int)
-COLUMNS_WITHIN_RADIUS = numpy.array([1, 2, 3, 0, 1, 2])
+COLUMNS_WITHIN_RADIUS = numpy.array([1, 2, 3, 0, 1, 2], dtype=int)
 
 # The following constants are used to test _remove_small_polygons.
 THIS_LIST_OF_ROW_ARRAYS = [
@@ -372,33 +391,39 @@ LOCAL_MAX_DICT_WITHOUT_SMALL = {
 # The following constants are used to test _join_tracks_between_periods.
 THESE_STORM_IDS = ['a', 'b', 'a', 'b']
 THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 300, 300], dtype=int)
-THESE_LATITUDES_DEG = numpy.array([30., 40., 30., 40.])
-THESE_LONGITUDES_DEG = numpy.array([290., 300., 290., 300.])
+THESE_LATITUDES_DEG = numpy.array([30, 40, 30, 40], dtype=float)
+THESE_LONGITUDES_DEG = numpy.array([290, 300, 290, 300], dtype=float)
 
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
     tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG}
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
+}
+
 EARLY_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
 THESE_STORM_IDS = ['c', 'd', 'c', 'd']
 THESE_TIMES_UNIX_SEC = numpy.array([600, 600, 900, 900], dtype=int)
-THESE_LATITUDES_DEG = numpy.array([40., 50., 40., 50.])
-THESE_LONGITUDES_DEG = numpy.array([300., 250., 300., 250.])
+THESE_LATITUDES_DEG = numpy.array([40, 50, 40, 50], dtype=float)
+THESE_LONGITUDES_DEG = numpy.array([300, 250, 300, 250], dtype=float)
 
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
     tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG}
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
+}
+
 LATE_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: ['b', 'd', 'b', 'd'],
     tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG}
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
+}
+
 JOINED_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
 # The following constants are used to test _storm_objects_to_tracks.
@@ -407,7 +432,7 @@ THESE_TIMES_UNIX_SEC = numpy.array([6, 7, 3, 4, 0, 1, 0, 1, 4, 5], dtype=int)
 THESE_LATITUDES_DEG = numpy.array(
     [53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 47.6, 47.6])
 THESE_LONGITUDES_DEG = numpy.array(
-    [113.5, 113.6, 113.2, 113.3, 112.9, 113., 113.2, 113.3, 307.3, 307.3])
+    [113.5, 113.6, 113.2, 113.3, 112.9, 113, 113.2, 113.3, 307.3, 307.3])
 
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
@@ -415,6 +440,7 @@ THIS_DICT = {
     tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
     tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
 }
+
 STORM_OBJECT_TABLE_BEFORE_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
 
 THESE_STORM_IDS = ['A', 'B', 'C', 'D', 'E']
@@ -423,7 +449,7 @@ THESE_END_TIMES_UNIX_SEC = numpy.array([7, 4, 1, 1, 5], dtype=int)
 THESE_START_LATITUDES_DEG = numpy.array([53.5, 53.5, 53.5, 53.5, 47.6])
 THESE_END_LATITUDES_DEG = numpy.array([53.5, 53.5, 53.5, 53.5, 47.6])
 THESE_START_LONGITUDES_DEG = numpy.array([113.5, 113.2, 112.9, 113.2, 307.3])
-THESE_END_LONGITUDES_DEG = numpy.array([113.6, 113.3, 113., 113.3, 307.3])
+THESE_END_LONGITUDES_DEG = numpy.array([113.6, 113.3, 113, 113.3, 307.3])
 
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
@@ -434,6 +460,7 @@ THIS_DICT = {
     echo_top_tracking.START_LONGITUDE_COLUMN: THESE_START_LONGITUDES_DEG,
     echo_top_tracking.END_LONGITUDE_COLUMN: THESE_END_LONGITUDES_DEG
 }
+
 STORM_TRACK_TABLE_BEFORE_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
 
 STORM_TRACK_TABLE_TAMPERED = copy.deepcopy(STORM_TRACK_TABLE_BEFORE_REANALYSIS)
@@ -459,12 +486,14 @@ NEARBY_IDS_FOR_D = []
 NEARBY_IDS_FOR_E = []
 
 THESE_STORM_IDS = ['A', 'A', 'A', 'A', 'A', 'A', 'D', 'D', 'E', 'E']
+
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
     tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
     tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
 }
+
 STORM_OBJECT_TABLE_AFTER_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
 
 THESE_STORM_IDS = ['A', 'D', 'E']
@@ -484,6 +513,7 @@ THIS_DICT = {
     echo_top_tracking.START_LONGITUDE_COLUMN: THESE_START_LONGITUDES_DEG,
     echo_top_tracking.END_LONGITUDE_COLUMN: THESE_END_LONGITUDES_DEG
 }
+
 STORM_TRACK_TABLE_AFTER_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
 
 
@@ -551,8 +581,7 @@ class EchoTopTrackingTests(unittest.TestCase):
         this_local_max_dict = echo_top_tracking._remove_redundant_local_maxima(
             local_max_dict_latlng=copy.deepcopy(LOCAL_MAX_DICT_LATLNG),
             projection_object=PROJECTION_OBJECT,
-            min_distance_between_maxima_metres=
-            SMALL_INTERMAX_DISTANCE_METRES
+            min_distance_between_maxima_metres=SMALL_INTERMAX_DISTANCE_METRES
         )
 
         these_keys = set(list(this_local_max_dict))
@@ -574,8 +603,7 @@ class EchoTopTrackingTests(unittest.TestCase):
         this_local_max_dict = echo_top_tracking._remove_redundant_local_maxima(
             local_max_dict_latlng=copy.deepcopy(LOCAL_MAX_DICT_LATLNG),
             projection_object=PROJECTION_OBJECT,
-            min_distance_between_maxima_metres=
-            LARGE_INTERMAX_DISTANCE_METRES
+            min_distance_between_maxima_metres=LARGE_INTERMAX_DISTANCE_METRES
         )
 
         these_keys = set(list(this_local_max_dict))
@@ -822,7 +850,7 @@ class EchoTopTrackingTests(unittest.TestCase):
 
         this_storm_object_table = echo_top_tracking._remove_short_tracks(
             storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE),
-            min_duration_seconds=SMALL_THRESHOLD_DURATION_SEC)
+            min_duration_seconds=SHORT_MIN_LIFETIME_SEC)
 
         self.assertTrue(this_storm_object_table.equals(STORM_OBJECT_TABLE))
 
@@ -835,7 +863,7 @@ class EchoTopTrackingTests(unittest.TestCase):
 
         this_storm_object_table = echo_top_tracking._remove_short_tracks(
             storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE),
-            min_duration_seconds=LARGE_THRESHOLD_DURATION_SEC)
+            min_duration_seconds=LONG_MIN_LIFETIME_SEC)
 
         self.assertTrue(this_storm_object_table.empty)
 
@@ -846,20 +874,20 @@ class EchoTopTrackingTests(unittest.TestCase):
         back in the storm track.
         """
 
-        these_east_velocities_m_s01, these_north_velocities_m_s01 = (
+        these_u_velocities_m_s01, these_v_velocities_m_s01 = (
             echo_top_tracking._get_velocities_one_storm_track(
-                centroid_latitudes_deg=CENTROID_LATS_FOR_VELOCITY_DEG,
-                centroid_longitudes_deg=CENTROID_LNGS_FOR_VELOCITY_DEG,
-                unix_times_sec=TIMES_FOR_VELOCITY_UNIX_SEC, num_points_back=1)
+                centroid_latitudes_deg=ONE_TRACK_LATITUDES_DEG,
+                centroid_longitudes_deg=ONE_TRACK_LONGITUDES_DEG,
+                unix_times_sec=ONE_TRACK_TIMES_UNIX_SEC, num_points_back=1)
         )
 
         self.assertTrue(numpy.allclose(
-            these_east_velocities_m_s01, EAST_VELOCITIES_1POINT_M_S01,
+            these_u_velocities_m_s01, U_VELOCITIES_1POINT_M_S01,
             rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
         ))
 
         self.assertTrue(numpy.allclose(
-            these_north_velocities_m_s01, NORTH_VELOCITIES_1POINT_M_S01,
+            these_v_velocities_m_s01, V_VELOCITIES_1POINT_M_S01,
             rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
         ))
 
@@ -870,20 +898,20 @@ class EchoTopTrackingTests(unittest.TestCase):
         back in the storm track.
         """
 
-        these_east_velocities_m_s01, these_north_velocities_m_s01 = (
+        these_u_velocities_m_s01, these_v_velocities_m_s01 = (
             echo_top_tracking._get_velocities_one_storm_track(
-                centroid_latitudes_deg=CENTROID_LATS_FOR_VELOCITY_DEG,
-                centroid_longitudes_deg=CENTROID_LNGS_FOR_VELOCITY_DEG,
-                unix_times_sec=TIMES_FOR_VELOCITY_UNIX_SEC, num_points_back=2)
+                centroid_latitudes_deg=ONE_TRACK_LATITUDES_DEG,
+                centroid_longitudes_deg=ONE_TRACK_LONGITUDES_DEG,
+                unix_times_sec=ONE_TRACK_TIMES_UNIX_SEC, num_points_back=2)
         )
 
         self.assertTrue(numpy.allclose(
-            these_east_velocities_m_s01, EAST_VELOCITIES_2POINTS_M_S01,
+            these_u_velocities_m_s01, U_VELOCITIES_2POINTS_M_S01,
             rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
         ))
 
         self.assertTrue(numpy.allclose(
-            these_north_velocities_m_s01, NORTH_VELOCITIES_2POINTS_M_S01,
+            these_v_velocities_m_s01, V_VELOCITIES_2POINTS_M_S01,
             rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
         ))
 
