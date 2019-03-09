@@ -70,6 +70,7 @@ DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT = 0.06
 DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES = 0.1 * DEGREES_LAT_TO_METRES
 DEFAULT_MIN_GRID_CELLS_IN_POLYGON = 0
 DEFAULT_MAX_LINK_TIME_SECONDS = 305
+DEFAULT_MAX_VELOCITY_DIFF_M_S01 = 10.
 DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
     0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS)
 
@@ -93,6 +94,8 @@ STORM_IDS_KEY = 'storm_ids'
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
+X_VELOCITIES_KEY = 'x_velocities_m_s01'
+Y_VELOCITIES_KEY = 'y_velocities_m_s01'
 
 GRID_POINT_ROWS_KEY = 'list_of_grid_point_rows'
 GRID_POINT_COLUMNS_KEY = 'list_of_grid_point_columns'
@@ -217,8 +220,10 @@ def _find_local_maxima(
     max_longitudes_deg = max_longitudes_deg[sort_indices]
 
     return {
-        LATITUDES_KEY: max_latitudes_deg, LONGITUDES_KEY: max_longitudes_deg,
-        MAX_VALUES_KEY: max_values}
+        LATITUDES_KEY: max_latitudes_deg,
+        LONGITUDES_KEY: max_longitudes_deg,
+        MAX_VALUES_KEY: max_values
+    }
 
 
 def _remove_redundant_local_maxima(
@@ -303,76 +308,307 @@ def _remove_redundant_local_maxima(
     return local_max_dict_latlng
 
 
+def _estimate_velocity_by_neigh(
+        x_coords_metres, y_coords_metres, x_velocities_m_s01,
+        y_velocities_m_s01, e_folding_radius_metres):
+    """Estimates missing velocities based on non-missing velocities in neigh.
+
+    Specifically, this method replaces each missing velocity with an
+    exponentially weighted average of neighbouring non-missing velocities.
+
+    N = number of storm objects
+
+    :param x_coords_metres: length-N numpy array of x-coordinates.
+    :param y_coords_metres: length-N numpy array of y-coordinates.
+    :param x_velocities_m_s01: length-N numpy array of x-velocities (metres per
+        second in positive x-direction).  Some of these may be NaN.
+    :param y_velocities_m_s01: Same but for y-direction.
+    :param e_folding_radius_metres: e-folding radius for exponentially weighted
+        average.
+    :return: x_velocities_m_s01: Same as input but without NaN.
+    :return: y_velocities_m_s01: Same as input but without NaN.
+    """
+
+    neigh_radius_metres = 3 * e_folding_radius_metres
+    orig_x_velocities_m_s01 = x_velocities_m_s01 + 0.
+    orig_y_velocities_m_s01 = y_velocities_m_s01 + 0.
+
+    nan_flags = numpy.logical_and(
+        numpy.isnan(orig_x_velocities_m_s01),
+        numpy.isnan(orig_y_velocities_m_s01)
+    )
+    nan_indices = numpy.where(nan_flags)[0]
+
+    for this_index in nan_indices:
+        these_x_diffs_metres = numpy.absolute(
+            x_coords_metres[this_index] - x_coords_metres)
+        these_y_diffs_metres = numpy.absolute(
+            y_coords_metres[this_index] - y_coords_metres)
+
+        these_neighbour_flags = numpy.logical_and(
+            these_x_diffs_metres <= neigh_radius_metres,
+            these_y_diffs_metres <= neigh_radius_metres)
+
+        these_neighbour_flags = numpy.logical_and(
+            these_neighbour_flags, numpy.invert(nan_flags)
+        )
+
+        these_neighbour_indices = numpy.where(these_neighbour_flags)[0]
+        if len(these_neighbour_indices) == 0:
+            continue
+
+        these_neighbour_dist_metres = numpy.sqrt(
+            these_x_diffs_metres[these_neighbour_indices] ** 2 +
+            these_y_diffs_metres[these_neighbour_indices] ** 2
+        )
+
+        these_neighbour_subindices = numpy.where(
+            these_neighbour_dist_metres <= neigh_radius_metres
+        )[0]
+        if len(these_neighbour_subindices) == 0:
+            continue
+
+        these_neighbour_indices = these_neighbour_indices[
+            these_neighbour_subindices]
+        these_neighbour_dist_metres = these_neighbour_dist_metres[
+            these_neighbour_subindices]
+
+        these_weights = numpy.exp(
+            -these_neighbour_dist_metres / e_folding_radius_metres
+        )
+        these_weights = these_weights / numpy.sum(these_weights)
+
+        x_velocities_m_s01[this_index] = numpy.sum(
+            these_weights * orig_x_velocities_m_s01[these_neighbour_indices]
+        )
+
+        y_velocities_m_s01[this_index] = numpy.sum(
+            these_weights * orig_y_velocities_m_s01[these_neighbour_indices]
+        )
+
+    return x_velocities_m_s01, y_velocities_m_s01
+
+
+def _get_intermediate_velocities(
+        local_max_dict_by_time, current_time_index, num_points_in_estimate,
+        e_folding_radius_metres):
+    """Returns intermediate velocity estimate for each storm at the given time.
+
+    T = number of time steps
+    P = number of local maxima at a given time step
+
+    :param local_max_dict_by_time: length-T list of dictionaries.  If
+        local_max_dict_by_time[i] = None, this means that local maxima have not
+        been identified for the [i]th time step.  Otherwise, dictionary must
+        have the following keys.
+
+    "unix_time_sec": Valid time.
+    "x_coords_metres": length-P numpy array with x-coordinates of local maxima.
+    "y_coords_metres": length-P numpy array with y-coordinates of local maxima.
+    "current_to_previous_indices": length-P numpy array of indices.  If
+        current_to_previous_indices[j] = k in the [i]th dictionary, the [j]th
+        local max at the [i]th time step is linked to the [k]th local max at the
+        [i - 1]th time step.
+
+    :param current_time_index: Array index.  This method will compute velocity
+        estimates for the [i]th time only, where i = `current_time_index`.
+    :param num_points_in_estimate: Number of time steps used to create each
+        velocity estimate.
+    :param e_folding_radius_metres: See doc for `_estimate_velocity_by_neigh`.
+
+    :return: local_max_dict_by_time: Same as input, except that the [i]th
+        dictionary (where i = `current_time_index`) will have new columns listed
+        below.
+
+    "x_velocities_m_s01": length-P numpy array of velocities in positive
+        x-direction (metres per second).
+    "y_velocities_m_s01": Same but y-direction.
+    """
+
+    current_local_max_dict = local_max_dict_by_time[current_time_index]
+    num_current_maxima = len(current_local_max_dict[X_COORDS_KEY])
+
+    if current_time_index == 0:
+        x_velocities_m_s01 = numpy.full(num_current_maxima, numpy.nan)
+        y_velocities_m_s01 = numpy.full(num_current_maxima, numpy.nan)
+
+        current_local_max_dict.update({
+            X_VELOCITIES_KEY: x_velocities_m_s01,
+            Y_VELOCITIES_KEY: y_velocities_m_s01
+        })
+
+        local_max_dict_by_time[current_time_index] = current_local_max_dict
+        return local_max_dict_by_time
+
+    prev_object_indices = current_local_max_dict[CURRENT_TO_PREV_INDICES_KEY]
+
+    prev_time_index = max([current_time_index - num_points_in_estimate, 0])
+    prev_local_max_dict = local_max_dict_by_time[prev_time_index]
+
+    prev_x_coords_metres = [
+        numpy.nan if k == -1 else prev_local_max_dict[X_COORDS_KEY][k]
+        for k in prev_object_indices
+    ]
+    prev_y_coords_metres = [
+        numpy.nan if k == -1 else prev_local_max_dict[Y_COORDS_KEY][k]
+        for k in prev_object_indices
+    ]
+
+    prev_x_coords_metres = numpy.array(prev_x_coords_metres)
+    prev_y_coords_metres = numpy.array(prev_y_coords_metres)
+
+    time_diff_seconds = (
+        current_local_max_dict[VALID_TIME_KEY] -
+        prev_local_max_dict[VALID_TIME_KEY]
+    )
+
+    x_velocities_m_s01 = (
+        current_local_max_dict[X_COORDS_KEY] - prev_x_coords_metres
+    ) / time_diff_seconds
+
+    y_velocities_m_s01 = (
+        current_local_max_dict[Y_COORDS_KEY] - prev_y_coords_metres
+    ) / time_diff_seconds
+
+    x_velocities_m_s01, y_velocities_m_s01 = _estimate_velocity_by_neigh(
+        x_coords_metres=current_local_max_dict[X_COORDS_KEY],
+        y_coords_metres=current_local_max_dict[Y_COORDS_KEY],
+        x_velocities_m_s01=x_velocities_m_s01,
+        y_velocities_m_s01=y_velocities_m_s01,
+        e_folding_radius_metres=e_folding_radius_metres)
+
+    current_local_max_dict.update({
+        X_VELOCITIES_KEY: x_velocities_m_s01,
+        Y_VELOCITIES_KEY: y_velocities_m_s01
+    })
+
+    local_max_dict_by_time[current_time_index] = current_local_max_dict
+    return local_max_dict_by_time
+
+
 def _link_local_maxima_in_time(
-        current_local_max_dict, previous_local_max_dict,
-        max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
-        max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01):
+        current_local_max_dict, prev_local_max_dict, max_link_time_seconds,
+        max_velocity_diff_m_s01, max_link_distance_m_s01):
     """Links local maxima between current and previous time steps.
 
-    N_c = number of local maxima at current time
-    N_p = number of local maxima at previous time
+    N_c = number of maxima at current time
+    N_p = number of maxima at previous time
 
-    :param current_local_max_dict: Dictionary of local maxima for current time
-        step.  Contains keys listed in `_remove_redundant_local_maxima`, plus
-        those listed below.
-    current_local_max_dict['valid_time_unix_sec']: Valid time.
+    :param current_local_max_dict: Dictionary with the following keys.
+    current_local_max_dict['unix_time_sec']: Valid time.
+    current_local_max_dict['x_coords_metres']: numpy array (length N_c) with
+        x-coordinates of local maxima.
+    current_local_max_dict['y_coords_metres']: numpy array (length N_c) with
+        y-coordinates of local maxima.
+    current_local_max_dict['x_velocities_m_s01']: numpy array (length N_c) of
+        x-velocities (metres per second in positive direction).
+    current_local_max_dict['y_velocities_m_s01']: Same but for y-direction.
 
-    :param previous_local_max_dict: Same as `current_local_max_dict`, except for
-        previous time step.
+    :param prev_local_max_dict: Same as `current_local_max_dict`, but for
+        previous time step.  Does not require keys "x_velocities_m_s01" and
+        "y_velocities_m_s01".
     :param max_link_time_seconds: Max difference between current and previous
-        time steps.  If difference is > `max_link_time_seconds`, local maxima
-        will not be linked.
-    :param max_link_distance_m_s01: Max distance between current and previous
-        time steps.  For two local maxima C and P (at current and previous time
-        steps respectively), if distance is >
-        `max_link_distance_m_s01 * max_link_time_seconds`, they cannot be
-        linked.
-    :return: current_to_previous_indices: numpy array (length N_c) with indices
-        of previous local maxima to which current local maxima are linked.  In
-        other words, if current_to_previous_indices[i] = j, the [i]th current
-        local max is linked to the [j]th previous local max.
+        time steps.  If difference > `max_link_time_seconds`, maxima will not be
+        linked between the two times.
+    :param max_velocity_diff_m_s01: Max difference between expected and actual
+        current locations.  Expected current location is based on previous
+        location and velocity.
+    :param max_link_distance_m_s01: Max difference between current and previous
+        locations.  This will be used only for previous maxima with no velocity
+        estimate.
+    :return: current_to_previous_indices: numpy array (length N_c) of indices.
+        If current_to_previous_indices[j] = k, the [j]th local max at the
+        current time is linked to the [k]th local max at the previous time.
     """
 
     num_current_maxima = len(current_local_max_dict[X_COORDS_KEY])
     current_to_previous_indices = numpy.full(num_current_maxima, -1, dtype=int)
-    if previous_local_max_dict is None:
+
+    if prev_local_max_dict is None or num_current_maxima == 0:
         return current_to_previous_indices
 
-    num_previous_maxima = len(previous_local_max_dict[X_COORDS_KEY])
+    num_previous_maxima = len(prev_local_max_dict[X_COORDS_KEY])
+    if num_previous_maxima == 0:
+        return current_to_previous_indices
+
     time_diff_seconds = (
         current_local_max_dict[VALID_TIME_KEY] -
-        previous_local_max_dict[VALID_TIME_KEY])
+        prev_local_max_dict[VALID_TIME_KEY]
+    )
 
-    if (num_current_maxima == 0 or num_previous_maxima == 0 or
-            time_diff_seconds > max_link_time_seconds):
+    if time_diff_seconds > max_link_time_seconds:
         return current_to_previous_indices
 
-    current_to_previous_distances_m_s01 = numpy.full(
+    extrap_x_coords_metres = (
+        prev_local_max_dict[X_COORDS_KEY] +
+        prev_local_max_dict[X_VELOCITIES_KEY] * time_diff_seconds
+    )
+
+    extrap_y_coords_metres = (
+        prev_local_max_dict[Y_COORDS_KEY] +
+        prev_local_max_dict[Y_VELOCITIES_KEY] * time_diff_seconds
+    )
+
+    current_to_prev_velocity_diffs_m_s01 = numpy.full(
         num_current_maxima, numpy.nan)
+    current_to_prev_distances_m_s01 = numpy.full(num_current_maxima, numpy.nan)
 
     for i in range(num_current_maxima):
         these_distances_metres = numpy.sqrt(
-            (current_local_max_dict[X_COORDS_KEY][i] -
-             previous_local_max_dict[X_COORDS_KEY]) ** 2 +
-            (current_local_max_dict[Y_COORDS_KEY][i] -
-             previous_local_max_dict[Y_COORDS_KEY]) ** 2)
+            (extrap_x_coords_metres - current_local_max_dict[X_COORDS_KEY][i])
+            ** 2 +
+            (extrap_y_coords_metres - current_local_max_dict[Y_COORDS_KEY][i])
+            ** 2
+        )
+
+        these_velocity_diffs_m_s01 = these_distances_metres / time_diff_seconds
+        this_min_velocity_diff_m_s01 = numpy.nanmin(these_velocity_diffs_m_s01)
+
+        if this_min_velocity_diff_m_s01 <= max_velocity_diff_m_s01:
+            current_to_prev_velocity_diffs_m_s01[i] = (
+                this_min_velocity_diff_m_s01
+            )
+            current_to_previous_indices[i] = numpy.nanargmin(
+                these_velocity_diffs_m_s01)
+
+            continue
+
+        these_distances_metres = numpy.sqrt(
+            (prev_local_max_dict[X_COORDS_KEY] -
+             current_local_max_dict[X_COORDS_KEY][i])
+            ** 2 +
+            (prev_local_max_dict[Y_COORDS_KEY] -
+             current_local_max_dict[Y_COORDS_KEY][i])
+            ** 2
+        )
 
         these_distances_m_s01 = these_distances_metres / time_diff_seconds
         this_min_distance_m_s01 = numpy.min(these_distances_m_s01)
+
         if this_min_distance_m_s01 > max_link_distance_m_s01:
             continue
 
-        current_to_previous_distances_m_s01[i] = this_min_distance_m_s01
-        this_best_prev_index = numpy.argmin(these_distances_m_s01)
-        current_to_previous_indices[i] = this_best_prev_index
+        current_to_prev_distances_m_s01[i] = this_min_distance_m_s01
+        current_to_previous_indices[i] = numpy.argmin(these_distances_m_s01)
 
     for j in range(num_previous_maxima):
         these_current_indices = numpy.where(current_to_previous_indices == j)[0]
         if len(these_current_indices) < 2:
             continue
 
-        this_best_current_index = numpy.argmin(
-            current_to_previous_distances_m_s01[these_current_indices])
+        this_min_velocity_diff_m_s01 = numpy.nanmin(
+            current_to_prev_velocity_diffs_m_s01[these_current_indices]
+        )
+
+        if numpy.isnan(this_min_velocity_diff_m_s01):
+            this_best_current_index = numpy.nanargmin(
+                current_to_prev_distances_m_s01[these_current_indices]
+            )
+        else:
+            this_best_current_index = numpy.nanargmin(
+                current_to_prev_velocity_diffs_m_s01[these_current_indices]
+            )
+
         this_best_current_index = these_current_indices[this_best_current_index]
 
         for i in these_current_indices:
@@ -1192,7 +1428,7 @@ def _join_tracks_between_periods(
             projection_object=projection_object, false_easting_metres=0.,
             false_northing_metres=0.))
 
-    previous_local_max_dict = {
+    prev_local_max_dict = {
         X_COORDS_KEY: previous_x_coords_metres,
         Y_COORDS_KEY: previous_y_coords_metres,
         VALID_TIME_KEY: last_early_time_unix_sec}
@@ -1219,7 +1455,7 @@ def _join_tracks_between_periods(
 
     current_to_previous_indices = _link_local_maxima_in_time(
         current_local_max_dict=current_local_max_dict,
-        previous_local_max_dict=previous_local_max_dict,
+        prev_local_max_dict=prev_local_max_dict,
         max_link_time_seconds=max_link_time_seconds,
         max_link_distance_m_s01=max_link_distance_m_s01)
 
@@ -1638,6 +1874,7 @@ def run_tracking(
         DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES,
         min_grid_cells_in_polygon=DEFAULT_MIN_GRID_CELLS_IN_POLYGON,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
+        max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         min_track_duration_seconds=0,
         num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
@@ -1670,7 +1907,8 @@ def run_tracking(
         `_remove_redundant_local_maxima`.
     :param min_grid_cells_in_polygon: See doc for `_local_maxima_to_polygons`.
     :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
-    :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
+    :param max_velocity_diff_m_s01: Same.
+    :param max_link_distance_m_s01: Same.
     :param min_track_duration_seconds: Minimum track duration.  Shorter-lived
         storms will be removed.
     :param num_points_back_for_velocity: See doc for
@@ -1808,11 +2046,17 @@ def run_tracking(
             min_distance_between_maxima_metres
         )
 
+        local_max_dict_by_time = _get_intermediate_velocities(
+            local_max_dict_by_time=local_max_dict_by_time,
+            current_time_index=i, num_points_in_estimate=3,
+            e_folding_radius_metres=100000.)
+
         if i == 0:
             these_current_to_prev_indices = _link_local_maxima_in_time(
                 current_local_max_dict=local_max_dict_by_time[i],
-                previous_local_max_dict=None,
+                prev_local_max_dict=None,
                 max_link_time_seconds=max_link_time_seconds,
+                max_velocity_diff_m_s01=max_velocity_diff_m_s01,
                 max_link_distance_m_s01=max_link_distance_m_s01)
         else:
             print (
@@ -1821,12 +2065,14 @@ def run_tracking(
 
             these_current_to_prev_indices = _link_local_maxima_in_time(
                 current_local_max_dict=local_max_dict_by_time[i],
-                previous_local_max_dict=local_max_dict_by_time[i - 1],
+                prev_local_max_dict=local_max_dict_by_time[i - 1],
                 max_link_time_seconds=max_link_time_seconds,
+                max_velocity_diff_m_s01=max_velocity_diff_m_s01,
                 max_link_distance_m_s01=max_link_distance_m_s01)
 
         local_max_dict_by_time[i].update(
-            {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices})
+            {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices}
+        )
 
     keep_time_indices = numpy.array(keep_time_indices, dtype=int)
     valid_times_unix_sec = valid_times_unix_sec[keep_time_indices]

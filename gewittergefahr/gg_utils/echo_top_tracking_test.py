@@ -16,24 +16,27 @@ RELATIVE_DISTANCE_TOLERANCE = 0.015
 
 # The following constants are used to test _find_local_maxima.
 RADAR_MATRIX = numpy.array([
-    [0., numpy.nan, 3., 4., numpy.nan, 6.],
-    [7., 8., 9., 10., numpy.nan, numpy.nan],
-    [13., 14., numpy.nan, numpy.nan, 17., 18.],
-    [19., 20., numpy.nan, numpy.nan, numpy.nan, 24.],
-    [numpy.nan, numpy.nan, 27., 28., 29., 30.]])
+    [0, numpy.nan, 3, 4, numpy.nan, 6],
+    [7, 8, 9, 10, numpy.nan, numpy.nan],
+    [13, 14, numpy.nan, numpy.nan, 17, 18],
+    [19, 20, numpy.nan, numpy.nan, numpy.nan, 24],
+    [numpy.nan, numpy.nan, 27, 28, 29, 30]
+])
 
 RADAR_METADATA_DICT = {
     radar_utils.NW_GRID_POINT_LAT_COLUMN: 35.,
     radar_utils.NW_GRID_POINT_LNG_COLUMN: 95.,
     radar_utils.LAT_SPACING_COLUMN: 0.01,
-    radar_utils.LNG_SPACING_COLUMN: 0.02}
+    radar_utils.LNG_SPACING_COLUMN: 0.02
+}
 
 NEIGH_HALF_WIDTH_IN_PIXELS = 1
+
 LOCAL_MAX_ROWS = numpy.array([0, 4], dtype=int)
 LOCAL_MAX_COLUMNS = numpy.array([5, 5], dtype=int)
-LOCAL_MAX_LATITUDES_DEG = numpy.array([34.96, 35.])
+LOCAL_MAX_LATITUDES_DEG = numpy.array([34.96, 35])
 LOCAL_MAX_LONGITUDES_DEG = numpy.array([95.1, 95.1])
-LOCAL_MAX_VALUES = numpy.array([30., 6])
+LOCAL_MAX_VALUES = numpy.array([30, 6], dtype=float)
 
 LOCAL_MAX_DICT_LATLNG = {
     echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
@@ -42,8 +45,9 @@ LOCAL_MAX_DICT_LATLNG = {
 }
 
 # The following constants are used to test _remove_redundant_local_maxima.
-SMALL_DISTANCE_BETWEEN_MAXIMA_METRES = 1000.
-LARGE_DISTANCE_BETWEEN_MAXIMA_METRES = 10000.
+SMALL_INTERMAX_DISTANCE_METRES = 1000.
+LARGE_INTERMAX_DISTANCE_METRES = 10000.
+
 PROJECTION_OBJECT = projections.init_azimuthal_equidistant_projection(
     central_latitude_deg=35., central_longitude_deg=95.)
 
@@ -70,73 +74,168 @@ LOCAL_MAX_DICT_LARGE_DISTANCE = {
     echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES[:-1]
 }
 
+# The following constants are used to test _estimate_velocity_by_neigh.
+X_COORDS_FOR_NEIGH_METRES = numpy.array([
+    0, 1.5, 3, 4.5,
+    0, 1.5, 3, 4.5,
+    0, 1.5, 3, 4.5
+])
+Y_COORDS_FOR_NEIGH_METRES = numpy.array([
+    0, 0, 0, 0,
+    2, 2, 2, 2,
+    4, 4, 4, 4
+], dtype=float)
+
+X_VELOCITIES_WITH_NAN_M_S01 = numpy.array([
+    numpy.nan, 5, 8, 3,
+    14, numpy.nan, 1, 5,
+    5, 7, numpy.nan, 7
+])
+Y_VELOCITIES_WITH_NAN_M_S01 = numpy.array([
+    numpy.nan, -4, 0, 0,
+    3, numpy.nan, 2, 6,
+    6, -2, numpy.nan, 3
+])
+
+E_FOLDING_RADIUS_METRES = 1.
+
+THESE_WEIGHTS = numpy.array([
+    numpy.nan, 1.5, 3, numpy.nan,
+    2, numpy.nan, numpy.nan, numpy.nan,
+    numpy.nan, numpy.nan, numpy.nan, numpy.nan
+])
+
+THESE_WEIGHTS = numpy.exp(-1 * THESE_WEIGHTS)
+THESE_WEIGHTS[numpy.isnan(THESE_WEIGHTS)] = 0.
+THESE_WEIGHTS = THESE_WEIGHTS / numpy.sum(THESE_WEIGHTS)
+
+FIRST_X_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * X_VELOCITIES_WITH_NAN_M_S01)
+FIRST_Y_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * Y_VELOCITIES_WITH_NAN_M_S01)
+
+THESE_WEIGHTS = numpy.array([
+    numpy.nan, 2, numpy.sqrt(6.25), numpy.nan,
+    1.5, numpy.nan, 1.5, 3,
+    numpy.sqrt(6.25), 2, numpy.nan, numpy.nan
+])
+
+THESE_WEIGHTS = numpy.exp(-1 * THESE_WEIGHTS)
+THESE_WEIGHTS[numpy.isnan(THESE_WEIGHTS)] = 0.
+THESE_WEIGHTS = THESE_WEIGHTS / numpy.sum(THESE_WEIGHTS)
+
+SECOND_X_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * X_VELOCITIES_WITH_NAN_M_S01)
+SECOND_Y_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * Y_VELOCITIES_WITH_NAN_M_S01)
+
+THESE_WEIGHTS = numpy.array([
+    numpy.nan, numpy.nan, numpy.nan, numpy.nan,
+    numpy.nan, numpy.nan, 2, numpy.sqrt(6.25),
+    3, 1.5, numpy.nan, 1.5
+])
+
+THESE_WEIGHTS = numpy.exp(-1 * THESE_WEIGHTS)
+THESE_WEIGHTS[numpy.isnan(THESE_WEIGHTS)] = 0.
+THESE_WEIGHTS = THESE_WEIGHTS / numpy.sum(THESE_WEIGHTS)
+
+THIRD_X_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * X_VELOCITIES_WITH_NAN_M_S01)
+THIRD_Y_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * Y_VELOCITIES_WITH_NAN_M_S01)
+
+X_VELOCITIES_NO_NAN_M_S01 = numpy.array([
+    FIRST_X_VELOCITY_M_S01, 5, 8, 3,
+    14, SECOND_X_VELOCITY_M_S01, 1, 5,
+    5, 7, THIRD_X_VELOCITY_M_S01, 7
+])
+Y_VELOCITIES_NO_NAN_M_S01 = numpy.array([
+    FIRST_Y_VELOCITY_M_S01, -4, 0, 0,
+    3, SECOND_Y_VELOCITY_M_S01, 2, 6,
+    6, -2, THIRD_Y_VELOCITY_M_S01, 3
+])
+
+# The following constants are used to test _get_intermediate_velocities.
+THESE_X_COORDS_METRES = numpy.array([2, -7, 1, 6, 5, -4], dtype=float)
+THESE_Y_COORDS_METRES = numpy.array([4, -1, 5, -1, -3, 9], dtype=float)
+
+FIRST_LMAX_DICT_NO_VELOCITY = {
+    echo_top_tracking.VALID_TIME_KEY: 0,
+    echo_top_tracking.X_COORDS_KEY: THESE_X_COORDS_METRES + 0.,
+    echo_top_tracking.Y_COORDS_KEY: THESE_Y_COORDS_METRES + 0.
+}
+
+THESE_X_COORDS_METRES = numpy.array(
+    [13, -1, 20, 20, -8, 5, -23, 19], dtype=float)
+THESE_Y_COORDS_METRES = numpy.array(
+    [-14, 25, -12, 1, -14, 4, -5, 18], dtype=float)
+THESE_CURRENT_TO_PREV_INDICES = numpy.array(
+    [-1, 1, 2, -1, -1, 4, -1, 5], dtype=int)
+
+SECOND_LMAX_DICT_NO_VELOCITY = {
+    echo_top_tracking.VALID_TIME_KEY: 10,
+    echo_top_tracking.X_COORDS_KEY: THESE_X_COORDS_METRES + 0.,
+    echo_top_tracking.Y_COORDS_KEY: THESE_Y_COORDS_METRES + 0.,
+    echo_top_tracking.CURRENT_TO_PREV_INDICES_KEY:
+        THESE_CURRENT_TO_PREV_INDICES + 0
+}
+
+NUM_POINTS_IN_ESTIMATE = 3
+
+FIRST_LMAX_DICT_WITH_VELOCITY = copy.deepcopy(FIRST_LMAX_DICT_NO_VELOCITY)
+FIRST_LMAX_DICT_WITH_VELOCITY.update({
+    echo_top_tracking.X_VELOCITIES_KEY: numpy.full(6, numpy.nan),
+    echo_top_tracking.Y_VELOCITIES_KEY: numpy.full(6, numpy.nan)
+})
+
+SECOND_LMAX_DICT_WITH_VELOCITY = copy.deepcopy(SECOND_LMAX_DICT_NO_VELOCITY)
+
+THESE_X_VELOCITIES_M_S01 = numpy.array(
+    [numpy.nan, 0.6, 1.9, numpy.nan, numpy.nan, 0, numpy.nan, 2.3])
+THESE_Y_VELOCITIES_M_S01 = numpy.array(
+    [numpy.nan, 2.6, -1.7, numpy.nan, numpy.nan, 0.7, numpy.nan, 0.9])
+
+SECOND_LMAX_DICT_WITH_VELOCITY.update({
+    echo_top_tracking.X_VELOCITIES_KEY: THESE_X_VELOCITIES_M_S01,
+    echo_top_tracking.Y_VELOCITIES_KEY: THESE_Y_VELOCITIES_M_S01
+})
+
 # The following constants are used to test _link_local_maxima_in_time.
-PREVIOUS_TIME_UNIX_SEC = 1516860600  # 0610 UTC 25 Jan 2018
-PREVIOUS_LOCAL_MAX_DICT = {
-    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
-    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES,
-    echo_top_tracking.VALID_TIME_KEY: PREVIOUS_TIME_UNIX_SEC
+FIRST_LOCAL_MAX_DICT_UNLINKED = copy.deepcopy(FIRST_LMAX_DICT_WITH_VELOCITY)
+SECOND_LOCAL_MAX_DICT_UNLINKED = copy.deepcopy(SECOND_LMAX_DICT_WITH_VELOCITY)
+SECOND_LOCAL_MAX_DICT_UNLINKED.pop(
+    echo_top_tracking.CURRENT_TO_PREV_INDICES_KEY)
+
+MAX_LINK_TIME_SECONDS = 100
+MAX_VELOCITY_DIFF_M_S01 = 3.
+MAX_LINK_DISTANCE_M_S01 = 2.
+
+SECOND_TO_FIRST_INDICES = numpy.array([4, 5, -1, 3, 1, 0, -1, -1], dtype=int)
+
+THESE_X_COORDS_METRES = numpy.array(
+    [12, 1, 21, 13, -3, 6, -15, 20], dtype=float)
+THESE_Y_COORDS_METRES = numpy.array(
+    [-21, 27, -13, 10, -15, -9, -7, 18], dtype=float)
+
+THIRD_LOCAL_MAX_DICT_UNLINKED = {
+    echo_top_tracking.VALID_TIME_KEY: 13,
+    echo_top_tracking.X_COORDS_KEY: THESE_X_COORDS_METRES + 0.,
+    echo_top_tracking.Y_COORDS_KEY: THESE_Y_COORDS_METRES + 0.,
 }
 
-MAX_LINK_TIME_SECONDS = 300
-MAX_LINK_DISTANCE_M_S01 = 10.
-MAX_LINK_DISTANCE_METRES = MAX_LINK_TIME_SECONDS * MAX_LINK_DISTANCE_M_S01
+THIRD_TO_SECOND_INDICES = numpy.array([-1, 1, 2, 5, 4, -1, -1, 7], dtype=int)
 
-CURRENT_TIME_UNIX_SEC = 1516860900  # 0615 UTC 25 Jan 2018
-CURRENT_TIME_TOO_LATE_UNIX_SEC = 1516861200
-
-CURRENT_LOCAL_MAX_DICT_BOTH_FAR = {
-    echo_top_tracking.X_COORDS_KEY:
-        LOCAL_MAX_X_COORDS_METRES + MAX_LINK_DISTANCE_METRES,
-    echo_top_tracking.Y_COORDS_KEY:
-        LOCAL_MAX_Y_COORDS_METRES - MAX_LINK_DISTANCE_METRES,
-    echo_top_tracking.VALID_TIME_KEY: CURRENT_TIME_UNIX_SEC
-}
-CURRENT_TO_PREV_INDICES_BOTH_FAR = numpy.array([-1, -1], dtype=int)
-
-CURRENT_LOCAL_MAX_DICT_ONE_NEAR = {
-    echo_top_tracking.X_COORDS_KEY:
-        LOCAL_MAX_X_COORDS_METRES + numpy.array([0., MAX_LINK_DISTANCE_METRES]),
-    echo_top_tracking.Y_COORDS_KEY:
-        LOCAL_MAX_Y_COORDS_METRES - numpy.array([0., MAX_LINK_DISTANCE_METRES]),
-    echo_top_tracking.VALID_TIME_KEY: CURRENT_TIME_UNIX_SEC
-}
-CURRENT_TO_PREV_INDICES_ONE_NEAR = numpy.array([0, -1], dtype=int)
-
-CURRENT_LOCAL_MAX_DICT_BOTH_NEAR = {
-    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
-    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES,
-    echo_top_tracking.VALID_TIME_KEY: CURRENT_TIME_UNIX_SEC
-}
-CURRENT_TO_PREV_INDICES_BOTH_NEAR = numpy.array([0, 1], dtype=int)
-
-CURRENT_LOCAL_MAX_DICT_TOO_LATE = {
-    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
-    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES,
-    echo_top_tracking.VALID_TIME_KEY: CURRENT_TIME_TOO_LATE_UNIX_SEC
-}
-CURRENT_TO_PREV_INDICES_TOO_LATE = numpy.array([-1, -1], dtype=int)
-
-CURRENT_LOCAL_MAX_DICT_OVERLAP = {
-    echo_top_tracking.X_COORDS_KEY: numpy.array(
-        [LOCAL_MAX_X_COORDS_METRES[0] + 10., LOCAL_MAX_X_COORDS_METRES[0]]),
-    echo_top_tracking.Y_COORDS_KEY: numpy.array(
-        [LOCAL_MAX_Y_COORDS_METRES[0] - 10., LOCAL_MAX_Y_COORDS_METRES[0]]),
-    echo_top_tracking.VALID_TIME_KEY: CURRENT_TIME_UNIX_SEC
-}
-CURRENT_TO_PREV_INDICES_OVERLAP = numpy.array([-1, 0], dtype=int)
-
-PREVIOUS_LOCAL_MAX_DICT_EMPTY = {
+SECOND_LOCAL_MAX_DICT_EMPTY = {
+    echo_top_tracking.VALID_TIME_KEY: 10,
     echo_top_tracking.X_COORDS_KEY: numpy.array([]),
-    echo_top_tracking.Y_COORDS_KEY: numpy.array([]),
-    echo_top_tracking.VALID_TIME_KEY: PREVIOUS_TIME_UNIX_SEC
+    echo_top_tracking.Y_COORDS_KEY: numpy.array([])
 }
-CURRENT_LOCAL_MAX_DICT_EMPTY = {
+
+THIRD_LOCAL_MAX_DICT_EMPTY = {
+    echo_top_tracking.VALID_TIME_KEY: 13,
     echo_top_tracking.X_COORDS_KEY: numpy.array([]),
-    echo_top_tracking.Y_COORDS_KEY: numpy.array([]),
-    echo_top_tracking.VALID_TIME_KEY: CURRENT_TIME_UNIX_SEC
+    echo_top_tracking.Y_COORDS_KEY: numpy.array([])
 }
-CURRENT_TO_PREV_INDICES_NO_LINKS = numpy.array([-1, -1], dtype=int)
 
 # The following constants are used to test _create_storm_id.
 STORM_TIME_UNIX_SEC = 1516860900  # 0615 UTC 25 Jan 2018
@@ -146,6 +245,11 @@ PREV_NUMERIC_ID_USED = 0
 
 STORM_ID_FIRST_IN_DAY = '000000_20180124'
 STORM_ID_SECOND_IN_DAY = '000001_20180124'
+
+PREVIOUS_TIME_UNIX_SEC = 1516860600  # 0610 UTC 25 Jan 2018
+CURRENT_TIME_UNIX_SEC = 1516860900  # 0615 UTC 25 Jan 2018
+CURRENT_TO_PREV_INDICES_NO_LINKS = numpy.array([-1, -1], dtype=int)
+CURRENT_TO_PREV_INDICES_BOTH_NEAR = numpy.array([0, 1], dtype=int)
 
 # The following constants are used to test _local_maxima_to_storm_tracks.
 LOCAL_MAX_DICT_TIME0 = {
@@ -450,7 +554,7 @@ class EchoTopTrackingTests(unittest.TestCase):
             local_max_dict_latlng=copy.deepcopy(LOCAL_MAX_DICT_LATLNG),
             projection_object=PROJECTION_OBJECT,
             min_distance_between_maxima_metres=
-            SMALL_DISTANCE_BETWEEN_MAXIMA_METRES
+            SMALL_INTERMAX_DISTANCE_METRES
         )
 
         these_keys = set(list(this_local_max_dict))
@@ -473,7 +577,7 @@ class EchoTopTrackingTests(unittest.TestCase):
             local_max_dict_latlng=copy.deepcopy(LOCAL_MAX_DICT_LATLNG),
             projection_object=PROJECTION_OBJECT,
             min_distance_between_maxima_metres=
-            LARGE_DISTANCE_BETWEEN_MAXIMA_METRES
+            LARGE_INTERMAX_DISTANCE_METRES
         )
 
         these_keys = set(list(this_local_max_dict))
@@ -486,155 +590,188 @@ class EchoTopTrackingTests(unittest.TestCase):
                 LOCAL_MAX_DICT_LARGE_DISTANCE[this_key], atol=TOLERANCE
             ))
 
-    def test_link_local_maxima_in_time_both_far(self):
-        """Ensures correct output from _link_local_maxima_in_time.
+    def test_estimate_velocity_by_neigh(self):
+        """Ensures correct output from _estimate_velocity_by_neigh."""
 
-        In this case, both current maxima are too far from previous maxima to be
-        linked.
-        """
-
-        these_current_to_prev_indices = (
-            echo_top_tracking._link_local_maxima_in_time(
-                current_local_max_dict=CURRENT_LOCAL_MAX_DICT_BOTH_FAR,
-                previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
-                max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        these_x_velocities_m_s01, these_y_velocities_m_s01 = (
+            echo_top_tracking._estimate_velocity_by_neigh(
+                x_coords_metres=X_COORDS_FOR_NEIGH_METRES,
+                y_coords_metres=Y_COORDS_FOR_NEIGH_METRES,
+                x_velocities_m_s01=X_VELOCITIES_WITH_NAN_M_S01 + 0.,
+                y_velocities_m_s01=Y_VELOCITIES_WITH_NAN_M_S01 + 0.,
+                e_folding_radius_metres=E_FOLDING_RADIUS_METRES)
         )
 
-        self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_BOTH_FAR
+        self.assertTrue(numpy.allclose(
+            these_x_velocities_m_s01, X_VELOCITIES_NO_NAN_M_S01, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.allclose(
+            these_y_velocities_m_s01, Y_VELOCITIES_NO_NAN_M_S01, atol=TOLERANCE
         ))
 
-    def test_link_local_maxima_in_time_one_near(self):
-        """Ensures correct output from _link_local_maxima_in_time.
+    def test_get_intermediate_velocities_time1(self):
+        """Ensures correct output from _get_intermediate_velocities.
 
-        In this case, only one current max is close enough to previous maxima to
-        be linked.
+        In this case, "current time" = first time.
         """
 
-        these_current_to_prev_indices = (
-            echo_top_tracking._link_local_maxima_in_time(
-                current_local_max_dict=CURRENT_LOCAL_MAX_DICT_ONE_NEAR,
-                previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
-                max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        this_local_max_dict_by_time = [
+            copy.deepcopy(FIRST_LMAX_DICT_NO_VELOCITY),
+            copy.deepcopy(SECOND_LMAX_DICT_NO_VELOCITY)
+        ]
+
+        this_local_max_dict_by_time = (
+            echo_top_tracking._get_intermediate_velocities(
+                local_max_dict_by_time=this_local_max_dict_by_time,
+                current_time_index=0,
+                num_points_in_estimate=NUM_POINTS_IN_ESTIMATE,
+                e_folding_radius_metres=E_FOLDING_RADIUS_METRES)
         )
 
-        self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_ONE_NEAR
+        self.assertTrue(numpy.allclose(
+            this_local_max_dict_by_time[0][echo_top_tracking.X_VELOCITIES_KEY],
+            FIRST_LMAX_DICT_WITH_VELOCITY[
+                echo_top_tracking.X_VELOCITIES_KEY],
+            atol=TOLERANCE, equal_nan=True
         ))
 
-    def test_link_local_maxima_in_time_both_near(self):
-        """Ensures correct output from _link_local_maxima_in_time.
+        self.assertTrue(numpy.allclose(
+            this_local_max_dict_by_time[0][echo_top_tracking.Y_VELOCITIES_KEY],
+            FIRST_LMAX_DICT_WITH_VELOCITY[
+                echo_top_tracking.Y_VELOCITIES_KEY],
+            atol=TOLERANCE, equal_nan=True
+        ))
 
-        In this case, both current maxima are close enough to previous maxima to
-        be linked.
+    def test_get_intermediate_velocities_time2(self):
+        """Ensures correct output from _get_intermediate_velocities.
+
+        In this case, "current time" = second time.
         """
 
-        these_current_to_prev_indices = (
-            echo_top_tracking._link_local_maxima_in_time(
-                current_local_max_dict=CURRENT_LOCAL_MAX_DICT_BOTH_NEAR,
-                previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
-                max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        this_local_max_dict_by_time = [
+            copy.deepcopy(FIRST_LMAX_DICT_NO_VELOCITY),
+            copy.deepcopy(SECOND_LMAX_DICT_NO_VELOCITY)
+        ]
+
+        this_local_max_dict_by_time = (
+            echo_top_tracking._get_intermediate_velocities(
+                local_max_dict_by_time=this_local_max_dict_by_time,
+                current_time_index=1,
+                num_points_in_estimate=NUM_POINTS_IN_ESTIMATE,
+                e_folding_radius_metres=E_FOLDING_RADIUS_METRES)
         )
 
+        self.assertTrue(numpy.allclose(
+            this_local_max_dict_by_time[1][echo_top_tracking.X_VELOCITIES_KEY],
+            SECOND_LMAX_DICT_WITH_VELOCITY[
+                echo_top_tracking.X_VELOCITIES_KEY],
+            atol=TOLERANCE, equal_nan=True
+        ))
+
+        self.assertTrue(numpy.allclose(
+            this_local_max_dict_by_time[1][echo_top_tracking.Y_VELOCITIES_KEY],
+            SECOND_LMAX_DICT_WITH_VELOCITY[
+                echo_top_tracking.Y_VELOCITIES_KEY],
+            atol=TOLERANCE, equal_nan=True
+        ))
+
+    def test_link_local_maxima_in_time_1to2(self):
+        """Ensures correct output from _link_local_maxima_in_time.
+
+        In this case, linking maxima from the first and second times.
+        """
+
+        these_indices = echo_top_tracking._link_local_maxima_in_time(
+            current_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
+            prev_local_max_dict=FIRST_LOCAL_MAX_DICT_UNLINKED,
+            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
+            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
+            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+
         self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_BOTH_NEAR
+            these_indices, SECOND_TO_FIRST_INDICES
+        ))
+
+    def test_link_local_maxima_in_time_2to3(self):
+        """Ensures correct output from _link_local_maxima_in_time.
+
+        In this case, linking maxima from the second and third times.
+        """
+
+        these_indices = echo_top_tracking._link_local_maxima_in_time(
+            current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
+            prev_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
+            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
+            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
+            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices, THIRD_TO_SECOND_INDICES
         ))
 
     def test_link_local_maxima_in_time_too_late(self):
         """Ensures correct output from _link_local_maxima_in_time.
 
-        In this case, current minus previous time is too long for linkage.
+        In this case, current time is too much later than previous time.
         """
 
-        these_current_to_prev_indices = (
-            echo_top_tracking._link_local_maxima_in_time(
-                current_local_max_dict=CURRENT_LOCAL_MAX_DICT_TOO_LATE,
-                previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
-                max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-        )
+        these_indices = echo_top_tracking._link_local_maxima_in_time(
+            current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
+            prev_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
+            max_link_time_seconds=1,
+            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
+            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
 
-        self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_TOO_LATE
-        ))
+        expected_indices = numpy.full(len(these_indices), -1, dtype=int)
+        self.assertTrue(numpy.array_equal(these_indices, expected_indices))
 
-    def test_link_local_maxima_in_time_overlap(self):
+    def test_link_local_maxima_in_time_no_prev_dict(self):
         """Ensures correct output from _link_local_maxima_in_time.
 
-        In this case, both current maxima are close enough to be linked to the
-        same previous max.  But this can't happen, so only one current max is
-        linked.
+        In this case there is no dictionary with previous maxima.
         """
 
-        these_current_to_prev_indices = (
-            echo_top_tracking._link_local_maxima_in_time(
-                current_local_max_dict=CURRENT_LOCAL_MAX_DICT_OVERLAP,
-                previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
-                max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-        )
+        these_indices = echo_top_tracking._link_local_maxima_in_time(
+            current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
+            prev_local_max_dict=None,
+            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
+            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
+            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
 
-        self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_OVERLAP
-        ))
+        expected_indices = numpy.full(len(these_indices), -1, dtype=int)
+        self.assertTrue(numpy.array_equal(these_indices, expected_indices))
 
-    def test_link_local_maxima_in_time_no_previous_dict(self):
-        """Ensures correct output from _link_local_maxima_in_time.
-
-        In this case, `previous_local_max_dict` is None, meaning that there are
-        no previous maxima with which to compare.
-        """
-
-        these_current_to_prev_indices = (
-            echo_top_tracking._link_local_maxima_in_time(
-                current_local_max_dict=CURRENT_LOCAL_MAX_DICT_BOTH_NEAR,
-                previous_local_max_dict=None,
-                max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-        )
-
-        self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_NO_LINKS
-        ))
-
-    def test_link_local_maxima_in_time_no_previous_maxima(self):
+    def test_link_local_maxima_in_time_no_prev_maxima(self):
         """Ensures correct output from _link_local_maxima_in_time.
 
         In this case there are no previous maxima.
         """
 
-        these_current_to_prev_indices = (
-            echo_top_tracking._link_local_maxima_in_time(
-                current_local_max_dict=CURRENT_LOCAL_MAX_DICT_BOTH_NEAR,
-                previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT_EMPTY,
-                max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-        )
+        these_indices = echo_top_tracking._link_local_maxima_in_time(
+            current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
+            prev_local_max_dict=SECOND_LOCAL_MAX_DICT_EMPTY,
+            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
+            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
+            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
 
-        self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, CURRENT_TO_PREV_INDICES_NO_LINKS
-        ))
+        expected_indices = numpy.full(len(these_indices), -1, dtype=int)
+        self.assertTrue(numpy.array_equal(these_indices, expected_indices))
 
     def test_link_local_maxima_in_time_no_current_maxima(self):
         """Ensures correct output from _link_local_maxima_in_time.
 
-        In this case there are no previous maxima.
+        In this case there are no current maxima.
         """
 
-        these_current_to_prev_indices = (
-            echo_top_tracking._link_local_maxima_in_time(
-                current_local_max_dict=CURRENT_LOCAL_MAX_DICT_EMPTY,
-                previous_local_max_dict=PREVIOUS_LOCAL_MAX_DICT,
-                max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-        )
+        these_indices = echo_top_tracking._link_local_maxima_in_time(
+            current_local_max_dict=THIRD_LOCAL_MAX_DICT_EMPTY,
+            prev_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
+            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
+            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
+            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
 
-        self.assertTrue(numpy.array_equal(
-            these_current_to_prev_indices, numpy.array([])
-        ))
+        expected_indices = numpy.full(len(these_indices), -1, dtype=int)
+        self.assertTrue(numpy.array_equal(these_indices, expected_indices))
 
     def test_create_storm_id_first_in_day(self):
         """Ensures correct output from _create_storm_id.
