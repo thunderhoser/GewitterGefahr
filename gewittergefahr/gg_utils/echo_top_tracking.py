@@ -570,12 +570,15 @@ def _link_local_maxima_in_time(
 
         these_distances_metres = numpy.sqrt(
             (prev_local_max_dict[X_COORDS_KEY] -
-             current_local_max_dict[X_COORDS_KEY][i])
-            ** 2 +
+             current_local_max_dict[X_COORDS_KEY][i]) ** 2
+            +
             (prev_local_max_dict[Y_COORDS_KEY] -
-             current_local_max_dict[Y_COORDS_KEY][i])
-            ** 2
+             current_local_max_dict[Y_COORDS_KEY][i]) ** 2
         )
+
+        these_distances_metres[
+            numpy.invert(numpy.isnan(extrap_x_coords_metres))
+        ] = numpy.inf
 
         these_distances_m_s01 = these_distances_metres / time_diff_seconds
         this_min_distance_m_s01 = numpy.min(these_distances_m_s01)
