@@ -390,8 +390,7 @@ def _estimate_velocity_by_neigh(
 
 
 def _get_intermediate_velocities(
-        local_max_dict_by_time, current_time_index, num_points_in_estimate,
-        e_folding_radius_metres):
+        local_max_dict_by_time, current_time_index, e_folding_radius_metres):
     """Returns intermediate velocity estimate for each storm at the given time.
 
     T = number of time steps
@@ -412,8 +411,6 @@ def _get_intermediate_velocities(
 
     :param current_time_index: Array index.  This method will compute velocity
         estimates for the [i]th time only, where i = `current_time_index`.
-    :param num_points_in_estimate: Number of time steps used to create each
-        velocity estimate.
     :param e_folding_radius_metres: See doc for `_estimate_velocity_by_neigh`.
 
     :return: local_max_dict_by_time: Same as input, except that the [i]th
@@ -441,9 +438,7 @@ def _get_intermediate_velocities(
         return local_max_dict_by_time
 
     prev_object_indices = current_local_max_dict[CURRENT_TO_PREV_INDICES_KEY]
-
-    prev_time_index = max([current_time_index - num_points_in_estimate, 0])
-    prev_local_max_dict = local_max_dict_by_time[prev_time_index]
+    prev_local_max_dict = local_max_dict_by_time[current_time_index - 1]
 
     prev_x_coords_metres = [
         numpy.nan if k == -1 else prev_local_max_dict[X_COORDS_KEY][k]
@@ -2071,8 +2066,7 @@ def run_tracking(
 
         local_max_dict_by_time = _get_intermediate_velocities(
             local_max_dict_by_time=local_max_dict_by_time,
-            current_time_index=i, num_points_in_estimate=3,
-            e_folding_radius_metres=100000.)
+            current_time_index=i, e_folding_radius_metres=100000.)
 
     keep_time_indices = numpy.array(keep_time_indices, dtype=int)
     valid_times_unix_sec = valid_times_unix_sec[keep_time_indices]

@@ -180,8 +180,6 @@ SECOND_LMAX_DICT_NO_VELOCITY = {
         THESE_CURRENT_TO_PREV_INDICES + 0
 }
 
-NUM_POINTS_IN_ESTIMATE = 3
-
 FIRST_LMAX_DICT_WITH_VELOCITY = copy.deepcopy(FIRST_LMAX_DICT_NO_VELOCITY)
 FIRST_LMAX_DICT_WITH_VELOCITY.update({
     echo_top_tracking.X_VELOCITIES_KEY: numpy.full(6, numpy.nan),
@@ -624,7 +622,6 @@ class EchoTopTrackingTests(unittest.TestCase):
             echo_top_tracking._get_intermediate_velocities(
                 local_max_dict_by_time=this_local_max_dict_by_time,
                 current_time_index=0,
-                num_points_in_estimate=NUM_POINTS_IN_ESTIMATE,
                 e_folding_radius_metres=E_FOLDING_RADIUS_METRES)
         )
 
@@ -657,7 +654,6 @@ class EchoTopTrackingTests(unittest.TestCase):
             echo_top_tracking._get_intermediate_velocities(
                 local_max_dict_by_time=this_local_max_dict_by_time,
                 current_time_index=1,
-                num_points_in_estimate=NUM_POINTS_IN_ESTIMATE,
                 e_folding_radius_metres=E_FOLDING_RADIUS_METRES)
         )
 
