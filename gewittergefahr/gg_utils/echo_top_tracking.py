@@ -2046,11 +2046,6 @@ def run_tracking(
             min_distance_between_maxima_metres
         )
 
-        local_max_dict_by_time = _get_intermediate_velocities(
-            local_max_dict_by_time=local_max_dict_by_time,
-            current_time_index=i, num_points_in_estimate=3,
-            e_folding_radius_metres=100000.)
-
         if i == 0:
             these_current_to_prev_indices = _link_local_maxima_in_time(
                 current_local_max_dict=local_max_dict_by_time[i],
@@ -2073,6 +2068,11 @@ def run_tracking(
         local_max_dict_by_time[i].update(
             {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices}
         )
+
+        local_max_dict_by_time = _get_intermediate_velocities(
+            local_max_dict_by_time=local_max_dict_by_time,
+            current_time_index=i, num_points_in_estimate=3,
+            e_folding_radius_metres=100000.)
 
     keep_time_indices = numpy.array(keep_time_indices, dtype=int)
     valid_times_unix_sec = valid_times_unix_sec[keep_time_indices]
