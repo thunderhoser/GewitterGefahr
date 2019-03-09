@@ -55,29 +55,33 @@ DEGREES_LAT_TO_METRES = 60 * 1852
 CENTRAL_PROJ_LATITUDE_DEG = 35.
 CENTRAL_PROJ_LONGITUDE_DEG = 265.
 
-VALID_RADAR_FIELDS = [
+VALID_RADAR_FIELD_NAMES = [
     radar_utils.ECHO_TOP_15DBZ_NAME, radar_utils.ECHO_TOP_18DBZ_NAME,
     radar_utils.ECHO_TOP_20DBZ_NAME, radar_utils.ECHO_TOP_25DBZ_NAME,
     radar_utils.ECHO_TOP_40DBZ_NAME, radar_utils.ECHO_TOP_50DBZ_NAME
 ]
+
 VALID_RADAR_SOURCE_NAMES = [
     radar_utils.MYRORSS_SOURCE_ID, radar_utils.MRMS_SOURCE_ID
 ]
 
-DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL = 4.
-DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT = 0.024
+DEFAULT_MIN_ECHO_TOP_KM = 4.
+DEFAULT_SMOOTHING_RADIUS_DEG_LAT = 0.024
 DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT = 0.06
-DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES = 0.1 * DEGREES_LAT_TO_METRES
-DEFAULT_MIN_GRID_CELLS_IN_POLYGON = 0
+
+DEFAULT_MIN_INTERMAX_DISTANCE_METRES = 0.1 * DEGREES_LAT_TO_METRES
+DEFAULT_MIN_SIZE_PIXELS = 0
 DEFAULT_MAX_LINK_TIME_SECONDS = 305
 DEFAULT_MAX_VELOCITY_DIFF_M_S01 = 10.
 DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
-    0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS)
+    0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS
+)
 
-DEFAULT_MAX_REANAL_JOIN_TIME_SEC = 600
-DEFAULT_MAX_REANAL_EXTRAP_ERROR_M_S01 = 20.
+DEFAULT_MAX_JOIN_TIME_SEC = 600
+DEFAULT_MAX_JOIN_DISTANCE_M_S01 = 20.
+DEFAULT_NUM_POINTS_FOR_VELOCITY = 3
+DEFAULT_VELOCITY_EFOLD_RADIUS_METRES = 100000.
 
-DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY = 3
 DUMMY_TRACKING_SCALE_METRES2 = numpy.pi * 1e8  # Radius of 10 km.
 
 TRACKING_FILE_NAMES_KEY = 'output_tracking_file_names'
@@ -97,10 +101,10 @@ CENTROID_Y_COLUMN = 'centroid_y_metres'
 X_VELOCITIES_KEY = 'x_velocities_m_s01'
 Y_VELOCITIES_KEY = 'y_velocities_m_s01'
 
-GRID_POINT_ROWS_KEY = 'list_of_grid_point_rows'
-GRID_POINT_COLUMNS_KEY = 'list_of_grid_point_columns'
-GRID_POINT_LATITUDES_KEY = 'list_of_grid_point_latitudes_deg'
-GRID_POINT_LONGITUDES_KEY = 'list_of_grid_point_longitudes_deg'
+GRID_POINT_ROWS_KEY = 'grid_point_rows_array_list'
+GRID_POINT_COLUMNS_KEY = 'grid_point_columns_array_list'
+GRID_POINT_LATITUDES_KEY = 'grid_point_lats_array_list_deg'
+GRID_POINT_LONGITUDES_KEY = 'grid_point_lngs_array_list_deg'
 POLYGON_OBJECTS_ROWCOL_KEY = 'polygon_objects_rowcol'
 POLYGON_OBJECTS_LATLNG_KEY = 'polygon_objects_latlng'
 
@@ -113,26 +117,26 @@ END_LONGITUDE_COLUMN = 'end_longitude_deg'
 
 
 def _check_radar_field(radar_field_name):
-    """Ensures that radar field is valid for echo-top-based tracking.
+    """Error-checks radar field.
 
     :param radar_field_name: Field name (string).
-    :raises: ValueError: if `radar_field_name not in VALID_RADAR_FIELDS`.
+    :raises: ValueError: if `radar_field_name not in VALID_RADAR_FIELD_NAMES`.
     """
 
     error_checking.assert_is_string(radar_field_name)
 
-    if radar_field_name not in VALID_RADAR_FIELDS:
+    if radar_field_name not in VALID_RADAR_FIELD_NAMES:
         error_string = (
-            '\n\n{0:s}\n\nValid radar fields (listed above) do not include '
-            '"{1:s}".').format(VALID_RADAR_FIELDS, radar_field_name)
+            '\n{0:s}\nValid radar fields (listed above) do not include "{1:s}".'
+        ).format(str(VALID_RADAR_FIELD_NAMES), radar_field_name)
+
         raise ValueError(error_string)
 
 
 def _check_radar_source(radar_source_name):
     """Error-checks source of radar data.
 
-    :param radar_source_name: Data source (must be in list
-        `VALID_RADAR_SOURCE_NAMES`).
+    :param radar_source_name: Data source (string).
     :raises: ValueError: if `radar_source_name not in VALID_RADAR_SOURCE_NAMES`.
     """
 
@@ -140,22 +144,25 @@ def _check_radar_source(radar_source_name):
 
     if radar_source_name not in VALID_RADAR_SOURCE_NAMES:
         error_string = (
-            '\n\n{0:s}\n\nValid data sources (listed above) do not include '
-            '"{1:s}".').format(VALID_RADAR_SOURCE_NAMES, radar_source_name)
+            '\n{0:s}\nValid radar sources (listed above) do not include '
+            '"{1:s}".'
+        ).format(str(VALID_RADAR_SOURCE_NAMES), radar_source_name)
+
         raise ValueError(error_string)
 
 
-def _gaussian_smooth_radar_field(
-        radar_matrix, e_folding_radius_pixels, cutoff_radius_pixels=None):
+def _gaussian_smooth_radar_field(radar_matrix, e_folding_radius_pixels,
+                                 cutoff_radius_pixels=None):
     """Applies Gaussian smoother to radar field.  NaN's are treated as zero.
 
     M = number of rows (unique grid-point latitudes)
     N = number of columns (unique grid-point longitudes)
 
-    :param radar_matrix: M-by-N numpy array with values of radar field.
-    :param e_folding_radius_pixels: e-folding radius for Gaussian smoother.
-    :param cutoff_radius_pixels: Cutoff radius for Gaussian smoother.  Default
-        is 3 * e-folding radius.
+    :param radar_matrix: M-by-N numpy array of data values.
+    :param e_folding_radius_pixels: e-folding radius.
+    :param cutoff_radius_pixels: Cutoff radius.  If
+        `cutoff_radius_pixels is None`, will default to
+        `3 * e_folding_radius_pixels`.
     :return: smoothed_radar_matrix: Smoothed version of input.
     """
 
@@ -164,43 +171,48 @@ def _gaussian_smooth_radar_field(
         cutoff_radius_pixels = 3 * e_folding_radius_pixels
 
     radar_matrix[numpy.isnan(radar_matrix)] = 0.
+
     smoothed_radar_matrix = gaussian_filter(
         input=radar_matrix, sigma=e_folding_radius_pixels, order=0,
         mode='constant', cval=0.,
         truncate=cutoff_radius_pixels / e_folding_radius_pixels)
 
     smoothed_radar_matrix[
-        numpy.absolute(smoothed_radar_matrix) < TOLERANCE] = numpy.nan
+        numpy.absolute(smoothed_radar_matrix) < TOLERANCE
+    ] = numpy.nan
+
     return smoothed_radar_matrix
 
 
-def _find_local_maxima(
-        radar_matrix, radar_metadata_dict, neigh_half_width_in_pixels):
+def _find_local_maxima(radar_matrix, radar_metadata_dict,
+                       neigh_half_width_pixels):
     """Finds local maxima in radar field.
 
     M = number of rows (unique grid-point latitudes)
     N = number of columns (unique grid-point longitudes)
     P = number of local maxima
 
-    :param radar_matrix: M-by-N numpy array with values of radar field.
-    :param radar_metadata_dict: Dictionary with metadata for radar grid, created
-        by `myrorss_and_mrms_io.read_metadata_from_raw_file`.
-    :param neigh_half_width_in_pixels: Neighbourhood half-width for max filter.
-    :return: local_max_dict_latlng: Dictionary with the following keys.
-    local_max_dict_latlng['latitudes_deg']: length-P numpy array with latitudes
+    :param radar_matrix: M-by-N numpy array of data values.
+    :param radar_metadata_dict: Dictionary created by
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`.
+    :param neigh_half_width_pixels: Half-width of neighbourhood for max filter.
+    :return: local_max_dict_simple: Dictionary with the following keys.
+    local_max_dict_simple['latitudes_deg']: length-P numpy array with latitudes
         (deg N) of local maxima.
-    local_max_dict_latlng['longitudes_deg']: length-P numpy array with
+    local_max_dict_simple['longitudes_deg']: length-P numpy array with
         longitudes (deg E) of local maxima.
-    local_max_dict_latlng['max_values']: length-P numpy array with values of
+    local_max_dict_simple['max_values']: length-P numpy array with magnitudes of
         local maxima.
     """
 
     filtered_radar_matrix = dilation.dilate_2d_matrix(
         input_matrix=radar_matrix, percentile_level=100.,
-        half_width_in_pixels=neigh_half_width_in_pixels)
+        half_width_in_pixels=neigh_half_width_pixels)
 
     max_index_arrays = numpy.where(
-        numpy.absolute(filtered_radar_matrix - radar_matrix) < TOLERANCE)
+        numpy.absolute(filtered_radar_matrix - radar_matrix) < TOLERANCE
+    )
+
     max_row_indices = max_index_arrays[0]
     max_column_indices = max_index_arrays[1]
 
@@ -211,9 +223,11 @@ def _find_local_maxima(
         nw_grid_point_lng_deg=
         radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
         lat_spacing_deg=radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-        lng_spacing_deg=radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN])
+        lng_spacing_deg=radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]
+    )
 
     max_values = radar_matrix[max_row_indices, max_column_indices]
+
     sort_indices = numpy.argsort(-max_values)
     max_values = max_values[sort_indices]
     max_latitudes_deg = max_latitudes_deg[sort_indices]
@@ -226,39 +240,36 @@ def _find_local_maxima(
     }
 
 
-def _remove_redundant_local_maxima(
-        local_max_dict_latlng, projection_object,
-        min_distance_between_maxima_metres=
-        DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES):
-    """Removes redundant local maxima in radar field.
+def _remove_redundant_local_maxima(local_max_dict, projection_object,
+                                   min_intermax_distance_metres):
+    """Removes redundant local maxima at one time.
 
     P = number of local maxima retained
 
-    :param local_max_dict_latlng: Dictionary created by _find_local_maxima.
-    :param projection_object: `pyproj.Proj` object, which will be used to
-        convert lat-long coordinates to x-y.
-    :param min_distance_between_maxima_metres: Minimum distance between any pair
-        of local maxima.
-    :return: local_max_dictionary: Dictionary with the following keys.
-    local_max_dictionary['latitudes_deg']: length-P numpy array with latitudes
-        (deg N) of local maxima.
-    local_max_dictionary['longitudes_deg']: length-P numpy array with
-        longitudes (deg E) of local maxima.
-    local_max_dictionary['x_coords_metres']: length-P numpy array with
-        x-coordinates of local maxima.
-    local_max_dictionary['y_coords_metres']: length-P numpy array with
-        y-coordinates of local maxima.
-    local_max_dictionary['max_values']: length-P numpy array with values of
+    :param local_max_dict: Dictionary with at least the following keys.
+    local_max_dict['latitudes_deg']: See doc for `_find_local_maxima`.
+    local_max_dict['longitudes_deg']: Same.
+    local_max_dict['max_values']: Same.
+
+    :param projection_object: Instance of `pyproj.Proj` (used to convert local
+        maxima from lat-long to x-y coordinates).
+    :param min_intermax_distance_metres: Minimum distance between any pair of
         local maxima.
+    :return: local_max_dict: Same as input, except that no pair of maxima is
+        within `min_intermax_distance_metres`.  Also contains additional columns
+        listed below.
+    local_max_dict['x_coords_metres']: length-P numpy array with x-coordinates
+        of local maxima.
+    local_max_dict['y_coords_metres']: length-P numpy array with y-coordinates
+        of local maxima.
     """
 
     x_coords_metres, y_coords_metres = projections.project_latlng_to_xy(
-        local_max_dict_latlng[LATITUDES_KEY],
-        local_max_dict_latlng[LONGITUDES_KEY],
+        local_max_dict[LATITUDES_KEY], local_max_dict[LONGITUDES_KEY],
         projection_object=projection_object,
         false_easting_metres=0., false_northing_metres=0.)
 
-    local_max_dict_latlng.update({
+    local_max_dict.update({
         X_COORDS_KEY: x_coords_metres,
         Y_COORDS_KEY: y_coords_metres
     })
@@ -277,7 +288,7 @@ def _remove_redundant_local_maxima(
 
         these_distances_metres[i] = numpy.inf
         these_redundant_indices = numpy.where(
-            these_distances_metres < min_distance_between_maxima_metres
+            these_distances_metres < min_intermax_distance_metres
         )[0]
 
         if len(these_redundant_indices) == 0:
@@ -289,23 +300,23 @@ def _remove_redundant_local_maxima(
         keep_max_flags[these_redundant_indices] = False
 
         this_best_index = numpy.argmax(
-            local_max_dict_latlng[MAX_VALUES_KEY][these_redundant_indices]
+            local_max_dict[MAX_VALUES_KEY][these_redundant_indices]
         )
         this_best_index = these_redundant_indices[this_best_index]
         keep_max_flags[this_best_index] = True
 
     indices_to_keep = numpy.where(keep_max_flags)[0]
 
-    for this_key in local_max_dict_latlng:
-        if isinstance(local_max_dict_latlng[this_key], list):
-            local_max_dict_latlng[this_key] = [
-                local_max_dict_latlng[this_key][k] for k in indices_to_keep
+    for this_key in local_max_dict:
+        if isinstance(local_max_dict[this_key], list):
+            local_max_dict[this_key] = [
+                local_max_dict[this_key][k] for k in indices_to_keep
             ]
-        elif isinstance(local_max_dict_latlng[this_key], numpy.ndarray):
-            local_max_dict_latlng[this_key] = local_max_dict_latlng[this_key][
+        elif isinstance(local_max_dict[this_key], numpy.ndarray):
+            local_max_dict[this_key] = local_max_dict[this_key][
                 indices_to_keep]
 
-    return local_max_dict_latlng
+    return local_max_dict
 
 
 def _estimate_velocity_by_neigh(
@@ -390,42 +401,40 @@ def _estimate_velocity_by_neigh(
 
 
 def _get_intermediate_velocities(
-        local_max_dict_by_time, current_time_index, e_folding_radius_metres):
-    """Returns intermediate velocity estimate for each storm at the given time.
+        current_local_max_dict, previous_local_max_dict,
+        e_folding_radius_metres):
+    """Returns intermediate velocity estimate for each storm at current time.
 
-    T = number of time steps
-    P = number of local maxima at a given time step
+    P = number of maxima at current time
 
-    :param local_max_dict_by_time: length-T list of dictionaries.  If
-        local_max_dict_by_time[i] = None, this means that local maxima have not
-        been identified for the [i]th time step.  Otherwise, dictionary must
-        have the following keys.
+    :param current_local_max_dict: Dictionary with the following keys.  If
+        `previous_local_max_dict is None`, the key "current_to_previous_indices"
+        is not required.
+    current_local_max_dict['unix_time_sec']: Valid time.
+    current_local_max_dict['x_coords_metres']: length-P numpy array with
+        x-coordinates of local maxima.
+    current_local_max_dict['y_coords_metres']: length-P numpy array with
+        y-coordinates of local maxima.
+    current_local_max_dict['current_to_previous_indices']: length-P numpy array
+        of indices.  If current_to_previous_indices[i] = j, the [i]th local max
+        at the current time is linked to the [j]th local max at the previous
+        time.
 
-    "unix_time_sec": Valid time.
-    "x_coords_metres": length-P numpy array with x-coordinates of local maxima.
-    "y_coords_metres": length-P numpy array with y-coordinates of local maxima.
-    "current_to_previous_indices": length-P numpy array of indices.  If
-        current_to_previous_indices[j] = k in the [i]th dictionary, the [j]th
-        local max at the [i]th time step is linked to the [k]th local max at the
-        [i - 1]th time step.
-
-    :param current_time_index: Array index.  This method will compute velocity
-        estimates for the [i]th time only, where i = `current_time_index`.
+    :param previous_local_max_dict: Same as `current_local_max_dict` but for
+        previous time.  If `current_local_max_dict` represents the first time,
+        `previous_local_max_dict` may be None.
     :param e_folding_radius_metres: See doc for `_estimate_velocity_by_neigh`.
 
-    :return: local_max_dict_by_time: Same as input, except that the [i]th
-        dictionary (where i = `current_time_index`) will have new columns listed
-        below.
-
-    "x_velocities_m_s01": length-P numpy array of velocities in positive
-        x-direction (metres per second).
-    "y_velocities_m_s01": Same but y-direction.
+    :return: current_local_max_dict: Same as input but with the following
+        additional columns.
+    current_local_max_dict['x_velocities_m_s01']: length-P numpy array of
+        x-velocities (metres per second in positive direction).
+    current_local_max_dict['y_velocities_m_s01']: Same but for y-direction.
     """
 
-    current_local_max_dict = local_max_dict_by_time[current_time_index]
     num_current_maxima = len(current_local_max_dict[X_COORDS_KEY])
 
-    if current_time_index == 0:
+    if previous_local_max_dict is None:
         x_velocities_m_s01 = numpy.full(num_current_maxima, numpy.nan)
         y_velocities_m_s01 = numpy.full(num_current_maxima, numpy.nan)
 
@@ -434,18 +443,16 @@ def _get_intermediate_velocities(
             Y_VELOCITIES_KEY: y_velocities_m_s01
         })
 
-        local_max_dict_by_time[current_time_index] = current_local_max_dict
-        return local_max_dict_by_time
+        return current_local_max_dict
 
     prev_object_indices = current_local_max_dict[CURRENT_TO_PREV_INDICES_KEY]
-    prev_local_max_dict = local_max_dict_by_time[current_time_index - 1]
 
     prev_x_coords_metres = [
-        numpy.nan if k == -1 else prev_local_max_dict[X_COORDS_KEY][k]
+        numpy.nan if k == -1 else previous_local_max_dict[X_COORDS_KEY][k]
         for k in prev_object_indices
     ]
     prev_y_coords_metres = [
-        numpy.nan if k == -1 else prev_local_max_dict[Y_COORDS_KEY][k]
+        numpy.nan if k == -1 else previous_local_max_dict[Y_COORDS_KEY][k]
         for k in prev_object_indices
     ]
 
@@ -454,7 +461,7 @@ def _get_intermediate_velocities(
 
     time_diff_seconds = (
         current_local_max_dict[VALID_TIME_KEY] -
-        prev_local_max_dict[VALID_TIME_KEY]
+        previous_local_max_dict[VALID_TIME_KEY]
     )
 
     x_velocities_m_s01 = (
@@ -477,71 +484,66 @@ def _get_intermediate_velocities(
         Y_VELOCITIES_KEY: y_velocities_m_s01
     })
 
-    local_max_dict_by_time[current_time_index] = current_local_max_dict
-    return local_max_dict_by_time
+    return current_local_max_dict
 
 
 def _link_local_maxima_in_time(
-        current_local_max_dict, prev_local_max_dict, max_link_time_seconds,
+        current_local_max_dict, previous_local_max_dict, max_link_time_seconds,
         max_velocity_diff_m_s01, max_link_distance_m_s01):
     """Links local maxima between current and previous time steps.
 
-    N_c = number of maxima at current time
-    N_p = number of maxima at previous time
+    P = number of maxima at current time
 
     :param current_local_max_dict: Dictionary with the following keys.
     current_local_max_dict['unix_time_sec']: Valid time.
-    current_local_max_dict['x_coords_metres']: numpy array (length N_c) with
+    current_local_max_dict['x_coords_metres']: length-P numpy array with
         x-coordinates of local maxima.
-    current_local_max_dict['y_coords_metres']: numpy array (length N_c) with
+    current_local_max_dict['y_coords_metres']: length-P numpy array with
         y-coordinates of local maxima.
-    current_local_max_dict['x_velocities_m_s01']: numpy array (length N_c) of
-        x-velocities (metres per second in positive direction).
-    current_local_max_dict['y_velocities_m_s01']: Same but for y-direction.
 
-    :param prev_local_max_dict: Same as `current_local_max_dict`, but for
-        previous time step.  Does not require keys "x_velocities_m_s01" and
-        "y_velocities_m_s01".
+    :param previous_local_max_dict: Dictionary created by
+        `_get_intermediate_velocities`.  If `current_local_max_dict` represents
+        the first time, `previous_local_max_dict` may be None.
     :param max_link_time_seconds: Max difference between current and previous
-        time steps.  If difference > `max_link_time_seconds`, maxima will not be
-        linked between the two times.
+        time steps.
     :param max_velocity_diff_m_s01: Max difference between expected and actual
-        current locations.  Expected current location is based on previous
-        location and velocity.
+        current locations.  Expected current locations are determined by
+        extrapolating local maxima from previous time.
     :param max_link_distance_m_s01: Max difference between current and previous
-        locations.  This will be used only for previous maxima with no velocity
-        estimate.
-    :return: current_to_previous_indices: numpy array (length N_c) of indices.
-        If current_to_previous_indices[j] = k, the [j]th local max at the
-        current time is linked to the [k]th local max at the previous time.
+        locations.  This criterion will be used only for previous maxima with no
+        velocity estimate.
+    :return: current_to_previous_indices: length-P numpy array
+        of indices.  If current_to_previous_indices[i] = j, the [i]th local max
+        at the current time is linked to the [j]th local max at the previous
+        time.
     """
 
     num_current_maxima = len(current_local_max_dict[X_COORDS_KEY])
     current_to_previous_indices = numpy.full(num_current_maxima, -1, dtype=int)
 
-    if prev_local_max_dict is None or num_current_maxima == 0:
+    if previous_local_max_dict is None or num_current_maxima == 0:
         return current_to_previous_indices
 
-    num_previous_maxima = len(prev_local_max_dict[X_COORDS_KEY])
+    num_previous_maxima = len(previous_local_max_dict[X_COORDS_KEY])
     if num_previous_maxima == 0:
         return current_to_previous_indices
 
     time_diff_seconds = (
         current_local_max_dict[VALID_TIME_KEY] -
-        prev_local_max_dict[VALID_TIME_KEY]
+        previous_local_max_dict[VALID_TIME_KEY]
     )
 
     if time_diff_seconds > max_link_time_seconds:
         return current_to_previous_indices
 
     extrap_x_coords_metres = (
-        prev_local_max_dict[X_COORDS_KEY] +
-        prev_local_max_dict[X_VELOCITIES_KEY] * time_diff_seconds
+        previous_local_max_dict[X_COORDS_KEY] +
+        previous_local_max_dict[X_VELOCITIES_KEY] * time_diff_seconds
     )
 
     extrap_y_coords_metres = (
-        prev_local_max_dict[Y_COORDS_KEY] +
-        prev_local_max_dict[Y_VELOCITIES_KEY] * time_diff_seconds
+        previous_local_max_dict[Y_COORDS_KEY] +
+        previous_local_max_dict[Y_VELOCITIES_KEY] * time_diff_seconds
     )
 
     current_to_prev_velocity_diffs_m_s01 = numpy.full(
@@ -569,10 +571,10 @@ def _link_local_maxima_in_time(
             continue
 
         these_distances_metres = numpy.sqrt(
-            (prev_local_max_dict[X_COORDS_KEY] -
+            (previous_local_max_dict[X_COORDS_KEY] -
              current_local_max_dict[X_COORDS_KEY][i]) ** 2
             +
-            (prev_local_max_dict[Y_COORDS_KEY] -
+            (previous_local_max_dict[Y_COORDS_KEY] -
              current_local_max_dict[Y_COORDS_KEY][i]) ** 2
         )
 
@@ -618,20 +620,22 @@ def _link_local_maxima_in_time(
     return current_to_previous_indices
 
 
-def _check_time_period(first_spc_date_string, last_spc_date_string,
-                       first_time_unix_sec=None, last_time_unix_sec=None):
-    """Error-checks input arguments.
+def _check_time_period(
+        first_spc_date_string, last_spc_date_string, first_time_unix_sec,
+        last_time_unix_sec):
+    """Error-checks time period.
 
     :param first_spc_date_string: First SPC date in period (format "yyyymmdd").
-    :param last_spc_date_string: Last SPC date in period (format "yyyymmdd").
-    :param first_time_unix_sec: First time in period.  Default is 120000 UTC at
-        beginning of first SPC date.
-    :param last_time_unix_sec: Last time in period.  Default is 115959 UTC at
-        end of first SPC date.
+    :param last_spc_date_string: Last SPC date in period.
+    :param first_time_unix_sec: First time in period.  If
+        `first_time_unix_sec is None`, defaults to first time on first SPC date.
+    :param last_time_unix_sec: Last time in period.  If
+        `last_time_unix_sec is None`, defaults to last time on last SPC date.
     :return: spc_date_strings: 1-D list of SPC dates (format "yyyymmdd").
-    :return: first_time_unix_sec: Same as input, except that default may have
-        been set to replace None.
-    :return: last_time_unix_sec: See above.
+    :return: first_time_unix_sec: Same as input, but may have been replaced with
+        default.
+    :return: last_time_unix_sec: Same as input, but may have been replaced with
+        default.
     """
 
     spc_date_strings = time_conversion.get_spc_dates_in_range(
@@ -639,20 +643,17 @@ def _check_time_period(first_spc_date_string, last_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
     if first_time_unix_sec is None:
-        first_time_unix_sec = (
-            time_conversion.MIN_SECONDS_INTO_SPC_DATE +
-            time_conversion.string_to_unix_sec(
-                first_spc_date_string, time_conversion.SPC_DATE_FORMAT)
-        )
+        first_time_unix_sec = time_conversion.string_to_unix_sec(
+            first_spc_date_string, time_conversion.SPC_DATE_FORMAT
+        ) + time_conversion.MIN_SECONDS_INTO_SPC_DATE
 
     if last_time_unix_sec is None:
-        last_time_unix_sec = (
-            time_conversion.MAX_SECONDS_INTO_SPC_DATE +
-            time_conversion.string_to_unix_sec(
-                last_spc_date_string, time_conversion.SPC_DATE_FORMAT)
-        )
+        last_time_unix_sec = time_conversion.string_to_unix_sec(
+            last_spc_date_string, time_conversion.SPC_DATE_FORMAT
+        ) + time_conversion.MAX_SECONDS_INTO_SPC_DATE
 
     error_checking.assert_is_greater(last_time_unix_sec, first_time_unix_sec)
+
     assert time_conversion.is_time_in_spc_date(
         first_time_unix_sec, first_spc_date_string)
     assert time_conversion.is_time_in_spc_date(
@@ -662,29 +663,29 @@ def _check_time_period(first_spc_date_string, last_spc_date_string,
 
 
 def _find_input_radar_files(
-        top_radar_dir_name, echo_top_field_name, radar_source_name,
+        top_radar_dir_name, radar_field_name, radar_source_name,
         first_spc_date_string, last_spc_date_string, first_time_unix_sec,
         last_time_unix_sec):
-    """Finds radar files (inputs to tracking algorithm).
+    """Finds radar files (inputs to `run_tracking` -- basically main method).
 
-    N = number of files found
+    T = number of files found
 
     :param top_radar_dir_name: Name of top-level directory with radar files.
         Files therein will be found by
         `myrorss_and_mrms_io.find_raw_files_one_spc_date`.
-    :param echo_top_field_name: Name of radar field (must be accepted by
-        `radar_utils.check_field_name`).
+    :param radar_field_name: Field name (must be accepted by
+        `_check_radar_field`).
     :param radar_source_name: Data source (must be accepted by
         `_check_radar_source`).
     :param first_spc_date_string: See doc for `_check_time_period`.
     :param last_spc_date_string: Same.
     :param first_time_unix_sec: Same.
     :param last_time_unix_sec: Same.
-    :return: radar_file_names: length-N list of paths to radar files.
-    :return: valid_times_unix_sec: length-N numpy array of valid times.
+    :return: radar_file_names: length-T list of paths to radar files.
+    :return: valid_times_unix_sec: length-T numpy array of valid times.
     """
 
-    _check_radar_field(echo_top_field_name)
+    _check_radar_field(radar_field_name)
     _check_radar_source(radar_source_name)
 
     spc_date_strings, first_time_unix_sec, last_time_unix_sec = (
@@ -702,7 +703,7 @@ def _find_input_radar_files(
     for i in range(num_spc_dates):
         these_file_names = myrorss_and_mrms_io.find_raw_files_one_spc_date(
             spc_date_string=spc_date_strings[i],
-            field_name=echo_top_field_name, data_source=radar_source_name,
+            field_name=radar_field_name, data_source=radar_source_name,
             top_directory_name=top_radar_dir_name, raise_error_if_missing=True)
 
         if i == 0:
@@ -729,7 +730,8 @@ def _find_input_radar_files(
 
         radar_file_names += [these_file_names[k] for k in good_indices]
         valid_times_unix_sec = numpy.concatenate((
-            valid_times_unix_sec, these_times_unix_sec[good_indices]))
+            valid_times_unix_sec, these_times_unix_sec[good_indices]
+        ))
 
     sort_indices = numpy.argsort(valid_times_unix_sec)
     valid_times_unix_sec = valid_times_unix_sec[sort_indices]
@@ -740,24 +742,23 @@ def _find_input_radar_files(
 
 def _find_input_tracking_files(
         top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
-        first_time_unix_sec=None, last_time_unix_sec=None):
-    """Finds tracking files (inputs to reanalysis algorithm).
+        first_time_unix_sec, last_time_unix_sec):
+    """Finds tracking files (inputs to `run_tracking` -- basically main method).
 
-    D = number of SPC dates
-    n = number of time steps for a given SPC date
+    T = number of SPC dates
 
-    :param top_tracking_dir_name: Name of top-level input directory.  Files
-        therein will be found by
+    :param top_tracking_dir_name: Name of top-level directory with tracking
+        files.  Files therein will be found by
         `storm_tracking_io.find_processed_files_one_spc_date`.
     :param first_spc_date_string: See doc for `_check_time_period`.
     :param last_spc_date_string: Same.
     :param first_time_unix_sec: Same.
     :param last_time_unix_sec: Same.
-    :return: spc_date_strings: length-D list of SPC dates (format "yyyymmdd").
-    :return: input_file_names_by_date: length-D list, where each item is a
-        length-n list of paths to input files.
-    :return: valid_times_by_date_unix_sec: length-D list, where each item is a
-        length-n numpy array of valid times.
+    :return: spc_date_strings: length-T list of SPC dates (format "yyyymmdd").
+    :return: tracking_file_names_by_date: length-T list, where the [i]th element
+        is a 1-D list of paths to tracking files for the [i]th date.
+    :return: valid_times_by_date_unix_sec: length-T list, where the [i]th
+        element is a 1-D numpy array of valid times for the [i]th date.
     """
 
     spc_date_strings, first_time_unix_sec, last_time_unix_sec = (
@@ -769,7 +770,7 @@ def _find_input_tracking_files(
     )
 
     num_spc_dates = len(spc_date_strings)
-    input_file_names_by_date = [['']] * num_spc_dates
+    tracking_file_names_by_date = [['']] * num_spc_dates
     valid_times_by_date_unix_sec = [numpy.array([], dtype=int)] * num_spc_dates
 
     for i in range(num_spc_dates):
@@ -806,12 +807,12 @@ def _find_input_tracking_files(
             these_times_unix_sec <= this_last_time_unix_sec
         ))[0]
 
-        input_file_names_by_date[i] = [
+        tracking_file_names_by_date[i] = [
             these_file_names[k] for k in good_indices
         ]
         valid_times_by_date_unix_sec[i] = these_times_unix_sec[good_indices]
 
-    return (spc_date_strings, input_file_names_by_date,
+    return (spc_date_strings, tracking_file_names_by_date,
             valid_times_by_date_unix_sec)
 
 
@@ -821,13 +822,11 @@ def _create_storm_id(
 
     :param storm_start_time_unix_sec: Start time of storm for which ID is being
         created.
-    :param prev_numeric_id_used: Previous numeric ID (integer) used in the
-        dataset.
-    :param prev_spc_date_string: Previous SPC date (format "yyyymmdd") in the
-        dataset.
+    :param prev_numeric_id_used: Previous numeric ID (integer) used.
+    :param prev_spc_date_string: Previous SPC date (format "yyyymmdd") used.
     :return: string_id: String ID for new storm.
     :return: numeric_id: Numeric ID for new storm.
-    :return: spc_date_string: SPC date (format "yyyymmdd") for new storm.
+    :return: spc_date_string: SPC date (format "yyyymmdd") in ID for new storm.
     """
 
     spc_date_string = time_conversion.time_to_spc_date_string(
@@ -839,46 +838,50 @@ def _create_storm_id(
         numeric_id = 0
 
     string_id = '{0:06d}_{1:s}'.format(numeric_id, spc_date_string)
+
     return string_id, numeric_id, spc_date_string
 
 
 def _local_maxima_to_storm_tracks(local_max_dict_by_time):
-    """Converts time series of local maxima to storm tracks.
+    """Converts time series of local maxima to set of storm tracks.
 
-    N = number of time steps
+    T = number of time steps
     P = number of local maxima at a given time
 
-    :param local_max_dict_by_time: length-N list of dictionaries with the
+    :param local_max_dict_by_time: length-T list of dictionaries, each with the
         following keys.
-    local_max_dict_by_time[i]['latitudes_deg']: length-P numpy array with
-        latitudes (deg N) of local maxima at the [i]th time.
-    local_max_dict_by_time[i]['longitudes_deg']: length-P numpy array with
-        longitudes (deg E) of local maxima at the [i]th time.
-    local_max_dict_by_time[i]['x_coords_metres']: length-P numpy array with
-        x-coordinates of local maxima at the [i]th time.
-    local_max_dict_by_time[i]['y_coords_metres']: length-P numpy array with
-        y-coordinates of local maxima at the [i]th time.
-    local_max_dict_by_time[i]['unix_time_sec']: The [i]th time.
-    local_max_dict_by_time[i]['current_to_previous_indices']: length-P numpy
-        array with indices of previous local maxima to which current local
-        maxima are linked.  In other words, if current_to_previous_indices[j]
-        = k, the [j]th current local max is linked to the [k]th previous local
-        max.
+    "unix_time_sec": Valid time.
+    "latitudes_deg": length-P numpy array with latitudes (deg N) of local
+        maxima.
+    "longitudes_deg": length-P numpy array with longitudes (deg E) of local
+        maxima.
+    "x_coords_metres": length-P numpy array with x-coordinates of local maxima.
+    "y_coords_metres": length-P numpy array with y-coordinates of local maxima.
+    "current_to_previous_indices": length-P numpy array of indices.  If
+        current_to_previous_indices[j] = k for the [i]th time, the [j]th local
+        max at the [i]th time is linked to the [k]th local max at the [i - 1]th
+        time.
 
-    :return: storm_object_table: pandas DataFrame with the following columns,
-        where each row is one storm object.
-    storm_object_table.storm_id: Storm ID (string).  All objects with the same
-        ID belong to the same track.
+    :return: storm_object_table: pandas DataFrame with the following columns.
+        Each row is one storm object.
+    storm_object_table.storm_id: Storm ID (string).
     storm_object_table.unix_time_sec: Valid time.
     storm_object_table.spc_date_unix_sec: SPC date.
-    storm_object_table.centroid_lat_deg: Latitude (deg N) at center of storm
-        object.
-    storm_object_table.centroid_lng_deg: Longitude (deg E) at center of storm
-        object.
-    storm_object_table.centroid_x_metres: x-coordinate at center of storm
-        object.
-    storm_object_table.centroid_y_metres: y-coordinate at center of storm
-        object.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of centroid.
+    storm_object_table.centroid_x_metres: x-coordinate of centroid.
+    storm_object_table.centroid_y_metres: y-coordinate of centroid.
+
+    If `local_max_dict_by_time` includes polygons, `storm_object_table` will
+    have the additional columns listed below.
+
+    storm_object_table.grid_point_latitudes_deg: See doc for
+        `storm_tracking_io.write_processed_file`.
+    storm_object_table.grid_point_longitudes_deg: Same.
+    storm_object_table.grid_point_rows: Same.
+    storm_object_table.grid_point_columns: Same.
+    storm_object_table.polygon_object_latlng: Same.
+    storm_object_table.polygon_object_rowcol: Same.
     """
 
     num_times = len(local_max_dict_by_time)
@@ -894,6 +897,7 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
     all_centroid_y_metres = numpy.array([])
 
     include_polygons = POLYGON_OBJECTS_LATLNG_KEY in local_max_dict_by_time[0]
+
     if include_polygons:
         all_grid_point_rows_2d_list = []
         all_grid_point_columns_2d_list = []
@@ -908,28 +912,32 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
             continue
 
         local_max_dict_by_time[i].update(
-            {STORM_IDS_KEY: [''] * this_num_storm_objects})
+            {STORM_IDS_KEY: [''] * this_num_storm_objects}
+        )
 
         for j in range(this_num_storm_objects):
-            this_previous_index = local_max_dict_by_time[
-                i][CURRENT_TO_PREV_INDICES_KEY][j]
+            this_previous_index = local_max_dict_by_time[i][
+                CURRENT_TO_PREV_INDICES_KEY][j]
 
             if this_previous_index == -1:
                 (local_max_dict_by_time[i][STORM_IDS_KEY][j],
-                 prev_numeric_id_used, prev_spc_date_string) = _create_storm_id(
-                     storm_start_time_unix_sec=
-                     local_max_dict_by_time[i][VALID_TIME_KEY],
-                     prev_numeric_id_used=prev_numeric_id_used,
-                     prev_spc_date_string=prev_spc_date_string)
+                 prev_numeric_id_used, prev_spc_date_string
+                ) = _create_storm_id(
+                    storm_start_time_unix_sec=
+                    local_max_dict_by_time[i][VALID_TIME_KEY],
+                    prev_numeric_id_used=prev_numeric_id_used,
+                    prev_spc_date_string=prev_spc_date_string)
 
             else:
                 local_max_dict_by_time[i][STORM_IDS_KEY][j] = (
                     local_max_dict_by_time[i - 1][STORM_IDS_KEY][
-                        this_previous_index])
+                        this_previous_index]
+                )
 
         these_times_unix_sec = numpy.full(
             this_num_storm_objects, local_max_dict_by_time[i][VALID_TIME_KEY],
             dtype=int)
+
         these_spc_dates_unix_sec = numpy.full(
             this_num_storm_objects,
             time_conversion.time_to_spc_date_unix_sec(these_times_unix_sec[0]),
@@ -937,19 +945,25 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
 
         all_storm_ids += local_max_dict_by_time[i][STORM_IDS_KEY]
         all_times_unix_sec = numpy.concatenate((
-            all_times_unix_sec, these_times_unix_sec))
+            all_times_unix_sec, these_times_unix_sec
+        ))
         all_spc_dates_unix_sec = numpy.concatenate((
-            all_spc_dates_unix_sec, these_spc_dates_unix_sec))
+            all_spc_dates_unix_sec, these_spc_dates_unix_sec
+        ))
         all_centroid_latitudes_deg = numpy.concatenate((
             all_centroid_latitudes_deg,
-            local_max_dict_by_time[i][LATITUDES_KEY]))
+            local_max_dict_by_time[i][LATITUDES_KEY]
+        ))
         all_centroid_longitudes_deg = numpy.concatenate((
             all_centroid_longitudes_deg,
-            local_max_dict_by_time[i][LONGITUDES_KEY]))
+            local_max_dict_by_time[i][LONGITUDES_KEY]
+        ))
         all_centroid_x_metres = numpy.concatenate((
-            all_centroid_x_metres, local_max_dict_by_time[i][X_COORDS_KEY]))
+            all_centroid_x_metres, local_max_dict_by_time[i][X_COORDS_KEY]
+        ))
         all_centroid_y_metres = numpy.concatenate((
-            all_centroid_y_metres, local_max_dict_by_time[i][Y_COORDS_KEY]))
+            all_centroid_y_metres, local_max_dict_by_time[i][Y_COORDS_KEY]
+        ))
 
         if include_polygons:
             all_grid_point_rows_2d_list += local_max_dict_by_time[i][
@@ -963,10 +977,12 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
 
             all_polygon_objects_latlng = numpy.concatenate((
                 all_polygon_objects_latlng,
-                local_max_dict_by_time[i][POLYGON_OBJECTS_LATLNG_KEY]))
+                local_max_dict_by_time[i][POLYGON_OBJECTS_LATLNG_KEY]
+            ))
             all_polygon_objects_rowcol = numpy.concatenate((
                 all_polygon_objects_rowcol,
-                local_max_dict_by_time[i][POLYGON_OBJECTS_ROWCOL_KEY]))
+                local_max_dict_by_time[i][POLYGON_OBJECTS_ROWCOL_KEY]
+            ))
 
     storm_object_dict = {
         tracking_utils.STORM_ID_COLUMN: all_storm_ids,
@@ -996,22 +1012,23 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
     return pandas.DataFrame.from_dict(storm_object_dict)
 
 
-def _remove_short_tracks(storm_object_table, min_duration_seconds):
+def _remove_short_lived_tracks(storm_object_table, min_duration_seconds):
     """Removes short-lived storm tracks.
 
     :param storm_object_table: pandas DataFrame created by
-        _local_maxima_to_storm_tracks.
-    :param min_duration_seconds: Minimum storm duration.  Any track with
-        duration < `min_duration_seconds` will be dropped.
-    :return storm_object_table: Same as input, except maybe with fewer rows.
+        `_local_maxima_to_storm_tracks`.
+    :param min_duration_seconds: Minimum duration.
+    :return: storm_object_table: Same as input but maybe with fewer rows.
     """
 
-    storm_id_by_object = numpy.array(
-        storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
-    storm_id_by_cell, orig_to_unique_indices = numpy.unique(
-        storm_id_by_object, return_inverse=True)
+    all_storm_ids = numpy.array(
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values
+    )
 
-    num_storm_cells = len(storm_id_by_cell)
+    unique_storm_ids, orig_to_unique_indices = numpy.unique(
+        all_storm_ids, return_inverse=True)
+
+    num_storm_cells = len(unique_storm_ids)
     object_indices_to_remove = numpy.array([], dtype=int)
 
     for i in range(num_storm_cells):
@@ -1020,50 +1037,48 @@ def _remove_short_tracks(storm_object_table, min_duration_seconds):
             tracking_utils.TIME_COLUMN].values[these_object_indices]
 
         this_duration_seconds = (
-            numpy.max(these_times_unix_sec) - numpy.min(these_times_unix_sec))
+            numpy.max(these_times_unix_sec) - numpy.min(these_times_unix_sec)
+        )
         if this_duration_seconds >= min_duration_seconds:
             continue
 
         object_indices_to_remove = numpy.concatenate((
-            object_indices_to_remove, these_object_indices))
+            object_indices_to_remove, these_object_indices
+        ))
 
     return storm_object_table.drop(
         storm_object_table.index[object_indices_to_remove], axis=0,
         inplace=False)
 
 
-def _get_velocities_one_storm_track(
-        centroid_latitudes_deg, centroid_longitudes_deg, unix_times_sec,
+def _get_final_velocities_one_track(
+        centroid_latitudes_deg, centroid_longitudes_deg, valid_times_unix_sec,
         num_points_back):
-    """Computes velocity at each point along one storm track.
+    """Estimates storm velocity at each time step.
 
-    Specifically, for each storm object, computes velocity using a backward
-    difference (current minus previous position).
+    P = number of points in track
 
-    N = number of points (storm objects) in track
-
-    :param centroid_latitudes_deg: length-N numpy array with latitudes (deg N)
+    :param centroid_latitudes_deg: length-P numpy array with latitudes (deg N)
         of storm centroid.
-    :param centroid_longitudes_deg: length-N numpy array with longitudes (deg E)
+    :param centroid_longitudes_deg: length-P numpy array with longitudes (deg E)
         of storm centroid.
-    :param unix_times_sec: length-N numpy array of valid times.
-    :param num_points_back: Velocity calculation for the [i]th point will
-        consider the distance between the [i]th and [i - k]th points, where
-        k = `num_points_back`.  Larger values lead to a more smoothly changing
-        velocity over the track (less noisy estimates).
-    :return: east_velocities_m_s01: length-N numpy array of eastward velocities
+    :param valid_times_unix_sec: length-P numpy array of valid times.
+    :param num_points_back: Number of points to use in each estimate (backwards
+        differencing in time).
+    :return: east_velocities_m_s01: length-P numpy array of eastward velocities
         (metres per second).
-    :return: north_velocities_m_s01: length-N numpy array of northward
+    :return: north_velocities_m_s01: length-P numpy array of northward
         velocities (metres per second).
     """
 
-    num_storm_objects = len(unix_times_sec)
-    east_displacements_metres = numpy.full(num_storm_objects, numpy.nan)
-    north_displacements_metres = numpy.full(num_storm_objects, numpy.nan)
-    time_diffs_seconds = numpy.full(num_storm_objects, -1, dtype=int)
-    sort_indices = numpy.argsort(unix_times_sec)
+    sort_indices = numpy.argsort(valid_times_unix_sec)
 
-    for i in range(0, num_storm_objects):
+    num_times = len(valid_times_unix_sec)
+    east_displacements_metres = numpy.full(num_times, numpy.nan)
+    north_displacements_metres = numpy.full(num_times, numpy.nan)
+    time_diffs_seconds = numpy.full(num_times, -1, dtype=int)
+
+    for i in range(num_times):
         this_num_points_back = min([i, num_points_back])
         if this_num_points_back == 0:
             continue
@@ -1071,42 +1086,52 @@ def _get_velocities_one_storm_track(
         this_end_latitude_deg = centroid_latitudes_deg[sort_indices[i]]
         this_end_longitude_deg = centroid_longitudes_deg[sort_indices[i]]
         this_start_latitude_deg = centroid_latitudes_deg[
-            sort_indices[i - this_num_points_back]]
+            sort_indices[i - this_num_points_back]
+        ]
         this_start_longitude_deg = centroid_longitudes_deg[
-            sort_indices[i - this_num_points_back]]
+            sort_indices[i - this_num_points_back]
+        ]
 
         this_end_point = (this_end_latitude_deg, this_end_longitude_deg)
         this_start_point = (this_end_latitude_deg, this_start_longitude_deg)
         east_displacements_metres[i] = vincenty(
-            this_start_point, this_end_point).meters
+            this_start_point, this_end_point
+        ).meters
+
         if this_start_longitude_deg > this_end_longitude_deg:
             east_displacements_metres[i] = -1 * east_displacements_metres[i]
 
         this_start_point = (this_start_latitude_deg, this_end_longitude_deg)
         north_displacements_metres[i] = vincenty(
-            this_start_point, this_end_point).meters
+            this_start_point, this_end_point
+        ).meters
+
         if this_start_latitude_deg > this_end_latitude_deg:
             north_displacements_metres[i] = -1 * north_displacements_metres[i]
 
         time_diffs_seconds[i] = (
-            unix_times_sec[sort_indices[i]] -
-            unix_times_sec[sort_indices[i - this_num_points_back]])
+            valid_times_unix_sec[sort_indices[i]] -
+            valid_times_unix_sec[sort_indices[i - this_num_points_back]]
+        )
 
     return (east_displacements_metres / time_diffs_seconds,
             north_displacements_metres / time_diffs_seconds)
 
 
-def _get_storm_velocities(storm_object_table, num_points_back):
-    """Computes storm velocities.
+def _get_final_velocities(storm_object_table, num_points_back,
+                          e_folding_radius_metres):
+    """Computes final estimate of storm velocities.
 
-    Specifically, for each storm object, computes velocity using a backward
-    difference (current minus previous position).
+    This method computes one velocity for each storm object (each storm cell at
+    each time step).
 
     :param storm_object_table: pandas DataFrame created by
         `_local_maxima_to_storm_tracks`.
-    :param num_points_back: See documentation for
-        `_get_velocities_one_storm_track`.
-    :return: storm_object_table: Same as input, but with two additional columns.
+    :param num_points_back: Number of points to use in each estimate (backwards
+        differencing in time).
+    :param e_folding_radius_metres: See doc for `_estimate_velocity_by_neigh`.
+    :return: storm_object_table: Same as input but with the following extra
+        columns.
     storm_object_table.east_velocity_m_s01: Eastward velocity (metres per
         second).
     storm_object_table.north_velocity_m_s01: Northward velocity (metres per
@@ -1114,7 +1139,9 @@ def _get_storm_velocities(storm_object_table, num_points_back):
     """
 
     all_storm_ids = numpy.array(
-        storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values
+    )
+
     unique_storm_ids, storm_ids_object_to_unique = numpy.unique(
         all_storm_ids, return_inverse=True)
 
@@ -1126,112 +1153,73 @@ def _get_storm_velocities(storm_object_table, num_points_back):
         these_object_indices = numpy.where(storm_ids_object_to_unique == i)[0]
 
         (east_velocities_m_s01[these_object_indices],
-         north_velocities_m_s01[these_object_indices]) = (
-             _get_velocities_one_storm_track(
-                 centroid_latitudes_deg=
-                 storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values[
-                     these_object_indices],
-                 centroid_longitudes_deg=
-                 storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values[
-                     these_object_indices],
-                 unix_times_sec=storm_object_table[
-                     tracking_utils.TIME_COLUMN].values[these_object_indices],
-                 num_points_back=num_points_back))
+         north_velocities_m_s01[these_object_indices]
+        ) = _get_final_velocities_one_track(
+            centroid_latitudes_deg=storm_object_table[
+                tracking_utils.CENTROID_LAT_COLUMN
+            ].values[these_object_indices],
+            centroid_longitudes_deg=storm_object_table[
+                tracking_utils.CENTROID_LNG_COLUMN
+            ].values[these_object_indices],
+            valid_times_unix_sec=storm_object_table[
+                tracking_utils.TIME_COLUMN
+            ].values[these_object_indices],
+            num_points_back=num_points_back)
+
+    east_velocities_m_s01, north_velocities_m_s01 = _estimate_velocity_by_neigh(
+        x_coords_metres=storm_object_table[CENTROID_X_COLUMN].values,
+        y_coords_metres=storm_object_table[CENTROID_Y_COLUMN].values,
+        x_velocities_m_s01=east_velocities_m_s01,
+        y_velocities_m_s01=north_velocities_m_s01,
+        e_folding_radius_metres=e_folding_radius_metres)
 
     argument_dict = {
         tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
-        tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01}
+        tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01
+    }
+
     return storm_object_table.assign(**argument_dict)
 
 
-def _get_grid_points_in_radius(
-        x_grid_matrix_metres, y_grid_matrix_metres, x_query_metres,
-        y_query_metres, radius_metres):
-    """Finds grid points within some radius of query point.
-    M = number of rows in grid
-    N = number of columns in grid
-    P = number of grid points within `radius_metres` of query point
-    :param x_grid_matrix_metres: M-by-N numpy array with x-coordinates of grid
-        points.
-    :param y_grid_matrix_metres: M-by-N numpy array with y-coordinates of grid
-        points.
-    :param x_query_metres: x-coordinate of query point.
-    :param y_query_metres: y-coordinate of query point.
-    :param radius_metres: Critical radius from query point.
-    :return: row_indices: length-P numpy array with row indices (integers) of
-        grid points within `radius_metres` of query point.
-    :return: column_indices: length-P numpy array with column indices (integers)
-        of grid points within `radius_metres` of query point.
-    """
-
-    num_rows = x_grid_matrix_metres.shape[0]
-    num_columns = x_grid_matrix_metres.shape[1]
-    x_grid_vector_metres = numpy.reshape(
-        x_grid_matrix_metres, num_rows * num_columns)
-    y_grid_vector_metres = numpy.reshape(
-        y_grid_matrix_metres, num_rows * num_columns)
-
-    x_in_range_flags = numpy.logical_and(
-        x_grid_vector_metres >= x_query_metres - radius_metres,
-        x_grid_vector_metres <= x_query_metres + radius_metres)
-    y_in_range_flags = numpy.logical_and(
-        y_grid_vector_metres >= y_query_metres - radius_metres,
-        y_grid_vector_metres <= y_query_metres + radius_metres)
-
-    try_indices = numpy.where(
-        numpy.logical_and(x_in_range_flags, y_in_range_flags))[0]
-    distances_metres = numpy.sqrt(
-        (x_grid_vector_metres[try_indices] - x_query_metres) ** 2 +
-        (y_grid_vector_metres[try_indices] - y_query_metres) ** 2)
-    linear_indices = try_indices[
-        numpy.where(distances_metres <= radius_metres)[0]]
-
-    return numpy.unravel_index(linear_indices, (num_rows, num_columns))
-
-
 def _local_maxima_to_polygons(
-        local_max_dict, echo_top_matrix_km_asl, min_echo_top_height_km_asl,
-        radar_metadata_dict, min_distance_between_maxima_metres):
-    """Converts local maxima at one time step from points to polygons.
+        local_max_dict, echo_top_matrix_km, min_echo_top_km,
+        radar_metadata_dict, min_intermax_distance_metres):
+    """Converts local maxima at one time from points to polygons.
 
-    P = original number of local maxima
-    p = final number of local maxima
+    M = number of rows in grid (unique grid-point latitudes)
+    N = number of columns in grid (unique grid-point longitudes)
+    P = number of local maxima
     G_i = number of grid points in the [i]th polygon
 
-    M = number of rows (unique latitudes) in full grid
-    N = number of columns (unique longitudes) in full grid
+    :param local_max_dict: Dictionary with the following keys.
+    local_max_dict['latitudes_deg']: length-P numpy array of latitudes (deg N).
+    local_max_dict['longitudes_deg']: length-P numpy array of longitudes
+        (deg E).
 
-    :param local_max_dict: Dictionary with at least the following keys.
-    local_max_dict['latitudes_deg']: length-P numpy array with latitudes (deg N)
-        of local maxima.
-    local_max_dict['longitudes_deg']: length-P numpy array with longitudes
-        (deg E) of local maxima.
-
-    :param echo_top_matrix_km_asl: M-by-N numpy array of echo tops (km above sea
-        level).
-    :param min_echo_top_height_km_asl: Minimum echo-top height (km above sea
-        level).  Smaller values are not considered local maxima.
-    :param radar_metadata_dict: Dictionary with metadata for radar grid, created
-        by `myrorss_and_mrms_io.read_metadata_from_raw_file`.
-    :param min_distance_between_maxima_metres: Minimum distance between two
+    :param echo_top_matrix_km: M-by-N numpy array of echo tops (km above ground
+        or sea level).
+    :param min_echo_top_km: Minimum echo top (smaller values are not considered
+        local maxima).
+    :param radar_metadata_dict: Dictionary created by
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`.
+    :param min_intermax_distance_metres: Minimum distance between any pair of
         local maxima.
 
-    :return: local_max_dict: Same as input, but with extra keys listed below.
-    local_max_dict['list_of_grid_point_rows']: length-p list, where the [i]th
+    :return: local_max_dict: Same as input but with the following extra columns.
+    local_max_dict['grid_point_rows_array_list']: length-P list, where the [i]th
         element is a numpy array (length G_i) with row indices of grid points in
-        polygon.
-    local_max_dict['list_of_grid_point_columns']: Same but for columns.
-    local_max_dict['list_of_grid_point_latitudes_deg']: Same but for latitudes
+        the [i]th polygon.
+    local_max_dict['grid_point_columns_array_list']: Same but for columns.
+    local_max_dict['grid_point_lats_array_list_deg']: Same but for latitudes
         (deg N).
-    local_max_dict['list_of_grid_point_longitudes_deg']: Same but for longitudes
+    local_max_dict['grid_point_lngs_array_list_deg']: Same but for longitudes
         (deg E).
-    local_max_dict['polygon_objects_rowcol']: length-p list, where each element
-        is an instance of `shapely.geometry.Polygon` with vertices in row-column
-        coordinates.
-    local_max_dict['polygon_objects_latlng']: Same but for lat-long coordinates.
+    local_max_dict['polygon_objects_rowcol']: length-P list of polygons
+        (`shapely.geometry.Polygon` objects) with coordinates in row-column
+        space.
+    local_max_dict['polygon_objects_latlng']: length-P list of polygons
+        (`shapely.geometry.Polygon` objects) with coordinates in lat-long space.
     """
-
-    # TODO(thunderhoser): I may want to let this influence centroids.
 
     latitude_extent_deg = (
         radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
@@ -1254,8 +1242,8 @@ def _local_maxima_to_polygons(
     )
 
     grid_point_latitudes_deg = grid_point_latitudes_deg[::-1]
-
     num_maxima = len(local_max_dict[LATITUDES_KEY])
+
     local_max_dict[GRID_POINT_ROWS_KEY] = [[]] * num_maxima
     local_max_dict[GRID_POINT_COLUMNS_KEY] = [[]] * num_maxima
     local_max_dict[GRID_POINT_LATITUDES_KEY] = [[]] * num_maxima
@@ -1266,31 +1254,30 @@ def _local_maxima_to_polygons(
         num_maxima, numpy.nan, dtype=object)
 
     for i in range(num_maxima):
-        this_echo_top_submatrix_km_asl, this_row_offset, this_column_offset = (
+        this_echo_top_submatrix_km, this_row_offset, this_column_offset = (
             grids.extract_latlng_subgrid(
-                data_matrix=echo_top_matrix_km_asl,
+                data_matrix=echo_top_matrix_km,
                 grid_point_latitudes_deg=grid_point_latitudes_deg,
                 grid_point_longitudes_deg=grid_point_longitudes_deg,
                 center_latitude_deg=local_max_dict[LATITUDES_KEY][i],
                 center_longitude_deg=local_max_dict[LONGITUDES_KEY][i],
-                max_distance_from_center_metres=
-                min_distance_between_maxima_metres)
+                max_distance_from_center_metres=min_intermax_distance_metres)
         )
 
-        this_echo_top_submatrix_km_asl[
-            numpy.isnan(this_echo_top_submatrix_km_asl)] = 0.
+        this_echo_top_submatrix_km[
+            numpy.isnan(this_echo_top_submatrix_km)
+        ] = 0.
 
         (local_max_dict[GRID_POINT_ROWS_KEY][i],
          local_max_dict[GRID_POINT_COLUMNS_KEY][i]
-        ) = numpy.where(
-            this_echo_top_submatrix_km_asl >= min_echo_top_height_km_asl)
+        ) = numpy.where(this_echo_top_submatrix_km >= min_echo_top_km)
 
         if not len(local_max_dict[GRID_POINT_ROWS_KEY][i]):
             this_row = numpy.floor(
-                float(this_echo_top_submatrix_km_asl.shape[0]) / 2
+                float(this_echo_top_submatrix_km.shape[0]) / 2
             )
             this_column = numpy.floor(
-                float(this_echo_top_submatrix_km_asl.shape[1]) / 2
+                float(this_echo_top_submatrix_km.shape[1]) / 2
             )
 
             local_max_dict[GRID_POINT_ROWS_KEY][i] = numpy.array(
@@ -1299,9 +1286,11 @@ def _local_maxima_to_polygons(
                 [this_column], dtype=int)
 
         local_max_dict[GRID_POINT_ROWS_KEY][i] = (
-            local_max_dict[GRID_POINT_ROWS_KEY][i] + this_row_offset)
+            local_max_dict[GRID_POINT_ROWS_KEY][i] + this_row_offset
+        )
         local_max_dict[GRID_POINT_COLUMNS_KEY][i] = (
-            local_max_dict[GRID_POINT_COLUMNS_KEY][i] + this_column_offset)
+            local_max_dict[GRID_POINT_COLUMNS_KEY][i] + this_column_offset
+        )
 
         these_vertex_rows, these_vertex_columns = (
             polygons.grid_points_in_poly_to_vertices(
@@ -1348,28 +1337,24 @@ def _local_maxima_to_polygons(
     return local_max_dict
 
 
-def _remove_small_polygons(local_max_dict, min_grid_cells_in_polygon):
+def _remove_small_polygons(local_max_dict, min_size_pixels):
     """Removes small polygons (storm objects) at one time.
 
-    P = original number of polygons
-    p = new number of polygons
-
     :param local_max_dict: Dictionary created by `_local_maxima_to_polygons`.
-        All values must be either a length-P list or a length-P numpy array.
-    :param min_grid_cells_in_polygon: Size threshold.  Smaller polygons will be
-        removed.
-    :return: local_max_dict: Same as input, except that all values are either a
-        length-p list or a length-p numpy array.
+    :param min_size_pixels: Minimum size.
+    :return: local_max_dict: Same as input but maybe with fewer storm objects.
     """
 
-    if min_grid_cells_in_polygon == 0:
+    if min_size_pixels == 0:
         return local_max_dict
 
     num_grid_cells_by_polygon = numpy.array(
-        [len(r) for r in local_max_dict[GRID_POINT_ROWS_KEY]], dtype=int)
+        [len(r) for r in local_max_dict[GRID_POINT_ROWS_KEY]],
+        dtype=int
+    )
 
     indices_to_keep = numpy.where(
-        num_grid_cells_by_polygon >= min_grid_cells_in_polygon
+        num_grid_cells_by_polygon >= min_size_pixels
     )[0]
 
     for this_key in local_max_dict:
@@ -1383,39 +1368,45 @@ def _remove_small_polygons(local_max_dict, min_grid_cells_in_polygon):
     return local_max_dict
 
 
-def _join_tracks_between_periods(
+def _join_tracks(
         early_storm_object_table, late_storm_object_table, projection_object,
-        max_link_time_seconds, max_link_distance_m_s01):
-    """Joins storm tracks between two time periods.
+        max_link_time_seconds, max_velocity_diff_m_s01,
+        max_link_distance_m_s01):
+    """Joins tracks across gap between two periods.
 
     :param early_storm_object_table: pandas DataFrame for early period.  Each
         row is one storm object.  Must contain the following columns.
-    early_storm_object_table.storm_id: String ID for storm.
-    early_storm_object_table.unix_time_sec: Valid time.
-    early_storm_object_table.centroid_lat_deg: Latitude (deg N) of storm
-        centroid.
-    early_storm_object_table.centroid_lng_deg: Longitude (deg E) of storm
-        centroid.
+    early_storm_object_table.storm_id: See doc for
+        `_local_maxima_to_storm_tracks`.
+    early_storm_object_table.unix_time_sec: Same.
+    early_storm_object_table.centroid_lat_deg: Same.
+    early_storm_object_table.centroid_lng_deg: Same.
 
-    :param late_storm_object_table: Same as above, but for late period.
-    :param projection_object: Instance of `pyproj.Proj` (will be used to convert
-        lat-long coordinates to x-y).
-    :param max_link_time_seconds: See documentation for
-        `_link_local_maxima_in_time`.
-    :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
+    :param late_storm_object_table: Same as `early_storm_object_table` but for
+        late period.
+    :param projection_object: See doc for `_remove_redundant_local_maxima`.
+    :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
+    :param max_velocity_diff_m_s01: Same.
+    :param max_link_distance_m_s01: Same.
     :return: late_storm_object_table: Same as input, except that some storm IDs
-        may be changed.
+        may be different.
     """
 
-    if (len(early_storm_object_table.index) == 0 or
-            len(late_storm_object_table.index) == 0):
+    num_early_objects = len(early_storm_object_table.index)
+    num_late_objects = len(late_storm_object_table.index)
+
+    if num_early_objects == 0 or num_late_objects == 0:
         return late_storm_object_table
 
     last_early_time_unix_sec = numpy.max(
-        early_storm_object_table[tracking_utils.TIME_COLUMN].values)
+        early_storm_object_table[tracking_utils.TIME_COLUMN].values
+    )
+
     previous_indices = numpy.where(
         early_storm_object_table[tracking_utils.TIME_COLUMN] ==
-        last_early_time_unix_sec)[0]
+        last_early_time_unix_sec
+    )[0]
+
     previous_latitudes_deg = early_storm_object_table[
         tracking_utils.CENTROID_LAT_COLUMN].values[previous_indices]
     previous_longitudes_deg = early_storm_object_table[
@@ -1423,19 +1414,24 @@ def _join_tracks_between_periods(
     previous_x_coords_metres, previous_y_coords_metres = (
         projections.project_latlng_to_xy(
             previous_latitudes_deg, previous_longitudes_deg,
-            projection_object=projection_object, false_easting_metres=0.,
-            false_northing_metres=0.))
+            projection_object=projection_object,
+            false_easting_metres=0., false_northing_metres=0.)
+    )
 
-    prev_local_max_dict = {
+    previous_local_max_dict = {
         X_COORDS_KEY: previous_x_coords_metres,
         Y_COORDS_KEY: previous_y_coords_metres,
-        VALID_TIME_KEY: last_early_time_unix_sec}
+        VALID_TIME_KEY: last_early_time_unix_sec
+    }
 
     first_late_time_unix_sec = numpy.min(
-        late_storm_object_table[tracking_utils.TIME_COLUMN].values)
+        late_storm_object_table[tracking_utils.TIME_COLUMN].values
+    )
     current_indices = numpy.where(
         late_storm_object_table[tracking_utils.TIME_COLUMN] ==
-        first_late_time_unix_sec)[0]
+        first_late_time_unix_sec
+    )[0]
+
     current_latitudes_deg = late_storm_object_table[
         tracking_utils.CENTROID_LAT_COLUMN].values[current_indices]
     current_longitudes_deg = late_storm_object_table[
@@ -1443,18 +1439,21 @@ def _join_tracks_between_periods(
     current_x_coords_metres, current_y_coords_metres = (
         projections.project_latlng_to_xy(
             current_latitudes_deg, current_longitudes_deg,
-            projection_object=projection_object, false_easting_metres=0.,
-            false_northing_metres=0.))
+            projection_object=projection_object,
+            false_easting_metres=0., false_northing_metres=0.)
+    )
 
     current_local_max_dict = {
         X_COORDS_KEY: current_x_coords_metres,
         Y_COORDS_KEY: current_y_coords_metres,
-        VALID_TIME_KEY: first_late_time_unix_sec}
+        VALID_TIME_KEY: first_late_time_unix_sec
+    }
 
     current_to_previous_indices = _link_local_maxima_in_time(
         current_local_max_dict=current_local_max_dict,
-        prev_local_max_dict=prev_local_max_dict,
+        previous_local_max_dict=previous_local_max_dict,
         max_link_time_seconds=max_link_time_seconds,
+        max_velocity_diff_m_s01=max_velocity_diff_m_s01,
         max_link_distance_m_s01=max_link_distance_m_s01)
 
     previous_storm_ids = early_storm_object_table[
@@ -1467,11 +1466,10 @@ def _join_tracks_between_periods(
         if current_to_previous_indices[i] == -1:
             continue
 
-        this_new_current_storm_id = previous_storm_ids[
-            current_to_previous_indices[i]]
+        this_new_storm_id = previous_storm_ids[current_to_previous_indices[i]]
         late_storm_object_table.replace(
-            to_replace=orig_current_storm_ids[i],
-            value=this_new_current_storm_id, inplace=True)
+            to_replace=orig_current_storm_ids[i], value=this_new_storm_id,
+            inplace=True)
 
     return late_storm_object_table
 
@@ -1714,13 +1712,13 @@ def _write_storm_objects(
 
 
 def _shuffle_tracking_data(
-        input_file_names_by_date, valid_times_by_date_unix_sec,
+        tracking_file_names_by_date, valid_times_by_date_unix_sec,
         storm_object_table_by_date, current_date_index, top_output_dir_name):
     """Shuffles tracking data into and out of memory.
 
     D = number of SPC dates
 
-    :param input_file_names_by_date: See doc for `_find_input_tracking_files`.
+    :param tracking_file_names_by_date: See doc for `_find_input_tracking_files`.
     :param valid_times_by_date_unix_sec: Same.
     :param storm_object_table_by_date: length-D list of pandas DataFrames.  Each
         item is either an empty DataFrame or one containing the columns listed
@@ -1732,7 +1730,7 @@ def _shuffle_tracking_data(
         items are empty, because data have been shuffled.
     """
 
-    num_spc_dates = len(input_file_names_by_date)
+    num_spc_dates = len(tracking_file_names_by_date)
 
     # Write tracks that are no longer needed in memory.
     if current_date_index == num_spc_dates:
@@ -1771,15 +1769,15 @@ def _shuffle_tracking_data(
             continue
 
         storm_object_table_by_date[j] = tracking_io.read_many_processed_files(
-            input_file_names_by_date[j])
+            tracking_file_names_by_date[j])
         print '\n'
 
     return storm_object_table_by_date
 
 
 def _reanalyze_tracks(
-        storm_object_table, max_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
-        max_extrap_error_m_s01=DEFAULT_MAX_REANAL_EXTRAP_ERROR_M_S01):
+        storm_object_table, max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
+        max_extrap_error_m_s01=DEFAULT_MAX_JOIN_DISTANCE_M_S01):
     """Joins pairs of tracks that are spatiotemporally nearby.
 
     This method is similar to the "reanalysis" discussed in Haberlie and Ashley
@@ -1857,72 +1855,61 @@ def _reanalyze_tracks(
 
 
 def run_tracking(
-        top_radar_dir_name, top_output_dir_name,
-        first_spc_date_string, last_spc_date_string,
-        first_time_unix_sec=None, last_time_unix_sec=None,
+        top_radar_dir_name, top_output_dir_name, first_spc_date_string,
+        last_spc_date_string, first_time_unix_sec=None, last_time_unix_sec=None,
         echo_top_field_name=radar_utils.ECHO_TOP_40DBZ_NAME,
         radar_source_name=radar_utils.MYRORSS_SOURCE_ID,
         top_echo_classifn_dir_name=None,
-        min_echo_top_height_km_asl=DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL,
-        e_fold_radius_for_smoothing_deg_lat=
-        DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT,
+        min_echo_top_km=DEFAULT_MIN_ECHO_TOP_KM,
+        smoothing_radius_deg_lat=DEFAULT_SMOOTHING_RADIUS_DEG_LAT,
         half_width_for_max_filter_deg_lat=
         DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT,
-        min_distance_between_maxima_metres=
-        DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES,
-        min_grid_cells_in_polygon=DEFAULT_MIN_GRID_CELLS_IN_POLYGON,
+        min_intermax_distance_metres=DEFAULT_MIN_INTERMAX_DISTANCE_METRES,
+        min_polygon_size_pixels=DEFAULT_MIN_SIZE_PIXELS,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         min_track_duration_seconds=0,
-        num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
-    """This is effectively the main method for echo-top-tracking.
+        num_points_back_for_velocity=DEFAULT_NUM_POINTS_FOR_VELOCITY):
+    """Runs echo-top-tracking.  This is effectively the main method.
 
     :param top_radar_dir_name: See doc for `_find_input_radar_files`.
     :param top_output_dir_name: See doc for `_write_storm_objects`.
-    :param first_spc_date_string: See doc for `_find_input_radar_files`.
+    :param first_spc_date_string: See doc for `_check_time_period`.
     :param last_spc_date_string: Same.
     :param first_time_unix_sec: Same.
     :param last_time_unix_sec: Same.
-    :param echo_top_field_name: Same.
+    :param echo_top_field_name: See doc for `_find_input_radar_files`.
     :param radar_source_name: Same.
-    :param top_echo_classifn_dir_name: Name of top-level directory with echo
-        classifications.  If None, echo classifications will not be used.  If
-        specified, files therein will be found by
+    :param top_echo_classifn_dir_name: Name of top-level directory with
+        echo-classification files.  Files therein will be found by
         `echo_classification.find_classification_file` and read by
-        `echo_classification.read_classifications` and tracking will be run only
-        on convective pixels.
-    :param min_echo_top_height_km_asl: Minimum echo-top height (km above sea
-        level).  Only local maxima >= `min_echo_top_height_km_asl` will be
-        tracked.
-    :param e_fold_radius_for_smoothing_deg_lat: e-folding radius for
-        `_gaussian_smooth_radar_field`.  Units are degrees of latitude.  This
-        will be applied separately to the radar field at each time step, before
-        finding local maxima.
-    :param half_width_for_max_filter_deg_lat: Half-width for max filter used in
-        `_find_local_maxima`.  Units are degrees of latitude.
-    :param min_distance_between_maxima_metres: See doc for
+        `echo_classification.read_classifications`.  Tracking will be performed
+        only on convective pixels.  If `top_echo_classifn_dir_name is None`,
+        tracking will be performed on all pixels.
+    :param min_echo_top_km: See doc for `_local_maxima_to_polygons`.
+    :param smoothing_radius_deg_lat: See doc for `_gaussian_smooth_radar_field`.
+    :param half_width_for_max_filter_deg_lat: See doc for `_find_local_maxima`.
+    :param min_intermax_distance_metres: See doc for
         `_remove_redundant_local_maxima`.
-    :param min_grid_cells_in_polygon: See doc for `_local_maxima_to_polygons`.
+    :param min_polygon_size_pixels: See doc for `_remove_small_polygons`.
     :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
     :param max_velocity_diff_m_s01: Same.
     :param max_link_distance_m_s01: Same.
-    :param min_track_duration_seconds: Minimum track duration.  Shorter-lived
-        storms will be removed.
-    :param num_points_back_for_velocity: See doc for
-        `_get_velocities_one_storm_track`.
+    :param min_track_duration_seconds: See doc for `_remove_short_lived_tracks`.
+    :param num_points_back_for_velocity: See doc for `_get_final_velocities`.
     """
 
-    error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
+    if min_polygon_size_pixels is None:
+        min_polygon_size_pixels = 0
 
-    if min_grid_cells_in_polygon is None:
-        min_grid_cells_in_polygon = 0
-    error_checking.assert_is_integer(min_grid_cells_in_polygon)
-    error_checking.assert_is_geq(min_grid_cells_in_polygon, 0)
+    error_checking.assert_is_integer(min_polygon_size_pixels)
+    error_checking.assert_is_geq(min_polygon_size_pixels, 0)
+    error_checking.assert_is_greater(min_echo_top_km, 0.)
 
     radar_file_names, valid_times_unix_sec = _find_input_radar_files(
         top_radar_dir_name=top_radar_dir_name,
-        echo_top_field_name=echo_top_field_name,
+        radar_field_name=echo_top_field_name,
         radar_source_name=radar_source_name,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string,
@@ -1982,10 +1969,10 @@ def run_tracking(
             )
         )
 
-        this_echo_top_matrix_km_asl = radar_s2f.sparse_to_full_grid(
+        this_echo_top_matrix_km = radar_s2f.sparse_to_full_grid(
             sparse_grid_table=this_sparse_grid_table,
             metadata_dict=this_metadata_dict,
-            ignore_if_below=min_echo_top_height_km_asl
+            ignore_if_below=min_echo_top_km
         )[0]
 
         print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
@@ -1994,32 +1981,32 @@ def run_tracking(
         this_latitude_spacing_deg = this_metadata_dict[
             radar_utils.LAT_SPACING_COLUMN]
 
-        this_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
-            radar_matrix=this_echo_top_matrix_km_asl,
+        this_echo_top_matrix_km = _gaussian_smooth_radar_field(
+            radar_matrix=this_echo_top_matrix_km,
             e_folding_radius_pixels=
-            e_fold_radius_for_smoothing_deg_lat / this_latitude_spacing_deg)
+            smoothing_radius_deg_lat / this_latitude_spacing_deg
+        )
 
         if this_echo_classifn_file_name is not None:
             print 'Reading data from: "{0:s}"...'.format(
                 this_echo_classifn_file_name)
+
             this_convective_flag_matrix = echo_classifn.read_classifications(
                 this_echo_classifn_file_name
             )[0]
+
             this_convective_flag_matrix = numpy.flip(
                 this_convective_flag_matrix, axis=0)
+            this_echo_top_matrix_km[this_convective_flag_matrix == False] = 0.
 
-            print numpy.sum(this_echo_top_matrix_km_asl > 0.)
-            this_echo_top_matrix_km_asl[
-                this_convective_flag_matrix == False] = 0.
-            print numpy.sum(this_echo_top_matrix_km_asl > 0.)
-
-        this_half_width_in_pixels = int(numpy.round(
-            half_width_for_max_filter_deg_lat / this_latitude_spacing_deg))
+        this_half_width_pixels = int(numpy.round(
+            half_width_for_max_filter_deg_lat / this_latitude_spacing_deg
+        ))
 
         local_max_dict_by_time[i] = _find_local_maxima(
-            radar_matrix=this_echo_top_matrix_km_asl,
+            radar_matrix=this_echo_top_matrix_km,
             radar_metadata_dict=this_metadata_dict,
-            neigh_half_width_in_pixels=this_half_width_in_pixels)
+            neigh_half_width_pixels=this_half_width_pixels)
 
         local_max_dict_by_time[i].update(
             {VALID_TIME_KEY: valid_times_unix_sec[i]}
@@ -2027,27 +2014,24 @@ def run_tracking(
 
         local_max_dict_by_time[i] = _local_maxima_to_polygons(
             local_max_dict=local_max_dict_by_time[i],
-            echo_top_matrix_km_asl=this_echo_top_matrix_km_asl,
-            min_echo_top_height_km_asl=min_echo_top_height_km_asl,
+            echo_top_matrix_km=this_echo_top_matrix_km,
+            min_echo_top_km=min_echo_top_km,
             radar_metadata_dict=this_metadata_dict,
-            min_distance_between_maxima_metres=
-            min_distance_between_maxima_metres)
+            min_intermax_distance_metres=min_intermax_distance_metres)
 
         local_max_dict_by_time[i] = _remove_small_polygons(
             local_max_dict=local_max_dict_by_time[i],
-            min_grid_cells_in_polygon=min_grid_cells_in_polygon)
+            min_size_pixels=min_polygon_size_pixels)
 
         local_max_dict_by_time[i] = _remove_redundant_local_maxima(
-            local_max_dict_latlng=local_max_dict_by_time[i],
+            local_max_dict=local_max_dict_by_time[i],
             projection_object=projection_object,
-            min_distance_between_maxima_metres=
-            min_distance_between_maxima_metres
-        )
+            min_intermax_distance_metres=min_intermax_distance_metres)
 
         if i == 0:
             these_current_to_prev_indices = _link_local_maxima_in_time(
                 current_local_max_dict=local_max_dict_by_time[i],
-                prev_local_max_dict=None,
+                previous_local_max_dict=None,
                 max_link_time_seconds=max_link_time_seconds,
                 max_velocity_diff_m_s01=max_velocity_diff_m_s01,
                 max_link_distance_m_s01=max_link_distance_m_s01)
@@ -2058,7 +2042,7 @@ def run_tracking(
 
             these_current_to_prev_indices = _link_local_maxima_in_time(
                 current_local_max_dict=local_max_dict_by_time[i],
-                prev_local_max_dict=local_max_dict_by_time[i - 1],
+                previous_local_max_dict=local_max_dict_by_time[i - 1],
                 max_link_time_seconds=max_link_time_seconds,
                 max_velocity_diff_m_s01=max_velocity_diff_m_s01,
                 max_link_distance_m_s01=max_link_distance_m_s01)
@@ -2067,9 +2051,16 @@ def run_tracking(
             {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices}
         )
 
-        local_max_dict_by_time = _get_intermediate_velocities(
-            local_max_dict_by_time=local_max_dict_by_time,
-            current_time_index=i, e_folding_radius_metres=100000.)
+        if i == 0:
+            local_max_dict_by_time[i] = _get_intermediate_velocities(
+                current_local_max_dict=local_max_dict_by_time[i],
+                previous_local_max_dict=None,
+                e_folding_radius_metres=DEFAULT_VELOCITY_EFOLD_RADIUS_METRES)
+        else:
+            local_max_dict_by_time[i] = _get_intermediate_velocities(
+                current_local_max_dict=local_max_dict_by_time[i],
+                previous_local_max_dict=local_max_dict_by_time[i - 1],
+                e_folding_radius_metres=DEFAULT_VELOCITY_EFOLD_RADIUS_METRES)
 
     keep_time_indices = numpy.array(keep_time_indices, dtype=int)
     valid_times_unix_sec = valid_times_unix_sec[keep_time_indices]
@@ -2083,8 +2074,9 @@ def run_tracking(
     storm_object_table = _local_maxima_to_storm_tracks(local_max_dict_by_time)
 
     print 'Removing tracks that last < {0:d} seconds...'.format(
-        int(min_track_duration_seconds))
-    storm_object_table = _remove_short_tracks(
+        int(min_track_duration_seconds)
+    )
+    storm_object_table = _remove_short_lived_tracks(
         storm_object_table=storm_object_table,
         min_duration_seconds=min_track_duration_seconds)
 
@@ -2097,9 +2089,10 @@ def run_tracking(
         max_join_time_sec=max_link_time_seconds)
 
     print 'Computing storm velocities...'
-    storm_object_table = _get_storm_velocities(
+    storm_object_table = _get_final_velocities(
         storm_object_table=storm_object_table,
-        num_points_back=num_points_back_for_velocity)
+        num_points_back=num_points_back_for_velocity,
+        e_folding_radius_metres=DEFAULT_VELOCITY_EFOLD_RADIUS_METRES)
 
     print SEPARATOR_STRING
     _write_storm_objects(
@@ -2108,45 +2101,50 @@ def run_tracking(
         output_times_unix_sec=valid_times_unix_sec)
 
 
-def reanalyze_tracks_across_spc_dates(
+def reanalyze_across_spc_dates(
         top_input_dir_name, top_output_dir_name, first_spc_date_string,
         last_spc_date_string, first_time_unix_sec=None, last_time_unix_sec=None,
         tracking_start_time_unix_sec=None, tracking_end_time_unix_sec=None,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
+        max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
-        max_reanal_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
-        max_reanal_extrap_error_m_s01=DEFAULT_MAX_REANAL_EXTRAP_ERROR_M_S01,
+        max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
+        max_join_distance_m_s01=DEFAULT_MAX_JOIN_DISTANCE_M_S01,
         min_track_duration_seconds=890,
-        num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
+        num_points_back_for_velocity=DEFAULT_NUM_POINTS_FOR_VELOCITY):
     """Reanalyzes tracks across SPC dates.
 
-    :param top_input_dir_name: See doc for `_find_input_tracking_files`.
-    :param top_output_dir_name: See doc for `_write_storm_objects`.
+    :param top_input_dir_name: Name of top-level directory with original tracks
+        (before reanalysis).  For more details, see doc for
+        `_find_input_tracking_files`.
+    :param top_output_dir_name: Name of top-level directory for new tracks
+        (after reanalysis).  For more details, see doc for
+        `_write_storm_objects`.
     :param first_spc_date_string: See doc for `_find_input_tracking_files`.
     :param last_spc_date_string: Same.
     :param first_time_unix_sec: Same.
     :param last_time_unix_sec: Same.
-    :param tracking_start_time_unix_sec: Start of tracking period.  Default is
-        earliest time in input tracks.
-    :param tracking_end_time_unix_sec: End of tracking period.  Default is
-        latest time in input tracks.
+    :param tracking_start_time_unix_sec: First time in tracking period.  If
+        `tracking_start_time_unix_sec is None`, defaults to
+        `first_time_unix_sec`.
+    :param tracking_end_time_unix_sec: Last time in tracking period.  If
+        `tracking_end_time_unix_sec is None`, defaults to `last_time_unix_sec`.
     :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
+    :param max_velocity_diff_m_s01: Same.
     :param max_link_distance_m_s01: Same.
-    :param max_reanal_join_time_sec: See doc for `_reanalyze_tracks`.
-    :param max_reanal_extrap_error_m_s01: Same.
-    :param min_track_duration_seconds: See doc for `_remove_short_tracks`.
-    :param num_points_back_for_velocity: See doc for
-        `_get_velocities_one_storm_track`.
+    :param max_join_time_sec: See doc for `_reanalyze_tracks`.
+    :param max_join_distance_m_s01: Same.
+    :param min_track_duration_seconds: See doc for `_remove_short_lived_tracks`.
+    :param num_points_back_for_velocity: See doc for `_get_final_velocities`.
     """
 
-    spc_date_strings, input_file_names_by_date, valid_times_by_date_unix_sec = (
-        _find_input_tracking_files(
-            top_tracking_dir_name=top_input_dir_name,
-            first_spc_date_string=first_spc_date_string,
-            last_spc_date_string=last_spc_date_string,
-            first_time_unix_sec=first_time_unix_sec,
-            last_time_unix_sec=last_time_unix_sec)
-    )
+    (spc_date_strings, tracking_file_names_by_date, valid_times_by_date_unix_sec
+    ) = _find_input_tracking_files(
+        top_tracking_dir_name=top_input_dir_name,
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string,
+        first_time_unix_sec=first_time_unix_sec,
+        last_time_unix_sec=last_time_unix_sec)
 
     spc_dates_unix_sec = numpy.array([
         time_conversion.spc_date_string_to_unix_sec(d) for d in spc_date_strings
@@ -2176,21 +2174,23 @@ def reanalyze_tracks_across_spc_dates(
         central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
 
     num_spc_dates = len(spc_date_strings)
+
     if num_spc_dates == 1:
         storm_object_table = tracking_io.read_many_processed_files(
-            input_file_names_by_date[0])
+            tracking_file_names_by_date[0])
         print SEPARATOR_STRING
 
         print 'Reanalyzing tracks for {0:s}...'.format(spc_date_strings[0])
         storm_object_table = _reanalyze_tracks(
             storm_object_table=storm_object_table,
-            max_join_time_sec=max_reanal_join_time_sec,
-            max_extrap_error_m_s01=max_reanal_extrap_error_m_s01)
+            max_join_time_sec=max_join_time_sec,
+            max_extrap_error_m_s01=max_join_distance_m_s01)
         print SEPARATOR_STRING
 
         print 'Removing tracks that last < {0:d} seconds...'.format(
-            int(min_track_duration_seconds))
-        storm_object_table = _remove_short_tracks(
+            int(min_track_duration_seconds)
+        )
+        storm_object_table = _remove_short_lived_tracks(
             storm_object_table=storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 
@@ -2200,12 +2200,13 @@ def reanalyze_tracks_across_spc_dates(
             best_track_start_time_unix_sec=tracking_start_time_unix_sec,
             best_track_end_time_unix_sec=tracking_end_time_unix_sec,
             max_extrap_time_for_breakup_sec=max_link_time_seconds,
-            max_join_time_sec=max_reanal_join_time_sec)
+            max_join_time_sec=max_join_time_sec)
 
         print 'Recomputing storm velocities...'
-        storm_object_table = _get_storm_velocities(
+        storm_object_table = _get_final_velocities(
             storm_object_table=storm_object_table,
-            num_points_back=num_points_back_for_velocity)
+            num_points_back=num_points_back_for_velocity,
+            e_folding_radius_metres=DEFAULT_VELOCITY_EFOLD_RADIUS_METRES)
 
         _write_storm_objects(
             storm_object_table=storm_object_table,
@@ -2217,7 +2218,7 @@ def reanalyze_tracks_across_spc_dates(
 
     for i in range(num_spc_dates + 1):
         storm_object_table_by_date = _shuffle_tracking_data(
-            input_file_names_by_date=input_file_names_by_date,
+            tracking_file_names_by_date=tracking_file_names_by_date,
             valid_times_by_date_unix_sec=valid_times_by_date_unix_sec,
             storm_object_table_by_date=storm_object_table_by_date,
             current_date_index=i, top_output_dir_name=top_output_dir_name)
@@ -2230,15 +2231,17 @@ def reanalyze_tracks_across_spc_dates(
             print 'Joining tracks between {0:s} and {1:s}...'.format(
                 spc_date_strings[i], spc_date_strings[i + 1])
 
-            storm_object_table_by_date[i + 1] = _join_tracks_between_periods(
+            storm_object_table_by_date[i + 1] = _join_tracks(
                 early_storm_object_table=storm_object_table_by_date[i],
                 late_storm_object_table=storm_object_table_by_date[i + 1],
                 projection_object=projection_object,
                 max_link_time_seconds=max_link_time_seconds,
+                max_velocity_diff_m_s01=max_velocity_diff_m_s01,
                 max_link_distance_m_s01=max_link_distance_m_s01)
 
             print 'Reanalyzing tracks for {0:s} and {1:s}...'.format(
-                spc_date_strings[i], spc_date_strings[i + 1])
+                spc_date_strings[i], spc_date_strings[i + 1]
+            )
 
             indices_to_concat = numpy.array([i, i + 1], dtype=int)
             concat_storm_object_table = pandas.concat(
@@ -2247,8 +2250,8 @@ def reanalyze_tracks_across_spc_dates(
 
             concat_storm_object_table = _reanalyze_tracks(
                 storm_object_table=concat_storm_object_table,
-                max_join_time_sec=max_reanal_join_time_sec,
-                max_extrap_error_m_s01=max_reanal_extrap_error_m_s01)
+                max_join_time_sec=max_join_time_sec,
+                max_extrap_error_m_s01=max_join_distance_m_s01)
             print MINOR_SEPARATOR_STRING
 
             storm_object_table_by_date[i] = concat_storm_object_table.loc[
@@ -2272,8 +2275,9 @@ def reanalyze_tracks_across_spc_dates(
             axis=0, ignore_index=True)
 
         print 'Removing tracks that last < {0:d} seconds...'.format(
-            int(min_track_duration_seconds))
-        concat_storm_object_table = _remove_short_tracks(
+            int(min_track_duration_seconds)
+        )
+        concat_storm_object_table = _remove_short_lived_tracks(
             storm_object_table=concat_storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 
@@ -2283,12 +2287,13 @@ def reanalyze_tracks_across_spc_dates(
             best_track_start_time_unix_sec=tracking_start_time_unix_sec,
             best_track_end_time_unix_sec=tracking_end_time_unix_sec,
             max_extrap_time_for_breakup_sec=max_link_time_seconds,
-            max_join_time_sec=max_reanal_join_time_sec)
+            max_join_time_sec=max_join_time_sec)
 
         print 'Recomputing storm velocities...'
-        concat_storm_object_table = _get_storm_velocities(
+        concat_storm_object_table = _get_final_velocities(
             storm_object_table=concat_storm_object_table,
-            num_points_back=num_points_back_for_velocity)
+            num_points_back=num_points_back_for_velocity,
+            e_folding_radius_metres=DEFAULT_VELOCITY_EFOLD_RADIUS_METRES)
 
         storm_object_table_by_date[i] = concat_storm_object_table.loc[
             concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
