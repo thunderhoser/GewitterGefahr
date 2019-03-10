@@ -1,7 +1,6 @@
 """Runs `linkage.link_winds_to_storms`."""
 
 import argparse
-import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import echo_top_tracking
@@ -40,8 +39,6 @@ OUTPUT_DIR_HELP_STRING = (
 
 TOP_WIND_DIR_NAME_DEFAULT = (
     '/condo/swatwork/ralager/wind_observations/processed')
-DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
-    echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -58,7 +55,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
-    default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
+    default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
+    help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,

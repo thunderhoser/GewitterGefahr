@@ -40,9 +40,6 @@ MIN_TIME_DIFF_HELP_STRING = (
     'Minimum time difference between successive files.  Any larger difference '
     'is considered a temporal discontinuity.')
 
-DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
-    echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
-
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_ARG_NAME, type=str, required=True,
@@ -58,7 +55,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
-    default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
+    default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
+    help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + DATA_SOURCE_ARG_NAME, type=str, required=False,

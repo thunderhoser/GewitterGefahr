@@ -86,8 +86,6 @@ OUTPUT_DIR_HELP_STRING = (
     'Name of top-level directory for storm-centered radar images.')
 
 DEFAULT_RADAR_DIR_NAME = '/condo/swatcommon/common/gridrad_final/native_format'
-DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
-    echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -132,7 +130,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
-    default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
+    default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
+    help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_NAME_ARG_NAME, type=str, required=False, default='',

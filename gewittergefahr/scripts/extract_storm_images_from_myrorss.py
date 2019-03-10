@@ -102,9 +102,6 @@ DEFAULT_OUTPUT_DIR_NAME = (
     '/condo/swatwork/ralager/myrorss_40dbz_echo_tops/echo_top_tracking/'
     'joined_across_spc_dates/smart_polygons/storm_images')
 
-DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
-    echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
-
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_ROWS_ARG_NAME, type=int, required=False,
@@ -152,7 +149,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
-    default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
+    default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
+    help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_NAME_ARG_NAME, type=str, required=False,

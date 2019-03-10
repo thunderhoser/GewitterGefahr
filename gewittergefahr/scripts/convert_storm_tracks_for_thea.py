@@ -18,26 +18,33 @@ SPC_DATE_HELP_STRING = (
     'SPC (Storm Prediction Center) date in format "yyyymmdd".  Will convert '
     'tracking dates for all dates in `{0:s}`...`{1:s}`.'
 ).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
+
 TRACKING_DIR_HELP_STRING = 'Name of top-level directory with storm tracks.'
+
 TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum storm area).  This will be used only to find input'
     ' files.')
+
 OUTPUT_FILE_HELP_STRING = 'Path to output file (CSV for Thea).'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_ARG_NAME, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_SPC_DATE_ARG_NAME, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_DIR_ARG_NAME, type=str, required=True,
     help=TRACKING_DIR_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
     default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
     help=TRACKING_SCALE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)

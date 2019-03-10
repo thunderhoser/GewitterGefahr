@@ -1,7 +1,6 @@
 """Computes shape statistics for each storm object."""
 
 import argparse
-import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import shape_statistics as shape_stats
 from gewittergefahr.gg_utils import echo_top_tracking
@@ -17,16 +16,16 @@ OUTPUT_DIR_INPUT_ARG = 'output_dir_name'
 SPC_DATE_HELP_STRING = (
     'SPC (Storm Prediction Center) date in format "yyyymmdd".  Shape statistics'
     ' will be computed for all storm objects on this date.')
+
 TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-tracking data.')
+
 TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum storm area).  Will be used to find input data.')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  A single Pickle file, with shape statistics for'
     ' each storm object, will be written here.')
-
-DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
-    echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -35,7 +34,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_INPUT_ARG, type=int, required=False,
-    default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
+    default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
+    help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_DIR_INPUT_ARG, type=str, required=True,
@@ -95,7 +95,8 @@ def add_input_arguments(argument_parser_object):
 
     argument_parser_object.add_argument(
         '--' + TRACKING_SCALE_INPUT_ARG, type=int, required=False,
-        default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
+        default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
+        help=TRACKING_SCALE_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + TRACKING_DIR_INPUT_ARG, type=str, required=True,

@@ -82,7 +82,7 @@ DEFAULT_MAX_JOIN_ERROR_M_S01 = 20.
 DEFAULT_NUM_POINTS_FOR_VELOCITY = 3
 DEFAULT_VELOCITY_EFOLD_RADIUS_METRES = 100000.
 
-DUMMY_TRACKING_SCALE_METRES2 = numpy.pi * 1e8  # Radius of 10 km.
+DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))  # 10-km radius
 
 TRACKING_FILE_NAMES_KEY = 'output_tracking_file_names'
 VALID_TIMES_KEY = 'unix_times_sec'

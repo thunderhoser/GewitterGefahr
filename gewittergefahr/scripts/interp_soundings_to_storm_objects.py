@@ -36,34 +36,39 @@ SPC_DATE_HELP_STRING = (
     'Update Cycle) sounding will be interpolated to each storm object on this '
     'date, at each lead time in `{0:s}`.'
 ).format(LEAD_TIMES_ARG_NAME)
+
 LEAD_TIMES_HELP_STRING = 'See help string for `{0:s}`.'.format(
     SPC_DATE_ARG_NAME)
+
 LAG_TIME_HELP_STRING = (
     'Lag time (used to avoid convective contamination of soundings, where the '
     'sounding for storm S is heavily influenced by storm S).  This will be '
     'subtracted from each lead time in `{0:s}`.'
 ).format(LEAD_TIMES_ARG_NAME)
+
 RUC_DIRECTORY_HELP_STRING = (
     'Name of top-level directory with grib files containing RUC (Rapid Update '
     'Cycle) data, which will be used for all model-initialization times < '
     '{0:s}.'
 ).format(FIRST_RAP_TIME_STRING)
+
 RAP_DIRECTORY_HELP_STRING = (
     'Name of top-level directory with grib files containing RAP (Rapid Refresh)'
     ' data, which will be used for all model-initialization times >= {0:s}.'
 ).format(FIRST_RAP_TIME_STRING)
+
 TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with storm tracks (one file per time step, '
     'readable by `storm_tracking_io.read_processed_file`).')
+
 TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum storm area).  Used to find input data.')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level directory for soundings (one file per SPC date, written '
     'by `soundings.write_soundings`).')
 
 DEFAULT_LEAD_TIMES_SECONDS = [0]
-DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
-    echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -93,7 +98,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
-    default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
+    default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
+    help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
