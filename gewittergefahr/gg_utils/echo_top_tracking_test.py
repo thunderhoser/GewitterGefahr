@@ -381,7 +381,9 @@ THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
     tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG,
+    tracking_utils.EAST_VELOCITY_COLUMN: numpy.full(4, 0.),
+    tracking_utils.NORTH_VELOCITY_COLUMN: numpy.full(4, 0.)
 }
 
 EARLY_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)

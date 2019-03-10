@@ -38,6 +38,7 @@ from gewittergefahr.gg_utils import dilation
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import best_tracks
@@ -51,7 +52,9 @@ TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
+RADIANS_TO_DEGREES = 180. / numpy.pi
 DEGREES_LAT_TO_METRES = 60 * 1852
+
 CENTRAL_PROJ_LATITUDE_DEG = 35.
 CENTRAL_PROJ_LONGITUDE_DEG = 265.
 
@@ -1393,8 +1396,6 @@ def _join_tracks(
         may be different.
     """
 
-    # TODO(thunderhoser): Need to incorporate velocities.
-
     num_early_objects = len(early_storm_object_table.index)
     num_late_objects = len(late_storm_object_table.index)
 
@@ -1421,16 +1422,23 @@ def _join_tracks(
             false_easting_metres=0., false_northing_metres=0.)
     )
 
-    num_previous_objects = len(previous_x_coords_metres)
-
-    # TODO(thunderhoser): Setting velocities to NaN is a HACK.
+    previous_x_velocities_m_s01, previous_y_velocities_m_s01 = (
+        _latlng_velocities_to_xy(
+            east_velocities_m_s01=early_storm_object_table[
+                tracking_utils.EAST_VELOCITY_COLUMN].values[previous_indices],
+            north_velocities_m_s01=early_storm_object_table[
+                tracking_utils.NORTH_VELOCITY_COLUMN].values[previous_indices],
+            latitudes_deg=previous_latitudes_deg,
+            longitudes_deg=previous_longitudes_deg
+        )
+    )
 
     previous_local_max_dict = {
         X_COORDS_KEY: previous_x_coords_metres,
         Y_COORDS_KEY: previous_y_coords_metres,
         VALID_TIME_KEY: last_early_time_unix_sec,
-        X_VELOCITIES_KEY: numpy.full(num_previous_objects, numpy.nan),
-        Y_VELOCITIES_KEY: numpy.full(num_previous_objects, numpy.nan)
+        X_VELOCITIES_KEY: previous_x_velocities_m_s01,
+        Y_VELOCITIES_KEY: previous_y_velocities_m_s01
     }
 
     first_late_time_unix_sec = numpy.min(
@@ -1479,7 +1487,7 @@ def _join_tracks(
         late_storm_object_table.replace(
             to_replace=orig_current_storm_ids[i], value=this_new_storm_id,
             inplace=True)
-    
+
     return late_storm_object_table
 
 
@@ -1888,6 +1896,59 @@ def _reanalyze_tracks(
 
     print 'Have reanalyzed all {0:d} tracks!'.format(num_storm_tracks)
     return storm_object_table
+
+
+def _latlng_velocities_to_xy(
+        east_velocities_m_s01, north_velocities_m_s01, latitudes_deg,
+        longitudes_deg):
+    """Converts velocities from lat-long components to x-y components.
+
+    P = number of velocities
+
+    :param east_velocities_m_s01: length-P numpy array of eastward instantaneous
+        velocities (metres per second).
+    :param north_velocities_m_s01: length-P numpy array of northward
+        instantaneous velocities (metres per second).
+    :param latitudes_deg: length-P numpy array of current latitudes (deg N).
+    :param longitudes_deg: length-P numpy array of current longitudes (deg E).
+    :return: x_velocities_m_s01: length-P numpy of x-velocities (metres per
+        second in positive x-direction).
+    :return: y_velocities_m_s01: Same but for y-direction.
+    """
+
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
+        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
+
+    scalar_displacements_metres = numpy.sqrt(
+        east_velocities_m_s01 ** 2 + north_velocities_m_s01 ** 2)
+
+    standard_bearings_deg = RADIANS_TO_DEGREES * numpy.arctan2(
+        north_velocities_m_s01, east_velocities_m_s01)
+
+    geodetic_bearings_deg = geodetic_utils.standard_to_geodetic_angles(
+        standard_bearings_deg)
+
+    new_latitudes_deg, new_longitudes_deg = (
+        geodetic_utils.start_points_and_displacements_to_endpoints(
+            start_latitudes_deg=latitudes_deg,
+            start_longitudes_deg=longitudes_deg,
+            scalar_displacements_metres=scalar_displacements_metres,
+            geodetic_bearings_deg=geodetic_bearings_deg)
+    )
+
+    x_coords_metres, y_coords_metres = projections.project_latlng_to_xy(
+        latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
+        projection_object=projection_object, false_easting_metres=0.,
+        false_northing_metres=0.)
+
+    new_x_coords_metres, new_y_coords_metres = projections.project_latlng_to_xy(
+        latitudes_deg=new_latitudes_deg, longitudes_deg=new_longitudes_deg,
+        projection_object=projection_object, false_easting_metres=0.,
+        false_northing_metres=0.)
+
+    return (new_x_coords_metres - x_coords_metres,
+            new_y_coords_metres - y_coords_metres)
 
 
 def run_tracking(
