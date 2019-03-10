@@ -77,10 +77,11 @@ DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
     0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS
 )
 
-DEFAULT_MAX_JOIN_TIME_SEC = 600
+DEFAULT_MAX_JOIN_TIME_SEC = 610
 DEFAULT_MAX_JOIN_ERROR_M_S01 = 20.
 DEFAULT_NUM_POINTS_FOR_VELOCITY = 3
 DEFAULT_VELOCITY_EFOLD_RADIUS_METRES = 100000.
+DEFAULT_MIN_REANALYZED_DURATION_SEC = 890
 
 DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))  # 10-km radius
 
@@ -2144,8 +2145,8 @@ def reanalyze_across_spc_dates(
         max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
-        max_join_ERROR_m_s01=DEFAULT_MAX_JOIN_ERROR_M_S01,
-        min_track_duration_seconds=890,
+        max_join_error_m_s01=DEFAULT_MAX_JOIN_ERROR_M_S01,
+        min_track_duration_seconds=DEFAULT_MIN_REANALYZED_DURATION_SEC,
         num_points_back_for_velocity=DEFAULT_NUM_POINTS_FOR_VELOCITY):
     """Reanalyzes tracks across SPC dates.
 
@@ -2168,7 +2169,7 @@ def reanalyze_across_spc_dates(
     :param max_velocity_diff_m_s01: Same.
     :param max_link_distance_m_s01: Same.
     :param max_join_time_sec: See doc for `_reanalyze_tracks`.
-    :param max_join_ERROR_m_s01: Same.
+    :param max_join_error_m_s01: Same.
     :param min_track_duration_seconds: See doc for `_remove_short_lived_tracks`.
     :param num_points_back_for_velocity: See doc for `_get_final_velocities`.
     """
@@ -2219,7 +2220,7 @@ def reanalyze_across_spc_dates(
         storm_object_table = _reanalyze_tracks(
             storm_object_table=storm_object_table,
             max_join_time_sec=max_join_time_sec,
-            max_join_error_m_s01=max_join_ERROR_m_s01)
+            max_join_error_m_s01=max_join_error_m_s01)
         print SEPARATOR_STRING
 
         print 'Removing tracks that last < {0:d} seconds...'.format(
@@ -2286,7 +2287,7 @@ def reanalyze_across_spc_dates(
             concat_storm_object_table = _reanalyze_tracks(
                 storm_object_table=concat_storm_object_table,
                 max_join_time_sec=max_join_time_sec,
-                max_join_error_m_s01=max_join_ERROR_m_s01)
+                max_join_error_m_s01=max_join_error_m_s01)
             print MINOR_SEPARATOR_STRING
 
             storm_object_table_by_date[i] = concat_storm_object_table.loc[
