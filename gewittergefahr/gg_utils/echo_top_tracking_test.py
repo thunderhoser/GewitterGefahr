@@ -369,7 +369,9 @@ LOCAL_MAX_DICT_WITHOUT_SMALL = {
     echo_top_tracking.LONGITUDES_KEY: numpy.array([246, 250])
 }
 
-# The following constants are used to test _join_tracks_between_periods.
+# The following constants are used to test _join_tracks.
+LONG_MAX_JOIN_TIME_SEC = 300
+
 THESE_STORM_IDS = ['a', 'b', 'a', 'b']
 THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 300, 300], dtype=int)
 THESE_LATITUDES_DEG = numpy.array([30, 40, 30, 40], dtype=float)
@@ -448,17 +450,17 @@ STORM_TRACK_TABLE_TAMPERED = copy.deepcopy(STORM_TRACK_TABLE_BEFORE_REANALYSIS)
 STORM_TRACK_TABLE_TAMPERED[echo_top_tracking.START_TIME_COLUMN].values[2] = -1
 STORM_ID_TAMPERED = 'C'
 
-# The following constants are used to test _get_extrapolation_error.
+# The following constants are used to test _get_join_error.
 DIST_TOLERANCE_METRES = 1.
-EXTRAP_ERROR_B_TO_A_METRES = 0.
-EXTRAP_ERROR_C_TO_A_METRES = 0.
-EXTRAP_ERROR_D_TO_A_METRES = vincenty((53.5, 113.8), (53.5, 113.5)).meters
-EXTRAP_ERROR_E_TO_A_METRES = vincenty((47.6, 307.3), (53.5, 113.5)).meters
+JOIN_ERROR_B_TO_A_METRES = 0.
+JOIN_ERROR_C_TO_A_METRES = 0.
+JOIN_ERROR_D_TO_A_METRES = vincenty((53.5, 113.8), (53.5, 113.5)).meters
+JOIN_ERROR_E_TO_A_METRES = vincenty((47.6, 307.3), (53.5, 113.5)).meters
 
 # The following constants are used to test _find_nearby_tracks and
 # _reanalyze_tracks.
-MAX_JOIN_TIME_SECONDS = 2
-MAX_EXTRAP_ERROR_M_S01 = 1000.
+SHORT_MAX_JOIN_TIME_SEC = 2
+MAX_JOIN_ERROR_M_S01 = 1000.
 
 NEARBY_IDS_FOR_A = ['B']
 NEARBY_IDS_FOR_B = ['C']
@@ -906,20 +908,18 @@ class EchoTopTrackingTests(unittest.TestCase):
             this_local_max_dict, LOCAL_MAX_DICT_WITHOUT_SMALL
         ))
 
-    def test_join_tracks_between_periods(self):
-        """Ensures correct output from _join_tracks_between_periods."""
+    def test_join_tracks(self):
+        """Ensures correct output from _join_tracks."""
 
-        # TODO(thunderhoser): Need to make this unit test work again.
-
-        this_joined_storm_object_table = echo_top_tracking._join_tracks(
+        this_storm_object_table = echo_top_tracking._join_tracks(
             early_storm_object_table=EARLY_STORM_OBJECT_TABLE,
             late_storm_object_table=copy.deepcopy(LATE_STORM_OBJECT_TABLE),
             projection_object=PROJECTION_OBJECT,
-            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
+            max_link_time_seconds=LONG_MAX_JOIN_TIME_SEC,
             max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
             max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
 
-        self.assertTrue(this_joined_storm_object_table.equals(
+        self.assertTrue(this_storm_object_table.equals(
             JOINED_STORM_OBJECT_TABLE
         ))
 
@@ -951,63 +951,63 @@ class EchoTopTrackingTests(unittest.TestCase):
             STORM_TRACK_TABLE_BEFORE_REANALYSIS
         ))
 
-    def test_get_extrapolation_error_b_to_a(self):
-        """Ensures correct output from _get_extrapolation_error.
+    def test_get_join_error_b_to_a(self):
+        """Ensures correct output from _get_join_error.
 
         In this case, extrapolating track B to start of track A.
         """
 
-        this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
+        this_join_error_metres = echo_top_tracking._get_join_error(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
             early_track_id='B', late_track_id='A')
 
         self.assertTrue(numpy.isclose(
-            this_extrap_error_metres, EXTRAP_ERROR_B_TO_A_METRES,
+            this_join_error_metres, JOIN_ERROR_B_TO_A_METRES,
             atol=DIST_TOLERANCE_METRES
         ))
 
-    def test_get_extrapolation_error_c_to_a(self):
-        """Ensures correct output from _get_extrapolation_error.
+    def test_get_join_error_c_to_a(self):
+        """Ensures correct output from _get_join_error.
 
         In this case, extrapolating track C to start of track A.
         """
 
-        this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
+        this_join_error_metres = echo_top_tracking._get_join_error(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
             early_track_id='C', late_track_id='A')
 
         self.assertTrue(numpy.isclose(
-            this_extrap_error_metres, EXTRAP_ERROR_C_TO_A_METRES,
+            this_join_error_metres, JOIN_ERROR_C_TO_A_METRES,
             atol=DIST_TOLERANCE_METRES
         ))
 
-    def test_get_extrapolation_error_d_to_a(self):
-        """Ensures correct output from _get_extrapolation_error.
+    def test_get_join_error_d_to_a(self):
+        """Ensures correct output from _get_join_error.
 
         In this case, extrapolating track D to start of track A.
         """
 
-        this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
+        this_join_error_metres = echo_top_tracking._get_join_error(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
             early_track_id='D', late_track_id='A')
 
         self.assertTrue(numpy.isclose(
-            this_extrap_error_metres, EXTRAP_ERROR_D_TO_A_METRES,
+            this_join_error_metres, JOIN_ERROR_D_TO_A_METRES,
             atol=DIST_TOLERANCE_METRES
         ))
 
-    def test_get_extrapolation_error_e_to_a(self):
-        """Ensures correct output from _get_extrapolation_error.
+    def test_get_join_error_e_to_a(self):
+        """Ensures correct output from _get_join_error.
 
         In this case, extrapolating track E to start of track A.
         """
 
-        this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
+        this_join_error_metres = echo_top_tracking._get_join_error(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
             early_track_id='E', late_track_id='A')
 
         self.assertTrue(numpy.isclose(
-            this_extrap_error_metres, EXTRAP_ERROR_E_TO_A_METRES,
+            this_join_error_metres, JOIN_ERROR_E_TO_A_METRES,
             atol=DIST_TOLERANCE_METRES
         ))
 
@@ -1016,8 +1016,8 @@ class EchoTopTrackingTests(unittest.TestCase):
 
         these_nearby_indices = echo_top_tracking._find_nearby_tracks(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='A', max_time_diff_seconds=MAX_JOIN_TIME_SECONDS,
-            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+            late_track_id='A', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
+            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
 
         if these_nearby_indices is None:
             these_nearby_ids = []
@@ -1033,8 +1033,8 @@ class EchoTopTrackingTests(unittest.TestCase):
 
         these_nearby_indices = echo_top_tracking._find_nearby_tracks(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='B', max_time_diff_seconds=MAX_JOIN_TIME_SECONDS,
-            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+            late_track_id='B', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
+            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
 
         if these_nearby_indices is None:
             these_nearby_ids = []
@@ -1050,8 +1050,8 @@ class EchoTopTrackingTests(unittest.TestCase):
 
         these_nearby_indices = echo_top_tracking._find_nearby_tracks(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='C', max_time_diff_seconds=MAX_JOIN_TIME_SECONDS,
-            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+            late_track_id='C', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
+            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
 
         if these_nearby_indices is None:
             these_nearby_ids = []
@@ -1067,8 +1067,8 @@ class EchoTopTrackingTests(unittest.TestCase):
 
         these_nearby_indices = echo_top_tracking._find_nearby_tracks(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='D', max_time_diff_seconds=MAX_JOIN_TIME_SECONDS,
-            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+            late_track_id='D', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
+            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
 
         if these_nearby_indices is None:
             these_nearby_ids = []
@@ -1084,8 +1084,8 @@ class EchoTopTrackingTests(unittest.TestCase):
 
         these_nearby_indices = echo_top_tracking._find_nearby_tracks(
             storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='E', max_time_diff_seconds=MAX_JOIN_TIME_SECONDS,
-            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+            late_track_id='E', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
+            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
 
         if these_nearby_indices is None:
             these_nearby_ids = []
@@ -1102,8 +1102,8 @@ class EchoTopTrackingTests(unittest.TestCase):
         this_storm_object_table = echo_top_tracking._reanalyze_tracks(
             storm_object_table=copy.deepcopy(
                 STORM_OBJECT_TABLE_BEFORE_REANALYSIS),
-            max_join_time_sec=MAX_JOIN_TIME_SECONDS,
-            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+            max_join_time_sec=SHORT_MAX_JOIN_TIME_SEC,
+            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
 
         self.assertTrue(this_storm_object_table.equals(
             STORM_OBJECT_TABLE_AFTER_REANALYSIS

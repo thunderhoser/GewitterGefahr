@@ -78,7 +78,7 @@ DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
 )
 
 DEFAULT_MAX_JOIN_TIME_SEC = 600
-DEFAULT_MAX_JOIN_DISTANCE_M_S01 = 20.
+DEFAULT_MAX_JOIN_ERROR_M_S01 = 20.
 DEFAULT_NUM_POINTS_FOR_VELOCITY = 3
 DEFAULT_VELOCITY_EFOLD_RADIUS_METRES = 100000.
 
@@ -1392,6 +1392,8 @@ def _join_tracks(
         may be different.
     """
 
+    # TODO(thunderhoser): Need to incorporate velocities.
+
     num_early_objects = len(early_storm_object_table.index)
     num_late_objects = len(late_storm_object_table.index)
 
@@ -1418,10 +1420,16 @@ def _join_tracks(
             false_easting_metres=0., false_northing_metres=0.)
     )
 
+    num_previous_objects = len(previous_x_coords_metres)
+
+    # TODO(thunderhoser): Setting velocities to NaN is a HACK.
+
     previous_local_max_dict = {
         X_COORDS_KEY: previous_x_coords_metres,
         Y_COORDS_KEY: previous_y_coords_metres,
-        VALID_TIME_KEY: last_early_time_unix_sec
+        VALID_TIME_KEY: last_early_time_unix_sec,
+        X_VELOCITIES_KEY: numpy.full(num_previous_objects, numpy.nan),
+        Y_VELOCITIES_KEY: numpy.full(num_previous_objects, numpy.nan)
     }
 
     first_late_time_unix_sec = numpy.min(
@@ -1470,44 +1478,49 @@ def _join_tracks(
         late_storm_object_table.replace(
             to_replace=orig_current_storm_ids[i], value=this_new_storm_id,
             inplace=True)
-
+    
     return late_storm_object_table
 
 
 def _storm_objects_to_tracks(
         storm_object_table, storm_track_table=None, recompute_for_id=None):
-    """Converts table of storm objects to table of storm tracks.
+    """Converts storm objects to storm tracks.
 
-    If the input arg `storm_track_table` is None, `storm_track_table` will be
-    computed from scratch.  Otherwise, only one row of `storm_track_table` will
-    be recomputed.
+    Storm object = one storm cell at one time step
+    Storm track = one storm cell at all time steps
+
+    If `storm_track_table` is not specified in the inputs, it will be computed
+    from scratch.  If `storm_track_table` *is* specified in the inputs, only one
+    storm track (based on `recompute_for_id`) will be recomputed.
 
     :param storm_object_table: pandas DataFrame with the following columns.
-    storm_object_table.storm_id: String ID for storm cell.
+        Each row is one storm object.
+    storm_object_table.storm_id: Storm ID (string).
     storm_object_table.unix_time_sec: Valid time.
-    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
-    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of centroid.
 
-    :param storm_track_table: pandas DataFrame with the following columns.
-    storm_track_table.storm_id: String ID for storm cell.
-    storm_track_table.start_time_unix_sec: Start time.
-    storm_track_table.end_time_unix_sec: End time.
-    storm_track_table.start_latitude_deg: Start latitude (deg N).
-    storm_track_table.end_latitude_deg: End latitude (deg N).
-    storm_track_table.start_longitude_deg: Start longitude (deg E).
-    storm_track_table.end_longitude_deg: End longitude (deg E).
+    :param storm_track_table: pandas DataFrame with the following columns.  Each
+        row is one storm track.
+    storm_track_table.storm_id: Storm ID (string).
+    storm_track_table.start_time_unix_sec: First time in track.
+    storm_track_table.end_time_unix_sec: Last time in track.
+    storm_track_table.start_latitude_deg: First latitude (deg N) in track.
+    storm_track_table.end_latitude_deg: Last latitude (deg N) in track.
+    storm_track_table.start_longitude_deg: First longitude (deg E) in track.
+    storm_track_table.end_longitude_deg: Last longitude (deg E) in track.
 
-    :param recompute_for_id: [used only if storm_track_table is not None]
-        Track data will be recomputed only for this storm ID.
-
+    :param recompute_for_id: [used only if `storm_track_table is not None`]
+        Storm track will be recomputed only for this ID (string).
     :return: storm_track_table: See input documentation.
     """
 
     if storm_track_table is None:
-        storm_id_by_track = numpy.unique(
-            storm_object_table[tracking_utils.STORM_ID_COLUMN].values).tolist()
+        storm_track_ids = numpy.unique(
+            storm_object_table[tracking_utils.STORM_ID_COLUMN].values
+        ).tolist()
 
-        num_tracks = len(storm_id_by_track)
+        num_tracks = len(storm_track_ids)
         track_start_times_unix_sec = numpy.full(num_tracks, -1, dtype=int)
         track_end_times_unix_sec = numpy.full(num_tracks, -1, dtype=int)
         track_start_latitudes_deg = numpy.full(num_tracks, numpy.nan)
@@ -1516,7 +1529,7 @@ def _storm_objects_to_tracks(
         track_end_longitudes_deg = numpy.full(num_tracks, numpy.nan)
 
         storm_track_dict = {
-            tracking_utils.STORM_ID_COLUMN: storm_id_by_track,
+            tracking_utils.STORM_ID_COLUMN: storm_track_ids,
             START_TIME_COLUMN: track_start_times_unix_sec,
             END_TIME_COLUMN: track_end_times_unix_sec,
             START_LATITUDE_COLUMN: track_start_latitudes_deg,
@@ -1526,15 +1539,15 @@ def _storm_objects_to_tracks(
         }
 
         storm_track_table = pandas.DataFrame.from_dict(storm_track_dict)
-        recompute_for_ids = copy.deepcopy(storm_id_by_track)
-
+        recompute_for_ids = copy.deepcopy(storm_track_ids)
     else:
         recompute_for_ids = [recompute_for_id]
 
     for this_id in recompute_for_ids:
         these_object_indices = numpy.where(
             storm_object_table[tracking_utils.STORM_ID_COLUMN].values ==
-            this_id)[0]
+            this_id
+        )[0]
 
         these_times_unix_sec = storm_object_table[
             tracking_utils.TIME_COLUMN].values[these_object_indices]
@@ -1563,30 +1576,32 @@ def _storm_objects_to_tracks(
     return storm_track_table
 
 
-def _get_extrapolation_error(storm_track_table, early_track_id, late_track_id):
-    """Finds error incurred by extrapolating early track to late track.
-
-    Specifically, finds error incurred by extrapolating early track from t_1_end
-    to t_2_start, where t_1_end = end time of early track and t_2_start =
-    start time of late track.
+def _get_join_error(storm_track_table, early_track_id, late_track_id):
+    """Finds error incurred by extrap early track to first time in late track.
 
     :param storm_track_table: pandas DataFrame created by
         `_storm_objects_to_tracks`.
     :param early_track_id: Storm ID for early track (string).
     :param late_track_id: Storm ID for late track (string).
-    :return: extrap_error_metres: Extrapolation error.
+    :return: join_error_metres: Extrapolation error.
     """
+
+    # TODO(thunderhoser): Allow num points in velocity estimate to differ?
 
     early_track_index = numpy.where(
         storm_track_table[tracking_utils.STORM_ID_COLUMN].values ==
-        early_track_id)[0][0]
+        early_track_id
+    )[0][0]
+
     late_track_index = numpy.where(
         storm_track_table[tracking_utils.STORM_ID_COLUMN].values ==
-        late_track_id)[0][0]
+        late_track_id
+    )[0][0]
 
     early_time_diff_seconds = (
         storm_track_table[END_TIME_COLUMN].values[early_track_index] -
-        storm_track_table[START_TIME_COLUMN].values[early_track_index])
+        storm_track_table[START_TIME_COLUMN].values[early_track_index]
+    )
 
     if early_time_diff_seconds == 0:
         early_lat_speed_deg_s01 = 0.
@@ -1604,50 +1619,58 @@ def _get_extrapolation_error(storm_track_table, early_track_id, late_track_id):
 
     extrap_time_seconds = (
         storm_track_table[START_TIME_COLUMN].values[late_track_index] -
-        storm_track_table[END_TIME_COLUMN].values[early_track_index])
+        storm_track_table[END_TIME_COLUMN].values[early_track_index]
+    )
+
     extrap_latitude_deg = (
         storm_track_table[END_LATITUDE_COLUMN].values[early_track_index] +
-        early_lat_speed_deg_s01 * extrap_time_seconds)
+        early_lat_speed_deg_s01 * extrap_time_seconds
+    )
+
     extrap_longitude_deg = (
         storm_track_table[END_LONGITUDE_COLUMN].values[early_track_index] +
-        early_lng_speed_deg_s01 * extrap_time_seconds)
+        early_lng_speed_deg_s01 * extrap_time_seconds
+    )
 
     extrap_point = (extrap_latitude_deg, extrap_longitude_deg)
     late_track_start_point = (
         storm_track_table[START_LATITUDE_COLUMN].values[late_track_index],
-        storm_track_table[START_LONGITUDE_COLUMN].values[late_track_index])
+        storm_track_table[START_LONGITUDE_COLUMN].values[late_track_index]
+    )
+
     return vincenty(extrap_point, late_track_start_point).meters
 
 
-def _find_nearby_tracks(
-        storm_track_table, late_track_id, max_time_diff_seconds,
-        max_extrap_error_m_s01):
-    """Finds tracks are both spatially and temporally near the late track.
+def _find_nearby_tracks(storm_track_table, late_track_id, max_time_diff_seconds,
+                        max_join_error_m_s01):
+    """Finds tracks both spatially and temporally near the late track.
 
     :param storm_track_table: pandas DataFrame created by
         `_storm_objects_to_tracks`.
-    :param late_track_id: Storm ID for late track (string).
-    :param max_time_diff_seconds: Max time difference between tracks (end of
-        early track and beginning of late track).
-    :param max_extrap_error_m_s01: Max error (metres per second) incurred by
-        extrapolating early track from t_1_end to t_2_start, where t_1_end = end
-        time of early track and t_2_start = start time of late track.
+    :param late_track_id: Storm ID of late track (string).
+    :param max_time_diff_seconds: Max time difference (between end of early
+        track and start of late track).
+    :param max_join_error_m_s01: Max join error (metres per second), created by
+        extrapolating early track to first time in late track.
     :return: nearby_track_indices: 1-D numpy array with indices of nearby
-        tracks, sorted primarily by time difference (seconds) and secondarily by
-        extrapolation error (metres).
+        tracks.  These indices are rows of `storm_track_table`, sorted primarily
+        by time difference and secondarily by join error.
     """
 
     late_track_index = numpy.where(
         storm_track_table[tracking_utils.STORM_ID_COLUMN].values ==
-        late_track_id)[0][0]
+        late_track_id
+    )[0][0]
 
     time_diffs_seconds = (
         storm_track_table[START_TIME_COLUMN].values[late_track_index] -
-        storm_track_table[END_TIME_COLUMN].values)
+        storm_track_table[END_TIME_COLUMN].values
+    )
+
     time_diffs_seconds[time_diffs_seconds <= 0] = max_time_diff_seconds + 1
 
     num_tracks = len(storm_track_table.index)
-    extrap_errors_metres = numpy.full(num_tracks, numpy.inf)
+    join_errors_metres = numpy.full(num_tracks, numpy.inf)
 
     for j in range(num_tracks):
         if time_diffs_seconds[j] > max_time_diff_seconds:
@@ -1655,44 +1678,57 @@ def _find_nearby_tracks(
 
         this_latitude_diff_deg = numpy.absolute(
             storm_track_table[START_LATITUDE_COLUMN].values[late_track_index] -
-            storm_track_table[END_LATITUDE_COLUMN].values[j])
+            storm_track_table[END_LATITUDE_COLUMN].values[j]
+        )
+
         this_latitude_diff_m_s01 = this_latitude_diff_deg * (
-            DEGREES_LAT_TO_METRES / time_diffs_seconds[j])
-        if this_latitude_diff_m_s01 > max_extrap_error_m_s01:
+            DEGREES_LAT_TO_METRES / time_diffs_seconds[j]
+        )
+
+        if this_latitude_diff_m_s01 > max_join_error_m_s01:
             continue
 
-        extrap_errors_metres[j] = _get_extrapolation_error(
+        join_errors_metres[j] = _get_join_error(
             storm_track_table=storm_track_table, late_track_id=late_track_id,
             early_track_id=
-            storm_track_table[tracking_utils.STORM_ID_COLUMN].values[j])
+            storm_track_table[tracking_utils.STORM_ID_COLUMN].values[j]
+        )
 
-    extrap_errors_m_s01 = extrap_errors_metres / time_diffs_seconds
+    join_errors_m_s01 = join_errors_metres / time_diffs_seconds
+
     nearby_track_indices = numpy.where(numpy.logical_and(
         time_diffs_seconds <= max_time_diff_seconds,
-        extrap_errors_m_s01 <= max_extrap_error_m_s01))[0]
-    if not len(nearby_track_indices):
+        join_errors_m_s01 <= max_join_error_m_s01
+    ))[0]
+
+    if len(nearby_track_indices) == 0:
         return None
 
     sort_indices = numpy.lexsort((
-        extrap_errors_metres[nearby_track_indices],
-        time_diffs_seconds[nearby_track_indices]))
+        join_errors_metres[nearby_track_indices],
+        time_diffs_seconds[nearby_track_indices]
+    ))
+
     return nearby_track_indices[sort_indices]
 
 
-def _write_storm_objects(
-        storm_object_table, top_output_dir_name, output_times_unix_sec):
-    """Writes storm objects to files (one Pickle file per time step).
+def _write_new_tracks(storm_object_table, top_output_dir_name,
+                      valid_times_unix_sec):
+    """Writes tracking files (one Pickle file per time step).
+
+    These files are the main output of both `run_tracking` and
+    `reanalyze_across_spc_dates`.
 
     :param storm_object_table: See doc for
         `storm_tracking_io.write_processed_file`.
-    :param top_output_dir_name: Name of top-level output directory.  Files
-        will be written by `storm_tracking_io.write_processed_file`, to
-        locations therein determined by `storm_tracking_io.find_processed_file`.
-    :param output_times_unix_sec: 1-D numpy array of output times.
+    :param top_output_dir_name: Name of top-level directory.  File locations
+        therein will be determined by `storm_tracking_io.find_processed_file`.
+    :param valid_times_unix_sec: 1-D numpy array of valid times.  One file will
+        be written for each.
     """
 
-    for this_time_unix_sec in output_times_unix_sec:
-        this_output_file_name = tracking_io.find_processed_file(
+    for this_time_unix_sec in valid_times_unix_sec:
+        this_file_name = tracking_io.find_processed_file(
             top_processed_dir_name=top_output_dir_name,
             unix_time_sec=this_time_unix_sec,
             spc_date_string=time_conversion.time_to_spc_date_string(
@@ -1701,47 +1737,52 @@ def _write_storm_objects(
             data_source=tracking_utils.SEGMOTION_SOURCE_ID,
             raise_error_if_missing=False)
 
-        print 'Writing data to file: "{0:s}"...'.format(this_output_file_name)
+        print 'Writing new data to: "{0:s}"...'.format(this_file_name)
         tracking_io.write_processed_file(
             storm_object_table=storm_object_table.loc[
                 storm_object_table[tracking_utils.TIME_COLUMN] ==
                 this_time_unix_sec
-                ],
-            pickle_file_name=this_output_file_name
+            ],
+            pickle_file_name=this_file_name
         )
 
 
 def _shuffle_tracking_data(
-        tracking_file_names_by_date, valid_times_by_date_unix_sec,
-        storm_object_table_by_date, current_date_index, top_output_dir_name):
-    """Shuffles tracking data into and out of memory.
+        storm_object_table_by_date, tracking_file_names_by_date,
+        valid_times_by_date_unix_sec, current_date_index, top_output_dir_name):
+    """Shuffles data into and out of memory.
 
-    D = number of SPC dates
+    T = number of SPC dates
 
-    :param tracking_file_names_by_date: See doc for `_find_input_tracking_files`.
+    :param storm_object_table_by_date: length-T list of pandas DataFrames.  If
+        data for the [i]th date are currently out of memory,
+        storm_object_table_by_date[i] = None.  If data for the [i]th date are
+        currently in memory, storm_object_table_by_date[i] has columns listed in
+        `storm_tracking_io.write_processed_file`.
+    :param tracking_file_names_by_date: See doc for
+        `_find_input_tracking_files`.
     :param valid_times_by_date_unix_sec: Same.
-    :param storm_object_table_by_date: length-D list of pandas DataFrames.  Each
-        item is either an empty DataFrame or one containing the columns listed
-        in `storm_tracking_io.write_processed_file`.
-    :param current_date_index: Index of current SPC date.  Must be in
-        0...(D - 1).
-    :param top_output_dir_name: See doc for `_write_storm_objects`.
+    :param current_date_index: Index of date currently being processed.  Must be
+        in range 0...(T - 1).
+    :param top_output_dir_name: Name of top-level output directory.  See doc for
+        `_write_new_tracks`.
     :return: storm_object_table_by_date: Same as input, except that different
-        items are empty, because data have been shuffled.
+        items are in memory.
     """
 
     num_spc_dates = len(tracking_file_names_by_date)
 
-    # Write tracks that are no longer needed in memory.
+    # Shuffle data out of memory.
     if current_date_index == num_spc_dates:
         for j in [num_spc_dates - 2, num_spc_dates - 1]:
             if j < 0:
                 continue
 
-            _write_storm_objects(
+            _write_new_tracks(
                 storm_object_table=storm_object_table_by_date[j],
                 top_output_dir_name=top_output_dir_name,
-                output_times_unix_sec=valid_times_by_date_unix_sec[j])
+                valid_times_unix_sec=valid_times_by_date_unix_sec[j]
+            )
 
             print '\n'
             storm_object_table_by_date[j] = pandas.DataFrame()
@@ -1749,17 +1790,18 @@ def _shuffle_tracking_data(
         return storm_object_table_by_date
 
     if current_date_index >= 2:
-        _write_storm_objects(
+        _write_new_tracks(
             storm_object_table=storm_object_table_by_date[
                 current_date_index - 2],
             top_output_dir_name=top_output_dir_name,
-            output_times_unix_sec=valid_times_by_date_unix_sec[
-                current_date_index - 2])
-        print '\n'
+            valid_times_unix_sec=valid_times_by_date_unix_sec[
+                current_date_index - 2]
+        )
 
+        print '\n'
         storm_object_table_by_date[current_date_index - 2] = pandas.DataFrame()
 
-    # Read tracks that are now needed in memory.
+    # Shuffle data into memory.
     for j in [current_date_index - 1, current_date_index,
               current_date_index + 1]:
 
@@ -1769,41 +1811,34 @@ def _shuffle_tracking_data(
             continue
 
         storm_object_table_by_date[j] = tracking_io.read_many_processed_files(
-            tracking_file_names_by_date[j])
+            tracking_file_names_by_date[j]
+        )
         print '\n'
 
     return storm_object_table_by_date
 
 
 def _reanalyze_tracks(
-        storm_object_table, max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
-        max_extrap_error_m_s01=DEFAULT_MAX_JOIN_DISTANCE_M_S01):
-    """Joins pairs of tracks that are spatiotemporally nearby.
+        storm_object_table, max_join_time_sec, max_join_error_m_s01):
+    """Reanalyzes storm tracks.
 
-    This method is similar to the "reanalysis" discussed in Haberlie and Ashley
-    (2018).
+    Specifically, joins pairs of tracks that are spatiotemporally nearby.
 
     :param storm_object_table: pandas DataFrame with the following columns.
-    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.storm_id: Storm ID (string).
     storm_object_table.unix_time_sec: Valid time.
-    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
-    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of centroid.
 
-    :param max_join_time_sec: Max time gap between two tracks (i.e., between the
-        end of the early track and beginning of the late track).  If time
-        elapsed > `max_join_time_sec`, the tracks cannot be joined.
-    :param max_extrap_error_m_s01: Max error (metres per second) incurred by
-        extrapolating early track from t_1_end to t_2_start, where t_1_end = end
-        time of early track and t_2_start = start time of late track.
-    :return: storm_object_table: Same as input, except that some storm IDs may
-        have changed.
+    :param max_join_time_sec: See doc for `_find_nearby_tracks`.
+    :param max_join_error_m_s01: Same.
+    :return: storm_object_table: Same as input, except that some IDs may be
+        different.
     """
 
-    # Convert table of storm objects to table of storm tracks.
     storm_track_table = _storm_objects_to_tracks(storm_object_table)
 
-    # Initialize variables.
-    track_removed_ids = []
+    storm_ids_removed = []
     num_storm_tracks = len(storm_track_table.index)
 
     for i in range(num_storm_tracks):
@@ -1811,24 +1846,22 @@ def _reanalyze_tracks(
             print 'Have reanalyzed {0:d} of {1:d} tracks...'.format(
                 i, num_storm_tracks)
 
-        # If this track has been removed (joined with another), skip it.
         this_storm_id = storm_track_table[
             tracking_utils.STORM_ID_COLUMN].values[i]
-        if this_storm_id in track_removed_ids:
+        if this_storm_id in storm_ids_removed:
             continue
 
         while True:
-
-            # Find other tracks that end shortly before the [i]th track starts.
             these_nearby_indices = _find_nearby_tracks(
                 storm_track_table=storm_track_table,
                 late_track_id=this_storm_id,
                 max_time_diff_seconds=max_join_time_sec,
-                max_extrap_error_m_s01=max_extrap_error_m_s01)
+                max_join_error_m_s01=max_join_error_m_s01)
+
             if these_nearby_indices is None:
                 break
 
-            # Assign each storm object from nearby track to [i]th track.
+            # Change ID of first nearby track.
             this_nearby_index = these_nearby_indices[0]
             this_nearby_storm_id = storm_track_table[
                 tracking_utils.STORM_ID_COLUMN].values[this_nearby_index]
@@ -1838,13 +1871,15 @@ def _reanalyze_tracks(
                     this_nearby_storm_id: this_storm_id
                 }
             }
+
             storm_object_table.replace(
                 to_replace=this_replacement_dict, inplace=True)
 
             # Housekeeping.
-            track_removed_ids.append(this_nearby_storm_id)
+            storm_ids_removed.append(this_nearby_storm_id)
             storm_track_table[END_TIME_COLUMN].values[
                 this_nearby_index] = DUMMY_TIME_UNIX_SEC
+
             storm_track_table = _storm_objects_to_tracks(
                 storm_object_table=storm_object_table,
                 storm_track_table=storm_track_table,
@@ -2095,10 +2130,10 @@ def run_tracking(
         e_folding_radius_metres=DEFAULT_VELOCITY_EFOLD_RADIUS_METRES)
 
     print SEPARATOR_STRING
-    _write_storm_objects(
+    _write_new_tracks(
         storm_object_table=storm_object_table,
         top_output_dir_name=top_output_dir_name,
-        output_times_unix_sec=valid_times_unix_sec)
+        valid_times_unix_sec=valid_times_unix_sec)
 
 
 def reanalyze_across_spc_dates(
@@ -2109,7 +2144,7 @@ def reanalyze_across_spc_dates(
         max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
-        max_join_distance_m_s01=DEFAULT_MAX_JOIN_DISTANCE_M_S01,
+        max_join_ERROR_m_s01=DEFAULT_MAX_JOIN_ERROR_M_S01,
         min_track_duration_seconds=890,
         num_points_back_for_velocity=DEFAULT_NUM_POINTS_FOR_VELOCITY):
     """Reanalyzes tracks across SPC dates.
@@ -2133,7 +2168,7 @@ def reanalyze_across_spc_dates(
     :param max_velocity_diff_m_s01: Same.
     :param max_link_distance_m_s01: Same.
     :param max_join_time_sec: See doc for `_reanalyze_tracks`.
-    :param max_join_distance_m_s01: Same.
+    :param max_join_ERROR_m_s01: Same.
     :param min_track_duration_seconds: See doc for `_remove_short_lived_tracks`.
     :param num_points_back_for_velocity: See doc for `_get_final_velocities`.
     """
@@ -2184,7 +2219,7 @@ def reanalyze_across_spc_dates(
         storm_object_table = _reanalyze_tracks(
             storm_object_table=storm_object_table,
             max_join_time_sec=max_join_time_sec,
-            max_extrap_error_m_s01=max_join_distance_m_s01)
+            max_join_error_m_s01=max_join_ERROR_m_s01)
         print SEPARATOR_STRING
 
         print 'Removing tracks that last < {0:d} seconds...'.format(
@@ -2208,10 +2243,10 @@ def reanalyze_across_spc_dates(
             num_points_back=num_points_back_for_velocity,
             e_folding_radius_metres=DEFAULT_VELOCITY_EFOLD_RADIUS_METRES)
 
-        _write_storm_objects(
+        _write_new_tracks(
             storm_object_table=storm_object_table,
             top_output_dir_name=top_output_dir_name,
-            output_times_unix_sec=valid_times_by_date_unix_sec[0])
+            valid_times_unix_sec=valid_times_by_date_unix_sec[0])
         return
 
     storm_object_table_by_date = [pandas.DataFrame()] * num_spc_dates
@@ -2251,7 +2286,7 @@ def reanalyze_across_spc_dates(
             concat_storm_object_table = _reanalyze_tracks(
                 storm_object_table=concat_storm_object_table,
                 max_join_time_sec=max_join_time_sec,
-                max_extrap_error_m_s01=max_join_distance_m_s01)
+                max_join_error_m_s01=max_join_ERROR_m_s01)
             print MINOR_SEPARATOR_STRING
 
             storm_object_table_by_date[i] = concat_storm_object_table.loc[
