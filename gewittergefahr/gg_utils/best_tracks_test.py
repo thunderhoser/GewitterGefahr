@@ -371,7 +371,7 @@ class BestTracksTests(unittest.TestCase):
     def test_get_theil_sen_error_one_track(self):
         """Ensures correct output for _get_theil_sen_error_one_track."""
 
-        this_rmse_metres = best_tracks._get_theil_sen_error_one_track(
+        this_rmse_metres = best_tracks.get_theil_sen_error_one_track(
             storm_track_table=ONE_TRACK_TABLE_NOISY, storm_track_index=0)
         self.assertTrue(numpy.isclose(
             this_rmse_metres, ONE_TRACK_RMSE_METRES, atol=TOLERANCE))
