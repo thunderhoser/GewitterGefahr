@@ -438,7 +438,9 @@ def find_many_raw_files(
     field_name_by_pair, height_by_pair_m_asl = (
         myrorss_and_mrms_utils.fields_and_refl_heights_to_pairs(
             field_names=field_names, data_source=data_source,
-            refl_heights_m_asl=reflectivity_heights_m_asl))
+            refl_heights_m_asl=reflectivity_heights_m_asl)
+    )
+
     num_fields = len(field_name_by_pair)
 
     error_checking.assert_is_integer_numpy_array(desired_times_unix_sec)
@@ -457,11 +459,20 @@ def find_many_raw_files(
 
     time_matrix = numpy.hstack((
         numpy.reshape(desired_times_unix_sec, (num_times, 1)),
-        numpy.reshape(spc_dates_unix_sec, (num_times, 1))))
+        numpy.reshape(spc_dates_unix_sec, (num_times, 1))
+    ))
+
     unique_time_matrix = numpy.vstack(
-        {tuple(this_row) for this_row in time_matrix}).astype(int)
+        {tuple(this_row) for this_row in time_matrix}
+    ).astype(int)
+
     unique_times_unix_sec = unique_time_matrix[:, 0]
     spc_dates_at_unique_times_unix_sec = unique_time_matrix[:, 1]
+
+    sort_indices = numpy.argsort(unique_times_unix_sec)
+    unique_times_unix_sec = unique_times_unix_sec[sort_indices]
+    spc_dates_at_unique_times_unix_sec = spc_dates_at_unique_times_unix_sec[
+        sort_indices]
 
     num_unique_times = len(unique_times_unix_sec)
     radar_file_name_matrix = numpy.full(

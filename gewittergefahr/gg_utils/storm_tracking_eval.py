@@ -20,9 +20,9 @@ MAX_LINEARITY_ERROR_METRES = 1e5
 
 DURATIONS_KEY = 'track_durations_sec'
 LINEARITY_ERRORS_KEY = 'track_linearity_errors_metres'
-MISMATCH_ERRORS_KEY = 'track_mismatch_errors_metres'
+MISMATCH_ERRORS_KEY = 'track_mismatch_errors'
 MEAN_LINEARITY_ERROR_KEY = 'mean_linearity_error_metres'
-MEAN_MISMATCH_ERROR_KEY = 'mean_mismatch_error_metres'
+MEAN_MISMATCH_ERROR_KEY = 'mean_mismatch_error'
 RADAR_FIELD_KEY = 'radar_field_name'
 
 REQUIRED_KEYS = [
@@ -69,15 +69,15 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
     evaluation_dict['track_linearity_errors_metres']: length-T numpy array of
         linearity errors.  The "linearity error" for one track is the RMSE
         (root mean square error) of Theil-Sen estimates over all time steps.
-    evaluation_dict['track_mismatch_errors_metres']: length-T numpy array of
-        mismatch errors.  The "mismatch error" is the standard deviation of X
-        over all time steps, where X = median value of `radar_field_name` inside
-        the storm.
+    evaluation_dict['track_mismatch_errors']: length-T numpy array of mismatch
+        errors.  The "mismatch error" is the standard deviation of X over all
+        time steps, where X = median value of `radar_field_name` inside the
+        storm.
     evaluation_dict['mean_linearity_error_metres']: Mean linearity error.  This
         is the mean of trackwise linearity errors for tracks with duration >=
         median duration.
-    evaluation_dict['mean_mismatch_error_metres']: Mean mismatch error.  This is
-        the mean of trackwise mismatch errors for tracks with duration >= median
+    evaluation_dict['mean_mismatch_error']: Mean mismatch error.  This is the
+        mean of trackwise mismatch errors for tracks with duration >= median
         duration.
     evaluation_dict['radar_field_name']: Same as input (metadata).
     """
@@ -157,7 +157,7 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
         radar_height_m_asl=radar_height_m_asl, percentile_level=50.)
 
     median_by_storm_object = radar_statistic_table[median_column_name]
-    track_mismatch_errors_metres = numpy.full(num_tracks, numpy.nan)
+    track_mismatch_errors = numpy.full(num_tracks, numpy.nan)
 
     for i in range(num_tracks):
         these_object_indices = storm_track_table[
@@ -166,22 +166,22 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
         if len(these_object_indices) < 2:
             continue
 
-        track_mismatch_errors_metres[i] = numpy.std(
+        track_mismatch_errors[i] = numpy.std(
             median_by_storm_object[these_object_indices], ddof=1)
 
-    mean_mismatch_error_metres = numpy.nanmean(
-        track_mismatch_errors_metres[long_track_indices]
+    mean_mismatch_error = numpy.nanmean(
+        track_mismatch_errors[long_track_indices]
     )
 
-    print 'Mean mismatch error = {0:.1f} metres'.format(
-        mean_mismatch_error_metres)
+    print 'Mean mismatch error = {0:.4e} units of "{1:s}"'.format(
+        mean_mismatch_error, radar_field_name)
 
     return {
         DURATIONS_KEY: track_durations_sec.astype(int),
         LINEARITY_ERRORS_KEY: track_linearity_errors_metres,
-        MISMATCH_ERRORS_KEY: track_mismatch_errors_metres,
+        MISMATCH_ERRORS_KEY: track_mismatch_errors,
         MEAN_LINEARITY_ERROR_KEY: mean_linearity_error_metres,
-        MEAN_MISMATCH_ERROR_KEY: mean_mismatch_error_metres,
+        MEAN_MISMATCH_ERROR_KEY: mean_mismatch_error,
         RADAR_FIELD_KEY: radar_field_name
     }
 
