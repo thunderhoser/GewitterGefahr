@@ -82,9 +82,11 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
     evaluation_dict['radar_field_name']: Same as input (metadata).
     """
 
+    print 'Projecting storm centroids from lat-long to x-y coords...'
     storm_object_table = best_tracks.project_centroids_latlng_to_xy(
         storm_object_table)
 
+    print 'Finding storm tracks in list of storm objects...'
     storm_track_table = best_tracks.storm_objects_to_tracks(storm_object_table)
 
     storm_track_table = best_tracks.theil_sen_fit_many_tracks(
