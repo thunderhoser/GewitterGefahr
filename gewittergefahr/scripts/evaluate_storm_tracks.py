@@ -104,6 +104,11 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             spc_date_string=this_spc_date_string, raise_error_if_missing=False
         )[0]
 
+        print these_file_names
+
+        if len(these_file_names) == 0:
+            continue
+
         this_storm_object_table = tracking_io.read_many_processed_files(
             these_file_names
         )[REQUIRED_COLUMNS]
