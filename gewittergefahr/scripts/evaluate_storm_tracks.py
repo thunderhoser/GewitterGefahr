@@ -1,6 +1,7 @@
 """Evaluates a set of storm tracks."""
 
 import argparse
+import numpy
 import pandas
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
@@ -104,8 +105,6 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             spc_date_string=this_spc_date_string, raise_error_if_missing=False
         )[0]
 
-        print these_file_names
-
         if len(these_file_names) == 0:
             continue
 
@@ -128,6 +127,16 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     print SEPARATOR_STRING
     storm_object_table = pandas.concat(
         list_of_storm_object_tables, axis=0, ignore_index=True)
+
+    valid_times_unix_sec = storm_object_table[tracking_utils.TIME_COLUMN].values
+
+    spc_dates_unix_sec = numpy.array([
+        time_conversion.time_to_spc_date_unix_sec(t)
+        for t in valid_times_unix_sec
+    ], dtype=int)
+
+    argument_dict = {tracking_utils.SPC_DATE_COLUMN: spc_dates_unix_sec}
+    storm_object_table = storm_object_table.assign(**argument_dict)
 
     evaluation_dict = tracking_eval.evaluate_tracks(
         storm_object_table=storm_object_table,
