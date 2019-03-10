@@ -17,6 +17,8 @@ from gewittergefahr.gg_utils import file_system_utils
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 MAX_LINEARITY_ERROR_METRES = 1e5
+DURATION_PERCENTILE_LEVELS = numpy.array(
+    [5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99, 100], dtype=int)
 
 DURATIONS_KEY = 'track_durations_sec'
 LINEARITY_ERRORS_KEY = 'track_linearity_errors_metres'
@@ -89,6 +91,7 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
     print 'Finding storm tracks in list of storm objects...'
     storm_track_table = best_tracks.storm_objects_to_tracks(storm_object_table)
 
+    print SEPARATOR_STRING
     storm_track_table = best_tracks.theil_sen_fit_many_tracks(
         storm_track_table=storm_track_table, verbose=True)
     print SEPARATOR_STRING
@@ -98,6 +101,14 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
         storm_track_table[best_tracks.TRACK_END_TIME_COLUMN].values -
         storm_track_table[best_tracks.TRACK_START_TIME_COLUMN].values
     ).astype(float)
+
+    for this_percentile_level in DURATION_PERCENTILE_LEVELS:
+        this_percentile_sec = numpy.percentile(
+            track_durations_sec, float(this_percentile_level)
+        )
+
+        print '{0:d}th percentile of track durations = {1:.1f} seconds'.format(
+            this_percentile_level, this_percentile_sec)
 
     median_duration_sec = numpy.median(
         track_durations_sec[track_durations_sec != 0]
@@ -109,6 +120,8 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
     # Compute linearity error for each track.
     num_tracks = len(storm_track_table.index)
     track_linearity_errors_metres = numpy.full(num_tracks, numpy.nan)
+
+    print SEPARATOR_STRING
 
     for i in range(num_tracks):
         if numpy.mod(i, 50) == 0:
