@@ -620,15 +620,15 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
                 valid_time_strings[i]
             )
 
+            this_metadata_dict = (
+                myrorss_and_mrms_io.read_metadata_from_raw_file(
+                    radar_file_name_matrix[i, j], data_source=radar_source)
+            )
+
             if radar_metadata_dict_for_tracking is None:
                 this_storm_to_grid_points_table = storm_object_table[
                     STORM_OBJECT_TO_GRID_PTS_COLUMNS]
             else:
-                this_metadata_dict = (
-                    myrorss_and_mrms_io.read_metadata_from_raw_file(
-                        radar_file_name_matrix[i, j], data_source=radar_source)
-                )
-
                 this_storm_to_grid_points_table = (
                     get_grid_points_in_storm_objects(
                         storm_object_table=storm_object_table,
