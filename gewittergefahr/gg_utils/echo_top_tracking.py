@@ -1016,45 +1016,6 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
     return pandas.DataFrame.from_dict(storm_object_dict)
 
 
-def _remove_short_lived_tracks(storm_object_table, min_duration_seconds):
-    """Removes short-lived storm tracks.
-
-    :param storm_object_table: pandas DataFrame created by
-        `_local_maxima_to_storm_tracks`.
-    :param min_duration_seconds: Minimum duration.
-    :return: storm_object_table: Same as input but maybe with fewer rows.
-    """
-
-    all_storm_ids = numpy.array(
-        storm_object_table[tracking_utils.STORM_ID_COLUMN].values
-    )
-
-    unique_storm_ids, orig_to_unique_indices = numpy.unique(
-        all_storm_ids, return_inverse=True)
-
-    num_storm_cells = len(unique_storm_ids)
-    object_indices_to_remove = numpy.array([], dtype=int)
-
-    for i in range(num_storm_cells):
-        these_object_indices = numpy.where(orig_to_unique_indices == i)[0]
-        these_times_unix_sec = storm_object_table[
-            tracking_utils.TIME_COLUMN].values[these_object_indices]
-
-        this_duration_seconds = (
-            numpy.max(these_times_unix_sec) - numpy.min(these_times_unix_sec)
-        )
-        if this_duration_seconds >= min_duration_seconds:
-            continue
-
-        object_indices_to_remove = numpy.concatenate((
-            object_indices_to_remove, these_object_indices
-        ))
-
-    return storm_object_table.drop(
-        storm_object_table.index[object_indices_to_remove], axis=0,
-        inplace=False)
-
-
 def _get_final_velocities_one_track(
         centroid_latitudes_deg, centroid_longitudes_deg, valid_times_unix_sec,
         num_points_back):
@@ -1951,6 +1912,48 @@ def _latlng_velocities_to_xy(
             new_y_coords_metres - y_coords_metres)
 
 
+def remove_short_lived_tracks(storm_object_table, min_duration_seconds):
+    """Removes short-lived storm tracks.
+
+    :param storm_object_table: pandas DataFrame created by
+        `_local_maxima_to_storm_tracks`.
+    :param min_duration_seconds: Minimum duration.
+    :return: storm_object_table: Same as input but maybe with fewer rows.
+    """
+
+    error_checking.assert_is_integer(min_duration_seconds)
+    error_checking.assert_is_greater(min_duration_seconds, 0)
+
+    all_storm_ids = numpy.array(
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values
+    )
+
+    unique_storm_ids, orig_to_unique_indices = numpy.unique(
+        all_storm_ids, return_inverse=True)
+
+    num_storm_cells = len(unique_storm_ids)
+    object_indices_to_remove = numpy.array([], dtype=int)
+
+    for i in range(num_storm_cells):
+        these_object_indices = numpy.where(orig_to_unique_indices == i)[0]
+        these_times_unix_sec = storm_object_table[
+            tracking_utils.TIME_COLUMN].values[these_object_indices]
+
+        this_duration_seconds = (
+            numpy.max(these_times_unix_sec) - numpy.min(these_times_unix_sec)
+        )
+        if this_duration_seconds >= min_duration_seconds:
+            continue
+
+        object_indices_to_remove = numpy.concatenate((
+            object_indices_to_remove, these_object_indices
+        ))
+
+    return storm_object_table.drop(
+        storm_object_table.index[object_indices_to_remove], axis=0,
+        inplace=False)
+
+
 def run_tracking(
         top_radar_dir_name, top_output_dir_name, first_spc_date_string,
         last_spc_date_string, first_time_unix_sec=None, last_time_unix_sec=None,
@@ -1993,7 +1996,7 @@ def run_tracking(
     :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
     :param max_velocity_diff_m_s01: Same.
     :param max_link_distance_m_s01: Same.
-    :param min_track_duration_seconds: See doc for `_remove_short_lived_tracks`.
+    :param min_track_duration_seconds: See doc for `remove_short_lived_tracks`.
     :param num_points_back_for_velocity: See doc for `_get_final_velocities`.
     """
 
@@ -2173,7 +2176,7 @@ def run_tracking(
     print 'Removing tracks that last < {0:d} seconds...'.format(
         int(min_track_duration_seconds)
     )
-    storm_object_table = _remove_short_lived_tracks(
+    storm_object_table = remove_short_lived_tracks(
         storm_object_table=storm_object_table,
         min_duration_seconds=min_track_duration_seconds)
 
@@ -2231,7 +2234,7 @@ def reanalyze_across_spc_dates(
     :param max_link_distance_m_s01: Same.
     :param max_join_time_sec: See doc for `_reanalyze_tracks`.
     :param max_join_error_m_s01: Same.
-    :param min_track_duration_seconds: See doc for `_remove_short_lived_tracks`.
+    :param min_track_duration_seconds: See doc for `remove_short_lived_tracks`.
     :param num_points_back_for_velocity: See doc for `_get_final_velocities`.
     """
 
@@ -2287,7 +2290,7 @@ def reanalyze_across_spc_dates(
         print 'Removing tracks that last < {0:d} seconds...'.format(
             int(min_track_duration_seconds)
         )
-        storm_object_table = _remove_short_lived_tracks(
+        storm_object_table = remove_short_lived_tracks(
             storm_object_table=storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 
@@ -2392,7 +2395,7 @@ def reanalyze_across_spc_dates(
         print 'Removing tracks that last < {0:d} seconds...'.format(
             int(min_track_duration_seconds)
         )
-        concat_storm_object_table = _remove_short_lived_tracks(
+        concat_storm_object_table = remove_short_lived_tracks(
             storm_object_table=concat_storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 

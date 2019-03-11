@@ -24,7 +24,7 @@ OUTPUT_DIR_ARG_NAME = 'output_tracking_dir_name'
 INPUT_DIR_HELP_STRING = (
     'Name of top-level directory with original tracks (before reanalysis).  '
     'Files therein will be found by `storm_tracking_io.find_processed_file` and'
-    ' read `storm_tracking_io.read_processed_file`.')
+    ' read by `storm_tracking_io.read_processed_file`.')
 
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  Tracks will be reanalyzed for the period '

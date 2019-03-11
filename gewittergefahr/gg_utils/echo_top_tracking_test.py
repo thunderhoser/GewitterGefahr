@@ -311,7 +311,7 @@ STORM_OBJECT_DICT = {
 
 STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(STORM_OBJECT_DICT)
 
-# The following constants are used to test _remove_short_lived_tracks.
+# The following constants are used to test remove_short_lived_tracks.
 SHORT_MIN_LIFETIME_SEC = 100
 LONG_MIN_LIFETIME_SEC = 1000
 
@@ -819,26 +819,26 @@ class EchoTopTrackingTests(unittest.TestCase):
         self.assertTrue(this_storm_object_table.equals(STORM_OBJECT_TABLE))
 
     def test_remove_short_lived_tracks_short_threshold(self):
-        """Ensures correct output from _remove_short_lived_tracks.
+        """Ensures correct output from remove_short_lived_tracks.
 
         In this case, minimum track duration is short, so all tracks should be
         kept.
         """
 
-        this_storm_object_table = echo_top_tracking._remove_short_lived_tracks(
+        this_storm_object_table = echo_top_tracking.remove_short_lived_tracks(
             storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE),
             min_duration_seconds=SHORT_MIN_LIFETIME_SEC)
 
         self.assertTrue(this_storm_object_table.equals(STORM_OBJECT_TABLE))
 
     def test_remove_short_lived_tracks_long_threshold(self):
-        """Ensures correct output from _remove_short_lived_tracks.
+        """Ensures correct output from remove_short_lived_tracks.
 
         In this case, minimum track duration is long, so all tracks should be
         removed.
         """
 
-        this_storm_object_table = echo_top_tracking._remove_short_lived_tracks(
+        this_storm_object_table = echo_top_tracking.remove_short_lived_tracks(
             storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE),
             min_duration_seconds=LONG_MIN_LIFETIME_SEC)
 
