@@ -4,19 +4,17 @@ import argparse
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import echo_top_tracking
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import linkage
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-SPC_DATE_ARG_NAME = 'spc_date_string'
 WIND_DIR_ARG_NAME = 'input_wind_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 TRACKING_SCALE_ARG_NAME = 'tracking_scale_metres2'
+FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
+LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
-
-SPC_DATE_HELP_STRING = (
-    'SPC date (format "yyyymmdd").  Each storm cell on this day will be linked '
-    'to zero or more wind observations.')
 
 WIND_DIR_HELP_STRING = (
     'Name of top-level wind directory.  Files therein will be found by '
@@ -32,6 +30,11 @@ TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum object area).  Used to find files in `{0:s}`.'
 ).format(TRACKING_DIR_ARG_NAME)
 
+SPC_DATE_HELP_STRING = (
+    'SPC date (format "yyyymmdd").  This script will operate *independently* on'
+    ' each day in `{0:s}`...`{1:s}`.'
+).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level directory for linkage files.  Files will be written by '
     '`linkage.write_linkage_file`, to locations therein determined by '
@@ -41,10 +44,6 @@ TOP_WIND_DIR_NAME_DEFAULT = (
     '/condo/swatwork/ralager/wind_observations/processed')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
-INPUT_ARG_PARSER.add_argument(
-    '--' + SPC_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
 INPUT_ARG_PARSER.add_argument(
     '--' + WIND_DIR_ARG_NAME, type=str, required=False,
     default=TOP_WIND_DIR_NAME_DEFAULT, help=WIND_DIR_HELP_STRING)
@@ -59,53 +58,76 @@ INPUT_ARG_PARSER.add_argument(
     help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_SPC_DATE_ARG_NAME, type=str, required=True,
+    help=SPC_DATE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAST_SPC_DATE_ARG_NAME, type=str, required=True,
+    help=SPC_DATE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _run(spc_date_string, top_wind_dir_name, top_tracking_dir_name,
-         tracking_scale_metres2, top_output_dir_name):
+def _run(top_wind_dir_name, top_tracking_dir_name, tracking_scale_metres2,
+         first_spc_date_string, last_spc_date_string, top_output_dir_name):
     """Runs `linkage.link_winds_to_storms`.
 
     This is effectively the main method.
 
-    :param spc_date_string: See documentation at top of file.
-    :param top_wind_dir_name: Same.
+    :param top_wind_dir_name: See documentation at top of file.
     :param top_tracking_dir_name: Same.
     :param tracking_scale_metres2: Same.
+    :param first_spc_date_string: Same.
+    :param last_spc_date_string: Same.
     :param top_output_dir_name: Same.
     """
 
-    tracking_file_names, _ = tracking_io.find_processed_files_one_spc_date(
-        spc_date_string=spc_date_string,
-        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-        top_processed_dir_name=top_tracking_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2,
-        raise_error_if_missing=True)
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string)
 
-    storm_to_winds_table = linkage.link_storms_to_winds(
-        tracking_file_names=tracking_file_names,
-        top_wind_directory_name=top_wind_dir_name)
-    print SEPARATOR_STRING
+    for this_spc_date_string in spc_date_strings:
+        these_tracking_file_names = (
+            tracking_io.find_processed_files_one_spc_date(
+                spc_date_string=this_spc_date_string,
+                data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+                top_processed_dir_name=top_tracking_dir_name,
+                tracking_scale_metres2=tracking_scale_metres2,
+                raise_error_if_missing=False
+            )[0]
+        )
 
-    output_file_name = linkage.find_linkage_file(
-        top_directory_name=top_output_dir_name,
-        event_type_string=linkage.WIND_EVENT_STRING,
-        spc_date_string=spc_date_string, raise_error_if_missing=False)
+        if len(these_tracking_file_names) == 0:
+            continue
 
-    print 'Writing linkages to: "{0:s}"...'.format(output_file_name)
-    linkage.write_linkage_file(storm_to_events_table=storm_to_winds_table,
-                               pickle_file_name=output_file_name)
+        this_storm_to_winds_table = linkage.link_storms_to_winds(
+            tracking_file_names=these_tracking_file_names,
+            top_wind_directory_name=top_wind_dir_name)
+        print SEPARATOR_STRING
+
+        this_output_file_name = linkage.find_linkage_file(
+            top_directory_name=top_output_dir_name,
+            event_type_string=linkage.WIND_EVENT_STRING,
+            spc_date_string=this_spc_date_string, raise_error_if_missing=False)
+
+        print 'Writing linkages to: "{0:s}"...'.format(this_output_file_name)
+        linkage.write_linkage_file(
+            storm_to_events_table=this_storm_to_winds_table,
+            pickle_file_name=this_output_file_name)
 
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
         top_wind_dir_name=getattr(INPUT_ARG_OBJECT, WIND_DIR_ARG_NAME),
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
         tracking_scale_metres2=getattr(
             INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME),
+        first_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, FIRST_SPC_DATE_ARG_NAME),
+        last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
