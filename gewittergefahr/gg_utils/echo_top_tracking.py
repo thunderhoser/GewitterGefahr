@@ -2300,6 +2300,24 @@ def reanalyze_across_spc_dates(
             max_join_time_sec=max_join_time_sec)
 
         print 'Recomputing storm velocities...'
+
+        these_x_coords_metres, these_y_coords_metres = (
+            projections.project_latlng_to_xy(
+                latitudes_deg=storm_object_table[
+                    tracking_utils.CENTROID_LAT_COLUMN].values,
+                longitudes_deg=storm_object_table[
+                    tracking_utils.CENTROID_LNG_COLUMN].values,
+                projection_object=projection_object,
+                false_easting_metres=0., false_northing_metres=0.)
+        )
+
+        argument_dict = {
+            CENTROID_X_COLUMN: these_x_coords_metres,
+            CENTROID_Y_COLUMN: these_y_coords_metres
+        }
+
+        storm_object_table = storm_object_table.assign(**argument_dict)
+
         storm_object_table = _get_final_velocities(
             storm_object_table=storm_object_table,
             num_points_back=num_points_back_for_velocity,
@@ -2387,6 +2405,28 @@ def reanalyze_across_spc_dates(
             max_join_time_sec=max_join_time_sec)
 
         print 'Recomputing storm velocities...'
+
+        # TODO(thunderhoser): There is probably a more efficient way to add x-y
+        # coords.
+
+        these_x_coords_metres, these_y_coords_metres = (
+            projections.project_latlng_to_xy(
+                latitudes_deg=concat_storm_object_table[
+                    tracking_utils.CENTROID_LAT_COLUMN].values,
+                longitudes_deg=concat_storm_object_table[
+                    tracking_utils.CENTROID_LNG_COLUMN].values,
+                projection_object=projection_object,
+                false_easting_metres=0., false_northing_metres=0.)
+        )
+
+        argument_dict = {
+            CENTROID_X_COLUMN: these_x_coords_metres,
+            CENTROID_Y_COLUMN: these_y_coords_metres
+        }
+
+        concat_storm_object_table = concat_storm_object_table.assign(
+            **argument_dict)
+
         concat_storm_object_table = _get_final_velocities(
             storm_object_table=concat_storm_object_table,
             num_points_back=num_points_back_for_velocity,
