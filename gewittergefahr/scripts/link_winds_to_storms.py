@@ -102,10 +102,14 @@ def _run(top_wind_dir_name, top_tracking_dir_name, tracking_scale_metres2,
         if len(these_tracking_file_names) == 0:
             continue
 
-        this_storm_to_winds_table = linkage.link_storms_to_winds(
-            tracking_file_names=these_tracking_file_names,
-            top_wind_directory_name=top_wind_dir_name)
-        print SEPARATOR_STRING
+        try:
+            this_storm_to_winds_table = linkage.link_storms_to_winds(
+                tracking_file_names=these_tracking_file_names,
+                top_wind_directory_name=top_wind_dir_name)
+            print SEPARATOR_STRING
+        except:
+            print SEPARATOR_STRING
+            continue
 
         this_output_file_name = linkage.find_linkage_file(
             top_directory_name=top_output_dir_name,
