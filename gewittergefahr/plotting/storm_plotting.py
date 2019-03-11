@@ -15,6 +15,7 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
+COLOUR_BAR_FONT_SIZE = 25
 COLOUR_BAR_TIME_FORMAT = '%H%M %-d %b'
 
 DEFAULT_TRACK_COLOUR = numpy.full(3, 0.)
@@ -491,7 +492,8 @@ def plot_storm_tracks(
         values_to_colour=storm_object_table[tracking_utils.TIME_COLUMN].values,
         colour_map=colour_map_object, colour_min=colour_norm_object.vmin,
         colour_max=colour_norm_object.vmax, orientation=orientation_string,
-        extend_min=False, extend_max=False, fraction_of_axis_length=0.9)
+        extend_min=False, extend_max=False, fraction_of_axis_length=0.9,
+        font_size=COLOUR_BAR_FONT_SIZE)
 
     tick_times_unix_sec = numpy.round(colour_bar_object.get_ticks()).astype(int)
     tick_time_strings = [
