@@ -92,8 +92,9 @@ def _link_tornadoes_one_period(
         print SEPARATOR_STRING
         return
 
-    spc_date_string = tracking_io.processed_file_name_to_time(
-        tracking_file_names[0])
+    spc_date_string = time_conversion.time_to_spc_date_string(
+        tracking_io.processed_file_name_to_time(tracking_file_names[0])
+    )
 
     output_file_name = linkage.find_linkage_file(
         top_directory_name=top_output_dir_name,
@@ -134,8 +135,6 @@ def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
             data_source=tracking_utils.SEGMOTION_SOURCE_ID,
             spc_date_string=this_spc_date_string, raise_error_if_missing=False
         )[0]
-
-        print this_spc_date_string
 
         if len(these_file_names) == 0:
             _link_tornadoes_one_period(
