@@ -80,9 +80,6 @@ def _link_tornadoes_one_period(
     :param top_output_dir_name: Same.
     """
 
-    print len(tracking_file_names)
-    print '\n\n\n'
-
     if len(tracking_file_names) == 0:
         return
 
@@ -139,6 +136,10 @@ def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
         )[0]
 
         if len(these_file_names) == 0:
+            print this_spc_date_string
+            print len(tracking_file_names)
+            print '\n\n'
+
             _link_tornadoes_one_period(
                 tracking_file_names=tracking_file_names,
                 tornado_dir_name=tornado_dir_name,
