@@ -104,9 +104,7 @@ def _link_tornadoes_one_period(
     linkage.write_linkage_file(
         storm_to_events_table=storm_to_tornadoes_table,
         pickle_file_name=output_file_name)
-
     print SEPARATOR_STRING
-    return
 
 
 def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
@@ -136,6 +134,8 @@ def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
             data_source=tracking_utils.SEGMOTION_SOURCE_ID,
             spc_date_string=this_spc_date_string, raise_error_if_missing=False
         )[0]
+
+        print this_spc_date_string
 
         if len(these_file_names) == 0:
             _link_tornadoes_one_period(
