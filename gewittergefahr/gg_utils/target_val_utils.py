@@ -611,6 +611,14 @@ def create_tornado_targets(
         min_link_distance_metres=min_link_distance_metres,
         max_link_distance_metres=max_link_distance_metres)
 
+    print (
+        'Number of storm objects = {0:d} ... number with positive "{1:s}" label'
+        ' = {2:d}'
+    ).format(
+        len(tornado_classes), target_name,
+        int(numpy.round(numpy.sum(tornado_classes)))
+    )
+
     return storm_to_tornadoes_table.assign(**{target_name: tornado_classes})
 
 

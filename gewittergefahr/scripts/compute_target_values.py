@@ -33,15 +33,18 @@ compute_target_values.py --input_linkage_dir_name="${LINKAGE_DIR_NAME}" \
 --max_link_distances_metres 0 10000 100000
 """
 
+import os.path
 import argparse
 import numpy
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import linkage
 from gewittergefahr.gg_utils import target_val_utils
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
 LINKAGE_DIR_ARG_NAME = 'input_linkage_dir_name'
-SPC_DATE_ARG_NAME = 'spc_date_string'
+FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
+LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 MIN_LEAD_TIMES_ARG_NAME = 'min_lead_times_sec'
 MAX_LEAD_TIMES_ARG_NAME = 'max_lead_times_sec'
 MIN_LINK_DISTANCES_ARG_NAME = 'min_link_distances_metres'
@@ -57,8 +60,9 @@ LINKAGE_DIR_HELP_STRING = (
     '`linkage.read_linkage_file`.')
 
 SPC_DATE_HELP_STRING = (
-    'SPC date (format "yyyymmdd").  Target values will be computed for all '
-    'storm objects on this day.')
+    'SPC date (format "yyyymmdd").  This script will operate *independently* on'
+    ' each day in `{0:s}`...`{1:s}`.'
+).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
 
 MIN_LEAD_TIMES_HELP_STRING = 'List of minimum lead times (one for each window).'
 
@@ -111,7 +115,11 @@ INPUT_ARG_PARSER.add_argument(
     help=LINKAGE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SPC_DATE_ARG_NAME, type=str, required=True,
+    '--' + FIRST_SPC_DATE_ARG_NAME, type=str, required=True,
+    help=SPC_DATE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAST_SPC_DATE_ARG_NAME, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -149,18 +157,18 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _run(top_linkage_dir_name, spc_date_string, min_lead_times_sec,
-         max_lead_times_sec, min_link_distances_metres,
-         max_link_distances_metres, event_type_string,
-         wind_speed_percentile_level, wind_speed_cutoffs_kt,
-         top_output_dir_name):
-    """Computes target value for ea storm object, lead-time window, and buffer.
+def _compute_targets_one_day(
+        storm_to_events_table, spc_date_string, min_lead_times_sec,
+        max_lead_times_sec, min_link_distances_metres,
+        max_link_distances_metres, event_type_string,
+        wind_speed_percentile_level, wind_speed_cutoffs_kt,
+        top_output_dir_name):
+    """Computes target values for one SPC date.
 
-    This is effectively the main method.
-
-    :param top_linkage_dir_name: See documentation at top of file.
-    :param spc_date_string: Same.
-    :param min_lead_times_sec: Same.
+    :param storm_to_events_table: pandas DataFrame returned by
+        `linkage.read_linkage_file`.
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param min_lead_times_sec: See documentation at top of file.
     :param max_lead_times_sec: Same.
     :param min_link_distances_metres: Same.
     :param max_link_distances_metres: Same.
@@ -171,23 +179,7 @@ def _run(top_linkage_dir_name, spc_date_string, min_lead_times_sec,
     """
 
     num_lead_time_windows = len(min_lead_times_sec)
-    error_checking.assert_is_numpy_array(
-        max_lead_times_sec,
-        exact_dimensions=numpy.array([num_lead_time_windows])
-    )
-
     num_distance_buffers = len(min_link_distances_metres)
-    error_checking.assert_is_numpy_array(
-        max_link_distances_metres,
-        exact_dimensions=numpy.array([num_distance_buffers])
-    )
-
-    linkage_file_name = linkage.find_linkage_file(
-        top_directory_name=top_linkage_dir_name,
-        event_type_string=event_type_string, spc_date_string=spc_date_string)
-
-    print 'Reading data from: "{0:s}"...'.format(linkage_file_name)
-    storm_to_events_table = linkage.read_linkage_file(linkage_file_name)
 
     if event_type_string == linkage.WIND_EVENT_STRING:
         list_of_cutoff_arrays_kt = general_utils.split_array_by_nan(
@@ -212,18 +204,19 @@ def _run(top_linkage_dir_name, spc_date_string, min_lead_times_sec,
                         wind_speed_cutoffs_kt=list_of_cutoff_arrays_kt[k])
 
                     target_names.append(this_target_name)
-                    print 'Computing values for "{0:s}"...'.format(
-                        target_names[-1])
+                    print (
+                        'Computing labels for "{0:s}" on SPC date {1:s}...'
+                    ).format(this_target_name, spc_date_string)
 
                     storm_to_events_table = (
                         target_val_utils.create_wind_classification_targets(
                             storm_to_winds_table=storm_to_events_table,
                             min_lead_time_sec=min_lead_times_sec[i],
                             max_lead_time_sec=max_lead_times_sec[i],
-                            min_link_distance_metres=min_link_distances_metres[
-                                j],
-                            max_link_distance_metres=max_link_distances_metres[
-                                j],
+                            min_link_distance_metres=
+                            min_link_distances_metres[j],
+                            max_link_distance_metres=
+                            max_link_distances_metres[j],
                             percentile_level=wind_speed_percentile_level,
                             class_cutoffs_kt=list_of_cutoff_arrays_kt[k])
                     )
@@ -235,18 +228,19 @@ def _run(top_linkage_dir_name, spc_date_string, min_lead_times_sec,
                         max_link_distance_metres=max_link_distances_metres[j])
 
                     target_names.append(this_target_name)
-                    print 'Computing values for "{0:s}"...'.format(
-                        target_names[-1])
+                    print (
+                        'Computing labels for "{0:s}" on SPC date {1:s}...'
+                    ).format(this_target_name, spc_date_string)
 
                     storm_to_events_table = (
                         target_val_utils.create_tornado_targets(
                             storm_to_tornadoes_table=storm_to_events_table,
                             min_lead_time_sec=min_lead_times_sec[i],
                             max_lead_time_sec=max_lead_times_sec[i],
-                            min_link_distance_metres=min_link_distances_metres[
-                                j],
-                            max_link_distance_metres=max_link_distances_metres[
-                                j]
+                            min_link_distance_metres=
+                            min_link_distances_metres[j],
+                            max_link_distance_metres=
+                            max_link_distances_metres[j]
                         )
                     )
 
@@ -261,12 +255,76 @@ def _run(top_linkage_dir_name, spc_date_string, min_lead_times_sec,
         netcdf_file_name=target_file_name)
 
 
+def _run(top_linkage_dir_name, first_spc_date_string, last_spc_date_string,
+         min_lead_times_sec, max_lead_times_sec, min_link_distances_metres,
+         max_link_distances_metres, event_type_string,
+         wind_speed_percentile_level, wind_speed_cutoffs_kt,
+         top_output_dir_name):
+    """Computes target value for ea storm object, lead-time window, and buffer.
+
+    This is effectively the main method.
+
+    :param top_linkage_dir_name: See documentation at top of file.
+    :param first_spc_date_string: Same.
+    :param last_spc_date_string: Same.
+    :param min_lead_times_sec: Same.
+    :param max_lead_times_sec: Same.
+    :param min_link_distances_metres: Same.
+    :param max_link_distances_metres: Same.
+    :param event_type_string: Same.
+    :param wind_speed_percentile_level: Same.
+    :param wind_speed_cutoffs_kt: Same.
+    :param top_output_dir_name: Same.
+    """
+
+    num_lead_time_windows = len(min_lead_times_sec)
+    these_expected_dim = numpy.array([num_lead_time_windows], dtype=int)
+    error_checking.assert_is_numpy_array(
+        max_lead_times_sec, exact_dimensions=these_expected_dim)
+
+    num_distance_buffers = len(min_link_distances_metres)
+    these_expected_dim = numpy.array([num_distance_buffers], dtype=int)
+    error_checking.assert_is_numpy_array(
+        max_link_distances_metres, exact_dimensions=these_expected_dim)
+
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string)
+
+    for this_spc_date_string in spc_date_strings:
+        this_linkage_file_name = linkage.find_linkage_file(
+            top_directory_name=top_linkage_dir_name,
+            event_type_string=event_type_string,
+            spc_date_string=this_spc_date_string, raise_error_if_missing=False)
+
+        if not os.path.isfile(this_linkage_file_name):
+            continue
+
+        print 'Reading data from: "{0:s}"...'.format(this_linkage_file_name)
+        this_storm_to_events_table = linkage.read_linkage_file(
+            this_linkage_file_name)
+
+        _compute_targets_one_day(
+            storm_to_events_table=this_storm_to_events_table,
+            spc_date_string=this_spc_date_string,
+            min_lead_times_sec=min_lead_times_sec,
+            max_lead_times_sec=max_lead_times_sec,
+            min_link_distances_metres=min_link_distances_metres,
+            max_link_distances_metres=max_link_distances_metres,
+            event_type_string=event_type_string,
+            wind_speed_percentile_level=wind_speed_percentile_level,
+            wind_speed_cutoffs_kt=wind_speed_cutoffs_kt,
+            top_output_dir_name=top_output_dir_name)
+
+
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
         top_linkage_dir_name=getattr(INPUT_ARG_OBJECT, LINKAGE_DIR_ARG_NAME),
-        spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
+        first_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, FIRST_SPC_DATE_ARG_NAME),
+        last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME),
         min_lead_times_sec=numpy.array(
             getattr(INPUT_ARG_OBJECT, MIN_LEAD_TIMES_ARG_NAME), dtype=int),
         max_lead_times_sec=numpy.array(
