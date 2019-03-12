@@ -80,7 +80,8 @@ def _link_tornadoes_one_period(
     :param top_output_dir_name: Same.
     """
 
-    print tracking_file_names
+    print len(tracking_file_names)
+    print '\n\n\n'
 
     if len(tracking_file_names) == 0:
         return
