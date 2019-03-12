@@ -31,8 +31,8 @@ TRACKING_SCALE_HELP_STRING = (
 ).format(TRACKING_DIR_ARG_NAME)
 
 SPC_DATE_HELP_STRING = (
-    'SPC date (format "yyyymmdd").  This script will operate *independently* on'
-    ' each day in `{0:s}`...`{1:s}`.'
+    'SPC date (format "yyyymmdd").  This script will operate independently on'
+    ' each set of consecutive days in `{0:s}`...`{1:s}`.'
 ).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
@@ -70,6 +70,44 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _link_winds_one_period(
+        tracking_file_names, top_wind_dir_name, top_output_dir_name):
+    """Links tornadoes to storms for one continuous period.
+
+    :param tracking_file_names: 1-D list of paths to tracking files.  Each will
+        be read by `storm_tracking_io.read_processed_file`.
+    :param top_wind_dir_name: See documentation at top of file.
+    :param top_output_dir_name: Same.
+    """
+
+    if len(tracking_file_names) == 0:
+        return
+
+    try:
+        storm_to_winds_table = linkage.link_storms_to_winds(
+            tracking_file_names=tracking_file_names,
+            top_wind_directory_name=top_wind_dir_name)
+        print SEPARATOR_STRING
+    except:
+        print SEPARATOR_STRING
+        return
+
+    spc_date_string = time_conversion.time_to_spc_date_string(
+        tracking_io.processed_file_name_to_time(tracking_file_names[0])
+    )
+
+    output_file_name = linkage.find_linkage_file(
+        top_directory_name=top_output_dir_name,
+        event_type_string=linkage.WIND_EVENT_STRING,
+        spc_date_string=spc_date_string, raise_error_if_missing=False)
+
+    print 'Writing linkages to: "{0:s}"...'.format(output_file_name)
+    linkage.write_linkage_file(
+        storm_to_events_table=storm_to_winds_table,
+        pickle_file_name=output_file_name)
+    print SEPARATOR_STRING
+
+
 def _run(top_wind_dir_name, top_tracking_dir_name, tracking_scale_metres2,
          first_spc_date_string, last_spc_date_string, top_output_dir_name):
     """Runs `linkage.link_winds_to_storms`.
@@ -88,38 +126,33 @@ def _run(top_wind_dir_name, top_tracking_dir_name, tracking_scale_metres2,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
+    tracking_file_names = []
+
     for this_spc_date_string in spc_date_strings:
-        these_tracking_file_names = (
-            tracking_io.find_processed_files_one_spc_date(
-                spc_date_string=this_spc_date_string,
-                data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-                top_processed_dir_name=top_tracking_dir_name,
-                tracking_scale_metres2=tracking_scale_metres2,
-                raise_error_if_missing=False
-            )[0]
-        )
+        these_file_names = tracking_io.find_processed_files_one_spc_date(
+            top_processed_dir_name=top_tracking_dir_name,
+            tracking_scale_metres2=tracking_scale_metres2,
+            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+            spc_date_string=this_spc_date_string, raise_error_if_missing=False
+        )[0]
 
-        if len(these_tracking_file_names) == 0:
+        if len(these_file_names) == 0:
+            _link_winds_one_period(
+                tracking_file_names=tracking_file_names,
+                top_wind_dir_name=top_wind_dir_name,
+                top_output_dir_name=top_output_dir_name)
+
+            print SEPARATOR_STRING
+
+            tracking_file_names = []
             continue
 
-        try:
-            this_storm_to_winds_table = linkage.link_storms_to_winds(
-                tracking_file_names=these_tracking_file_names,
-                top_wind_directory_name=top_wind_dir_name)
-            print SEPARATOR_STRING
-        except:
-            print SEPARATOR_STRING
-            continue
+        tracking_file_names += these_file_names
 
-        this_output_file_name = linkage.find_linkage_file(
-            top_directory_name=top_output_dir_name,
-            event_type_string=linkage.WIND_EVENT_STRING,
-            spc_date_string=this_spc_date_string, raise_error_if_missing=False)
-
-        print 'Writing linkages to: "{0:s}"...'.format(this_output_file_name)
-        linkage.write_linkage_file(
-            storm_to_events_table=this_storm_to_winds_table,
-            pickle_file_name=this_output_file_name)
+    _link_winds_one_period(
+        tracking_file_names=tracking_file_names,
+        top_wind_dir_name=top_wind_dir_name,
+        top_output_dir_name=top_output_dir_name)
 
 
 if __name__ == '__main__':
