@@ -26,6 +26,7 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
 import copy
 import os.path
 import warnings
+from collections import OrderedDict
 import numpy
 import pandas
 from scipy.ndimage.filters import gaussian_filter
@@ -47,6 +48,9 @@ from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
 DUMMY_TIME_UNIX_SEC = -10000
+
+MAX_STORMS_IN_SPLIT = 2
+MAX_STORMS_IN_MERGER = 2
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -97,8 +101,20 @@ MAX_VALUES_KEY = 'max_values'
 X_COORDS_KEY = 'x_coords_metres'
 Y_COORDS_KEY = 'y_coords_metres'
 VALID_TIME_KEY = 'unix_time_sec'
-CURRENT_TO_PREV_INDICES_KEY = 'current_to_previous_indices'
+CURRENT_TO_PREV_MATRIX_KEY = 'current_to_previous_matrix'
+
 STORM_IDS_KEY = 'storm_ids'
+PRIMARY_IDS_KEY = 'primary_id_strings'
+SECONDARY_IDS_KEY = 'secondary_id_strings'
+
+CURRENT_LOCAL_MAXIMA_KEY = 'current_local_max_dict'
+PREVIOUS_PRIMARY_ID_KEY = 'prev_primary_id_numeric'
+PREVIOUS_SPC_DATE_KEY = 'prev_spc_date_string'
+PREVIOUS_SECONDARY_ID_KEY = 'prev_secondary_id_numeric'
+OLD_TO_NEW_PRIMARY_IDS_KEY = 'old_to_new_primary_id_dict'
+
+PRIMARY_STORM_ID_COLUMN = 'primary_storm_id'
+SECONDARY_STORM_ID_COLUMN = 'secondary_storm_id'
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
@@ -409,20 +425,21 @@ def _get_intermediate_velocities(
         e_folding_radius_metres):
     """Returns intermediate velocity estimate for each storm at current time.
 
-    P = number of maxima at current time
+    N_c = number of maxima at current time
+    N_p = number of maxima at previous time
 
     :param current_local_max_dict: Dictionary with the following keys.  If
-        `previous_local_max_dict is None`, the key "current_to_previous_indices"
+        `previous_local_max_dict is None`, the key "current_to_previous_matrix"
         is not required.
     current_local_max_dict['unix_time_sec']: Valid time.
-    current_local_max_dict['x_coords_metres']: length-P numpy array with
+    current_local_max_dict['x_coords_metres']: numpy array (length N_c) with
         x-coordinates of local maxima.
-    current_local_max_dict['y_coords_metres']: length-P numpy array with
+    current_local_max_dict['y_coords_metres']: numpy array (length N_c) with
         y-coordinates of local maxima.
-    current_local_max_dict['current_to_previous_indices']: length-P numpy array
-        of indices.  If current_to_previous_indices[i] = j, the [i]th local max
-        at the current time is linked to the [j]th local max at the previous
-        time.
+    current_local_max_dict['current_to_previous_matrix']: numpy array
+        (N_c x N_p) of Boolean flags.  If current_to_previous_matrix[i, j]
+        = True, the [i]th local max at the current time is linked to the [j]th
+        local max at the previous time.
 
     :param previous_local_max_dict: Same as `current_local_max_dict` but for
         previous time.  If `current_local_max_dict` represents the first time,
@@ -431,14 +448,18 @@ def _get_intermediate_velocities(
 
     :return: current_local_max_dict: Same as input but with the following
         additional columns.
-    current_local_max_dict['x_velocities_m_s01']: length-P numpy array of
+    current_local_max_dict['x_velocities_m_s01']: numpy array (length N_c) of
         x-velocities (metres per second in positive direction).
     current_local_max_dict['y_velocities_m_s01']: Same but for y-direction.
     """
 
     num_current_maxima = len(current_local_max_dict[X_COORDS_KEY])
-
     if previous_local_max_dict is None:
+        num_previous_maxima = 0
+    else:
+        num_previous_maxima = len(previous_local_max_dict[X_COORDS_KEY])
+
+    if num_current_maxima == 0 or num_previous_maxima == 0:
         x_velocities_m_s01 = numpy.full(num_current_maxima, numpy.nan)
         y_velocities_m_s01 = numpy.full(num_current_maxima, numpy.nan)
 
@@ -449,32 +470,72 @@ def _get_intermediate_velocities(
 
         return current_local_max_dict
 
-    prev_object_indices = current_local_max_dict[CURRENT_TO_PREV_INDICES_KEY]
+    # TODO(thunderhoser): Might want to put the next code chunk (finding
+    # indices) in a separate method.
 
-    prev_x_coords_metres = [
-        numpy.nan if k == -1 else previous_local_max_dict[X_COORDS_KEY][k]
-        for k in prev_object_indices
-    ]
-    prev_y_coords_metres = [
-        numpy.nan if k == -1 else previous_local_max_dict[Y_COORDS_KEY][k]
-        for k in prev_object_indices
-    ]
+    first_previous_indices = numpy.full(num_current_maxima, -1, dtype=int)
+    second_previous_indices = numpy.full(num_current_maxima, -1, dtype=int)
 
-    prev_x_coords_metres = numpy.array(prev_x_coords_metres)
-    prev_y_coords_metres = numpy.array(prev_y_coords_metres)
+    for i in range(num_current_maxima):
+        these_previous_indices = numpy.where(
+            current_local_max_dict[CURRENT_TO_PREV_MATRIX_KEY][i, ...]
+        )[0]
+
+        if len(these_previous_indices) > 0:
+            first_previous_indices[i] = these_previous_indices[0]
+        if len(these_previous_indices) > 1:
+            second_previous_indices[i] = these_previous_indices[1]
 
     time_diff_seconds = (
         current_local_max_dict[VALID_TIME_KEY] -
         previous_local_max_dict[VALID_TIME_KEY]
     )
 
-    x_velocities_m_s01 = (
-        current_local_max_dict[X_COORDS_KEY] - prev_x_coords_metres
+    first_prev_x_coords_metres = numpy.array([
+        numpy.nan if k == -1 else previous_local_max_dict[X_COORDS_KEY][k]
+        for k in first_previous_indices
+    ])
+
+    first_prev_y_coords_metres = numpy.array([
+        numpy.nan if k == -1 else previous_local_max_dict[Y_COORDS_KEY][k]
+        for k in first_previous_indices
+    ])
+
+    first_x_velocities_m_s01 = (
+        current_local_max_dict[X_COORDS_KEY] - first_prev_x_coords_metres
     ) / time_diff_seconds
 
-    y_velocities_m_s01 = (
-        current_local_max_dict[Y_COORDS_KEY] - prev_y_coords_metres
+    first_y_velocities_m_s01 = (
+        current_local_max_dict[Y_COORDS_KEY] - first_prev_y_coords_metres
     ) / time_diff_seconds
+
+    second_prev_x_coords_metres = numpy.array([
+        numpy.nan if k == -1 else previous_local_max_dict[X_COORDS_KEY][k]
+        for k in second_previous_indices
+    ])
+
+    second_prev_y_coords_metres = numpy.array([
+        numpy.nan if k == -1 else previous_local_max_dict[Y_COORDS_KEY][k]
+        for k in second_previous_indices
+    ])
+
+    second_x_velocities_m_s01 = (
+        current_local_max_dict[X_COORDS_KEY] - second_prev_x_coords_metres
+    ) / time_diff_seconds
+
+    second_y_velocities_m_s01 = (
+        current_local_max_dict[Y_COORDS_KEY] - second_prev_y_coords_metres
+    ) / time_diff_seconds
+
+    x_velocities_m_s01 = numpy.nanmean(
+        numpy.array([first_x_velocities_m_s01, second_x_velocities_m_s01]),
+        axis=0
+    )
+
+    y_velocities_m_s01 = numpy.nanmean(
+        numpy.array([first_y_velocities_m_s01, second_y_velocities_m_s01]),
+        axis=0
+    )
 
     x_velocities_m_s01, y_velocities_m_s01 = _estimate_velocity_by_neigh(
         x_coords_metres=current_local_max_dict[X_COORDS_KEY],
@@ -491,18 +552,207 @@ def _get_intermediate_velocities(
     return current_local_max_dict
 
 
+def _link_local_maxima_by_velocity(
+        current_local_max_dict, previous_local_max_dict,
+        max_velocity_diff_m_s01):
+    """Does velocity-matching for local maxima at successive times.
+
+    N_c = number of maxima at current time
+    N_p = number of maxima at previous time
+
+    :param current_local_max_dict: See doc for `_link_local_maxima_in_time`.
+    :param previous_local_max_dict: Same.
+    :param max_velocity_diff_m_s01: Same.
+    :return: velocity_diff_matrix_m_s01: numpy array (N_c x N_p) of velocity
+        errors.  velocity_diff_matrix_m_s01[i, j] is the velocity error (metres
+        per second) between the [i]th current max and [j]th previous max.
+    :return: current_to_previous_matrix: See doc for
+        `_link_local_maxima_in_time`.
+    """
+
+    num_current_maxima = len(current_local_max_dict[X_COORDS_KEY])
+    num_previous_maxima = len(previous_local_max_dict[X_COORDS_KEY])
+
+    time_diff_seconds = (
+        current_local_max_dict[VALID_TIME_KEY] -
+        previous_local_max_dict[VALID_TIME_KEY]
+    )
+
+    extrap_x_coords_metres = (
+        previous_local_max_dict[X_COORDS_KEY] +
+        previous_local_max_dict[X_VELOCITIES_KEY] * time_diff_seconds
+    )
+
+    extrap_y_coords_metres = (
+        previous_local_max_dict[Y_COORDS_KEY] +
+        previous_local_max_dict[Y_VELOCITIES_KEY] * time_diff_seconds
+    )
+
+    velocity_diff_matrix_m_s01 = numpy.full(
+        (num_current_maxima, num_previous_maxima), numpy.nan)
+    current_to_previous_matrix = numpy.full(
+        (num_current_maxima, num_previous_maxima), False, dtype=bool)
+
+    for i in range(num_current_maxima):
+        these_distances_metres = numpy.sqrt(
+            (extrap_x_coords_metres - current_local_max_dict[X_COORDS_KEY][i])
+            ** 2 +
+            (extrap_y_coords_metres - current_local_max_dict[Y_COORDS_KEY][i])
+            ** 2
+        )
+
+        these_velocity_diffs_m_s01 = these_distances_metres / time_diff_seconds
+        these_velocity_diffs_m_s01[
+            numpy.isnan(these_velocity_diffs_m_s01)
+        ] = numpy.inf
+
+        sort_indices = numpy.argsort(these_velocity_diffs_m_s01)
+
+        for j in sort_indices:
+            if these_velocity_diffs_m_s01[j] > max_velocity_diff_m_s01:
+                break
+
+            if (numpy.sum(current_to_previous_matrix[i, :]) >
+                    MAX_STORMS_IN_MERGER):
+                break
+
+            current_to_previous_matrix[i, j] = True
+
+        velocity_diff_matrix_m_s01[i, :] = these_velocity_diffs_m_s01
+
+    return velocity_diff_matrix_m_s01, current_to_previous_matrix
+
+
+def _link_local_maxima_by_distance(
+        current_local_max_dict, previous_local_max_dict,
+        max_link_distance_m_s01, current_to_previous_matrix):
+    """Does distance-matching for local maxima at successive times.
+
+    N_c = number of maxima at current time
+    N_p = number of maxima at previous time
+
+    :param current_local_max_dict: See doc for `_link_local_maxima_in_time`.
+    :param previous_local_max_dict: Same.
+    :param max_link_distance_m_s01: Same.
+    :param current_to_previous_matrix: numpy array created by
+        `_link_local_maxima_by_velocity`.
+    :return: distance_matrix_m_s01: numpy array (N_c x N_p) of distances.
+        distance_matrix_m_s01[i, j] is the distance (metres per second) between
+        the [i]th current max and [j]th previous max.
+    :return: current_to_previous_matrix: Same as input, except that some
+        elements might have been flipped from False to True.
+    """
+
+    num_current_maxima = len(current_local_max_dict[X_COORDS_KEY])
+    num_previous_maxima = len(previous_local_max_dict[X_COORDS_KEY])
+
+    time_diff_seconds = (
+        current_local_max_dict[VALID_TIME_KEY] -
+        previous_local_max_dict[VALID_TIME_KEY]
+    )
+
+    distance_matrix_m_s01 = numpy.full(
+        (num_current_maxima, num_previous_maxima), numpy.nan)
+
+    for i in range(num_current_maxima):
+        if numpy.sum(current_to_previous_matrix[i, :]) > MAX_STORMS_IN_MERGER:
+            continue
+
+        these_distances_metres = numpy.sqrt(
+            (previous_local_max_dict[X_COORDS_KEY] -
+             current_local_max_dict[X_COORDS_KEY][i]) ** 2
+            +
+            (previous_local_max_dict[Y_COORDS_KEY] -
+             current_local_max_dict[Y_COORDS_KEY][i]) ** 2
+        )
+
+        these_distances_m_s01 = these_distances_metres / time_diff_seconds
+        these_distances_m_s01[
+            numpy.invert(numpy.isnan(previous_local_max_dict[X_VELOCITIES_KEY]))
+        ] = numpy.inf
+
+        sort_indices = numpy.argsort(these_distances_m_s01)
+
+        for j in sort_indices:
+            if these_distances_m_s01[j] > max_link_distance_m_s01:
+                break
+
+            if (numpy.sum(current_to_previous_matrix[i, :]) >
+                    MAX_STORMS_IN_MERGER):
+                break
+
+            current_to_previous_matrix[i, j] = True
+
+        distance_matrix_m_s01[i, :] = these_distances_m_s01
+
+    return distance_matrix_m_s01, current_to_previous_matrix
+
+
+def _prune_connections(velocity_diff_matrix_m_s01, distance_matrix_m_s01,
+                       current_to_previous_matrix):
+    """Prunes connections between local maxima at successive times.
+
+    :param velocity_diff_matrix_m_s01: numpy array created by
+        `_link_local_maxima_by_velocity`.
+    :param distance_matrix_m_s01: numpy array created by
+        `_link_local_maxima_by_distance`.
+    :param current_to_previous_matrix: Same.
+    :return: current_to_previous_matrix: Same as input, except that some
+        elements might have been flipped from True to False.
+    """
+
+    num_previous_maxima = current_to_previous_matrix.shape[1]
+
+    for j in range(num_previous_maxima):
+        these_current_indices = numpy.where(current_to_previous_matrix[:, j])[0]
+        this_worst_current_index = None
+
+        if len(these_current_indices) > 1:
+            this_num_previous_by_current = numpy.array([
+                numpy.sum(current_to_previous_matrix[i, :])
+                for i in these_current_indices
+            ], dtype=int)
+
+            if numpy.max(this_num_previous_by_current) > 1:
+                this_worst_current_index = these_current_indices[
+                    numpy.argmax(this_num_previous_by_current)
+                ]
+
+        if this_worst_current_index is None:
+            if len(these_current_indices) <= MAX_STORMS_IN_SPLIT:
+                continue
+
+            this_max_velocity_diff_m_s01 = numpy.nanmax(
+                velocity_diff_matrix_m_s01[these_current_indices, j]
+            )
+
+            if numpy.isnan(this_max_velocity_diff_m_s01):
+                this_worst_current_index = numpy.nanargmax(
+                    distance_matrix_m_s01[these_current_indices, j]
+                )
+            else:
+                this_worst_current_index = numpy.nanargmax(
+                    velocity_diff_matrix_m_s01[these_current_indices, j]
+                )
+
+        current_to_previous_matrix[this_worst_current_index, j] = False
+
+    return current_to_previous_matrix
+
+
 def _link_local_maxima_in_time(
         current_local_max_dict, previous_local_max_dict, max_link_time_seconds,
         max_velocity_diff_m_s01, max_link_distance_m_s01):
     """Links local maxima between current and previous time steps.
 
-    P = number of maxima at current time
+    N_c = number of maxima at current time
+    N_p = number of maxima at previous time
 
     :param current_local_max_dict: Dictionary with the following keys.
     current_local_max_dict['unix_time_sec']: Valid time.
-    current_local_max_dict['x_coords_metres']: length-P numpy array with
+    current_local_max_dict['x_coords_metres']: numpy array (length N_c) with
         x-coordinates of local maxima.
-    current_local_max_dict['y_coords_metres']: length-P numpy array with
+    current_local_max_dict['y_coords_metres']: numpy array (length N_c) with
         y-coordinates of local maxima.
 
     :param previous_local_max_dict: Dictionary created by
@@ -516,21 +766,23 @@ def _link_local_maxima_in_time(
     :param max_link_distance_m_s01: Max difference between current and previous
         locations.  This criterion will be used only for previous maxima with no
         velocity estimate.
-    :return: current_to_previous_indices: length-P numpy array
-        of indices.  If current_to_previous_indices[i] = j, the [i]th local max
+    :return: current_to_previous_matrix: numpy array (N_c x N_p) of Boolean
+        flags.  If current_to_previous_matrix[i, j] = True, the [i]th local max
         at the current time is linked to the [j]th local max at the previous
         time.
     """
 
     num_current_maxima = len(current_local_max_dict[X_COORDS_KEY])
-    current_to_previous_indices = numpy.full(num_current_maxima, -1, dtype=int)
+    if previous_local_max_dict is None:
+        num_previous_maxima = 0
+    else:
+        num_previous_maxima = len(previous_local_max_dict[X_COORDS_KEY])
 
-    if previous_local_max_dict is None or num_current_maxima == 0:
-        return current_to_previous_indices
+    current_to_previous_matrix = numpy.full(
+        (num_current_maxima, num_previous_maxima), False, dtype=bool)
 
-    num_previous_maxima = len(previous_local_max_dict[X_COORDS_KEY])
-    if num_previous_maxima == 0:
-        return current_to_previous_indices
+    if num_current_maxima == 0 or num_previous_maxima == 0:
+        return current_to_previous_matrix
 
     time_diff_seconds = (
         current_local_max_dict[VALID_TIME_KEY] -
@@ -538,90 +790,27 @@ def _link_local_maxima_in_time(
     )
 
     if time_diff_seconds > max_link_time_seconds:
-        return current_to_previous_indices
+        return current_to_previous_matrix
 
-    extrap_x_coords_metres = (
-        previous_local_max_dict[X_COORDS_KEY] +
-        previous_local_max_dict[X_VELOCITIES_KEY] * time_diff_seconds
+    velocity_diff_matrix_m_s01, current_to_previous_matrix = (
+        _link_local_maxima_by_velocity(
+            current_local_max_dict=current_local_max_dict,
+            previous_local_max_dict=previous_local_max_dict,
+            max_velocity_diff_m_s01=max_velocity_diff_m_s01)
     )
 
-    extrap_y_coords_metres = (
-        previous_local_max_dict[Y_COORDS_KEY] +
-        previous_local_max_dict[Y_VELOCITIES_KEY] * time_diff_seconds
+    distance_matrix_m_s01, current_to_previous_matrix = (
+        _link_local_maxima_by_distance(
+            current_local_max_dict=current_local_max_dict,
+            previous_local_max_dict=previous_local_max_dict,
+            max_link_distance_m_s01=max_link_distance_m_s01,
+            current_to_previous_matrix=current_to_previous_matrix)
     )
 
-    current_to_prev_velocity_diffs_m_s01 = numpy.full(
-        num_current_maxima, numpy.nan)
-    current_to_prev_distances_m_s01 = numpy.full(num_current_maxima, numpy.nan)
-
-    for i in range(num_current_maxima):
-        these_distances_metres = numpy.sqrt(
-            (extrap_x_coords_metres - current_local_max_dict[X_COORDS_KEY][i])
-            ** 2 +
-            (extrap_y_coords_metres - current_local_max_dict[Y_COORDS_KEY][i])
-            ** 2
-        )
-
-        these_velocity_diffs_m_s01 = these_distances_metres / time_diff_seconds
-        this_min_velocity_diff_m_s01 = numpy.nanmin(these_velocity_diffs_m_s01)
-
-        if this_min_velocity_diff_m_s01 <= max_velocity_diff_m_s01:
-            current_to_prev_velocity_diffs_m_s01[i] = (
-                this_min_velocity_diff_m_s01
-            )
-            current_to_previous_indices[i] = numpy.nanargmin(
-                these_velocity_diffs_m_s01)
-
-            continue
-
-        these_distances_metres = numpy.sqrt(
-            (previous_local_max_dict[X_COORDS_KEY] -
-             current_local_max_dict[X_COORDS_KEY][i]) ** 2
-            +
-            (previous_local_max_dict[Y_COORDS_KEY] -
-             current_local_max_dict[Y_COORDS_KEY][i]) ** 2
-        )
-
-        these_distances_metres[
-            numpy.invert(numpy.isnan(extrap_x_coords_metres))
-        ] = numpy.inf
-
-        these_distances_m_s01 = these_distances_metres / time_diff_seconds
-        this_min_distance_m_s01 = numpy.min(these_distances_m_s01)
-
-        if this_min_distance_m_s01 > max_link_distance_m_s01:
-            continue
-
-        current_to_prev_distances_m_s01[i] = this_min_distance_m_s01
-        current_to_previous_indices[i] = numpy.argmin(these_distances_m_s01)
-
-    for j in range(num_previous_maxima):
-        these_current_indices = numpy.where(current_to_previous_indices == j)[0]
-        if len(these_current_indices) < 2:
-            continue
-
-        this_min_velocity_diff_m_s01 = numpy.nanmin(
-            current_to_prev_velocity_diffs_m_s01[these_current_indices]
-        )
-
-        if numpy.isnan(this_min_velocity_diff_m_s01):
-            this_best_current_index = numpy.nanargmin(
-                current_to_prev_distances_m_s01[these_current_indices]
-            )
-        else:
-            this_best_current_index = numpy.nanargmin(
-                current_to_prev_velocity_diffs_m_s01[these_current_indices]
-            )
-
-        this_best_current_index = these_current_indices[this_best_current_index]
-
-        for i in these_current_indices:
-            if i == this_best_current_index:
-                continue
-
-            current_to_previous_indices[i] = -1
-
-    return current_to_previous_indices
+    return _prune_connections(
+        velocity_diff_matrix_m_s01=velocity_diff_matrix_m_s01,
+        distance_matrix_m_s01=distance_matrix_m_s01,
+        current_to_previous_matrix=current_to_previous_matrix)
 
 
 def _check_time_period(
@@ -820,30 +1009,249 @@ def _find_input_tracking_files(
             valid_times_by_date_unix_sec)
 
 
-def _create_storm_id(
-        storm_start_time_unix_sec, prev_numeric_id_used, prev_spc_date_string):
-    """Creates storm ID.
+def _create_primary_storm_id(storm_start_time_unix_sec, previous_numeric_id,
+                             previous_spc_date_string):
+    """Creates primary storm ID.
 
     :param storm_start_time_unix_sec: Start time of storm for which ID is being
         created.
-    :param prev_numeric_id_used: Previous numeric ID (integer) used.
-    :param prev_spc_date_string: Previous SPC date (format "yyyymmdd") used.
+    :param previous_numeric_id: Numeric ID (integer) of previous storm.
+    :param previous_spc_date_string: SPC date (format "yyyymmdd") of previous
+        storm.
     :return: string_id: String ID for new storm.
-    :return: numeric_id: Numeric ID for new storm.
-    :return: spc_date_string: SPC date (format "yyyymmdd") in ID for new storm.
+    :return: numeric_id: Numeric ID (integer) for new storm.
+    :return: spc_date_string: SPC date (format "yyyymmdd") for new storm.
     """
 
     spc_date_string = time_conversion.time_to_spc_date_string(
         storm_start_time_unix_sec)
 
-    if spc_date_string == prev_spc_date_string:
-        numeric_id = prev_numeric_id_used + 1
+    if spc_date_string == previous_spc_date_string:
+        numeric_id = previous_numeric_id + 1
     else:
         numeric_id = 0
 
     string_id = '{0:06d}_{1:s}'.format(numeric_id, spc_date_string)
 
     return string_id, numeric_id, spc_date_string
+
+
+def _create_secondary_storm_id(previous_numeric_id):
+    """Creates secondary storm ID.
+
+    :param previous_numeric_id: Numeric ID (integer) of previous storm.
+    :return: string_id: String ID for new storm.
+    :return: numeric_id: Numeric ID (integer) for new storm.
+    """
+
+    numeric_id = previous_numeric_id + 1
+    return '{0:06d}'.format(numeric_id), numeric_id
+
+
+def _create_full_storm_id(primary_id_string, secondary_id_string):
+    """Creates full storm ID from primary and secondary IDs.
+
+    :param primary_id_string: Primary ID.
+    :param secondary_id_string: Secondary ID.
+    :return: full_id_string: Full ID.
+    """
+
+    return '{0:s}_{1:s}'.format(primary_id_string, secondary_id_string)
+
+
+def _local_maxima_to_tracks_mergers(
+        current_local_max_dict, previous_local_max_dict,
+        current_to_previous_matrix, prev_primary_id_numeric,
+        prev_spc_date_string, prev_secondary_id_numeric):
+    """Handles mergers for `_local_maxima_to_storm_tracks`.
+
+    N_c = number of maxima at current time
+    N_p = number of maxima at previous time
+
+    :param current_local_max_dict: See doc for `local_max_dict_by_time` in
+        `_local_maxima_to_storm_tracks`.
+    :param previous_local_max_dict: Same.
+    :param current_to_previous_matrix: numpy array (N_c x N_p) of Boolean
+        flags.  If current_to_previous_matrix[i, j] = True, the [i]th local max
+        at the current time is linked to the [j]th local max at the previous
+        time.
+    :param prev_primary_id_numeric: Previous primary storm ID used.
+    :param prev_spc_date_string: Previous SPC date (format "yyyymmdd") used in a
+        primary storm ID.
+    :param prev_secondary_id_numeric: Previous secondary storm ID used.
+    :return: intermediate_track_dict: Dictionary with the following keys.
+    intermediate_track_dict['current_local_max_dict']: Same as input but maybe
+        with different IDs.
+    intermediate_track_dict['current_to_previous_matrix']: Same as input but
+        with some elements (those involved in mergers) flipped from True to
+        False.
+    intermediate_track_dict['prev_primary_id_numeric']: Same as input but
+        possibly incremented.
+    intermediate_track_dict['prev_spc_date_string']: Same as input but possibly
+        incremented.
+    intermediate_track_dict['prev_secondary_id_numeric']: Same as input but
+        possibly incremented.
+    intermediate_track_dict['old_to_new_primary_id_dict']: Dictionary, where
+        each key is an old primary ID (string) and each value is the new primary
+        ID (string) to replace it with.
+    """
+
+    old_to_new_primary_id_dict = OrderedDict({})
+
+    num_previous_by_current = numpy.sum(current_to_previous_matrix, axis=1)
+    current_indices_in_merger = numpy.where(num_previous_by_current > 1)[0]
+
+    for i in current_indices_in_merger:
+        these_previous_indices = numpy.where(
+            current_to_previous_matrix[i, :]
+        )[0]
+        current_to_previous_matrix[i, :] = False
+
+        (current_local_max_dict[SECONDARY_IDS_KEY][i], prev_secondary_id_numeric
+        ) = _create_secondary_storm_id(prev_secondary_id_numeric)
+
+        (this_primary_id_string, prev_primary_id_numeric,
+         prev_spc_date_string
+        ) = _create_primary_storm_id(
+            storm_start_time_unix_sec=current_local_max_dict[VALID_TIME_KEY],
+            previous_numeric_id=prev_primary_id_numeric,
+            previous_spc_date_string=prev_spc_date_string)
+
+        current_local_max_dict[PRIMARY_IDS_KEY][i] = this_primary_id_string
+
+        for j in these_previous_indices:
+            this_old_id_string = previous_local_max_dict[PRIMARY_IDS_KEY][j]
+            old_to_new_primary_id_dict[
+                this_old_id_string
+            ] = this_primary_id_string
+
+    return {
+        CURRENT_LOCAL_MAXIMA_KEY: current_local_max_dict,
+        CURRENT_TO_PREV_MATRIX_KEY: current_to_previous_matrix,
+        PREVIOUS_PRIMARY_ID_KEY: prev_primary_id_numeric,
+        PREVIOUS_SPC_DATE_KEY: prev_spc_date_string,
+        PREVIOUS_SECONDARY_ID_KEY: prev_secondary_id_numeric,
+        OLD_TO_NEW_PRIMARY_IDS_KEY: old_to_new_primary_id_dict
+    }
+
+
+def _local_maxima_to_tracks_splits(
+        current_local_max_dict, previous_local_max_dict,
+        current_to_previous_matrix, prev_secondary_id_numeric):
+    """Handles splits for `_local_maxima_to_storm_tracks`.
+
+    N_c = number of maxima at current time
+    N_p = number of maxima at previous time
+
+    :param current_local_max_dict: See doc for `local_max_dict_by_time` in
+        `_local_maxima_to_storm_tracks`.
+    :param previous_local_max_dict: Same.
+    :param current_to_previous_matrix: numpy array (N_c x N_p) of Boolean
+        flags.  If current_to_previous_matrix[i, j] = True, the [i]th local max
+        at the current time is linked to the [j]th local max at the previous
+        time.
+    :param prev_secondary_id_numeric: Previous secondary storm ID used.
+    :return: intermediate_track_dict: Dictionary with the following keys.
+    intermediate_track_dict['current_local_max_dict']: Same as input but maybe
+        with different IDs.
+    intermediate_track_dict['current_to_previous_matrix']: Same as input but
+        with some elements (those involved in mergers) flipped from True to
+        False.
+    intermediate_track_dict['prev_secondary_id_numeric']: Same as input but
+        possibly incremented.
+    """
+
+    num_current_by_previous = numpy.sum(current_to_previous_matrix, axis=0)
+    previous_indices_in_split = numpy.where(num_current_by_previous > 1)[0]
+
+    for j in previous_indices_in_split:
+        these_current_indices = numpy.where(current_to_previous_matrix[:, j])[0]
+        current_to_previous_matrix[:, j] = False
+
+        this_primary_id_string = previous_local_max_dict[PRIMARY_IDS_KEY][j]
+
+        for i in these_current_indices:
+            current_local_max_dict[PRIMARY_IDS_KEY][i] = this_primary_id_string
+
+            (current_local_max_dict[SECONDARY_IDS_KEY][i],
+             prev_secondary_id_numeric
+            ) = _create_secondary_storm_id(prev_secondary_id_numeric)
+
+    return {
+        CURRENT_LOCAL_MAXIMA_KEY: current_local_max_dict,
+        CURRENT_TO_PREV_MATRIX_KEY: current_to_previous_matrix,
+        PREVIOUS_SECONDARY_ID_KEY: prev_secondary_id_numeric
+    }
+
+
+def _local_maxima_to_tracks_simple(
+        current_local_max_dict, previous_local_max_dict,
+        current_to_previous_matrix, prev_primary_id_numeric,
+        prev_spc_date_string, prev_secondary_id_numeric):
+    """Handles simple connections for `_local_maxima_to_storm_tracks`.
+
+    "Simple connections" are those other than splits and mergers.
+
+    N_c = number of maxima at current time
+    N_p = number of maxima at previous time
+
+    :param current_local_max_dict: See doc for `local_max_dict_by_time` in
+        `_local_maxima_to_storm_tracks`.
+    :param previous_local_max_dict: Same.
+    :param current_to_previous_matrix: numpy array (N_c x N_p) of Boolean
+        flags.  If current_to_previous_matrix[i, j] = True, the [i]th local max
+        at the current time is linked to the [j]th local max at the previous
+        time.
+    :param prev_primary_id_numeric: Previous primary storm ID used.
+    :param prev_spc_date_string: Previous SPC date (format "yyyymmdd") used in a
+        primary storm ID.
+    :param prev_secondary_id_numeric: Previous secondary storm ID used.
+    :return: intermediate_track_dict: Dictionary with the following keys.
+    intermediate_track_dict['current_local_max_dict']: Same as input but maybe
+        with different IDs.
+    intermediate_track_dict['prev_primary_id_numeric']: Same as input but
+        possibly incremented.
+    intermediate_track_dict['prev_spc_date_string']: Same as input but possibly
+        incremented.
+    intermediate_track_dict['prev_secondary_id_numeric']: Same as input but
+        possibly incremented.
+    """
+
+    num_storm_objects = len(current_local_max_dict[LATITUDES_KEY])
+
+    for i in range(num_storm_objects):
+        these_previous_indices = numpy.where(
+            current_to_previous_matrix[i, :]
+        )[0]
+
+        if len(these_previous_indices) == 0:
+            (current_local_max_dict[PRIMARY_IDS_KEY][i],
+             prev_primary_id_numeric, prev_spc_date_string
+            ) = _create_primary_storm_id(
+                storm_start_time_unix_sec=current_local_max_dict[
+                    VALID_TIME_KEY],
+                previous_numeric_id=prev_primary_id_numeric,
+                previous_spc_date_string=prev_spc_date_string)
+
+            (current_local_max_dict[SECONDARY_IDS_KEY][i],
+             prev_secondary_id_numeric
+            ) = _create_secondary_storm_id(prev_secondary_id_numeric)
+
+            continue
+
+        j = these_previous_indices[0]
+
+        current_local_max_dict[PRIMARY_IDS_KEY][i] = previous_local_max_dict[
+            PRIMARY_IDS_KEY][j]
+        current_local_max_dict[SECONDARY_IDS_KEY][i] = previous_local_max_dict[
+            SECONDARY_IDS_KEY][j]
+
+    return {
+        CURRENT_LOCAL_MAXIMA_KEY: current_local_max_dict,
+        PREVIOUS_PRIMARY_ID_KEY: prev_primary_id_numeric,
+        PREVIOUS_SPC_DATE_KEY: prev_spc_date_string,
+        PREVIOUS_SECONDARY_ID_KEY: prev_secondary_id_numeric
+    }
 
 
 def _local_maxima_to_storm_tracks(local_max_dict_by_time):
@@ -861,14 +1269,13 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
         maxima.
     "x_coords_metres": length-P numpy array with x-coordinates of local maxima.
     "y_coords_metres": length-P numpy array with y-coordinates of local maxima.
-    "current_to_previous_indices": length-P numpy array of indices.  If
-        current_to_previous_indices[j] = k for the [i]th time, the [j]th local
-        max at the [i]th time is linked to the [k]th local max at the [i - 1]th
-        time.
+    "current_to_previous_matrix": See doc for `_link_local_maxima_in_time`.
 
     :return: storm_object_table: pandas DataFrame with the following columns.
         Each row is one storm object.
     storm_object_table.storm_id: Storm ID (string).
+    storm_object_table.primary_storm_id: Primary storm ID (string).
+    storm_object_table.secondary_storm_id: Secondary storm ID (string).
     storm_object_table.unix_time_sec: Valid time.
     storm_object_table.spc_date_unix_sec: SPC date.
     storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
@@ -889,10 +1296,13 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
     """
 
     num_times = len(local_max_dict_by_time)
-    prev_numeric_id_used = -1
+
+    prev_primary_id_numeric = -1
+    prev_secondary_id_numeric = -1
     prev_spc_date_string = '00000101'
 
-    all_storm_ids = []
+    all_primary_id_strings = []
+    all_secondary_id_strings = []
     all_times_unix_sec = numpy.array([], dtype=int)
     all_spc_dates_unix_sec = numpy.array([], dtype=int)
     all_centroid_latitudes_deg = numpy.array([])
@@ -910,33 +1320,62 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
         all_polygon_objects_latlng = numpy.array([], dtype=object)
         all_polygon_objects_rowcol = numpy.array([], dtype=object)
 
+    old_to_new_primary_id_dict = {}
+
     for i in range(num_times):
         this_num_storm_objects = len(local_max_dict_by_time[i][LATITUDES_KEY])
         if this_num_storm_objects == 0:
             continue
 
-        local_max_dict_by_time[i].update(
-            {STORM_IDS_KEY: [''] * this_num_storm_objects}
+        local_max_dict_by_time[i].update({
+            PRIMARY_IDS_KEY: [''] * this_num_storm_objects,
+            SECONDARY_IDS_KEY: [''] * this_num_storm_objects
+        })
+
+        this_current_to_prev_matrix = copy.deepcopy(
+            local_max_dict_by_time[i][CURRENT_TO_PREV_MATRIX_KEY]
         )
 
-        for j in range(this_num_storm_objects):
-            this_previous_index = local_max_dict_by_time[i][
-                CURRENT_TO_PREV_INDICES_KEY][j]
+        this_dict = _local_maxima_to_tracks_mergers(
+            current_local_max_dict=local_max_dict_by_time[i],
+            previous_local_max_dict=local_max_dict_by_time[i - 1],
+            current_to_previous_matrix=this_current_to_prev_matrix,
+            prev_primary_id_numeric=prev_primary_id_numeric,
+            prev_spc_date_string=prev_spc_date_string,
+            prev_secondary_id_numeric=prev_secondary_id_numeric)
 
-            if this_previous_index == -1:
-                (local_max_dict_by_time[i][STORM_IDS_KEY][j],
-                 prev_numeric_id_used, prev_spc_date_string
-                ) = _create_storm_id(
-                    storm_start_time_unix_sec=
-                    local_max_dict_by_time[i][VALID_TIME_KEY],
-                    prev_numeric_id_used=prev_numeric_id_used,
-                    prev_spc_date_string=prev_spc_date_string)
+        local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
+        this_current_to_prev_matrix = this_dict[CURRENT_TO_PREV_MATRIX_KEY]
+        prev_primary_id_numeric = this_dict[PREVIOUS_PRIMARY_ID_KEY]
+        prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
+        prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
+        old_to_new_primary_id_dict.update(this_dict[OLD_TO_NEW_PRIMARY_IDS_KEY])
 
-            else:
-                local_max_dict_by_time[i][STORM_IDS_KEY][j] = (
-                    local_max_dict_by_time[i - 1][STORM_IDS_KEY][
-                        this_previous_index]
-                )
+        this_dict = _local_maxima_to_tracks_splits(
+            current_local_max_dict=local_max_dict_by_time[i],
+            previous_local_max_dict=local_max_dict_by_time[i - 1],
+            current_to_previous_matrix=this_current_to_prev_matrix,
+            prev_secondary_id_numeric=prev_secondary_id_numeric)
+
+        local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
+        this_current_to_prev_matrix = this_dict[CURRENT_TO_PREV_MATRIX_KEY]
+        prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
+
+        this_dict = _local_maxima_to_tracks_simple(
+            current_local_max_dict=local_max_dict_by_time[i],
+            previous_local_max_dict=local_max_dict_by_time[i - 1],
+            current_to_previous_matrix=this_current_to_prev_matrix,
+            prev_primary_id_numeric=prev_primary_id_numeric,
+            prev_spc_date_string=prev_spc_date_string,
+            prev_secondary_id_numeric=prev_secondary_id_numeric)
+
+        local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
+        prev_primary_id_numeric = this_dict[PREVIOUS_PRIMARY_ID_KEY]
+        prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
+        prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
+
+        all_primary_id_strings += local_max_dict_by_time[i][PRIMARY_IDS_KEY]
+        all_secondary_id_strings += local_max_dict_by_time[i][SECONDARY_IDS_KEY]
 
         these_times_unix_sec = numpy.full(
             this_num_storm_objects, local_max_dict_by_time[i][VALID_TIME_KEY],
@@ -947,7 +1386,6 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
             time_conversion.time_to_spc_date_unix_sec(these_times_unix_sec[0]),
             dtype=int)
 
-        all_storm_ids += local_max_dict_by_time[i][STORM_IDS_KEY]
         all_times_unix_sec = numpy.concatenate((
             all_times_unix_sec, these_times_unix_sec
         ))
@@ -989,7 +1427,8 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
             ))
 
     storm_object_dict = {
-        tracking_utils.STORM_ID_COLUMN: all_storm_ids,
+        PRIMARY_STORM_ID_COLUMN: all_primary_id_strings,
+        SECONDARY_STORM_ID_COLUMN: all_secondary_id_strings,
         tracking_utils.TIME_COLUMN: all_times_unix_sec,
         tracking_utils.SPC_DATE_COLUMN: all_spc_dates_unix_sec,
         tracking_utils.CENTROID_LAT_COLUMN: all_centroid_latitudes_deg,
@@ -1013,7 +1452,23 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
                 all_polygon_objects_rowcol
         })
 
-    return pandas.DataFrame.from_dict(storm_object_dict)
+    storm_object_table = pandas.DataFrame.from_dict(storm_object_dict)
+
+    for this_key in old_to_new_primary_id_dict:
+        storm_object_table.replace(
+            to_replace=this_key, value=old_to_new_primary_id_dict[this_key],
+            inplace=True)
+
+    full_id_strings = [
+        _create_full_storm_id(primary_id_string=p, secondary_id_string=s)
+        for p, s in zip(
+            storm_object_table[PRIMARY_STORM_ID_COLUMN].values,
+            storm_object_table[SECONDARY_STORM_ID_COLUMN].values
+        )
+    ]
+
+    argument_dict = {tracking_utils.STORM_ID_COLUMN: full_id_strings}
+    return storm_object_table.assign(**argument_dict)
 
 
 def _get_final_velocities_one_track(
@@ -1924,20 +2379,21 @@ def remove_short_lived_tracks(storm_object_table, min_duration_seconds):
     error_checking.assert_is_integer(min_duration_seconds)
     error_checking.assert_is_greater(min_duration_seconds, 0)
 
-    all_storm_ids = numpy.array(
-        storm_object_table[tracking_utils.STORM_ID_COLUMN].values
+    all_primary_id_strings = numpy.array(
+        storm_object_table[PRIMARY_STORM_ID_COLUMN].values
     )
 
-    unique_storm_ids, orig_to_unique_indices = numpy.unique(
-        all_storm_ids, return_inverse=True)
+    unique_primary_id_strings, orig_to_unique_indices = numpy.unique(
+        all_primary_id_strings, return_inverse=True)
 
-    num_storm_cells = len(unique_storm_ids)
+    num_storm_cells = len(unique_primary_id_strings)
     object_indices_to_remove = numpy.array([], dtype=int)
 
     for i in range(num_storm_cells):
         these_object_indices = numpy.where(orig_to_unique_indices == i)[0]
         these_times_unix_sec = storm_object_table[
-            tracking_utils.TIME_COLUMN].values[these_object_indices]
+            tracking_utils.TIME_COLUMN
+        ].values[these_object_indices]
 
         this_duration_seconds = (
             numpy.max(these_times_unix_sec) - numpy.min(these_times_unix_sec)
@@ -1946,8 +2402,7 @@ def remove_short_lived_tracks(storm_object_table, min_duration_seconds):
             continue
 
         object_indices_to_remove = numpy.concatenate((
-            object_indices_to_remove, these_object_indices
-        ))
+            object_indices_to_remove, these_object_indices))
 
     return storm_object_table.drop(
         storm_object_table.index[object_indices_to_remove], axis=0,
@@ -2129,7 +2584,7 @@ def run_tracking(
             min_intermax_distance_metres=min_intermax_distance_metres)
 
         if i == 0:
-            these_current_to_prev_indices = _link_local_maxima_in_time(
+            this_current_to_prev_matrix = _link_local_maxima_in_time(
                 current_local_max_dict=local_max_dict_by_time[i],
                 previous_local_max_dict=None,
                 max_link_time_seconds=max_link_time_seconds,
@@ -2140,7 +2595,7 @@ def run_tracking(
                 'Linking local maxima at {0:s} with those at {1:s}...\n'
             ).format(valid_time_strings[i], valid_time_strings[i - 1])
 
-            these_current_to_prev_indices = _link_local_maxima_in_time(
+            this_current_to_prev_matrix = _link_local_maxima_in_time(
                 current_local_max_dict=local_max_dict_by_time[i],
                 previous_local_max_dict=local_max_dict_by_time[i - 1],
                 max_link_time_seconds=max_link_time_seconds,
@@ -2148,7 +2603,7 @@ def run_tracking(
                 max_link_distance_m_s01=max_link_distance_m_s01)
 
         local_max_dict_by_time[i].update(
-            {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices}
+            {CURRENT_TO_PREV_MATRIX_KEY: this_current_to_prev_matrix}
         )
 
         if i == 0:
