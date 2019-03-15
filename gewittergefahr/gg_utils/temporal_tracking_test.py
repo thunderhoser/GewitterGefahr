@@ -2,12 +2,93 @@
 
 import copy
 import unittest
+from collections import OrderedDict
 import numpy
 from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TOLERANCE = 1e-6
 VELOCITY_EFOLD_RADIUS_METRES = 1.
+
+# The following constants are used to test _estimate_velocity_by_neigh.
+NEIGH_X_COORDS_METRES = numpy.array([
+    0, 1.5, 3, 4.5,
+    0, 1.5, 3, 4.5,
+    0, 1.5, 3, 4.5
+])
+NEIGH_Y_COORDS_METRES = numpy.array([
+    0, 0, 0, 0,
+    2, 2, 2, 2,
+    4, 4, 4, 4
+], dtype=float)
+
+X_VELOCITIES_WITH_NAN_M_S01 = numpy.array([
+    numpy.nan, 5, 8, 3,
+    14, numpy.nan, 1, 5,
+    5, 7, numpy.nan, 7
+])
+Y_VELOCITIES_WITH_NAN_M_S01 = numpy.array([
+    numpy.nan, -4, 0, 0,
+    3, numpy.nan, 2, 6,
+    6, -2, numpy.nan, 3
+])
+
+THESE_WEIGHTS = numpy.array([
+    numpy.nan, 1.5, 3, numpy.nan,
+    2, numpy.nan, numpy.nan, numpy.nan,
+    numpy.nan, numpy.nan, numpy.nan, numpy.nan
+])
+
+THESE_WEIGHTS = numpy.exp(-1 * THESE_WEIGHTS)
+THESE_WEIGHTS[numpy.isnan(THESE_WEIGHTS)] = 0.
+THESE_WEIGHTS = THESE_WEIGHTS / numpy.sum(THESE_WEIGHTS)
+
+FIRST_X_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * X_VELOCITIES_WITH_NAN_M_S01)
+FIRST_Y_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * Y_VELOCITIES_WITH_NAN_M_S01)
+
+THESE_WEIGHTS = numpy.array([
+    numpy.nan, 2, numpy.sqrt(6.25), numpy.nan,
+    1.5, numpy.nan, 1.5, 3,
+    numpy.sqrt(6.25), 2, numpy.nan, numpy.nan
+])
+
+THESE_WEIGHTS = numpy.exp(-1 * THESE_WEIGHTS)
+THESE_WEIGHTS[numpy.isnan(THESE_WEIGHTS)] = 0.
+THESE_WEIGHTS = THESE_WEIGHTS / numpy.sum(THESE_WEIGHTS)
+
+SECOND_X_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * X_VELOCITIES_WITH_NAN_M_S01)
+SECOND_Y_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * Y_VELOCITIES_WITH_NAN_M_S01)
+
+THESE_WEIGHTS = numpy.array([
+    numpy.nan, numpy.nan, numpy.nan, numpy.nan,
+    numpy.nan, numpy.nan, 2, numpy.sqrt(6.25),
+    3, 1.5, numpy.nan, 1.5
+])
+
+THESE_WEIGHTS = numpy.exp(-1 * THESE_WEIGHTS)
+THESE_WEIGHTS[numpy.isnan(THESE_WEIGHTS)] = 0.
+THESE_WEIGHTS = THESE_WEIGHTS / numpy.sum(THESE_WEIGHTS)
+
+THIRD_X_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * X_VELOCITIES_WITH_NAN_M_S01)
+THIRD_Y_VELOCITY_M_S01 = numpy.nansum(
+    THESE_WEIGHTS * Y_VELOCITIES_WITH_NAN_M_S01)
+
+X_VELOCITIES_WITHOUT_NAN_M_S01 = numpy.array([
+    FIRST_X_VELOCITY_M_S01, 5, 8, 3,
+    14, SECOND_X_VELOCITY_M_S01, 1, 5,
+    5, 7, THIRD_X_VELOCITY_M_S01, 7
+])
+Y_VELOCITIES_WITHOUT_NAN_M_S01 = numpy.array([
+    FIRST_Y_VELOCITY_M_S01, -4, 0, 0,
+    3, SECOND_Y_VELOCITY_M_S01, 2, 6,
+    6, -2, THIRD_Y_VELOCITY_M_S01, 3
+])
 
 # The following constants are used to test get_intermediate_velocities.
 THESE_X_COORDS_METRES = numpy.array([2, -7, 1, 6, 5, -4], dtype=float)
@@ -277,6 +358,12 @@ PREV_SPC_DATE_STRING_1TO2_POSTMERGE = '19691231'
 PREV_PRIMARY_ID_1TO2_POSTMERGE = 6
 PREV_SECONDARY_ID_1TO2_POSTMERGE = 6
 
+OLD_TO_NEW_DICT_1TO2 = [
+    ('000000_19691231', '000006_19691231'),
+    ('000002_19691231', '000006_19691231')
+]
+OLD_TO_NEW_DICT_1TO2 = OrderedDict(OLD_TO_NEW_DICT_1TO2)
+
 CURRENT_TO_PREV_MATRIX_1TO2_POSTMERGE = numpy.array(
     [[0, 0, 0, 0, 1, 0],
      [0, 0, 0, 0, 0, 1],
@@ -358,6 +445,12 @@ PREV_SPC_DATE_STRING_2TO3_POSTMERGE = '19691231'
 PREV_PRIMARY_ID_2TO3_POSTMERGE = 9
 PREV_SECONDARY_ID_2TO3_POSTMERGE = 11
 
+OLD_TO_NEW_DICT_2TO3 = [
+    ('000004_19691231', '000009_19691231'),
+    ('000007_19691231', '000009_19691231')
+]
+OLD_TO_NEW_DICT_2TO3 = OrderedDict(OLD_TO_NEW_DICT_2TO3)
+
 CURRENT_TO_PREV_MATRIX_2TO3_POSTMERGE = numpy.array(
     [[0, 0, 0, 0, 0, 0, 0, 0],
      [0, 1, 0, 0, 0, 0, 0, 0],
@@ -410,21 +503,102 @@ THIRD_LOCAL_MAX_DICT_LINKED.update({
 })
 
 # The following constants are used to test local_maxima_to_storm_tracks.
-PRIMARY_ID_STRINGS_1TO3 = PRIMARY_ID_STRINGS_1AND2 + THIRD_PRIMARY_ID_STRINGS
+
+# PRIMARY_ID_STRINGS = [
+#     '000006_19691231', '000001_19691231', '000006_19691231', '000003_19691231',
+#     '000009_19691231', '000005_19691231',
+#     '000009_19691231', '000005_19691231', '000009_19691231', '000003_19691231',
+#     '000009_19691231', '000006_19691231', '000001_19691231', '000008_19691231',
+#     '000009_19691231', '000005_19691231', '000010_19691231', '000008_19691231',
+#     '000006_19691231', '000006_19691231', '000008_19691231'
+# ]
+
+PRIMARY_ID_STRINGS = PRIMARY_ID_STRINGS_1AND2 + THIRD_PRIMARY_ID_STRINGS
 THESE_OLD_ID_STRINGS = ['000004_19691231', '000007_19691231']
-PRIMARY_ID_STRINGS_1TO3 = [
+PRIMARY_ID_STRINGS = [
     '000009_19691231' if s in THESE_OLD_ID_STRINGS else s
-    for s in PRIMARY_ID_STRINGS_1TO3
+    for s in PRIMARY_ID_STRINGS
 ]
 
-SECONDARY_ID_STRINGS_1TO3 = (
+SECONDARY_ID_STRINGS = (
     FIRST_SECONDARY_ID_STRINGS + SECOND_SECONDARY_ID_STRINGS +
     THIRD_SECONDARY_ID_STRINGS
 )
 
+# The following constants are used to test remove_short_lived_storms.
+THESE_SHORT_ID_STRINGS = ['000010_19691231']
+THESE_GOOD_FLAGS = numpy.array(
+    [s not in THESE_SHORT_ID_STRINGS for s in PRIMARY_ID_STRINGS],
+    dtype=bool
+)
+
+THESE_GOOD_INDICES = numpy.where(THESE_GOOD_FLAGS)[0]
+PRIMARY_ID_STRINGS_GE5SEC = [PRIMARY_ID_STRINGS[k] for k in THESE_GOOD_INDICES]
+SECONDARY_ID_STRINGS_GE5SEC = [
+    SECONDARY_ID_STRINGS[k] for k in THESE_GOOD_INDICES
+]
+
+THESE_SHORT_ID_STRINGS = ['000008_19691231', '000010_19691231']
+THESE_GOOD_FLAGS = numpy.array(
+    [s not in THESE_SHORT_ID_STRINGS for s in PRIMARY_ID_STRINGS],
+    dtype=bool
+)
+
+THESE_GOOD_INDICES = numpy.where(THESE_GOOD_FLAGS)[0]
+PRIMARY_ID_STRINGS_GE10SEC = [PRIMARY_ID_STRINGS[k] for k in THESE_GOOD_INDICES]
+SECONDARY_ID_STRINGS_GE10SEC = [
+    SECONDARY_ID_STRINGS[k] for k in THESE_GOOD_INDICES
+]
+
+# The following constants are used to test get_storm_ages.
+MAX_LINK_TIME_FOR_AGE_SEC = 3
+
+STORM_AGES_SECONDS = numpy.array([
+    -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, 0,
+    -1, -1, 0, 5, -1, -1, 5
+], dtype=int)
+
+CELL_START_TIMES_UNIX_SEC = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 10,
+    0, 0, 15, 10, 0, 0, 10
+], dtype=int)
+
+CELL_END_TIMES_UNIX_SEC = numpy.array([
+    15, 10, 15, 10, 15, 15,
+    15, 15, 15, 10, 15, 15, 10, 15,
+    15, 15, 15, 15, 15, 15, 15
+], dtype=int)
+
+TRACKING_START_TIMES_UNIX_SEC = numpy.full(
+    len(STORM_AGES_SECONDS), 0, dtype=int)
+TRACKING_END_TIMES_UNIX_SEC = numpy.full(len(STORM_AGES_SECONDS), 15, dtype=int)
+
 
 class TemporalTrackingTests(unittest.TestCase):
     """Each method is a unit test for temporal_tracking.py."""
+
+    def test_estimate_velocity_by_neigh(self):
+        """Ensures correct output from _estimate_velocity_by_neigh."""
+
+        these_x_velocities_m_s01, these_y_velocities_m_s01 = (
+            temporal_tracking._estimate_velocity_by_neigh(
+                x_coords_metres=NEIGH_X_COORDS_METRES,
+                y_coords_metres=NEIGH_Y_COORDS_METRES,
+                x_velocities_m_s01=X_VELOCITIES_WITH_NAN_M_S01 + 0.,
+                y_velocities_m_s01=Y_VELOCITIES_WITH_NAN_M_S01 + 0.,
+                e_folding_radius_metres=VELOCITY_EFOLD_RADIUS_METRES)
+        )
+
+        self.assertTrue(numpy.allclose(
+            these_x_velocities_m_s01, X_VELOCITIES_WITHOUT_NAN_M_S01,
+            atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.allclose(
+            these_y_velocities_m_s01, Y_VELOCITIES_WITHOUT_NAN_M_S01,
+            atol=TOLERANCE
+        ))
 
     def test_get_intermediate_velocities_time1(self):
         """Ensures correct output from get_intermediate_velocities.
@@ -736,8 +910,6 @@ class TemporalTrackingTests(unittest.TestCase):
             prev_spc_date_string=PREV_SPC_DATE_STRING_1TO2_PREMERGE,
             prev_secondary_id_numeric=PREV_SECONDARY_ID_1TO2_PREMERGE)
 
-        # TODO(thunderhoser): Verify the fucking mapping thing (old to new).
-
         this_current_local_max_dict = this_dict[
             temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
         this_current_to_prev_matrix = this_dict[
@@ -748,6 +920,8 @@ class TemporalTrackingTests(unittest.TestCase):
             temporal_tracking.PREVIOUS_SPC_DATE_KEY]
         prev_secondary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_SECONDARY_ID_KEY]
+        this_old_to_new_dict = this_dict[
+            temporal_tracking.OLD_TO_NEW_PRIMARY_IDS_KEY]
 
         these_primary_id_strings = this_current_local_max_dict[
             temporal_tracking.PRIMARY_IDS_KEY]
@@ -772,6 +946,7 @@ class TemporalTrackingTests(unittest.TestCase):
         self.assertTrue(
             prev_secondary_id_numeric == PREV_SECONDARY_ID_1TO2_POSTMERGE
         )
+        self.assertTrue(this_old_to_new_dict == OLD_TO_NEW_DICT_1TO2)
 
     def test_local_maxima_to_tracks_mergers_2to3(self):
         """Ensures correct output from _local_maxima_to_tracks_mergers.
@@ -799,8 +974,6 @@ class TemporalTrackingTests(unittest.TestCase):
             prev_spc_date_string=PREV_SPC_DATE_STRING_2TO3_PREMERGE,
             prev_secondary_id_numeric=PREV_SECONDARY_ID_2TO3_PREMERGE)
 
-        # TODO(thunderhoser): Verify the fucking mapping thing (old to new).
-
         this_current_local_max_dict = this_dict[
             temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
         this_current_to_prev_matrix = this_dict[
@@ -811,6 +984,8 @@ class TemporalTrackingTests(unittest.TestCase):
             temporal_tracking.PREVIOUS_SPC_DATE_KEY]
         prev_secondary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_SECONDARY_ID_KEY]
+        this_old_to_new_dict = this_dict[
+            temporal_tracking.OLD_TO_NEW_PRIMARY_IDS_KEY]
 
         these_primary_id_strings = this_current_local_max_dict[
             temporal_tracking.PRIMARY_IDS_KEY]
@@ -835,6 +1010,7 @@ class TemporalTrackingTests(unittest.TestCase):
         self.assertTrue(
             prev_secondary_id_numeric == PREV_SECONDARY_ID_2TO3_POSTMERGE
         )
+        self.assertTrue(this_old_to_new_dict == OLD_TO_NEW_DICT_2TO3)
 
     def test_local_maxima_to_tracks_splits_1to2(self):
         """Ensures correct output from _local_maxima_to_tracks_splits.
@@ -1094,8 +1270,122 @@ class TemporalTrackingTests(unittest.TestCase):
             temporal_tracking.SECONDARY_ID_COLUMN
         ].values.tolist()
 
-        self.assertTrue(these_primary_id_strings == PRIMARY_ID_STRINGS_1TO3)
-        self.assertTrue(these_secondary_id_strings == SECONDARY_ID_STRINGS_1TO3)
+        self.assertTrue(these_primary_id_strings == PRIMARY_ID_STRINGS)
+        self.assertTrue(these_secondary_id_strings == SECONDARY_ID_STRINGS)
+
+    def test_remove_short_lived_storms_5sec(self):
+        """Ensures correct output from remove_short_lived_storms.
+
+        In this case, minimum duration is 5 seconds.
+        """
+
+        this_max_dict_by_time = [
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_LINKED),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_LINKED),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_LINKED)
+        ]
+
+        this_storm_object_table = (
+            temporal_tracking.local_maxima_to_storm_tracks(
+                this_max_dict_by_time
+            )
+        )
+
+        this_storm_object_table = temporal_tracking.remove_short_lived_storms(
+            storm_object_table=this_storm_object_table, min_duration_seconds=5)
+
+        these_primary_id_strings = this_storm_object_table[
+            temporal_tracking.PRIMARY_ID_COLUMN
+        ].values.tolist()
+
+        these_secondary_id_strings = this_storm_object_table[
+            temporal_tracking.SECONDARY_ID_COLUMN
+        ].values.tolist()
+
+        self.assertTrue(these_primary_id_strings == PRIMARY_ID_STRINGS_GE5SEC)
+        self.assertTrue(
+            these_secondary_id_strings == SECONDARY_ID_STRINGS_GE5SEC
+        )
+
+    def test_remove_short_lived_storms_10sec(self):
+        """Ensures correct output from remove_short_lived_storms.
+
+        In this case, minimum duration is 10 seconds.
+        """
+
+        this_max_dict_by_time = [
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_LINKED),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_LINKED),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_LINKED)
+        ]
+
+        this_storm_object_table = (
+            temporal_tracking.local_maxima_to_storm_tracks(
+                this_max_dict_by_time
+            )
+        )
+
+        this_storm_object_table = temporal_tracking.remove_short_lived_storms(
+            storm_object_table=this_storm_object_table, min_duration_seconds=10)
+
+        these_primary_id_strings = this_storm_object_table[
+            temporal_tracking.PRIMARY_ID_COLUMN
+        ].values.tolist()
+
+        these_secondary_id_strings = this_storm_object_table[
+            temporal_tracking.SECONDARY_ID_COLUMN
+        ].values.tolist()
+
+        self.assertTrue(these_primary_id_strings == PRIMARY_ID_STRINGS_GE10SEC)
+        self.assertTrue(
+            these_secondary_id_strings == SECONDARY_ID_STRINGS_GE10SEC
+        )
+
+    def test_get_storm_ages(self):
+        """Ensures correct output from get_storm_ages."""
+
+        this_max_dict_by_time = [
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_LINKED),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_LINKED),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_LINKED)
+        ]
+
+        this_storm_object_table = (
+            temporal_tracking.local_maxima_to_storm_tracks(
+                this_max_dict_by_time
+            )
+        )
+
+        this_storm_object_table = temporal_tracking.get_storm_ages(
+            storm_object_table=this_storm_object_table,
+            tracking_start_time_unix_sec=0, tracking_end_time_unix_sec=15,
+            max_link_time_seconds=MAX_LINK_TIME_FOR_AGE_SEC,
+            max_join_time_seconds=0)
+
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[tracking_utils.AGE_COLUMN].values,
+            STORM_AGES_SECONDS
+        ))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_utils.TRACKING_START_TIME_COLUMN].values,
+            TRACKING_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_utils.TRACKING_END_TIME_COLUMN].values,
+            TRACKING_END_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_utils.CELL_START_TIME_COLUMN].values,
+            CELL_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_utils.CELL_END_TIME_COLUMN].values,
+            CELL_END_TIMES_UNIX_SEC
+        ))
 
 
 if __name__ == '__main__':

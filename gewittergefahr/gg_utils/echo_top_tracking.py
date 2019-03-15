@@ -42,7 +42,6 @@ from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
-from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import echo_classification as echo_classifn
 from gewittergefahr.gg_utils import error_checking
 
@@ -1430,48 +1429,6 @@ def _latlng_velocities_to_xy(
             new_y_coords_metres - y_coords_metres)
 
 
-def remove_short_lived_tracks(storm_object_table, min_duration_seconds):
-    """Removes short-lived storm tracks.
-
-    :param storm_object_table: pandas DataFrame created by
-        `_local_maxima_to_storm_tracks`.
-    :param min_duration_seconds: Minimum duration.
-    :return: storm_object_table: Same as input but maybe with fewer rows.
-    """
-
-    error_checking.assert_is_integer(min_duration_seconds)
-    error_checking.assert_is_greater(min_duration_seconds, 0)
-
-    all_primary_id_strings = numpy.array(
-        storm_object_table[PRIMARY_STORM_ID_COLUMN].values
-    )
-
-    unique_primary_id_strings, orig_to_unique_indices = numpy.unique(
-        all_primary_id_strings, return_inverse=True)
-
-    num_storm_cells = len(unique_primary_id_strings)
-    object_indices_to_remove = numpy.array([], dtype=int)
-
-    for i in range(num_storm_cells):
-        these_object_indices = numpy.where(orig_to_unique_indices == i)[0]
-        these_times_unix_sec = storm_object_table[
-            tracking_utils.TIME_COLUMN
-        ].values[these_object_indices]
-
-        this_duration_seconds = (
-            numpy.max(these_times_unix_sec) - numpy.min(these_times_unix_sec)
-        )
-        if this_duration_seconds >= min_duration_seconds:
-            continue
-
-        object_indices_to_remove = numpy.concatenate((
-            object_indices_to_remove, these_object_indices))
-
-    return storm_object_table.drop(
-        storm_object_table.index[object_indices_to_remove], axis=0,
-        inplace=False)
-
-
 def run_tracking(
         top_radar_dir_name, top_output_dir_name, first_spc_date_string,
         last_spc_date_string, first_time_unix_sec=None, last_time_unix_sec=None,
@@ -1701,17 +1658,16 @@ def run_tracking(
     print 'Removing tracks that last < {0:d} seconds...'.format(
         int(min_track_duration_seconds)
     )
-    storm_object_table = remove_short_lived_tracks(
+    storm_object_table = temporal_tracking.remove_short_lived_tracks(
         storm_object_table=storm_object_table,
         min_duration_seconds=min_track_duration_seconds)
 
     print 'Computing storm ages...'
-    storm_object_table = best_tracks.get_storm_ages(
+    storm_object_table = temporal_tracking.get_storm_ages(
         storm_object_table=storm_object_table,
-        best_track_start_time_unix_sec=valid_times_unix_sec[0],
-        best_track_end_time_unix_sec=valid_times_unix_sec[-1],
-        max_extrap_time_for_breakup_sec=max_link_time_seconds,
-        max_join_time_sec=max_link_time_seconds)
+        tracking_start_time_unix_sec=valid_times_unix_sec[0],
+        tracking_end_time_unix_sec=valid_times_unix_sec[-1],
+        max_link_time_seconds=max_link_time_seconds, max_join_time_seconds=0)
 
     print 'Computing storm velocities...'
     storm_object_table = _get_final_velocities(
@@ -1814,17 +1770,17 @@ def reanalyze_across_spc_dates(
         print 'Removing tracks that last < {0:d} seconds...'.format(
             int(min_track_duration_seconds)
         )
-        storm_object_table = remove_short_lived_tracks(
+        storm_object_table = temporal_tracking.remove_short_lived_tracks(
             storm_object_table=storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 
         print 'Recomputing storm ages...'
-        storm_object_table = best_tracks.get_storm_ages(
+        storm_object_table = temporal_tracking.get_storm_ages(
             storm_object_table=storm_object_table,
-            best_track_start_time_unix_sec=tracking_start_time_unix_sec,
-            best_track_end_time_unix_sec=tracking_end_time_unix_sec,
-            max_extrap_time_for_breakup_sec=max_link_time_seconds,
-            max_join_time_sec=max_join_time_sec)
+            tracking_start_time_unix_sec=tracking_start_time_unix_sec,
+            tracking_end_time_unix_sec=tracking_end_time_unix_sec,
+            max_link_time_seconds=max_link_time_seconds,
+            max_join_time_seconds=max_join_time_sec)
 
         print 'Recomputing storm velocities...'
 
@@ -1918,17 +1874,17 @@ def reanalyze_across_spc_dates(
         print 'Removing tracks that last < {0:d} seconds...'.format(
             int(min_track_duration_seconds)
         )
-        concat_storm_object_table = remove_short_lived_tracks(
+        concat_storm_object_table = temporal_tracking.remove_short_lived_tracks(
             storm_object_table=concat_storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 
         print 'Recomputing storm ages...'
-        concat_storm_object_table = best_tracks.get_storm_ages(
+        concat_storm_object_table = temporal_tracking.get_storm_ages(
             storm_object_table=concat_storm_object_table,
-            best_track_start_time_unix_sec=tracking_start_time_unix_sec,
-            best_track_end_time_unix_sec=tracking_end_time_unix_sec,
-            max_extrap_time_for_breakup_sec=max_link_time_seconds,
-            max_join_time_sec=max_join_time_sec)
+            tracking_start_time_unix_sec=tracking_start_time_unix_sec,
+            tracking_end_time_unix_sec=tracking_end_time_unix_sec,
+            max_link_time_seconds=max_link_time_seconds,
+            max_join_time_seconds=max_join_time_sec)
 
         print 'Recomputing storm velocities...'
 
