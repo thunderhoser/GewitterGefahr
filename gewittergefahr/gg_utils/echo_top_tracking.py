@@ -470,9 +470,6 @@ def _get_intermediate_velocities(
 
         return current_local_max_dict
 
-    # TODO(thunderhoser): Might want to put the next code chunk (finding
-    # indices) in a separate method.
-
     first_previous_indices = numpy.full(num_current_maxima, -1, dtype=int)
     second_previous_indices = numpy.full(num_current_maxima, -1, dtype=int)
 
@@ -612,7 +609,7 @@ def _link_local_maxima_by_velocity(
             if these_velocity_diffs_m_s01[j] > max_velocity_diff_m_s01:
                 break
 
-            if (numpy.sum(current_to_previous_matrix[i, :]) >
+            if (numpy.sum(current_to_previous_matrix[i, :]) >=
                     MAX_STORMS_IN_MERGER):
                 break
 
@@ -655,7 +652,7 @@ def _link_local_maxima_by_distance(
         (num_current_maxima, num_previous_maxima), numpy.nan)
 
     for i in range(num_current_maxima):
-        if numpy.sum(current_to_previous_matrix[i, :]) > MAX_STORMS_IN_MERGER:
+        if numpy.sum(current_to_previous_matrix[i, :]) >= MAX_STORMS_IN_MERGER:
             continue
 
         these_distances_metres = numpy.sqrt(
@@ -677,7 +674,7 @@ def _link_local_maxima_by_distance(
             if these_distances_m_s01[j] > max_link_distance_m_s01:
                 break
 
-            if (numpy.sum(current_to_previous_matrix[i, :]) >
+            if (numpy.sum(current_to_previous_matrix[i, :]) >=
                     MAX_STORMS_IN_MERGER):
                 break
 
@@ -704,38 +701,47 @@ def _prune_connections(velocity_diff_matrix_m_s01, distance_matrix_m_s01,
     num_previous_maxima = current_to_previous_matrix.shape[1]
 
     for j in range(num_previous_maxima):
-        these_current_indices = numpy.where(current_to_previous_matrix[:, j])[0]
-        this_worst_current_index = None
+        this_worst_current_index = -1
 
-        if len(these_current_indices) > 1:
-            this_num_previous_by_current = numpy.array([
-                numpy.sum(current_to_previous_matrix[i, :])
-                for i in these_current_indices
-            ], dtype=int)
+        while this_worst_current_index is not None:
+            these_current_indices = numpy.where(
+                current_to_previous_matrix[:, j]
+            )[0]
 
-            if numpy.max(this_num_previous_by_current) > 1:
-                this_worst_current_index = these_current_indices[
-                    numpy.argmax(this_num_previous_by_current)
-                ]
+            this_worst_current_index = None
 
-        if this_worst_current_index is None:
-            if len(these_current_indices) <= MAX_STORMS_IN_SPLIT:
-                continue
+            if len(these_current_indices) > 1:
+                this_num_previous_by_current = numpy.array([
+                    numpy.sum(current_to_previous_matrix[i, :])
+                    for i in these_current_indices
+                ], dtype=int)
 
-            this_max_velocity_diff_m_s01 = numpy.nanmax(
-                velocity_diff_matrix_m_s01[these_current_indices, j]
-            )
+                if numpy.max(this_num_previous_by_current) > 1:
+                    this_worst_current_index = these_current_indices[
+                        numpy.argmax(this_num_previous_by_current)
+                    ]
 
-            if numpy.isnan(this_max_velocity_diff_m_s01):
-                this_worst_current_index = numpy.nanargmax(
-                    distance_matrix_m_s01[these_current_indices, j]
-                )
-            else:
-                this_worst_current_index = numpy.nanargmax(
+            if this_worst_current_index is None:
+                if len(these_current_indices) <= MAX_STORMS_IN_SPLIT:
+                    continue
+
+                this_max_velocity_diff_m_s01 = numpy.max(
                     velocity_diff_matrix_m_s01[these_current_indices, j]
                 )
 
-        current_to_previous_matrix[this_worst_current_index, j] = False
+                if numpy.isinf(this_max_velocity_diff_m_s01):
+                    this_worst_current_index = numpy.argmax(
+                        distance_matrix_m_s01[these_current_indices, j]
+                    )
+                else:
+                    this_worst_current_index = numpy.argmax(
+                        velocity_diff_matrix_m_s01[these_current_indices, j]
+                    )
+
+                this_worst_current_index = these_current_indices[
+                    this_worst_current_index]
+
+            current_to_previous_matrix[this_worst_current_index, j] = False
 
     return current_to_previous_matrix
 
@@ -1217,9 +1223,12 @@ def _local_maxima_to_tracks_simple(
         possibly incremented.
     """
 
-    num_storm_objects = len(current_local_max_dict[LATITUDES_KEY])
+    num_storm_objects = len(current_local_max_dict[X_COORDS_KEY])
 
     for i in range(num_storm_objects):
+        if current_local_max_dict[PRIMARY_IDS_KEY][i]:
+            continue
+
         these_previous_indices = numpy.where(
             current_to_previous_matrix[i, :]
         )[0]
@@ -1324,55 +1333,71 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
 
     for i in range(num_times):
         this_num_storm_objects = len(local_max_dict_by_time[i][LATITUDES_KEY])
-        if this_num_storm_objects == 0:
-            continue
-
         local_max_dict_by_time[i].update({
             PRIMARY_IDS_KEY: [''] * this_num_storm_objects,
             SECONDARY_IDS_KEY: [''] * this_num_storm_objects
         })
 
-        this_current_to_prev_matrix = copy.deepcopy(
-            local_max_dict_by_time[i][CURRENT_TO_PREV_MATRIX_KEY]
-        )
+        if this_num_storm_objects == 0:
+            continue
 
-        this_dict = _local_maxima_to_tracks_mergers(
-            current_local_max_dict=local_max_dict_by_time[i],
-            previous_local_max_dict=local_max_dict_by_time[i - 1],
-            current_to_previous_matrix=this_current_to_prev_matrix,
-            prev_primary_id_numeric=prev_primary_id_numeric,
-            prev_spc_date_string=prev_spc_date_string,
-            prev_secondary_id_numeric=prev_secondary_id_numeric)
+        if i == 0:
+            for j in range(this_num_storm_objects):
+                (local_max_dict_by_time[i][PRIMARY_IDS_KEY][j],
+                 prev_primary_id_numeric, prev_spc_date_string
+                ) = _create_primary_storm_id(
+                    storm_start_time_unix_sec=local_max_dict_by_time[i][
+                        VALID_TIME_KEY],
+                    previous_numeric_id=prev_primary_id_numeric,
+                    previous_spc_date_string=prev_spc_date_string)
 
-        local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
-        this_current_to_prev_matrix = this_dict[CURRENT_TO_PREV_MATRIX_KEY]
-        prev_primary_id_numeric = this_dict[PREVIOUS_PRIMARY_ID_KEY]
-        prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
-        prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
-        old_to_new_primary_id_dict.update(this_dict[OLD_TO_NEW_PRIMARY_IDS_KEY])
+                (local_max_dict_by_time[i][SECONDARY_IDS_KEY][j],
+                 prev_secondary_id_numeric
+                ) = _create_secondary_storm_id(prev_secondary_id_numeric)
 
-        this_dict = _local_maxima_to_tracks_splits(
-            current_local_max_dict=local_max_dict_by_time[i],
-            previous_local_max_dict=local_max_dict_by_time[i - 1],
-            current_to_previous_matrix=this_current_to_prev_matrix,
-            prev_secondary_id_numeric=prev_secondary_id_numeric)
+        else:
+            this_current_to_prev_matrix = copy.deepcopy(
+                local_max_dict_by_time[i][CURRENT_TO_PREV_MATRIX_KEY]
+            )
 
-        local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
-        this_current_to_prev_matrix = this_dict[CURRENT_TO_PREV_MATRIX_KEY]
-        prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
+            this_dict = _local_maxima_to_tracks_mergers(
+                current_local_max_dict=local_max_dict_by_time[i],
+                previous_local_max_dict=local_max_dict_by_time[i - 1],
+                current_to_previous_matrix=this_current_to_prev_matrix,
+                prev_primary_id_numeric=prev_primary_id_numeric,
+                prev_spc_date_string=prev_spc_date_string,
+                prev_secondary_id_numeric=prev_secondary_id_numeric)
 
-        this_dict = _local_maxima_to_tracks_simple(
-            current_local_max_dict=local_max_dict_by_time[i],
-            previous_local_max_dict=local_max_dict_by_time[i - 1],
-            current_to_previous_matrix=this_current_to_prev_matrix,
-            prev_primary_id_numeric=prev_primary_id_numeric,
-            prev_spc_date_string=prev_spc_date_string,
-            prev_secondary_id_numeric=prev_secondary_id_numeric)
+            local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
+            this_current_to_prev_matrix = this_dict[CURRENT_TO_PREV_MATRIX_KEY]
+            prev_primary_id_numeric = this_dict[PREVIOUS_PRIMARY_ID_KEY]
+            prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
+            prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
+            old_to_new_primary_id_dict.update(
+                this_dict[OLD_TO_NEW_PRIMARY_IDS_KEY])
 
-        local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
-        prev_primary_id_numeric = this_dict[PREVIOUS_PRIMARY_ID_KEY]
-        prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
-        prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
+            this_dict = _local_maxima_to_tracks_splits(
+                current_local_max_dict=local_max_dict_by_time[i],
+                previous_local_max_dict=local_max_dict_by_time[i - 1],
+                current_to_previous_matrix=this_current_to_prev_matrix,
+                prev_secondary_id_numeric=prev_secondary_id_numeric)
+
+            local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
+            this_current_to_prev_matrix = this_dict[CURRENT_TO_PREV_MATRIX_KEY]
+            prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
+
+            this_dict = _local_maxima_to_tracks_simple(
+                current_local_max_dict=local_max_dict_by_time[i],
+                previous_local_max_dict=local_max_dict_by_time[i - 1],
+                current_to_previous_matrix=this_current_to_prev_matrix,
+                prev_primary_id_numeric=prev_primary_id_numeric,
+                prev_spc_date_string=prev_spc_date_string,
+                prev_secondary_id_numeric=prev_secondary_id_numeric)
+
+            local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
+            prev_primary_id_numeric = this_dict[PREVIOUS_PRIMARY_ID_KEY]
+            prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
+            prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
 
         all_primary_id_strings += local_max_dict_by_time[i][PRIMARY_IDS_KEY]
         all_secondary_id_strings += local_max_dict_by_time[i][SECONDARY_IDS_KEY]
