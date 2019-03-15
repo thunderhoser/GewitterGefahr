@@ -152,15 +152,15 @@ MAX_LINK_TIME_SECONDS = 100
 MAX_VELOCITY_DIFF_M_S01 = 3.
 MAX_LINK_DISTANCE_M_S01 = 2.
 
-FIRST_LOCAL_MAX_DICT_UNLINKED = copy.deepcopy(FIRST_MAX_DICT_WITH_VELOCITY)
-SECOND_LOCAL_MAX_DICT_UNLINKED = copy.deepcopy(SECOND_MAX_DICT_WITH_VELOCITY)
-SECOND_LOCAL_MAX_DICT_UNLINKED.pop(temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY)
+FIRST_LOCAL_MAX_DICT_SANS_IDS = copy.deepcopy(FIRST_MAX_DICT_WITH_VELOCITY)
+SECOND_LOCAL_MAX_DICT_SANS_IDS = copy.deepcopy(SECOND_MAX_DICT_WITH_VELOCITY)
+SECOND_LOCAL_MAX_DICT_SANS_IDS.pop(temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY)
 
 NUM_FIRST_MAXIMA = len(
-    FIRST_LOCAL_MAX_DICT_UNLINKED[temporal_tracking.X_COORDS_KEY]
+    FIRST_LOCAL_MAX_DICT_SANS_IDS[temporal_tracking.X_COORDS_KEY]
 )
 NUM_SECOND_MAXIMA = len(
-    SECOND_LOCAL_MAX_DICT_UNLINKED[temporal_tracking.X_COORDS_KEY]
+    SECOND_LOCAL_MAX_DICT_SANS_IDS[temporal_tracking.X_COORDS_KEY]
 )
 
 VELOCITY_DIFF_MATRIX_1TO2_M_S01 = numpy.full(
@@ -219,7 +219,7 @@ THESE_X_COORDS_METRES = numpy.array(
 THESE_Y_COORDS_METRES = numpy.array(
     [-9, 34, 0, 12, -4, 12, 25], dtype=float)
 
-THIRD_LOCAL_MAX_DICT_UNLINKED = {
+THIRD_LOCAL_MAX_DICT_SANS_IDS = {
     temporal_tracking.VALID_TIME_KEY: 15,
     temporal_tracking.X_COORDS_KEY: THESE_X_COORDS_METRES + 0.,
     temporal_tracking.Y_COORDS_KEY: THESE_Y_COORDS_METRES + 0.,
@@ -337,15 +337,22 @@ FIRST_SECONDARY_ID_STRINGS = [
     '000000', '000001', '000002', '000003', '000004', '000005'
 ]
 
-FIRST_LOCAL_MAX_DICT_LINKED = copy.deepcopy(FIRST_LOCAL_MAX_DICT_UNLINKED)
-FIRST_LOCAL_MAX_DICT_LINKED.update({
+FIRST_LOCAL_MAX_DICT_WITH_IDS = copy.deepcopy(FIRST_LOCAL_MAX_DICT_SANS_IDS)
+FIRST_LOCAL_MAX_DICT_WITH_IDS.update({
     temporal_tracking.PRIMARY_IDS_KEY: FIRST_PRIMARY_ID_STRINGS,
-    temporal_tracking.SECONDARY_IDS_KEY: FIRST_SECONDARY_ID_STRINGS
+    temporal_tracking.SECONDARY_IDS_KEY: FIRST_SECONDARY_ID_STRINGS,
 })
 
 PREV_SPC_DATE_STRING_1TO2_PREMERGE = '19691231'
 PREV_PRIMARY_ID_1TO2_PREMERGE = 5
 PREV_SECONDARY_ID_1TO2_PREMERGE = 5
+
+FIRST_NEXT_SECONDARY_IDS_POSTMERGE = [
+    ['000006'], [], ['000006'], [], [], []
+]
+SECOND_PREV_SECONDARY_IDS_POSTMERGE = [
+    [], [], [], [], [], ['000000', '000002'], [], []
+]
 
 SECOND_PRIMARY_ID_STRINGS_POSTMERGE = [
     '', '', '', '', '', '000006_19691231', '', ''
@@ -375,6 +382,13 @@ CURRENT_TO_PREV_MATRIX_1TO2_POSTMERGE = numpy.array(
      [0, 0, 0, 0, 0, 0]], dtype=bool)
 
 # The following constants are used to test _local_maxima_to_tracks_splits.
+FIRST_NEXT_SECONDARY_IDS_POSTSPLIT = [
+    ['000006'], [], ['000006'], [], ['000007', '000008'], []
+]
+SECOND_PREV_SECONDARY_IDS_POSTSPLIT = [
+    ['000004'], [], [], [], ['000004'], ['000000', '000002'], [], []
+]
+
 SECOND_PRIMARY_ID_STRINGS_POSTSPLIT = [
     '000004_19691231', '', '', '', '000004_19691231', '000006_19691231', '', ''
 ]
@@ -397,6 +411,15 @@ CURRENT_TO_PREV_MATRIX_1TO2_POSTSPLIT = numpy.array(
      [0, 0, 0, 0, 0, 0]], dtype=bool)
 
 # The following constants are used to test _local_maxima_to_tracks_simple.
+FIRST_NEXT_SECONDARY_IDS_POST = [
+    ['000006'], ['000001'], ['000006'], ['000003'], ['000007', '000008'],
+    ['000005']
+]
+SECOND_PREV_SECONDARY_IDS_POST = [
+    ['000004'], ['000005'], [], ['000003'], ['000004'], ['000000', '000002'],
+    ['000001'], []
+]
+
 SECOND_PRIMARY_ID_STRINGS = [
     '000004_19691231', '000005_19691231', '000007_19691231', '000003_19691231',
     '000004_19691231', '000006_19691231', '000001_19691231', '000008_19691231'
@@ -410,8 +433,8 @@ PREV_SPC_DATE_STRING_1TO2_POST = '19691231'
 PREV_PRIMARY_ID_1TO2_POST = 8
 PREV_SECONDARY_ID_1TO2_POST = 10
 
-SECOND_LOCAL_MAX_DICT_LINKED = copy.deepcopy(SECOND_LOCAL_MAX_DICT_UNLINKED)
-SECOND_LOCAL_MAX_DICT_LINKED.update({
+SECOND_LOCAL_MAX_DICT_WITH_IDS = copy.deepcopy(SECOND_LOCAL_MAX_DICT_SANS_IDS)
+SECOND_LOCAL_MAX_DICT_WITH_IDS.update({
     temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY: CURRENT_TO_PREV_MATRIX_1TO2,
     temporal_tracking.PRIMARY_IDS_KEY: SECOND_PRIMARY_ID_STRINGS,
     temporal_tracking.SECONDARY_IDS_KEY: SECOND_SECONDARY_ID_STRINGS
@@ -433,6 +456,13 @@ SECONDARY_ID_STRINGS_1AND2 = (
 PREV_SPC_DATE_STRING_2TO3_PREMERGE = '19691231'
 PREV_PRIMARY_ID_2TO3_PREMERGE = 8
 PREV_SECONDARY_ID_2TO3_PREMERGE = 10
+
+SECOND_NEXT_SECONDARY_IDS_POSTMERGE = [
+    ['000011'], [], ['000011'], [], [], [], [], []
+]
+THIRD_PREV_SECONDARY_IDS_POSTMERGE = [
+    ['000007', '000009'], [], [], [], [], [], []
+]
 
 THIRD_PRIMARY_ID_STRINGS_POSTMERGE = [
     '000009_19691231', '', '', '', '', '', ''
@@ -461,6 +491,14 @@ CURRENT_TO_PREV_MATRIX_2TO3_POSTMERGE = numpy.array(
      [0, 0, 0, 0, 0, 0, 0, 1]], dtype=bool)
 
 # The following constants are used to test _local_maxima_to_tracks_splits.
+SECOND_NEXT_SECONDARY_IDS_POSTSPLIT = [
+    ['000011'], [], ['000011'], [], [], ['000012', '000013'], [],
+    ['000014', '000015']
+]
+THIRD_PREV_SECONDARY_IDS_POSTSPLIT = [
+    ['000007', '000009'], [], [], ['000010'], ['000006'], ['000006'], ['000010']
+]
+
 THIRD_PRIMARY_ID_STRINGS_POSTSPLIT = [
     '000009_19691231', '', '', '000008_19691231', '000006_19691231',
     '000006_19691231', '000008_19691231'
@@ -483,6 +521,15 @@ CURRENT_TO_PREV_MATRIX_2TO3_POSTSPLIT = numpy.array(
      [0, 0, 0, 0, 0, 0, 0, 0]], dtype=bool)
 
 # The following constants are used to test _local_maxima_to_tracks_simple.
+SECOND_NEXT_SECONDARY_IDS_POST = [
+    ['000011'], ['000005'], ['000011'], [], [], ['000012', '000013'], [],
+    ['000014', '000015']
+]
+THIRD_PREV_SECONDARY_IDS_POST = [
+    ['000007', '000009'], ['000005'], [], ['000010'], ['000006'], ['000006'],
+    ['000010']
+]
+
 THIRD_PRIMARY_ID_STRINGS = [
     '000009_19691231', '000005_19691231', '000010_19691231', '000008_19691231',
     '000006_19691231', '000006_19691231', '000008_19691231'
@@ -495,8 +542,8 @@ PREV_SPC_DATE_STRING_2TO3_POST = '19691231'
 PREV_PRIMARY_ID_2TO3_POST = 10
 PREV_SECONDARY_ID_2TO3_POST = 16
 
-THIRD_LOCAL_MAX_DICT_LINKED = copy.deepcopy(THIRD_LOCAL_MAX_DICT_UNLINKED)
-THIRD_LOCAL_MAX_DICT_LINKED.update({
+THIRD_LOCAL_MAX_DICT_WITH_IDS = copy.deepcopy(THIRD_LOCAL_MAX_DICT_SANS_IDS)
+THIRD_LOCAL_MAX_DICT_WITH_IDS.update({
     temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY: CURRENT_TO_PREV_MATRIX_2TO3,
     temporal_tracking.PRIMARY_IDS_KEY: THIRD_PRIMARY_ID_STRINGS,
     temporal_tracking.SECONDARY_IDS_KEY: THIRD_SECONDARY_ID_STRINGS
@@ -576,6 +623,61 @@ TRACKING_START_TIMES_UNIX_SEC = numpy.full(
 TRACKING_END_TIMES_UNIX_SEC = numpy.full(len(STORM_AGES_SECONDS), 15, dtype=int)
 
 
+def _add_ids_to_dict(local_max_dict):
+    """Adds keys to dictionary with local maxima.
+
+    P = number of local maxima
+
+    :param local_max_dict: Dictionary with at least the following keys.
+    local_max_dict['x_coords_metres']: length-P numpy array of x-coordinates.
+
+    :return: local_max_dict: Same as input but with extra keys listed below.
+    local_max_dict['primary_storm_ids']: length-P list of primary storm IDs
+        (strings).
+    local_max_dict['secondary_storm_ids']: length-P list of secondary storm IDs
+        (strings).
+    """
+
+    num_storm_objects = len(local_max_dict[temporal_tracking.X_COORDS_KEY])
+
+    local_max_dict.update({
+        temporal_tracking.PRIMARY_IDS_KEY: [''] * num_storm_objects,
+        temporal_tracking.SECONDARY_IDS_KEY: [''] * num_storm_objects
+    })
+
+    return local_max_dict
+
+
+def _add_id_lists_to_dict(local_max_dict):
+    """Adds keys to dictionary with local maxima.
+
+    P = number of local maxima
+
+    :param local_max_dict: Dictionary with at least the following keys.
+    local_max_dict['x_coords_metres']: length-P numpy array of x-coordinates.
+
+    :return: local_max_dict: Same as input but with extra keys listed below.
+        All inner lists will be empty.
+    local_max_dict['prev_secondary_ids_listlist']: length-P list, where
+        prev_secondary_ids_listlist[i] is a 1-D list with secondary IDs of
+        previous maxima to which the [i]th current max is linked.
+    local_max_dict['next_secondary_ids_listlist']: length-P list, where
+        next_secondary_ids_listlist[i] is a 1-D list with secondary IDs of next
+        maxima to which the [i]th current max is linked.
+    """
+
+    num_storm_objects = len(local_max_dict[temporal_tracking.X_COORDS_KEY])
+
+    local_max_dict.update({
+        temporal_tracking.PREV_SECONDARY_IDS_KEY:
+            [['' for _ in range(0)] for _ in range(num_storm_objects)],
+        temporal_tracking.NEXT_SECONDARY_IDS_KEY:
+            [['' for _ in range(0)] for _ in range(num_storm_objects)]
+    })
+
+    return local_max_dict
+
+
 class TemporalTrackingTests(unittest.TestCase):
     """Each method is a unit test for temporal_tracking.py."""
 
@@ -653,8 +755,8 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_diff_matrix_m_s01, this_current_to_prev_matrix = (
             temporal_tracking._link_local_maxima_by_velocity(
-                current_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
-                previous_local_max_dict=FIRST_LOCAL_MAX_DICT_UNLINKED,
+                current_local_max_dict=SECOND_LOCAL_MAX_DICT_SANS_IDS,
+                previous_local_max_dict=FIRST_LOCAL_MAX_DICT_SANS_IDS,
                 max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01)
         )
 
@@ -675,8 +777,8 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_diff_matrix_m_s01, this_current_to_prev_matrix = (
             temporal_tracking._link_local_maxima_by_velocity(
-                current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
-                previous_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
+                current_local_max_dict=THIRD_LOCAL_MAX_DICT_SANS_IDS,
+                previous_local_max_dict=SECOND_LOCAL_MAX_DICT_SANS_IDS,
                 max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01)
         )
 
@@ -697,8 +799,8 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_diff_matrix_m_s01, this_current_to_prev_matrix = (
             temporal_tracking._link_local_maxima_by_distance(
-                current_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
-                previous_local_max_dict=FIRST_LOCAL_MAX_DICT_UNLINKED,
+                current_local_max_dict=SECOND_LOCAL_MAX_DICT_SANS_IDS,
+                previous_local_max_dict=FIRST_LOCAL_MAX_DICT_SANS_IDS,
                 max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01,
                 current_to_previous_matrix=copy.deepcopy(
                     CURRENT_TO_PREV_MATRIX_VELOCITY_1TO2)
@@ -721,8 +823,8 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_diff_matrix_m_s01, this_current_to_prev_matrix = (
             temporal_tracking._link_local_maxima_by_distance(
-                current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
-                previous_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
+                current_local_max_dict=THIRD_LOCAL_MAX_DICT_SANS_IDS,
+                previous_local_max_dict=SECOND_LOCAL_MAX_DICT_SANS_IDS,
                 max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01,
                 current_to_previous_matrix=copy.deepcopy(
                     CURRENT_TO_PREV_MATRIX_VELOCITY_2TO3)
@@ -779,8 +881,8 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_current_to_prev_matrix = (
             temporal_tracking.link_local_maxima_in_time(
-                current_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
-                previous_local_max_dict=FIRST_LOCAL_MAX_DICT_UNLINKED,
+                current_local_max_dict=SECOND_LOCAL_MAX_DICT_SANS_IDS,
+                previous_local_max_dict=FIRST_LOCAL_MAX_DICT_SANS_IDS,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
                 max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
                 max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
@@ -798,8 +900,8 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_current_to_prev_matrix = (
             temporal_tracking.link_local_maxima_in_time(
-                current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
-                previous_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
+                current_local_max_dict=THIRD_LOCAL_MAX_DICT_SANS_IDS,
+                previous_local_max_dict=SECOND_LOCAL_MAX_DICT_SANS_IDS,
                 max_link_time_seconds=MAX_LINK_TIME_SECONDS,
                 max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
                 max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
@@ -890,28 +992,25 @@ class TemporalTrackingTests(unittest.TestCase):
         In this case, linking maxima from the first and second times.
         """
 
-        this_current_local_max_dict = copy.deepcopy(
-            SECOND_LOCAL_MAX_DICT_UNLINKED)
-        this_num_storm_objects = len(
-            this_current_local_max_dict[temporal_tracking.X_COORDS_KEY]
+        this_current_local_max_dict = _add_ids_to_dict(
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_SANS_IDS)
         )
-
-        this_current_local_max_dict.update({
-            temporal_tracking.PRIMARY_IDS_KEY: [''] * this_num_storm_objects,
-            temporal_tracking.SECONDARY_IDS_KEY: [''] * this_num_storm_objects
-        })
+        this_current_local_max_dict = _add_id_lists_to_dict(
+            this_current_local_max_dict
+        )
+        this_prev_local_max_dict = _add_id_lists_to_dict(
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS)
+        )
 
         this_dict = temporal_tracking._local_maxima_to_tracks_mergers(
             current_local_max_dict=this_current_local_max_dict,
-            previous_local_max_dict=FIRST_LOCAL_MAX_DICT_LINKED,
+            previous_local_max_dict=this_prev_local_max_dict,
             current_to_previous_matrix=copy.deepcopy(
                 CURRENT_TO_PREV_MATRIX_1TO2),
             prev_primary_id_numeric=PREV_PRIMARY_ID_1TO2_PREMERGE,
             prev_spc_date_string=PREV_SPC_DATE_STRING_1TO2_PREMERGE,
             prev_secondary_id_numeric=PREV_SECONDARY_ID_1TO2_PREMERGE)
 
-        this_current_local_max_dict = this_dict[
-            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
         this_current_to_prev_matrix = this_dict[
             temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY]
         prev_primary_id_numeric = this_dict[
@@ -923,17 +1022,6 @@ class TemporalTrackingTests(unittest.TestCase):
         this_old_to_new_dict = this_dict[
             temporal_tracking.OLD_TO_NEW_PRIMARY_IDS_KEY]
 
-        these_primary_id_strings = this_current_local_max_dict[
-            temporal_tracking.PRIMARY_IDS_KEY]
-        these_secondary_id_strings = this_current_local_max_dict[
-            temporal_tracking.SECONDARY_IDS_KEY]
-
-        self.assertTrue(
-            these_primary_id_strings == SECOND_PRIMARY_ID_STRINGS_POSTMERGE
-        )
-        self.assertTrue(
-            these_secondary_id_strings == SECOND_SECONDARY_ID_STRINGS_POSTMERGE
-        )
         self.assertTrue(numpy.array_equal(
             this_current_to_prev_matrix, CURRENT_TO_PREV_MATRIX_1TO2_POSTMERGE
         ))
@@ -948,34 +1036,60 @@ class TemporalTrackingTests(unittest.TestCase):
         )
         self.assertTrue(this_old_to_new_dict == OLD_TO_NEW_DICT_1TO2)
 
+        this_current_local_max_dict = this_dict[
+            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
+        this_prev_local_max_dict = this_dict[
+            temporal_tracking.PREVIOUS_LOCAL_MAXIMA_KEY]
+
+        these_primary_id_strings = this_current_local_max_dict[
+            temporal_tracking.PRIMARY_IDS_KEY]
+        these_secondary_id_strings = this_current_local_max_dict[
+            temporal_tracking.SECONDARY_IDS_KEY]
+        these_prev_secondary_ids_listlist = this_current_local_max_dict[
+            temporal_tracking.PREV_SECONDARY_IDS_KEY]
+        these_next_secondary_ids_listlist = this_prev_local_max_dict[
+            temporal_tracking.NEXT_SECONDARY_IDS_KEY]
+
+        self.assertTrue(
+            these_primary_id_strings == SECOND_PRIMARY_ID_STRINGS_POSTMERGE
+        )
+        self.assertTrue(
+            these_secondary_id_strings == SECOND_SECONDARY_ID_STRINGS_POSTMERGE
+        )
+        self.assertTrue(
+            these_prev_secondary_ids_listlist ==
+            SECOND_PREV_SECONDARY_IDS_POSTMERGE
+        )
+        self.assertTrue(
+            these_next_secondary_ids_listlist ==
+            FIRST_NEXT_SECONDARY_IDS_POSTMERGE
+        )
+
     def test_local_maxima_to_tracks_mergers_2to3(self):
         """Ensures correct output from _local_maxima_to_tracks_mergers.
 
         In this case, linking maxima from the second and third times.
         """
 
-        this_current_local_max_dict = copy.deepcopy(
-            THIRD_LOCAL_MAX_DICT_UNLINKED)
-        this_num_storm_objects = len(
-            this_current_local_max_dict[temporal_tracking.X_COORDS_KEY]
+        this_current_local_max_dict = _add_ids_to_dict(
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_SANS_IDS)
         )
-
-        this_current_local_max_dict.update({
-            temporal_tracking.PRIMARY_IDS_KEY: [''] * this_num_storm_objects,
-            temporal_tracking.SECONDARY_IDS_KEY: [''] * this_num_storm_objects
-        })
+        this_current_local_max_dict = _add_id_lists_to_dict(
+            this_current_local_max_dict
+        )
+        this_prev_local_max_dict = _add_id_lists_to_dict(
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS)
+        )
 
         this_dict = temporal_tracking._local_maxima_to_tracks_mergers(
             current_local_max_dict=this_current_local_max_dict,
-            previous_local_max_dict=SECOND_LOCAL_MAX_DICT_LINKED,
+            previous_local_max_dict=this_prev_local_max_dict,
             current_to_previous_matrix=copy.deepcopy(
                 CURRENT_TO_PREV_MATRIX_2TO3),
             prev_primary_id_numeric=PREV_PRIMARY_ID_2TO3_PREMERGE,
             prev_spc_date_string=PREV_SPC_DATE_STRING_2TO3_PREMERGE,
             prev_secondary_id_numeric=PREV_SECONDARY_ID_2TO3_PREMERGE)
 
-        this_current_local_max_dict = this_dict[
-            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
         this_current_to_prev_matrix = this_dict[
             temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY]
         prev_primary_id_numeric = this_dict[
@@ -987,17 +1101,6 @@ class TemporalTrackingTests(unittest.TestCase):
         this_old_to_new_dict = this_dict[
             temporal_tracking.OLD_TO_NEW_PRIMARY_IDS_KEY]
 
-        these_primary_id_strings = this_current_local_max_dict[
-            temporal_tracking.PRIMARY_IDS_KEY]
-        these_secondary_id_strings = this_current_local_max_dict[
-            temporal_tracking.SECONDARY_IDS_KEY]
-
-        self.assertTrue(
-            these_primary_id_strings == THIRD_PRIMARY_ID_STRINGS_POSTMERGE
-        )
-        self.assertTrue(
-            these_secondary_id_strings == THIRD_SECONDARY_ID_STRINGS_POSTMERGE
-        )
         self.assertTrue(numpy.array_equal(
             this_current_to_prev_matrix, CURRENT_TO_PREV_MATRIX_2TO3_POSTMERGE
         ))
@@ -1012,40 +1115,95 @@ class TemporalTrackingTests(unittest.TestCase):
         )
         self.assertTrue(this_old_to_new_dict == OLD_TO_NEW_DICT_2TO3)
 
+        this_current_local_max_dict = this_dict[
+            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
+        this_prev_local_max_dict = this_dict[
+            temporal_tracking.PREVIOUS_LOCAL_MAXIMA_KEY]
+
+        these_primary_id_strings = this_current_local_max_dict[
+            temporal_tracking.PRIMARY_IDS_KEY]
+        these_secondary_id_strings = this_current_local_max_dict[
+            temporal_tracking.SECONDARY_IDS_KEY]
+        these_prev_secondary_ids_listlist = this_current_local_max_dict[
+            temporal_tracking.PREV_SECONDARY_IDS_KEY]
+        these_next_secondary_ids_listlist = this_prev_local_max_dict[
+            temporal_tracking.NEXT_SECONDARY_IDS_KEY]
+
+        self.assertTrue(
+            these_primary_id_strings == THIRD_PRIMARY_ID_STRINGS_POSTMERGE
+        )
+        self.assertTrue(
+            these_secondary_id_strings == THIRD_SECONDARY_ID_STRINGS_POSTMERGE
+        )
+        self.assertTrue(
+            these_prev_secondary_ids_listlist ==
+            THIRD_PREV_SECONDARY_IDS_POSTMERGE
+        )
+        self.assertTrue(
+            these_next_secondary_ids_listlist ==
+            SECOND_NEXT_SECONDARY_IDS_POSTMERGE
+        )
+
     def test_local_maxima_to_tracks_splits_1to2(self):
         """Ensures correct output from _local_maxima_to_tracks_splits.
 
         In this case, linking maxima from the first and second times.
         """
 
-        this_current_local_max_dict = copy.deepcopy(
-            SECOND_LOCAL_MAX_DICT_UNLINKED)
+        this_current_local_max_dict = _add_id_lists_to_dict(
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_SANS_IDS)
+        )
 
         this_current_local_max_dict.update({
             temporal_tracking.PRIMARY_IDS_KEY:
                 copy.deepcopy(SECOND_PRIMARY_ID_STRINGS_POSTMERGE),
             temporal_tracking.SECONDARY_IDS_KEY:
-                copy.deepcopy(SECOND_SECONDARY_ID_STRINGS_POSTMERGE)
+                copy.deepcopy(SECOND_SECONDARY_ID_STRINGS_POSTMERGE),
+            temporal_tracking.PREV_SECONDARY_IDS_KEY:
+                copy.deepcopy(SECOND_PREV_SECONDARY_IDS_POSTMERGE)
+        })
+
+        this_prev_local_max_dict = _add_id_lists_to_dict(
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS)
+        )
+
+        this_prev_local_max_dict.update({
+            temporal_tracking.NEXT_SECONDARY_IDS_KEY:
+                copy.deepcopy(FIRST_NEXT_SECONDARY_IDS_POSTMERGE)
         })
 
         this_dict = temporal_tracking._local_maxima_to_tracks_splits(
             current_local_max_dict=this_current_local_max_dict,
-            previous_local_max_dict=FIRST_LOCAL_MAX_DICT_LINKED,
+            previous_local_max_dict=this_prev_local_max_dict,
             current_to_previous_matrix=copy.deepcopy(
                 CURRENT_TO_PREV_MATRIX_1TO2_POSTMERGE),
             prev_secondary_id_numeric=PREV_SECONDARY_ID_1TO2_POSTMERGE)
 
-        this_current_local_max_dict = this_dict[
-            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
         this_current_to_prev_matrix = this_dict[
             temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY]
         prev_secondary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_SECONDARY_ID_KEY]
 
+        self.assertTrue(numpy.array_equal(
+            this_current_to_prev_matrix, CURRENT_TO_PREV_MATRIX_1TO2_POSTSPLIT
+        ))
+        self.assertTrue(
+            prev_secondary_id_numeric == PREV_SECONDARY_ID_1TO2_POSTSPLIT
+        )
+
+        this_current_local_max_dict = this_dict[
+            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
+        this_prev_local_max_dict = this_dict[
+            temporal_tracking.PREVIOUS_LOCAL_MAXIMA_KEY]
+
         these_primary_id_strings = this_current_local_max_dict[
             temporal_tracking.PRIMARY_IDS_KEY]
         these_secondary_id_strings = this_current_local_max_dict[
             temporal_tracking.SECONDARY_IDS_KEY]
+        these_prev_secondary_ids_listlist = this_current_local_max_dict[
+            temporal_tracking.PREV_SECONDARY_IDS_KEY]
+        these_next_secondary_ids_listlist = this_prev_local_max_dict[
+            temporal_tracking.NEXT_SECONDARY_IDS_KEY]
 
         self.assertTrue(
             these_primary_id_strings == SECOND_PRIMARY_ID_STRINGS_POSTSPLIT
@@ -1053,11 +1211,13 @@ class TemporalTrackingTests(unittest.TestCase):
         self.assertTrue(
             these_secondary_id_strings == SECOND_SECONDARY_ID_STRINGS_POSTSPLIT
         )
-        self.assertTrue(numpy.array_equal(
-            this_current_to_prev_matrix, CURRENT_TO_PREV_MATRIX_1TO2_POSTSPLIT
-        ))
         self.assertTrue(
-            prev_secondary_id_numeric == PREV_SECONDARY_ID_1TO2_POSTSPLIT
+            these_prev_secondary_ids_listlist ==
+            SECOND_PREV_SECONDARY_IDS_POSTSPLIT
+        )
+        self.assertTrue(
+            these_next_secondary_ids_listlist ==
+            FIRST_NEXT_SECONDARY_IDS_POSTSPLIT
         )
 
     def test_local_maxima_to_tracks_splits_2to3(self):
@@ -1066,34 +1226,60 @@ class TemporalTrackingTests(unittest.TestCase):
         In this case, linking maxima from the second and third times.
         """
 
-        this_current_local_max_dict = copy.deepcopy(
-            THIRD_LOCAL_MAX_DICT_UNLINKED)
+        this_current_local_max_dict = _add_id_lists_to_dict(
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_SANS_IDS)
+        )
 
         this_current_local_max_dict.update({
             temporal_tracking.PRIMARY_IDS_KEY:
                 copy.deepcopy(THIRD_PRIMARY_ID_STRINGS_POSTMERGE),
             temporal_tracking.SECONDARY_IDS_KEY:
-                copy.deepcopy(THIRD_SECONDARY_ID_STRINGS_POSTMERGE)
+                copy.deepcopy(THIRD_SECONDARY_ID_STRINGS_POSTMERGE),
+            temporal_tracking.PREV_SECONDARY_IDS_KEY:
+                copy.deepcopy(THIRD_PREV_SECONDARY_IDS_POSTMERGE)
+        })
+
+        this_prev_local_max_dict = _add_id_lists_to_dict(
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS)
+        )
+
+        this_prev_local_max_dict.update({
+            temporal_tracking.NEXT_SECONDARY_IDS_KEY:
+                copy.deepcopy(SECOND_NEXT_SECONDARY_IDS_POSTMERGE)
         })
 
         this_dict = temporal_tracking._local_maxima_to_tracks_splits(
             current_local_max_dict=this_current_local_max_dict,
-            previous_local_max_dict=SECOND_LOCAL_MAX_DICT_LINKED,
+            previous_local_max_dict=this_prev_local_max_dict,
             current_to_previous_matrix=copy.deepcopy(
                 CURRENT_TO_PREV_MATRIX_2TO3_POSTMERGE),
             prev_secondary_id_numeric=PREV_SECONDARY_ID_2TO3_POSTMERGE)
 
-        this_current_local_max_dict = this_dict[
-            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
         this_current_to_prev_matrix = this_dict[
             temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY]
         prev_secondary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_SECONDARY_ID_KEY]
 
+        self.assertTrue(numpy.array_equal(
+            this_current_to_prev_matrix, CURRENT_TO_PREV_MATRIX_2TO3_POSTSPLIT
+        ))
+        self.assertTrue(
+            prev_secondary_id_numeric == PREV_SECONDARY_ID_2TO3_POSTSPLIT
+        )
+
+        this_current_local_max_dict = this_dict[
+            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
+        this_prev_local_max_dict = this_dict[
+            temporal_tracking.PREVIOUS_LOCAL_MAXIMA_KEY]
+
         these_primary_id_strings = this_current_local_max_dict[
             temporal_tracking.PRIMARY_IDS_KEY]
         these_secondary_id_strings = this_current_local_max_dict[
             temporal_tracking.SECONDARY_IDS_KEY]
+        these_prev_secondary_ids_listlist = this_current_local_max_dict[
+            temporal_tracking.PREV_SECONDARY_IDS_KEY]
+        these_next_secondary_ids_listlist = this_prev_local_max_dict[
+            temporal_tracking.NEXT_SECONDARY_IDS_KEY]
 
         self.assertTrue(
             these_primary_id_strings == THIRD_PRIMARY_ID_STRINGS_POSTSPLIT
@@ -1101,11 +1287,13 @@ class TemporalTrackingTests(unittest.TestCase):
         self.assertTrue(
             these_secondary_id_strings == THIRD_SECONDARY_ID_STRINGS_POSTSPLIT
         )
-        self.assertTrue(numpy.array_equal(
-            this_current_to_prev_matrix, CURRENT_TO_PREV_MATRIX_2TO3_POSTSPLIT
-        ))
         self.assertTrue(
-            prev_secondary_id_numeric == PREV_SECONDARY_ID_2TO3_POSTSPLIT
+            these_prev_secondary_ids_listlist ==
+            THIRD_PREV_SECONDARY_IDS_POSTSPLIT
+        )
+        self.assertTrue(
+            these_next_secondary_ids_listlist ==
+            SECOND_NEXT_SECONDARY_IDS_POSTSPLIT
         )
 
     def test_local_maxima_to_tracks_simple_1to2(self):
@@ -1114,27 +1302,37 @@ class TemporalTrackingTests(unittest.TestCase):
         In this case, linking maxima from the first and second times.
         """
 
-        this_current_local_max_dict = copy.deepcopy(
-            SECOND_LOCAL_MAX_DICT_UNLINKED)
+        this_current_local_max_dict = _add_id_lists_to_dict(
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_SANS_IDS)
+        )
 
         this_current_local_max_dict.update({
             temporal_tracking.PRIMARY_IDS_KEY:
                 copy.deepcopy(SECOND_PRIMARY_ID_STRINGS_POSTSPLIT),
             temporal_tracking.SECONDARY_IDS_KEY:
-                copy.deepcopy(SECOND_SECONDARY_ID_STRINGS_POSTSPLIT)
+                copy.deepcopy(SECOND_SECONDARY_ID_STRINGS_POSTSPLIT),
+            temporal_tracking.PREV_SECONDARY_IDS_KEY:
+                copy.deepcopy(SECOND_PREV_SECONDARY_IDS_POSTSPLIT)
+        })
+
+        this_prev_local_max_dict = _add_id_lists_to_dict(
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS)
+        )
+
+        this_prev_local_max_dict.update({
+            temporal_tracking.NEXT_SECONDARY_IDS_KEY:
+                copy.deepcopy(FIRST_NEXT_SECONDARY_IDS_POSTSPLIT)
         })
 
         this_dict = temporal_tracking._local_maxima_to_tracks_simple(
             current_local_max_dict=this_current_local_max_dict,
-            previous_local_max_dict=FIRST_LOCAL_MAX_DICT_LINKED,
+            previous_local_max_dict=this_prev_local_max_dict,
             current_to_previous_matrix=copy.deepcopy(
                 CURRENT_TO_PREV_MATRIX_1TO2_POSTSPLIT),
             prev_primary_id_numeric=PREV_PRIMARY_ID_1TO2_POSTSPLIT,
             prev_spc_date_string=PREV_SPC_DATE_STRING_1TO2_POSTSPLIT,
             prev_secondary_id_numeric=PREV_SECONDARY_ID_1TO2_POSTSPLIT)
 
-        this_current_local_max_dict = this_dict[
-            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
         prev_primary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_PRIMARY_ID_KEY]
         prev_spc_date_string = this_dict[
@@ -1142,15 +1340,6 @@ class TemporalTrackingTests(unittest.TestCase):
         prev_secondary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_SECONDARY_ID_KEY]
 
-        these_primary_id_strings = this_current_local_max_dict[
-            temporal_tracking.PRIMARY_IDS_KEY]
-        these_secondary_id_strings = this_current_local_max_dict[
-            temporal_tracking.SECONDARY_IDS_KEY]
-
-        self.assertTrue(these_primary_id_strings == SECOND_PRIMARY_ID_STRINGS)
-        self.assertTrue(
-            these_secondary_id_strings == SECOND_SECONDARY_ID_STRINGS
-        )
         self.assertTrue(
             prev_primary_id_numeric == PREV_PRIMARY_ID_1TO2_POST
         )
@@ -1161,33 +1350,68 @@ class TemporalTrackingTests(unittest.TestCase):
             prev_secondary_id_numeric == PREV_SECONDARY_ID_1TO2_POST
         )
 
+        this_current_local_max_dict = this_dict[
+            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
+        this_prev_local_max_dict = this_dict[
+            temporal_tracking.PREVIOUS_LOCAL_MAXIMA_KEY]
+
+        these_primary_id_strings = this_current_local_max_dict[
+            temporal_tracking.PRIMARY_IDS_KEY]
+        these_secondary_id_strings = this_current_local_max_dict[
+            temporal_tracking.SECONDARY_IDS_KEY]
+        these_prev_secondary_ids_listlist = this_current_local_max_dict[
+            temporal_tracking.PREV_SECONDARY_IDS_KEY]
+        these_next_secondary_ids_listlist = this_prev_local_max_dict[
+            temporal_tracking.NEXT_SECONDARY_IDS_KEY]
+
+        self.assertTrue(these_primary_id_strings == SECOND_PRIMARY_ID_STRINGS)
+        self.assertTrue(
+            these_secondary_id_strings == SECOND_SECONDARY_ID_STRINGS
+        )
+        self.assertTrue(
+            these_prev_secondary_ids_listlist == SECOND_PREV_SECONDARY_IDS_POST
+        )
+        self.assertTrue(
+            these_next_secondary_ids_listlist == FIRST_NEXT_SECONDARY_IDS_POST
+        )
+
     def test_local_maxima_to_tracks_simple_2to3(self):
         """Ensures correct output from _local_maxima_to_tracks_simple.
 
         In this case, linking maxima from the second and third times.
         """
 
-        this_current_local_max_dict = copy.deepcopy(
-            THIRD_LOCAL_MAX_DICT_UNLINKED)
+        this_current_local_max_dict = _add_id_lists_to_dict(
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_SANS_IDS)
+        )
 
         this_current_local_max_dict.update({
             temporal_tracking.PRIMARY_IDS_KEY:
                 copy.deepcopy(THIRD_PRIMARY_ID_STRINGS_POSTSPLIT),
             temporal_tracking.SECONDARY_IDS_KEY:
-                copy.deepcopy(THIRD_SECONDARY_ID_STRINGS_POSTSPLIT)
+                copy.deepcopy(THIRD_SECONDARY_ID_STRINGS_POSTSPLIT),
+            temporal_tracking.PREV_SECONDARY_IDS_KEY:
+                copy.deepcopy(THIRD_PREV_SECONDARY_IDS_POSTSPLIT)
+        })
+
+        this_prev_local_max_dict = _add_id_lists_to_dict(
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS)
+        )
+
+        this_prev_local_max_dict.update({
+            temporal_tracking.NEXT_SECONDARY_IDS_KEY:
+                copy.deepcopy(SECOND_NEXT_SECONDARY_IDS_POSTSPLIT)
         })
 
         this_dict = temporal_tracking._local_maxima_to_tracks_simple(
             current_local_max_dict=this_current_local_max_dict,
-            previous_local_max_dict=SECOND_LOCAL_MAX_DICT_LINKED,
+            previous_local_max_dict=this_prev_local_max_dict,
             current_to_previous_matrix=copy.deepcopy(
                 CURRENT_TO_PREV_MATRIX_2TO3_POSTSPLIT),
             prev_primary_id_numeric=PREV_PRIMARY_ID_2TO3_POSTSPLIT,
             prev_spc_date_string=PREV_SPC_DATE_STRING_2TO3_POSTSPLIT,
             prev_secondary_id_numeric=PREV_SECONDARY_ID_2TO3_POSTSPLIT)
 
-        this_current_local_max_dict = this_dict[
-            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
         prev_primary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_PRIMARY_ID_KEY]
         prev_spc_date_string = this_dict[
@@ -1195,23 +1419,35 @@ class TemporalTrackingTests(unittest.TestCase):
         prev_secondary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_SECONDARY_ID_KEY]
 
+        self.assertTrue(prev_primary_id_numeric == PREV_PRIMARY_ID_2TO3_POST)
+        self.assertTrue(prev_spc_date_string == PREV_SPC_DATE_STRING_2TO3_POST)
+        self.assertTrue(
+            prev_secondary_id_numeric == PREV_SECONDARY_ID_2TO3_POST
+        )
+
+        this_current_local_max_dict = this_dict[
+            temporal_tracking.CURRENT_LOCAL_MAXIMA_KEY]
+        this_prev_local_max_dict = this_dict[
+            temporal_tracking.PREVIOUS_LOCAL_MAXIMA_KEY]
+
         these_primary_id_strings = this_current_local_max_dict[
             temporal_tracking.PRIMARY_IDS_KEY]
         these_secondary_id_strings = this_current_local_max_dict[
             temporal_tracking.SECONDARY_IDS_KEY]
+        these_prev_secondary_ids_listlist = this_current_local_max_dict[
+            temporal_tracking.PREV_SECONDARY_IDS_KEY]
+        these_next_secondary_ids_listlist = this_prev_local_max_dict[
+            temporal_tracking.NEXT_SECONDARY_IDS_KEY]
 
         self.assertTrue(these_primary_id_strings == THIRD_PRIMARY_ID_STRINGS)
         self.assertTrue(
             these_secondary_id_strings == THIRD_SECONDARY_ID_STRINGS
         )
         self.assertTrue(
-            prev_primary_id_numeric == PREV_PRIMARY_ID_2TO3_POST
+            these_prev_secondary_ids_listlist == THIRD_PREV_SECONDARY_IDS_POST
         )
         self.assertTrue(
-            prev_spc_date_string == PREV_SPC_DATE_STRING_2TO3_POST
-        )
-        self.assertTrue(
-            prev_secondary_id_numeric == PREV_SECONDARY_ID_2TO3_POST
+            these_next_secondary_ids_listlist == SECOND_NEXT_SECONDARY_IDS_POST
         )
 
     def test_local_maxima_to_storm_tracks_1to2(self):
@@ -1221,8 +1457,8 @@ class TemporalTrackingTests(unittest.TestCase):
         """
 
         this_max_dict_by_time = [
-            copy.deepcopy(FIRST_LOCAL_MAX_DICT_LINKED),
-            copy.deepcopy(SECOND_LOCAL_MAX_DICT_LINKED)
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS)
         ]
 
         this_storm_object_table = (
@@ -1251,9 +1487,9 @@ class TemporalTrackingTests(unittest.TestCase):
         """
 
         this_max_dict_by_time = [
-            copy.deepcopy(FIRST_LOCAL_MAX_DICT_LINKED),
-            copy.deepcopy(SECOND_LOCAL_MAX_DICT_LINKED),
-            copy.deepcopy(THIRD_LOCAL_MAX_DICT_LINKED)
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
         ]
 
         this_storm_object_table = (
@@ -1280,9 +1516,9 @@ class TemporalTrackingTests(unittest.TestCase):
         """
 
         this_max_dict_by_time = [
-            copy.deepcopy(FIRST_LOCAL_MAX_DICT_LINKED),
-            copy.deepcopy(SECOND_LOCAL_MAX_DICT_LINKED),
-            copy.deepcopy(THIRD_LOCAL_MAX_DICT_LINKED)
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
         ]
 
         this_storm_object_table = (
@@ -1314,9 +1550,9 @@ class TemporalTrackingTests(unittest.TestCase):
         """
 
         this_max_dict_by_time = [
-            copy.deepcopy(FIRST_LOCAL_MAX_DICT_LINKED),
-            copy.deepcopy(SECOND_LOCAL_MAX_DICT_LINKED),
-            copy.deepcopy(THIRD_LOCAL_MAX_DICT_LINKED)
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
         ]
 
         this_storm_object_table = (
@@ -1345,9 +1581,9 @@ class TemporalTrackingTests(unittest.TestCase):
         """Ensures correct output from get_storm_ages."""
 
         this_max_dict_by_time = [
-            copy.deepcopy(FIRST_LOCAL_MAX_DICT_LINKED),
-            copy.deepcopy(SECOND_LOCAL_MAX_DICT_LINKED),
-            copy.deepcopy(THIRD_LOCAL_MAX_DICT_LINKED)
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
         ]
 
         this_storm_object_table = (

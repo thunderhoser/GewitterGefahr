@@ -20,11 +20,14 @@ Y_COORDS_KEY = 'y_coords_metres'
 X_VELOCITIES_KEY = 'x_velocities_m_s01'
 Y_VELOCITIES_KEY = 'y_velocities_m_s01'
 
-PRIMARY_IDS_KEY = 'primary_id_strings'
-SECONDARY_IDS_KEY = 'secondary_id_strings'
+PRIMARY_IDS_KEY = 'primary_storm_ids'
+SECONDARY_IDS_KEY = 'secondary_storm_ids'
+PREV_SECONDARY_IDS_KEY = 'prev_secondary_ids_listlist'
+NEXT_SECONDARY_IDS_KEY = 'next_secondary_ids_listlist'
 CURRENT_TO_PREV_MATRIX_KEY = 'current_to_previous_matrix'
 
 CURRENT_LOCAL_MAXIMA_KEY = 'current_local_max_dict'
+PREVIOUS_LOCAL_MAXIMA_KEY = 'previous_local_max_dict'
 PREVIOUS_PRIMARY_ID_KEY = 'prev_primary_id_numeric'
 PREVIOUS_SPC_DATE_KEY = 'prev_spc_date_string'
 PREVIOUS_SECONDARY_ID_KEY = 'prev_secondary_id_numeric'
@@ -39,8 +42,10 @@ POLYGON_OBJECTS_LATLNG_KEY = 'polygon_objects_latlng'
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
-PRIMARY_ID_COLUMN = 'primary_id_string'
-SECONDARY_ID_COLUMN = 'secondary_id_string'
+PRIMARY_ID_COLUMN = 'primary_storm_id'
+SECONDARY_ID_COLUMN = 'secondary_storm_id'
+PREV_SECONDARY_IDS_COLUMN = 'prev_secondary_storm_ids'
+NEXT_SECONDARY_IDS_COLUMN = 'next_secondary_storm_ids'
 
 
 def _estimate_velocity_by_neigh(
@@ -380,8 +385,27 @@ def _local_maxima_to_tracks_mergers(
     N_c = number of maxima at current time
     N_p = number of maxima at previous time
 
-    :param current_local_max_dict: See doc for `local_max_dict_by_time` in
-        `local_maxima_to_storm_tracks`.
+    :param current_local_max_dict: Dictionary with the following keys.
+    current_local_max_dict['valid_time_unix_sec']: Valid time.
+    current_local_max_dict['latitudes_deg']: numpy array (length N_c) with
+        latitudes (deg N) of local maxima.
+    current_local_max_dict['longitudes_deg']: numpy array (length N_c) with
+        longitudes (deg E) of local maxima.
+    current_local_max_dict['x_coords_metres']: numpy array (length N_c) with
+        x-coordinates of local maxima.
+    current_local_max_dict['y_coords_metres']: numpy array (length N_c) with
+        y-coordinates of local maxima.
+    current_local_max_dict['primary_storm_ids']: List (length N_c) of primary
+        storm IDs (strings).
+    current_local_max_dict['secondary_storm_ids']: List (length N_c) of
+        secondary storm IDs (strings).
+    current_local_max_dict['prev_secondary_ids_listlist']: List (length N_c),
+        where prev_secondary_ids_listlist[i] is a 1-D list with secondary IDs of
+        previous maxima to which the [i]th current max is linked.
+    current_local_max_dict['next_secondary_ids_listlist']: List (length N_c),
+        where next_secondary_ids_listlist[i] is a 1-D list with secondary IDs of
+        next maxima to which the [i]th current max is linked.
+
     :param previous_local_max_dict: Same.
     :param current_to_previous_matrix: numpy array (N_c x N_p) of Boolean
         flags.  If current_to_previous_matrix[i, j] = True, the [i]th local max
@@ -393,6 +417,8 @@ def _local_maxima_to_tracks_mergers(
     :param prev_secondary_id_numeric: Previous secondary storm ID used.
     :return: intermediate_track_dict: Dictionary with the following keys.
     intermediate_track_dict['current_local_max_dict']: Same as input but maybe
+        with different IDs.
+    intermediate_track_dict['previous_local_max_dict']: Same as input but maybe
         with different IDs.
     intermediate_track_dict['current_to_previous_matrix']: Same as input but
         with some elements (those involved in mergers) flipped from True to
@@ -432,6 +458,14 @@ def _local_maxima_to_tracks_mergers(
         current_local_max_dict[PRIMARY_IDS_KEY][i] = this_primary_id_string
 
         for j in these_previous_indices:
+            current_local_max_dict[PREV_SECONDARY_IDS_KEY][i].append(
+                previous_local_max_dict[SECONDARY_IDS_KEY][j]
+            )
+
+            previous_local_max_dict[NEXT_SECONDARY_IDS_KEY][j].append(
+                current_local_max_dict[SECONDARY_IDS_KEY][i]
+            )
+
             this_old_id_string = previous_local_max_dict[PRIMARY_IDS_KEY][j]
             old_to_new_primary_id_dict[
                 this_old_id_string
@@ -439,6 +473,7 @@ def _local_maxima_to_tracks_mergers(
 
     return {
         CURRENT_LOCAL_MAXIMA_KEY: current_local_max_dict,
+        PREVIOUS_LOCAL_MAXIMA_KEY: previous_local_max_dict,
         CURRENT_TO_PREV_MATRIX_KEY: current_to_previous_matrix,
         PREVIOUS_PRIMARY_ID_KEY: prev_primary_id_numeric,
         PREVIOUS_SPC_DATE_KEY: prev_spc_date_string,
@@ -455,8 +490,8 @@ def _local_maxima_to_tracks_splits(
     N_c = number of maxima at current time
     N_p = number of maxima at previous time
 
-    :param current_local_max_dict: See doc for `local_max_dict_by_time` in
-        `local_maxima_to_storm_tracks`.
+    :param current_local_max_dict: See doc for
+        `_local_maxima_to_tracks_mergers`.
     :param previous_local_max_dict: Same.
     :param current_to_previous_matrix: numpy array (N_c x N_p) of Boolean
         flags.  If current_to_previous_matrix[i, j] = True, the [i]th local max
@@ -465,6 +500,8 @@ def _local_maxima_to_tracks_splits(
     :param prev_secondary_id_numeric: Previous secondary storm ID used.
     :return: intermediate_track_dict: Dictionary with the following keys.
     intermediate_track_dict['current_local_max_dict']: Same as input but maybe
+        with different IDs.
+    intermediate_track_dict['previous_local_max_dict']: Same as input but maybe
         with different IDs.
     intermediate_track_dict['current_to_previous_matrix']: Same as input but
         with some elements (those involved in mergers) flipped from True to
@@ -489,8 +526,17 @@ def _local_maxima_to_tracks_splits(
              prev_secondary_id_numeric
             ) = _create_secondary_storm_id(prev_secondary_id_numeric)
 
+            current_local_max_dict[PREV_SECONDARY_IDS_KEY][i].append(
+                previous_local_max_dict[SECONDARY_IDS_KEY][j]
+            )
+
+            previous_local_max_dict[NEXT_SECONDARY_IDS_KEY][j].append(
+                current_local_max_dict[SECONDARY_IDS_KEY][i]
+            )
+
     return {
         CURRENT_LOCAL_MAXIMA_KEY: current_local_max_dict,
+        PREVIOUS_LOCAL_MAXIMA_KEY: previous_local_max_dict,
         CURRENT_TO_PREV_MATRIX_KEY: current_to_previous_matrix,
         PREVIOUS_SECONDARY_ID_KEY: prev_secondary_id_numeric
     }
@@ -507,8 +553,8 @@ def _local_maxima_to_tracks_simple(
     N_c = number of maxima at current time
     N_p = number of maxima at previous time
 
-    :param current_local_max_dict: See doc for `local_max_dict_by_time` in
-        `local_maxima_to_storm_tracks`.
+    :param current_local_max_dict: See doc for
+        `_local_maxima_to_tracks_mergers`.
     :param previous_local_max_dict: Same.
     :param current_to_previous_matrix: numpy array (N_c x N_p) of Boolean
         flags.  If current_to_previous_matrix[i, j] = True, the [i]th local max
@@ -520,6 +566,8 @@ def _local_maxima_to_tracks_simple(
     :param prev_secondary_id_numeric: Previous secondary storm ID used.
     :return: intermediate_track_dict: Dictionary with the following keys.
     intermediate_track_dict['current_local_max_dict']: Same as input but maybe
+        with different IDs.
+    intermediate_track_dict['previous_local_max_dict']: Same as input but maybe
         with different IDs.
     intermediate_track_dict['prev_primary_id_numeric']: Same as input but
         possibly incremented.
@@ -561,8 +609,17 @@ def _local_maxima_to_tracks_simple(
         current_local_max_dict[SECONDARY_IDS_KEY][i] = previous_local_max_dict[
             SECONDARY_IDS_KEY][j]
 
+        current_local_max_dict[PREV_SECONDARY_IDS_KEY][i].append(
+            previous_local_max_dict[SECONDARY_IDS_KEY][j]
+        )
+
+        previous_local_max_dict[NEXT_SECONDARY_IDS_KEY][j].append(
+            current_local_max_dict[SECONDARY_IDS_KEY][i]
+        )
+
     return {
         CURRENT_LOCAL_MAXIMA_KEY: current_local_max_dict,
+        PREVIOUS_LOCAL_MAXIMA_KEY: previous_local_max_dict,
         PREVIOUS_PRIMARY_ID_KEY: prev_primary_id_numeric,
         PREVIOUS_SPC_DATE_KEY: prev_spc_date_string,
         PREVIOUS_SECONDARY_ID_KEY: prev_secondary_id_numeric
@@ -578,7 +635,7 @@ def link_local_maxima_in_time(
     N_p = number of maxima at previous time
 
     :param current_local_max_dict: Dictionary with the following keys.
-    current_local_max_dict['unix_time_sec']: Valid time.
+    current_local_max_dict['valid_time_unix_sec']: Valid time.
     current_local_max_dict['x_coords_metres']: numpy array (length N_c) with
         x-coordinates of local maxima.
     current_local_max_dict['y_coords_metres']: numpy array (length N_c) with
@@ -658,7 +715,7 @@ def get_intermediate_velocities(
     :param current_local_max_dict: Dictionary with the following keys.  If
         `previous_local_max_dict is None`, the key "current_to_previous_matrix"
         is not required.
-    current_local_max_dict['unix_time_sec']: Valid time.
+    current_local_max_dict['valid_time_unix_sec']: Valid time.
     current_local_max_dict['x_coords_metres']: numpy array (length N_c) with
         x-coordinates of local maxima.
     current_local_max_dict['y_coords_metres']: numpy array (length N_c) with
@@ -786,7 +843,7 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
 
     :param local_max_dict_by_time: length-T list of dictionaries, each with the
         following keys.
-    "unix_time_sec": Valid time.
+    "valid_time_unix_sec": Valid time.
     "latitudes_deg": length-P numpy array with latitudes (deg N) of local
         maxima.
     "longitudes_deg": length-P numpy array with longitudes (deg E) of local
@@ -798,8 +855,12 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     :return: storm_object_table: pandas DataFrame with the following columns.
         Each row is one storm object.
     storm_object_table.storm_id: Storm ID (string).
-    storm_object_table.primary_id_string: Primary storm ID (string).
-    storm_object_table.secondary_id_string: Secondary storm ID (string).
+    storm_object_table.primary_storm_id: Primary storm ID (string).
+    storm_object_table.secondary_storm_id: Secondary storm ID (string).
+    storm_object_table.prev_secondary_storm_ids: 1-D list of storm IDs at the
+        previous time to which the given storm is linked.
+    storm_object_table.next_secondary_storm_ids: 1-D list of storm IDs at the
+        next time to which the given storm is linked.
     storm_object_table.unix_time_sec: Valid time.
     storm_object_table.spc_date_unix_sec: SPC date.
     storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
@@ -821,6 +882,8 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
 
     all_primary_id_strings = []
     all_secondary_id_strings = []
+    all_prev_secondary_ids_listlist = []
+    all_next_secondary_ids_listlist = []
     all_times_unix_sec = numpy.array([], dtype=int)
     all_spc_dates_unix_sec = numpy.array([], dtype=int)
     all_centroid_latitudes_deg = numpy.array([])
@@ -846,9 +909,15 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
 
     for i in range(num_times):
         this_num_storm_objects = len(local_max_dict_by_time[i][LATITUDES_KEY])
+        this_empty_2d_list = [
+            ['' for _ in range(0)] for _ in range(this_num_storm_objects)
+        ]
+
         local_max_dict_by_time[i].update({
             PRIMARY_IDS_KEY: [''] * this_num_storm_objects,
-            SECONDARY_IDS_KEY: [''] * this_num_storm_objects
+            SECONDARY_IDS_KEY: [''] * this_num_storm_objects,
+            PREV_SECONDARY_IDS_KEY: this_empty_2d_list,
+            NEXT_SECONDARY_IDS_KEY: copy.deepcopy(this_empty_2d_list)
         })
 
         if this_num_storm_objects == 0:
@@ -882,6 +951,7 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
                 prev_secondary_id_numeric=prev_secondary_id_numeric)
 
             local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
+            local_max_dict_by_time[i - 1] = this_dict[PREVIOUS_LOCAL_MAXIMA_KEY]
             this_current_to_prev_matrix = this_dict[CURRENT_TO_PREV_MATRIX_KEY]
             prev_primary_id_numeric = this_dict[PREVIOUS_PRIMARY_ID_KEY]
             prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
@@ -896,6 +966,7 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
                 prev_secondary_id_numeric=prev_secondary_id_numeric)
 
             local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
+            local_max_dict_by_time[i - 1] = this_dict[PREVIOUS_LOCAL_MAXIMA_KEY]
             this_current_to_prev_matrix = this_dict[CURRENT_TO_PREV_MATRIX_KEY]
             prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
 
@@ -908,12 +979,17 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
                 prev_secondary_id_numeric=prev_secondary_id_numeric)
 
             local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
+            local_max_dict_by_time[i - 1] = this_dict[PREVIOUS_LOCAL_MAXIMA_KEY]
             prev_primary_id_numeric = this_dict[PREVIOUS_PRIMARY_ID_KEY]
             prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
             prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
 
         all_primary_id_strings += local_max_dict_by_time[i][PRIMARY_IDS_KEY]
         all_secondary_id_strings += local_max_dict_by_time[i][SECONDARY_IDS_KEY]
+        all_prev_secondary_ids_listlist += local_max_dict_by_time[i][
+            PREV_SECONDARY_IDS_KEY]
+        all_next_secondary_ids_listlist += local_max_dict_by_time[i][
+            NEXT_SECONDARY_IDS_KEY]
 
         these_times_unix_sec = numpy.full(
             this_num_storm_objects, local_max_dict_by_time[i][VALID_TIME_KEY],
@@ -967,6 +1043,8 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     storm_object_dict = {
         PRIMARY_ID_COLUMN: all_primary_id_strings,
         SECONDARY_ID_COLUMN: all_secondary_id_strings,
+        PREV_SECONDARY_IDS_COLUMN: all_prev_secondary_ids_listlist,
+        NEXT_SECONDARY_IDS_COLUMN: all_next_secondary_ids_listlist,
         tracking_utils.TIME_COLUMN: all_times_unix_sec,
         tracking_utils.SPC_DATE_COLUMN: all_spc_dates_unix_sec,
         tracking_utils.CENTROID_LAT_COLUMN: all_centroid_latitudes_deg,
@@ -1054,7 +1132,7 @@ def get_storm_ages(storm_object_table, tracking_start_time_unix_sec,
 
     :param storm_object_table: pandas DataFrame with at least the following
         columns.
-    storm_object_table.primary_id_string: Primary storm ID.
+    storm_object_table.primary_storm_id: Primary storm ID.
     storm_object_table.unix_time_sec: Valid time.
 
     :param tracking_start_time_unix_sec: Start of tracking period.
