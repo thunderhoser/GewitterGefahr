@@ -622,6 +622,146 @@ TRACKING_START_TIMES_UNIX_SEC = numpy.full(
     len(STORM_AGES_SECONDS), 0, dtype=int)
 TRACKING_END_TIMES_UNIX_SEC = numpy.full(len(STORM_AGES_SECONDS), 15, dtype=int)
 
+# The following constants are used to test find_predecessors.
+PREDECESSOR_ROWS_15SEC_LISTLIST = [
+    [], [], [], [], [], [],
+    [4], [5], [], [3], [4], [0, 2], [1], [],
+    [4, 8], [5], [], [13], [0, 2], [0, 2], [13]
+]
+
+PREDECESSOR_ROWS_5SEC_LISTLIST = [
+    [], [], [], [], [], [],
+    [], [], [], [], [], [], [], [],
+    [6, 8], [7], [], [13], [11], [11], [13]
+]
+
+# The following constants are used to test get_storm_velocities.
+THESE_FIRST_TIME_DIFFS_SEC = numpy.array([
+    -1, -1, -1, -1, -1, -1,
+    10, 10, -1, 10, 10, 10, 10, -1,
+    15, 15, -1, 5, 15, 15, 5
+], dtype=float)
+
+THESE_SECOND_TIME_DIFFS_SEC = numpy.array([
+    -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, 10, -1, -1,
+    5, -1, -1, -1, 15, 15, -1
+], dtype=float)
+
+THESE_FIRST_TIME_DIFFS_SEC[THESE_FIRST_TIME_DIFFS_SEC < 0] = numpy.nan
+THESE_SECOND_TIME_DIFFS_SEC[THESE_SECOND_TIME_DIFFS_SEC < 0] = numpy.nan
+
+THESE_FIRST_DISPLACEMENTS_METRES = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    8, 3, 0, 14, -13, 3, -16, 0,
+    16, 9, 0, 12, -2, 15, 9
+], dtype=float)
+
+THESE_SECOND_DISPLACEMENTS_METRES = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 4, 0, 0,
+    1, 0, 0, 0, -1, 16, 0
+], dtype=float)
+
+THESE_FIRST_VELOCITIES_M_S01 = (
+    THESE_FIRST_DISPLACEMENTS_METRES / THESE_FIRST_TIME_DIFFS_SEC
+)
+THESE_SECOND_VELOCITIES_M_S01 = (
+    THESE_SECOND_DISPLACEMENTS_METRES / THESE_SECOND_TIME_DIFFS_SEC
+)
+
+EAST_VELOCITIES_NO_NEIGH_15SEC_M_S01 = numpy.nanmean(
+    numpy.array([THESE_FIRST_VELOCITIES_M_S01, THESE_SECOND_VELOCITIES_M_S01]),
+    axis=0
+)
+
+THESE_FIRST_DISPLACEMENTS_METRES = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    -11, 16, 0, 2, -11, 0, -4, 0,
+    -6, 25, 0, -6, -8, 8, 7
+], dtype=float)
+
+THESE_SECOND_DISPLACEMENTS_METRES = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, -1, 0, 0,
+    3, 0, 0, 0, -9, 7, 0
+], dtype=float)
+
+THESE_FIRST_VELOCITIES_M_S01 = (
+    THESE_FIRST_DISPLACEMENTS_METRES / THESE_FIRST_TIME_DIFFS_SEC
+)
+THESE_SECOND_VELOCITIES_M_S01 = (
+    THESE_SECOND_DISPLACEMENTS_METRES / THESE_SECOND_TIME_DIFFS_SEC
+)
+
+NORTH_VELOCITIES_NO_NEIGH_15SEC_M_S01 = numpy.nanmean(
+    numpy.array([THESE_FIRST_VELOCITIES_M_S01, THESE_SECOND_VELOCITIES_M_S01]),
+    axis=0
+)
+
+THESE_FIRST_TIME_DIFFS_SEC = numpy.array([
+    -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1,
+    5, 5, -1, 5, 5, 5, 5
+], dtype=float)
+
+THESE_SECOND_TIME_DIFFS_SEC = numpy.array([
+    -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1,
+    5, -1, -1, -1, -1, -1, -1
+], dtype=float)
+
+THESE_FIRST_TIME_DIFFS_SEC[THESE_FIRST_TIME_DIFFS_SEC < 0] = numpy.nan
+THESE_SECOND_TIME_DIFFS_SEC[THESE_SECOND_TIME_DIFFS_SEC < 0] = numpy.nan
+
+THESE_FIRST_DISPLACEMENTS_METRES = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    8, 6, 0, 12, -5, 12, 9
+], dtype=float)
+
+THESE_SECOND_DISPLACEMENTS_METRES = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0
+], dtype=float)
+
+THESE_FIRST_VELOCITIES_M_S01 = (
+    THESE_FIRST_DISPLACEMENTS_METRES / THESE_FIRST_TIME_DIFFS_SEC
+)
+THESE_SECOND_VELOCITIES_M_S01 = (
+    THESE_SECOND_DISPLACEMENTS_METRES / THESE_SECOND_TIME_DIFFS_SEC
+)
+
+EAST_VELOCITIES_NO_NEIGH_5SEC_M_S01 = numpy.nanmean(
+    numpy.array([THESE_FIRST_VELOCITIES_M_S01, THESE_SECOND_VELOCITIES_M_S01]),
+    axis=0
+)
+
+THESE_FIRST_DISPLACEMENTS_METRES = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    5, 9, 0, -6, -8, 8, 7
+], dtype=float)
+
+THESE_SECOND_DISPLACEMENTS_METRES = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    3, 0, 0, 0, 0, 0, 0
+], dtype=float)
+
+THESE_FIRST_VELOCITIES_M_S01 = (
+    THESE_FIRST_DISPLACEMENTS_METRES / THESE_FIRST_TIME_DIFFS_SEC
+)
+THESE_SECOND_VELOCITIES_M_S01 = (
+    THESE_SECOND_DISPLACEMENTS_METRES / THESE_SECOND_TIME_DIFFS_SEC
+)
+
+NORTH_VELOCITIES_NO_NEIGH_5SEC_M_S01 = numpy.nanmean(
+    numpy.array([THESE_FIRST_VELOCITIES_M_S01, THESE_SECOND_VELOCITIES_M_S01]),
+    axis=0
+)
+
 
 def _add_ids_to_dict(local_max_dict):
     """Adds keys to dictionary with local maxima.
@@ -1621,6 +1761,154 @@ class TemporalTrackingTests(unittest.TestCase):
             this_storm_object_table[
                 tracking_utils.CELL_END_TIME_COLUMN].values,
             CELL_END_TIMES_UNIX_SEC
+        ))
+
+    def test_find_predecessors_15sec(self):
+        """Ensures correct output from find_predecessors.
+
+        In this case, searches back 15 seconds at the most.
+        """
+
+        this_max_dict_by_time = [
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
+        ]
+
+        this_storm_object_table = (
+            temporal_tracking.local_maxima_to_storm_tracks(
+                this_max_dict_by_time
+            )
+        )
+
+        this_num_storm_objects = len(this_storm_object_table.index)
+
+        for i in range(this_num_storm_objects):
+            these_predecessor_rows = temporal_tracking.find_predecessors(
+                storm_object_table=this_storm_object_table, target_row=i,
+                num_seconds_back=15)
+
+            these_predecessor_rows = numpy.sort(these_predecessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                PREDECESSOR_ROWS_15SEC_LISTLIST[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_predecessor_rows, these_expected_rows
+            ))
+
+    def test_find_predecessors_5sec(self):
+        """Ensures correct output from find_predecessors.
+
+        In this case, searches back 5 seconds at the most.
+        """
+
+        this_max_dict_by_time = [
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
+        ]
+
+        this_storm_object_table = (
+            temporal_tracking.local_maxima_to_storm_tracks(
+                this_max_dict_by_time
+            )
+        )
+
+        this_num_storm_objects = len(this_storm_object_table.index)
+
+        for i in range(this_num_storm_objects):
+            these_predecessor_rows = temporal_tracking.find_predecessors(
+                storm_object_table=this_storm_object_table, target_row=i,
+                num_seconds_back=5)
+
+            these_predecessor_rows = numpy.sort(these_predecessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                PREDECESSOR_ROWS_5SEC_LISTLIST[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_predecessor_rows, these_expected_rows
+            ))
+
+    def test_get_storm_velocities_15sec(self):
+        """Ensures correct output from get_storm_velocities.
+
+        In this case the time window for backwards differencing is 15 seconds.
+        """
+
+        this_max_dict_by_time = [
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
+        ]
+
+        this_storm_object_table = (
+            temporal_tracking.local_maxima_to_storm_tracks(
+                this_max_dict_by_time
+            )
+        )
+
+        this_storm_object_table = temporal_tracking.get_storm_velocities(
+            storm_object_table=this_storm_object_table, num_seconds_back=15,
+            test_mode=True)
+
+        real_indices = numpy.where(
+            numpy.invert(numpy.isnan(EAST_VELOCITIES_NO_NEIGH_15SEC_M_S01))
+        )[0]
+
+        these_east_velocities_m_s01 = this_storm_object_table[
+            tracking_utils.EAST_VELOCITY_COLUMN].values
+        these_north_velocities_m_s01 = this_storm_object_table[
+            tracking_utils.NORTH_VELOCITY_COLUMN].values
+
+        self.assertTrue(numpy.allclose(
+            these_east_velocities_m_s01[real_indices],
+            EAST_VELOCITIES_NO_NEIGH_15SEC_M_S01[real_indices], atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.allclose(
+            these_north_velocities_m_s01[real_indices],
+            NORTH_VELOCITIES_NO_NEIGH_15SEC_M_S01[real_indices], atol=TOLERANCE
+        ))
+
+    def test_get_storm_velocities_5sec(self):
+        """Ensures correct output from get_storm_velocities.
+
+        In this case the time window for backwards differencing is 5 seconds.
+        """
+
+        this_max_dict_by_time = [
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
+        ]
+
+        this_storm_object_table = (
+            temporal_tracking.local_maxima_to_storm_tracks(
+                this_max_dict_by_time
+            )
+        )
+
+        this_storm_object_table = temporal_tracking.get_storm_velocities(
+            storm_object_table=this_storm_object_table, num_seconds_back=5,
+            test_mode=True)
+
+        real_indices = numpy.where(
+            numpy.invert(numpy.isnan(EAST_VELOCITIES_NO_NEIGH_5SEC_M_S01))
+        )[0]
+
+        these_east_velocities_m_s01 = this_storm_object_table[
+            tracking_utils.EAST_VELOCITY_COLUMN].values
+        these_north_velocities_m_s01 = this_storm_object_table[
+            tracking_utils.NORTH_VELOCITY_COLUMN].values
+
+        self.assertTrue(numpy.allclose(
+            these_east_velocities_m_s01[real_indices],
+            EAST_VELOCITIES_NO_NEIGH_5SEC_M_S01[real_indices], atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.allclose(
+            these_north_velocities_m_s01[real_indices],
+            NORTH_VELOCITIES_NO_NEIGH_5SEC_M_S01[real_indices], atol=TOLERANCE
         ))
 
 

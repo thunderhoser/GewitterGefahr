@@ -4,6 +4,7 @@ import copy
 from collections import OrderedDict
 import numpy
 import pandas
+from geopy.distance import vincenty
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import error_checking
@@ -11,6 +12,7 @@ from gewittergefahr.gg_utils import error_checking
 MAX_STORMS_IN_SPLIT = 2
 MAX_STORMS_IN_MERGER = 2
 DEFAULT_VELOCITY_EFOLD_RADIUS_METRES = 100000.
+DEFAULT_VELOCITY_WINDOW_SECONDS = 915
 
 VALID_TIME_KEY = 'valid_time_unix_sec'
 LATITUDES_KEY = 'latitudes_deg'
@@ -1204,6 +1206,203 @@ def get_storm_ages(storm_object_table, tracking_start_time_unix_sec,
         tracking_utils.AGE_COLUMN: ages_seconds,
         tracking_utils.CELL_START_TIME_COLUMN: cell_start_times_unix_sec,
         tracking_utils.CELL_END_TIME_COLUMN: cell_end_times_unix_sec
+    }
+
+    return storm_object_table.assign(**argument_dict)
+
+
+def find_predecessors(storm_object_table, target_row, num_seconds_back):
+    """Finds predecessors of one storm object.
+
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.  Each row is one storm object.
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.secondary_storm_id: Secondary ID (string).
+    storm_object_table.prev_secondary_storm_ids: 1-D list of secondary IDs at
+        previous time to which storm is linked.
+
+    :param target_row: This method will find predecessors for the storm object
+        in the [k]th row of the table, where k = `target_row`.
+    :param num_seconds_back: This method will find predecessors at the earliest
+        time <= N seconds back, where N = `num_seconds_back`.
+    :return: predecessor_rows: 1-D numpy array with rows of predecessors.
+    """
+
+    error_checking.assert_is_integer(target_row)
+    error_checking.assert_is_geq(target_row, 0)
+    error_checking.assert_is_less_than(
+        target_row, len(storm_object_table.index)
+    )
+
+    error_checking.assert_is_integer(num_seconds_back)
+    error_checking.assert_is_greater(num_seconds_back, 0)
+
+    # TODO(thunderhoser): This algorithm might be very inefficient for large
+    # tables.  I don't know yet.
+
+    unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
+        storm_object_table[tracking_utils.TIME_COLUMN].values,
+        return_inverse=True
+    )
+
+    target_time_unix_sec = storm_object_table[
+        tracking_utils.TIME_COLUMN].values[target_row]
+
+    earliest_time_index = numpy.where(
+        unique_times_unix_sec >= target_time_unix_sec - num_seconds_back
+    )[0][0]
+
+    if unique_times_unix_sec[earliest_time_index] == target_time_unix_sec:
+        return numpy.array([], dtype=int)
+
+    this_time_index = numpy.where(
+        unique_times_unix_sec == target_time_unix_sec
+    )[0][0]
+
+    early_rows = []
+    secondary_ids_in_frontier = [
+        storm_object_table[SECONDARY_ID_COLUMN].values[target_row]
+    ]
+
+    while this_time_index > earliest_time_index:
+        this_time_rows = numpy.where(
+            orig_to_unique_indices == this_time_index
+        )[0]
+
+        rows_in_frontier = numpy.array([
+            k for k in this_time_rows
+            if storm_object_table[SECONDARY_ID_COLUMN].values[k] in
+            secondary_ids_in_frontier
+        ], dtype=int)
+
+        secondary_ids_in_frontier = []
+
+        for i in rows_in_frontier:
+            these_secondary_ids = storm_object_table[
+                PREV_SECONDARY_IDS_COLUMN].values[i]
+
+            if len(these_secondary_ids) == 0:
+                if i != target_row:
+                    early_rows.append(i)
+            else:
+                secondary_ids_in_frontier += these_secondary_ids
+
+        this_time_index -= 1
+
+    new_early_rows = numpy.where(
+        orig_to_unique_indices == earliest_time_index
+    )[0]
+
+    new_early_rows = [
+        k for k in new_early_rows
+        if storm_object_table[SECONDARY_ID_COLUMN][k] in
+        secondary_ids_in_frontier
+    ]
+
+    return numpy.array(early_rows + new_early_rows, dtype=int)
+
+
+def get_storm_velocities(
+        storm_object_table, num_seconds_back=DEFAULT_VELOCITY_WINDOW_SECONDS,
+        test_mode=False):
+    """Estimates instantaneous velocity for each storm object.
+
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.  Each row is one storm object, and all storm objects should be
+        from the same track (same primary ID).
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
+    storm_object_table.centroid_x_metres: x-coordinate of storm centroid.
+    storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.secondary_storm_id: Secondary ID (string).
+    storm_object_table.prev_secondary_storm_ids: 1-D list of secondary IDs at
+        previous time to which storm is linked.
+
+    :param num_seconds_back: Number of seconds to use in each estimate
+        (backwards differencing).
+    :param test_mode: Never mind.  Just leave this empty.
+    :return: storm_object_table: Same as input but with the following extra
+        columns.
+    storm_object_table.east_velocity_m_s01: Eastward velocity (metres per
+        second).
+    storm_object_table.north_velocity_m_s01: Northward velocity (metres per
+        second).
+    """
+
+    error_checking.assert_is_boolean(test_mode)
+    num_storm_objects = len(storm_object_table.index)
+    east_velocities_m_s01 = numpy.full(num_storm_objects, numpy.nan)
+    north_velocities_m_s01 = numpy.full(num_storm_objects, numpy.nan)
+
+    for i in range(num_storm_objects):
+        these_predecessor_rows = find_predecessors(
+            storm_object_table=storm_object_table, target_row=i,
+            num_seconds_back=num_seconds_back)
+
+        this_num_predecessors = len(these_predecessor_rows)
+        if this_num_predecessors == 0:
+            continue
+
+        this_end_latitude_deg = storm_object_table[
+            tracking_utils.CENTROID_LAT_COLUMN].values[i]
+        this_end_longitude_deg = storm_object_table[
+            tracking_utils.CENTROID_LNG_COLUMN].values[i]
+        these_time_diffs_seconds = (
+            storm_object_table[tracking_utils.TIME_COLUMN].values[i] -
+            storm_object_table[tracking_utils.TIME_COLUMN].values[
+                these_predecessor_rows]
+        )
+
+        these_east_displacements_metres = numpy.full(
+            this_num_predecessors, numpy.nan)
+        these_north_displacements_metres = numpy.full(
+            this_num_predecessors, numpy.nan)
+
+        for j in range(this_num_predecessors):
+            this_start_latitude_deg = storm_object_table[
+                tracking_utils.CENTROID_LAT_COLUMN
+            ].values[these_predecessor_rows[j]]
+
+            this_start_longitude_deg = storm_object_table[
+                tracking_utils.CENTROID_LNG_COLUMN
+            ].values[these_predecessor_rows[j]]
+
+            if test_mode:
+                these_east_displacements_metres[j] = (
+                    this_end_longitude_deg - this_start_longitude_deg
+                )
+                these_north_displacements_metres[j] = (
+                    this_end_latitude_deg - this_start_latitude_deg
+                )
+            else:
+                these_east_displacements_metres[j] = vincenty(
+                    (this_start_latitude_deg, this_start_longitude_deg),
+                    (this_start_latitude_deg, this_end_longitude_deg)
+                ).meters
+
+                these_north_displacements_metres[j] = vincenty(
+                    (this_start_latitude_deg, this_start_longitude_deg),
+                    (this_end_latitude_deg, this_start_longitude_deg)
+                ).meters
+
+        east_velocities_m_s01[i] = numpy.mean(
+            these_east_displacements_metres / these_time_diffs_seconds
+        )
+        north_velocities_m_s01[i] = numpy.mean(
+            these_north_displacements_metres / these_time_diffs_seconds
+        )
+
+    east_velocities_m_s01, north_velocities_m_s01 = _estimate_velocity_by_neigh(
+        x_coords_metres=storm_object_table[CENTROID_X_COLUMN].values,
+        y_coords_metres=storm_object_table[CENTROID_Y_COLUMN].values,
+        x_velocities_m_s01=east_velocities_m_s01,
+        y_velocities_m_s01=north_velocities_m_s01,
+        e_folding_radius_metres=DEFAULT_VELOCITY_EFOLD_RADIUS_METRES)
+
+    argument_dict = {
+        tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
+        tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01
     }
 
     return storm_object_table.assign(**argument_dict)
