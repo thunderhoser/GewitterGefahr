@@ -3,12 +3,9 @@
 import copy
 import unittest
 import numpy
-import pandas
-from geopy.distance import vincenty
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import projections
-from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TOLERANCE = 1e-6
 RELATIVE_DISTANCE_TOLERANCE = 0.015
@@ -73,35 +70,6 @@ LOCAL_MAX_DICT_LARGE_DISTANCE = {
     echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES[:-1]
 }
 
-# The following constants are used to test _get_final_velocities_one_track.
-ONE_TRACK_LATITUDES_DEG = numpy.array([40, 40, 41, 41, 40, 40], dtype=float)
-ONE_TRACK_LONGITUDES_DEG = numpy.array(
-    [265, 266, 266, 267, 267, 266], dtype=float)
-ONE_TRACK_TIMES_UNIX_SEC = numpy.array([0, 1, 2, 3, 4, 5], dtype=int)
-
-DEGREES_LAT_TO_METRES = 60. * 1852
-DEGREES_TO_RADIANS = numpy.pi / 180
-
-V_VELOCITIES_1POINT_M_S01 = DEGREES_LAT_TO_METRES * numpy.array([
-    numpy.nan, 0, 1, 0, -1, 0])
-
-U_VELOCITIES_1POINT_M_S01 = DEGREES_LAT_TO_METRES * numpy.array([
-    numpy.nan, numpy.cos(40 * DEGREES_TO_RADIANS), 0,
-    numpy.cos(41 * DEGREES_TO_RADIANS), 0, -numpy.cos(40 * DEGREES_TO_RADIANS)
-])
-
-V_VELOCITIES_2POINTS_M_S01 = DEGREES_LAT_TO_METRES * numpy.array(
-    [numpy.nan, 0, 0.5, 0.5, -0.5, -0.5])
-
-U_VELOCITIES_2POINTS_M_S01 = DEGREES_LAT_TO_METRES * numpy.array([
-    numpy.nan,
-    numpy.cos(40. * DEGREES_TO_RADIANS),
-    0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS),
-    0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS),
-    0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS),
-    -0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS)
-])
-
 # The following constants are used to test _remove_small_polygons.
 THIS_LIST_OF_ROW_ARRAYS = [
     numpy.array([0, 0, 0, 0, 1, 1, 2, 2, 2], dtype=int),
@@ -127,154 +95,9 @@ LOCAL_MAX_DICT_WITHOUT_SMALL = {
     echo_top_tracking.LONGITUDES_KEY: numpy.array([246, 250])
 }
 
-# The following constants are used to test _join_tracks.
-LONG_MAX_JOIN_TIME_SEC = 300
 
-THESE_STORM_IDS = ['a', 'b', 'a', 'b']
-THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 300, 300], dtype=int)
-THESE_LATITUDES_DEG = numpy.array([30, 40, 30, 40], dtype=float)
-THESE_LONGITUDES_DEG = numpy.array([290, 300, 290, 300], dtype=float)
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG,
-    tracking_utils.EAST_VELOCITY_COLUMN: numpy.full(4, 0.),
-    tracking_utils.NORTH_VELOCITY_COLUMN: numpy.full(4, 0.)
-}
-
-EARLY_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
-
-THESE_STORM_IDS = ['c', 'd', 'c', 'd']
-THESE_TIMES_UNIX_SEC = numpy.array([600, 600, 900, 900], dtype=int)
-THESE_LATITUDES_DEG = numpy.array([40, 50, 40, 50], dtype=float)
-THESE_LONGITUDES_DEG = numpy.array([300, 250, 300, 250], dtype=float)
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
-}
-
-LATE_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: ['b', 'd', 'b', 'd'],
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
-}
-
-JOINED_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
-
-# The following constants are used to test _storm_objects_to_tracks.
-THESE_STORM_IDS = ['A', 'A', 'B', 'B', 'C', 'C', 'D', 'D', 'E', 'E']
-THESE_TIMES_UNIX_SEC = numpy.array([6, 7, 3, 4, 0, 1, 0, 1, 4, 5], dtype=int)
-THESE_LATITUDES_DEG = numpy.array(
-    [53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 47.6, 47.6])
-THESE_LONGITUDES_DEG = numpy.array(
-    [113.5, 113.6, 113.2, 113.3, 112.9, 113, 113.2, 113.3, 307.3, 307.3])
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
-}
-
-STORM_OBJECT_TABLE_BEFORE_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
-
-THESE_STORM_IDS = ['A', 'B', 'C', 'D', 'E']
-THESE_START_TIMES_UNIX_SEC = numpy.array([6, 3, 0, 0, 4], dtype=int)
-THESE_END_TIMES_UNIX_SEC = numpy.array([7, 4, 1, 1, 5], dtype=int)
-THESE_START_LATITUDES_DEG = numpy.array([53.5, 53.5, 53.5, 53.5, 47.6])
-THESE_END_LATITUDES_DEG = numpy.array([53.5, 53.5, 53.5, 53.5, 47.6])
-THESE_START_LONGITUDES_DEG = numpy.array([113.5, 113.2, 112.9, 113.2, 307.3])
-THESE_END_LONGITUDES_DEG = numpy.array([113.6, 113.3, 113, 113.3, 307.3])
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    echo_top_tracking.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    echo_top_tracking.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
-    echo_top_tracking.START_LATITUDE_COLUMN: THESE_START_LATITUDES_DEG,
-    echo_top_tracking.END_LATITUDE_COLUMN: THESE_END_LATITUDES_DEG,
-    echo_top_tracking.START_LONGITUDE_COLUMN: THESE_START_LONGITUDES_DEG,
-    echo_top_tracking.END_LONGITUDE_COLUMN: THESE_END_LONGITUDES_DEG
-}
-
-STORM_TRACK_TABLE_BEFORE_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
-
-STORM_TRACK_TABLE_TAMPERED = copy.deepcopy(STORM_TRACK_TABLE_BEFORE_REANALYSIS)
-STORM_TRACK_TABLE_TAMPERED[echo_top_tracking.START_TIME_COLUMN].values[2] = -1
-STORM_ID_TAMPERED = 'C'
-
-# The following constants are used to test _get_join_error.
-DIST_TOLERANCE_METRES = 1.
-JOIN_ERROR_B_TO_A_METRES = 0.
-JOIN_ERROR_C_TO_A_METRES = 0.
-JOIN_ERROR_D_TO_A_METRES = vincenty((53.5, 113.8), (53.5, 113.5)).meters
-JOIN_ERROR_E_TO_A_METRES = vincenty((47.6, 307.3), (53.5, 113.5)).meters
-
-# The following constants are used to test _find_nearby_tracks and
-# _reanalyze_tracks.
-SHORT_MAX_JOIN_TIME_SEC = 2
-MAX_JOIN_ERROR_M_S01 = 1000.
-
-NEARBY_IDS_FOR_A = ['B']
-NEARBY_IDS_FOR_B = ['C']
-NEARBY_IDS_FOR_C = []
-NEARBY_IDS_FOR_D = []
-NEARBY_IDS_FOR_E = []
-
-THESE_STORM_IDS = ['A', 'A', 'A', 'A', 'A', 'A', 'D', 'D', 'E', 'E']
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
-}
-
-STORM_OBJECT_TABLE_AFTER_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
-
-THESE_STORM_IDS = ['A', 'D', 'E']
-THESE_START_TIMES_UNIX_SEC = numpy.array([0, 0, 4], dtype=int)
-THESE_END_TIMES_UNIX_SEC = numpy.array([7, 1, 5], dtype=int)
-THESE_START_LATITUDES_DEG = numpy.array([53.5, 53.5, 47.6])
-THESE_END_LATITUDES_DEG = numpy.array([53.5, 53.5, 47.6])
-THESE_START_LONGITUDES_DEG = numpy.array([112.9, 113.2, 307.3])
-THESE_END_LONGITUDES_DEG = numpy.array([113.6, 113.3, 307.3])
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    echo_top_tracking.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    echo_top_tracking.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
-    echo_top_tracking.START_LATITUDE_COLUMN: THESE_START_LATITUDES_DEG,
-    echo_top_tracking.END_LATITUDE_COLUMN: THESE_END_LATITUDES_DEG,
-    echo_top_tracking.START_LONGITUDE_COLUMN: THESE_START_LONGITUDES_DEG,
-    echo_top_tracking.END_LONGITUDE_COLUMN: THESE_END_LONGITUDES_DEG
-}
-
-STORM_TRACK_TABLE_AFTER_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
-
-# The following constants are used to test _latlng_velocities_to_xy.
-START_LATITUDES_DEG = numpy.array(
-    [49.5, 58.3, 42.4, 58.5, 39.3, 46.4, 44.9, 58, 47.4, 32.5, 54.7, 53.1])
-START_LONGITUDES_DEG = numpy.array([
-    259.6, 258.7, 249.8, 241.1, 241, 250.3, 248.2, 239.7, 236.7, 249.2, 234.1,
-    235.5
-])
-EAST_VELOCITIES_M_S01 = numpy.array(
-    [-7.9, -7.9, -10.4, -11.6, -5.1, -1.3, -9.6, -6.6, 13.4, -7.7, -4.7, 1])
-NORTH_VELOCITIES_M_S01 = numpy.array(
-    [-11.3, 12.8, -1, 2.7, -13.7, 8.5, -8.3, 2.2, -8.1, -2.6, 13.5, -12.1])
-
-
-def _compare_maxima_with_sans_small_polygons(
-        first_local_max_dict, second_local_max_dict):
-    """Compares local maxima before and after removing small polygons.
+def _compare_local_max_dicts(first_local_max_dict, second_local_max_dict):
+    """Compares two dictionaries with local maxima.
 
     :param first_local_max_dict: First dictionary.
     :param second_local_max_dict: Second dictionary.
@@ -369,56 +192,6 @@ class EchoTopTrackingTests(unittest.TestCase):
                 LOCAL_MAX_DICT_LARGE_DISTANCE[this_key], atol=TOLERANCE
             ))
 
-    def test_get_final_velocities_one_track_1point(self):
-        """Ensures correct output from _get_final_velocities_one_track.
-
-        In this case, each velocity is based on the displacement from 1 point
-        back in the storm track.
-        """
-
-        these_u_velocities_m_s01, these_v_velocities_m_s01 = (
-            echo_top_tracking._get_final_velocities_one_track(
-                centroid_latitudes_deg=ONE_TRACK_LATITUDES_DEG,
-                centroid_longitudes_deg=ONE_TRACK_LONGITUDES_DEG,
-                valid_times_unix_sec=ONE_TRACK_TIMES_UNIX_SEC,
-                num_points_back=1)
-        )
-
-        self.assertTrue(numpy.allclose(
-            these_u_velocities_m_s01, U_VELOCITIES_1POINT_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
-        ))
-
-        self.assertTrue(numpy.allclose(
-            these_v_velocities_m_s01, V_VELOCITIES_1POINT_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
-        ))
-
-    def test_get_final_velocities_one_track_2points(self):
-        """Ensures correct output from _get_final_velocities_one_track.
-
-        In this case, each velocity is based on the displacement from 2 points
-        back in the storm track.
-        """
-
-        these_u_velocities_m_s01, these_v_velocities_m_s01 = (
-            echo_top_tracking._get_final_velocities_one_track(
-                centroid_latitudes_deg=ONE_TRACK_LATITUDES_DEG,
-                centroid_longitudes_deg=ONE_TRACK_LONGITUDES_DEG,
-                valid_times_unix_sec=ONE_TRACK_TIMES_UNIX_SEC,
-                num_points_back=2)
-        )
-
-        self.assertTrue(numpy.allclose(
-            these_u_velocities_m_s01, U_VELOCITIES_2POINTS_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
-        ))
-
-        self.assertTrue(numpy.allclose(
-            these_v_velocities_m_s01, V_VELOCITIES_2POINTS_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
-        ))
-
     def test_remove_small_polygons_min0(self):
         """Ensures correct output from _remove_small_polygons.
 
@@ -429,7 +202,7 @@ class EchoTopTrackingTests(unittest.TestCase):
             local_max_dict=copy.deepcopy(LOCAL_MAX_DICT_WITH_SMALL),
             min_size_pixels=0)
 
-        self.assertTrue(_compare_maxima_with_sans_small_polygons(
+        self.assertTrue(_compare_local_max_dicts(
             this_local_max_dict, LOCAL_MAX_DICT_WITH_SMALL
         ))
 
@@ -443,236 +216,9 @@ class EchoTopTrackingTests(unittest.TestCase):
             local_max_dict=copy.deepcopy(LOCAL_MAX_DICT_WITH_SMALL),
             min_size_pixels=MIN_POLYGON_SIZE_PIXELS)
 
-        self.assertTrue(_compare_maxima_with_sans_small_polygons(
+        self.assertTrue(_compare_local_max_dicts(
             this_local_max_dict, LOCAL_MAX_DICT_WITHOUT_SMALL
         ))
-
-    def test_join_tracks(self):
-        """Ensures correct output from _join_tracks."""
-
-        this_storm_object_table = echo_top_tracking._join_tracks(
-            early_storm_object_table=EARLY_STORM_OBJECT_TABLE,
-            late_storm_object_table=copy.deepcopy(LATE_STORM_OBJECT_TABLE),
-            projection_object=PROJECTION_OBJECT,
-            max_link_time_seconds=LONG_MAX_JOIN_TIME_SEC,
-            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
-            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-
-        self.assertTrue(this_storm_object_table.equals(
-            JOINED_STORM_OBJECT_TABLE
-        ))
-
-    def test_storm_objects_to_tracks_from_scratch(self):
-        """Ensures correct output from _storm_objects_to_tracks.
-
-        In this case, the table of storm tracks is created from scratch.
-        """
-
-        this_storm_track_table = echo_top_tracking._storm_objects_to_tracks(
-            storm_object_table=STORM_OBJECT_TABLE_BEFORE_REANALYSIS)
-
-        self.assertTrue(this_storm_track_table.equals(
-            STORM_TRACK_TABLE_BEFORE_REANALYSIS
-        ))
-
-    def test_storm_objects_to_tracks_recompute_row(self):
-        """Ensures correct output from _storm_objects_to_tracks.
-
-        In this case, only one row of storm_track_table is recomputed.
-        """
-
-        this_storm_track_table = echo_top_tracking._storm_objects_to_tracks(
-            storm_object_table=STORM_OBJECT_TABLE_BEFORE_REANALYSIS,
-            storm_track_table=copy.deepcopy(STORM_TRACK_TABLE_TAMPERED),
-            recompute_for_id=STORM_ID_TAMPERED)
-
-        self.assertTrue(this_storm_track_table.equals(
-            STORM_TRACK_TABLE_BEFORE_REANALYSIS
-        ))
-
-    def test_get_join_error_b_to_a(self):
-        """Ensures correct output from _get_join_error.
-
-        In this case, extrapolating track B to start of track A.
-        """
-
-        this_join_error_metres = echo_top_tracking._get_join_error(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            early_track_id='B', late_track_id='A')
-
-        self.assertTrue(numpy.isclose(
-            this_join_error_metres, JOIN_ERROR_B_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES
-        ))
-
-    def test_get_join_error_c_to_a(self):
-        """Ensures correct output from _get_join_error.
-
-        In this case, extrapolating track C to start of track A.
-        """
-
-        this_join_error_metres = echo_top_tracking._get_join_error(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            early_track_id='C', late_track_id='A')
-
-        self.assertTrue(numpy.isclose(
-            this_join_error_metres, JOIN_ERROR_C_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES
-        ))
-
-    def test_get_join_error_d_to_a(self):
-        """Ensures correct output from _get_join_error.
-
-        In this case, extrapolating track D to start of track A.
-        """
-
-        this_join_error_metres = echo_top_tracking._get_join_error(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            early_track_id='D', late_track_id='A')
-
-        self.assertTrue(numpy.isclose(
-            this_join_error_metres, JOIN_ERROR_D_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES
-        ))
-
-    def test_get_join_error_e_to_a(self):
-        """Ensures correct output from _get_join_error.
-
-        In this case, extrapolating track E to start of track A.
-        """
-
-        this_join_error_metres = echo_top_tracking._get_join_error(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            early_track_id='E', late_track_id='A')
-
-        self.assertTrue(numpy.isclose(
-            this_join_error_metres, JOIN_ERROR_E_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES
-        ))
-
-    def test_find_nearby_tracks_for_a(self):
-        """Ensures correct output from _find_nearby_tracks; late track is A."""
-
-        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='A', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        if these_nearby_indices is None:
-            these_nearby_ids = []
-        else:
-            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
-                tracking_utils.STORM_ID_COLUMN
-            ].values[these_nearby_indices].tolist()
-
-        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_A)
-
-    def test_find_nearby_tracks_for_b(self):
-        """Ensures correct output from _find_nearby_tracks; late track is B."""
-
-        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='B', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        if these_nearby_indices is None:
-            these_nearby_ids = []
-        else:
-            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
-                tracking_utils.STORM_ID_COLUMN
-            ].values[these_nearby_indices].tolist()
-
-        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_B)
-
-    def test_find_nearby_tracks_for_c(self):
-        """Ensures correct output from _find_nearby_tracks; late track is C."""
-
-        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='C', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        if these_nearby_indices is None:
-            these_nearby_ids = []
-        else:
-            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
-                tracking_utils.STORM_ID_COLUMN
-            ].values[these_nearby_indices].tolist()
-
-        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_C)
-
-    def test_find_nearby_tracks_for_d(self):
-        """Ensures correct output from _find_nearby_tracks; late track is D."""
-
-        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='D', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        if these_nearby_indices is None:
-            these_nearby_ids = []
-        else:
-            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
-                tracking_utils.STORM_ID_COLUMN
-            ].values[these_nearby_indices].tolist()
-
-        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_D)
-
-    def test_find_nearby_tracks_for_e(self):
-        """Ensures correct output from _find_nearby_tracks; late track is E."""
-
-        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='E', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        if these_nearby_indices is None:
-            these_nearby_ids = []
-        else:
-            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
-                tracking_utils.STORM_ID_COLUMN
-            ].values[these_nearby_indices].tolist()
-
-        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_E)
-
-    def test_reanalyze_tracks(self):
-        """Ensures correct output from _reanalyze_tracks."""
-
-        this_storm_object_table = echo_top_tracking._reanalyze_tracks(
-            storm_object_table=copy.deepcopy(
-                STORM_OBJECT_TABLE_BEFORE_REANALYSIS),
-            max_join_time_sec=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        self.assertTrue(this_storm_object_table.equals(
-            STORM_OBJECT_TABLE_AFTER_REANALYSIS
-        ))
-
-    def test_latlng_velocities_to_xy(self):
-        """Ensures correct output from _latlng_velocities_to_xy."""
-
-        these_x_velocities_m_s01, these_y_velocities_m_s01 = (
-            echo_top_tracking._latlng_velocities_to_xy(
-                east_velocities_m_s01=EAST_VELOCITIES_M_S01,
-                north_velocities_m_s01=NORTH_VELOCITIES_M_S01,
-                latitudes_deg=START_LATITUDES_DEG,
-                longitudes_deg=START_LONGITUDES_DEG)
-        )
-
-        speeds_m_s01 = numpy.sqrt(
-            EAST_VELOCITIES_M_S01 ** 2 + NORTH_VELOCITIES_M_S01 ** 2
-        )
-
-        for i in range(len(speeds_m_s01)):
-            self.assertTrue(numpy.isclose(
-                these_x_velocities_m_s01[i], EAST_VELOCITIES_M_S01[i],
-                atol=0.5 * speeds_m_s01[i]
-            ))
-
-            self.assertTrue(numpy.isclose(
-                these_y_velocities_m_s01[i], NORTH_VELOCITIES_M_S01[i],
-                atol=0.5 * speeds_m_s01[i]
-            ))
 
 
 if __name__ == '__main__':
