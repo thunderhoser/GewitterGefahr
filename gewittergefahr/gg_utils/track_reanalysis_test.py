@@ -183,14 +183,26 @@ THESE_PRIMARY_ID_STRINGS = [
     'J', 'J', 'J', 'J', 'J', 'J'
 ]
 
+THESE_PREV_SECONDARY_IDS_LISTLIST = copy.deepcopy(
+    ORIG_PREV_SECONDARY_IDS_LISTLIST)
+THESE_PREV_SECONDARY_IDS_LISTLIST[4] = ['01']
+THESE_PREV_SECONDARY_IDS_LISTLIST[7] = ['01']
+
+THESE_NEXT_SECONDARY_IDS_LISTLIST = copy.deepcopy(
+    ORIG_NEXT_SECONDARY_IDS_LISTLIST)
+THESE_NEXT_SECONDARY_IDS_LISTLIST[3] = ['02', '03']
+
 STORM_OBJECT_TABLE_POSTSPLIT = copy.deepcopy(ORIG_STORM_OBJECT_TABLE)
-STORM_OBJECT_TABLE_POSTSPLIT = STORM_OBJECT_TABLE_POSTSPLIT.assign(
-    **{temporal_tracking.PRIMARY_ID_COLUMN: THESE_PRIMARY_ID_STRINGS}
-)
 
-# TODO(thunderhoser): Do some nonsense input to these methods.
+STORM_OBJECT_TABLE_POSTSPLIT = STORM_OBJECT_TABLE_POSTSPLIT.assign(**{
+    temporal_tracking.PRIMARY_ID_COLUMN: THESE_PRIMARY_ID_STRINGS,
+    temporal_tracking.PREV_SECONDARY_IDS_COLUMN:
+        THESE_PREV_SECONDARY_IDS_LISTLIST,
+    temporal_tracking.NEXT_SECONDARY_IDS_COLUMN:
+        THESE_NEXT_SECONDARY_IDS_LISTLIST
+})
 
-# The following constants are used to test _handle_collinear_nonsplits (merger).
+# The following constants are used to test _handle_collinear_mergers.
 EARLY_ROWS_FOR_MERGER = numpy.array([30, 16, 22, 0, 1], dtype=int)
 LATE_ROWS_FOR_MERGER = numpy.array([5, 23, 6, 28], dtype=int)
 
@@ -201,6 +213,7 @@ LATE_TO_EARLY_MATRIX_PREMERGE = numpy.array([
     [0, 0, 0, 0, 0]
 ], dtype=bool)
 
+LATE_TO_EARLY_MATRIX_POSTMERGE = numpy.full((4, 5), False, dtype=bool)
 STORM_OBJECT_TABLE_PREMERGE = copy.deepcopy(STORM_OBJECT_TABLE_POSTSPLIT)
 ID_TO_FIRST_ROW_DICT_PREMERGE = copy.deepcopy(ID_TO_FIRST_ROW_DICT_POSTSPLIT)
 ID_TO_LAST_ROW_DICT_PREMERGE = copy.deepcopy(ID_TO_LAST_ROW_DICT_POSTSPLIT)
@@ -226,13 +239,30 @@ THESE_PRIMARY_ID_STRINGS = [
     'J', 'J', 'J', 'J', 'J', 'J'
 ]
 
-STORM_OBJECT_TABLE_POSTMERGE = copy.deepcopy(STORM_OBJECT_TABLE_PREMERGE)
-STORM_OBJECT_TABLE_POSTMERGE = STORM_OBJECT_TABLE_POSTMERGE.assign(
-    **{temporal_tracking.PRIMARY_ID_COLUMN: THESE_PRIMARY_ID_STRINGS}
+THESE_PREV_SECONDARY_IDS_LISTLIST = copy.deepcopy(
+    STORM_OBJECT_TABLE_POSTSPLIT[
+        temporal_tracking.PREV_SECONDARY_IDS_COLUMN].values
 )
+THESE_PREV_SECONDARY_IDS_LISTLIST[23] = ['04', '05']
 
-# The following constants are used to test _handle_collinear_nonsplits (simple
-# one-to-one join).
+THESE_NEXT_SECONDARY_IDS_LISTLIST = copy.deepcopy(
+    STORM_OBJECT_TABLE_POSTSPLIT[
+        temporal_tracking.NEXT_SECONDARY_IDS_COLUMN].values
+)
+THESE_NEXT_SECONDARY_IDS_LISTLIST[16] = ['06']
+THESE_NEXT_SECONDARY_IDS_LISTLIST[22] = ['06']
+
+STORM_OBJECT_TABLE_POSTMERGE = copy.deepcopy(STORM_OBJECT_TABLE_PREMERGE)
+
+STORM_OBJECT_TABLE_POSTMERGE = STORM_OBJECT_TABLE_POSTMERGE.assign(**{
+    temporal_tracking.PRIMARY_ID_COLUMN: THESE_PRIMARY_ID_STRINGS,
+    temporal_tracking.PREV_SECONDARY_IDS_COLUMN:
+        THESE_PREV_SECONDARY_IDS_LISTLIST,
+    temporal_tracking.NEXT_SECONDARY_IDS_COLUMN:
+        THESE_NEXT_SECONDARY_IDS_LISTLIST
+})
+
+# The following constants are used to test _handle_collinear_1to1_joins.
 EARLY_ROWS_FOR_SIMPLE = numpy.array([36], dtype=int)
 LATE_ROWS_FOR_SIMPLE = numpy.array([37], dtype=int)
 LATE_TO_EARLY_MATRIX_PRESIMPLE = numpy.full((1, 1), True, dtype=bool)
@@ -272,10 +302,37 @@ THESE_SECONDARY_ID_STRINGS = [
     '10', '10', '10', '10', '10', '10'
 ]
 
+THESE_PREV_SECONDARY_IDS_LISTLIST = copy.deepcopy(
+    STORM_OBJECT_TABLE_POSTMERGE[
+        temporal_tracking.PREV_SECONDARY_IDS_COLUMN].values
+)
+
+THESE_PREV_SECONDARY_IDS_LISTLIST[37] = ['10']
+THESE_PREV_SECONDARY_IDS_LISTLIST[36] = ['10']
+THESE_PREV_SECONDARY_IDS_LISTLIST[35] = ['10']
+THESE_PREV_SECONDARY_IDS_LISTLIST[34] = ['10']
+THESE_PREV_SECONDARY_IDS_LISTLIST[33] = ['10']
+
+THESE_NEXT_SECONDARY_IDS_LISTLIST = copy.deepcopy(
+    STORM_OBJECT_TABLE_POSTMERGE[
+        temporal_tracking.NEXT_SECONDARY_IDS_COLUMN].values
+)
+
+THESE_NEXT_SECONDARY_IDS_LISTLIST[32] = ['10']
+THESE_NEXT_SECONDARY_IDS_LISTLIST[33] = ['10']
+THESE_NEXT_SECONDARY_IDS_LISTLIST[34] = ['10']
+THESE_NEXT_SECONDARY_IDS_LISTLIST[35] = ['10']
+THESE_NEXT_SECONDARY_IDS_LISTLIST[36] = ['10']
+
 STORM_OBJECT_TABLE_POSTSIMPLE = copy.deepcopy(STORM_OBJECT_TABLE_PRESIMPLE)
+
 STORM_OBJECT_TABLE_POSTSIMPLE = STORM_OBJECT_TABLE_POSTSIMPLE.assign(**{
     temporal_tracking.PRIMARY_ID_COLUMN: THESE_PRIMARY_ID_STRINGS,
-    temporal_tracking.SECONDARY_ID_COLUMN: THESE_SECONDARY_ID_STRINGS
+    temporal_tracking.SECONDARY_ID_COLUMN: THESE_SECONDARY_ID_STRINGS,
+    temporal_tracking.PREV_SECONDARY_IDS_COLUMN:
+        THESE_PREV_SECONDARY_IDS_LISTLIST,
+    temporal_tracking.NEXT_SECONDARY_IDS_COLUMN:
+        THESE_NEXT_SECONDARY_IDS_LISTLIST
 })
 
 # The following constants are used to test _join_collinear_tracks.
@@ -285,7 +342,7 @@ STORM_OBJECT_TABLE_3SEC_5METRES = copy.deepcopy(STORM_OBJECT_TABLE_POSTMERGE)
 STORM_OBJECT_TABLE_2SEC_10METRES = copy.deepcopy(STORM_OBJECT_TABLE_POSTMERGE)
 STORM_OBJECT_TABLE_3SEC_10METRES = copy.deepcopy(STORM_OBJECT_TABLE_POSTSIMPLE)
 STORM_OBJECT_TABLE_2SEC_30METRES = copy.deepcopy(STORM_OBJECT_TABLE_POSTMERGE)
-STORM_OBJECT_TABLE_3SEC_30METRES = copy.deepcopy(STORM_OBJECT_TABLE_POSTSIMPLE)
+STORM_OBJECT_TABLE_3SEC_30METRES = copy.deepcopy(STORM_OBJECT_TABLE_POSTMERGE)
 
 THESE_PRIMARY_ID_STRINGS = [
     'A', 'A', 'A', 'A',
@@ -311,9 +368,28 @@ THESE_SECONDARY_ID_STRINGS = [
     '10', '10', '10', '10', '10', '10'
 ]
 
+THESE_PREV_SECONDARY_IDS_LISTLIST = copy.deepcopy(
+    STORM_OBJECT_TABLE_POSTMERGE[
+        temporal_tracking.PREV_SECONDARY_IDS_COLUMN].values
+)
+
+THESE_PREV_SECONDARY_IDS_LISTLIST[37] = ['07', '08']
+
+THESE_NEXT_SECONDARY_IDS_LISTLIST = copy.deepcopy(
+    STORM_OBJECT_TABLE_POSTMERGE[
+        temporal_tracking.NEXT_SECONDARY_IDS_COLUMN].values
+)
+
+THESE_NEXT_SECONDARY_IDS_LISTLIST[31] = ['10']
+THESE_NEXT_SECONDARY_IDS_LISTLIST[36] = ['10']
+
 STORM_OBJECT_TABLE_3SEC_30METRES = STORM_OBJECT_TABLE_3SEC_30METRES.assign(**{
     temporal_tracking.PRIMARY_ID_COLUMN: THESE_PRIMARY_ID_STRINGS,
-    temporal_tracking.SECONDARY_ID_COLUMN: THESE_SECONDARY_ID_STRINGS
+    temporal_tracking.SECONDARY_ID_COLUMN: THESE_SECONDARY_ID_STRINGS,
+    temporal_tracking.PREV_SECONDARY_IDS_COLUMN:
+        THESE_PREV_SECONDARY_IDS_LISTLIST,
+    temporal_tracking.NEXT_SECONDARY_IDS_COLUMN:
+        THESE_NEXT_SECONDARY_IDS_LISTLIST
 })
 
 
@@ -355,13 +431,10 @@ class TrackReanalysisTests(unittest.TestCase):
             this_storm_object_table.equals(STORM_OBJECT_TABLE_POSTSPLIT)
         )
 
-    def test_handle_collinear_merger(self):
-        """Ensures correct output from _handle_collinear_nonsplits.
+    def test_handle_collinear_mergers(self):
+        """Ensures correct output from _handle_collinear_mergers."""
 
-        In this case, handling merger.
-        """
-
-        this_dict = track_reanalysis._handle_collinear_nonsplits(
+        this_dict = track_reanalysis._handle_collinear_mergers(
             storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE_PREMERGE),
             early_rows=EARLY_ROWS_FOR_MERGER, late_rows=LATE_ROWS_FOR_MERGER,
             late_to_early_matrix=copy.deepcopy(LATE_TO_EARLY_MATRIX_PREMERGE),
@@ -373,11 +446,16 @@ class TrackReanalysisTests(unittest.TestCase):
 
         this_storm_object_table = this_dict[
             track_reanalysis.STORM_OBJECT_TABLE_KEY]
+        this_late_to_early_matrix = this_dict[
+            track_reanalysis.LATE_TO_EARLY_KEY]
         this_id_to_first_row_dict = this_dict[
             track_reanalysis.ID_TO_FIRST_ROW_KEY]
         this_id_to_last_row_dict = this_dict[
             track_reanalysis.ID_TO_LAST_ROW_KEY]
 
+        self.assertTrue(numpy.array_equal(
+            this_late_to_early_matrix, LATE_TO_EARLY_MATRIX_POSTMERGE
+        ))
         self.assertTrue(
             this_id_to_first_row_dict == ID_TO_FIRST_ROW_DICT_POSTMERGE
         )
@@ -388,13 +466,10 @@ class TrackReanalysisTests(unittest.TestCase):
             this_storm_object_table.equals(STORM_OBJECT_TABLE_POSTMERGE)
         )
 
-    def test_handle_collinear_join_simple(self):
-        """Ensures correct output from _handle_collinear_nonsplits.
+    def test_handle_collinear_1to1_joins(self):
+        """Ensures correct output from _handle_collinear_1to1_joins."""
 
-        In this case, handling simple one-to-one join.
-        """
-
-        this_dict = track_reanalysis._handle_collinear_nonsplits(
+        this_dict = track_reanalysis._handle_collinear_1to1_joins(
             storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE_PRESIMPLE),
             early_rows=EARLY_ROWS_FOR_SIMPLE, late_rows=LATE_ROWS_FOR_SIMPLE,
             late_to_early_matrix=copy.deepcopy(LATE_TO_EARLY_MATRIX_PRESIMPLE),
