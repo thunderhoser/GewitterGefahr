@@ -44,6 +44,8 @@ POLYGON_OBJECTS_LATLNG_KEY = 'polygon_objects_latlng'
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
+X_VELOCITY_COLUMN = 'x_velocity_m_s01'
+Y_VELOCITY_COLUMN = 'y_velocity_m_s01'
 PRIMARY_ID_COLUMN = 'primary_storm_id'
 SECONDARY_ID_COLUMN = 'secondary_storm_id'
 PREV_SECONDARY_IDS_COLUMN = 'prev_secondary_storm_ids'
@@ -663,7 +665,7 @@ def link_local_maxima_in_time(
     error_checking.assert_is_integer(max_link_time_seconds)
     error_checking.assert_is_greater(max_link_time_seconds, 0)
     error_checking.assert_is_greater(max_velocity_diff_m_s01, 0.)
-    error_checking.assert_is_greater(max_link_distance_m_s01, 0.)
+    # error_checking.assert_is_greater(max_link_distance_m_s01, 0.)
 
     num_current_maxima = len(current_local_max_dict[X_COORDS_KEY])
     if previous_local_max_dict is None:
@@ -1073,9 +1075,11 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     storm_object_table = pandas.DataFrame.from_dict(storm_object_dict)
 
     for this_key in old_to_new_primary_id_dict:
-        storm_object_table.replace(
-            to_replace=this_key, value=old_to_new_primary_id_dict[this_key],
-            inplace=True)
+        storm_object_table[[PRIMARY_ID_COLUMN]] = (
+            storm_object_table[[PRIMARY_ID_COLUMN]].replace(
+                to_replace=this_key, value=old_to_new_primary_id_dict[this_key],
+                inplace=False)
+        )
 
     full_id_strings = [
         _create_full_storm_id(primary_id_string=p, secondary_id_string=s)
