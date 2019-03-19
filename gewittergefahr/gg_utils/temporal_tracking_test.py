@@ -316,7 +316,7 @@ CURRENT_TO_PREV_MATRIX_2TO3 = numpy.array(
      [0, 0, 0, 0, 0, 0, 0, 1]], dtype=bool)
 
 # The following constants are used to test _create_primary_storm_id,
-# _create_secondary_storm_id, and _create_full_storm_id.
+# _create_secondary_storm_id, and create_full_storm_id.
 PREV_SPC_DATE_STRING = '20190314'
 PREV_PRIMARY_ID_NUMERIC = 16
 PREV_SECONDARY_ID_NUMERIC = 34
@@ -1101,26 +1101,26 @@ class TemporalTrackingTests(unittest.TestCase):
         self.assertTrue(this_id_numeric == PREV_SECONDARY_ID_NUMERIC + 1)
 
     def test_create_full_storm_id_same_day(self):
-        """Ensures correct output from _create_full_storm_id.
+        """Ensures correct output from create_full_storm_id.
 
         In this case the new storm occurs on the same SPC date as the previous
         storm to get a new ID.
         """
 
-        this_id_string = temporal_tracking._create_full_storm_id(
+        this_id_string = temporal_tracking.create_full_storm_id(
             primary_id_string=PRIMARY_ID_STRING_SAME_DAY,
             secondary_id_string=SECONDARY_ID_STRING)
 
         self.assertTrue(this_id_string == FULL_ID_STRING_SAME_DAY)
 
     def test_create_full_storm_id_next_day(self):
-        """Ensures correct output from _create_full_storm_id.
+        """Ensures correct output from create_full_storm_id.
 
         In this case the new storm *does not* occur on the same SPC date as the
         previous storm to get a new ID.
         """
 
-        this_id_string = temporal_tracking._create_full_storm_id(
+        this_id_string = temporal_tracking.create_full_storm_id(
             primary_id_string=PRIMARY_ID_STRING_NEXT_DAY,
             secondary_id_string=SECONDARY_ID_STRING)
 

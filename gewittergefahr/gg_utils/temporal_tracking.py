@@ -48,8 +48,14 @@ X_VELOCITY_COLUMN = 'x_velocity_m_s01'
 Y_VELOCITY_COLUMN = 'y_velocity_m_s01'
 PRIMARY_ID_COLUMN = 'primary_storm_id'
 SECONDARY_ID_COLUMN = 'secondary_storm_id'
-PREV_SECONDARY_IDS_COLUMN = 'prev_secondary_storm_ids'
-NEXT_SECONDARY_IDS_COLUMN = 'next_secondary_storm_ids'
+FIRST_PREV_SECONDARY_ID_COLUMN = 'first_prev_secondary_id'
+SECOND_PREV_SECONDARY_ID_COLUMN = 'second_prev_secondary_id'
+FIRST_NEXT_SECONDARY_ID_COLUMN = 'first_next_secondary_id'
+SECOND_NEXT_SECONDARY_ID_COLUMN = 'second_next_secondary_id'
+
+PREV_SECONDARY_ID_COLUMNS = [
+    FIRST_PREV_SECONDARY_ID_COLUMN, SECOND_PREV_SECONDARY_ID_COLUMN
+]
 
 
 def _estimate_velocity_by_neigh(
@@ -369,17 +375,6 @@ def _create_secondary_storm_id(previous_numeric_id):
     return '{0:06d}'.format(numeric_id), numeric_id
 
 
-def _create_full_storm_id(primary_id_string, secondary_id_string):
-    """Creates full storm ID from primary and secondary IDs.
-
-    :param primary_id_string: Primary ID.
-    :param secondary_id_string: Secondary ID.
-    :return: full_id_string: Full ID.
-    """
-
-    return '{0:s}_{1:s}'.format(primary_id_string, secondary_id_string)
-
-
 def _local_maxima_to_tracks_mergers(
         current_local_max_dict, previous_local_max_dict,
         current_to_previous_matrix, prev_primary_id_numeric,
@@ -630,6 +625,17 @@ def _local_maxima_to_tracks_simple(
     }
 
 
+def create_full_storm_id(primary_id_string, secondary_id_string):
+    """Creates full storm ID from primary and secondary IDs.
+
+    :param primary_id_string: Primary ID.
+    :param secondary_id_string: Secondary ID.
+    :return: full_id_string: Full ID.
+    """
+
+    return '{0:s}_{1:s}'.format(primary_id_string, secondary_id_string)
+
+
 def link_local_maxima_in_time(
         current_local_max_dict, previous_local_max_dict, max_link_time_seconds,
         max_velocity_diff_m_s01, max_link_distance_m_s01):
@@ -861,10 +867,14 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     storm_object_table.storm_id: Storm ID (string).
     storm_object_table.primary_storm_id: Primary storm ID (string).
     storm_object_table.secondary_storm_id: Secondary storm ID (string).
-    storm_object_table.prev_secondary_storm_ids: 1-D list of storm IDs at the
-        previous time to which the given storm is linked.
-    storm_object_table.next_secondary_storm_ids: 1-D list of storm IDs at the
-        next time to which the given storm is linked.
+    storm_object_table.first_prev_secondary_id: Secondary ID of first
+        predecessor ("" if no predecessors).
+    storm_object_table.second_next_secondary_id: Secondary ID of second
+        predecessor ("" if only one predecessor).
+    storm_object_table.first_next_secondary_id: Secondary ID of first successor
+        ("" if no successors).
+    storm_object_table.second_prev_secondary_id: Secondary ID of second
+        successor ("" if only one successor).
     storm_object_table.unix_time_sec: Valid time.
     storm_object_table.spc_date_unix_sec: SPC date.
     storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
@@ -884,10 +894,13 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     storm_object_table.polygon_object_rowcol: Same.
     """
 
-    all_primary_id_strings = []
-    all_secondary_id_strings = []
-    all_prev_secondary_ids_listlist = []
-    all_next_secondary_ids_listlist = []
+    all_primary_ids = []
+    all_secondary_ids = []
+    all_first_prev_secondary_ids = []
+    all_second_prev_secondary_ids = []
+    all_first_next_secondary_ids = []
+    all_second_next_secondary_ids = []
+
     all_times_unix_sec = numpy.array([], dtype=int)
     all_spc_dates_unix_sec = numpy.array([], dtype=int)
     all_centroid_latitudes_deg = numpy.array([])
@@ -988,12 +1001,28 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
             prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
 
-        all_primary_id_strings += local_max_dict_by_time[i][PRIMARY_IDS_KEY]
-        all_secondary_id_strings += local_max_dict_by_time[i][SECONDARY_IDS_KEY]
-        all_prev_secondary_ids_listlist += local_max_dict_by_time[i][
-            PREV_SECONDARY_IDS_KEY]
-        all_next_secondary_ids_listlist += local_max_dict_by_time[i][
-            NEXT_SECONDARY_IDS_KEY]
+        all_primary_ids += local_max_dict_by_time[i][PRIMARY_IDS_KEY]
+        all_secondary_ids += local_max_dict_by_time[i][SECONDARY_IDS_KEY]
+
+        all_first_prev_secondary_ids += [
+            x[0] if len(x) > 0 else ''
+            for x in local_max_dict_by_time[i][PREV_SECONDARY_IDS_KEY]
+        ]
+
+        all_second_prev_secondary_ids += [
+            x[1] if len(x) > 1 else ''
+            for x in local_max_dict_by_time[i][PREV_SECONDARY_IDS_KEY]
+        ]
+
+        all_first_next_secondary_ids += [
+            x[0] if len(x) > 0 else ''
+            for x in local_max_dict_by_time[i][NEXT_SECONDARY_IDS_KEY]
+        ]
+
+        all_second_next_secondary_ids += [
+            x[1] if len(x) > 1 else ''
+            for x in local_max_dict_by_time[i][NEXT_SECONDARY_IDS_KEY]
+        ]
 
         these_times_unix_sec = numpy.full(
             this_num_storm_objects, local_max_dict_by_time[i][VALID_TIME_KEY],
@@ -1045,10 +1074,12 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             ))
 
     storm_object_dict = {
-        PRIMARY_ID_COLUMN: all_primary_id_strings,
-        SECONDARY_ID_COLUMN: all_secondary_id_strings,
-        PREV_SECONDARY_IDS_COLUMN: all_prev_secondary_ids_listlist,
-        NEXT_SECONDARY_IDS_COLUMN: all_next_secondary_ids_listlist,
+        PRIMARY_ID_COLUMN: all_primary_ids,
+        SECONDARY_ID_COLUMN: all_secondary_ids,
+        FIRST_PREV_SECONDARY_ID_COLUMN: all_first_prev_secondary_ids,
+        SECOND_PREV_SECONDARY_ID_COLUMN: all_second_prev_secondary_ids,
+        FIRST_NEXT_SECONDARY_ID_COLUMN: all_first_next_secondary_ids,
+        SECOND_NEXT_SECONDARY_ID_COLUMN: all_second_next_secondary_ids,
         tracking_utils.TIME_COLUMN: all_times_unix_sec,
         tracking_utils.SPC_DATE_COLUMN: all_spc_dates_unix_sec,
         tracking_utils.CENTROID_LAT_COLUMN: all_centroid_latitudes_deg,
@@ -1082,7 +1113,7 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
         )
 
     full_id_strings = [
-        _create_full_storm_id(primary_id_string=p, secondary_id_string=s)
+        create_full_storm_id(primary_id_string=p, secondary_id_string=s)
         for p, s in zip(
             storm_object_table[PRIMARY_ID_COLUMN].values,
             storm_object_table[SECONDARY_ID_COLUMN].values
@@ -1222,8 +1253,10 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
         columns.  Each row is one storm object.
     storm_object_table.unix_time_sec: Valid time.
     storm_object_table.secondary_storm_id: Secondary ID (string).
-    storm_object_table.prev_secondary_storm_ids: 1-D list of secondary IDs at
-        previous time to which storm is linked.
+    storm_object_table.first_prev_secondary_id: Secondary ID of first
+        predecessor ("" if no predecessors).
+    storm_object_table.second_next_secondary_id: Secondary ID of second
+        predecessor ("" if only one predecessor).
 
     :param target_row: This method will find predecessors for the storm object
         in the [k]th row of the table, where k = `target_row`.
@@ -1282,8 +1315,11 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
         secondary_ids_in_frontier = []
 
         for i in rows_in_frontier:
-            these_secondary_ids = storm_object_table[
-                PREV_SECONDARY_IDS_COLUMN].values[i]
+            these_secondary_ids = [
+                storm_object_table[c].values[i]
+                for c in PREV_SECONDARY_ID_COLUMNS
+                if storm_object_table[c].values[i] != ''
+            ]
 
             if len(these_secondary_ids) == 0:
                 if i != target_row:
@@ -1320,8 +1356,10 @@ def get_storm_velocities(
     storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
     storm_object_table.unix_time_sec: Valid time.
     storm_object_table.secondary_storm_id: Secondary ID (string).
-    storm_object_table.prev_secondary_storm_ids: 1-D list of secondary IDs at
-        previous time to which storm is linked.
+    storm_object_table.first_prev_secondary_id: Secondary ID of first
+        predecessor ("" if no predecessors).
+    storm_object_table.second_next_secondary_id: Secondary ID of second
+        predecessor ("" if only one predecessor).
 
     :param num_seconds_back: Number of seconds to use in each estimate
         (backwards differencing).
