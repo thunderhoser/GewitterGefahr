@@ -885,10 +885,14 @@ def rotate_winds_to_earth_relative(
 
     u_winds_earth_relative_m_s01 = (
         rotation_angle_cosines * u_winds_grid_relative_m_s01 +
-        rotation_angle_sines * v_winds_grid_relative_m_s01)
+        rotation_angle_sines * v_winds_grid_relative_m_s01
+    )
+
     v_winds_earth_relative_m_s01 = (
         rotation_angle_cosines * v_winds_grid_relative_m_s01 -
-        rotation_angle_sines * u_winds_grid_relative_m_s01)
+        rotation_angle_sines * u_winds_grid_relative_m_s01
+    )
+
     return u_winds_earth_relative_m_s01, v_winds_earth_relative_m_s01
 
 
@@ -921,8 +925,12 @@ def rotate_winds_to_grid_relative(
 
     u_winds_grid_relative_m_s01 = (
         rotation_angle_cosines * u_winds_earth_relative_m_s01 -
-        rotation_angle_sines * v_winds_earth_relative_m_s01)
+        rotation_angle_sines * v_winds_earth_relative_m_s01
+    )
+
     v_winds_grid_relative_m_s01 = (
         rotation_angle_cosines * v_winds_earth_relative_m_s01 +
-        rotation_angle_sines * u_winds_earth_relative_m_s01)
+        rotation_angle_sines * u_winds_earth_relative_m_s01
+    )
+
     return u_winds_grid_relative_m_s01, v_winds_grid_relative_m_s01
