@@ -70,9 +70,10 @@ def _get_grid_point_coords(
         longitudes (deg E).
     """
 
-    (num_rows_in_full_grid, num_columns_in_full_grid
-    ) = nwp_model_utils.get_grid_dimensions(
-        model_name=model_name, grid_id=grid_id)
+    num_rows_in_full_grid, num_columns_in_full_grid = (
+        nwp_model_utils.get_grid_dimensions(
+            model_name=model_name, grid_name=grid_id)
+    )
 
     error_checking.assert_is_integer(first_row_in_full_grid)
     error_checking.assert_is_geq(first_row_in_full_grid, 0)
@@ -96,34 +97,40 @@ def _get_grid_point_coords(
     error_checking.assert_is_less_than(
         last_column_in_full_grid, num_columns_in_full_grid)
 
-    (grid_point_lat_matrix_deg, grid_point_lng_matrix_deg
-    ) = nwp_model_utils.get_latlng_grid_point_matrices(
-        model_name=model_name, grid_id=grid_id)
+    grid_point_lat_matrix_deg, grid_point_lng_matrix_deg = (
+        nwp_model_utils.get_latlng_grid_point_matrices(
+            model_name=model_name, grid_id=grid_id)
+    )
 
     grid_point_lat_matrix_deg = grid_point_lat_matrix_deg[
         first_row_in_full_grid:(last_row_in_full_grid + 1),
-        first_column_in_full_grid:(last_column_in_full_grid + 1)]
+        first_column_in_full_grid:(last_column_in_full_grid + 1)
+    ]
+
     grid_point_lng_matrix_deg = grid_point_lng_matrix_deg[
         first_row_in_full_grid:(last_row_in_full_grid + 1),
-        first_column_in_full_grid:(last_column_in_full_grid + 1)]
+        first_column_in_full_grid:(last_column_in_full_grid + 1)
+    ]
 
     if basemap_object is None:
-        (standard_latitudes_deg, central_longitude_deg
-        ) = nwp_model_utils.get_projection_params(model_name)
+        standard_latitudes_deg, central_longitude_deg = (
+            nwp_model_utils.get_projection_params(model_name)
+        )
 
         projection_object = projections.init_lambert_conformal_projection(
             standard_latitudes_deg=standard_latitudes_deg,
             central_longitude_deg=central_longitude_deg)
 
-        (grid_point_x_matrix_metres, grid_point_y_matrix_metres
-        ) = projections.project_latlng_to_xy(
-            latitudes_deg=grid_point_lat_matrix_deg,
-            longitudes_deg=grid_point_lng_matrix_deg,
-            projection_object=projection_object, false_northing_metres=0.,
-            false_easting_metres=0.)
+        grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
+            projections.project_latlng_to_xy(
+                latitudes_deg=grid_point_lat_matrix_deg,
+                longitudes_deg=grid_point_lng_matrix_deg,
+                projection_object=projection_object, false_northing_metres=0.,
+                false_easting_metres=0.)
+        )
     else:
-        (grid_point_x_matrix_metres, grid_point_y_matrix_metres
-        ) = basemap_object(grid_point_lng_matrix_deg, grid_point_lat_matrix_deg)
+        grid_point_x_matrix_metres, grid_point_y_matrix_metres = basemap_object(
+            grid_point_lng_matrix_deg, grid_point_lat_matrix_deg)
 
     return {
         X_COORD_MATRIX_KEY: grid_point_x_matrix_metres,
@@ -158,29 +165,36 @@ def latlng_limits_to_rowcol_limits(
     both_longitudes_deg = numpy.array([min_longitude_deg, max_longitude_deg])
     both_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
         both_longitudes_deg)
+
     min_longitude_deg = both_longitudes_deg[0]
     max_longitude_deg = both_longitudes_deg[1]
     error_checking.assert_is_greater(max_longitude_deg, min_longitude_deg)
 
-    (grid_point_lat_matrix_deg, grid_point_lng_matrix_deg
-    ) = nwp_model_utils.get_latlng_grid_point_matrices(
-        model_name=model_name, grid_id=grid_id)
+    grid_point_lat_matrix_deg, grid_point_lng_matrix_deg = (
+        nwp_model_utils.get_latlng_grid_point_matrices(
+            model_name=model_name, grid_id=grid_id)
+    )
 
     good_lat_flag_matrix = numpy.logical_and(
         grid_point_lat_matrix_deg >= min_latitude_deg,
-        grid_point_lat_matrix_deg <= max_latitude_deg)
+        grid_point_lat_matrix_deg <= max_latitude_deg
+    )
     good_lng_flag_matrix = numpy.logical_and(
         grid_point_lng_matrix_deg >= min_longitude_deg,
-        grid_point_lng_matrix_deg <= max_longitude_deg)
+        grid_point_lng_matrix_deg <= max_longitude_deg
+    )
+
     good_row_indices, good_column_indices = numpy.where(
         numpy.logical_and(good_lat_flag_matrix, good_lng_flag_matrix)
     )
 
-    row_limits = numpy.array(
-        [numpy.min(good_row_indices), numpy.max(good_row_indices)], dtype=int)
-    column_limits = numpy.array(
-        [numpy.min(good_column_indices), numpy.max(good_column_indices)],
-        dtype=int)
+    row_limits = numpy.array([
+        numpy.min(good_row_indices), numpy.max(good_row_indices)
+    ], dtype=int)
+
+    column_limits = numpy.array([
+        numpy.min(good_column_indices), numpy.max(good_column_indices)
+    ], dtype=int)
 
     return row_limits, column_limits
 
@@ -223,14 +237,16 @@ def init_basemap(
         last_row_in_full_grid=last_row_in_full_grid,
         first_column_in_full_grid=first_column_in_full_grid,
         last_column_in_full_grid=last_column_in_full_grid)
+
     grid_point_x_matrix_metres = coordinate_dict[X_COORD_MATRIX_KEY]
     grid_point_y_matrix_metres = coordinate_dict[Y_COORD_MATRIX_KEY]
 
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(figure_width_inches, figure_height_inches))
 
-    (standard_latitudes_deg, central_longitude_deg
-    ) = nwp_model_utils.get_projection_params(model_name)
+    standard_latitudes_deg, central_longitude_deg = (
+        nwp_model_utils.get_projection_params(model_name)
+    )
 
     basemap_object = Basemap(
         projection='lcc', lat_1=standard_latitudes_deg[0],
@@ -240,7 +256,8 @@ def init_basemap(
         llcrnrx=grid_point_x_matrix_metres[0, 0],
         llcrnry=grid_point_y_matrix_metres[0, 0],
         urcrnrx=grid_point_x_matrix_metres[-1, -1],
-        urcrnry=grid_point_y_matrix_metres[-1, -1])
+        urcrnry=grid_point_y_matrix_metres[-1, -1]
+    )
 
     return figure_object, axes_object, basemap_object
 
@@ -283,16 +300,21 @@ def plot_subgrid(
         first_column_in_full_grid=first_column_in_full_grid,
         last_column_in_full_grid=
         first_column_in_full_grid + num_columns_in_subgrid - 1,
-        basemap_object=basemap_object)
+        basemap_object=basemap_object
+    )
+
     grid_point_x_matrix_metres = coordinate_dict[X_COORD_MATRIX_KEY]
     grid_point_y_matrix_metres = coordinate_dict[Y_COORD_MATRIX_KEY]
 
     x_spacing_metres = (
         (grid_point_x_matrix_metres[0, -1] - grid_point_x_matrix_metres[0, 0]) /
-        (num_columns_in_subgrid - 1))
+        (num_columns_in_subgrid - 1)
+    )
+
     y_spacing_metres = (
         (grid_point_y_matrix_metres[-1, 0] - grid_point_y_matrix_metres[0, 0]) /
-        (num_rows_in_subgrid - 1))
+        (num_rows_in_subgrid - 1)
+    )
 
     (field_matrix_at_edges, grid_cell_edges_x_metres, grid_cell_edges_y_metres
     ) = grids.xy_field_grid_points_to_edges(
@@ -353,9 +375,10 @@ def plot_wind_barbs_on_subgrid(
     error_checking.assert_is_real_numpy_array(u_wind_matrix_m_s01)
     error_checking.assert_is_numpy_array(u_wind_matrix_m_s01, num_dimensions=2)
     error_checking.assert_is_real_numpy_array(v_wind_matrix_m_s01)
+
+    these_expected_dim = numpy.array(u_wind_matrix_m_s01.shape, dtype=int)
     error_checking.assert_is_numpy_array(
-        v_wind_matrix_m_s01,
-        exact_dimensions=numpy.array(u_wind_matrix_m_s01.shape, dtype=int))
+        v_wind_matrix_m_s01, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_integer(plot_every_k_rows)
     error_checking.assert_is_geq(plot_every_k_rows, 1)
@@ -372,18 +395,24 @@ def plot_wind_barbs_on_subgrid(
         first_column_in_full_grid=first_column_in_full_grid,
         last_column_in_full_grid=
         first_column_in_full_grid + num_columns_in_subgrid - 1,
-        basemap_object=basemap_object)
+        basemap_object=basemap_object
+    )
+
     grid_point_lat_matrix_deg = coordinate_dict[LATITUDE_MATRIX_KEY]
     grid_point_lng_matrix_deg = coordinate_dict[LONGITUDE_MATRIX_KEY]
 
     u_wind_matrix_m_s01 = u_wind_matrix_m_s01[
-        ::plot_every_k_rows, ::plot_every_k_columns]
+        ::plot_every_k_rows, ::plot_every_k_columns
+    ]
     v_wind_matrix_m_s01 = v_wind_matrix_m_s01[
-        ::plot_every_k_rows, ::plot_every_k_columns]
+        ::plot_every_k_rows, ::plot_every_k_columns
+    ]
     grid_point_lat_matrix_deg = grid_point_lat_matrix_deg[
-        ::plot_every_k_rows, ::plot_every_k_columns]
+        ::plot_every_k_rows, ::plot_every_k_columns
+    ]
     grid_point_lng_matrix_deg = grid_point_lng_matrix_deg[
-        ::plot_every_k_rows, ::plot_every_k_columns]
+        ::plot_every_k_rows, ::plot_every_k_columns
+    ]
 
     num_wind_barbs = u_wind_matrix_m_s01.size
     u_winds_m_s01 = numpy.reshape(u_wind_matrix_m_s01, num_wind_barbs)
@@ -391,15 +420,17 @@ def plot_wind_barbs_on_subgrid(
     latitudes_deg = numpy.reshape(grid_point_lat_matrix_deg, num_wind_barbs)
     longitudes_deg = numpy.reshape(grid_point_lng_matrix_deg, num_wind_barbs)
 
-    not_nan_indices = numpy.where(numpy.invert(numpy.logical_or(
-        numpy.isnan(u_winds_m_s01), numpy.isnan(v_winds_m_s01))))[0]
+    nan_flags = numpy.logical_or(
+        numpy.isnan(u_winds_m_s01), numpy.isnan(v_winds_m_s01)
+    )
+    real_indices = numpy.where(numpy.invert(nan_flags))[0]
 
     wind_plotting.plot_wind_barbs(
         basemap_object=basemap_object, axes_object=axes_object,
-        latitudes_deg=latitudes_deg[not_nan_indices],
-        longitudes_deg=longitudes_deg[not_nan_indices],
-        u_winds_m_s01=u_winds_m_s01[not_nan_indices],
-        v_winds_m_s01=v_winds_m_s01[not_nan_indices],
+        latitudes_deg=latitudes_deg[real_indices],
+        longitudes_deg=longitudes_deg[real_indices],
+        u_winds_m_s01=u_winds_m_s01[real_indices],
+        v_winds_m_s01=v_winds_m_s01[real_indices],
         barb_length=barb_length, empty_barb_radius=empty_barb_radius,
         fill_empty_barb=fill_empty_barb, colour_map=colour_map,
         colour_minimum_kt=colour_minimum_kt,
