@@ -616,7 +616,7 @@ def create_tornado_targets(
         ' = {2:d}'
     ).format(
         len(tornado_classes), target_name,
-        int(numpy.round(numpy.sum(tornado_classes)))
+        int(numpy.round(numpy.sum(tornado_classes == 1)))
     )
 
     return storm_to_tornadoes_table.assign(**{target_name: tornado_classes})
