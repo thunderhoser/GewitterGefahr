@@ -221,24 +221,30 @@ def init_map_with_nwp_projection(
     :return: basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
     """
 
-    nwp_model_utils.check_grid_id(model_name, grid_id)
+    nwp_model_utils.check_grid_name(model_name, grid_id)
     map_corners_deg = [
-        min_latitude_deg, max_latitude_deg, min_longitude_deg,
-        max_longitude_deg]
+        min_latitude_deg, max_latitude_deg, min_longitude_deg, max_longitude_deg
+    ]
 
     if any([c is None for c in map_corners_deg]):
         grid_cell_edge_x_metres, grid_cell_edge_y_metres = (
-            nwp_model_utils.get_xy_grid_cell_edges(model_name, grid_id))
+            nwp_model_utils.get_xy_grid_cell_edges(
+                model_name=model_name, grid_name=grid_id)
+        )
+
         min_latitude_deg_as_array, min_longitude_deg_as_array = (
             nwp_model_utils.project_xy_to_latlng(
-                numpy.array([grid_cell_edge_x_metres[0]]),
-                numpy.array([grid_cell_edge_y_metres[0]]),
-                projection_object=None, model_name=model_name, grid_id=grid_id))
+                x_coords_metres=grid_cell_edge_x_metres[[0]],
+                y_coords_metres=grid_cell_edge_y_metres[[0]],
+                model_name=model_name, grid_name=grid_id)
+        )
+
         max_latitude_deg_as_array, max_longitude_deg_as_array = (
             nwp_model_utils.project_xy_to_latlng(
-                numpy.array([grid_cell_edge_x_metres[-1]]),
-                numpy.array([grid_cell_edge_y_metres[-1]]),
-                projection_object=None, model_name=model_name, grid_id=grid_id))
+                x_coords_metres=grid_cell_edge_x_metres[[-1]],
+                y_coords_metres=grid_cell_edge_y_metres[[-1]],
+                model_name=model_name, grid_name=grid_id)
+        )
 
         min_latitude_deg = min_latitude_deg_as_array[0]
         max_latitude_deg = max_latitude_deg_as_array[0]
@@ -246,7 +252,8 @@ def init_map_with_nwp_projection(
         max_longitude_deg = max_longitude_deg_as_array[0]
 
     standard_latitudes_deg, central_longitude_deg = (
-        nwp_model_utils.get_projection_params(model_name))
+        nwp_model_utils.get_projection_params(model_name)
+    )
 
     return init_lambert_conformal_map(
         standard_latitudes_deg=standard_latitudes_deg,

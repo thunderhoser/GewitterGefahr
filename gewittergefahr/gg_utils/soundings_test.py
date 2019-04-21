@@ -17,18 +17,24 @@ TOLERANCE_FOR_CONVERTED_VALUES = 1e-3
 MINIMUM_PRESSURE_MB = 950.
 MODEL_NAME = nwp_model_utils.RAP_MODEL_NAME
 
-(SURFACE_HEIGHT_NAME, SURFACE_HEIGHT_NAME_GRIB1
-) = nwp_model_utils.get_lowest_height_name(MODEL_NAME)
-(SURFACE_TEMP_NAME, SURFACE_TEMP_NAME_GRIB1
-) = nwp_model_utils.get_lowest_temperature_name(MODEL_NAME)
-(SURFACE_HUMIDITY_NAME, SURFACE_HUMIDITY_NAME_GRIB1
-) = nwp_model_utils.get_lowest_humidity_name(MODEL_NAME)
-(SURFACE_U_WIND_NAME, SURFACE_U_WIND_NAME_GRIB1
-) = nwp_model_utils.get_lowest_u_wind_name(MODEL_NAME)
-(SURFACE_V_WIND_NAME, SURFACE_V_WIND_NAME_GRIB1
-) = nwp_model_utils.get_lowest_v_wind_name(MODEL_NAME)
-(SURFACE_PRESSURE_NAME, SURFACE_PRESSURE_NAME_GRIB1
-) = nwp_model_utils.get_lowest_pressure_name(MODEL_NAME)
+SURFACE_HEIGHT_NAME, SURFACE_HEIGHT_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_height_name(MODEL_NAME)
+)
+SURFACE_TEMP_NAME, SURFACE_TEMP_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_temperature_name(MODEL_NAME)
+)
+SURFACE_HUMIDITY_NAME, SURFACE_HUMIDITY_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_humidity_name(MODEL_NAME)
+)
+SURFACE_U_WIND_NAME, SURFACE_U_WIND_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_u_wind_name(MODEL_NAME)
+)
+SURFACE_V_WIND_NAME, SURFACE_V_WIND_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_v_wind_name(MODEL_NAME)
+)
+SURFACE_PRESSURE_NAME, SURFACE_PRESSURE_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_pressure_name(MODEL_NAME)
+)
 
 FIELD_NAMES_WITH_SURFACE = [
     'geopotential_height_metres_950mb', 'geopotential_height_metres_975mb',
@@ -96,32 +102,30 @@ THIS_DICT = {
     soundings.PRESSURE_LEVEL_KEY: numpy.concatenate((
         PRESSURE_LEVELS_NO_SURFACE_MB, numpy.array([numpy.nan])
     )),
-    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES:
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDINGS:
         HEIGHT_NAMES_NO_SURFACE + [SURFACE_HEIGHT_NAME],
-    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES:
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDINGS:
         TEMPERATURE_NAMES_NO_SURFACE + [SURFACE_TEMP_NAME],
-    nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES:
+    nwp_model_utils.RH_COLUMN_FOR_SOUNDINGS:
         HUMIDITY_NAMES_NO_SURFACE + [SURFACE_HUMIDITY_NAME],
-    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES:
+    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDINGS:
         U_WIND_NAMES_NO_SURFACE + [SURFACE_U_WIND_NAME],
-    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES:
+    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDINGS:
         V_WIND_NAMES_NO_SURFACE + [SURFACE_V_WIND_NAME]
 }
+
 FIELD_NAME_TABLE_WITH_SURFACE = pandas.DataFrame.from_dict(THIS_DICT)
 
 THIS_DICT = {
     soundings.PRESSURE_LEVEL_KEY: PRESSURE_LEVELS_NO_SURFACE_MB,
-    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES:
-        HEIGHT_NAMES_NO_SURFACE,
-    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES:
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDINGS: HEIGHT_NAMES_NO_SURFACE,
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDINGS:
         TEMPERATURE_NAMES_NO_SURFACE,
-    nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES:
-        HUMIDITY_NAMES_NO_SURFACE,
-    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES:
-        U_WIND_NAMES_NO_SURFACE,
-    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES:
-        V_WIND_NAMES_NO_SURFACE
+    nwp_model_utils.RH_COLUMN_FOR_SOUNDINGS: HUMIDITY_NAMES_NO_SURFACE,
+    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDINGS: U_WIND_NAMES_NO_SURFACE,
+    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDINGS: V_WIND_NAMES_NO_SURFACE
 }
+
 FIELD_NAME_TABLE_NO_SURFACE = pandas.DataFrame.from_dict(THIS_DICT)
 
 # The following constants are used to test _create_target_points_for_interp.
@@ -203,11 +207,11 @@ THIS_SOUNDING_MATRIX = numpy.stack(
 
 THESE_PRESSURE_LEVELS_MB = numpy.array([950, 975, 1000])
 THESE_FIELD_NAMES = [
-    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.RH_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDINGS
 ]
 
 SOUNDING_DICT_P_COORDS_NO_SURFACE = {
@@ -285,11 +289,11 @@ THESE_RELATIVE_HUMIDITIES = moisture_conversions.dewpoint_to_relative_humidity(
 THESE_RELATIVE_HUMIDITIES_PERCENT = 100 * THESE_RELATIVE_HUMIDITIES
 
 THESE_FIELD_NAMES = [
-    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.RH_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDINGS
 ]
 
 THIS_SOUNDING_MATRIX = numpy.full((1, 5, 5), numpy.nan)
@@ -310,12 +314,12 @@ THIS_SOUNDING_MATRIX = numpy.concatenate(
 THIS_SOUNDING_MATRIX[..., 1] = THIS_SOUNDING_MATRIX[..., 1] / 100
 
 THESE_FIELD_NAMES = [
-    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES,
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDINGS,
     soundings.RELATIVE_HUMIDITY_NAME,
-    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.SPFH_COLUMN_FOR_SOUNDINGS
 ]
 
 SOUNDING_DICT_P_COORDS_WITH_SPFH = {
@@ -325,11 +329,11 @@ SOUNDING_DICT_P_COORDS_WITH_SPFH = {
 
 # The following constants are used to test _specific_to_relative_humidity.
 THESE_FIELD_NAMES = [
-    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.SPFH_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDINGS,
+    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDINGS
 ]
 
 THIS_SOUNDING_MATRIX = numpy.full((1, 5, 5), numpy.nan)

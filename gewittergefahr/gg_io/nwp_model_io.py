@@ -29,13 +29,15 @@ def _lead_time_to_string(lead_time_hours):
 def _get_pathless_file_name_prefixes(model_name, grid_id=None):
     """Returns possible starts of pathless file names for the given model/grid.
 
-    :param model_name: See doc for `nwp_model_utils.check_grid_id`.
+    :param model_name: See doc for `nwp_model_utils.check_grid_name`.
     :param grid_id: Same.
     :return: pathless_file_name_prefixes: 1-D list with possible starts of
         pathless file names.
     """
 
-    nwp_model_utils.check_grid_id(model_name, grid_id)
+    grid_id = nwp_model_utils.check_grid_name(
+        model_name=model_name, grid_name=grid_id)
+
     if model_name == nwp_model_utils.NARR_MODEL_NAME:
         return [NARR_ID_FOR_FILE_NAMES]
 
@@ -50,7 +52,7 @@ def _get_pathless_grib_file_names(
     """Returns possible pathless file names for the given model/grid.
 
     :param init_time_unix_sec: Model-initialization time.
-    :param model_name: See doc for `nwp_model_utils.check_grid_id`.
+    :param model_name: See doc for `nwp_model_utils.check_grid_name`.
     :param grid_id: Same.
     :param lead_time_hours: Lead time (valid time minus init time).
     :return: pathless_file_names: 1-D list of possible pathless file names.
@@ -59,7 +61,7 @@ def _get_pathless_grib_file_names(
     pathless_file_name_prefixes = _get_pathless_file_name_prefixes(
         model_name=model_name, grid_id=grid_id)
 
-    grib_file_types = nwp_model_utils.get_grib_types(model_name)
+    grib_file_types = nwp_model_utils.model_to_grib_types(model_name)
     if model_name == nwp_model_utils.NARR_MODEL_NAME:
         lead_time_hours = 0
 
@@ -85,7 +87,7 @@ def find_grib_file(
 
     :param top_directory_name: Name of top-level directory with grib files.
     :param init_time_unix_sec: Model-initialization time.
-    :param model_name: See doc for `nwp_model_utils.check_grid_id`.
+    :param model_name: See doc for `nwp_model_utils.check_grid_name`.
     :param grid_id: Same.
     :param lead_time_hours: Lead time.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
@@ -139,7 +141,7 @@ def find_ruc_file_any_grid(
     """
 
     error_checking.assert_is_boolean(raise_error_if_missing)
-    grid_ids = nwp_model_utils.RUC_GRID_IDS
+    grid_ids = nwp_model_utils.RUC_GRID_NAMES
 
     for i in range(len(grid_ids)):
         grib_file_name = find_grib_file(
@@ -168,7 +170,7 @@ def find_rap_file_any_grid(
     """
 
     error_checking.assert_is_boolean(raise_error_if_missing)
-    grid_ids = nwp_model_utils.RAP_GRID_IDS
+    grid_ids = nwp_model_utils.RAP_GRID_NAMES
 
     for i in range(len(grid_ids)):
         grib_file_name = find_grib_file(
@@ -192,7 +194,7 @@ def download_grib_file(
     :param top_local_directory_name: Name of top-level directory for grib files
         on local machine.
     :param init_time_unix_sec: Model-initialization time.
-    :param model_name: See doc for `nwp_model_utils.check_grid_id`.
+    :param model_name: See doc for `nwp_model_utils.check_grid_name`.
     :param grid_id: Same.
     :param lead_time_hours: Lead time.
     :param raise_error_if_fails: Boolean flag.  If download fails and
@@ -206,8 +208,8 @@ def download_grib_file(
     pathless_file_names = _get_pathless_grib_file_names(
         init_time_unix_sec=init_time_unix_sec, model_name=model_name,
         grid_id=grid_id, lead_time_hours=lead_time_hours)
-    top_online_dir_names = nwp_model_utils.get_top_online_directories(
-        model_name=model_name, grid_id=grid_id)
+    top_online_dir_names = nwp_model_utils.get_online_directories(
+        model_name=model_name, grid_name=grid_id)
 
     desired_local_file_name = find_grib_file(
         top_directory_name=top_local_directory_name,
@@ -272,8 +274,11 @@ def download_ruc_file_any_grid(
     """
 
     error_checking.assert_is_boolean(raise_error_if_fails)
+
     # grid_ids = nwp_model_utils.RUC_GRID_IDS
-    grid_ids = [nwp_model_utils.ID_FOR_130GRID, nwp_model_utils.ID_FOR_252GRID]
+    grid_ids = [
+        nwp_model_utils.NAME_OF_130GRID, nwp_model_utils.NAME_OF_252GRID
+    ]
 
     for i in range(len(grid_ids)):
         local_file_name = download_grib_file(
@@ -304,8 +309,11 @@ def download_rap_file_any_grid(
     """
 
     error_checking.assert_is_boolean(raise_error_if_fails)
+
     # grid_ids = nwp_model_utils.RAP_GRID_IDS
-    grid_ids = [nwp_model_utils.ID_FOR_130GRID, nwp_model_utils.ID_FOR_252GRID]
+    grid_ids = [
+        nwp_model_utils.NAME_OF_130GRID, nwp_model_utils.NAME_OF_252GRID
+    ]
 
     for i in range(len(grid_ids)):
         local_file_name = download_grib_file(
@@ -333,7 +341,7 @@ def read_field_from_grib_file(
 
     :param grib_file_name: Path to input file.
     :param field_name_grib1: See doc for `grib_io.read_field_from_grib_file`.
-    :param model_name: See doc for `nwp_model_utils.check_grid_id`.
+    :param model_name: See doc for `nwp_model_utils.check_grid_name`.
     :param grid_id: Same.
     :param temporary_dir_name: See doc for `grib_io.read_field_from_grib_file`.
     :param wgrib_exe_name: Same.
@@ -343,7 +351,7 @@ def read_field_from_grib_file(
     """
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-        model_name=model_name, grid_id=grid_id)
+        model_name=model_name, grid_name=grid_id)
 
     return grib_io.read_field_from_grib_file(
         grib_file_name=grib_file_name, field_name_grib1=field_name_grib1,

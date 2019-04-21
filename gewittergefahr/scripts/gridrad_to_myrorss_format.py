@@ -195,7 +195,7 @@ def _convert_to_myrorss_format(
                         radar_time_unix_sec=this_time_unix_sec,
                         critical_temperature_kelvins=TEMPERATURE_LEVEL_KELVINS,
                         model_name=this_model_name, use_all_grids=False,
-                        grid_id=nwp_model_utils.ID_FOR_130GRID,
+                        grid_id=nwp_model_utils.NAME_OF_130GRID,
                         top_grib_directory_name=this_top_model_dir_name)
                 )
 

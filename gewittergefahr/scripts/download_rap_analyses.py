@@ -49,7 +49,8 @@ def _download_rap_analyses(first_init_time_string, last_init_time_string,
     last_init_time_unix_sec = time_conversion.string_to_unix_sec(
         last_init_time_string, INPUT_TIME_FORMAT)
     time_interval_sec = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
-        nwp_model_utils.RAP_MODEL_NAME)[1]
+        nwp_model_utils.RAP_MODEL_NAME
+    )[1]
 
     init_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_init_time_unix_sec,

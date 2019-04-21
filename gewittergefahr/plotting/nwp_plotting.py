@@ -43,7 +43,7 @@ def _get_grid_point_coords(
     northing = 0 metres.
 
     :param model_name: Name of NWP model (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :param first_row_in_full_grid: Row 0 in the subgrid is row
         `first_row_in_full_grid` in the full grid.
     :param last_row_in_full_grid: Last row in the subgrid is row
@@ -55,7 +55,7 @@ def _get_grid_point_coords(
         `last_column_in_full_grid` in the full grid.  If you want last column in
         the subgrid to equal last column in the full grid, make this -1.
     :param grid_id: Grid for NWP model (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap` for the
         given NWP model.  If you don't have one, no big deal -- leave this
         argument empty.
@@ -99,7 +99,7 @@ def _get_grid_point_coords(
 
     grid_point_lat_matrix_deg, grid_point_lng_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
-            model_name=model_name, grid_id=grid_id)
+            model_name=model_name, grid_name=grid_id)
     )
 
     grid_point_lat_matrix_deg = grid_point_lat_matrix_deg[
@@ -150,9 +150,9 @@ def latlng_limits_to_rowcol_limits(
     :param min_longitude_deg: Minimum longitude (deg E).
     :param max_longitude_deg: Max longitude (deg E).
     :param model_name: Name of NWP model (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :param grid_id: Grid for NWP model (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :return: row_limits: length-2 numpy array, containing min and max rows in
         model grid, respectively.
     :return: column_limits: Same but for columns.
@@ -172,7 +172,7 @@ def latlng_limits_to_rowcol_limits(
 
     grid_point_lat_matrix_deg, grid_point_lng_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
-            model_name=model_name, grid_id=grid_id)
+            model_name=model_name, grid_name=grid_id)
     )
 
     good_lat_flag_matrix = numpy.logical_and(
@@ -209,9 +209,9 @@ def init_basemap(
     """Initializes basemap with the given model's projection.
 
     :param model_name: Name of NWP model (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :param grid_id: Grid for NWP model (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
     :param resolution_string: Resolution for boundaries (e.g., coastlines and
@@ -270,14 +270,14 @@ def plot_subgrid(
 
     :param field_matrix: M-by-N numpy array with field to plot.
     :param model_name: Name of NWP model (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
     :param colour_map: Instance of `matplotlib.pyplot.cm`.
     :param min_value_in_colour_map: Minimum value in colour map.
     :param max_value_in_colour_map: Max value in colour map.
     :param grid_id: Grid for NWP model (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :param first_row_in_full_grid: Row 0 in the subgrid (i.e., row 0 in
         `field_matrix` is row `first_row_in_full_grid` in the full grid).
     :param first_column_in_full_grid: Column 0 in the subgrid (i.e., column 0 in

@@ -54,12 +54,12 @@ PRESSURE_LEVELS_WITH_SFC_KEY = 'pressure_levels_with_surface_mb'
 HEIGHT_LEVELS_KEY = 'height_levels_m_agl'
 FIELD_NAMES_KEY = 'field_names'
 
-GEOPOTENTIAL_HEIGHT_NAME = nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES
+GEOPOTENTIAL_HEIGHT_NAME = nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDINGS
 RELATIVE_HUMIDITY_NAME = 'relative_humidity_unitless'
-TEMPERATURE_NAME = nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES
-U_WIND_NAME = nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES
-V_WIND_NAME = nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES
-SPECIFIC_HUMIDITY_NAME = nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES
+TEMPERATURE_NAME = nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDINGS
+U_WIND_NAME = nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDINGS
+V_WIND_NAME = nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDINGS
+SPECIFIC_HUMIDITY_NAME = nwp_model_utils.SPFH_COLUMN_FOR_SOUNDINGS
 VIRTUAL_POTENTIAL_TEMPERATURE_NAME = 'virtual_potential_temperature_kelvins'
 PRESSURE_NAME = 'pressure_pascals'
 
@@ -135,10 +135,12 @@ def _get_nwp_fields_for_sounding(
     error_checking.assert_is_boolean(include_surface)
 
     pressure_levels_no_surface_mb = nwp_model_utils.get_pressure_levels(
-        model_name=model_name, grid_id=nwp_model_utils.ID_FOR_130GRID
+        model_name=model_name, grid_name=nwp_model_utils.NAME_OF_130GRID
     ).astype(float)
+
     pressure_levels_no_surface_mb = pressure_levels_no_surface_mb[
-        pressure_levels_no_surface_mb >= minimum_pressure_mb]
+        pressure_levels_no_surface_mb >= minimum_pressure_mb
+    ]
 
     if include_surface:
         pressure_levels_with_surface_mb = numpy.concatenate((
@@ -150,10 +152,11 @@ def _get_nwp_fields_for_sounding(
     num_pressure_levels_no_surface = len(pressure_levels_no_surface_mb)
     num_pressure_levels_with_surface = len(pressure_levels_with_surface_mb)
 
-    (field_names, field_names_grib1
-    ) = nwp_model_utils.get_columns_in_sounding_table(model_name)
-    num_fields = len(field_names)
+    field_names, field_names_grib1 = (
+        nwp_model_utils.get_columns_in_sounding_table(model_name)
+    )
 
+    num_fields = len(field_names)
     sounding_field_name_table = None
     sounding_field_names = []
     sounding_field_names_grib1 = []
@@ -193,25 +196,30 @@ def _get_nwp_fields_for_sounding(
             continue
 
         if field_names[j] == GEOPOTENTIAL_HEIGHT_NAME:
-            (this_field_name, this_field_name_grib1
-            ) = nwp_model_utils.get_lowest_height_name(model_name)
+            this_field_name, this_field_name_grib1 = (
+                nwp_model_utils.get_lowest_height_name(model_name)
+            )
 
         if field_names[j] == TEMPERATURE_NAME:
-            (this_field_name, this_field_name_grib1
-            ) = nwp_model_utils.get_lowest_temperature_name(model_name)
+            this_field_name, this_field_name_grib1 = (
+                nwp_model_utils.get_lowest_temperature_name(model_name)
+            )
 
-        if field_names[j] in [nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES,
+        if field_names[j] in [nwp_model_utils.RH_COLUMN_FOR_SOUNDINGS,
                               SPECIFIC_HUMIDITY_NAME]:
-            (this_field_name, this_field_name_grib1
-            ) = nwp_model_utils.get_lowest_humidity_name(model_name)
+            this_field_name, this_field_name_grib1 = (
+                nwp_model_utils.get_lowest_humidity_name(model_name)
+            )
 
         if field_names[j] == U_WIND_NAME:
-            (this_field_name, this_field_name_grib1
-            ) = nwp_model_utils.get_lowest_u_wind_name(model_name)
+            this_field_name, this_field_name_grib1 = (
+                nwp_model_utils.get_lowest_u_wind_name(model_name)
+            )
 
         if field_names[j] == V_WIND_NAME:
-            (this_field_name, this_field_name_grib1
-            ) = nwp_model_utils.get_lowest_v_wind_name(model_name)
+            this_field_name, this_field_name_grib1 = (
+                nwp_model_utils.get_lowest_v_wind_name(model_name)
+            )
 
         if return_table:
             sounding_field_name_table[field_names[j]].values[
@@ -224,8 +232,10 @@ def _get_nwp_fields_for_sounding(
         return (sounding_field_names, sounding_field_names_grib1,
                 sounding_field_name_table)
 
-    (this_field_name, this_field_name_grib1
-    ) = nwp_model_utils.get_lowest_pressure_name(model_name)
+    this_field_name, this_field_name_grib1 = (
+        nwp_model_utils.get_lowest_pressure_name(model_name)
+    )
+
     sounding_field_names.append(this_field_name)
     sounding_field_names_grib1.append(this_field_name_grib1)
 
@@ -408,9 +418,12 @@ def _convert_interp_table_to_soundings(
 
     if include_surface:
         surface_pressure_name = nwp_model_utils.get_lowest_pressure_name(
-            model_name)[0]
+            model_name
+        )[0]
+
         surface_pressures_mb = (
-            PASCALS_TO_MB * interp_table[surface_pressure_name].values)
+            PASCALS_TO_MB * interp_table[surface_pressure_name].values
+        )
     else:
         surface_pressures_mb = None
 
@@ -490,12 +503,14 @@ def _relative_to_specific_humidity(sounding_dict, pressure_matrix_pascals):
     sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
     temperature_index = field_names.index(TEMPERATURE_NAME)
 
-    if nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES in field_names:
+    if nwp_model_utils.RH_COLUMN_FOR_SOUNDINGS in field_names:
         relative_humidity_index = field_names.index(
-            nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES)
+            nwp_model_utils.RH_COLUMN_FOR_SOUNDINGS)
+
         sounding_matrix[..., relative_humidity_index] = (
             PERCENT_TO_UNITLESS * sounding_matrix[..., relative_humidity_index]
         )
+
         field_names[relative_humidity_index] = RELATIVE_HUMIDITY_NAME
     else:
         relative_humidity_index = field_names.index(RELATIVE_HUMIDITY_NAME)
@@ -728,7 +743,7 @@ def _convert_fields_and_units(sounding_dict_pressure_coords):
 
     pressure_matrix_pascals = _get_pressures(sounding_dict_pressure_coords)
     found_rh = (
-        nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES in
+        nwp_model_utils.RH_COLUMN_FOR_SOUNDINGS in
         sounding_dict_pressure_coords[FIELD_NAMES_KEY]
     )
 
@@ -927,12 +942,12 @@ def interp_soundings_to_storm_objects(
     :param top_grib_directory_name: Name of top-level directory with grib files
         for the given NWP model.
     :param model_name: Model name (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :param use_all_grids: Boolean flag.  If True, this method will interp from
         the highest-resolution grid available at each model-initialization time.
         If False, will use only `grid_id`.
     :param grid_id: [used only if `use_all_grids = False`]
-        Grid ID (must be accepted by `nwp_model_utils.check_grid_id`).
+        Grid ID (must be accepted by `nwp_model_utils.check_grid_name`).
     :param height_levels_m_agl: 1-D numpy array of height levels (metres above
         ground level).  These will be the height levels in each sounding.
     :param lead_times_seconds: length-T numpy array of lead times.
