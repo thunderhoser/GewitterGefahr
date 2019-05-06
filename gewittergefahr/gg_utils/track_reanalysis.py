@@ -12,19 +12,13 @@ Reanalysis entails two operations:
     of the first and start time of the second.
 """
 
+import copy
 import numpy
 from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
-# DUMMY_TIME_UNIX_SEC = -10000
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
-
-# DEGREES_LAT_TO_METRES = 60. * 1852
-# RADIANS_TO_DEGREES = 180. / numpy.pi
-#
-# CENTRAL_PROJ_LATITUDE_DEG = 35.
-# CENTRAL_PROJ_LONGITUDE_DEG = 265.
 
 STORM_OBJECT_TABLE_KEY = 'storm_object_table'
 LATE_TO_EARLY_KEY = 'late_to_early_matrix'
@@ -410,6 +404,86 @@ def _handle_collinear_1to1_joins(
     }
 
 
+def _update_velocities(storm_object_table, early_rows, late_rows,
+                       late_to_early_matrix):
+    """Updates velocity estimate for each storm object at late time.
+
+    N_l = number of storm objects at late time
+    N_e =  number of storm objects at early time
+
+    :param storm_object_table: See doc for
+        `temporal_tracking.join_collinear_tracks`.
+    :param early_rows: 1-D numpy array of row indices for early storm objects.
+        These are indices into `storm_object_table`.
+    :param late_rows: Same but for late storm objects.
+    :param late_to_early_matrix: numpy array (N_l x N_e) of Boolean flags.  If
+        late_to_early_matrix[i, j] = True, the [i]th late storm object is linked
+        to the [j]th early storm object.
+    :return: storm_object_table: Same but with different values for
+        "x_velocity_m_s01" and "y_velocity_m_s01".
+    """
+
+    early_local_max_dict = _create_local_max_dict(
+        storm_object_table=storm_object_table,
+        row_indices=early_rows, include_velocity=False)
+
+    late_local_max_dict = _create_local_max_dict(
+        storm_object_table=storm_object_table,
+        row_indices=late_rows, include_velocity=False)
+
+    late_local_max_dict[
+        temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY] = late_to_early_matrix
+
+    late_local_max_dict = temporal_tracking.get_intermediate_velocities(
+        current_local_max_dict=late_local_max_dict,
+        previous_local_max_dict=early_local_max_dict)
+
+    storm_object_table[temporal_tracking.X_VELOCITY_COLUMN].values[
+        late_rows] = late_local_max_dict[temporal_tracking.X_VELOCITIES_KEY]
+
+    storm_object_table[temporal_tracking.Y_VELOCITY_COLUMN].values[
+        late_rows] = late_local_max_dict[temporal_tracking.Y_VELOCITIES_KEY]
+
+    return storm_object_table
+
+
+def _get_intermediate_velocities_old(storm_object_table, early_rows, late_rows):
+    """Returns intermediate velocity estimate for each storm object.
+
+    Input args `early_rows` and `late_rows` will be used to find relevant
+    primary storm IDs, and only storm objects with these primary IDs will have
+    their velocities updated.
+
+    :param storm_object_table: See doc for
+        `temporal_tracking.get_storm_velocities`.
+    :param early_rows: 1-D numpy array of row indices.
+    :param late_rows: 1-D numpy array of row indices.
+    :return: storm_object_table: See doc for
+        `temporal_tracking.get_storm_velocities`.
+    """
+
+    early_primary_id_strings = storm_object_table[
+        temporal_tracking.PRIMARY_ID_COLUMN].values[early_rows].tolist()
+
+    late_primary_id_strings = storm_object_table[
+        temporal_tracking.PRIMARY_ID_COLUMN].values[late_rows].tolist()
+
+    primary_id_strings = early_primary_id_strings + late_primary_id_strings
+
+    update_flags = storm_object_table[
+        temporal_tracking.PRIMARY_ID_COLUMN].isin(primary_id_strings).values
+
+    update_rows = numpy.where(update_flags)[0]
+
+    storm_object_table.iloc[update_rows] = (
+        temporal_tracking.get_storm_velocities(
+            storm_object_table=storm_object_table.iloc[update_rows]
+        )
+    )
+
+    return storm_object_table
+
+
 def _update_full_ids(storm_object_table):
     """Updates full storm IDs in table.
 
@@ -433,7 +507,7 @@ def _update_full_ids(storm_object_table):
     return storm_object_table.assign(**argument_dict)
 
 
-def _join_collinear_tracks(
+def join_collinear_tracks(
         storm_object_table, first_late_time_unix_sec, last_late_time_unix_sec,
         max_join_time_seconds, max_join_error_m_s01):
     """Joins collinear storm tracks.
@@ -458,8 +532,6 @@ def _join_collinear_tracks(
 
     # TODO(thunderhoser): Allow different end times in a merger, different start
     # times in a split.
-
-    # TODO(thunderhoser): Update velocities.
 
     unique_times_unix_sec, orig_to_unique_time_indices = numpy.unique(
         storm_object_table[tracking_utils.TIME_COLUMN].values,
@@ -567,6 +639,8 @@ def _join_collinear_tracks(
                     max_link_distance_m_s01=-1.)
             )
 
+            orig_late_to_early_matrix = copy.deepcopy(this_late_to_early_matrix)
+
             print (
                 'Found {0:d} connections between early and late tracks.\n'
             ).format(numpy.sum(this_late_to_early_matrix))
@@ -587,6 +661,11 @@ def _join_collinear_tracks(
             primary_id_to_last_row_dict = this_dict[ID_TO_LAST_ROW_KEY]
 
             if not numpy.any(this_late_to_early_matrix):
+                storm_object_table = _update_velocities(
+                    storm_object_table=storm_object_table,
+                    early_rows=these_early_rows, late_rows=these_late_rows,
+                    late_to_early_matrix=orig_late_to_early_matrix)
+
                 this_late_local_max_dict = None
                 continue
 
@@ -603,6 +682,11 @@ def _join_collinear_tracks(
             primary_id_to_last_row_dict = this_dict[ID_TO_LAST_ROW_KEY]
 
             if not numpy.any(this_late_to_early_matrix):
+                storm_object_table = _update_velocities(
+                    storm_object_table=storm_object_table,
+                    early_rows=these_early_rows, late_rows=these_late_rows,
+                    late_to_early_matrix=orig_late_to_early_matrix)
+
                 this_late_local_max_dict = None
                 continue
 
@@ -616,6 +700,11 @@ def _join_collinear_tracks(
             storm_object_table = this_dict[STORM_OBJECT_TABLE_KEY]
             primary_id_to_first_row_dict = this_dict[ID_TO_FIRST_ROW_KEY]
             primary_id_to_last_row_dict = this_dict[ID_TO_LAST_ROW_KEY]
+
+            storm_object_table = _update_velocities(
+                storm_object_table=storm_object_table,
+                early_rows=these_early_rows, late_rows=these_late_rows,
+                late_to_early_matrix=orig_late_to_early_matrix)
 
             this_late_local_max_dict = None
 

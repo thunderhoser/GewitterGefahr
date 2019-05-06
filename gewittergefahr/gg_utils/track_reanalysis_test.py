@@ -144,6 +144,10 @@ ORIG_STORM_OBJECT_TABLE = track_reanalysis._update_full_ids(
     pandas.DataFrame.from_dict(THIS_DICT)
 )
 
+COLUMNS_TO_COMPARE = list(ORIG_STORM_OBJECT_TABLE)
+COLUMNS_TO_COMPARE.remove(temporal_tracking.X_VELOCITY_COLUMN)
+COLUMNS_TO_COMPARE.remove(temporal_tracking.Y_VELOCITY_COLUMN)
+
 # The following constants are used to test _handle_collinear_splits.
 EARLY_ROWS_FOR_SPLIT = numpy.array([20, 4, 3, 1], dtype=int)
 LATE_ROWS_FOR_SPLIT = numpy.array([30, 4, 7, 0, 10], dtype=int)
@@ -354,7 +358,7 @@ STORM_OBJECT_TABLE_POSTSIMPLE = STORM_OBJECT_TABLE_POSTSIMPLE.assign(**{
         THESE_FIRST_NEXT_SECONDARY_IDS
 })
 
-# The following constants are used to test _join_collinear_tracks.
+# The following constants are used to test join_collinear_tracks.
 STORM_OBJECT_TABLE_1SEC = copy.deepcopy(ORIG_STORM_OBJECT_TABLE)
 STORM_OBJECT_TABLE_2SEC_5METRES = copy.deepcopy(STORM_OBJECT_TABLE_POSTMERGE)
 STORM_OBJECT_TABLE_2SEC_5METRES = track_reanalysis._update_full_ids(
@@ -534,115 +538,129 @@ class TrackReanalysisTests(unittest.TestCase):
         )
 
     def test_join_collinear_tracks_1sec_5metres(self):
-        """Ensures correct output from _join_collinear_tracks.
+        """Ensures correct output from join_collinear_tracks.
 
         In this case, max join time = 1 second and max join error = 5 m/s.
         """
 
-        this_storm_object_table = track_reanalysis._join_collinear_tracks(
+        this_storm_object_table = track_reanalysis.join_collinear_tracks(
             storm_object_table=copy.deepcopy(ORIG_STORM_OBJECT_TABLE),
             first_late_time_unix_sec=numpy.min(ORIG_TIMES_UNIX_SEC),
             last_late_time_unix_sec=numpy.max(ORIG_TIMES_UNIX_SEC),
             max_join_time_seconds=1, max_join_error_m_s01=5.)
 
         self.assertTrue(
-            this_storm_object_table.equals(STORM_OBJECT_TABLE_1SEC)
+            this_storm_object_table[COLUMNS_TO_COMPARE].equals(
+                STORM_OBJECT_TABLE_1SEC[COLUMNS_TO_COMPARE]
+            )
         )
 
     def test_join_collinear_tracks_2sec_5metres(self):
-        """Ensures correct output from _join_collinear_tracks.
+        """Ensures correct output from join_collinear_tracks.
 
         In this case, max join time = 2 seconds and max join error = 5 m/s.
         """
 
-        this_storm_object_table = track_reanalysis._join_collinear_tracks(
+        this_storm_object_table = track_reanalysis.join_collinear_tracks(
             storm_object_table=copy.deepcopy(ORIG_STORM_OBJECT_TABLE),
             first_late_time_unix_sec=numpy.min(ORIG_TIMES_UNIX_SEC),
             last_late_time_unix_sec=numpy.max(ORIG_TIMES_UNIX_SEC),
             max_join_time_seconds=2, max_join_error_m_s01=5.)
 
         self.assertTrue(
-            this_storm_object_table.equals(STORM_OBJECT_TABLE_2SEC_5METRES)
+            this_storm_object_table[COLUMNS_TO_COMPARE].equals(
+                STORM_OBJECT_TABLE_2SEC_5METRES[COLUMNS_TO_COMPARE]
+            )
         )
 
     def test_join_collinear_tracks_3sec_5metres(self):
-        """Ensures correct output from _join_collinear_tracks.
+        """Ensures correct output from join_collinear_tracks.
 
         In this case, max join time = 3 seconds and max join error = 5 m/s.
         """
 
-        this_storm_object_table = track_reanalysis._join_collinear_tracks(
+        this_storm_object_table = track_reanalysis.join_collinear_tracks(
             storm_object_table=copy.deepcopy(ORIG_STORM_OBJECT_TABLE),
             first_late_time_unix_sec=numpy.min(ORIG_TIMES_UNIX_SEC),
             last_late_time_unix_sec=numpy.max(ORIG_TIMES_UNIX_SEC),
             max_join_time_seconds=3, max_join_error_m_s01=5.)
 
         self.assertTrue(
-            this_storm_object_table.equals(STORM_OBJECT_TABLE_3SEC_5METRES)
+            this_storm_object_table[COLUMNS_TO_COMPARE].equals(
+                STORM_OBJECT_TABLE_3SEC_5METRES[COLUMNS_TO_COMPARE]
+            )
         )
 
     def test_join_collinear_tracks_2sec_10metres(self):
-        """Ensures correct output from _join_collinear_tracks.
+        """Ensures correct output from join_collinear_tracks.
 
         In this case, max join time = 2 seconds and max join error = 10 m/s.
         """
 
-        this_storm_object_table = track_reanalysis._join_collinear_tracks(
+        this_storm_object_table = track_reanalysis.join_collinear_tracks(
             storm_object_table=copy.deepcopy(ORIG_STORM_OBJECT_TABLE),
             first_late_time_unix_sec=numpy.min(ORIG_TIMES_UNIX_SEC),
             last_late_time_unix_sec=numpy.max(ORIG_TIMES_UNIX_SEC),
             max_join_time_seconds=2, max_join_error_m_s01=10.)
 
         self.assertTrue(
-            this_storm_object_table.equals(STORM_OBJECT_TABLE_2SEC_10METRES)
+            this_storm_object_table[COLUMNS_TO_COMPARE].equals(
+                STORM_OBJECT_TABLE_2SEC_10METRES[COLUMNS_TO_COMPARE]
+            )
         )
 
     def test_join_collinear_tracks_3sec_10metres(self):
-        """Ensures correct output from _join_collinear_tracks.
+        """Ensures correct output from join_collinear_tracks.
 
         In this case, max join time = 3 seconds and max join error = 10 m/s.
         """
 
-        this_storm_object_table = track_reanalysis._join_collinear_tracks(
+        this_storm_object_table = track_reanalysis.join_collinear_tracks(
             storm_object_table=copy.deepcopy(ORIG_STORM_OBJECT_TABLE),
             first_late_time_unix_sec=numpy.min(ORIG_TIMES_UNIX_SEC),
             last_late_time_unix_sec=numpy.max(ORIG_TIMES_UNIX_SEC),
             max_join_time_seconds=3, max_join_error_m_s01=10.)
 
         self.assertTrue(
-            this_storm_object_table.equals(STORM_OBJECT_TABLE_3SEC_10METRES)
+            this_storm_object_table[COLUMNS_TO_COMPARE].equals(
+                STORM_OBJECT_TABLE_3SEC_10METRES[COLUMNS_TO_COMPARE]
+            )
         )
 
     def test_join_collinear_tracks_2sec_30metres(self):
-        """Ensures correct output from _join_collinear_tracks.
+        """Ensures correct output from join_collinear_tracks.
 
         In this case, max join time = 2 seconds and max join error = 30 m/s.
         """
 
-        this_storm_object_table = track_reanalysis._join_collinear_tracks(
+        this_storm_object_table = track_reanalysis.join_collinear_tracks(
             storm_object_table=copy.deepcopy(ORIG_STORM_OBJECT_TABLE),
             first_late_time_unix_sec=numpy.min(ORIG_TIMES_UNIX_SEC),
             last_late_time_unix_sec=numpy.max(ORIG_TIMES_UNIX_SEC),
             max_join_time_seconds=2, max_join_error_m_s01=30.)
 
         self.assertTrue(
-            this_storm_object_table.equals(STORM_OBJECT_TABLE_2SEC_30METRES)
+            this_storm_object_table[COLUMNS_TO_COMPARE].equals(
+                STORM_OBJECT_TABLE_2SEC_30METRES[COLUMNS_TO_COMPARE]
+            )
         )
 
     def test_join_collinear_tracks_3sec_30metres(self):
-        """Ensures correct output from _join_collinear_tracks.
+        """Ensures correct output from join_collinear_tracks.
 
         In this case, max join time = 3 seconds and max join error = 30 m/s.
         """
 
-        this_storm_object_table = track_reanalysis._join_collinear_tracks(
+        this_storm_object_table = track_reanalysis.join_collinear_tracks(
             storm_object_table=copy.deepcopy(ORIG_STORM_OBJECT_TABLE),
             first_late_time_unix_sec=numpy.min(ORIG_TIMES_UNIX_SEC),
             last_late_time_unix_sec=numpy.max(ORIG_TIMES_UNIX_SEC),
             max_join_time_seconds=3, max_join_error_m_s01=30.)
 
         self.assertTrue(
-            this_storm_object_table.equals(STORM_OBJECT_TABLE_3SEC_30METRES)
+            this_storm_object_table[COLUMNS_TO_COMPARE].equals(
+                STORM_OBJECT_TABLE_3SEC_30METRES[COLUMNS_TO_COMPARE]
+            )
         )
 
 
