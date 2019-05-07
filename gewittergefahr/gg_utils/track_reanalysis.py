@@ -16,14 +16,73 @@ import copy
 import numpy
 from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+
+RADIANS_TO_DEGREES = 180. / numpy.pi
+CENTRAL_PROJ_LATITUDE_DEG = 35.
+CENTRAL_PROJ_LONGITUDE_DEG = 265.
 
 STORM_OBJECT_TABLE_KEY = 'storm_object_table'
 LATE_TO_EARLY_KEY = 'late_to_early_matrix'
 ID_TO_FIRST_ROW_KEY = 'primary_id_to_first_row_dict'
 ID_TO_LAST_ROW_KEY = 'primary_id_to_last_row_dict'
+
+
+def _latlng_velocities_to_xy(
+        east_velocities_m_s01, north_velocities_m_s01, latitudes_deg,
+        longitudes_deg):
+    """Converts velocities from lat-long components to x-y components.
+
+    P = number of velocities
+
+    :param east_velocities_m_s01: length-P numpy array of eastward instantaneous
+        velocities (metres per second).
+    :param north_velocities_m_s01: length-P numpy array of northward
+        instantaneous velocities (metres per second).
+    :param latitudes_deg: length-P numpy array of current latitudes (deg N).
+    :param longitudes_deg: length-P numpy array of current longitudes (deg E).
+    :return: x_velocities_m_s01: length-P numpy of x-velocities (metres per
+        second in positive x-direction).
+    :return: y_velocities_m_s01: Same but for y-direction.
+    """
+
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
+        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
+
+    scalar_displacements_metres = numpy.sqrt(
+        east_velocities_m_s01 ** 2 + north_velocities_m_s01 ** 2)
+
+    standard_bearings_deg = RADIANS_TO_DEGREES * numpy.arctan2(
+        north_velocities_m_s01, east_velocities_m_s01)
+
+    geodetic_bearings_deg = geodetic_utils.standard_to_geodetic_angles(
+        standard_bearings_deg)
+
+    new_latitudes_deg, new_longitudes_deg = (
+        geodetic_utils.start_points_and_displacements_to_endpoints(
+            start_latitudes_deg=latitudes_deg,
+            start_longitudes_deg=longitudes_deg,
+            scalar_displacements_metres=scalar_displacements_metres,
+            geodetic_bearings_deg=geodetic_bearings_deg)
+    )
+
+    x_coords_metres, y_coords_metres = projections.project_latlng_to_xy(
+        latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
+        projection_object=projection_object, false_easting_metres=0.,
+        false_northing_metres=0.)
+
+    new_x_coords_metres, new_y_coords_metres = projections.project_latlng_to_xy(
+        latitudes_deg=new_latitudes_deg, longitudes_deg=new_longitudes_deg,
+        projection_object=projection_object, false_easting_metres=0.,
+        false_northing_metres=0.)
+
+    return (new_x_coords_metres - x_coords_metres,
+            new_y_coords_metres - y_coords_metres)
 
 
 def _create_local_max_dict(storm_object_table, row_indices, include_velocity):

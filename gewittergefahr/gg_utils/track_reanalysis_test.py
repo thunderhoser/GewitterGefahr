@@ -148,6 +148,18 @@ COLUMNS_TO_COMPARE = list(ORIG_STORM_OBJECT_TABLE)
 COLUMNS_TO_COMPARE.remove(temporal_tracking.X_VELOCITY_COLUMN)
 COLUMNS_TO_COMPARE.remove(temporal_tracking.Y_VELOCITY_COLUMN)
 
+# The following constants are used to test _latlng_velocities_to_xy.
+START_LATITUDES_DEG = numpy.array(
+    [49.5, 58.3, 42.4, 58.5, 39.3, 46.4, 44.9, 58, 47.4, 32.5, 54.7, 53.1])
+START_LONGITUDES_DEG = numpy.array([
+    259.6, 258.7, 249.8, 241.1, 241, 250.3, 248.2, 239.7, 236.7, 249.2, 234.1,
+    235.5
+])
+EAST_VELOCITIES_M_S01 = numpy.array(
+    [-7.9, -7.9, -10.4, -11.6, -5.1, -1.3, -9.6, -6.6, 13.4, -7.7, -4.7, 1])
+NORTH_VELOCITIES_M_S01 = numpy.array(
+    [-11.3, 12.8, -1, 2.7, -13.7, 8.5, -8.3, 2.2, -8.1, -2.6, 13.5, -12.1])
+
 # The following constants are used to test _handle_collinear_splits.
 EARLY_ROWS_FOR_SPLIT = numpy.array([20, 4, 3, 1], dtype=int)
 LATE_ROWS_FOR_SPLIT = numpy.array([30, 4, 7, 0, 10], dtype=int)
@@ -436,6 +448,32 @@ STORM_OBJECT_TABLE_3SEC_30METRES = track_reanalysis._update_full_ids(
 
 class TrackReanalysisTests(unittest.TestCase):
     """Each method is a unit test for track_reanalysis.py."""
+
+    def test_latlng_velocities_to_xy(self):
+        """Ensures correct output from _latlng_velocities_to_xy."""
+
+        these_x_velocities_m_s01, these_y_velocities_m_s01 = (
+            track_reanalysis._latlng_velocities_to_xy(
+                east_velocities_m_s01=EAST_VELOCITIES_M_S01,
+                north_velocities_m_s01=NORTH_VELOCITIES_M_S01,
+                latitudes_deg=START_LATITUDES_DEG,
+                longitudes_deg=START_LONGITUDES_DEG)
+        )
+
+        speeds_m_s01 = numpy.sqrt(
+            EAST_VELOCITIES_M_S01 ** 2 + NORTH_VELOCITIES_M_S01 ** 2
+        )
+
+        for i in range(len(speeds_m_s01)):
+            self.assertTrue(numpy.isclose(
+                these_x_velocities_m_s01[i], EAST_VELOCITIES_M_S01[i],
+                atol=0.5 * speeds_m_s01[i]
+            ))
+
+            self.assertTrue(numpy.isclose(
+                these_y_velocities_m_s01[i], NORTH_VELOCITIES_M_S01[i],
+                atol=0.5 * speeds_m_s01[i]
+            ))
 
     def test_handle_collinear_splits(self):
         """Ensures correct output from _handle_collinear_splits."""
