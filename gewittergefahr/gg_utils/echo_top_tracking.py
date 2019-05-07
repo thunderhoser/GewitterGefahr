@@ -86,7 +86,6 @@ LONGITUDES_KEY = 'longitudes_deg'
 MAX_VALUES_KEY = 'max_values'
 X_COORDS_KEY = 'x_coords_metres'
 Y_COORDS_KEY = 'y_coords_metres'
-VALID_TIME_KEY = 'unix_time_sec'
 CURRENT_TO_PREV_MATRIX_KEY = 'current_to_previous_matrix'
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
@@ -950,7 +949,7 @@ def run_tracking(
             neigh_half_width_pixels=this_half_width_pixels)
 
         local_max_dict_by_time[i].update(
-            {VALID_TIME_KEY: valid_times_unix_sec[i]}
+            {temporal_tracking.VALID_TIME_KEY: valid_times_unix_sec[i]}
         )
 
         local_max_dict_by_time[i] = _local_maxima_to_polygons(

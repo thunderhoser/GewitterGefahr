@@ -187,7 +187,8 @@ def _run(top_radar_dir_name, top_radar_dir_name_tarred,
             myrorss_io.remove_unzipped_data_1day(
                 spc_date_string=this_spc_date_string,
                 top_directory_name=top_radar_dir_name,
-                field_names=[echo_top_field_name])
+                field_names=[echo_top_field_name]
+            )
 
 
 if __name__ == '__main__':
