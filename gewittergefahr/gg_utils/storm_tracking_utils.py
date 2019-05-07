@@ -1,6 +1,7 @@
 """Processing methods for storm-tracking data (both polygons and tracks)."""
 
 import numpy
+import pandas
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import projections
@@ -41,12 +42,15 @@ ROWCOL_POLYGON_COLUMN = 'polygon_object_rowcol'
 BUFFER_COLUMN_PREFIX = 'polygon_object_latlng_deg_buffer'
 LINEAR_INDEX_COLUMN = 'linear_index'
 
-COLUMNS_TO_CHANGE_FOR_SCALE_MERGER = [
-    CENTROID_LATITUDE_COLUMN, CENTROID_LONGITUDE_COLUMN,
-    LATITUDES_IN_STORM_COLUMN, LONGITUDES_IN_STORM_COLUMN,
-    ROWS_IN_STORM_COLUMN, COLUMNS_IN_STORM_COLUMN,
-    LATLNG_POLYGON_COLUMN, ROWCOL_POLYGON_COLUMN
-]
+CENTROID_X_COLUMN = 'centroid_x_metres'
+CENTROID_Y_COLUMN = 'centroid_y_metres'
+
+TRACK_TIMES_COLUMN = 'valid_times_unix_sec'
+OBJECT_INDICES_COLUMN = 'object_indices'
+TRACK_LATITUDES_COLUMN = 'centroid_latitudes_deg'
+TRACK_LONGITUDES_COLUMN = 'centroid_longitudes_deg'
+TRACK_X_COORDS_COLUMN = 'centroid_x_coords_metres'
+TRACK_Y_COORDS_COLUMN = 'centroid_y_coords_metres'
 
 
 def check_data_source(source_name):
@@ -391,3 +395,92 @@ def create_distance_buffers(storm_object_table, min_distances_metres,
             )
 
     return storm_object_table
+
+
+def storm_objects_to_tracks(storm_object_table):
+    """Converts table of storm objects to table of storm tracks.
+
+    T = number of time steps (objects) in a given track
+
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.  Each row is one storm object.
+    storm_object_table.primary_id_string: ID for corresponding storm cell.
+    storm_object_table.valid_time_unix_sec: Valid time of storm object.
+    storm_object_table.centroid_latitude_deg: Latitude (deg N) of storm-object
+        centroid.
+    storm_object_table.centroid_longitude_deg: Longitude (deg E) of storm-object
+        centroid.
+    storm_object_table.centroid_x_metres: x-coordinate of storm-object centroid.
+    storm_object_table.centroid_y_metres: y-coordinate of storm-object centroid.
+
+    :return: storm_track_table: pandas DataFrame with the following columns.
+        Each row is one storm track (cell).
+    storm_track_table.primary_id_string: ID for storm cell.
+    storm_track_table.valid_times_unix_sec: length-T numpy array of valid times.
+    storm_track_table.object_indices: length-T numpy array with indices of storm
+        objects in track.  These are indices into the rows of
+            `storm_object_table`.
+    storm_track_table.centroid_latitudes_deg: length-T numpy array of centroid
+        latitudes (deg N).
+    storm_track_table.centroid_longitudes_deg: length-T numpy array of centroid
+        longitudes (deg E).
+    storm_track_table.centroid_x_coords_metres: length-T numpy array of centroid
+        x-coords.
+    storm_track_table.centroid_y_coords_metres: length-T numpy array of centroid
+        y-coords.
+    """
+
+    object_id_strings = numpy.array(
+        storm_object_table[PRIMARY_ID_COLUMN].values)
+    track_id_strings, object_to_track_indices = numpy.unique(
+        object_id_strings, return_inverse=True)
+
+    storm_track_dict = {PRIMARY_ID_COLUMN: track_id_strings}
+    storm_track_table = pandas.DataFrame.from_dict(storm_track_dict)
+
+    nested_array = storm_track_table[[
+        PRIMARY_ID_COLUMN, PRIMARY_ID_COLUMN
+    ]].values.tolist()
+
+    storm_track_table = storm_track_table.assign(**{
+        TRACK_TIMES_COLUMN: nested_array,
+        OBJECT_INDICES_COLUMN: nested_array,
+        TRACK_LATITUDES_COLUMN: nested_array,
+        TRACK_LONGITUDES_COLUMN: nested_array,
+        TRACK_X_COORDS_COLUMN: nested_array,
+        TRACK_Y_COORDS_COLUMN: nested_array
+    })
+
+    num_storm_tracks = len(storm_track_table.index)
+
+    for i in range(num_storm_tracks):
+        these_object_indices = numpy.where(object_to_track_indices == i)[0]
+        sort_indices = numpy.argsort(
+            storm_object_table[VALID_TIME_COLUMN].values[these_object_indices]
+        )
+        these_object_indices = these_object_indices[sort_indices]
+
+        storm_track_table[TRACK_TIMES_COLUMN].values[i] = (
+            storm_object_table[VALID_TIME_COLUMN].values[these_object_indices]
+        )
+        storm_track_table[OBJECT_INDICES_COLUMN].values[i] = (
+            these_object_indices
+        )
+
+        storm_track_table[TRACK_LATITUDES_COLUMN].values[i] = (
+            storm_object_table[CENTROID_LATITUDE_COLUMN].values[
+                these_object_indices]
+        )
+        storm_track_table[TRACK_LONGITUDES_COLUMN].values[i] = (
+            storm_object_table[CENTROID_LONGITUDE_COLUMN].values[
+                these_object_indices]
+        )
+
+        storm_track_table[TRACK_X_COORDS_COLUMN].values[i] = (
+            storm_object_table[CENTROID_X_COLUMN].values[these_object_indices]
+        )
+        storm_track_table[TRACK_Y_COORDS_COLUMN].values[i] = (
+            storm_object_table[CENTROID_Y_COLUMN].values[these_object_indices]
+        )
+
+    return storm_track_table

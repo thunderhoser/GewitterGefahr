@@ -2,6 +2,7 @@
 
 import unittest
 import numpy
+import pandas
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TOLERANCE = 1e-6
@@ -23,6 +24,89 @@ RELEVANT_INDICES_0MISSING = numpy.array([0, 2, 4, 6, 8, 6], dtype=int)
 KEPT_ID_STRINGS_1MISSING = ['a', 'c', 'a', 'e', 'e', 'e', 'a']
 KEPT_TIMES_UNIX_SEC_1MISSING = numpy.array([0, 0, 1, 1, 2, 1, 2], dtype=int)
 RELEVANT_INDICES_1MISSING = numpy.array([0, 2, 4, 6, 8, 6, -1], dtype=int)
+
+# The following constants are used to test storm_objects_to_tracks.
+THESE_ID_STRINGS = [
+    'foo', 'bar', 'hal', 'foo', 'bar', 'moo', 'empty', 'foo', 'moo', 'empty'
+]
+THESE_TIMES_UNIX_SEC = numpy.array(
+    [0, 0, 0, 300, 300, 300, 300, 600, 600, 600], dtype=int
+)
+THESE_X_COORDS_METRES = numpy.array(
+    [10, 0, 20, 11, 1, 30, numpy.nan, 12, 31, numpy.nan]
+)
+THESE_Y_COORDS_METRES = numpy.array(
+    [100, 0, 200, 105, 5, 300, numpy.nan, 110, 305, numpy.nan]
+)
+
+THIS_DICT = {
+    tracking_utils.PRIMARY_ID_COLUMN: THESE_ID_STRINGS,
+    tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.CENTROID_LATITUDE_COLUMN: THESE_Y_COORDS_METRES,
+    tracking_utils.CENTROID_LONGITUDE_COLUMN: THESE_X_COORDS_METRES,
+    tracking_utils.CENTROID_X_COLUMN: THESE_X_COORDS_METRES,
+    tracking_utils.CENTROID_Y_COLUMN: THESE_Y_COORDS_METRES
+}
+
+STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
+THESE_ID_STRINGS = ['bar', 'empty', 'foo', 'hal', 'moo']
+
+THIS_DICT = {
+    tracking_utils.PRIMARY_ID_COLUMN: THESE_ID_STRINGS,
+    tracking_utils.TRACK_TIMES_COLUMN:
+        [[0, 300], [300, 600], [0, 300, 600], [0], [300, 600]],
+    tracking_utils.OBJECT_INDICES_COLUMN:
+        [[1, 4], [6, 9], [0, 3, 7], [2], [5, 8]],
+    tracking_utils.TRACK_X_COORDS_COLUMN:
+        [[0, 1], [numpy.nan, numpy.nan], [10, 11, 12], [20], [30, 31]],
+    tracking_utils.TRACK_Y_COORDS_COLUMN:
+        [[0, 5], [numpy.nan, numpy.nan], [100, 105, 110], [200], [300, 305]]
+}
+
+STORM_TRACK_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
+STORM_TRACK_TABLE[tracking_utils.TRACK_LATITUDES_COLUMN] = STORM_TRACK_TABLE[
+    tracking_utils.TRACK_Y_COORDS_COLUMN]
+STORM_TRACK_TABLE[tracking_utils.TRACK_LONGITUDES_COLUMN] = STORM_TRACK_TABLE[
+    tracking_utils.TRACK_X_COORDS_COLUMN]
+
+
+def _compare_storm_track_tables(
+        first_storm_track_table, second_storm_track_table):
+    """Compares two tables with storm tracks.
+
+    :param first_storm_track_table: First table (pandas DataFrame).
+    :param second_storm_track_table: Second table.
+    :return: are_tables_equal: Boolean flag.
+    """
+
+    first_column_names = list(first_storm_track_table)
+    second_column_names = list(second_storm_track_table)
+    if set(first_column_names) != set(second_column_names):
+        return False
+
+    first_num_tracks = len(first_storm_track_table.index)
+    second_num_tracks = len(first_storm_track_table.index)
+    if first_num_tracks != second_num_tracks:
+        return False
+
+    for this_column in first_column_names:
+        if this_column == tracking_utils.PRIMARY_ID_COLUMN:
+            if not numpy.array_equal(
+                    first_storm_track_table[this_column].values,
+                    second_storm_track_table[this_column].values):
+                return False
+
+        else:
+            for i in range(first_num_tracks):
+                if not numpy.allclose(
+                        first_storm_track_table[this_column].values[i],
+                        second_storm_track_table[this_column].values[i],
+                        atol=TOLERANCE, equal_nan=True):
+                    return False
+
+    return True
 
 
 class StormTrackingUtilsTests(unittest.TestCase):
@@ -146,6 +230,20 @@ class StormTrackingUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             these_indices, RELEVANT_INDICES_1MISSING
+        ))
+
+    def test_storm_objects_to_tracks(self):
+        """Ensures correct output from storm_objects_to_tracks."""
+
+        this_storm_track_table = tracking_utils.storm_objects_to_tracks(
+            STORM_OBJECT_TABLE)
+
+        this_storm_track_table.sort_values(
+            tracking_utils.PRIMARY_ID_COLUMN, axis=0, ascending=True,
+            inplace=True)
+
+        self.assertTrue(_compare_storm_track_tables(
+            this_storm_track_table, STORM_TRACK_TABLE
         ))
 
 

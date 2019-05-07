@@ -8,7 +8,6 @@ import matplotlib.pyplot as pyplot
 from matplotlib.collections import LineCollection
 from descartes import PolygonPatch
 from gewittergefahr.gg_utils import polygons
-from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
@@ -48,16 +47,18 @@ def get_storm_track_colours():
         colour.
     """
 
-    return numpy.array([[187, 255, 153],
-                        [129, 243, 144],
-                        [108, 232, 181],
-                        [88, 213, 221],
-                        [69, 137, 209],
-                        [52, 55, 198],
-                        [103, 37, 187],
-                        [161, 23, 175],
-                        [164, 10, 107],
-                        [153, 0, 25]], dtype=float) / 255
+    return numpy.array([
+        [187, 255, 153],
+        [129, 243, 144],
+        [108, 232, 181],
+        [88, 213, 221],
+        [69, 137, 209],
+        [52, 55, 198],
+        [103, 37, 187],
+        [161, 23, 175],
+        [164, 10, 107],
+        [153, 0, 25]
+    ], dtype=float) / 255
 
 
 def plot_storm_track(
@@ -155,21 +156,25 @@ def plot_storm_outline_unfilled(
         number).
     """
 
-    vertex_dict = polygons.polygon_object_to_vertex_arrays(
+    vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
         polygon_object_latlng)
+
     exterior_x_coords_metres, exterior_y_coords_metres = basemap_object(
-        vertex_dict[polygons.EXTERIOR_X_COLUMN],
-        vertex_dict[polygons.EXTERIOR_Y_COLUMN])
+        vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
+        vertex_dict_latlng[polygons.EXTERIOR_Y_COLUMN]
+    )
 
     axes_object.plot(
         exterior_x_coords_metres, exterior_y_coords_metres,
         color=exterior_colour, linestyle='solid', linewidth=exterior_line_width)
 
-    num_holes = len(vertex_dict[polygons.HOLE_X_COLUMN])
+    num_holes = len(vertex_dict_latlng[polygons.HOLE_X_COLUMN])
+
     for i in range(num_holes):
         these_x_coords_metres, these_y_coords_metres = basemap_object(
-            vertex_dict[polygons.HOLE_X_COLUMN][i],
-            vertex_dict[polygons.HOLE_Y_COLUMN][i])
+            vertex_dict_latlng[polygons.HOLE_X_COLUMN][i],
+            vertex_dict_latlng[polygons.HOLE_Y_COLUMN][i]
+        )
 
         axes_object.plot(
             these_x_coords_metres, these_y_coords_metres, color=hole_colour,
@@ -195,20 +200,23 @@ def plot_storm_outline_filled(
     :param opacity: Opacity of polygon fill (in range 0...1).
     """
 
-    vertex_dict = polygons.polygon_object_to_vertex_arrays(
+    vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
         polygon_object_latlng)
-    exterior_x_coords_metres, exterior_y_coords_metres = basemap_object(
-        vertex_dict[polygons.EXTERIOR_X_COLUMN],
-        vertex_dict[polygons.EXTERIOR_Y_COLUMN])
 
-    num_holes = len(vertex_dict[polygons.HOLE_X_COLUMN])
+    exterior_x_coords_metres, exterior_y_coords_metres = basemap_object(
+        vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
+        vertex_dict_latlng[polygons.EXTERIOR_Y_COLUMN]
+    )
+
+    num_holes = len(vertex_dict_latlng[polygons.HOLE_X_COLUMN])
     x_coords_by_hole_metres = [None] * num_holes
     y_coords_by_hole_metres = [None] * num_holes
 
     for i in range(num_holes):
         x_coords_by_hole_metres[i], y_coords_by_hole_metres[i] = basemap_object(
-            vertex_dict[polygons.HOLE_X_COLUMN][i],
-            vertex_dict[polygons.HOLE_Y_COLUMN][i])
+            vertex_dict_latlng[polygons.HOLE_X_COLUMN][i],
+            vertex_dict_latlng[polygons.HOLE_Y_COLUMN][i]
+        )
 
     polygon_object_xy = polygons.vertex_arrays_to_polygon_object(
         exterior_x_coords=exterior_x_coords_metres,
@@ -219,6 +227,7 @@ def plot_storm_outline_filled(
     polygon_patch = PolygonPatch(
         polygon_object_xy, lw=line_width, ec=line_colour, fc=fill_colour,
         alpha=opacity)
+
     axes_object.add_patch(polygon_patch)
 
 
@@ -237,8 +246,7 @@ def plot_storm_objects(
 
     N = number of storm objects = number of rows in `storm_object_table`
 
-    :param storm_object_table: See doc for
-        `storm_tracking_io.write_processed_file`.
+    :param storm_object_table: See doc for `storm_tracking_io.write_file`.
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     :param basemap_object: Will use this object (instance of
@@ -248,9 +256,10 @@ def plot_storm_objects(
     :param line_colour: Colour of each storm outline.
     :param plot_storm_ids: Boolean flag.  If True, will print ID (string) inside
         each storm object.
-    :param storm_id_colour: [used only if plot_storm_ids = True] Colour for storm IDs.
-    :param storm_id_font_size: [used only if plot_storm_ids = True] Font size for
-        storm IDs.
+    :param storm_id_colour: [used only if plot_storm_ids = True]
+        Colour for storm IDs.
+    :param storm_id_font_size: [used only if plot_storm_ids = True]
+        Font size for storm IDs.
     :param alt_id_colour_flags: [used only if plot_storm_ids = True]
         length-N numpy array of Boolean flags.  If alt_id_colour_flags[i] =
         True, [i]th storm ID will be printed in alternate colour.  If
@@ -277,7 +286,7 @@ def plot_storm_objects(
 
     for i in range(num_storm_objects):
         this_polygon_object_latlng = storm_object_table[
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
+            tracking_utils.LATLNG_POLYGON_COLUMN].values[i]
 
         this_vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
             this_polygon_object_latlng)
@@ -295,7 +304,7 @@ def plot_storm_objects(
             continue
 
         this_label_string = storm_object_table[
-            tracking_utils.STORM_ID_COLUMN
+            tracking_utils.PRIMARY_ID_COLUMN
         ].values[i].split('_')[0]
 
         try:
@@ -346,18 +355,17 @@ def plot_storm_tracks(
     """
 
     x_coords_metres, y_coords_metres = basemap_object(
-        storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values,
-        storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
+        storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
+        storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
     )
 
-    argument_dict = {
-        best_tracks.CENTROID_X_COLUMN: x_coords_metres,
-        best_tracks.CENTROID_Y_COLUMN: y_coords_metres
-    }
+    storm_object_table = storm_object_table.assign(**{
+        tracking_utils.CENTROID_X_COLUMN: x_coords_metres,
+        tracking_utils.CENTROID_Y_COLUMN: y_coords_metres
+    })
 
-    storm_object_table = storm_object_table.assign(**argument_dict)
-    storm_track_table = best_tracks.storm_objects_to_tracks(
-        storm_object_table=storm_object_table)
+    storm_track_table = tracking_utils.storm_objects_to_tracks(
+        storm_object_table)
 
     rgb_matrix = None
     num_colours = None
@@ -368,10 +376,10 @@ def plot_storm_tracks(
         num_colours = rgb_matrix.shape[0]
     else:
         first_time_unix_sec = numpy.min(
-            storm_object_table[tracking_utils.TIME_COLUMN].values
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
         )
         last_time_unix_sec = numpy.max(
-            storm_object_table[tracking_utils.TIME_COLUMN].values
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
         )
 
         colour_norm_object = pyplot.Normalize(
@@ -387,15 +395,15 @@ def plot_storm_tracks(
             this_colour = rgb_matrix[numpy.mod(j, num_colours), :]
         else:
             these_times_unix_sec = storm_track_table[
-                best_tracks.TRACK_TIMES_COLUMN
+                tracking_utils.TRACK_TIMES_COLUMN
             ].values[j]
 
         these_x_coords_metres = storm_track_table[
-            best_tracks.TRACK_X_COORDS_COLUMN
+            tracking_utils.TRACK_X_COORDS_COLUMN
         ].values[j]
 
         these_y_coords_metres = storm_track_table[
-            best_tracks.TRACK_Y_COORDS_COLUMN
+            tracking_utils.TRACK_Y_COORDS_COLUMN
         ].values[j]
 
         if len(these_x_coords_metres) > 1:
@@ -489,7 +497,8 @@ def plot_storm_tracks(
 
     colour_bar_object = plotting_utils.add_linear_colour_bar(
         axes_object_or_list=axes_object,
-        values_to_colour=storm_object_table[tracking_utils.TIME_COLUMN].values,
+        values_to_colour=storm_object_table[
+            tracking_utils.VALID_TIME_COLUMN].values,
         colour_map=colour_map_object, colour_min=colour_norm_object.vmin,
         colour_max=colour_norm_object.vmax, orientation=orientation_string,
         extend_min=False, extend_max=False, fraction_of_axis_length=0.9,
