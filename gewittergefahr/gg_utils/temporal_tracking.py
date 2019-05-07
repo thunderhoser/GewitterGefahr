@@ -1329,7 +1329,7 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
 
     new_early_rows = [
         k for k in new_early_rows
-        if storm_object_table[tracking_utils.SECONDARY_ID_COLUMN][k] in
+        if storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[k] in
         secondary_ids_in_frontier
     ]
 
