@@ -906,7 +906,7 @@ def run_tracking(
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
-        min_track_duration_seconds=1,
+        min_track_duration_seconds=0,
         num_seconds_back_for_velocity=DEFAULT_NUM_SECONDS_FOR_VELOCITY):
     """Runs echo-top-tracking.  This is effectively the main method.
 

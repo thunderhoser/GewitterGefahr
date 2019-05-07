@@ -1127,7 +1127,7 @@ def remove_short_lived_storms(storm_object_table, min_duration_seconds):
     """
 
     error_checking.assert_is_integer(min_duration_seconds)
-    error_checking.assert_is_greater(min_duration_seconds, 0)
+    error_checking.assert_is_geq(min_duration_seconds, 0)
 
     id_string_by_track, object_to_track_indices = numpy.unique(
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,

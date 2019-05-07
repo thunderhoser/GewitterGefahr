@@ -26,8 +26,9 @@ BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
 REQUIRED_COLUMNS = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
-    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN
+    tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN,
+    tracking_utils.CENTROID_LATITUDE_COLUMN,
+    tracking_utils.CENTROID_LONGITUDE_COLUMN
 ]
 
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
@@ -150,18 +151,18 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     list_of_storm_object_tables = []
 
     for this_spc_date_string in spc_date_strings:
-        these_file_names = tracking_io.find_processed_files_one_spc_date(
-            top_processed_dir_name=top_tracking_dir_name,
+        these_file_names = tracking_io.find_files_one_spc_date(
+            top_tracking_dir_name=top_tracking_dir_name,
             tracking_scale_metres2=
             echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
-            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+            source_name=tracking_utils.SEGMOTION_NAME,
             spc_date_string=this_spc_date_string, raise_error_if_missing=False
         )[0]
 
         if len(these_file_names) == 0:
             continue
 
-        this_storm_object_table = tracking_io.read_many_processed_files(
+        this_storm_object_table = tracking_io.read_many_files(
             these_file_names
         )[REQUIRED_COLUMNS]
 
@@ -183,22 +184,22 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
     if min_plot_latitude_deg is None:
         min_plot_latitude_deg = numpy.min(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
         ) - LATLNG_BUFFER_DEG
 
     if max_plot_latitude_deg is None:
         max_plot_latitude_deg = numpy.max(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
         ) + LATLNG_BUFFER_DEG
 
     if min_plot_longitude_deg is None:
         min_plot_longitude_deg = numpy.min(
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
         ) - LATLNG_BUFFER_DEG
 
     if max_plot_longitude_deg is None:
         max_plot_longitude_deg = numpy.max(
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
         ) + LATLNG_BUFFER_DEG
 
     _, axes_object, basemap_object = (
@@ -209,10 +210,10 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             max_longitude_deg=max_plot_longitude_deg, resolution_string='i')
     )
 
-    parallel_spacing_deg = numpy.round(
+    parallel_spacing_deg = (
         (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
     )
-    meridian_spacing_deg = numpy.round(
+    meridian_spacing_deg = (
         (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
     )
 
