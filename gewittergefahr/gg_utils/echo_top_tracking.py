@@ -81,22 +81,7 @@ DEFAULT_MIN_REANALYZED_DURATION_SEC = 890
 
 DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))  # 10-km radius
 
-LATITUDES_KEY = 'latitudes_deg'
-LONGITUDES_KEY = 'longitudes_deg'
 MAX_VALUES_KEY = 'max_values'
-X_COORDS_KEY = 'x_coords_metres'
-Y_COORDS_KEY = 'y_coords_metres'
-CURRENT_TO_PREV_MATRIX_KEY = 'current_to_previous_matrix'
-
-CENTROID_X_COLUMN = 'centroid_x_metres'
-CENTROID_Y_COLUMN = 'centroid_y_metres'
-
-GRID_POINT_ROWS_KEY = 'grid_point_rows_array_list'
-GRID_POINT_COLUMNS_KEY = 'grid_point_columns_array_list'
-GRID_POINT_LATITUDES_KEY = 'grid_point_lats_array_list_deg'
-GRID_POINT_LONGITUDES_KEY = 'grid_point_lngs_array_list_deg'
-POLYGON_OBJECTS_ROWCOL_KEY = 'polygon_objects_rowcol'
-POLYGON_OBJECTS_LATLNG_KEY = 'polygon_objects_latlng_deg'
 
 
 def _check_radar_field(radar_field_name):
@@ -217,8 +202,8 @@ def _find_local_maxima(radar_matrix, radar_metadata_dict,
     max_longitudes_deg = max_longitudes_deg[sort_indices]
 
     return {
-        LATITUDES_KEY: max_latitudes_deg,
-        LONGITUDES_KEY: max_longitudes_deg,
+        temporal_tracking.LATITUDES_KEY: max_latitudes_deg,
+        temporal_tracking.LONGITUDES_KEY: max_longitudes_deg,
         MAX_VALUES_KEY: max_values
     }
 
@@ -248,13 +233,14 @@ def _remove_redundant_local_maxima(local_max_dict, projection_object,
     """
 
     x_coords_metres, y_coords_metres = projections.project_latlng_to_xy(
-        local_max_dict[LATITUDES_KEY], local_max_dict[LONGITUDES_KEY],
+        latitudes_deg=local_max_dict[temporal_tracking.LATITUDES_KEY],
+        longitudes_deg=local_max_dict[temporal_tracking.LONGITUDES_KEY],
         projection_object=projection_object,
         false_easting_metres=0., false_northing_metres=0.)
 
     local_max_dict.update({
-        X_COORDS_KEY: x_coords_metres,
-        Y_COORDS_KEY: y_coords_metres
+        temporal_tracking.X_COORDS_KEY: x_coords_metres,
+        temporal_tracking.Y_COORDS_KEY: y_coords_metres
     })
 
     num_maxima = len(x_coords_metres)
@@ -558,15 +544,18 @@ def _local_maxima_to_polygons(
     )
 
     grid_point_latitudes_deg = grid_point_latitudes_deg[::-1]
-    num_maxima = len(local_max_dict[LATITUDES_KEY])
+    num_maxima = len(local_max_dict[temporal_tracking.LATITUDES_KEY])
 
-    local_max_dict[GRID_POINT_ROWS_KEY] = [[]] * num_maxima
-    local_max_dict[GRID_POINT_COLUMNS_KEY] = [[]] * num_maxima
-    local_max_dict[GRID_POINT_LATITUDES_KEY] = [[]] * num_maxima
-    local_max_dict[GRID_POINT_LONGITUDES_KEY] = [[]] * num_maxima
-    local_max_dict[POLYGON_OBJECTS_ROWCOL_KEY] = numpy.full(
+    local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY] = [[]] * num_maxima
+    local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY] = [[]] * num_maxima
+    local_max_dict[
+        temporal_tracking.GRID_POINT_LATITUDES_KEY] = [[]] * num_maxima
+    local_max_dict[
+        temporal_tracking.GRID_POINT_LONGITUDES_KEY] = [[]] * num_maxima
+
+    local_max_dict[temporal_tracking.POLYGON_OBJECTS_ROWCOL_KEY] = numpy.full(
         num_maxima, numpy.nan, dtype=object)
-    local_max_dict[POLYGON_OBJECTS_LATLNG_KEY] = numpy.full(
+    local_max_dict[temporal_tracking.POLYGON_OBJECTS_LATLNG_KEY] = numpy.full(
         num_maxima, numpy.nan, dtype=object)
 
     for i in range(num_maxima):
@@ -575,8 +564,10 @@ def _local_maxima_to_polygons(
                 data_matrix=echo_top_matrix_km,
                 grid_point_latitudes_deg=grid_point_latitudes_deg,
                 grid_point_longitudes_deg=grid_point_longitudes_deg,
-                center_latitude_deg=local_max_dict[LATITUDES_KEY][i],
-                center_longitude_deg=local_max_dict[LONGITUDES_KEY][i],
+                center_latitude_deg=local_max_dict[
+                    temporal_tracking.LATITUDES_KEY][i],
+                center_longitude_deg=local_max_dict[
+                    temporal_tracking.LONGITUDES_KEY][i],
                 max_distance_from_center_metres=min_intermax_distance_metres)
         )
 
@@ -584,11 +575,11 @@ def _local_maxima_to_polygons(
             numpy.isnan(this_echo_top_submatrix_km)
         ] = 0.
 
-        (local_max_dict[GRID_POINT_ROWS_KEY][i],
-         local_max_dict[GRID_POINT_COLUMNS_KEY][i]
+        (local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i],
+         local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i]
         ) = numpy.where(this_echo_top_submatrix_km >= min_echo_top_km)
 
-        if not len(local_max_dict[GRID_POINT_ROWS_KEY][i]):
+        if not len(local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i]):
             this_row = numpy.floor(
                 float(this_echo_top_submatrix_km.shape[0]) / 2
             )
@@ -596,29 +587,33 @@ def _local_maxima_to_polygons(
                 float(this_echo_top_submatrix_km.shape[1]) / 2
             )
 
-            local_max_dict[GRID_POINT_ROWS_KEY][i] = numpy.array(
-                [this_row], dtype=int)
-            local_max_dict[GRID_POINT_COLUMNS_KEY][i] = numpy.array(
-                [this_column], dtype=int)
+            local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i] = (
+                numpy.array([this_row], dtype=int)
+            )
+            local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i] = (
+                numpy.array([this_column], dtype=int)
+            )
 
-        local_max_dict[GRID_POINT_ROWS_KEY][i] = (
-            local_max_dict[GRID_POINT_ROWS_KEY][i] + this_row_offset
+        local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i] = (
+            local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i] +
+            this_row_offset
         )
-        local_max_dict[GRID_POINT_COLUMNS_KEY][i] = (
-            local_max_dict[GRID_POINT_COLUMNS_KEY][i] + this_column_offset
+        local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i] = (
+            local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i] +
+            this_column_offset
         )
 
         these_vertex_rows, these_vertex_columns = (
             polygons.grid_points_in_poly_to_vertices(
-                local_max_dict[GRID_POINT_ROWS_KEY][i],
-                local_max_dict[GRID_POINT_COLUMNS_KEY][i])
+                local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i],
+                local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i])
         )
 
-        (local_max_dict[GRID_POINT_LATITUDES_KEY][i],
-         local_max_dict[GRID_POINT_LONGITUDES_KEY][i]
+        (local_max_dict[temporal_tracking.GRID_POINT_LATITUDES_KEY][i],
+         local_max_dict[temporal_tracking.GRID_POINT_LONGITUDES_KEY][i]
         ) = radar_utils.rowcol_to_latlng(
-            local_max_dict[GRID_POINT_ROWS_KEY][i],
-            local_max_dict[GRID_POINT_COLUMNS_KEY][i],
+            local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i],
+            local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i],
             nw_grid_point_lat_deg=
             radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
             nw_grid_point_lng_deg=
@@ -641,11 +636,11 @@ def _local_maxima_to_polygons(
                 radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN])
         )
 
-        local_max_dict[POLYGON_OBJECTS_ROWCOL_KEY][i] = (
+        local_max_dict[temporal_tracking.POLYGON_OBJECTS_ROWCOL_KEY][i] = (
             polygons.vertex_arrays_to_polygon_object(
                 these_vertex_columns, these_vertex_rows)
         )
-        local_max_dict[POLYGON_OBJECTS_LATLNG_KEY][i] = (
+        local_max_dict[temporal_tracking.POLYGON_OBJECTS_LATLNG_KEY][i] = (
             polygons.vertex_arrays_to_polygon_object(
                 these_vertex_longitudes_deg, these_vertex_latitudes_deg)
         )
@@ -665,7 +660,7 @@ def _remove_small_polygons(local_max_dict, min_size_pixels):
         return local_max_dict
 
     num_grid_cells_by_polygon = numpy.array(
-        [len(r) for r in local_max_dict[GRID_POINT_ROWS_KEY]],
+        [len(r) for r in local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY]],
         dtype=int
     )
 
@@ -991,9 +986,10 @@ def run_tracking(
                     max_link_distance_m_s01=max_link_distance_m_s01)
             )
 
-        local_max_dict_by_time[i].update(
-            {CURRENT_TO_PREV_MATRIX_KEY: this_current_to_prev_matrix}
-        )
+        local_max_dict_by_time[i].update({
+            temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY:
+                this_current_to_prev_matrix
+        })
 
         if i == 0:
             local_max_dict_by_time[i] = (
@@ -1165,8 +1161,8 @@ def reanalyze_across_spc_dates(
         )
 
         storm_object_table = storm_object_table.assign(**{
-            CENTROID_X_COLUMN: these_x_coords_metres,
-            CENTROID_Y_COLUMN: these_y_coords_metres
+            temporal_tracking.CENTROID_X_COLUMN: these_x_coords_metres,
+            temporal_tracking.CENTROID_Y_COLUMN: these_y_coords_metres
         })
 
         print 'Computing storm velocities...'
@@ -1262,8 +1258,8 @@ def reanalyze_across_spc_dates(
         )
 
         concat_storm_object_table = concat_storm_object_table.assign({
-            CENTROID_X_COLUMN: these_x_coords_metres,
-            CENTROID_Y_COLUMN: these_y_coords_metres
+            temporal_tracking.CENTROID_X_COLUMN: these_x_coords_metres,
+            temporal_tracking.CENTROID_Y_COLUMN: these_y_coords_metres
         })
 
         print 'Computing storm velocities...'

@@ -4,6 +4,7 @@ import copy
 import unittest
 import numpy
 from gewittergefahr.gg_utils import echo_top_tracking
+from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import projections
 
@@ -35,8 +36,8 @@ LOCAL_MAX_LONGITUDES_DEG = numpy.array([95.1, 95.1])
 LOCAL_MAX_VALUES = numpy.array([30, 6], dtype=float)
 
 LOCAL_MAX_DICT_LATLNG = {
-    echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
-    echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
+    temporal_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
+    temporal_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
     echo_top_tracking.MAX_VALUES_KEY: LOCAL_MAX_VALUES
 }
 
@@ -55,19 +56,19 @@ LOCAL_MAX_X_COORDS_METRES, LOCAL_MAX_Y_COORDS_METRES = (
 )
 
 LOCAL_MAX_DICT_SMALL_DISTANCE = {
-    echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
-    echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
+    temporal_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
+    temporal_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
     echo_top_tracking.MAX_VALUES_KEY: LOCAL_MAX_VALUES,
-    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
-    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES
+    temporal_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
+    temporal_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES
 }
 
 LOCAL_MAX_DICT_LARGE_DISTANCE = {
-    echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG[:-1],
-    echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG[:-1],
+    temporal_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG[:-1],
+    temporal_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG[:-1],
     echo_top_tracking.MAX_VALUES_KEY: LOCAL_MAX_VALUES[:-1],
-    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES[:-1],
-    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES[:-1]
+    temporal_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES[:-1],
+    temporal_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES[:-1]
 }
 
 # The following constants are used to test _remove_small_polygons.
@@ -78,9 +79,9 @@ THIS_LIST_OF_ROW_ARRAYS = [
 ]
 
 LOCAL_MAX_DICT_WITH_SMALL = {
-    echo_top_tracking.GRID_POINT_ROWS_KEY: THIS_LIST_OF_ROW_ARRAYS,
-    echo_top_tracking.LATITUDES_KEY: numpy.array([51.1, 53.5, 60]),
-    echo_top_tracking.LONGITUDES_KEY: numpy.array([246, 246.5, 250])
+    temporal_tracking.GRID_POINT_ROWS_KEY: THIS_LIST_OF_ROW_ARRAYS,
+    temporal_tracking.LATITUDES_KEY: numpy.array([51.1, 53.5, 60]),
+    temporal_tracking.LONGITUDES_KEY: numpy.array([246, 246.5, 250])
 }
 
 MIN_POLYGON_SIZE_PIXELS = 5
@@ -90,9 +91,9 @@ THIS_LIST_OF_ROW_ARRAYS = [
 ]
 
 LOCAL_MAX_DICT_WITHOUT_SMALL = {
-    echo_top_tracking.GRID_POINT_ROWS_KEY: THIS_LIST_OF_ROW_ARRAYS,
-    echo_top_tracking.LATITUDES_KEY: numpy.array([51.1, 60]),
-    echo_top_tracking.LONGITUDES_KEY: numpy.array([246, 250])
+    temporal_tracking.GRID_POINT_ROWS_KEY: THIS_LIST_OF_ROW_ARRAYS,
+    temporal_tracking.LATITUDES_KEY: numpy.array([51.1, 60]),
+    temporal_tracking.LONGITUDES_KEY: numpy.array([246, 250])
 }
 
 
@@ -110,7 +111,7 @@ def _compare_local_max_dicts(first_local_max_dict, second_local_max_dict):
         return False
 
     for this_key in first_keys:
-        if this_key == echo_top_tracking.GRID_POINT_ROWS_KEY:
+        if this_key == temporal_tracking.GRID_POINT_ROWS_KEY:
             first_length = len(first_local_max_dict[this_key])
             second_length = len(second_local_max_dict[this_key])
             if first_length != second_length:

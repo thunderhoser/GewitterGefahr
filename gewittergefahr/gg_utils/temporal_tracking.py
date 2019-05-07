@@ -40,7 +40,7 @@ GRID_POINT_COLUMNS_KEY = 'grid_point_columns_arraylist'
 GRID_POINT_LATITUDES_KEY = 'grid_point_lats_arraylist_deg'
 GRID_POINT_LONGITUDES_KEY = 'grid_point_lngs_arraylist_deg'
 POLYGON_OBJECTS_ROWCOL_KEY = 'polygon_objects_rowcol'
-POLYGON_OBJECTS_LATLNG_KEY = 'polygon_objects_latlng'
+POLYGON_OBJECTS_LATLNG_KEY = 'polygon_objects_latlng_deg'
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
