@@ -38,6 +38,7 @@ from gewittergefahr.gg_utils import dilation
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import echo_classification as echo_classifn
@@ -48,6 +49,7 @@ TOLERANCE = 1e-6
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+RADIANS_TO_DEGREES = 180. / numpy.pi
 DEGREES_LAT_TO_METRES = 60 * 1852
 CENTRAL_PROJ_LATITUDE_DEG = 35.
 CENTRAL_PROJ_LONGITUDE_DEG = 265.
@@ -715,6 +717,105 @@ def _write_new_tracks(storm_object_table, top_output_dir_name,
         )
 
 
+def _velocities_latlng_to_xy(
+        east_velocities_m_s01, north_velocities_m_s01, latitudes_deg,
+        longitudes_deg):
+    """Converts velocities from lat-long components to x-y components.
+
+    P = number of velocities
+
+    :param east_velocities_m_s01: length-P numpy array of eastward instantaneous
+        velocities (metres per second).
+    :param north_velocities_m_s01: length-P numpy array of northward
+        instantaneous velocities (metres per second).
+    :param latitudes_deg: length-P numpy array of current latitudes (deg N).
+    :param longitudes_deg: length-P numpy array of current longitudes (deg E).
+    :return: x_velocities_m_s01: length-P numpy of x-velocities (metres per
+        second in positive x-direction).
+    :return: y_velocities_m_s01: Same but for y-direction.
+    """
+
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
+        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
+
+    scalar_displacements_metres = numpy.sqrt(
+        east_velocities_m_s01 ** 2 + north_velocities_m_s01 ** 2)
+
+    standard_bearings_deg = RADIANS_TO_DEGREES * numpy.arctan2(
+        north_velocities_m_s01, east_velocities_m_s01)
+
+    geodetic_bearings_deg = geodetic_utils.standard_to_geodetic_angles(
+        standard_bearings_deg)
+
+    new_latitudes_deg, new_longitudes_deg = (
+        geodetic_utils.start_points_and_displacements_to_endpoints(
+            start_latitudes_deg=latitudes_deg,
+            start_longitudes_deg=longitudes_deg,
+            scalar_displacements_metres=scalar_displacements_metres,
+            geodetic_bearings_deg=geodetic_bearings_deg)
+    )
+
+    x_coords_metres, y_coords_metres = projections.project_latlng_to_xy(
+        latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
+        projection_object=projection_object, false_easting_metres=0.,
+        false_northing_metres=0.)
+
+    new_x_coords_metres, new_y_coords_metres = projections.project_latlng_to_xy(
+        latitudes_deg=new_latitudes_deg, longitudes_deg=new_longitudes_deg,
+        projection_object=projection_object, false_easting_metres=0.,
+        false_northing_metres=0.)
+
+    return (new_x_coords_metres - x_coords_metres,
+            new_y_coords_metres - y_coords_metres)
+
+
+def _storm_objects_latlng_to_xy(storm_object_table):
+    """Converts centroids and velocities from lat-long to x-y coordinates.
+
+    :param storm_object_table: See doc for `storm_tracking_io.write_file`.
+    :return: storm_object_table: Same as input but with the following columns.
+    storm_object_table.centroid_x_metres: x-coordinate of storm-object centroid.
+    storm_object_table.centroid_y_metres: y-coordinate of storm-object centroid.
+    storm_object_table.x_velocity_m_s01: Velocity in +x-direction (metres per
+        second).
+    storm_object_table.y_velocity_m_s01: Velocity in +y-direction (metres per
+        second).
+    """
+
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
+        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
+
+    centroid_x_coords_metres, centroid_y_coords_metres = (
+        projections.project_latlng_to_xy(
+            latitudes_deg=storm_object_table[
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values,
+            longitudes_deg=storm_object_table[
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
+            projection_object=projection_object,
+            false_easting_metres=0., false_northing_metres=0.)
+    )
+
+    x_velocities_m_s01, y_velocities_m_s01 = _velocities_latlng_to_xy(
+        east_velocities_m_s01=storm_object_table[
+            tracking_utils.EAST_VELOCITY_COLUMN].values,
+        north_velocities_m_s01=storm_object_table[
+            tracking_utils.NORTH_VELOCITY_COLUMN].values,
+        latitudes_deg=storm_object_table[
+            tracking_utils.CENTROID_LATITUDE_COLUMN].values,
+        longitudes_deg=storm_object_table[
+            tracking_utils.CENTROID_LONGITUDE_COLUMN].values
+    )
+
+    return storm_object_table.assign(**{
+        temporal_tracking.CENTROID_X_COLUMN: centroid_x_coords_metres,
+        temporal_tracking.CENTROID_Y_COLUMN: centroid_y_coords_metres,
+        temporal_tracking.X_VELOCITY_COLUMN: x_velocities_m_s01,
+        temporal_tracking.Y_VELOCITY_COLUMN: y_velocities_m_s01
+    })
+
+
 def _shuffle_tracking_data(
         storm_object_table_by_date, tracking_file_names_by_date,
         valid_times_by_date_unix_sec, current_date_index, top_output_dir_name):
@@ -737,10 +838,6 @@ def _shuffle_tracking_data(
     :return: storm_object_table_by_date: Same as input, except that different
         items are in memory.
     """
-
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
-        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
 
     num_spc_dates = len(tracking_file_names_by_date)
 
@@ -787,20 +884,9 @@ def _shuffle_tracking_data(
         )
         print '\n'
 
-        these_x_coords_metres, these_y_coords_metres = (
-            projections.project_latlng_to_xy(
-                latitudes_deg=storm_object_table_by_date[j][
-                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
-                longitudes_deg=storm_object_table_by_date[j][
-                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
-                projection_object=projection_object,
-                false_easting_metres=0., false_northing_metres=0.)
+        storm_object_table_by_date[j] = _storm_objects_latlng_to_xy(
+            storm_object_table_by_date[j]
         )
-
-        storm_object_table_by_date[j] = storm_object_table_by_date[j].assign(**{
-            temporal_tracking.CENTROID_X_COLUMN: these_x_coords_metres,
-            temporal_tracking.CENTROID_Y_COLUMN: these_y_coords_metres
-        })
 
     return storm_object_table_by_date
 
@@ -1127,10 +1213,6 @@ def reanalyze_across_spc_dates(
         error_checking.assert_is_greater(
             tracking_end_time_unix_sec, tracking_start_time_unix_sec)
 
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
-        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
-
     num_spc_dates = len(spc_date_strings)
 
     if num_spc_dates == 1:
@@ -1138,20 +1220,7 @@ def reanalyze_across_spc_dates(
             tracking_file_names_by_date[0])
         print SEPARATOR_STRING
 
-        these_x_coords_metres, these_y_coords_metres = (
-            projections.project_latlng_to_xy(
-                latitudes_deg=storm_object_table[
-                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
-                longitudes_deg=storm_object_table[
-                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
-                projection_object=projection_object,
-                false_easting_metres=0., false_northing_metres=0.)
-        )
-
-        storm_object_table = storm_object_table.assign(**{
-            temporal_tracking.CENTROID_X_COLUMN: these_x_coords_metres,
-            temporal_tracking.CENTROID_Y_COLUMN: these_y_coords_metres
-        })
+        storm_object_table = _storm_objects_latlng_to_xy(storm_object_table)
 
         first_late_time_unix_sec = numpy.min(
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
