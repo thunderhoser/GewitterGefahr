@@ -16,8 +16,6 @@ import copy
 import numpy
 from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import projections
-from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -30,59 +28,6 @@ STORM_OBJECT_TABLE_KEY = 'storm_object_table'
 LATE_TO_EARLY_KEY = 'late_to_early_matrix'
 ID_TO_FIRST_ROW_KEY = 'primary_id_to_first_row_dict'
 ID_TO_LAST_ROW_KEY = 'primary_id_to_last_row_dict'
-
-
-def _latlng_velocities_to_xy(
-        east_velocities_m_s01, north_velocities_m_s01, latitudes_deg,
-        longitudes_deg):
-    """Converts velocities from lat-long components to x-y components.
-
-    P = number of velocities
-
-    :param east_velocities_m_s01: length-P numpy array of eastward instantaneous
-        velocities (metres per second).
-    :param north_velocities_m_s01: length-P numpy array of northward
-        instantaneous velocities (metres per second).
-    :param latitudes_deg: length-P numpy array of current latitudes (deg N).
-    :param longitudes_deg: length-P numpy array of current longitudes (deg E).
-    :return: x_velocities_m_s01: length-P numpy of x-velocities (metres per
-        second in positive x-direction).
-    :return: y_velocities_m_s01: Same but for y-direction.
-    """
-
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
-        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
-
-    scalar_displacements_metres = numpy.sqrt(
-        east_velocities_m_s01 ** 2 + north_velocities_m_s01 ** 2)
-
-    standard_bearings_deg = RADIANS_TO_DEGREES * numpy.arctan2(
-        north_velocities_m_s01, east_velocities_m_s01)
-
-    geodetic_bearings_deg = geodetic_utils.standard_to_geodetic_angles(
-        standard_bearings_deg)
-
-    new_latitudes_deg, new_longitudes_deg = (
-        geodetic_utils.start_points_and_displacements_to_endpoints(
-            start_latitudes_deg=latitudes_deg,
-            start_longitudes_deg=longitudes_deg,
-            scalar_displacements_metres=scalar_displacements_metres,
-            geodetic_bearings_deg=geodetic_bearings_deg)
-    )
-
-    x_coords_metres, y_coords_metres = projections.project_latlng_to_xy(
-        latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
-        projection_object=projection_object, false_easting_metres=0.,
-        false_northing_metres=0.)
-
-    new_x_coords_metres, new_y_coords_metres = projections.project_latlng_to_xy(
-        latitudes_deg=new_latitudes_deg, longitudes_deg=new_longitudes_deg,
-        projection_object=projection_object, false_easting_metres=0.,
-        false_northing_metres=0.)
-
-    return (new_x_coords_metres - x_coords_metres,
-            new_y_coords_metres - y_coords_metres)
 
 
 def _create_local_max_dict(storm_object_table, row_indices, include_velocity):
@@ -117,20 +62,11 @@ def _create_local_max_dict(storm_object_table, row_indices, include_velocity):
     if not include_velocity:
         return local_max_dict
 
-    x_velocities_m_s01, y_velocities_m_s01 = _latlng_velocities_to_xy(
-        east_velocities_m_s01=storm_object_table[
-            tracking_utils.EAST_VELOCITY_COLUMN].values[row_indices],
-        north_velocities_m_s01=storm_object_table[
-            tracking_utils.NORTH_VELOCITY_COLUMN].values[row_indices],
-        latitudes_deg=storm_object_table[
-            tracking_utils.CENTROID_LATITUDE_COLUMN].values[row_indices],
-        longitudes_deg=storm_object_table[
-            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[row_indices]
-    )
-
     local_max_dict.update({
-        temporal_tracking.X_VELOCITIES_KEY: x_velocities_m_s01,
-        temporal_tracking.Y_VELOCITIES_KEY: y_velocities_m_s01
+        temporal_tracking.X_VELOCITIES_KEY: storm_object_table[
+            temporal_tracking.X_VELOCITY_COLUMN].values[row_indices],
+        temporal_tracking.Y_VELOCITIES_KEY: storm_object_table[
+            temporal_tracking.Y_VELOCITY_COLUMN].values[row_indices]
     })
 
     return local_max_dict
@@ -487,6 +423,8 @@ def _update_velocities(storm_object_table, early_rows, late_rows,
         "x_velocity_m_s01" and "y_velocity_m_s01".
     """
 
+    # TODO(thunderhoser): May not want to update all the velocities here.
+
     early_local_max_dict = _create_local_max_dict(
         storm_object_table=storm_object_table,
         row_indices=early_rows, include_velocity=False)
@@ -551,8 +489,7 @@ def _get_intermediate_velocities_old(storm_object_table, early_rows, late_rows):
 def _update_full_ids(storm_object_table):
     """Updates full storm IDs in table.
 
-    :param storm_object_table: See doc for
-        `storm_tracking.write_processed_file`.
+    :param storm_object_table: See doc for `storm_tracking_io.write_file`.
     :return: storm_object_table: Same as input but maybe with different values
         in "storm_id" column.
     """
@@ -582,8 +519,16 @@ def join_collinear_tracks(
     collinear pairs of tracks (one from the early time, one from the late time).
     However, this method also handles splits and mergers.
 
-    :param storm_object_table: See doc for
-        `storm_tracking.write_processed_file`.
+    :param storm_object_table: pandas DataFrame, where each row is one storm
+        object.  Should contain columns listed in
+        `storm_tracking_io.write_file`, as well as those listed below.
+    storm_object_table.centroid_x_metres: x-coordinate of storm-object centroid.
+    storm_object_table.centroid_y_metres: y-coordinate of storm-object centroid.
+    storm_object_table.x_velocity_m_s01: Velocity in +x-direction (metres per
+        second).
+    storm_object_table.y_velocity_m_s01: Velocity in +y-direction (metres per
+        second).
+
     :param first_late_time_unix_sec: First late time to try.
     :param last_late_time_unix_sec: Last late time to try.
     :param max_join_time_seconds: Max difference between early time and late
@@ -727,10 +672,10 @@ def join_collinear_tracks(
             primary_id_to_last_row_dict = this_dict[ID_TO_LAST_ROW_KEY]
 
             if not numpy.any(this_late_to_early_matrix):
-                storm_object_table = _update_velocities(
-                    storm_object_table=storm_object_table,
-                    early_rows=these_early_rows, late_rows=these_late_rows,
-                    late_to_early_matrix=orig_late_to_early_matrix)
+                # storm_object_table = _update_velocities(
+                #     storm_object_table=storm_object_table,
+                #     early_rows=these_early_rows, late_rows=these_late_rows,
+                #     late_to_early_matrix=orig_late_to_early_matrix)
 
                 this_late_local_max_dict = None
                 continue
@@ -748,10 +693,10 @@ def join_collinear_tracks(
             primary_id_to_last_row_dict = this_dict[ID_TO_LAST_ROW_KEY]
 
             if not numpy.any(this_late_to_early_matrix):
-                storm_object_table = _update_velocities(
-                    storm_object_table=storm_object_table,
-                    early_rows=these_early_rows, late_rows=these_late_rows,
-                    late_to_early_matrix=orig_late_to_early_matrix)
+                # storm_object_table = _update_velocities(
+                #     storm_object_table=storm_object_table,
+                #     early_rows=these_early_rows, late_rows=these_late_rows,
+                #     late_to_early_matrix=orig_late_to_early_matrix)
 
                 this_late_local_max_dict = None
                 continue
@@ -767,10 +712,10 @@ def join_collinear_tracks(
             primary_id_to_first_row_dict = this_dict[ID_TO_FIRST_ROW_KEY]
             primary_id_to_last_row_dict = this_dict[ID_TO_LAST_ROW_KEY]
 
-            storm_object_table = _update_velocities(
-                storm_object_table=storm_object_table,
-                early_rows=these_early_rows, late_rows=these_late_rows,
-                late_to_early_matrix=orig_late_to_early_matrix)
+            # storm_object_table = _update_velocities(
+            #     storm_object_table=storm_object_table,
+            #     early_rows=these_early_rows, late_rows=these_late_rows,
+            #     late_to_early_matrix=orig_late_to_early_matrix)
 
             this_late_local_max_dict = None
 
