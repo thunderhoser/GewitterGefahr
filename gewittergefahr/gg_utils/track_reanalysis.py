@@ -542,8 +542,6 @@ def join_collinear_tracks(
     # TODO(thunderhoser): Allow different end times in a merger, different start
     # times in a split.
 
-    # TODO(thunderhoser): May want to allow normal join in this method.
-
     unique_times_unix_sec, orig_to_unique_time_indices = numpy.unique(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
         return_inverse=True

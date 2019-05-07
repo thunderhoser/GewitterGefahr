@@ -296,6 +296,8 @@ def _prune_connections(velocity_diff_matrix_m_s01, distance_matrix_m_s01,
             this_worst_current_index = None
 
             if len(these_current_indices) > 1:
+                # print 'FOUND {0:d}-WAY SPLIT'.format(len(these_current_indices))
+
                 this_num_previous_by_current = numpy.array([
                     numpy.sum(current_to_previous_matrix[i, :])
                     for i in these_current_indices
@@ -508,6 +510,8 @@ def _local_maxima_to_tracks_splits(
     previous_indices_in_split = numpy.where(num_current_by_previous > 1)[0]
 
     for j in previous_indices_in_split:
+        print 'FOUND SPLIT'
+
         these_current_indices = numpy.where(current_to_previous_matrix[:, j])[0]
         current_to_previous_matrix[:, j] = False
 
@@ -915,21 +919,24 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     old_to_new_primary_id_dict = {}
     num_times = len(local_max_dict_by_time)
 
-    for i in range(num_times):
-        this_num_storm_objects = len(local_max_dict_by_time[i][LATITUDES_KEY])
-        this_empty_2d_list = [
-            ['' for _ in range(0)] for _ in range(this_num_storm_objects)
-        ]
+    for i in range(num_times + 1):
+        if i == num_times:
+            this_num_storm_objects = 0
+        else:
+            this_num_storm_objects = len(
+                local_max_dict_by_time[i][LATITUDES_KEY]
+            )
 
-        local_max_dict_by_time[i].update({
-            PRIMARY_IDS_KEY: [''] * this_num_storm_objects,
-            SECONDARY_IDS_KEY: [''] * this_num_storm_objects,
-            PREV_SECONDARY_IDS_KEY: this_empty_2d_list,
-            NEXT_SECONDARY_IDS_KEY: copy.deepcopy(this_empty_2d_list)
-        })
+            this_empty_2d_list = [
+                ['' for _ in range(0)] for _ in range(this_num_storm_objects)
+            ]
 
-        if this_num_storm_objects == 0:
-            continue
+            local_max_dict_by_time[i].update({
+                PRIMARY_IDS_KEY: [''] * this_num_storm_objects,
+                SECONDARY_IDS_KEY: [''] * this_num_storm_objects,
+                PREV_SECONDARY_IDS_KEY: this_empty_2d_list,
+                NEXT_SECONDARY_IDS_KEY: copy.deepcopy(this_empty_2d_list)
+            })
 
         if i == 0:
             for j in range(this_num_storm_objects):
@@ -945,7 +952,9 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
                  prev_secondary_id_numeric
                 ) = _create_secondary_storm_id(prev_secondary_id_numeric)
 
-        else:
+            continue
+
+        if i != num_times:
             this_current_to_prev_matrix = copy.deepcopy(
                 local_max_dict_by_time[i][CURRENT_TO_PREV_MATRIX_KEY]
             )
@@ -992,34 +1001,38 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
             prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
 
-        all_primary_ids += local_max_dict_by_time[i][PRIMARY_IDS_KEY]
-        all_secondary_ids += local_max_dict_by_time[i][SECONDARY_IDS_KEY]
+        prev_num_storm_objects = len(
+            local_max_dict_by_time[i - 1][LATITUDES_KEY]
+        )
+
+        all_primary_ids += local_max_dict_by_time[i - 1][PRIMARY_IDS_KEY]
+        all_secondary_ids += local_max_dict_by_time[i - 1][SECONDARY_IDS_KEY]
 
         all_first_prev_secondary_ids += [
             x[0] if len(x) > 0 else ''
-            for x in local_max_dict_by_time[i][PREV_SECONDARY_IDS_KEY]
+            for x in local_max_dict_by_time[i - 1][PREV_SECONDARY_IDS_KEY]
         ]
 
         all_second_prev_secondary_ids += [
             x[1] if len(x) > 1 else ''
-            for x in local_max_dict_by_time[i][PREV_SECONDARY_IDS_KEY]
+            for x in local_max_dict_by_time[i - 1][PREV_SECONDARY_IDS_KEY]
         ]
 
         all_first_next_secondary_ids += [
             x[0] if len(x) > 0 else ''
-            for x in local_max_dict_by_time[i][NEXT_SECONDARY_IDS_KEY]
+            for x in local_max_dict_by_time[i - 1][NEXT_SECONDARY_IDS_KEY]
         ]
 
         all_second_next_secondary_ids += [
             x[1] if len(x) > 1 else ''
-            for x in local_max_dict_by_time[i][NEXT_SECONDARY_IDS_KEY]
+            for x in local_max_dict_by_time[i - 1][NEXT_SECONDARY_IDS_KEY]
         ]
 
         these_times_unix_sec = numpy.full(
-            this_num_storm_objects, local_max_dict_by_time[i][VALID_TIME_KEY],
-            dtype=int)
+            prev_num_storm_objects,
+            local_max_dict_by_time[i - 1][VALID_TIME_KEY], dtype=int)
 
-        these_spc_date_strings = this_num_storm_objects * [
+        these_spc_date_strings = prev_num_storm_objects * [
             time_conversion.time_to_spc_date_string(these_times_unix_sec[0])
         ]
 
@@ -1030,36 +1043,36 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
 
         all_centroid_latitudes_deg = numpy.concatenate((
             all_centroid_latitudes_deg,
-            local_max_dict_by_time[i][LATITUDES_KEY]
+            local_max_dict_by_time[i - 1][LATITUDES_KEY]
         ))
         all_centroid_longitudes_deg = numpy.concatenate((
             all_centroid_longitudes_deg,
-            local_max_dict_by_time[i][LONGITUDES_KEY]
+            local_max_dict_by_time[i - 1][LONGITUDES_KEY]
         ))
         all_centroid_x_metres = numpy.concatenate((
-            all_centroid_x_metres, local_max_dict_by_time[i][X_COORDS_KEY]
+            all_centroid_x_metres, local_max_dict_by_time[i - 1][X_COORDS_KEY]
         ))
         all_centroid_y_metres = numpy.concatenate((
-            all_centroid_y_metres, local_max_dict_by_time[i][Y_COORDS_KEY]
+            all_centroid_y_metres, local_max_dict_by_time[i - 1][Y_COORDS_KEY]
         ))
 
         if include_polygons:
-            all_polygon_rows_arraylist += local_max_dict_by_time[i][
+            all_polygon_rows_arraylist += local_max_dict_by_time[i - 1][
                 GRID_POINT_ROWS_KEY]
-            all_polygon_columns_arraylist += local_max_dict_by_time[i][
+            all_polygon_columns_arraylist += local_max_dict_by_time[i - 1][
                 GRID_POINT_COLUMNS_KEY]
-            all_polygon_latitudes_arraylist_deg += local_max_dict_by_time[i][
-                GRID_POINT_LATITUDES_KEY]
-            all_polygon_longitudes_arraylist_deg += local_max_dict_by_time[i][
-                GRID_POINT_LONGITUDES_KEY]
+            all_polygon_latitudes_arraylist_deg += local_max_dict_by_time[
+                i - 1][GRID_POINT_LATITUDES_KEY]
+            all_polygon_longitudes_arraylist_deg += local_max_dict_by_time[
+                i - 1][GRID_POINT_LONGITUDES_KEY]
 
             all_polygon_objects_latlng = numpy.concatenate((
                 all_polygon_objects_latlng,
-                local_max_dict_by_time[i][POLYGON_OBJECTS_LATLNG_KEY]
+                local_max_dict_by_time[i - 1][POLYGON_OBJECTS_LATLNG_KEY]
             ))
             all_polygon_objects_rowcol = numpy.concatenate((
                 all_polygon_objects_rowcol,
-                local_max_dict_by_time[i][POLYGON_OBJECTS_ROWCOL_KEY]
+                local_max_dict_by_time[i - 1][POLYGON_OBJECTS_ROWCOL_KEY]
             ))
 
     storm_object_dict = {

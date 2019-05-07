@@ -1274,6 +1274,9 @@ def reanalyze_across_spc_dates(
             current_date_index=i, top_output_dir_name=top_output_dir_name)
         print SEPARATOR_STRING
 
+        # TODO(thunderhoser): Do normal join here, between last time step in one
+        # day and first time step in the next.
+
         if i == num_spc_dates:
             break
 
