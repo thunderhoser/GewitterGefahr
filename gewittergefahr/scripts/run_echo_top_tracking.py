@@ -178,7 +178,7 @@ def _run(top_radar_dir_name, top_radar_dir_name_tarred,
         min_intermax_distance_metres=min_intermax_distance_metres,
         max_velocity_diff_m_s01=max_velocity_diff_m_s01,
         max_link_distance_m_s01=max_link_distance_m_s01,
-        min_track_duration_seconds=0)
+        min_track_duration_seconds=1)
 
     print SEPARATOR_STRING
 
