@@ -75,7 +75,7 @@ DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
 )
 
 DEFAULT_MAX_JOIN_TIME_SEC = 610
-DEFAULT_MAX_JOIN_ERROR_M_S01 = 20.
+DEFAULT_MAX_JOIN_ERROR_M_S01 = 30.
 DEFAULT_NUM_SECONDS_FOR_VELOCITY = 915
 DEFAULT_MIN_REANALYZED_DURATION_SEC = 890
 
@@ -738,6 +738,10 @@ def _shuffle_tracking_data(
         items are in memory.
     """
 
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
+        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
+
     num_spc_dates = len(tracking_file_names_by_date)
 
     # Shuffle data out of memory.
@@ -782,6 +786,21 @@ def _shuffle_tracking_data(
             tracking_file_names_by_date[j]
         )
         print '\n'
+
+        these_x_coords_metres, these_y_coords_metres = (
+            projections.project_latlng_to_xy(
+                latitudes_deg=storm_object_table_by_date[j][
+                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
+                longitudes_deg=storm_object_table_by_date[j][
+                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
+                projection_object=projection_object,
+                false_easting_metres=0., false_northing_metres=0.)
+        )
+
+        storm_object_table_by_date[j] = storm_object_table_by_date[j].assign(**{
+            temporal_tracking.CENTROID_X_COLUMN: these_x_coords_metres,
+            temporal_tracking.CENTROID_Y_COLUMN: these_y_coords_metres
+        })
 
     return storm_object_table_by_date
 
@@ -1119,6 +1138,21 @@ def reanalyze_across_spc_dates(
             tracking_file_names_by_date[0])
         print SEPARATOR_STRING
 
+        these_x_coords_metres, these_y_coords_metres = (
+            projections.project_latlng_to_xy(
+                latitudes_deg=storm_object_table[
+                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
+                longitudes_deg=storm_object_table[
+                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
+                projection_object=projection_object,
+                false_easting_metres=0., false_northing_metres=0.)
+        )
+
+        storm_object_table = storm_object_table.assign(**{
+            temporal_tracking.CENTROID_X_COLUMN: these_x_coords_metres,
+            temporal_tracking.CENTROID_Y_COLUMN: these_y_coords_metres
+        })
+
         first_late_time_unix_sec = numpy.min(
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
         )
@@ -1149,21 +1183,6 @@ def reanalyze_across_spc_dates(
             tracking_end_time_unix_sec=tracking_end_time_unix_sec,
             max_link_time_seconds=max_link_time_seconds,
             max_join_time_seconds=max_join_time_seconds)
-
-        these_x_coords_metres, these_y_coords_metres = (
-            projections.project_latlng_to_xy(
-                latitudes_deg=storm_object_table[
-                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
-                longitudes_deg=storm_object_table[
-                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
-                projection_object=projection_object,
-                false_easting_metres=0., false_northing_metres=0.)
-        )
-
-        storm_object_table = storm_object_table.assign(**{
-            temporal_tracking.CENTROID_X_COLUMN: these_x_coords_metres,
-            temporal_tracking.CENTROID_Y_COLUMN: these_y_coords_metres
-        })
 
         print 'Computing storm velocities...'
         storm_object_table = temporal_tracking.get_storm_velocities(
@@ -1246,21 +1265,6 @@ def reanalyze_across_spc_dates(
             tracking_end_time_unix_sec=tracking_end_time_unix_sec,
             max_link_time_seconds=max_link_time_seconds,
             max_join_time_seconds=max_join_time_seconds)
-
-        these_x_coords_metres, these_y_coords_metres = (
-            projections.project_latlng_to_xy(
-                latitudes_deg=concat_storm_object_table[
-                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
-                longitudes_deg=concat_storm_object_table[
-                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
-                projection_object=projection_object,
-                false_easting_metres=0., false_northing_metres=0.)
-        )
-
-        concat_storm_object_table = concat_storm_object_table.assign({
-            temporal_tracking.CENTROID_X_COLUMN: these_x_coords_metres,
-            temporal_tracking.CENTROID_Y_COLUMN: these_y_coords_metres
-        })
 
         print 'Computing storm velocities...'
         concat_storm_object_table = temporal_tracking.get_storm_velocities(

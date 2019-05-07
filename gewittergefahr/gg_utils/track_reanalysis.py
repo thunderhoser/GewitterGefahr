@@ -117,15 +117,20 @@ def _create_local_max_dict(storm_object_table, row_indices, include_velocity):
     if not include_velocity:
         return local_max_dict
 
+    x_velocities_m_s01, y_velocities_m_s01 = _latlng_velocities_to_xy(
+        east_velocities_m_s01=storm_object_table[
+            tracking_utils.EAST_VELOCITY_COLUMN].values[row_indices],
+        north_velocities_m_s01=storm_object_table[
+            tracking_utils.NORTH_VELOCITY_COLUMN].values[row_indices],
+        latitudes_deg=storm_object_table[
+            tracking_utils.CENTROID_LATITUDE_COLUMN].values[row_indices],
+        longitudes_deg=storm_object_table[
+            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[row_indices]
+    )
+
     local_max_dict.update({
-        temporal_tracking.X_VELOCITIES_KEY:
-            storm_object_table[temporal_tracking.X_VELOCITY_COLUMN].values[
-                row_indices
-            ],
-        temporal_tracking.Y_VELOCITIES_KEY:
-            storm_object_table[temporal_tracking.Y_VELOCITY_COLUMN].values[
-                row_indices
-            ]
+        temporal_tracking.X_VELOCITIES_KEY: x_velocities_m_s01,
+        temporal_tracking.Y_VELOCITIES_KEY: y_velocities_m_s01
     })
 
     return local_max_dict
