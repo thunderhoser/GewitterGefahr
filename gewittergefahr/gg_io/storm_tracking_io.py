@@ -6,7 +6,6 @@ import glob
 import pickle
 import numpy
 import pandas
-from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -25,55 +24,35 @@ HOUR_REGEX = '[0-2][0-9]'
 MINUTE_REGEX = '[0-5][0-9]'
 SECOND_REGEX = '[0-5][0-9]'
 
-TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
-TIME_FORMAT_IN_FILE_NAMES_AS_REGEX = '{0:s}-{1:s}-{2:s}-{3:s}{4:s}{5:s}'.format(
+FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+FILE_NAME_TIME_REGEX = '{0:s}-{1:s}-{2:s}-{3:s}{4:s}{5:s}'.format(
     YEAR_REGEX, MONTH_REGEX, DAY_OF_MONTH_REGEX, HOUR_REGEX, MINUTE_REGEX,
-    SECOND_REGEX)
+    SECOND_REGEX
+)
 
-PREFIX_FOR_PATHLESS_FILE_NAMES = 'storm-tracking'
+FILE_NAME_PREFIX = 'storm-tracking'
 FILE_EXTENSION = '.p'
 
-MANDATORY_COLUMNS = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
-    tracking_utils.SPC_DATE_COLUMN, tracking_utils.EAST_VELOCITY_COLUMN,
-    tracking_utils.NORTH_VELOCITY_COLUMN, tracking_utils.AGE_COLUMN,
-    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
-    tracking_utils.GRID_POINT_LAT_COLUMN, tracking_utils.GRID_POINT_LNG_COLUMN,
-    tracking_utils.GRID_POINT_ROW_COLUMN,
-    tracking_utils.GRID_POINT_COLUMN_COLUMN,
-    tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN,
-    tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN,
+REQUIRED_COLUMNS = [
+    tracking_utils.FULL_ID_COLUMN,
+    tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.SECONDARY_ID_COLUMN,
+    tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN,
+    tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN,
+    tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN,
+    tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN,
+    tracking_utils.VALID_TIME_COLUMN, tracking_utils.SPC_DATE_COLUMN,
     tracking_utils.TRACKING_START_TIME_COLUMN,
-    tracking_utils.TRACKING_END_TIME_COLUMN]
-
-BEST_TRACK_COLUMNS = [tracking_utils.ORIG_STORM_ID_COLUMN]
-CELL_TIME_COLUMNS = [
-    tracking_utils.CELL_START_TIME_COLUMN, tracking_utils.CELL_END_TIME_COLUMN]
-
-LATITUDE_COLUMN_IN_AMY_FILES = 'Latitude'
-LONGITUDE_COLUMN_IN_AMY_FILES = 'Longitude'
-AGE_COLUMN_IN_AMY_FILES = 'Age'
-EAST_VELOCITY_COLUMN_IN_AMY_FILES = 'MotionEast'
-SOUTH_VELOCITY_COLUMN_IN_AMY_FILES = 'MotionSouth'
-ORIG_ID_COLUMN_IN_AMY_FILES = 'RowName'
-AREA_COLUMN_IN_AMY_FILES = 'Size'
-SPEED_COLUMN_IN_AMY_FILES = 'Speed'
-VALID_TIME_COLUMN_IN_AMY_FILES = 'ValidTime'
-CELL_START_TIME_COLUMN_IN_AMY_FILES = 'StartTime'
-CELL_END_TIME_COLUMN_IN_AMY_FILES = 'EndTime'
-STORM_ID_COLUMN_IN_AMY_FILES = 'RowName2'
-
-COLUMNS_FOR_AMY = [
-    LATITUDE_COLUMN_IN_AMY_FILES, LONGITUDE_COLUMN_IN_AMY_FILES,
-    AGE_COLUMN_IN_AMY_FILES, EAST_VELOCITY_COLUMN_IN_AMY_FILES,
-    SOUTH_VELOCITY_COLUMN_IN_AMY_FILES, ORIG_ID_COLUMN_IN_AMY_FILES,
-    AREA_COLUMN_IN_AMY_FILES, SPEED_COLUMN_IN_AMY_FILES,
-    VALID_TIME_COLUMN_IN_AMY_FILES, CELL_START_TIME_COLUMN_IN_AMY_FILES,
-    CELL_END_TIME_COLUMN_IN_AMY_FILES, STORM_ID_COLUMN_IN_AMY_FILES
+    tracking_utils.TRACKING_END_TIME_COLUMN,
+    tracking_utils.CELL_START_TIME_COLUMN, tracking_utils.CELL_END_TIME_COLUMN,
+    tracking_utils.AGE_COLUMN,
+    tracking_utils.CENTROID_LATITUDE_COLUMN,
+    tracking_utils.CENTROID_LONGITUDE_COLUMN,
+    tracking_utils.EAST_VELOCITY_COLUMN, tracking_utils.NORTH_VELOCITY_COLUMN,
+    tracking_utils.LATITUDES_IN_STORM_COLUMN,
+    tracking_utils.LONGITUDES_IN_STORM_COLUMN,
+    tracking_utils.ROWS_IN_STORM_COLUMN, tracking_utils.COLUMNS_IN_STORM_COLUMN,
+    tracking_utils.LATLNG_POLYGON_COLUMN, tracking_utils.ROWCOL_POLYGON_COLUMN
 ]
-
-TIME_FORMAT_IN_AMY_FILES = '%Y-%m-%d-%H%M%SZ'
-METRES2_TO_KM2 = 1e-6
 
 
 def _get_previous_month(month, year):
@@ -86,6 +65,7 @@ def _get_previous_month(month, year):
     """
 
     previous_month = month - 1
+
     if previous_month == 0:
         previous_month = 12
         previous_year = year - 1
@@ -103,122 +83,123 @@ def _get_num_days_in_month(month, year):
     :return: num_days_in_month: Number of days in month.
     """
 
-    time_string = '{0:04d}-{1:02d}'.format(year, month)
-    unix_time_sec = time_conversion.string_to_unix_sec(time_string, '%Y-%m')
-    (_, last_time_in_month_unix_sec
-    ) = time_conversion.first_and_last_times_in_month(unix_time_sec)
+    month_time_string = '{0:04d}-{1:02d}'.format(year, month)
+    start_of_month_unix_sec = time_conversion.string_to_unix_sec(
+        month_time_string, '%Y-%m')
 
-    day_of_month_string = time_conversion.unix_sec_to_string(
-        last_time_in_month_unix_sec, '%d')
-    return int(day_of_month_string)
+    _, end_of_month_unix_sec = time_conversion.first_and_last_times_in_month(
+        start_of_month_unix_sec)
+
+    last_day_of_month_string = time_conversion.unix_sec_to_string(
+        end_of_month_unix_sec, '%d')
+
+    return int(last_day_of_month_string)
 
 
-def _check_input_args_for_file_finding(
-        top_processed_dir_name, tracking_scale_metres2, data_source,
-        raise_error_if_missing):
-    """Error-checks input arguments for file-finding methods.
+def _check_file_finding_args(top_tracking_dir_name, tracking_scale_metres2,
+                             source_name, raise_error_if_missing):
+    """Error-checks input args for file-finding method.
 
-    :param top_processed_dir_name: Name of top-level directory with processed
-        tracking files.
+    :param top_tracking_dir_name: Name of top-level directory with tracking
+        data.
     :param tracking_scale_metres2: Tracking scale (minimum storm area).
-    :param data_source: Data source (must be accepted by
+    :param source_name: Data source (must be accepted by
         `storm_tracking_utils.check_data_source`).
-    :param raise_error_if_missing: Boolean flag.  Determines whether or not, if
-        (file is / files are) not found, the method will error out.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, the file-finding method will throw an
+        error.
     :return: tracking_scale_metres2: Integer version of input.
     """
 
-    error_checking.assert_is_string(top_processed_dir_name)
+    error_checking.assert_is_string(top_tracking_dir_name)
     error_checking.assert_is_greater(tracking_scale_metres2, 0)
-    tracking_utils.check_data_source(data_source)
+    tracking_utils.check_data_source(source_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     return int(numpy.round(tracking_scale_metres2))
 
 
-def find_processed_file(
-        top_processed_dir_name, tracking_scale_metres2, data_source,
-        unix_time_sec, spc_date_string=None, raise_error_if_missing=True):
-    """Finds processed tracking file.
+def find_file(
+        top_tracking_dir_name, tracking_scale_metres2, source_name,
+        valid_time_unix_sec, spc_date_string=None, raise_error_if_missing=True):
+    """Finds tracking file.
 
-    This file should contain storm outlines and tracking statistics for one time
-    step.
+    This file should contain polygons, velocities, and other properties for one
+    time step.
 
-    :param top_processed_dir_name: See doc for
-        `_check_input_args_for_file_finding`.
+    :param top_tracking_dir_name: See doc for `_check_file_finding_args`.
     :param tracking_scale_metres2: Same.
-    :param data_source: Same.
-    :param unix_time_sec: Valid time.
-    :param spc_date_string: [used only if data_source == "probsevere"]
+    :param source_name: Same.
+    :param valid_time_unix_sec: Valid time.
+    :param spc_date_string: [used only if data source is ProbSevere]
         SPC date (format "yyyymmdd").
-    :param raise_error_if_missing: Boolean flag.  If the file is missing and
-        `raise_error_if_missing = True`, this method will error out.  If the
-        file is missing and `raise_error_if_missing = False`, will return the
-        *expected* path.
-    :return: processed_file_name: Path to processed tracking file.
-    :raises: ValueError: if the file is missing and
-        `raise_error_if_missing = True`.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: tracking_file_name: Path to tracking file.  If file is missing and
+        `raise_error_if_missing = False`, this will be the *expected* path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
     """
 
-    tracking_scale_metres2 = _check_input_args_for_file_finding(
-        top_processed_dir_name=top_processed_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2, data_source=data_source,
+    tracking_scale_metres2 = _check_file_finding_args(
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2, source_name=source_name,
         raise_error_if_missing=raise_error_if_missing)
 
-    if data_source == tracking_utils.SEGMOTION_SOURCE_ID:
+    if source_name == tracking_utils.SEGMOTION_NAME:
         date_string = spc_date_string
     else:
-        date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
+        date_string = time_conversion.time_to_spc_date_string(
+            valid_time_unix_sec)
 
-    processed_file_name = (
-        '{0:s}/{1:s}/{2:s}/scale_{3:d}m2/{4:s}_{5:s}_{6:s}{7:s}'
-    ).format(
-        top_processed_dir_name, date_string[:4], date_string,
-        tracking_scale_metres2, PREFIX_FOR_PATHLESS_FILE_NAMES, data_source,
+    directory_name = '{0:s}/{1:s}/{2:s}/scale_{3:d}m2'.format(
+        top_tracking_dir_name, date_string[:4], date_string,
+        tracking_scale_metres2)
+
+    tracking_file_name = '{0:s}/{1:s}_{2:s}_{3:s}{4:s}'.format(
+        directory_name, FILE_NAME_PREFIX, source_name,
         time_conversion.unix_sec_to_string(
-            unix_time_sec, TIME_FORMAT_IN_FILE_NAMES), FILE_EXTENSION)
+            valid_time_unix_sec, FILE_NAME_TIME_FORMAT),
+        FILE_EXTENSION
+    )
 
-    if raise_error_if_missing and not os.path.isfile(processed_file_name):
+    if raise_error_if_missing and not os.path.isfile(tracking_file_name):
         error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
-            processed_file_name)
+            tracking_file_name)
         raise ValueError(error_string)
 
-    return processed_file_name
+    return tracking_file_name
 
 
-def find_processed_files_at_times(
-        top_processed_dir_name, tracking_scale_metres2, data_source,
-        years=None, months=None, hours=None, raise_error_if_missing=True):
-    """Finds processed files with valid time in the specified bins.
+def find_files_at_times(
+        top_tracking_dir_name, tracking_scale_metres2, source_name, years=None,
+        months=None, hours=None, raise_error_if_missing=True):
+    """Finds tracking files with the given valid times.
 
-    Specifically, this method will find all processed files in the given years,
-    months, *and* hours.
-
-    :param top_processed_dir_name: See doc for
-        `_check_input_args_for_file_finding`.
+    :param top_tracking_dir_name: See doc for `_check_file_finding_args`.
     :param tracking_scale_metres2: Same.
-    :param data_source: Same.
+    :param source_name: Same.
     :param years: [may be None]
         1-D numpy array of years.
     :param months: [may be None]
-        1-D numpy array of months (must all be in range 1...12).
+        1-D numpy array of months (range 1...12).
     :param hours: [may be None]
-        1-D numpy array of hours (must all be in range 0...23).
+        1-D numpy array of hours (range 0...23).
     :param raise_error_if_missing: Boolean flag.  If no files are found and
         `raise_error_if_missing = True`, this method will error out.  If no
         files are found and `raise_error_if_missing = False`, will return empty
         list.
-    :return: processed_file_names: 1-D list of paths to processed tracking
+    :return: tracking_file_names: 1-D list of paths to tracking files.
+    :return: glob_patterns: 1-D list of glob patterns used to find tracking
         files.
-    :return: glob_patterns: 1-D list of glob patterns used to find files.
-    :raises: ValueError: if `years`, `months`, and `hours` are all None.
-    :raises: ValueError: if no files are found and
+    :raises: ValueError: if
+        `years is None and months is None and hours is None`.
+    :raises: ValueError: if no files are found are
         `raise_error_if_missing = True`.
     """
 
-    tracking_scale_metres2 = _check_input_args_for_file_finding(
-        top_processed_dir_name=top_processed_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2, data_source=data_source,
+    tracking_scale_metres2 = _check_file_finding_args(
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2, source_name=source_name,
         raise_error_if_missing=raise_error_if_missing)
 
     if years is None and months is None and hours is None:
@@ -247,7 +228,7 @@ def find_processed_files_at_times(
         error_checking.assert_is_leq_numpy_array(hours, 23)
 
     glob_patterns = []
-    processed_file_names = []
+    tracking_file_names = []
 
     for this_year in years:
         for this_month in months:
@@ -280,10 +261,13 @@ def find_processed_files_at_times(
                             month=this_month, year=RANDOM_LEAP_YEAR)
                         this_num_days_in_prev_month = _get_num_days_in_month(
                             month=this_prev_month, year=RANDOM_LEAP_YEAR)
+
                         this_prev_month_subdir_name = (
                             '{0:s}/{0:s}{1:02d}{2:02d}'
-                        ).format(YEAR_REGEX, this_prev_month,
-                                 this_num_days_in_prev_month)
+                        ).format(
+                            YEAR_REGEX, this_prev_month,
+                            this_num_days_in_prev_month
+                        )
 
                         these_temporal_subdir_names = [
                             this_month_subdir_name, this_prev_month_subdir_name
@@ -292,8 +276,11 @@ def find_processed_files_at_times(
                         if this_prev_month == 2:
                             this_prev_month_subdir_name = (
                                 '{0:s}/{0:s}{1:02d}{2:02d}'
-                            ).format(YEAR_REGEX, this_prev_month,
-                                     this_num_days_in_prev_month - 1)
+                            ).format(
+                                YEAR_REGEX, this_prev_month,
+                                this_num_days_in_prev_month - 1
+                            )
+
                             these_temporal_subdir_names.append(
                                 this_prev_month_subdir_name)
 
@@ -302,7 +289,8 @@ def find_processed_files_at_times(
                         this_year_subdir_name = '{0:s}/{0:s}{1:s}{2:s}'.format(
                             this_year_string, MONTH_REGEX, DAY_OF_MONTH_REGEX)
                         this_prev_year_subdir_name = (
-                            '{0:04d}/{0:04d}1231'.format(this_year - 1))
+                            '{0:04d}/{0:04d}1231'.format(this_year - 1)
+                        )
 
                         these_temporal_subdir_names = [
                             this_year_subdir_name, this_prev_year_subdir_name
@@ -316,10 +304,13 @@ def find_processed_files_at_times(
                             month=this_month, year=this_year)
                         this_num_days_in_prev_month = _get_num_days_in_month(
                             month=this_prev_month, year=this_prev_year)
+
                         this_prev_month_subdir_name = (
                             '{0:04d}/{0:04d}{1:02d}{2:02d}'
-                        ).format(this_prev_year, this_prev_month,
-                                 this_num_days_in_prev_month)
+                        ).format(
+                            this_prev_year, this_prev_month,
+                            this_num_days_in_prev_month
+                        )
 
                         these_temporal_subdir_names = [
                             this_month_subdir_name, this_prev_month_subdir_name
@@ -329,215 +320,139 @@ def find_processed_files_at_times(
                     this_file_pattern = (
                         '{0:s}/{1:s}/scale_{2:d}m2/'
                         '{3:s}_{4:s}_{5:s}-{6:s}-{7:s}-{8:s}{9:s}{10:s}{11:s}'
-                    ).format(top_processed_dir_name, this_temporal_subdir_name,
-                             tracking_scale_metres2,
-                             PREFIX_FOR_PATHLESS_FILE_NAMES,
-                             data_source, this_year_string, this_month_string,
-                             DAY_OF_MONTH_REGEX, this_hour_string, MINUTE_REGEX,
-                             SECOND_REGEX, FILE_EXTENSION)
+                    ).format(
+                        top_tracking_dir_name, this_temporal_subdir_name,
+                        tracking_scale_metres2, FILE_NAME_PREFIX, source_name,
+                        this_year_string, this_month_string, DAY_OF_MONTH_REGEX,
+                        this_hour_string, MINUTE_REGEX, SECOND_REGEX,
+                        FILE_EXTENSION
+                    )
+
                     glob_patterns.append(this_file_pattern)
 
                     print (
                         'Finding files with pattern "{0:s}" (this may take a '
                         'few minutes)...'
                     ).format(this_file_pattern)
-                    processed_file_names += glob.glob(this_file_pattern)
 
-    if raise_error_if_missing and not len(processed_file_names):
+                    tracking_file_names += glob.glob(this_file_pattern)
+
+    if raise_error_if_missing and len(tracking_file_names) == 0:
         error_string = (
-            '\n\n{0:s}\nCould not find files with any of the patterns listed '
-            'above.'
+            '\nCould not find files with any of the patterns listed below.'
+            '\n{0:s}'
         ).format(str(glob_patterns))
+
         raise ValueError(error_string)
 
-    return processed_file_names, glob_patterns
+    return tracking_file_names, glob_patterns
 
 
-def find_processed_files_one_spc_date(
-        top_processed_dir_name, tracking_scale_metres2, data_source,
+def find_files_one_spc_date(
+        top_tracking_dir_name, tracking_scale_metres2, source_name,
         spc_date_string, raise_error_if_missing=True):
-    """Finds processed files with valid time in one SPC date.
+    """Finds tracking files for the given SPC date.
 
-    :param top_processed_dir_name: See doc for
-        `_check_input_args_for_file_finding`.
+    :param top_tracking_dir_name: See doc for `_check_file_finding_args`.
     :param tracking_scale_metres2: Same.
-    :param data_source: Same.
+    :param source_name: Same.
     :param spc_date_string: SPC date (format "yyyymmdd").
-    :param raise_error_if_missing: See doc for `find_processed_files_at_times`.
-    :return: processed_file_names: 1-D list of paths to processed tracking
-        files.
-    :return: glob_pattern: glob pattern used to find files.
-    :raises: ValueError: if no files are found and
+    :param raise_error_if_missing: Boolean flag.  If no files are found and
+        `raise_error_if_missing = True`, this method will error out.  If no
+        files are found and `raise_error_if_missing = False`, will return empty
+        list.
+    :return: tracking_file_names: 1-D list of paths to tracking files.
+    :return: glob_pattern: glob pattern used to find tracking files.
+    :raises: ValueError: if no files are found are
         `raise_error_if_missing = True`.
     """
 
-    tracking_scale_metres2 = _check_input_args_for_file_finding(
-        top_processed_dir_name=top_processed_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2, data_source=data_source,
+    tracking_scale_metres2 = _check_file_finding_args(
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2, source_name=source_name,
         raise_error_if_missing=raise_error_if_missing)
 
     time_conversion.spc_date_string_to_unix_sec(spc_date_string)
 
-    glob_pattern = (
-        '{0:s}/{1:s}/{2:s}/scale_{3:d}m2/{4:s}_{5:s}_{6:s}{7:s}'
-    ).format(top_processed_dir_name, spc_date_string[:4], spc_date_string,
-             tracking_scale_metres2, PREFIX_FOR_PATHLESS_FILE_NAMES,
-             data_source, TIME_FORMAT_IN_FILE_NAMES_AS_REGEX, FILE_EXTENSION)
-    processed_file_names = glob.glob(glob_pattern)
+    directory_name = '{0:s}/{1:s}/{2:s}/scale_{3:d}m2'.format(
+        top_tracking_dir_name, spc_date_string[:4], spc_date_string,
+        tracking_scale_metres2)
 
-    if raise_error_if_missing and not len(processed_file_names):
+    glob_pattern = (
+        '{0:s}/{1:s}_{2:s}_{3:s}{4:s}'
+    ).format(
+        directory_name, FILE_NAME_PREFIX, source_name, FILE_NAME_TIME_REGEX,
+        FILE_EXTENSION
+    )
+
+    tracking_file_names = glob.glob(glob_pattern)
+
+    if raise_error_if_missing and not len(tracking_file_names):
         error_string = 'Could not find any files with pattern: "{0:s}"'.format(
             glob_pattern)
         raise ValueError(error_string)
 
-    return processed_file_names, glob_pattern
+    return tracking_file_names, glob_pattern
 
 
-def processed_file_name_to_time(processed_file_name):
-    """Parses time from name of processed tracking file.
+def file_name_to_time(tracking_file_name):
+    """Parses valid time from tracking file.
 
-    This file should contain storm objects (bounding polygons) and tracking
-    statistics for one time step and one tracking scale.
-
-    :param processed_file_name: Path to processed tracking file.
-    :return: unix_time_sec: Valid time.
+    :param tracking_file_name: Path to tracking file.
+    :return: valid_time_unix_sec: Valid time.
     """
 
-    error_checking.assert_is_string(processed_file_name)
-    _, pathless_file_name = os.path.split(processed_file_name)
+    error_checking.assert_is_string(tracking_file_name)
+    _, pathless_file_name = os.path.split(tracking_file_name)
     extensionless_file_name, _ = os.path.splitext(pathless_file_name)
 
     extensionless_file_name_parts = extensionless_file_name.split('_')
+
     return time_conversion.string_to_unix_sec(
-        extensionless_file_name_parts[-1], TIME_FORMAT_IN_FILE_NAMES)
+        extensionless_file_name_parts[-1], FILE_NAME_TIME_FORMAT
+    )
 
 
-def write_csv_file_for_amy(
-        storm_object_table, probsevere_storm_object_table,
-        csv_file_name):
-    """Writes best-track data to CSV file for Amy.
-
-    :param storm_object_table: See doc for `best_track_storm_object_table` in
-        `storm_tracking_utils.get_original_probsevere_ids`.
-    :param probsevere_storm_object_table: See doc for
-        `probsevere_storm_object_table` in
-        `storm_tracking_utils.get_original_probsevere_ids`.
-    :param csv_file_name: Path to output file.
-    """
-
-    print (
-        'Matching best-track storm objects with original probSevere objects...')
-    orig_probsevere_ids = tracking_utils.get_original_probsevere_ids(
-        best_track_storm_object_table=storm_object_table,
-        probsevere_storm_object_table=probsevere_storm_object_table)
-
-    argument_dict = {tracking_utils.ORIG_STORM_ID_COLUMN: orig_probsevere_ids}
-    storm_object_table = storm_object_table.assign(
-        **argument_dict)
-
-    orig_num_storm_objects = len(storm_object_table.index)
-    storm_object_table = storm_object_table.loc[
-        storm_object_table[tracking_utils.AGE_COLUMN] != -1]
-    num_storm_objects = len(storm_object_table.index)
-
-    print (
-        'Number of storm objects = {0:d} ... number of objects with valid ages '
-        '= {1:d}'
-    ).format(orig_num_storm_objects, num_storm_objects)
-
-    valid_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT_IN_AMY_FILES) for
-        t in storm_object_table[tracking_utils.TIME_COLUMN].values]
-    cell_start_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT_IN_AMY_FILES) for
-        t in storm_object_table[tracking_utils.CELL_START_TIME_COLUMN].values]
-    cell_end_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT_IN_AMY_FILES) for
-        t in storm_object_table[tracking_utils.CELL_END_TIME_COLUMN].values]
-
-    south_velocities_m_s01 = -1 * storm_object_table[
-        tracking_utils.NORTH_VELOCITY_COLUMN].values
-    speeds_m_s01 = numpy.sqrt(
-        storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values ** 2 +
-        storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values ** 2)
-
-    storm_areas_km2 = numpy.full(num_storm_objects, numpy.nan)
-    for i in range(num_storm_objects):
-        if numpy.mod(i, 1000) == 0:
-            print (
-                'Have computed area for {0:d} of {1:d} storm objects...'
-            ).format(i, num_storm_objects)
-
-        this_polygon_object_metres, _ = polygons.project_latlng_to_xy(
-            storm_object_table[
-                tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i])
-        storm_areas_km2[i] = this_polygon_object_metres.area
-
-    storm_areas_km2 = METRES2_TO_KM2 * storm_areas_km2
-
-    columns_to_drop = [
-        tracking_utils.TIME_COLUMN, tracking_utils.CELL_START_TIME_COLUMN,
-        tracking_utils.CELL_END_TIME_COLUMN,
-        tracking_utils.NORTH_VELOCITY_COLUMN
-    ]
-    storm_object_table.drop(columns_to_drop, axis=1, inplace=True)
-
-    argument_dict = {
-        VALID_TIME_COLUMN_IN_AMY_FILES: valid_time_strings,
-        CELL_START_TIME_COLUMN_IN_AMY_FILES: cell_start_time_strings,
-        CELL_END_TIME_COLUMN_IN_AMY_FILES: cell_end_time_strings,
-        SOUTH_VELOCITY_COLUMN_IN_AMY_FILES: south_velocities_m_s01,
-        SPEED_COLUMN_IN_AMY_FILES: speeds_m_s01,
-        AREA_COLUMN_IN_AMY_FILES: storm_areas_km2,
-    }
-    storm_object_table = storm_object_table.assign(**argument_dict)
-
-    column_dict_old_to_new = {
-        tracking_utils.CENTROID_LAT_COLUMN: LATITUDE_COLUMN_IN_AMY_FILES,
-        tracking_utils.CENTROID_LNG_COLUMN: LONGITUDE_COLUMN_IN_AMY_FILES,
-        tracking_utils.AGE_COLUMN: AGE_COLUMN_IN_AMY_FILES,
-        tracking_utils.EAST_VELOCITY_COLUMN: EAST_VELOCITY_COLUMN_IN_AMY_FILES,
-        tracking_utils.ORIG_STORM_ID_COLUMN: ORIG_ID_COLUMN_IN_AMY_FILES,
-        tracking_utils.STORM_ID_COLUMN: STORM_ID_COLUMN_IN_AMY_FILES
-    }
-    storm_object_table.rename(columns=column_dict_old_to_new, inplace=True)
-
-    print 'Writing data to "{0:s}"...'.format(csv_file_name)
-    storm_object_table.to_csv(
-        csv_file_name, header=True, columns=COLUMNS_FOR_AMY, index=False)
-
-
-def write_processed_file(storm_object_table, pickle_file_name):
+def write_file(storm_object_table, pickle_file_name):
     """Writes tracking data to Pickle file.
 
-    This file should contain storm objects (bounding polygons) and tracking
-    statistics for one time step and one tracking scale.
+    P = number of vertices in polygon for a given storm object
 
-    N = number of storm objects
-    P = number of grid points inside a given storm object
+    Note that, in addition to the required columns listed for
+    `storm_object_table`, it may contain one or more distance buffers around
+    each storm object.  See `tracking_utils.get_distance_buffer_columns` for
+    legal column names.
 
-    :param storm_object_table: N-row pandas DataFrame with the following
-        mandatory columns.  May also contain distance buffers created by
-        `storm_tracking_utils.make_buffers_around_storm_objects`.
-    storm_object_table.storm_id: String ID for storm cell.
-    storm_object_table.unix_time_sec: Valid time.
-    storm_object_table.spc_date_unix_sec: SPC date.
-    storm_object_table.tracking_start_time_unix_sec: Start time for tracking
-        period.
-    storm_object_table.tracking_end_time_unix_sec: End time for tracking period.
-    storm_object_table.cell_start_time_unix_sec: [optional] Start time of storm
-        cell (first time in track).
-    storm_object_table.cell_end_time_unix_sec: [optional] End time of storm cell
-        (last time in track).
-    storm_object_table.age_sec: Age of storm cell (seconds).
-    storm_object_table.east_velocity_m_s01: Eastward velocity of storm cell
-        (metres per second).
-    storm_object_table.north_velocity_m_s01: Northward velocity of storm cell
-        (metres per second).
-    storm_object_table.centroid_lat_deg: Latitude at centroid of storm object
-        (deg N).
-    storm_object_table.centroid_lng_deg: Longitude at centroid of storm object
-        (deg E).
+    :param storm_object_table: pandas DataFrame with the following columns.
+        Each row is one storm object.
+    storm_object_table.full_id_string: Full storm ID.
+    storm_object_table.primary_id_string: Primary storm ID.
+    storm_object_table.secondary_id_string: Secondary storm ID.
+    storm_object_table.first_prev_secondary_id_string: Secondary ID of first
+        predecessor ("" if no predecessors).
+    storm_object_table.second_prev_secondary_id_string: Secondary ID of second
+        predecessor ("" if only one predecessor).
+    storm_object_table.first_next_secondary_id_string: Secondary ID of first
+        successor ("" if no successors).
+    storm_object_table.second_next_secondary_id_string: Secondary ID of second
+        successor ("" if no successors).
+    storm_object_table.valid_time_unix_sec: Valid time.
+    storm_object_table.spc_date_string: SPC date (format "yyyymmdd").
+    storm_object_table.tracking_start_time_unix_sec: Start of tracking period.
+    storm_object_table.tracking_end_time_unix_sec: End of tracking period.
+    storm_object_table.cell_start_time_unix_sec: Start time of corresponding
+        storm cell.
+    storm_object_table.cell_end_time_unix_sec: End time of corresponding storm
+        cell.
+    storm_object_table.age_seconds: Age of corresponding storm cell.
+    storm_object_table.centroid_latitude_deg: Latitude (deg N) of storm-object
+        centroid.
+    storm_object_table.centroid_longitude_deg: Longitude (deg E) of storm-object
+        centroid.
+    storm_object_table.east_velocity_m_s01: Eastward velocity of corresponding
+        storm cell (metres per second).
+    storm_object_table.north_velocity_m_s01: Northward velocity of corresponding
+        storm cell (metres per second).
     storm_object_table.grid_point_latitudes_deg: length-P numpy array with
         latitudes (deg N) of grid points in storm object.
     storm_object_table.grid_point_longitudes_deg: length-P numpy array with
@@ -546,46 +461,34 @@ def write_processed_file(storm_object_table, pickle_file_name):
         (integers) of grid points in storm object.
     storm_object_table.grid_point_columns: length-P numpy array with column
         indices (integers) of grid points in storm object.
-    storm_object_table.polygon_object_latlng: Instance of
-        `shapely.geometry.Polygon`, with vertices in lat-long coordinates.
+    storm_object_table.polygon_object_latlng_deg: Instance of
+        `shapely.geometry.Polygon`, with x-coords in longitude (deg E) and
+        y-coords in latitude (deg N).
     storm_object_table.polygon_object_rowcol: Instance of
-        `shapely.geometry.Polygon`, with vertices in row-column coordinates.
+        `shapely.geometry.Polygon`, where x-coords are column indices, and
+        y-coords are row indices, in the radar grid.
 
     :param pickle_file_name: Path to output file.
     """
 
-    distance_buffer_column_names = tracking_utils.get_distance_buffer_columns(
-        storm_object_table)
-    if distance_buffer_column_names is None:
-        distance_buffer_column_names = []
+    buffer_column_names = tracking_utils.get_buffer_columns(storm_object_table)
+    if buffer_column_names is None:
+        buffer_column_names = []
 
-    columns_to_write = MANDATORY_COLUMNS + distance_buffer_column_names
-
-    found_best_track_flags = numpy.array(
-        [c in list(storm_object_table) for c in BEST_TRACK_COLUMNS])
-    if numpy.all(found_best_track_flags):
-        columns_to_write += BEST_TRACK_COLUMNS
-
-    # TODO(thunderhoser): Eventually make these columns mandatory.
-    found_cell_time_flags = numpy.array(
-        [c in list(storm_object_table) for c in CELL_TIME_COLUMNS])
-    if numpy.all(found_cell_time_flags):
-        columns_to_write += CELL_TIME_COLUMNS
+    columns_to_write = REQUIRED_COLUMNS + buffer_column_names
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(storm_object_table[columns_to_write], pickle_file_handle)
     pickle_file_handle.close()
 
 
-def read_processed_file(pickle_file_name):
-    """Reads tracking data from processed file.
-
-    This file should contain storm objects (bounding polygons) and tracking
-    statistics for one time step and one tracking scale.
+def read_file(pickle_file_name):
+    """Reads tracking data from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: storm_object_table: See documentation for write_processed_file.
+    :return: storm_object_table: See documentation for `write_file`.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
@@ -593,41 +496,40 @@ def read_processed_file(pickle_file_name):
     pickle_file_handle.close()
 
     error_checking.assert_columns_in_dataframe(
-        storm_object_table, MANDATORY_COLUMNS)
+        storm_object_table, REQUIRED_COLUMNS)
+
     return storm_object_table
 
 
-def read_many_processed_files(pickle_file_names):
-    """Reads tracking data from many processed files.
+def read_many_files(pickle_file_names):
+    """Reads tracking data from many Pickle files.
 
-    Data from all files are concatenated into the same pandas DataFrame.
+    This method will concatenate all storm objects into the same table.
 
     :param pickle_file_names: 1-D list of paths to input files.
-    :return: storm_object_table: See documentation for write processed file.
+    :return: storm_object_table: See documentation for `write_file`.
     """
 
     error_checking.assert_is_string_list(pickle_file_names)
     error_checking.assert_is_numpy_array(
-        numpy.array(pickle_file_names), num_dimensions=1)
+        numpy.array(pickle_file_names), num_dimensions=1
+    )
 
     num_files = len(pickle_file_names)
     list_of_storm_object_tables = [None] * num_files
 
     for i in range(num_files):
-        print 'Reading storm tracks from file: "{0:s}"...'.format(
-            pickle_file_names[i])
+        print 'Reading data from file: "{0:s}"...'.format(pickle_file_names[i])
+        list_of_storm_object_tables[i] = read_file(pickle_file_names[i])
 
-        list_of_storm_object_tables[i] = read_processed_file(
-            pickle_file_names[i])
         if i == 0:
             continue
 
-        list_of_storm_object_tables[i], _ = (
-            list_of_storm_object_tables[i].align(
-                list_of_storm_object_tables[0], axis=1))
+        list_of_storm_object_tables[i] = list_of_storm_object_tables[i].align(
+            list_of_storm_object_tables[0], axis=1
+        )[0]
 
-    return pandas.concat(
-        list_of_storm_object_tables, axis=0, ignore_index=True)
+    return pandas.concat(list_of_storm_object_tables, axis=0, ignore_index=True)
 
 
 def write_ids_and_times(storm_ids, storm_times_unix_sec, pickle_file_name):

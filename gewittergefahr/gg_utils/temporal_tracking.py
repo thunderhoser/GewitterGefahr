@@ -46,15 +46,10 @@ CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
 X_VELOCITY_COLUMN = 'x_velocity_m_s01'
 Y_VELOCITY_COLUMN = 'y_velocity_m_s01'
-PRIMARY_ID_COLUMN = 'primary_storm_id'
-SECONDARY_ID_COLUMN = 'secondary_storm_id'
-FIRST_PREV_SECONDARY_ID_COLUMN = 'first_prev_secondary_id'
-SECOND_PREV_SECONDARY_ID_COLUMN = 'second_prev_secondary_id'
-FIRST_NEXT_SECONDARY_ID_COLUMN = 'first_next_secondary_id'
-SECOND_NEXT_SECONDARY_ID_COLUMN = 'second_next_secondary_id'
 
 PREV_SECONDARY_ID_COLUMNS = [
-    FIRST_PREV_SECONDARY_ID_COLUMN, SECOND_PREV_SECONDARY_ID_COLUMN
+    tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN,
+    tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN
 ]
 
 
@@ -862,36 +857,32 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     "y_coords_metres": length-P numpy array with y-coordinates of local maxima.
     "current_to_previous_matrix": See doc for `link_local_maxima_in_time`.
 
-    :return: storm_object_table: pandas DataFrame with the following columns.
-        Each row is one storm object.
-    storm_object_table.storm_id: Storm ID (string).
-    storm_object_table.primary_storm_id: Primary storm ID (string).
-    storm_object_table.secondary_storm_id: Secondary storm ID (string).
-    storm_object_table.first_prev_secondary_id: Secondary ID of first
-        predecessor ("" if no predecessors).
-    storm_object_table.second_next_secondary_id: Secondary ID of second
-        predecessor ("" if only one predecessor).
-    storm_object_table.first_next_secondary_id: Secondary ID of first successor
-        ("" if no successors).
-    storm_object_table.second_prev_secondary_id: Secondary ID of second
-        successor ("" if only one successor).
-    storm_object_table.unix_time_sec: Valid time.
-    storm_object_table.spc_date_unix_sec: SPC date.
-    storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
-    storm_object_table.centroid_lng_deg: Longitude (deg E) of centroid.
+    :return: storm_object_table: pandas DataFrame with the following columns
+        (most of which are explained in `storm_tracking_io.write_file`).  Each
+        row is one storm object.
+    storm_object_table.full_id_string
+    storm_object_table.primary_id_string
+    storm_object_table.secondary_id_string
+    storm_object_table.first_prev_secondary_id_string
+    storm_object_table.second_prev_secondary_id_string
+    storm_object_table.first_next_secondary_id_string
+    storm_object_table.second_next_secondary_id_string
+    storm_object_table.valid_time_unix_sec
+    storm_object_table.spc_date_string
+    storm_object_table.centroid_latitude_deg
+    storm_object_table.centroid_longitude_deg
     storm_object_table.centroid_x_metres: x-coordinate of centroid.
     storm_object_table.centroid_y_metres: y-coordinate of centroid.
 
     If `local_max_dict_by_time` includes polygons, `storm_object_table` will
     have the additional columns listed below.
 
-    storm_object_table.grid_point_latitudes_deg: See doc for
-        `storm_tracking_io.write_processed_file`.
-    storm_object_table.grid_point_longitudes_deg: Same.
-    storm_object_table.grid_point_rows: Same.
-    storm_object_table.grid_point_columns: Same.
-    storm_object_table.polygon_object_latlng: Same.
-    storm_object_table.polygon_object_rowcol: Same.
+    storm_object_table.grid_point_latitudes_deg
+    storm_object_table.grid_point_longitudes_deg
+    storm_object_table.grid_point_rows
+    storm_object_table.grid_point_columns
+    storm_object_table.polygon_object_latlng_deg
+    storm_object_table.polygon_object_rowcol
     """
 
     all_primary_ids = []
@@ -902,7 +893,7 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     all_second_next_secondary_ids = []
 
     all_times_unix_sec = numpy.array([], dtype=int)
-    all_spc_dates_unix_sec = numpy.array([], dtype=int)
+    all_spc_date_strings = []
     all_centroid_latitudes_deg = numpy.array([])
     all_centroid_longitudes_deg = numpy.array([])
     all_centroid_x_metres = numpy.array([])
@@ -1028,17 +1019,15 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             this_num_storm_objects, local_max_dict_by_time[i][VALID_TIME_KEY],
             dtype=int)
 
-        these_spc_dates_unix_sec = numpy.full(
-            this_num_storm_objects,
-            time_conversion.time_to_spc_date_unix_sec(these_times_unix_sec[0]),
-            dtype=int)
+        these_spc_date_strings = this_num_storm_objects * [
+            time_conversion.time_to_spc_date_string(these_times_unix_sec[0])
+        ]
 
         all_times_unix_sec = numpy.concatenate((
             all_times_unix_sec, these_times_unix_sec
         ))
-        all_spc_dates_unix_sec = numpy.concatenate((
-            all_spc_dates_unix_sec, these_spc_dates_unix_sec
-        ))
+        all_spc_date_strings += these_spc_date_strings
+
         all_centroid_latitudes_deg = numpy.concatenate((
             all_centroid_latitudes_deg,
             local_max_dict_by_time[i][LATITUDES_KEY]
@@ -1074,40 +1063,44 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             ))
 
     storm_object_dict = {
-        PRIMARY_ID_COLUMN: all_primary_ids,
-        SECONDARY_ID_COLUMN: all_secondary_ids,
-        FIRST_PREV_SECONDARY_ID_COLUMN: all_first_prev_secondary_ids,
-        SECOND_PREV_SECONDARY_ID_COLUMN: all_second_prev_secondary_ids,
-        FIRST_NEXT_SECONDARY_ID_COLUMN: all_first_next_secondary_ids,
-        SECOND_NEXT_SECONDARY_ID_COLUMN: all_second_next_secondary_ids,
-        tracking_utils.TIME_COLUMN: all_times_unix_sec,
-        tracking_utils.SPC_DATE_COLUMN: all_spc_dates_unix_sec,
-        tracking_utils.CENTROID_LAT_COLUMN: all_centroid_latitudes_deg,
-        tracking_utils.CENTROID_LNG_COLUMN: all_centroid_longitudes_deg,
+        tracking_utils.PRIMARY_ID_COLUMN: all_primary_ids,
+        tracking_utils.SECONDARY_ID_COLUMN: all_secondary_ids,
+        tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
+            all_first_prev_secondary_ids,
+        tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
+            all_second_prev_secondary_ids,
+        tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN:
+            all_first_next_secondary_ids,
+        tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN:
+            all_second_next_secondary_ids,
+        tracking_utils.VALID_TIME_COLUMN: all_times_unix_sec,
+        tracking_utils.SPC_DATE_COLUMN: all_spc_date_strings,
+        tracking_utils.CENTROID_LATITUDE_COLUMN: all_centroid_latitudes_deg,
+        tracking_utils.CENTROID_LONGITUDE_COLUMN: all_centroid_longitudes_deg,
         CENTROID_X_COLUMN: all_centroid_x_metres,
         CENTROID_Y_COLUMN: all_centroid_y_metres
     }
 
     if include_polygons:
         storm_object_dict.update({
-            tracking_utils.GRID_POINT_ROW_COLUMN: all_polygon_rows_arraylist,
-            tracking_utils.GRID_POINT_COLUMN_COLUMN:
+            tracking_utils.ROWS_IN_STORM_COLUMN: all_polygon_rows_arraylist,
+            tracking_utils.COLUMNS_IN_STORM_COLUMN:
                 all_polygon_columns_arraylist,
-            tracking_utils.GRID_POINT_LAT_COLUMN:
+            tracking_utils.LATITUDES_IN_STORM_COLUMN:
                 all_polygon_latitudes_arraylist_deg,
-            tracking_utils.GRID_POINT_LNG_COLUMN:
+            tracking_utils.LONGITUDES_IN_STORM_COLUMN:
                 all_polygon_longitudes_arraylist_deg,
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN:
+            tracking_utils.LATLNG_POLYGON_COLUMN:
                 all_polygon_objects_latlng,
-            tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN:
+            tracking_utils.ROWCOL_POLYGON_COLUMN:
                 all_polygon_objects_rowcol
         })
 
     storm_object_table = pandas.DataFrame.from_dict(storm_object_dict)
 
     for this_key in old_to_new_primary_id_dict:
-        storm_object_table[[PRIMARY_ID_COLUMN]] = (
-            storm_object_table[[PRIMARY_ID_COLUMN]].replace(
+        storm_object_table[[tracking_utils.PRIMARY_ID_COLUMN]] = (
+            storm_object_table[[tracking_utils.PRIMARY_ID_COLUMN]].replace(
                 to_replace=this_key, value=old_to_new_primary_id_dict[this_key],
                 inplace=False)
         )
@@ -1115,12 +1108,12 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     full_id_strings = [
         create_full_storm_id(primary_id_string=p, secondary_id_string=s)
         for p, s in zip(
-            storm_object_table[PRIMARY_ID_COLUMN].values,
-            storm_object_table[SECONDARY_ID_COLUMN].values
+            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
+            storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values
         )
     ]
 
-    argument_dict = {tracking_utils.STORM_ID_COLUMN: full_id_strings}
+    argument_dict = {tracking_utils.FULL_ID_COLUMN: full_id_strings}
     return storm_object_table.assign(**argument_dict)
 
 
@@ -1137,7 +1130,8 @@ def remove_short_lived_storms(storm_object_table, min_duration_seconds):
     error_checking.assert_is_greater(min_duration_seconds, 0)
 
     id_string_by_track, object_to_track_indices = numpy.unique(
-        storm_object_table[PRIMARY_ID_COLUMN].values, return_inverse=True)
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
+        return_inverse=True)
 
     num_storm_tracks = len(id_string_by_track)
     object_indices_to_remove = numpy.array([], dtype=int)
@@ -1145,7 +1139,7 @@ def remove_short_lived_storms(storm_object_table, min_duration_seconds):
     for i in range(num_storm_tracks):
         these_object_indices = numpy.where(object_to_track_indices == i)[0]
         these_times_unix_sec = storm_object_table[
-            tracking_utils.TIME_COLUMN
+            tracking_utils.VALID_TIME_COLUMN
         ].values[these_object_indices]
 
         this_duration_seconds = (
@@ -1203,7 +1197,8 @@ def get_storm_ages(storm_object_table, tracking_start_time_unix_sec,
     cell_end_times_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
 
     id_string_by_track, object_to_track_indices = numpy.unique(
-        storm_object_table[PRIMARY_ID_COLUMN].values, return_inverse=True)
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
+        return_inverse=True)
 
     num_storm_tracks = len(id_string_by_track)
     age_invalid_before_unix_sec = (
@@ -1214,7 +1209,7 @@ def get_storm_ages(storm_object_table, tracking_start_time_unix_sec,
     for i in range(num_storm_tracks):
         these_object_indices = numpy.where(object_to_track_indices == i)[0]
         these_times_unix_sec = storm_object_table[
-            tracking_utils.TIME_COLUMN
+            tracking_utils.VALID_TIME_COLUMN
         ].values[these_object_indices]
 
         this_start_time_unix_sec = numpy.min(these_times_unix_sec)
@@ -1278,12 +1273,12 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
     # tables.  I don't know yet.
 
     unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
-        storm_object_table[tracking_utils.TIME_COLUMN].values,
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
         return_inverse=True
     )
 
     target_time_unix_sec = storm_object_table[
-        tracking_utils.TIME_COLUMN].values[target_row]
+        tracking_utils.VALID_TIME_COLUMN].values[target_row]
 
     earliest_time_index = numpy.where(
         unique_times_unix_sec >= target_time_unix_sec - num_seconds_back
@@ -1297,9 +1292,8 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
     )[0][0]
 
     early_rows = []
-    secondary_ids_in_frontier = [
-        storm_object_table[SECONDARY_ID_COLUMN].values[target_row]
-    ]
+    secondary_ids_in_frontier = storm_object_table[
+        tracking_utils.SECONDARY_ID_COLUMN].values[target_row]
 
     while this_time_index > earliest_time_index:
         this_time_rows = numpy.where(
@@ -1307,8 +1301,8 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
         )[0]
 
         rows_in_frontier = numpy.array([
-            k for k in this_time_rows
-            if storm_object_table[SECONDARY_ID_COLUMN].values[k] in
+            k for k in this_time_rows if
+            storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[k] in
             secondary_ids_in_frontier
         ], dtype=int)
 
@@ -1335,7 +1329,7 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
 
     new_early_rows = [
         k for k in new_early_rows
-        if storm_object_table[SECONDARY_ID_COLUMN][k] in
+        if storm_object_table[tracking_utils.SECONDARY_ID_COLUMN][k] in
         secondary_ids_in_frontier
     ]
 
@@ -1387,12 +1381,12 @@ def get_storm_velocities(
             continue
 
         this_end_latitude_deg = storm_object_table[
-            tracking_utils.CENTROID_LAT_COLUMN].values[i]
+            tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
         this_end_longitude_deg = storm_object_table[
-            tracking_utils.CENTROID_LNG_COLUMN].values[i]
+            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i]
         these_time_diffs_seconds = (
-            storm_object_table[tracking_utils.TIME_COLUMN].values[i] -
-            storm_object_table[tracking_utils.TIME_COLUMN].values[
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[i] -
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[
                 these_predecessor_rows]
         )
 
@@ -1403,11 +1397,11 @@ def get_storm_velocities(
 
         for j in range(this_num_predecessors):
             this_start_latitude_deg = storm_object_table[
-                tracking_utils.CENTROID_LAT_COLUMN
+                tracking_utils.CENTROID_LATITUDE_COLUMN
             ].values[these_predecessor_rows[j]]
 
             this_start_longitude_deg = storm_object_table[
-                tracking_utils.CENTROID_LNG_COLUMN
+                tracking_utils.CENTROID_LONGITUDE_COLUMN
             ].values[these_predecessor_rows[j]]
 
             if test_mode:

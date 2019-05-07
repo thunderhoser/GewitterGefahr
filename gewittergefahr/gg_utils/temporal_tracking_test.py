@@ -550,16 +550,6 @@ THIRD_LOCAL_MAX_DICT_WITH_IDS.update({
 })
 
 # The following constants are used to test local_maxima_to_storm_tracks.
-
-# PRIMARY_ID_STRINGS = [
-#     '000006_19691231', '000001_19691231', '000006_19691231', '000003_19691231',
-#     '000009_19691231', '000005_19691231',
-#     '000009_19691231', '000005_19691231', '000009_19691231', '000003_19691231',
-#     '000009_19691231', '000006_19691231', '000001_19691231', '000008_19691231',
-#     '000009_19691231', '000005_19691231', '000010_19691231', '000008_19691231',
-#     '000006_19691231', '000006_19691231', '000008_19691231'
-# ]
-
 PRIMARY_ID_STRINGS = PRIMARY_ID_STRINGS_1AND2 + THIRD_PRIMARY_ID_STRINGS
 THESE_OLD_ID_STRINGS = ['000004_19691231', '000007_19691231']
 PRIMARY_ID_STRINGS = [
@@ -1608,11 +1598,11 @@ class TemporalTrackingTests(unittest.TestCase):
         )
 
         these_primary_id_strings = this_storm_object_table[
-            temporal_tracking.PRIMARY_ID_COLUMN
+            tracking_utils.PRIMARY_ID_COLUMN
         ].values.tolist()
 
         these_secondary_id_strings = this_storm_object_table[
-            temporal_tracking.SECONDARY_ID_COLUMN
+            tracking_utils.SECONDARY_ID_COLUMN
         ].values.tolist()
 
         self.assertTrue(these_primary_id_strings == PRIMARY_ID_STRINGS_1AND2)
@@ -1639,11 +1629,11 @@ class TemporalTrackingTests(unittest.TestCase):
         )
 
         these_primary_id_strings = this_storm_object_table[
-            temporal_tracking.PRIMARY_ID_COLUMN
+            tracking_utils.PRIMARY_ID_COLUMN
         ].values.tolist()
 
         these_secondary_id_strings = this_storm_object_table[
-            temporal_tracking.SECONDARY_ID_COLUMN
+            tracking_utils.SECONDARY_ID_COLUMN
         ].values.tolist()
 
         self.assertTrue(these_primary_id_strings == PRIMARY_ID_STRINGS)
@@ -1671,11 +1661,11 @@ class TemporalTrackingTests(unittest.TestCase):
             storm_object_table=this_storm_object_table, min_duration_seconds=5)
 
         these_primary_id_strings = this_storm_object_table[
-            temporal_tracking.PRIMARY_ID_COLUMN
+            tracking_utils.PRIMARY_ID_COLUMN
         ].values.tolist()
 
         these_secondary_id_strings = this_storm_object_table[
-            temporal_tracking.SECONDARY_ID_COLUMN
+            tracking_utils.SECONDARY_ID_COLUMN
         ].values.tolist()
 
         self.assertTrue(these_primary_id_strings == PRIMARY_ID_STRINGS_GE5SEC)
@@ -1705,11 +1695,11 @@ class TemporalTrackingTests(unittest.TestCase):
             storm_object_table=this_storm_object_table, min_duration_seconds=10)
 
         these_primary_id_strings = this_storm_object_table[
-            temporal_tracking.PRIMARY_ID_COLUMN
+            tracking_utils.PRIMARY_ID_COLUMN
         ].values.tolist()
 
         these_secondary_id_strings = this_storm_object_table[
-            temporal_tracking.SECONDARY_ID_COLUMN
+            tracking_utils.SECONDARY_ID_COLUMN
         ].values.tolist()
 
         self.assertTrue(these_primary_id_strings == PRIMARY_ID_STRINGS_GE10SEC)

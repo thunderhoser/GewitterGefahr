@@ -31,6 +31,7 @@ from scipy.ndimage.filters import gaussian_filter
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import temporal_tracking
+from gewittergefahr.gg_utils import track_reanalysis
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import dilation
@@ -43,18 +44,11 @@ from gewittergefahr.gg_utils import echo_classification as echo_classifn
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
-DUMMY_TIME_UNIX_SEC = -10000
-
-MAX_STORMS_IN_SPLIT = 2
-MAX_STORMS_IN_MERGER = 2
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
-RADIANS_TO_DEGREES = 180. / numpy.pi
 DEGREES_LAT_TO_METRES = 60 * 1852
-
 CENTRAL_PROJ_LATITUDE_DEG = 35.
 CENTRAL_PROJ_LONGITUDE_DEG = 265.
 
@@ -82,13 +76,10 @@ DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
 
 DEFAULT_MAX_JOIN_TIME_SEC = 610
 DEFAULT_MAX_JOIN_ERROR_M_S01 = 20.
-DEFAULT_NUM_POINTS_FOR_VELOCITY = 3
+DEFAULT_NUM_SECONDS_FOR_VELOCITY = 915
 DEFAULT_MIN_REANALYZED_DURATION_SEC = 890
 
 DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))  # 10-km radius
-
-TRACKING_FILE_NAMES_KEY = 'output_tracking_file_names'
-VALID_TIMES_KEY = 'unix_times_sec'
 
 LATITUDES_KEY = 'latitudes_deg'
 LONGITUDES_KEY = 'longitudes_deg'
@@ -98,37 +89,15 @@ Y_COORDS_KEY = 'y_coords_metres'
 VALID_TIME_KEY = 'unix_time_sec'
 CURRENT_TO_PREV_MATRIX_KEY = 'current_to_previous_matrix'
 
-STORM_IDS_KEY = 'storm_ids'
-PRIMARY_IDS_KEY = 'primary_id_strings'
-SECONDARY_IDS_KEY = 'secondary_id_strings'
-
-CURRENT_LOCAL_MAXIMA_KEY = 'current_local_max_dict'
-PREVIOUS_PRIMARY_ID_KEY = 'prev_primary_id_numeric'
-PREVIOUS_SPC_DATE_KEY = 'prev_spc_date_string'
-PREVIOUS_SECONDARY_ID_KEY = 'prev_secondary_id_numeric'
-OLD_TO_NEW_PRIMARY_IDS_KEY = 'old_to_new_primary_id_dict'
-
-PRIMARY_STORM_ID_COLUMN = 'primary_storm_id'
-SECONDARY_STORM_ID_COLUMN = 'secondary_storm_id'
-
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
-X_VELOCITIES_KEY = 'x_velocities_m_s01'
-Y_VELOCITIES_KEY = 'y_velocities_m_s01'
 
 GRID_POINT_ROWS_KEY = 'grid_point_rows_array_list'
 GRID_POINT_COLUMNS_KEY = 'grid_point_columns_array_list'
 GRID_POINT_LATITUDES_KEY = 'grid_point_lats_array_list_deg'
 GRID_POINT_LONGITUDES_KEY = 'grid_point_lngs_array_list_deg'
 POLYGON_OBJECTS_ROWCOL_KEY = 'polygon_objects_rowcol'
-POLYGON_OBJECTS_LATLNG_KEY = 'polygon_objects_latlng'
-
-START_TIME_COLUMN = 'start_time_unix_sec'
-END_TIME_COLUMN = 'end_time_unix_sec'
-START_LATITUDE_COLUMN = 'start_latitude_deg'
-END_LATITUDE_COLUMN = 'end_latitude_deg'
-START_LONGITUDE_COLUMN = 'start_longitude_deg'
-END_LONGITUDE_COLUMN = 'end_longitude_deg'
+POLYGON_OBJECTS_LATLNG_KEY = 'polygon_objects_latlng_deg'
 
 
 def _check_radar_field(radar_field_name):
@@ -488,10 +457,10 @@ def _find_input_tracking_files(
     valid_times_by_date_unix_sec = [numpy.array([], dtype=int)] * num_spc_dates
 
     for i in range(num_spc_dates):
-        these_file_names = tracking_io.find_processed_files_one_spc_date(
+        these_file_names = tracking_io.find_files_one_spc_date(
             spc_date_string=spc_date_strings[i],
-            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-            top_processed_dir_name=top_tracking_dir_name,
+            source_name=tracking_utils.SEGMOTION_NAME,
+            top_tracking_dir_name=top_tracking_dir_name,
             tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2
         )[0]
 
@@ -508,8 +477,7 @@ def _find_input_tracking_files(
                 spc_date_strings[i])
 
         these_times_unix_sec = numpy.array([
-            tracking_io.processed_file_name_to_time(f)
-            for f in these_file_names
+            tracking_io.file_name_to_time(f) for f in these_file_names
         ], dtype=int)
 
         sort_indices = numpy.argsort(these_times_unix_sec)
@@ -733,21 +701,22 @@ def _write_new_tracks(storm_object_table, top_output_dir_name,
     """
 
     for this_time_unix_sec in valid_times_unix_sec:
-        this_file_name = tracking_io.find_processed_file(
-            top_processed_dir_name=top_output_dir_name,
-            unix_time_sec=this_time_unix_sec,
+        this_file_name = tracking_io.find_file(
+            top_tracking_dir_name=top_output_dir_name,
+            valid_time_unix_sec=this_time_unix_sec,
             spc_date_string=time_conversion.time_to_spc_date_string(
                 this_time_unix_sec),
             tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
-            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+            source_name=tracking_utils.SEGMOTION_NAME,
             raise_error_if_missing=False)
 
         print 'Writing new data to: "{0:s}"...'.format(this_file_name)
-        tracking_io.write_processed_file(
+
+        tracking_io.write_file(
             storm_object_table=storm_object_table.loc[
-                storm_object_table[tracking_utils.TIME_COLUMN] ==
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN] ==
                 this_time_unix_sec
-            ],
+                ],
             pickle_file_name=this_file_name
         )
 
@@ -815,7 +784,7 @@ def _shuffle_tracking_data(
         if not storm_object_table_by_date[j].empty:
             continue
 
-        storm_object_table_by_date[j] = tracking_io.read_many_processed_files(
+        storm_object_table_by_date[j] = tracking_io.read_many_files(
             tracking_file_names_by_date[j]
         )
         print '\n'
@@ -839,11 +808,11 @@ def run_tracking(
         max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         min_track_duration_seconds=0,
-        num_points_back_for_velocity=DEFAULT_NUM_POINTS_FOR_VELOCITY):
+        num_seconds_back_for_velocity=DEFAULT_NUM_SECONDS_FOR_VELOCITY):
     """Runs echo-top-tracking.  This is effectively the main method.
 
     :param top_radar_dir_name: See doc for `_find_input_radar_files`.
-    :param top_output_dir_name: See doc for `_write_storm_objects`.
+    :param top_output_dir_name: See doc for `_write_new_tracks`.
     :param first_spc_date_string: See doc for `_check_time_period`.
     :param last_spc_date_string: Same.
     :param first_time_unix_sec: Same.
@@ -862,11 +831,14 @@ def run_tracking(
     :param min_intermax_distance_metres: See doc for
         `_remove_redundant_local_maxima`.
     :param min_polygon_size_pixels: See doc for `_remove_small_polygons`.
-    :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
+    :param max_link_time_seconds: See doc for
+        `temporal_tracking.link_local_maxima_in_time`.
     :param max_velocity_diff_m_s01: Same.
     :param max_link_distance_m_s01: Same.
-    :param min_track_duration_seconds: See doc for `remove_short_lived_tracks`.
-    :param num_points_back_for_velocity: See doc for `_get_final_velocities`.
+    :param min_track_duration_seconds: See doc for
+        `temporal_tracking.remove_short_lived_storms`.
+    :param num_seconds_back_for_velocity: See doc for
+        `temporal_tracking.get_storm_velocities`.
     """
 
     if min_polygon_size_pixels is None:
@@ -1052,7 +1024,7 @@ def run_tracking(
     print 'Removing tracks that last < {0:d} seconds...'.format(
         int(min_track_duration_seconds)
     )
-    storm_object_table = temporal_tracking.remove_short_lived_tracks(
+    storm_object_table = temporal_tracking.remove_short_lived_storms(
         storm_object_table=storm_object_table,
         min_duration_seconds=min_track_duration_seconds)
 
@@ -1064,9 +1036,9 @@ def run_tracking(
         max_link_time_seconds=max_link_time_seconds, max_join_time_seconds=0)
 
     print 'Computing storm velocities...'
-    storm_object_table = _get_final_velocities(
+    storm_object_table = temporal_tracking.get_storm_velocities(
         storm_object_table=storm_object_table,
-        num_points_back=num_points_back_for_velocity)
+        num_seconds_back=num_seconds_back_for_velocity)
 
     print SEPARATOR_STRING
     _write_new_tracks(
@@ -1080,12 +1052,10 @@ def reanalyze_across_spc_dates(
         last_spc_date_string, first_time_unix_sec=None, last_time_unix_sec=None,
         tracking_start_time_unix_sec=None, tracking_end_time_unix_sec=None,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
-        max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
-        max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
-        max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
+        max_join_time_seconds=DEFAULT_MAX_JOIN_TIME_SEC,
         max_join_error_m_s01=DEFAULT_MAX_JOIN_ERROR_M_S01,
         min_track_duration_seconds=DEFAULT_MIN_REANALYZED_DURATION_SEC,
-        num_points_back_for_velocity=DEFAULT_NUM_POINTS_FOR_VELOCITY):
+        num_seconds_back_for_velocity=DEFAULT_NUM_SECONDS_FOR_VELOCITY):
     """Reanalyzes tracks across SPC dates.
 
     :param top_input_dir_name: Name of top-level directory with original tracks
@@ -1093,7 +1063,7 @@ def reanalyze_across_spc_dates(
         `_find_input_tracking_files`.
     :param top_output_dir_name: Name of top-level directory for new tracks
         (after reanalysis).  For more details, see doc for
-        `_write_storm_objects`.
+        `_write_new_tracks`.
     :param first_spc_date_string: See doc for `_find_input_tracking_files`.
     :param last_spc_date_string: Same.
     :param first_time_unix_sec: Same.
@@ -1103,13 +1073,15 @@ def reanalyze_across_spc_dates(
         `first_time_unix_sec`.
     :param tracking_end_time_unix_sec: Last time in tracking period.  If
         `tracking_end_time_unix_sec is None`, defaults to `last_time_unix_sec`.
-    :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
-    :param max_velocity_diff_m_s01: Same.
-    :param max_link_distance_m_s01: Same.
-    :param max_join_time_sec: See doc for `_reanalyze_tracks`.
+    :param max_link_time_seconds: See doc for
+        `temporal_tracking.link_local_maxima_in_time`.
+    :param max_join_time_seconds: See doc for
+        `track_reanalysis.join_collinear_tracks`.
     :param max_join_error_m_s01: Same.
-    :param min_track_duration_seconds: See doc for `remove_short_lived_tracks`.
-    :param num_points_back_for_velocity: See doc for `_get_final_velocities`.
+    :param min_track_duration_seconds: See doc for
+        `temporal_tracking.remove_short_lived_storms`.
+    :param num_seconds_back_for_velocity: See doc for
+        `temporal_tracking.get_storm_velocities`.
     """
 
     (spc_date_strings, tracking_file_names_by_date, valid_times_by_date_unix_sec
@@ -1120,19 +1092,17 @@ def reanalyze_across_spc_dates(
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec)
 
-    spc_dates_unix_sec = numpy.array([
-        time_conversion.spc_date_string_to_unix_sec(d) for d in spc_date_strings
-    ], dtype=int)
-
     if (tracking_start_time_unix_sec is None
             or tracking_end_time_unix_sec is None):
 
         these_times_unix_sec = numpy.array(
-            [numpy.min(t) for t in valid_times_by_date_unix_sec], dtype=int)
+            [numpy.min(t) for t in valid_times_by_date_unix_sec], dtype=int
+        )
         tracking_start_time_unix_sec = numpy.min(these_times_unix_sec)
 
         these_times_unix_sec = numpy.array(
-            [numpy.max(t) for t in valid_times_by_date_unix_sec], dtype=int)
+            [numpy.max(t) for t in valid_times_by_date_unix_sec], dtype=int
+        )
         tracking_end_time_unix_sec = numpy.max(these_times_unix_sec)
 
     else:
@@ -1150,21 +1120,30 @@ def reanalyze_across_spc_dates(
     num_spc_dates = len(spc_date_strings)
 
     if num_spc_dates == 1:
-        storm_object_table = tracking_io.read_many_processed_files(
+        storm_object_table = tracking_io.read_many_files(
             tracking_file_names_by_date[0])
         print SEPARATOR_STRING
 
-        print 'Reanalyzing tracks for {0:s}...'.format(spc_date_strings[0])
-        storm_object_table = _reanalyze_tracks(
+        first_late_time_unix_sec = numpy.min(
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+        )
+        last_late_time_unix_sec = numpy.max(
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+        )
+
+        storm_object_table = track_reanalysis.join_collinear_tracks(
             storm_object_table=storm_object_table,
-            max_join_time_sec=max_join_time_sec,
+            first_late_time_unix_sec=first_late_time_unix_sec,
+            last_late_time_unix_sec=last_late_time_unix_sec,
+            max_join_time_seconds=max_join_time_seconds,
             max_join_error_m_s01=max_join_error_m_s01)
         print SEPARATOR_STRING
 
         print 'Removing tracks that last < {0:d} seconds...'.format(
             int(min_track_duration_seconds)
         )
-        storm_object_table = temporal_tracking.remove_short_lived_tracks(
+
+        storm_object_table = temporal_tracking.remove_short_lived_storms(
             storm_object_table=storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 
@@ -1174,30 +1153,27 @@ def reanalyze_across_spc_dates(
             tracking_start_time_unix_sec=tracking_start_time_unix_sec,
             tracking_end_time_unix_sec=tracking_end_time_unix_sec,
             max_link_time_seconds=max_link_time_seconds,
-            max_join_time_seconds=max_join_time_sec)
-
-        print 'Recomputing storm velocities...'
+            max_join_time_seconds=max_join_time_seconds)
 
         these_x_coords_metres, these_y_coords_metres = (
             projections.project_latlng_to_xy(
                 latitudes_deg=storm_object_table[
-                    tracking_utils.CENTROID_LAT_COLUMN].values,
+                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
                 longitudes_deg=storm_object_table[
-                    tracking_utils.CENTROID_LNG_COLUMN].values,
+                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
                 projection_object=projection_object,
                 false_easting_metres=0., false_northing_metres=0.)
         )
 
-        argument_dict = {
+        storm_object_table = storm_object_table.assign(**{
             CENTROID_X_COLUMN: these_x_coords_metres,
             CENTROID_Y_COLUMN: these_y_coords_metres
-        }
+        })
 
-        storm_object_table = storm_object_table.assign(**argument_dict)
-
-        storm_object_table = _get_final_velocities(
+        print 'Computing storm velocities...'
+        storm_object_table = temporal_tracking.get_storm_velocities(
             storm_object_table=storm_object_table,
-            num_points_back=num_points_back_for_velocity)
+            num_seconds_back=num_seconds_back_for_velocity)
 
         _write_new_tracks(
             storm_object_table=storm_object_table,
@@ -1219,39 +1195,35 @@ def reanalyze_across_spc_dates(
             break
 
         if i != num_spc_dates - 1:
-            print 'Joining tracks between {0:s} and {1:s}...'.format(
-                spc_date_strings[i], spc_date_strings[i + 1])
-
-            storm_object_table_by_date[i + 1] = _join_tracks(
-                early_storm_object_table=storm_object_table_by_date[i],
-                late_storm_object_table=storm_object_table_by_date[i + 1],
-                projection_object=projection_object,
-                max_link_time_seconds=max_link_time_seconds,
-                max_velocity_diff_m_s01=max_velocity_diff_m_s01,
-                max_link_distance_m_s01=max_link_distance_m_s01)
-
-            print 'Reanalyzing tracks for {0:s} and {1:s}...'.format(
-                spc_date_strings[i], spc_date_strings[i + 1]
-            )
-
             indices_to_concat = numpy.array([i, i + 1], dtype=int)
             concat_storm_object_table = pandas.concat(
                 [storm_object_table_by_date[k] for k in indices_to_concat],
                 axis=0, ignore_index=True)
 
-            concat_storm_object_table = _reanalyze_tracks(
+            this_first_time_unix_sec = numpy.min(
+                storm_object_table_by_date[i + 1][
+                    tracking_utils.VALID_TIME_COLUMN].values
+            )
+            this_last_time_unix_sec = numpy.max(
+                storm_object_table_by_date[i + 1][
+                    tracking_utils.VALID_TIME_COLUMN].values
+            )
+
+            concat_storm_object_table = track_reanalysis.join_collinear_tracks(
                 storm_object_table=concat_storm_object_table,
-                max_join_time_sec=max_join_time_sec,
+                first_late_time_unix_sec=this_first_time_unix_sec,
+                last_late_time_unix_sec=this_last_time_unix_sec,
+                max_join_time_seconds=max_join_time_seconds,
                 max_join_error_m_s01=max_join_error_m_s01)
-            print MINOR_SEPARATOR_STRING
+            print SEPARATOR_STRING
 
             storm_object_table_by_date[i] = concat_storm_object_table.loc[
                 concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-                spc_dates_unix_sec[i]
+                spc_date_strings[i]
             ]
             storm_object_table_by_date[i + 1] = concat_storm_object_table.loc[
                 concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-                spc_dates_unix_sec[i + 1]
+                spc_date_strings[i + 1]
             ]
 
         if i == 0:
@@ -1268,7 +1240,7 @@ def reanalyze_across_spc_dates(
         print 'Removing tracks that last < {0:d} seconds...'.format(
             int(min_track_duration_seconds)
         )
-        concat_storm_object_table = temporal_tracking.remove_short_lived_tracks(
+        concat_storm_object_table = temporal_tracking.remove_short_lived_storms(
             storm_object_table=concat_storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 
@@ -1278,37 +1250,30 @@ def reanalyze_across_spc_dates(
             tracking_start_time_unix_sec=tracking_start_time_unix_sec,
             tracking_end_time_unix_sec=tracking_end_time_unix_sec,
             max_link_time_seconds=max_link_time_seconds,
-            max_join_time_seconds=max_join_time_sec)
-
-        print 'Recomputing storm velocities...'
-
-        # TODO(thunderhoser): There is probably a more efficient way to add x-y
-        # coords.
+            max_join_time_seconds=max_join_time_seconds)
 
         these_x_coords_metres, these_y_coords_metres = (
             projections.project_latlng_to_xy(
                 latitudes_deg=concat_storm_object_table[
-                    tracking_utils.CENTROID_LAT_COLUMN].values,
+                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
                 longitudes_deg=concat_storm_object_table[
-                    tracking_utils.CENTROID_LNG_COLUMN].values,
+                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
                 projection_object=projection_object,
                 false_easting_metres=0., false_northing_metres=0.)
         )
 
-        argument_dict = {
+        concat_storm_object_table = concat_storm_object_table.assign({
             CENTROID_X_COLUMN: these_x_coords_metres,
             CENTROID_Y_COLUMN: these_y_coords_metres
-        }
+        })
 
-        concat_storm_object_table = concat_storm_object_table.assign(
-            **argument_dict)
-
-        concat_storm_object_table = _get_final_velocities(
+        print 'Computing storm velocities...'
+        concat_storm_object_table = temporal_tracking.get_storm_velocities(
             storm_object_table=concat_storm_object_table,
-            num_points_back=num_points_back_for_velocity)
+            num_seconds_back=num_seconds_back_for_velocity)
 
         storm_object_table_by_date[i] = concat_storm_object_table.loc[
             concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-            spc_dates_unix_sec[i]
+            spc_date_strings[i]
         ]
         print SEPARATOR_STRING

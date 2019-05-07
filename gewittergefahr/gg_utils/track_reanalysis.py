@@ -42,7 +42,7 @@ def _create_local_max_dict(storm_object_table, row_indices, include_velocity):
 
     local_max_dict = {
         temporal_tracking.VALID_TIME_KEY:
-            storm_object_table[tracking_utils.TIME_COLUMN].values[
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[
                 row_indices[0]
             ],
         temporal_tracking.X_COORDS_KEY:
@@ -110,19 +110,19 @@ def _handle_collinear_splits(
 
     for j in range(len(early_indices_in_split)):
         this_new_id_string = storm_object_table[
-            temporal_tracking.PRIMARY_ID_COLUMN
+            tracking_utils.PRIMARY_ID_COLUMN
         ].values[early_rows_in_split[j]]
 
         this_early_secondary_id_string = storm_object_table[
-            temporal_tracking.SECONDARY_ID_COLUMN
+            tracking_utils.SECONDARY_ID_COLUMN
         ].values[early_rows_in_split[j]]
 
         storm_object_table[
-            temporal_tracking.FIRST_NEXT_SECONDARY_ID_COLUMN
+            tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN
         ].values[early_rows_in_split[j]] = ''
 
         storm_object_table[
-            temporal_tracking.SECOND_NEXT_SECONDARY_ID_COLUMN
+            tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN
         ].values[early_rows_in_split[j]] = ''
 
         these_late_indices = numpy.where(
@@ -134,12 +134,12 @@ def _handle_collinear_splits(
 
         for i in range(len(these_late_indices)):
             this_old_id_string = storm_object_table[
-                temporal_tracking.PRIMARY_ID_COLUMN
+                tracking_utils.PRIMARY_ID_COLUMN
             ].values[these_late_rows[i]]
 
-            storm_object_table[[temporal_tracking.PRIMARY_ID_COLUMN]] = (
+            storm_object_table[[tracking_utils.PRIMARY_ID_COLUMN]] = (
                 storm_object_table[
-                    [temporal_tracking.PRIMARY_ID_COLUMN]
+                    [tracking_utils.PRIMARY_ID_COLUMN]
                 ].replace(
                     to_replace=this_old_id_string, value=this_new_id_string,
                     inplace=False)
@@ -149,7 +149,7 @@ def _handle_collinear_splits(
             primary_id_to_last_row_dict[this_old_id_string] = -1
 
             these_new_id_rows = numpy.where(
-                storm_object_table[temporal_tracking.PRIMARY_ID_COLUMN].values
+                storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values
                 == this_new_id_string
             )[0]
 
@@ -162,26 +162,26 @@ def _handle_collinear_splits(
             ] = these_new_id_rows[-1]
 
             storm_object_table[
-                temporal_tracking.FIRST_PREV_SECONDARY_ID_COLUMN
+                tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN
             ].values[these_late_rows[i]] = this_early_secondary_id_string
 
             storm_object_table[
-                temporal_tracking.SECOND_PREV_SECONDARY_ID_COLUMN
+                tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN
             ].values[these_late_rows[i]] = ''
 
             this_secondary_id_string = storm_object_table[
-                temporal_tracking.SECONDARY_ID_COLUMN
+                tracking_utils.SECONDARY_ID_COLUMN
             ].values[these_late_rows[i]]
 
             if storm_object_table[
-                    temporal_tracking.FIRST_NEXT_SECONDARY_ID_COLUMN
+                tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN
             ].values[early_rows_in_split[j]] == '':
                 storm_object_table[
-                    temporal_tracking.FIRST_NEXT_SECONDARY_ID_COLUMN
+                    tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN
                 ].values[early_rows_in_split[j]] = this_secondary_id_string
             else:
                 storm_object_table[
-                    temporal_tracking.SECOND_NEXT_SECONDARY_ID_COLUMN
+                    tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN
                 ].values[early_rows_in_split[j]] = this_secondary_id_string
 
     return {
@@ -210,19 +210,19 @@ def _handle_collinear_mergers(
 
     for i in range(len(late_indices_in_merger)):
         this_new_id_string = storm_object_table[
-            temporal_tracking.PRIMARY_ID_COLUMN
+            tracking_utils.PRIMARY_ID_COLUMN
         ].values[late_rows_in_merger[i]]
 
         this_late_secondary_id_string = storm_object_table[
-            temporal_tracking.SECONDARY_ID_COLUMN
+            tracking_utils.SECONDARY_ID_COLUMN
         ].values[late_rows_in_merger[i]]
 
         storm_object_table[
-            temporal_tracking.FIRST_PREV_SECONDARY_ID_COLUMN
+            tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN
         ].values[late_rows_in_merger[i]] = ''
 
         storm_object_table[
-            temporal_tracking.SECOND_PREV_SECONDARY_ID_COLUMN
+            tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN
         ].values[late_rows_in_merger[i]] = ''
 
         these_early_indices = numpy.where(
@@ -234,12 +234,12 @@ def _handle_collinear_mergers(
 
         for j in range(len(these_early_indices)):
             this_old_id_string = storm_object_table[
-                temporal_tracking.PRIMARY_ID_COLUMN
+                tracking_utils.PRIMARY_ID_COLUMN
             ].values[these_early_rows[j]]
 
-            storm_object_table[[temporal_tracking.PRIMARY_ID_COLUMN]] = (
+            storm_object_table[[tracking_utils.PRIMARY_ID_COLUMN]] = (
                 storm_object_table[
-                    [temporal_tracking.PRIMARY_ID_COLUMN]
+                    [tracking_utils.PRIMARY_ID_COLUMN]
                 ].replace(
                     to_replace=this_old_id_string, value=this_new_id_string,
                     inplace=False)
@@ -249,7 +249,7 @@ def _handle_collinear_mergers(
             primary_id_to_last_row_dict[this_old_id_string] = -1
 
             these_new_id_rows = numpy.where(
-                storm_object_table[temporal_tracking.PRIMARY_ID_COLUMN].values
+                storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values
                 == this_new_id_string
             )[0]
 
@@ -262,26 +262,26 @@ def _handle_collinear_mergers(
             ] = these_new_id_rows[-1]
 
             storm_object_table[
-                temporal_tracking.FIRST_NEXT_SECONDARY_ID_COLUMN
+                tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN
             ].values[these_early_rows[j]] = this_late_secondary_id_string
 
             storm_object_table[
-                temporal_tracking.SECOND_NEXT_SECONDARY_ID_COLUMN
+                tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN
             ].values[these_early_rows[j]] = ''
 
             this_secondary_id_string = storm_object_table[
-                temporal_tracking.SECONDARY_ID_COLUMN
+                tracking_utils.SECONDARY_ID_COLUMN
             ].values[these_early_rows[j]]
 
             if storm_object_table[
-                    temporal_tracking.FIRST_PREV_SECONDARY_ID_COLUMN
+                    tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN
             ].values[late_rows_in_merger[i]] == '':
                 storm_object_table[
-                    temporal_tracking.FIRST_PREV_SECONDARY_ID_COLUMN
+                    tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN
                 ].values[late_rows_in_merger[i]] = this_secondary_id_string
             else:
                 storm_object_table[
-                    temporal_tracking.SECOND_PREV_SECONDARY_ID_COLUMN
+                    tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN
                 ].values[late_rows_in_merger[i]] = this_secondary_id_string
 
     return {
@@ -311,10 +311,10 @@ def _handle_collinear_1to1_joins(
     """
 
     prev_and_next_columns = [
-        temporal_tracking.FIRST_PREV_SECONDARY_ID_COLUMN,
-        temporal_tracking.SECOND_PREV_SECONDARY_ID_COLUMN,
-        temporal_tracking.FIRST_NEXT_SECONDARY_ID_COLUMN,
-        temporal_tracking.SECOND_NEXT_SECONDARY_ID_COLUMN
+        tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN,
+        tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN,
+        tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN,
+        tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN
     ]
 
     late_indices_in_join, early_indices_in_join = numpy.where(
@@ -327,16 +327,16 @@ def _handle_collinear_1to1_joins(
 
         # Deal with primary IDs.
         this_old_id_string = storm_object_table[
-            temporal_tracking.PRIMARY_ID_COLUMN
+            tracking_utils.PRIMARY_ID_COLUMN
         ].values[early_rows_in_join[i]]
 
         this_new_id_string = storm_object_table[
-            temporal_tracking.PRIMARY_ID_COLUMN
+            tracking_utils.PRIMARY_ID_COLUMN
         ].values[late_rows_in_join[i]]
 
-        storm_object_table[[temporal_tracking.PRIMARY_ID_COLUMN]] = (
+        storm_object_table[[tracking_utils.PRIMARY_ID_COLUMN]] = (
             storm_object_table[
-                [temporal_tracking.PRIMARY_ID_COLUMN]
+                [tracking_utils.PRIMARY_ID_COLUMN]
             ].replace(
                 to_replace=this_old_id_string, value=this_new_id_string,
                 inplace=False)
@@ -346,7 +346,7 @@ def _handle_collinear_1to1_joins(
         primary_id_to_last_row_dict[this_old_id_string] = -1
 
         these_new_id_rows = numpy.where(
-            storm_object_table[temporal_tracking.PRIMARY_ID_COLUMN].values
+            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values
             == this_new_id_string
         )[0]
 
@@ -360,35 +360,35 @@ def _handle_collinear_1to1_joins(
 
         # Deal with secondary IDs.
         this_old_id_string = storm_object_table[
-            temporal_tracking.SECONDARY_ID_COLUMN
+            tracking_utils.SECONDARY_ID_COLUMN
         ].values[early_rows_in_join[i]]
 
         this_new_id_string = storm_object_table[
-            temporal_tracking.SECONDARY_ID_COLUMN
+            tracking_utils.SECONDARY_ID_COLUMN
         ].values[late_rows_in_join[i]]
 
-        storm_object_table[[temporal_tracking.SECONDARY_ID_COLUMN]] = (
+        storm_object_table[[tracking_utils.SECONDARY_ID_COLUMN]] = (
             storm_object_table[
-                [temporal_tracking.SECONDARY_ID_COLUMN]
+                [tracking_utils.SECONDARY_ID_COLUMN]
             ].replace(
                 to_replace=this_old_id_string, value=this_new_id_string,
                 inplace=False)
         )
 
         storm_object_table[
-            temporal_tracking.FIRST_NEXT_SECONDARY_ID_COLUMN
+            tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN
         ].values[early_rows_in_join[i]] = this_new_id_string
 
         storm_object_table[
-            temporal_tracking.SECOND_NEXT_SECONDARY_ID_COLUMN
+            tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN
         ].values[early_rows_in_join[i]] = ''
 
         storm_object_table[
-            temporal_tracking.FIRST_PREV_SECONDARY_ID_COLUMN
+            tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN
         ].values[late_rows_in_join[i]] = this_new_id_string
 
         storm_object_table[
-            temporal_tracking.SECOND_PREV_SECONDARY_ID_COLUMN
+            tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN
         ].values[late_rows_in_join[i]] = ''
 
         storm_object_table[prev_and_next_columns] = (
@@ -463,15 +463,15 @@ def _get_intermediate_velocities_old(storm_object_table, early_rows, late_rows):
     """
 
     early_primary_id_strings = storm_object_table[
-        temporal_tracking.PRIMARY_ID_COLUMN].values[early_rows].tolist()
+        tracking_utils.PRIMARY_ID_COLUMN].values[early_rows].tolist()
 
     late_primary_id_strings = storm_object_table[
-        temporal_tracking.PRIMARY_ID_COLUMN].values[late_rows].tolist()
+        tracking_utils.PRIMARY_ID_COLUMN].values[late_rows].tolist()
 
     primary_id_strings = early_primary_id_strings + late_primary_id_strings
 
     update_flags = storm_object_table[
-        temporal_tracking.PRIMARY_ID_COLUMN].isin(primary_id_strings).values
+        tracking_utils.PRIMARY_ID_COLUMN].isin(primary_id_strings).values
 
     update_rows = numpy.where(update_flags)[0]
 
@@ -498,12 +498,12 @@ def _update_full_ids(storm_object_table):
             primary_id_string=p, secondary_id_string=s
         )
         for p, s in zip(
-            storm_object_table[temporal_tracking.PRIMARY_ID_COLUMN].values,
-            storm_object_table[temporal_tracking.SECONDARY_ID_COLUMN].values
+            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
+            storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values
         )
     ]
 
-    argument_dict = {tracking_utils.STORM_ID_COLUMN: full_id_strings}
+    argument_dict = {tracking_utils.FULL_ID_COLUMN: full_id_strings}
     return storm_object_table.assign(**argument_dict)
 
 
@@ -534,7 +534,7 @@ def join_collinear_tracks(
     # times in a split.
 
     unique_times_unix_sec, orig_to_unique_time_indices = numpy.unique(
-        storm_object_table[tracking_utils.TIME_COLUMN].values,
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
         return_inverse=True
     )
 
@@ -544,7 +544,7 @@ def join_collinear_tracks(
     ]
 
     unique_primary_id_strings, these_first_rows = numpy.unique(
-        storm_object_table[temporal_tracking.PRIMARY_ID_COLUMN].values,
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
         return_index=True)
 
     primary_id_to_first_row_dict = dict(zip(
@@ -552,7 +552,7 @@ def join_collinear_tracks(
     ))
 
     _, these_last_rows = numpy.unique(
-        storm_object_table[temporal_tracking.PRIMARY_ID_COLUMN].values[::-1],
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values[::-1],
         return_index=True)
 
     these_last_rows = len(storm_object_table.index) - 1 - these_last_rows
