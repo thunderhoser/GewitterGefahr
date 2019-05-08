@@ -12,6 +12,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_io import myrorss_and_mrms_io
+from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import storm_plotting
@@ -21,7 +22,7 @@ from gewittergefahr.plotting import imagemagick_utils
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))
-DUMMY_TRACK_SOURCE_STRING = tracking_utils.SEGMOTION_SOURCE_ID
+DUMMY_SOURCE_NAME = tracking_utils.SEGMOTION_NAME
 SENTINEL_VALUE = -9999
 
 TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
@@ -184,12 +185,17 @@ def _plot_storm_outlines_one_time(
     min_plot_longitude_deg = basemap_object.llcrnrlon
     max_plot_longitude_deg = basemap_object.urcrnrlon
 
-    parallel_spacing_deg = numpy.round(
+    parallel_spacing_deg = (
         (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
     )
-    meridian_spacing_deg = numpy.round(
+    meridian_spacing_deg = (
         (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
     )
+
+    parallel_spacing_deg = number_rounding.round_to_nearest(
+        parallel_spacing_deg, 0.1)
+    meridian_spacing_deg = number_rounding.round_to_nearest(
+        meridian_spacing_deg, 0.1)
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -268,7 +274,7 @@ def _plot_storm_outlines_one_time(
         alt_storm_id_colour=ALT_STORM_ID_COLOUR)
 
     valid_time_string = time_conversion.unix_sec_to_string(
-        storm_object_table[tracking_utils.TIME_COLUMN].values[0],
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[0],
         TIME_FORMAT_IN_FILE_NAMES
     )
 
@@ -333,41 +339,40 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
     for this_spc_date_string in spc_date_strings:
         tracking_file_names += (
-            tracking_io.find_processed_files_one_spc_date(
-                top_processed_dir_name=top_tracking_dir_name,
+            tracking_io.find_files_one_spc_date(
+                top_tracking_dir_name=top_tracking_dir_name,
                 tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
-                data_source=DUMMY_TRACK_SOURCE_STRING,
+                source_name=DUMMY_SOURCE_NAME,
                 spc_date_string=this_spc_date_string,
                 raise_error_if_missing=False
             )[0]
         )
 
-    storm_object_table = tracking_io.read_many_processed_files(
-        tracking_file_names)
+    storm_object_table = tracking_io.read_many_files(tracking_file_names)
     print SEPARATOR_STRING
 
     if min_plot_latitude_deg is None:
         min_plot_latitude_deg = numpy.min(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
         ) - LATLNG_BUFFER_DEG
 
     if max_plot_latitude_deg is None:
         max_plot_latitude_deg = numpy.max(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
         ) + LATLNG_BUFFER_DEG
 
     if min_plot_longitude_deg is None:
         min_plot_longitude_deg = numpy.min(
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
         ) - LATLNG_BUFFER_DEG
 
     if max_plot_longitude_deg is None:
         max_plot_longitude_deg = numpy.max(
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
         ) + LATLNG_BUFFER_DEG
 
     valid_times_unix_sec = numpy.unique(
-        storm_object_table[tracking_utils.TIME_COLUMN].values)
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values)
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):
@@ -424,12 +429,12 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         )
 
         this_storm_object_table = storm_object_table.loc[
-            storm_object_table[tracking_utils.TIME_COLUMN] ==
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN] ==
             valid_times_unix_sec[i]
         ]
 
         these_storm_ids = this_storm_object_table[
-            tracking_utils.STORM_ID_COLUMN].values
+            tracking_utils.PRIMARY_ID_COLUMN].values
 
         this_num_storm_objects = len(these_storm_ids)
         these_alt_colour_flags = numpy.full(
@@ -437,12 +442,12 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
         if i != 0:
             prev_storm_object_table = storm_object_table.loc[
-                storm_object_table[tracking_utils.TIME_COLUMN] ==
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN] ==
                 valid_times_unix_sec[i - 1]
             ]
 
             prev_storm_ids = prev_storm_object_table[
-                tracking_utils.STORM_ID_COLUMN].values
+                tracking_utils.PRIMARY_ID_COLUMN].values
 
             these_new_flags = numpy.array(
                 [s in prev_storm_ids for s in these_storm_ids], dtype=bool)
@@ -451,12 +456,12 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
         if i != num_times - 1:
             next_storm_object_table = storm_object_table.loc[
-                storm_object_table[tracking_utils.TIME_COLUMN] ==
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN] ==
                 valid_times_unix_sec[i + 1]
             ]
 
             next_storm_ids = next_storm_object_table[
-                tracking_utils.STORM_ID_COLUMN].values
+                tracking_utils.PRIMARY_ID_COLUMN].values
 
             these_new_flags = numpy.array(
                 [s in next_storm_ids for s in these_storm_ids], dtype=bool)
