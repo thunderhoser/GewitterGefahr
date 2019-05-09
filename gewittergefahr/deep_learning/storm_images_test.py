@@ -53,7 +53,7 @@ THESE_NORTH_VELOCITIES_M_S01 = numpy.array(
     [10, numpy.nan, 10, numpy.nan, 10, 10])
 
 THIS_DICT = {
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     tracking_utils.SPC_DATE_COLUMN: THESE_SPC_DATES_UNIX_SEC,
     tracking_utils.EAST_VELOCITY_COLUMN: THESE_EAST_VELOCITIES_M_S01,
     tracking_utils.NORTH_VELOCITY_COLUMN: THESE_NORTH_VELOCITIES_M_S01

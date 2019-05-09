@@ -767,6 +767,9 @@ def grid_points_in_poly_to_vertices(
         (half-integers) of vertices.
     """
 
+    # TODO(thunderhoser): This is still not quite right.  For example, try
+    # rows = {3, 4, 5} and cols = {5, 5, 4}.
+
     error_checking.assert_is_integer_numpy_array(grid_point_row_indices)
     error_checking.assert_is_geq_numpy_array(grid_point_row_indices, 0)
     error_checking.assert_is_numpy_array(

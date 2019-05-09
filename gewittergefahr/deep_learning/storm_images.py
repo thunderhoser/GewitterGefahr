@@ -72,11 +72,13 @@ COLUMN_DIMENSION_KEY = 'grid_column'
 CHARACTER_DIMENSION_KEY = 'storm_id_character'
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 
+# TODO(thunderhoser): Deal with other ID types.
+
 STORM_COLUMNS_NEEDED = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
-    tracking_utils.SPC_DATE_COLUMN, tracking_utils.CENTROID_LAT_COLUMN,
-    tracking_utils.CENTROID_LNG_COLUMN, tracking_utils.EAST_VELOCITY_COLUMN,
-    tracking_utils.NORTH_VELOCITY_COLUMN
+    tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN,
+    tracking_utils.SPC_DATE_COLUMN, tracking_utils.CENTROID_LATITUDE_COLUMN,
+    tracking_utils.CENTROID_LONGITUDE_COLUMN,
+    tracking_utils.EAST_VELOCITY_COLUMN, tracking_utils.NORTH_VELOCITY_COLUMN
 ]
 
 # Highest and lowest points in continental U.S.
@@ -384,7 +386,7 @@ def _get_relevant_storm_objects(
     """
 
     relevant_flags = numpy.logical_and(
-        storm_object_table[tracking_utils.TIME_COLUMN].values ==
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values ==
         valid_time_unix_sec,
         storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
         valid_spc_date_unix_sec)
@@ -527,9 +529,9 @@ def _rotate_grids_many_storm_objects(
         (list_of_latitude_matrices[j], list_of_longitude_matrices[j]
         ) = _rotate_grid_one_storm_object(
             centroid_latitude_deg=storm_object_table[
-                tracking_utils.CENTROID_LAT_COLUMN].values[j],
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values[j],
             centroid_longitude_deg=storm_object_table[
-                tracking_utils.CENTROID_LNG_COLUMN].values[j],
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[j],
             eastward_motion_m_s01=storm_object_table[
                 tracking_utils.EAST_VELOCITY_COLUMN].values[j],
             northward_motion_m_s01=storm_object_table[
@@ -1170,7 +1172,7 @@ def extract_storm_images_myrorss_or_mrms(
 
     input_file_dict = myrorss_and_mrms_io.find_many_raw_files(
         desired_times_unix_sec=
-        storm_object_table[tracking_utils.TIME_COLUMN].values.astype(int),
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values.astype(int),
         spc_date_strings=spc_date_strings, data_source=radar_source,
         field_names=radar_field_names, top_directory_name=top_radar_dir_name,
         reflectivity_heights_m_asl=reflectivity_heights_m_asl)
@@ -1214,9 +1216,9 @@ def extract_storm_images_myrorss_or_mrms(
             valid_time_strings[i])
         these_elevations_m_asl = geodetic_utils.get_elevations(
             latitudes_deg=this_storm_object_table[
-                tracking_utils.CENTROID_LAT_COLUMN].values,
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values,
             longitudes_deg=this_storm_object_table[
-                tracking_utils.CENTROID_LNG_COLUMN].values,
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
             working_dir_name=ELEVATION_DIR_NAME)
 
         this_storm_object_table = this_storm_object_table.assign(
@@ -1339,9 +1341,9 @@ def extract_storm_images_myrorss_or_mrms(
                 (these_center_rows, these_center_columns
                 ) = _centroids_latlng_to_rowcol(
                     centroid_latitudes_deg=this_storm_object_table[
-                        tracking_utils.CENTROID_LAT_COLUMN].values,
+                        tracking_utils.CENTROID_LATITUDE_COLUMN].values,
                     centroid_longitudes_deg=this_storm_object_table[
-                        tracking_utils.CENTROID_LNG_COLUMN].values,
+                        tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
                     nw_grid_point_lat_deg=this_metadata_dict[
                         radar_utils.NW_GRID_POINT_LAT_COLUMN],
                     nw_grid_point_lng_deg=this_metadata_dict[
@@ -1386,9 +1388,9 @@ def extract_storm_images_myrorss_or_mrms(
                 netcdf_file_name=this_image_file_name,
                 storm_image_matrix=this_storm_image_matrix,
                 storm_ids=this_storm_object_table[
-                    tracking_utils.STORM_ID_COLUMN].values.tolist(),
+                    tracking_utils.PRIMARY_ID_COLUMN].values.tolist(),
                 valid_times_unix_sec=this_storm_object_table[
-                    tracking_utils.TIME_COLUMN].values.astype(int),
+                    tracking_utils.VALID_TIME_COLUMN].values.astype(int),
                 radar_field_name=field_name_by_pair[j],
                 radar_height_m_agl=height_by_pair_m_asl[j],
                 rotated_grids=rotate_grids,
@@ -1434,9 +1436,9 @@ def extract_storm_images_myrorss_or_mrms(
                 netcdf_file_name=this_image_file_name,
                 storm_image_matrix=this_refl_matrix_ground_relative_dbz[..., j],
                 storm_ids=this_storm_object_table[
-                    tracking_utils.STORM_ID_COLUMN].values.tolist(),
+                    tracking_utils.PRIMARY_ID_COLUMN].values.tolist(),
                 valid_times_unix_sec=this_storm_object_table[
-                    tracking_utils.TIME_COLUMN].values.astype(int),
+                    tracking_utils.VALID_TIME_COLUMN].values.astype(int),
                 radar_field_name=radar_utils.REFL_NAME,
                 radar_height_m_agl=reflectivity_heights_m_agl[j],
                 rotated_grids=rotate_grids,
@@ -1494,7 +1496,7 @@ def extract_storm_images_gridrad(
     num_heights_asl = len(radar_heights_m_asl)
 
     valid_times_unix_sec = numpy.unique(
-        storm_object_table[tracking_utils.TIME_COLUMN].values)
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values)
     valid_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT)
         for t in valid_times_unix_sec
@@ -1536,9 +1538,9 @@ def extract_storm_images_gridrad(
             valid_time_strings[i])
         these_elevations_m_asl = geodetic_utils.get_elevations(
             latitudes_deg=this_storm_object_table[
-                tracking_utils.CENTROID_LAT_COLUMN].values,
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values,
             longitudes_deg=this_storm_object_table[
-                tracking_utils.CENTROID_LNG_COLUMN].values,
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
             working_dir_name=ELEVATION_DIR_NAME)
 
         this_storm_object_table = this_storm_object_table.assign(
@@ -1616,9 +1618,9 @@ def extract_storm_images_gridrad(
                     (these_center_rows, these_center_columns
                     ) = _centroids_latlng_to_rowcol(
                         centroid_latitudes_deg=this_storm_object_table[
-                            tracking_utils.CENTROID_LAT_COLUMN].values,
+                            tracking_utils.CENTROID_LATITUDE_COLUMN].values,
                         centroid_longitudes_deg=this_storm_object_table[
-                            tracking_utils.CENTROID_LNG_COLUMN].values,
+                            tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
                         nw_grid_point_lat_deg=this_metadata_dict[
                             radar_utils.NW_GRID_POINT_LAT_COLUMN],
                         nw_grid_point_lng_deg=this_metadata_dict[
@@ -1679,9 +1681,9 @@ def extract_storm_images_gridrad(
                     storm_image_matrix=this_storm_image_matrix_ground_relative[
                         ..., k],
                     storm_ids=this_storm_object_table[
-                        tracking_utils.STORM_ID_COLUMN].values.tolist(),
+                        tracking_utils.PRIMARY_ID_COLUMN].values.tolist(),
                     valid_times_unix_sec=this_storm_object_table[
-                        tracking_utils.TIME_COLUMN].values.astype(int),
+                        tracking_utils.VALID_TIME_COLUMN].values.astype(int),
                     radar_field_name=radar_field_names[j],
                     radar_height_m_agl=radar_heights_m_agl[k],
                     rotated_grids=rotate_grids,
@@ -1855,8 +1857,8 @@ def read_storm_images(
 
     if filter_storms:
         indices_to_keep = tracking_utils.find_storm_objects(
-            all_storm_ids=storm_ids, all_times_unix_sec=valid_times_unix_sec,
-            storm_ids_to_keep=storm_ids_to_keep,
+            all_id_strings=storm_ids, all_times_unix_sec=valid_times_unix_sec,
+            id_strings_to_keep=storm_ids_to_keep,
             times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
 
         storm_ids = [storm_ids[i] for i in indices_to_keep]
