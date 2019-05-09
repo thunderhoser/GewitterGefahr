@@ -383,19 +383,20 @@ def extract_latlng_subgrid(
         target point.  Values at more distant grid points will be changed to
         NaN.
     :return: subgrid_matrix: m-by-n numpy array with data values.
-    :return: row_offset: If this is dR, row 0 in the subgrid is row dR in the
-        full grid.
-    :return: column_offset: If this is dC, column 0 in the subgrid is column dC
-        in the full grid.
+    :return: rows_in_full_grid: length-m numpy array.  If rows_in_full_grid[i]
+        = k, the [i]th row in the subgrid = [k]th row in the full grid.
     """
 
     max_latitude_diff_deg = (
-        max_distance_from_center_metres / DEGREES_LAT_TO_METRES)
+        max_distance_from_center_metres / DEGREES_LAT_TO_METRES
+    )
 
     degrees_lng_to_metres = DEGREES_LAT_TO_METRES * numpy.cos(
-        center_latitude_deg * DEGREES_TO_RADIANS)
+        center_latitude_deg * DEGREES_TO_RADIANS
+    )
     max_longitude_diff_deg = (
-        max_distance_from_center_metres / degrees_lng_to_metres)
+        max_distance_from_center_metres / degrees_lng_to_metres
+    )
 
     min_latitude_deg = center_latitude_deg - max_latitude_diff_deg
     max_latitude_deg = center_latitude_deg + max_latitude_diff_deg
@@ -405,13 +406,14 @@ def extract_latlng_subgrid(
     valid_row_flags = numpy.logical_and(
         grid_point_latitudes_deg >= min_latitude_deg,
         grid_point_latitudes_deg <= max_latitude_deg)
-    valid_column_flags = numpy.logical_and(
-        grid_point_longitudes_deg >= min_longitude_deg,
-        grid_point_longitudes_deg <= max_longitude_deg)
 
     valid_row_indices = numpy.where(valid_row_flags)[0]
     min_valid_row_index = numpy.min(valid_row_indices)
     max_valid_row_index = numpy.max(valid_row_indices)
+
+    valid_column_flags = numpy.logical_and(
+        grid_point_longitudes_deg >= min_longitude_deg,
+        grid_point_longitudes_deg <= max_longitude_deg)
 
     valid_column_indices = numpy.where(valid_column_flags)[0]
     min_valid_column_index = numpy.min(valid_column_indices)
@@ -419,25 +421,32 @@ def extract_latlng_subgrid(
 
     subgrid_data_matrix = data_matrix[
         min_valid_row_index:(max_valid_row_index + 1),
-        min_valid_column_index:(max_valid_column_index + 1)]
+        min_valid_column_index:(max_valid_column_index + 1)
+    ]
 
-    subgrid_point_lat_matrix, subgrid_point_lng_matrix = (
+    subgrid_lat_matrix_deg, subgrid_lng_matrix_deg = (
         latlng_vectors_to_matrices(
-            grid_point_latitudes_deg[valid_row_indices],
-            grid_point_longitudes_deg[valid_column_indices]))
-    lat_distance_matrix_metres = (
-        (subgrid_point_lat_matrix - center_latitude_deg) *
-        DEGREES_LAT_TO_METRES)
-    lng_distance_matrix_metres = (
-        (subgrid_point_lng_matrix - center_longitude_deg) *
-        degrees_lng_to_metres)
-    distance_matrix_metres = numpy.sqrt(
-        lat_distance_matrix_metres ** 2 + lng_distance_matrix_metres ** 2)
+            unique_latitudes_deg=grid_point_latitudes_deg[valid_row_indices],
+            unique_longitudes_deg=grid_point_longitudes_deg[
+                valid_column_indices]
+        )
+    )
 
-    bad_indices = numpy.where(
-        distance_matrix_metres > max_distance_from_center_metres)
-    subgrid_data_matrix[bad_indices] = numpy.nan
-    return subgrid_data_matrix, min_valid_row_index, min_valid_column_index
+    lat_distance_matrix_metres = DEGREES_LAT_TO_METRES * (
+        subgrid_lat_matrix_deg - center_latitude_deg
+    )
+    lng_distance_matrix_metres = degrees_lng_to_metres * (
+        subgrid_lng_matrix_deg - center_longitude_deg
+    )
+    distance_matrix_metres = numpy.sqrt(
+        lat_distance_matrix_metres ** 2 + lng_distance_matrix_metres ** 2
+    )
+
+    subgrid_data_matrix[
+        distance_matrix_metres > max_distance_from_center_metres
+    ] = numpy.nan
+
+    return subgrid_data_matrix, valid_row_indices, valid_column_indices
 
 
 def count_events_on_equidistant_grid(

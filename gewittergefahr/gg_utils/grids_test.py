@@ -90,11 +90,14 @@ CENTER_LATITUDE_DEG = 53.5
 CENTER_LONGITUDE_DEG = 247.3
 MAX_DISTANCE_FROM_CENTER_METRES = 20000.
 
-EXPECTED_SUBGRID_DATA_MATRIX = numpy.array([[numpy.nan, 8., 1., numpy.nan],
-                                            [9., numpy.nan, 3., 4.],
-                                            [numpy.nan, 7., 1., numpy.nan]])
-EXPECTED_ROW_OFFSET = 1
-EXPECTED_COLUMN_OFFSET = 4
+EXPECTED_SUBGRID_DATA_MATRIX = numpy.array([
+    [numpy.nan, 8, 1, numpy.nan],
+    [9, numpy.nan, 3, 4],
+    [numpy.nan, 7, 1, numpy.nan]
+])
+
+EXPECTED_FULL_GRID_ROWS = numpy.array([1, 2, 3], dtype=int)
+EXPECTED_FULL_GRID_COLUMNS = numpy.array([4, 5, 6, 7], dtype=int)
 
 # The following constants are used to test count_events_on_equidistant_grid.
 GRID_POINTS_X_FOR_COUNTING_METRES = numpy.array([0, 1, 2, 3, 4, 5], dtype=float)
@@ -274,21 +277,27 @@ class GridsTests(unittest.TestCase):
     def test_extract_latlng_subgrid(self):
         """Ensures correct output from extract_latlng_subgrid."""
 
-        this_subgrid_data_matrix, this_row_offset, this_column_offset = (
-            grids.extract_latlng_subgrid(
-                data_matrix=FULL_DATA_MATRIX,
-                grid_point_latitudes_deg=FULL_GRID_POINT_LATITUDES_DEG,
-                grid_point_longitudes_deg=FULL_GRID_POINT_LONGITUDES_DEG,
-                center_latitude_deg=CENTER_LATITUDE_DEG,
-                center_longitude_deg=CENTER_LONGITUDE_DEG,
-                max_distance_from_center_metres=
-                MAX_DISTANCE_FROM_CENTER_METRES))
+        (this_subgrid_data_matrix, these_full_grid_rows, these_full_grid_columns
+        ) = grids.extract_latlng_subgrid(
+            data_matrix=FULL_DATA_MATRIX,
+            grid_point_latitudes_deg=FULL_GRID_POINT_LATITUDES_DEG,
+            grid_point_longitudes_deg=FULL_GRID_POINT_LONGITUDES_DEG,
+            center_latitude_deg=CENTER_LATITUDE_DEG,
+            center_longitude_deg=CENTER_LONGITUDE_DEG,
+            max_distance_from_center_metres=MAX_DISTANCE_FROM_CENTER_METRES)
 
-        self.assertTrue(this_row_offset == EXPECTED_ROW_OFFSET)
-        self.assertTrue(this_column_offset == EXPECTED_COLUMN_OFFSET)
         self.assertTrue(numpy.allclose(
             this_subgrid_data_matrix, EXPECTED_SUBGRID_DATA_MATRIX,
-            equal_nan=True, atol=TOLERANCE))
+            equal_nan=True, atol=TOLERANCE
+        ))
+
+        self.assertTrue(numpy.array_equal(
+            these_full_grid_rows, EXPECTED_FULL_GRID_ROWS
+        ))
+
+        self.assertTrue(numpy.array_equal(
+            these_full_grid_columns, EXPECTED_FULL_GRID_COLUMNS
+        ))
 
     def test_count_events_on_equidistant_grid_no_ids(self):
         """Ensures correct output from count_events_on_equidistant_grid.
