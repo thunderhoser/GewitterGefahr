@@ -23,11 +23,13 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
     American Meteorological Society.
 """
 
+import copy
 import os.path
 import warnings
 import numpy
 import pandas
 from scipy.ndimage.filters import gaussian_filter
+from skimage.measure import label as label_image
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import temporal_tracking
@@ -257,17 +259,14 @@ def _remove_redundant_local_maxima(local_max_dict, projection_object,
             (y_coords_metres - y_coords_metres[i]) ** 2
         )
 
-        these_distances_metres[i] = numpy.inf
-        these_redundant_indices = numpy.where(
-            these_distances_metres < min_intermax_distance_metres
-        )[0]
+        these_redundant_indices = numpy.where(numpy.logical_and(
+            these_distances_metres < min_intermax_distance_metres,
+            keep_max_flags
+        ))[0]
 
-        if len(these_redundant_indices) == 0:
+        if len(these_redundant_indices) == 1:
             continue
 
-        these_redundant_indices = numpy.concatenate((
-            these_redundant_indices, numpy.array([i], dtype=int)
-        ))
         keep_max_flags[these_redundant_indices] = False
 
         this_best_index = numpy.argmax(
@@ -286,6 +285,40 @@ def _remove_redundant_local_maxima(local_max_dict, projection_object,
         elif isinstance(local_max_dict[this_key], numpy.ndarray):
             local_max_dict[this_key] = local_max_dict[this_key][
                 indices_to_keep]
+
+    # x_coords_metres, y_coords_metres = projections.project_latlng_to_xy(
+    #     latitudes_deg=local_max_dict[temporal_tracking.LATITUDES_KEY],
+    #     longitudes_deg=local_max_dict[temporal_tracking.LONGITUDES_KEY],
+    #     projection_object=projection_object,
+    #     false_easting_metres=0., false_northing_metres=0.)
+    #
+    # coord_matrix_metres = numpy.hstack((
+    #     numpy.reshape(x_coords_metres, (x_coords_metres.size, 1)),
+    #     numpy.reshape(y_coords_metres, (y_coords_metres.size, 1))
+    # ))
+    #
+    # distance_matrix_metres = euclidean_distances(
+    #     X=coord_matrix_metres, Y=coord_matrix_metres)
+    #
+    # for i in range(len(x_coords_metres)):
+    #     distance_matrix_metres[i, i] = numpy.inf
+    #
+    # these_rows, these_columns = numpy.where(
+    #     distance_matrix_metres < min_intermax_distance_metres)
+    #
+    # for i in range(len(these_rows)):
+    #     print (
+    #         '{0:d}th max (at {1:.2f} deg N and {2:.2f} deg E) and {3:d}th max '
+    #         '(at {4:.2f} deg N and {5:.2f} deg E) are within {6:.1f} metres'
+    #     ).format(
+    #         these_rows[i],
+    #         local_max_dict[temporal_tracking.LATITUDES_KEY][these_rows[i]],
+    #         local_max_dict[temporal_tracking.LONGITUDES_KEY][these_rows[i]],
+    #         these_columns[i],
+    #         local_max_dict[temporal_tracking.LATITUDES_KEY][these_columns[i]],
+    #         local_max_dict[temporal_tracking.LONGITUDES_KEY][these_columns[i]],
+    #         distance_matrix_metres[these_rows[i], these_columns[i]]
+    #     )
 
     return local_max_dict
 
@@ -485,6 +518,71 @@ def _find_input_tracking_files(
             valid_times_by_date_unix_sec)
 
 
+def _get_grid_points_in_storm(
+        centroid_latitude_deg, centroid_longitude_deg, grid_point_latitudes_deg,
+        grid_point_longitudes_deg, echo_top_matrix_km, min_echo_top_km,
+        min_intermax_distance_metres):
+    """Converts local max (one point) to list of grid points in storm.
+
+    M = number of rows in radar grid
+    N = number of columns in radar grid
+    P = number of grid points in storm
+
+    :param centroid_latitude_deg: Latitude (deg N) of storm centroid.
+    :param centroid_longitude_deg: Longitude (deg E) of storm centroid.
+    :param grid_point_latitudes_deg: length-M numpy array of grid-point
+        latitudes (deg N).
+    :param grid_point_longitudes_deg: length-N numpy array of grid-point
+        longitudes (deg E).
+    :param echo_top_matrix_km: M-by-N numpy array of echo tops.
+    :param min_echo_top_km: Minimum echo top used to define storms.
+    :param min_intermax_distance_metres: Minimum distance between local maxima
+        (storm centroids).
+    :return: grid_rows: length-P numpy array of row indices.
+    :return: grid_columns: length-P numpy array of column indices.
+    """
+
+    echo_top_submatrix_km, row_offsets, column_offsets = (
+        grids.extract_latlng_subgrid(
+            data_matrix=echo_top_matrix_km,
+            grid_point_latitudes_deg=grid_point_latitudes_deg,
+            grid_point_longitudes_deg=grid_point_longitudes_deg,
+            center_latitude_deg=centroid_latitude_deg,
+            center_longitude_deg=centroid_longitude_deg,
+            max_distance_from_center_metres=min_intermax_distance_metres)
+    )
+
+    echo_top_submatrix_km[numpy.isnan(echo_top_submatrix_km)] = 0.
+
+    region_id_submatrix = label_image(
+        echo_top_submatrix_km >= min_echo_top_km, connectivity=2
+    )
+
+    centroid_subrow = numpy.argmin(numpy.absolute(
+        centroid_latitude_deg - grid_point_latitudes_deg[row_offsets]
+    ))
+
+    centroid_subcolumn = numpy.argmin(numpy.absolute(
+        centroid_longitude_deg - grid_point_longitudes_deg[column_offsets]
+    ))
+
+    centroid_region_id = region_id_submatrix[
+        centroid_subrow, centroid_subcolumn
+    ]
+
+    if centroid_region_id == 0:
+        grid_point_subrows = numpy.array([centroid_subrow], dtype=int)
+        grid_point_subcolumns = numpy.array([centroid_subcolumn], dtype=int)
+    else:
+        grid_point_subrows, grid_point_subcolumns = numpy.where(
+            region_id_submatrix == centroid_region_id)
+
+    return (
+        grid_point_subrows + row_offsets[0],
+        grid_point_subcolumns + column_offsets[0]
+    )
+
+
 def _local_maxima_to_polygons(
         local_max_dict, echo_top_matrix_km, min_echo_top_km,
         radar_metadata_dict, min_intermax_distance_metres):
@@ -529,6 +627,7 @@ def _local_maxima_to_polygons(
         radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
         (radar_metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)
     )
+
     min_grid_point_latitude_deg = (
         radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] -
         latitude_extent_deg
@@ -537,8 +636,8 @@ def _local_maxima_to_polygons(
     grid_point_latitudes_deg, grid_point_longitudes_deg = (
         grids.get_latlng_grid_points(
             min_latitude_deg=min_grid_point_latitude_deg,
-            min_longitude_deg=
-            radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+            min_longitude_deg=radar_metadata_dict[
+                radar_utils.NW_GRID_POINT_LNG_COLUMN],
             lat_spacing_deg=radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
             lng_spacing_deg=radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
             num_rows=radar_metadata_dict[radar_utils.NUM_LAT_COLUMN],
@@ -561,90 +660,88 @@ def _local_maxima_to_polygons(
         num_maxima, numpy.nan, dtype=object)
 
     for i in range(num_maxima):
-        this_echo_top_submatrix_km, this_row_offset, this_column_offset = (
-            grids.extract_latlng_subgrid(
-                data_matrix=echo_top_matrix_km,
-                grid_point_latitudes_deg=grid_point_latitudes_deg,
-                grid_point_longitudes_deg=grid_point_longitudes_deg,
-                center_latitude_deg=local_max_dict[
-                    temporal_tracking.LATITUDES_KEY][i],
-                center_longitude_deg=local_max_dict[
-                    temporal_tracking.LONGITUDES_KEY][i],
-                max_distance_from_center_metres=min_intermax_distance_metres)
-        )
-
-        this_echo_top_submatrix_km[
-            numpy.isnan(this_echo_top_submatrix_km)
-        ] = 0.
-
         (local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i],
          local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i]
-        ) = numpy.where(this_echo_top_submatrix_km >= min_echo_top_km)
-
-        if not len(local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i]):
-            this_row = numpy.floor(
-                float(this_echo_top_submatrix_km.shape[0]) / 2
-            )
-            this_column = numpy.floor(
-                float(this_echo_top_submatrix_km.shape[1]) / 2
-            )
-
-            local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i] = (
-                numpy.array([this_row], dtype=int)
-            )
-            local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i] = (
-                numpy.array([this_column], dtype=int)
-            )
-
-        local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i] = (
-            local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i] +
-            this_row_offset
-        )
-        local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i] = (
-            local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i] +
-            this_column_offset
-        )
+        ) = _get_grid_points_in_storm(
+            centroid_latitude_deg=local_max_dict[
+                temporal_tracking.LATITUDES_KEY][i],
+            centroid_longitude_deg=local_max_dict[
+                temporal_tracking.LONGITUDES_KEY][i],
+            grid_point_latitudes_deg=grid_point_latitudes_deg,
+            grid_point_longitudes_deg=grid_point_longitudes_deg,
+            echo_top_matrix_km=echo_top_matrix_km,
+            min_echo_top_km=min_echo_top_km,
+            min_intermax_distance_metres=min_intermax_distance_metres)
 
         these_vertex_rows, these_vertex_columns = (
             polygons.grid_points_in_poly_to_vertices(
-                local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i],
-                local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i])
+                grid_point_row_indices=local_max_dict[
+                    temporal_tracking.GRID_POINT_ROWS_KEY][i],
+                grid_point_column_indices=local_max_dict[
+                    temporal_tracking.GRID_POINT_COLUMNS_KEY][i]
+            )
         )
+
+        # this_latitude_deg = local_max_dict[temporal_tracking.LATITUDES_KEY][i]
+        # this_longitude_deg = local_max_dict[temporal_tracking.LONGITUDES_KEY][i]
+        # this_time_unix_sec = local_max_dict[temporal_tracking.VALID_TIME_KEY]
+        #
+        # if this_time_unix_sec == 1303869300:
+        #     if 32.7 <= this_latitude_deg <= 33 and 267 <= this_longitude_deg <= 267.5:
+        #         print these_vertex_rows
+        #         print '\n'
+        #         print these_vertex_columns
 
         (local_max_dict[temporal_tracking.GRID_POINT_LATITUDES_KEY][i],
          local_max_dict[temporal_tracking.GRID_POINT_LONGITUDES_KEY][i]
         ) = radar_utils.rowcol_to_latlng(
-            local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i],
-            local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][i],
-            nw_grid_point_lat_deg=
-            radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
-            nw_grid_point_lng_deg=
-            radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
-            lat_spacing_deg=
-            radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-            lng_spacing_deg=
-            radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN])
+            grid_rows=local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][i],
+            grid_columns=local_max_dict[
+                temporal_tracking.GRID_POINT_COLUMNS_KEY][i],
+            nw_grid_point_lat_deg=radar_metadata_dict[
+                radar_utils.NW_GRID_POINT_LAT_COLUMN],
+            nw_grid_point_lng_deg=radar_metadata_dict[
+                radar_utils.NW_GRID_POINT_LNG_COLUMN],
+            lat_spacing_deg=radar_metadata_dict[
+                radar_utils.LAT_SPACING_COLUMN],
+            lng_spacing_deg=radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]
+        )
 
         these_vertex_latitudes_deg, these_vertex_longitudes_deg = (
             radar_utils.rowcol_to_latlng(
-                these_vertex_rows, these_vertex_columns,
-                nw_grid_point_lat_deg=
-                radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
-                nw_grid_point_lng_deg=
-                radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
-                lat_spacing_deg=
-                radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-                lng_spacing_deg=
-                radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN])
+                grid_rows=these_vertex_rows, grid_columns=these_vertex_columns,
+                nw_grid_point_lat_deg=radar_metadata_dict[
+                    radar_utils.NW_GRID_POINT_LAT_COLUMN],
+                nw_grid_point_lng_deg=radar_metadata_dict[
+                    radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                lat_spacing_deg=radar_metadata_dict[
+                    radar_utils.LAT_SPACING_COLUMN],
+                lng_spacing_deg=radar_metadata_dict[
+                    radar_utils.LNG_SPACING_COLUMN]
+            )
         )
 
         local_max_dict[temporal_tracking.POLYGON_OBJECTS_ROWCOL_KEY][i] = (
             polygons.vertex_arrays_to_polygon_object(
-                these_vertex_columns, these_vertex_rows)
+                exterior_x_coords=these_vertex_columns,
+                exterior_y_coords=these_vertex_rows)
         )
+
         local_max_dict[temporal_tracking.POLYGON_OBJECTS_LATLNG_KEY][i] = (
             polygons.vertex_arrays_to_polygon_object(
-                these_vertex_longitudes_deg, these_vertex_latitudes_deg)
+                exterior_x_coords=these_vertex_longitudes_deg,
+                exterior_y_coords=these_vertex_latitudes_deg)
+        )
+
+        this_centroid_object_latlng = local_max_dict[
+            temporal_tracking.POLYGON_OBJECTS_LATLNG_KEY
+        ][i].centroid
+
+        local_max_dict[temporal_tracking.LATITUDES_KEY][i] = (
+            this_centroid_object_latlng.y
+        )
+        local_max_dict[temporal_tracking.LONGITUDES_KEY][i] = (
+            this_centroid_object_latlng.x
         )
 
     return local_max_dict
@@ -1015,18 +1112,6 @@ def run_tracking(
             ignore_if_below=min_echo_top_km
         )[0]
 
-        print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
-            echo_top_field_name, valid_time_strings[i])
-
-        this_latitude_spacing_deg = this_metadata_dict[
-            radar_utils.LAT_SPACING_COLUMN]
-
-        this_echo_top_matrix_km = _gaussian_smooth_radar_field(
-            radar_matrix=this_echo_top_matrix_km,
-            e_folding_radius_pixels=
-            smoothing_radius_deg_lat / this_latitude_spacing_deg
-        )
-
         if this_echo_classifn_file_name is not None:
             print 'Reading data from: "{0:s}"...'.format(
                 this_echo_classifn_file_name)
@@ -1039,12 +1124,24 @@ def run_tracking(
                 this_convective_flag_matrix, axis=0)
             this_echo_top_matrix_km[this_convective_flag_matrix == False] = 0.
 
+        print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
+            echo_top_field_name, valid_time_strings[i])
+
+        this_latitude_spacing_deg = this_metadata_dict[
+            radar_utils.LAT_SPACING_COLUMN]
+
+        this_smoothed_et_matrix_km = _gaussian_smooth_radar_field(
+            radar_matrix=copy.deepcopy(this_echo_top_matrix_km),
+            e_folding_radius_pixels=
+            smoothing_radius_deg_lat / this_latitude_spacing_deg
+        )
+
         this_half_width_pixels = int(numpy.round(
             half_width_for_max_filter_deg_lat / this_latitude_spacing_deg
         ))
 
         local_max_dict_by_time[i] = _find_local_maxima(
-            radar_matrix=this_echo_top_matrix_km,
+            radar_matrix=this_smoothed_et_matrix_km,
             radar_metadata_dict=this_metadata_dict,
             neigh_half_width_pixels=this_half_width_pixels)
 
