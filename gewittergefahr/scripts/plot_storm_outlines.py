@@ -163,7 +163,7 @@ def _plot_storm_outlines_one_time(
     M = number of rows in radar grid
     N = number of columns in radar grid
 
-    :param storm_object_table: See doc for `storm_plotting.plot_storm_objects`.
+    :param storm_object_table: See doc for `storm_plotting.plot_storm_outlines`.
     :param axes_object: Same.
     :param basemap_object: Same.
     :param alt_id_colour_flags: Same.
@@ -237,6 +237,11 @@ def _plot_storm_outlines_one_time(
             radar_longitudes_deg[1] - radar_longitudes_deg[0]
         )
 
+        # radar_matrix = echo_top_tracking._gaussian_smooth_radar_field(
+        #     radar_matrix=radar_matrix,
+        #     e_folding_radius_pixels=DEFAULT_SMOOTHING_RADIUS_DEG_LAT / 0.0208
+        # )
+
         radar_plotting.plot_latlng_grid(
             field_matrix=radar_matrix, field_name=radar_field_name,
             axes_object=axes_object,
@@ -266,7 +271,7 @@ def _plot_storm_outlines_one_time(
 
     line_colour = matplotlib.colors.to_rgba(storm_colour, storm_opacity)
 
-    storm_plotting.plot_storm_objects(
+    storm_plotting.plot_storm_outlines(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, line_colour=line_colour,
         plot_storm_ids=True, storm_id_colour=storm_colour,
@@ -370,6 +375,26 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         max_plot_longitude_deg = numpy.max(
             storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
         ) + LATLNG_BUFFER_DEG
+
+    latitude_flags = numpy.logical_and(
+        storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values >=
+        min_plot_latitude_deg,
+        storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values <=
+        max_plot_latitude_deg
+    )
+
+    longitude_flags = numpy.logical_and(
+        storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values >=
+        min_plot_longitude_deg,
+        storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values <=
+        max_plot_longitude_deg
+    )
+
+    good_indices = numpy.where(numpy.logical_and(
+        latitude_flags, longitude_flags
+    ))[0]
+
+    storm_object_table = storm_object_table.iloc[good_indices]
 
     valid_times_unix_sec = numpy.unique(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values)

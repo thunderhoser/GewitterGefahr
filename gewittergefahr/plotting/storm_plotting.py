@@ -6,7 +6,6 @@ matplotlib.use('agg')
 import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from matplotlib.collections import LineCollection
-from descartes import PolygonPatch
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
@@ -20,22 +19,21 @@ COLOUR_BAR_TIME_FORMAT = '%H%M %-d %b'
 DEFAULT_TRACK_COLOUR = numpy.full(3, 0.)
 DEFAULT_TRACK_WIDTH = 2
 DEFAULT_TRACK_STYLE = 'solid'
+
 DEFAULT_START_MARKER_TYPE = 'o'
 DEFAULT_END_MARKER_TYPE = 'x'
+DEFAULT_CENTROID_MARKER_TYPE = 'o'
 DEFAULT_START_MARKER_SIZE = 8
 DEFAULT_END_MARKER_SIZE = 12
+DEFAULT_CENTROID_MARKER_SIZE = 6
 
-DEFAULT_POLYGON_LINE_COLOUR = numpy.full(3, 0.)
-DEFAULT_POLYGON_LINE_WIDTH = 2
-DEFAULT_POLYGON_HOLE_LINE_COLOUR = numpy.full(3, 152. / 255)
-DEFAULT_POLYGON_HOLE_LINE_WIDTH = 1
-DEFAULT_POLYGON_FILL_COLOUR = numpy.full(3, 152. / 255)
-DEFAULT_POLYGON_FILL_OPACITY = 1.
+DEFAULT_OUTLINE_WIDTH = 2
 
 DEFAULT_FONT_SIZE = 12
-DEFAULT_STORM_ID_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
-DEFAULT_OUTLINE_COLOUR = matplotlib.colors.to_rgba(DEFAULT_STORM_ID_COLOUR, 0.5)
-DEFAULT_ALT_STORM_ID_COLOUR = numpy.full(3, 0.)
+DEFAULT_TEXT_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+DEFAULT_OUTLINE_COLOUR = matplotlib.colors.to_rgba(DEFAULT_TEXT_COLOUR, 0.5)
+DEFAULT_CENTROID_COLOUR = matplotlib.colors.to_rgba(DEFAULT_TEXT_COLOUR, 0.5)
+DEFAULT_ALT_TEXT_COLOUR = numpy.full(3, 0.)
 
 
 def get_storm_track_colours():
@@ -134,110 +132,13 @@ def plot_storm_track(
             markeredgewidth=this_edge_width)
 
 
-def plot_storm_outline_unfilled(
-        basemap_object, axes_object, polygon_object_latlng,
-        exterior_colour=DEFAULT_POLYGON_LINE_COLOUR,
-        exterior_line_width=DEFAULT_POLYGON_LINE_WIDTH,
-        hole_colour=DEFAULT_POLYGON_HOLE_LINE_COLOUR,
-        hole_line_width=DEFAULT_POLYGON_HOLE_LINE_WIDTH):
-    """Plots storm outline (or buffer around storm outline) as unfilled polygon.
-
-    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
-    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param polygon_object_latlng: `shapely.geometry.Polygon` object with
-        vertices in lat-long coordinates.
-    :param exterior_colour: Colour for exterior of polygon (in any format
-        accepted by `matplotlib.colors`).
-    :param exterior_line_width: Line width for exterior of polygon (real
-        positive number).
-    :param hole_colour: Colour for holes in polygon (in any format accepted by
-        `matplotlib.colors`).
-    :param hole_line_width: Line width for holes in polygon (real positive
-        number).
-    """
-
-    vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
-        polygon_object_latlng)
-
-    exterior_x_coords_metres, exterior_y_coords_metres = basemap_object(
-        vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
-        vertex_dict_latlng[polygons.EXTERIOR_Y_COLUMN]
-    )
-
-    axes_object.plot(
-        exterior_x_coords_metres, exterior_y_coords_metres,
-        color=exterior_colour, linestyle='solid', linewidth=exterior_line_width)
-
-    num_holes = len(vertex_dict_latlng[polygons.HOLE_X_COLUMN])
-
-    for i in range(num_holes):
-        these_x_coords_metres, these_y_coords_metres = basemap_object(
-            vertex_dict_latlng[polygons.HOLE_X_COLUMN][i],
-            vertex_dict_latlng[polygons.HOLE_Y_COLUMN][i]
-        )
-
-        axes_object.plot(
-            these_x_coords_metres, these_y_coords_metres, color=hole_colour,
-            linestyle='solid', linewidth=hole_line_width)
-
-
-def plot_storm_outline_filled(
-        basemap_object, axes_object, polygon_object_latlng,
-        line_colour=DEFAULT_POLYGON_LINE_COLOUR,
-        line_width=DEFAULT_POLYGON_LINE_WIDTH,
-        fill_colour=DEFAULT_POLYGON_FILL_COLOUR,
-        opacity=DEFAULT_POLYGON_FILL_OPACITY):
-    """Plots storm outline (or buffer around storm outline) as filled polygon.
-
-    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
-    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param polygon_object_latlng: `shapely.geometry.Polygon` object with
-        vertices in lat-long coordinates.
-    :param line_colour: Colour of polygon edge (in any format accepted by
-        `matplotlib.colors`).
-    :param line_width: Width of polygon edge.
-    :param fill_colour: Colour of polygon interior.
-    :param opacity: Opacity of polygon fill (in range 0...1).
-    """
-
-    vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
-        polygon_object_latlng)
-
-    exterior_x_coords_metres, exterior_y_coords_metres = basemap_object(
-        vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
-        vertex_dict_latlng[polygons.EXTERIOR_Y_COLUMN]
-    )
-
-    num_holes = len(vertex_dict_latlng[polygons.HOLE_X_COLUMN])
-    x_coords_by_hole_metres = [None] * num_holes
-    y_coords_by_hole_metres = [None] * num_holes
-
-    for i in range(num_holes):
-        x_coords_by_hole_metres[i], y_coords_by_hole_metres[i] = basemap_object(
-            vertex_dict_latlng[polygons.HOLE_X_COLUMN][i],
-            vertex_dict_latlng[polygons.HOLE_Y_COLUMN][i]
-        )
-
-    polygon_object_xy = polygons.vertex_arrays_to_polygon_object(
-        exterior_x_coords=exterior_x_coords_metres,
-        exterior_y_coords=exterior_y_coords_metres,
-        hole_x_coords_list=x_coords_by_hole_metres,
-        hole_y_coords_list=y_coords_by_hole_metres)
-
-    polygon_patch = PolygonPatch(
-        polygon_object_xy, lw=line_width, ec=line_colour, fc=fill_colour,
-        alpha=opacity)
-
-    axes_object.add_patch(polygon_patch)
-
-
-def plot_storm_objects(
+def plot_storm_outlines(
         storm_object_table, axes_object, basemap_object,
-        line_width=DEFAULT_POLYGON_LINE_WIDTH,
+        line_width=DEFAULT_OUTLINE_WIDTH,
         line_colour=DEFAULT_OUTLINE_COLOUR, plot_storm_ids=False,
-        storm_id_colour=DEFAULT_STORM_ID_COLOUR,
+        storm_id_colour=DEFAULT_TEXT_COLOUR,
         storm_id_font_size=DEFAULT_FONT_SIZE, alt_id_colour_flags=None,
-        alt_storm_id_colour=DEFAULT_ALT_STORM_ID_COLOUR):
+        alt_storm_id_colour=DEFAULT_ALT_TEXT_COLOUR):
     """Plots all storm objects in the table (as unfilled outlines).
 
     Recommended use of this method is for all storm objects at one time step.
@@ -327,6 +228,80 @@ def plot_storm_objects(
             horizontalalignment='left', verticalalignment='top')
 
 
+def plot_storm_centroids(
+        storm_object_table, axes_object, basemap_object,
+        marker_type=DEFAULT_CENTROID_MARKER_TYPE,
+        marker_colour=DEFAULT_CENTROID_COLOUR,
+        marker_size=DEFAULT_CENTROID_MARKER_SIZE, plot_storm_ids=False,
+        storm_id_colour=DEFAULT_TEXT_COLOUR,
+        storm_id_font_size=DEFAULT_FONT_SIZE, alt_id_colour_flags=None,
+        alt_storm_id_colour=DEFAULT_ALT_TEXT_COLOUR):
+    """Plots all storm centroids in the table (as markers).
+
+    :param storm_object_table: See doc for `plot_storm_outlines`.
+    :param axes_object: Same.
+    :param basemap_object: Same.
+    :param marker_type: Marker type for storm centroids (in any format accepted
+        by `matplotlib.lines`).
+    :param marker_colour: Colour for storm centroids.
+    :param marker_size: Marker size for storm centroids.
+    :param plot_storm_ids: See doc for `plot_storm_outlines`.
+    :param storm_id_colour: Same.
+    :param storm_id_font_size: Same.
+    :param alt_id_colour_flags: Same.
+    :param alt_storm_id_colour: Same.
+    """
+
+    error_checking.assert_is_boolean(plot_storm_ids)
+    num_storm_objects = len(storm_object_table.index)
+
+    if plot_storm_ids:
+        if alt_id_colour_flags is None:
+            alt_id_colour_flags = numpy.full(
+                num_storm_objects, False, dtype=bool)
+
+        these_expected_dim = numpy.array([num_storm_objects], dtype=int)
+
+        error_checking.assert_is_boolean_numpy_array(alt_id_colour_flags)
+        error_checking.assert_is_numpy_array(
+            alt_id_colour_flags, exact_dimensions=these_expected_dim)
+
+    for i in range(num_storm_objects):
+        this_x_metres, this_y_metres = basemap_object(
+            storm_object_table[
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i],
+            storm_object_table[
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
+        )
+
+        axes_object.plot(
+            this_x_metres, this_y_metres, linestyle='None', marker=marker_type,
+            markerfacecolor=marker_colour, markeredgecolor=marker_colour,
+            markersize=marker_size, markeredgewidth=0)
+
+        if not plot_storm_ids:
+            continue
+
+        this_label_string = storm_object_table[
+            tracking_utils.PRIMARY_ID_COLUMN
+        ].values[i].split('_')[0]
+
+        try:
+            this_label_string = str(int(this_label_string))
+        except ValueError:
+            pass
+
+        if alt_id_colour_flags[i]:
+            this_colour = alt_storm_id_colour
+        else:
+            this_colour = storm_id_colour
+
+        axes_object.text(
+            this_x_metres, this_y_metres, this_label_string,
+            fontsize=storm_id_font_size, fontweight='bold', color=this_colour,
+            horizontalalignment='left', verticalalignment='top')
+
+
 def plot_storm_tracks(
         storm_object_table, axes_object, basemap_object, colour_map_object=None,
         line_width=DEFAULT_TRACK_WIDTH,
@@ -336,7 +311,7 @@ def plot_storm_tracks(
         end_marker_size=DEFAULT_END_MARKER_SIZE):
     """Plots one or more storm tracks on the same map.
 
-    :param storm_object_table: See doc for `plot_storm_objects`.
+    :param storm_object_table: See doc for `plot_storm_outlines`.
     :param axes_object: Same.
     :param basemap_object: Same.
     :param colour_map_object: Colour scheme (instance of
