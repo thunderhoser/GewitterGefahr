@@ -510,12 +510,13 @@ def _update_full_ids(storm_object_table):
 
 def join_collinear_tracks(
         storm_object_table, first_late_time_unix_sec, last_late_time_unix_sec,
-        max_join_time_seconds, max_join_error_m_s01):
+        max_join_time_seconds, max_join_error_m_s01,
+        max_join_distance_m_s01=-1.):
     """Joins collinear storm tracks.
 
     This method calls `temporal_tracking.link_local_maxima_in_time`.  For each
     call, there is one dictionary with storm tracks ending at the "early time"
-    and another with tracks ending at the "late time".  The goal is to find
+    and another with tracks starting at the "late time".  The goal is to find
     collinear pairs of tracks (one from the early time, one from the late time).
     However, this method also handles splits and mergers.
 
@@ -535,6 +536,8 @@ def join_collinear_tracks(
         time.
     :param max_join_error_m_s01: Max error incurred by extrapolating early track
         to beginning of late track.
+    :param max_join_distance_m_s01: Max distance between end of early track and
+        beginning of late track.
     :return: storm_object_table: Same as input but maybe with new primary and/or
         secondary IDs.
     """
@@ -645,7 +648,7 @@ def join_collinear_tracks(
                     previous_local_max_dict=this_early_local_max_dict,
                     max_link_time_seconds=max_join_time_seconds,
                     max_velocity_diff_m_s01=max_join_error_m_s01,
-                    max_link_distance_m_s01=-1.)
+                    max_link_distance_m_s01=max_join_distance_m_s01)
             )
 
             orig_late_to_early_matrix = copy.deepcopy(this_late_to_early_matrix)

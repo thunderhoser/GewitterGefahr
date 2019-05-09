@@ -1249,6 +1249,8 @@ def reanalyze_across_spc_dates(
         last_spc_date_string, first_time_unix_sec=None, last_time_unix_sec=None,
         tracking_start_time_unix_sec=None, tracking_end_time_unix_sec=None,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
+        max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
+        max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_join_time_seconds=DEFAULT_MAX_JOIN_TIME_SEC,
         max_join_error_m_s01=DEFAULT_MAX_JOIN_ERROR_M_S01,
         min_track_duration_seconds=DEFAULT_MIN_REANALYZED_DURATION_SEC,
@@ -1272,6 +1274,10 @@ def reanalyze_across_spc_dates(
         `tracking_end_time_unix_sec is None`, defaults to `last_time_unix_sec`.
     :param max_link_time_seconds: See doc for
         `temporal_tracking.link_local_maxima_in_time`.
+    :param max_velocity_diff_m_s01: See doc for
+        `temporal_tracking.link_local_maxima_in_time`.  Used only to bridge gap
+        between two SPC dates.
+    :param max_link_distance_m_s01: Same.
     :param max_join_time_seconds: See doc for
         `track_reanalysis.join_collinear_tracks`.
     :param max_join_error_m_s01: Same.
@@ -1371,16 +1377,51 @@ def reanalyze_across_spc_dates(
             current_date_index=i, top_output_dir_name=top_output_dir_name)
         print SEPARATOR_STRING
 
-        # TODO(thunderhoser): Do normal join here, between last time step in one
-        # day and first time step in the next.
-
         if i == num_spc_dates:
             break
 
         if i != num_spc_dates - 1:
-            indices_to_concat = numpy.array([i, i + 1], dtype=int)
+            this_early_time_unix_sec = numpy.max(
+                valid_times_by_date_unix_sec[i]
+            )
+            this_early_table = storm_object_table_by_date[i].loc[
+                storm_object_table_by_date[i][tracking_utils.VALID_TIME_COLUMN]
+                == this_early_time_unix_sec
+            ]
+
+            this_late_time_unix_sec = numpy.min(
+                valid_times_by_date_unix_sec[i + 1]
+            )
+            this_late_table = storm_object_table_by_date[i + 1].loc[
+                storm_object_table_by_date[i + 1][
+                    tracking_utils.VALID_TIME_COLUMN]
+                == this_late_time_unix_sec
+            ]
+
             concat_storm_object_table = pandas.concat(
-                [storm_object_table_by_date[k] for k in indices_to_concat],
+                [this_early_table, this_late_table],
+                axis=0, ignore_index=True)
+
+            concat_storm_object_table = track_reanalysis.join_collinear_tracks(
+                storm_object_table=concat_storm_object_table,
+                first_late_time_unix_sec=this_late_time_unix_sec,
+                last_late_time_unix_sec=this_late_time_unix_sec,
+                max_join_time_seconds=max_link_time_seconds,
+                max_join_error_m_s01=max_velocity_diff_m_s01,
+                max_join_distance_m_s01=max_link_distance_m_s01)
+            print SEPARATOR_STRING
+
+            storm_object_table_by_date[i] = concat_storm_object_table.loc[
+                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
+                spc_date_strings[i]
+            ]
+            storm_object_table_by_date[i + 1] = concat_storm_object_table.loc[
+                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
+                spc_date_strings[i + 1]
+            ]
+
+            concat_storm_object_table = pandas.concat(
+                [storm_object_table_by_date[k] for k in [i, i + 1]],
                 axis=0, ignore_index=True)
 
             this_first_time_unix_sec = numpy.min(

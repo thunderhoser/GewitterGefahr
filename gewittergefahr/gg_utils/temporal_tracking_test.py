@@ -281,16 +281,6 @@ THIS_X_DISTANCE_MATRIX_METRES = numpy.array([
 
 THIS_X_DISTANCE_MATRIX_METRES[THIS_X_DISTANCE_MATRIX_METRES < 0] = numpy.inf
 
-# THIRD_X_COORDS_METRES = numpy.array(
-#     [21, 5, 30, 31, 0, 17, 28], dtype=float)
-# THIRD_Y_COORDS_METRES = numpy.array(
-#     [-9, 34, 0, 12, -4, 12, 25], dtype=float)
-
-# SECOND_X_COORDS_METRES = numpy.array(
-#     [13, -1, 20, 20, -8, 5, -23, 19], dtype=float)
-# SECOND_Y_COORDS_METRES = numpy.array(
-#     [-14, 25, -12, 1, -14, 4, -5, 18], dtype=float)
-
 THIS_Y_DISTANCE_MATRIX_METRES = numpy.array([
     [5, 34, 3, 10, 5, 13, 4, 27],
     [48, 9, 46, 33, 48, 30, 39, 16],
