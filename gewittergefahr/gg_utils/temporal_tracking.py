@@ -283,9 +283,10 @@ def _prune_connections(velocity_diff_matrix_m_s01, distance_matrix_m_s01,
         elements might have been flipped from True to False.
     """
 
-    num_previous_maxima = current_to_previous_matrix.shape[1]
+    num_current_by_previous = numpy.sum(current_to_previous_matrix, axis=0)
+    previous_indices = numpy.argsort(-1 * num_current_by_previous)
 
-    for j in range(num_previous_maxima):
+    for j in previous_indices:
         this_worst_current_index = -1
 
         while this_worst_current_index is not None:

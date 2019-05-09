@@ -205,7 +205,7 @@ CURRENT_TO_PREV_MATRIX_DISTANCE_1TO2 = numpy.array(
      [0, 0, 0, 0, 0, 0]], dtype=bool)
 
 CURRENT_TO_PREV_MATRIX_1TO2 = numpy.array(
-    [[0, 0, 0, 0, 1, 0],
+    [[0, 0, 0, 1, 0, 0],
      [0, 0, 0, 0, 0, 1],
      [0, 0, 0, 0, 0, 0],
      [0, 0, 0, 1, 0, 0],
@@ -270,25 +270,35 @@ CURRENT_TO_PREV_MATRIX_VELOCITY_2TO3 = numpy.array(
      [0, 0, 0, 0, 0, 0, 0, 1]], dtype=bool)
 
 THIS_X_DISTANCE_MATRIX_METRES = numpy.array([
-    [8, -1, -1, 1, -1, -1, 44, -1],
-    [8, -1, -1, 15, -1, -1, 28, -1],
-    [17, -1, -1, 10, -1, -1, 53, -1],
-    [18, -1, -1, 11, -1, -1, 54, -1],
-    [13, -1, -1, 20, -1, -1, 23, -1],
-    [4, -1, -1, 3, -1, -1, 40, -1],
-    [15, -1, -1, 8, -1, -1, 51, -1]
+    [8, 22, 1, 1, 29, 16, 44, 2],
+    [8, 6, 15, 15, 13, 0, 28, 14],
+    [17, 31, 10, 10, 38, 25, 53, 11],
+    [18, 32, 11, 11, 39, 26, 54, 12],
+    [13, 1, 20, 20, 8, 5, 23, 19],
+    [4, 18, 3, 3, 25, 12, 40, 2],
+    [15, 29, 8, 8, 36, 23, 51, 9]
 ], dtype=float)
 
 THIS_X_DISTANCE_MATRIX_METRES[THIS_X_DISTANCE_MATRIX_METRES < 0] = numpy.inf
 
+# THIRD_X_COORDS_METRES = numpy.array(
+#     [21, 5, 30, 31, 0, 17, 28], dtype=float)
+# THIRD_Y_COORDS_METRES = numpy.array(
+#     [-9, 34, 0, 12, -4, 12, 25], dtype=float)
+
+# SECOND_X_COORDS_METRES = numpy.array(
+#     [13, -1, 20, 20, -8, 5, -23, 19], dtype=float)
+# SECOND_Y_COORDS_METRES = numpy.array(
+#     [-14, 25, -12, 1, -14, 4, -5, 18], dtype=float)
+
 THIS_Y_DISTANCE_MATRIX_METRES = numpy.array([
-    [5, -1, -1, 10, -1, -1, 4, -1],
-    [48, -1, -1, 33, -1, -1, 39, -1],
-    [14, -1, -1, 1, -1, -1, 5, -1],
-    [26, -1, -1, 11, -1, -1, 17, -1],
-    [10, -1, -1, 5, -1, -1, 1, -1],
-    [26, -1, -1, 11, -1, -1, 17, -1],
-    [39, -1, -1, 24, -1, -1, 30, -1]
+    [5, 34, 3, 10, 5, 13, 4, 27],
+    [48, 9, 46, 33, 48, 30, 39, 16],
+    [14, 25, 12, 1, 14, 4, 5, 18],
+    [26, 13, 24, 11, 26, 8, 17, 6],
+    [10, 29, 8, 5, 10, 8, 1, 22],
+    [26, 13, 24, 11, 26, 8, 17, 6],
+    [39, 0, 37, 24, 39, 21, 30, 7]
 ], dtype=float)
 
 THIS_Y_DISTANCE_MATRIX_METRES[THIS_Y_DISTANCE_MATRIX_METRES < 0] = numpy.inf
@@ -303,7 +313,7 @@ CURRENT_TO_PREV_MATRIX_DISTANCE_2TO3 = numpy.array(
      [0, 0, 0, 0, 0, 0, 0, 0],
      [0, 0, 0, 0, 0, 0, 0, 1],
      [0, 0, 0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 1, 0, 0],
+     [0, 0, 0, 0, 0, 1, 0, 1],
      [0, 0, 0, 0, 0, 0, 0, 1]], dtype=bool)
 
 CURRENT_TO_PREV_MATRIX_2TO3 = numpy.array(
@@ -372,7 +382,7 @@ OLD_TO_NEW_DICT_1TO2 = [
 OLD_TO_NEW_DICT_1TO2 = OrderedDict(OLD_TO_NEW_DICT_1TO2)
 
 CURRENT_TO_PREV_MATRIX_1TO2_POSTMERGE = numpy.array(
-    [[0, 0, 0, 0, 1, 0],
+    [[0, 0, 0, 1, 0, 0],
      [0, 0, 0, 0, 0, 1],
      [0, 0, 0, 0, 0, 0],
      [0, 0, 0, 1, 0, 0],
@@ -383,17 +393,17 @@ CURRENT_TO_PREV_MATRIX_1TO2_POSTMERGE = numpy.array(
 
 # The following constants are used to test _local_maxima_to_tracks_splits.
 FIRST_NEXT_SECONDARY_IDS_POSTSPLIT = [
-    ['000006'], [], ['000006'], [], ['000007', '000008'], []
+    ['000006'], [], ['000006'], ['000007', '000008'], [], []
 ]
 SECOND_PREV_SECONDARY_IDS_POSTSPLIT = [
-    ['000004'], [], [], [], ['000004'], ['000000', '000002'], [], []
+    ['000003'], [], [], ['000003'], [], ['000000', '000002'], [], []
 ]
 
 SECOND_PRIMARY_ID_STRINGS_POSTSPLIT = [
-    '000004_19691231', '', '', '', '000004_19691231', '000006_19691231', '', ''
+    '000003_19691231', '', '', '000003_19691231', '', '000006_19691231', '', ''
 ]
 SECOND_SECONDARY_ID_STRINGS_POSTSPLIT = [
-    '000007', '', '', '', '000008', '000006', '', ''
+    '000007', '', '', '000008', '', '000006', '', ''
 ]
 
 PREV_SPC_DATE_STRING_1TO2_POSTSPLIT = '19691231'
@@ -404,28 +414,28 @@ CURRENT_TO_PREV_MATRIX_1TO2_POSTSPLIT = numpy.array(
     [[0, 0, 0, 0, 0, 0],
      [0, 0, 0, 0, 0, 1],
      [0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 1, 0, 0],
      [0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 1, 0],
      [0, 0, 0, 0, 0, 0],
      [0, 1, 0, 0, 0, 0],
      [0, 0, 0, 0, 0, 0]], dtype=bool)
 
 # The following constants are used to test _local_maxima_to_tracks_simple.
 FIRST_NEXT_SECONDARY_IDS_POST = [
-    ['000006'], ['000001'], ['000006'], ['000003'], ['000007', '000008'],
+    ['000006'], ['000001'], ['000006'], ['000007', '000008'], ['000004'],
     ['000005']
 ]
 SECOND_PREV_SECONDARY_IDS_POST = [
-    ['000004'], ['000005'], [], ['000003'], ['000004'], ['000000', '000002'],
+    ['000003'], ['000005'], [], ['000003'], ['000004'], ['000000', '000002'],
     ['000001'], []
 ]
 
 SECOND_PRIMARY_ID_STRINGS = [
-    '000004_19691231', '000005_19691231', '000007_19691231', '000003_19691231',
+    '000003_19691231', '000005_19691231', '000007_19691231', '000003_19691231',
     '000004_19691231', '000006_19691231', '000001_19691231', '000008_19691231'
 ]
 SECOND_SECONDARY_ID_STRINGS = [
-    '000007', '000005', '000009', '000003', '000008', '000006', '000001',
+    '000007', '000005', '000009', '000008', '000004', '000006', '000001',
     '000010'
 ]
 
@@ -476,7 +486,7 @@ PREV_PRIMARY_ID_2TO3_POSTMERGE = 9
 PREV_SECONDARY_ID_2TO3_POSTMERGE = 11
 
 OLD_TO_NEW_DICT_2TO3 = [
-    ('000004_19691231', '000009_19691231'),
+    ('000003_19691231', '000009_19691231'),
     ('000007_19691231', '000009_19691231')
 ]
 OLD_TO_NEW_DICT_2TO3 = OrderedDict(OLD_TO_NEW_DICT_2TO3)
@@ -551,7 +561,7 @@ THIRD_LOCAL_MAX_DICT_WITH_IDS.update({
 
 # The following constants are used to test local_maxima_to_storm_tracks.
 PRIMARY_ID_STRINGS = PRIMARY_ID_STRINGS_1AND2 + THIRD_PRIMARY_ID_STRINGS
-THESE_OLD_ID_STRINGS = ['000004_19691231', '000007_19691231']
+THESE_OLD_ID_STRINGS = ['000003_19691231', '000007_19691231']
 PRIMARY_ID_STRINGS = [
     '000009_19691231' if s in THESE_OLD_ID_STRINGS else s
     for s in PRIMARY_ID_STRINGS
@@ -603,8 +613,8 @@ CELL_START_TIMES_UNIX_SEC = numpy.array([
 ], dtype=int)
 
 CELL_END_TIMES_UNIX_SEC = numpy.array([
-    15, 10, 15, 10, 15, 15,
-    15, 15, 15, 10, 15, 15, 10, 15,
+    15, 10, 15, 15, 10, 15,
+    15, 15, 15, 15, 10, 15, 10, 15,
     15, 15, 15, 15, 15, 15, 15
 ], dtype=int)
 
@@ -615,8 +625,8 @@ TRACKING_END_TIMES_UNIX_SEC = numpy.full(len(STORM_AGES_SECONDS), 15, dtype=int)
 # The following constants are used to test find_predecessors.
 PREDECESSOR_ROWS_15SEC_LISTLIST = [
     [], [], [], [], [], [],
-    [4], [5], [], [3], [4], [0, 2], [1], [],
-    [4, 8], [5], [], [13], [0, 2], [0, 2], [13]
+    [3], [5], [], [3], [4], [0, 2], [1], [],
+    [3, 8], [5], [], [13], [0, 2], [0, 2], [13]
 ]
 
 PREDECESSOR_ROWS_5SEC_LISTLIST = [
@@ -643,8 +653,8 @@ THESE_SECOND_TIME_DIFFS_SEC[THESE_SECOND_TIME_DIFFS_SEC < 0] = numpy.nan
 
 THESE_FIRST_DISPLACEMENTS_METRES = numpy.array([
     0, 0, 0, 0, 0, 0,
-    8, 3, 0, 14, -13, 3, -16, 0,
-    16, 9, 0, 12, -2, 15, 9
+    7, 3, 0, 14, -13, 3, -16, 0,
+    15, 9, 0, 12, -2, 15, 9
 ], dtype=float)
 
 THESE_SECOND_DISPLACEMENTS_METRES = numpy.array([
@@ -667,8 +677,8 @@ EAST_VELOCITIES_NO_NEIGH_15SEC_M_S01 = numpy.nanmean(
 
 THESE_FIRST_DISPLACEMENTS_METRES = numpy.array([
     0, 0, 0, 0, 0, 0,
-    -11, 16, 0, 2, -11, 0, -4, 0,
-    -6, 25, 0, -6, -8, 8, 7
+    -13, 16, 0, 2, -11, 0, -4, 0,
+    -8, 25, 0, -6, -8, 8, 7
 ], dtype=float)
 
 THESE_SECOND_DISPLACEMENTS_METRES = numpy.array([
