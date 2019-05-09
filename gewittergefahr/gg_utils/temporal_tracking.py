@@ -249,9 +249,9 @@ def _link_local_maxima_by_distance(
         )
 
         these_distances_m_s01 = these_distances_metres / time_diff_seconds
-        these_distances_m_s01[
-            numpy.invert(numpy.isnan(previous_local_max_dict[X_VELOCITIES_KEY]))
-        ] = numpy.inf
+        # these_distances_m_s01[
+        #     numpy.invert(numpy.isnan(previous_local_max_dict[X_VELOCITIES_KEY]))
+        # ] = numpy.inf
 
         sort_indices = numpy.argsort(these_distances_m_s01)
 
