@@ -1053,7 +1053,6 @@ def run_tracking(
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec)
 
-    num_times = len(valid_times_unix_sec)
     valid_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT)
         for t in valid_times_unix_sec
@@ -1063,6 +1062,7 @@ def run_tracking(
         central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
         central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
 
+    num_times = len(valid_times_unix_sec)
     local_max_dict_by_time = [{}] * num_times
     keep_time_indices = []
 
@@ -1206,13 +1206,16 @@ def run_tracking(
                     previous_local_max_dict=local_max_dict_by_time[i - 1])
             )
 
+    print SEPARATOR_STRING
+
     keep_time_indices = numpy.array(keep_time_indices, dtype=int)
     valid_times_unix_sec = valid_times_unix_sec[keep_time_indices]
+    del valid_time_strings
+
     local_max_dict_by_time = [
         local_max_dict_by_time[k] for k in keep_time_indices
     ]
 
-    print SEPARATOR_STRING
     print 'Converting time series of "{0:s}" maxima to storm tracks...'.format(
         echo_top_field_name)
     storm_object_table = temporal_tracking.local_maxima_to_storm_tracks(
@@ -1308,7 +1311,7 @@ def reanalyze_across_spc_dates(
         )
         tracking_end_time_unix_sec = numpy.max(these_times_unix_sec)
 
-    else:
+    else:  # Check input args.
         time_conversion.unix_sec_to_string(
             tracking_start_time_unix_sec, TIME_FORMAT)
         time_conversion.unix_sec_to_string(
@@ -1320,7 +1323,8 @@ def reanalyze_across_spc_dates(
 
     if num_spc_dates == 1:
         storm_object_table = tracking_io.read_many_files(
-            tracking_file_names_by_date[0])
+            tracking_file_names_by_date[0]
+        )
         print SEPARATOR_STRING
 
         storm_object_table = _storm_objects_latlng_to_xy(storm_object_table)
@@ -1361,10 +1365,12 @@ def reanalyze_across_spc_dates(
             storm_object_table=storm_object_table,
             num_seconds_back=num_seconds_back_for_velocity)
 
+        print SEPARATOR_STRING
         _write_new_tracks(
             storm_object_table=storm_object_table,
             top_output_dir_name=top_output_dir_name,
             valid_times_unix_sec=valid_times_by_date_unix_sec[0])
+
         return
 
     storm_object_table_by_date = [pandas.DataFrame()] * num_spc_dates

@@ -296,38 +296,42 @@ def _prune_connections(velocity_diff_matrix_m_s01, distance_matrix_m_s01,
 
             this_worst_current_index = None
 
+            # If [j]th previous local max is involved in a split:
             if len(these_current_indices) > 1:
-                # print 'FOUND {0:d}-WAY SPLIT'.format(len(these_current_indices))
-
                 this_num_previous_by_current = numpy.array([
                     numpy.sum(current_to_previous_matrix[i, :])
                     for i in these_current_indices
                 ], dtype=int)
 
+                # Current local max cannot be involved in both a merger and a
+                # split.
                 if numpy.max(this_num_previous_by_current) > 1:
                     this_worst_current_index = these_current_indices[
                         numpy.argmax(this_num_previous_by_current)
                     ]
 
-            if this_worst_current_index is None:
-                if len(these_current_indices) <= MAX_STORMS_IN_SPLIT:
-                    continue
+            if this_worst_current_index is not None:
+                current_to_previous_matrix[this_worst_current_index, j] = False
+                continue
 
-                this_max_velocity_diff_m_s01 = numpy.max(
+            if len(these_current_indices) <= MAX_STORMS_IN_SPLIT:
+                continue
+
+            this_max_velocity_diff_m_s01 = numpy.max(
+                velocity_diff_matrix_m_s01[these_current_indices, j]
+            )
+
+            if numpy.isinf(this_max_velocity_diff_m_s01):
+                this_worst_current_index = numpy.argmax(
+                    distance_matrix_m_s01[these_current_indices, j]
+                )
+            else:
+                this_worst_current_index = numpy.argmax(
                     velocity_diff_matrix_m_s01[these_current_indices, j]
                 )
 
-                if numpy.isinf(this_max_velocity_diff_m_s01):
-                    this_worst_current_index = numpy.argmax(
-                        distance_matrix_m_s01[these_current_indices, j]
-                    )
-                else:
-                    this_worst_current_index = numpy.argmax(
-                        velocity_diff_matrix_m_s01[these_current_indices, j]
-                    )
-
-                this_worst_current_index = these_current_indices[
-                    this_worst_current_index]
+            this_worst_current_index = these_current_indices[
+                this_worst_current_index]
 
             current_to_previous_matrix[this_worst_current_index, j] = False
 
@@ -442,9 +446,13 @@ def _local_maxima_to_tracks_mergers(
         )[0]
         current_to_previous_matrix[i, :] = False
 
+        # Create new secondary ID for [i]th local max at current time (because
+        # this local max results from merger of two previous maxima).
         (current_local_max_dict[SECONDARY_IDS_KEY][i], prev_secondary_id_numeric
         ) = _create_secondary_storm_id(prev_secondary_id_numeric)
 
+        # Create new primary ID for [i]th local max at current time.  This will
+        # be shared with the two previous local maxima involved in the merger.
         (this_primary_id_string, prev_primary_id_numeric,
          prev_spc_date_string
         ) = _create_primary_storm_id(
@@ -511,16 +519,18 @@ def _local_maxima_to_tracks_splits(
     previous_indices_in_split = numpy.where(num_current_by_previous > 1)[0]
 
     for j in previous_indices_in_split:
-        print 'FOUND SPLIT'
-
         these_current_indices = numpy.where(current_to_previous_matrix[:, j])[0]
         current_to_previous_matrix[:, j] = False
 
+        # Find primary ID of [j]th local max at previous time (the one that
+        # split).  Share this primary ID with the two current local maxima
+        # involved in the split.
         this_primary_id_string = previous_local_max_dict[PRIMARY_IDS_KEY][j]
 
         for i in these_current_indices:
             current_local_max_dict[PRIMARY_IDS_KEY][i] = this_primary_id_string
 
+            # Create new secondary ID for [i]th local max at current time.
             (current_local_max_dict[SECONDARY_IDS_KEY][i],
              prev_secondary_id_numeric
             ) = _create_secondary_storm_id(prev_secondary_id_numeric)
@@ -579,6 +589,9 @@ def _local_maxima_to_tracks_simple(
     num_storm_objects = len(current_local_max_dict[X_COORDS_KEY])
 
     for i in range(num_storm_objects):
+
+        # If [i]th local max at current time already has primary ID, there is
+        # nothing to do.
         if current_local_max_dict[PRIMARY_IDS_KEY][i]:
             continue
 
@@ -586,6 +599,7 @@ def _local_maxima_to_tracks_simple(
             current_to_previous_matrix[i, :]
         )[0]
 
+        # If [i]th local max at current time is beginning of a new track:
         if len(these_previous_indices) == 0:
             (current_local_max_dict[PRIMARY_IDS_KEY][i],
              prev_primary_id_numeric, prev_spc_date_string
@@ -601,6 +615,8 @@ def _local_maxima_to_tracks_simple(
 
             continue
 
+        # If [i]th local max at current time is linked to [j]th local max at
+        # previous time:
         j = these_previous_indices[0]
 
         current_local_max_dict[PRIMARY_IDS_KEY][i] = previous_local_max_dict[
@@ -890,12 +906,12 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     storm_object_table.polygon_object_rowcol
     """
 
-    all_primary_ids = []
-    all_secondary_ids = []
-    all_first_prev_secondary_ids = []
-    all_second_prev_secondary_ids = []
-    all_first_next_secondary_ids = []
-    all_second_next_secondary_ids = []
+    all_primary_id_strings = []
+    all_secondary_id_strings = []
+    all_first_prev_sec_id_strings = []
+    all_second_prev_sec_id_strings = []
+    all_first_next_sec_id_strings = []
+    all_second_next_sec_id_strings = []
 
     all_times_unix_sec = numpy.array([], dtype=int)
     all_spc_date_strings = []
@@ -908,8 +924,8 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
 
     all_polygon_rows_arraylist = []
     all_polygon_columns_arraylist = []
-    all_polygon_latitudes_arraylist_deg = []
-    all_polygon_longitudes_arraylist_deg = []
+    all_polygon_lat_arraylist_deg = []
+    all_polygon_lng_arraylist_deg = []
     all_polygon_objects_latlng = numpy.array([], dtype=object)
     all_polygon_objects_rowcol = numpy.array([], dtype=object)
 
@@ -939,6 +955,8 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
                 NEXT_SECONDARY_IDS_KEY: copy.deepcopy(this_empty_2d_list)
             })
 
+        # If first time step, just create storm IDs and don't worry about
+        # linking.
         if i == 0:
             for j in range(this_num_storm_objects):
                 (local_max_dict_by_time[i][PRIMARY_IDS_KEY][j],
@@ -956,6 +974,10 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             continue
 
         if i != num_times:
+
+            # Handle mergers between [i]th and [i - 1]th time steps.  This
+            # occurs when two storms at [i - 1]th time merge into one storm at
+            # [i]th time.
             this_current_to_prev_matrix = copy.deepcopy(
                 local_max_dict_by_time[i][CURRENT_TO_PREV_MATRIX_KEY]
             )
@@ -975,8 +997,12 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
             prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
             old_to_new_primary_id_dict.update(
-                this_dict[OLD_TO_NEW_PRIMARY_IDS_KEY])
+                this_dict[OLD_TO_NEW_PRIMARY_IDS_KEY]
+            )
 
+            # Handle splits between [i]th and [i - 1]th time steps.  This
+            # occurs when one storm at [i - 1]th time splits into two storms at
+            # [i]th time.
             this_dict = _local_maxima_to_tracks_splits(
                 current_local_max_dict=local_max_dict_by_time[i],
                 previous_local_max_dict=local_max_dict_by_time[i - 1],
@@ -988,6 +1014,10 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             this_current_to_prev_matrix = this_dict[CURRENT_TO_PREV_MATRIX_KEY]
             prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
 
+            # Handle simple connections between [i]th and [i - 1]th time steps.
+            # This occurs when one storm at [i - 1]th time has either zero or
+            # one successors at [i]th time.  In other words, there is either a
+            # one-to-one connection or no connection.
             this_dict = _local_maxima_to_tracks_simple(
                 current_local_max_dict=local_max_dict_by_time[i],
                 previous_local_max_dict=local_max_dict_by_time[i - 1],
@@ -1006,25 +1036,26 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             local_max_dict_by_time[i - 1][LATITUDES_KEY]
         )
 
-        all_primary_ids += local_max_dict_by_time[i - 1][PRIMARY_IDS_KEY]
-        all_secondary_ids += local_max_dict_by_time[i - 1][SECONDARY_IDS_KEY]
+        all_primary_id_strings += local_max_dict_by_time[i - 1][PRIMARY_IDS_KEY]
+        all_secondary_id_strings += local_max_dict_by_time[i - 1][
+            SECONDARY_IDS_KEY]
 
-        all_first_prev_secondary_ids += [
+        all_first_prev_sec_id_strings += [
             x[0] if len(x) > 0 else ''
             for x in local_max_dict_by_time[i - 1][PREV_SECONDARY_IDS_KEY]
         ]
 
-        all_second_prev_secondary_ids += [
+        all_second_prev_sec_id_strings += [
             x[1] if len(x) > 1 else ''
             for x in local_max_dict_by_time[i - 1][PREV_SECONDARY_IDS_KEY]
         ]
 
-        all_first_next_secondary_ids += [
+        all_first_next_sec_id_strings += [
             x[0] if len(x) > 0 else ''
             for x in local_max_dict_by_time[i - 1][NEXT_SECONDARY_IDS_KEY]
         ]
 
-        all_second_next_secondary_ids += [
+        all_second_next_sec_id_strings += [
             x[1] if len(x) > 1 else ''
             for x in local_max_dict_by_time[i - 1][NEXT_SECONDARY_IDS_KEY]
         ]
@@ -1062,10 +1093,10 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
                 GRID_POINT_ROWS_KEY]
             all_polygon_columns_arraylist += local_max_dict_by_time[i - 1][
                 GRID_POINT_COLUMNS_KEY]
-            all_polygon_latitudes_arraylist_deg += local_max_dict_by_time[
-                i - 1][GRID_POINT_LATITUDES_KEY]
-            all_polygon_longitudes_arraylist_deg += local_max_dict_by_time[
-                i - 1][GRID_POINT_LONGITUDES_KEY]
+            all_polygon_lat_arraylist_deg += local_max_dict_by_time[i - 1][
+                GRID_POINT_LATITUDES_KEY]
+            all_polygon_lng_arraylist_deg += local_max_dict_by_time[i - 1][
+                GRID_POINT_LONGITUDES_KEY]
 
             all_polygon_objects_latlng = numpy.concatenate((
                 all_polygon_objects_latlng,
@@ -1077,16 +1108,16 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             ))
 
     storm_object_dict = {
-        tracking_utils.PRIMARY_ID_COLUMN: all_primary_ids,
-        tracking_utils.SECONDARY_ID_COLUMN: all_secondary_ids,
+        tracking_utils.PRIMARY_ID_COLUMN: all_primary_id_strings,
+        tracking_utils.SECONDARY_ID_COLUMN: all_secondary_id_strings,
         tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
-            all_first_prev_secondary_ids,
+            all_first_prev_sec_id_strings,
         tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
-            all_second_prev_secondary_ids,
+            all_second_prev_sec_id_strings,
         tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN:
-            all_first_next_secondary_ids,
+            all_first_next_sec_id_strings,
         tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN:
-            all_second_next_secondary_ids,
+            all_second_next_sec_id_strings,
         tracking_utils.VALID_TIME_COLUMN: all_times_unix_sec,
         tracking_utils.SPC_DATE_COLUMN: all_spc_date_strings,
         tracking_utils.CENTROID_LATITUDE_COLUMN: all_centroid_latitudes_deg,
@@ -1101,17 +1132,16 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             tracking_utils.COLUMNS_IN_STORM_COLUMN:
                 all_polygon_columns_arraylist,
             tracking_utils.LATITUDES_IN_STORM_COLUMN:
-                all_polygon_latitudes_arraylist_deg,
+                all_polygon_lat_arraylist_deg,
             tracking_utils.LONGITUDES_IN_STORM_COLUMN:
-                all_polygon_longitudes_arraylist_deg,
-            tracking_utils.LATLNG_POLYGON_COLUMN:
-                all_polygon_objects_latlng,
-            tracking_utils.ROWCOL_POLYGON_COLUMN:
-                all_polygon_objects_rowcol
+                all_polygon_lng_arraylist_deg,
+            tracking_utils.LATLNG_POLYGON_COLUMN: all_polygon_objects_latlng,
+            tracking_utils.ROWCOL_POLYGON_COLUMN: all_polygon_objects_rowcol
         })
 
     storm_object_table = pandas.DataFrame.from_dict(storm_object_dict)
 
+    # Finalize mergers by changing new primary IDs.
     for this_key in old_to_new_primary_id_dict:
         storm_object_table[[tracking_utils.PRIMARY_ID_COLUMN]] = (
             storm_object_table[[tracking_utils.PRIMARY_ID_COLUMN]].replace(
@@ -1119,6 +1149,7 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
                 inplace=False)
         )
 
+    # Create full IDs (primary + secondary).
     full_id_strings = [
         create_full_storm_id(primary_id_string=p, secondary_id_string=s)
         for p, s in zip(
@@ -1274,6 +1305,8 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
     :return: predecessor_rows: 1-D numpy array with rows of predecessors.
     """
 
+    # TODO(thunderhoser): This algorithm could probably be more efficient.
+
     error_checking.assert_is_integer(target_row)
     error_checking.assert_is_geq(target_row, 0)
     error_checking.assert_is_less_than(
@@ -1282,9 +1315,6 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
 
     error_checking.assert_is_integer(num_seconds_back)
     error_checking.assert_is_greater(num_seconds_back, 0)
-
-    # TODO(thunderhoser): This algorithm might be very inefficient for large
-    # tables.  I don't know yet.
 
     unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
