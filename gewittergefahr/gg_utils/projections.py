@@ -10,32 +10,71 @@ from pyproj import Proj
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 
-EARTH_RADIUS_METRES = 6370997.
+DEFAULT_EARTH_RADIUS_METRES = 6370997.
+
+SPHERE_NAME = 'sphere'
+WGS84_NAME = 'WGS84'
+VALID_ELLIPSOID_NAMES = [SPHERE_NAME, WGS84_NAME]
 
 
-def init_lambert_conformal_projection(standard_latitudes_deg,
-                                      central_longitude_deg):
-    """Initializes Lambert conformal projection.
+def _check_ellipsoid(ellipsoid_name):
+    """Error-checks ellipsoid.
 
-    :param standard_latitudes_deg: length-2 numpy array with standard parallels
-        (deg N).  standard_latitudes_deg[0] is the first standard parallel;
-        standard_latitudes_deg[1] is the second standard parallel.
-    :param central_longitude_deg: central meridian (deg E).
-    :return: projection_object: object created by `pyproj.Proj`, specifying the
-        Lambert conformal projection.
+    :param ellipsoid_name: Name of ellipsoid.
+    :raises: ValueError: if `ellipsoid_name not in VALID_ELLIPSOID_NAMES`.
+    """
+
+    error_checking.assert_is_string(ellipsoid_name)
+
+    if ellipsoid_name not in VALID_ELLIPSOID_NAMES:
+        error_string = (
+            '\n{0:s}\nValid ellipsoids (listed above) do not include "{1:s}".'
+        ).format(str(VALID_ELLIPSOID_NAMES), ellipsoid_name)
+
+        raise ValueError(error_string)
+
+
+def init_lcc_projection(
+        standard_latitudes_deg, central_longitude_deg,
+        ellipsoid_name=SPHERE_NAME,
+        earth_radius_metres=DEFAULT_EARTH_RADIUS_METRES):
+    """Initializes LCC (Lambert conformal conic) projection.
+
+    :param standard_latitudes_deg: length-2 numpy array of standard parallels
+        (deg N).
+    :param central_longitude_deg: Central meridian (deg E).
+    :param ellipsoid_name: Ellipsoid (examples are "sphere" and "WGS84").
+    :param earth_radius_metres: [used only if ellipsoid_name = "sphere"]
+        Earth radius.
+    :return: projection_object: Instance of `pyproj.Proj`, specifying the LCC
+        projection.
     """
 
     error_checking.assert_is_valid_lat_numpy_array(standard_latitudes_deg)
-    error_checking.assert_is_numpy_array(standard_latitudes_deg,
-                                         exact_dimensions=numpy.array([2]))
+    these_expected_dim = numpy.array([2], dtype=int)
+    error_checking.assert_is_numpy_array(
+        standard_latitudes_deg, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_non_array(central_longitude_deg)
     central_longitude_deg = lng_conversion.convert_lng_positive_in_west(
         central_longitude_deg, allow_nan=False)
 
-    return Proj(proj='lcc', lat_1=standard_latitudes_deg[0],
-                lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
-                rsphere=EARTH_RADIUS_METRES, ellps='sphere')
+    _check_ellipsoid(ellipsoid_name)
+
+    if ellipsoid_name == SPHERE_NAME:
+        error_checking.assert_is_greater(earth_radius_metres, 0.)
+
+        return Proj(
+            proj='lcc', lat_1=standard_latitudes_deg[0],
+            lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
+            rsphere=earth_radius_metres, ellps=ellipsoid_name
+        )
+
+    return Proj(
+        proj='lcc', lat_1=standard_latitudes_deg[0],
+        lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
+        ellps=ellipsoid_name
+    )
 
 
 def init_azimuthal_equidistant_projection(central_latitude_deg,
@@ -75,7 +114,7 @@ def init_cylindrical_equidistant_projection(
 
     return Proj(
         proj='eqc', lat_0=central_latitude_deg, lon_0=central_longitude_deg,
-        lat_ts=true_scale_latitude_deg, rsphere=EARTH_RADIUS_METRES,
+        lat_ts=true_scale_latitude_deg, rsphere=DEFAULT_EARTH_RADIUS_METRES,
         ellps='sphere')
 
 

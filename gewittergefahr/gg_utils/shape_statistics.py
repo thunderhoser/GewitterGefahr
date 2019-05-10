@@ -163,9 +163,8 @@ def _project_polygon_latlng_to_xy(polygon_object_latlng,
         and y-coordinates are in metres.
     """
 
-    projection_object = projections.init_lambert_conformal_projection(
-        standard_latitudes_deg=
-        numpy.array([centroid_latitude_deg, centroid_latitude_deg]),
+    projection_object = projections.init_lcc_projection(
+        standard_latitudes_deg=numpy.full(2, centroid_latitude_deg),
         central_longitude_deg=centroid_longitude_deg)
 
     vertex_latitudes_deg = numpy.asarray(polygon_object_latlng.exterior.xy[1])

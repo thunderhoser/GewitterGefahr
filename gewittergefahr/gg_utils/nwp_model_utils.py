@@ -360,8 +360,10 @@ def init_model_projection(model_name):
 
     standard_latitudes_deg, central_longitude_deg = get_projection_params(
         model_name)
-    return projections.init_lambert_conformal_projection(
-        standard_latitudes_deg, central_longitude_deg)
+
+    return projections.init_lcc_projection(
+        standard_latitudes_deg=standard_latitudes_deg,
+        central_longitude_deg=central_longitude_deg)
 
 
 def get_columns_in_sounding_table(model_name):
