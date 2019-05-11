@@ -404,31 +404,44 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
         ) + LATLNG_BUFFER_DEG
 
-    latitude_flags = numpy.logical_and(
-        storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values >=
-        min_plot_latitude_deg,
-        storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values <=
-        max_plot_latitude_deg
-    )
-
-    longitude_flags = numpy.logical_and(
-        storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values >=
-        min_plot_longitude_deg,
-        storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values <=
-        max_plot_longitude_deg
-    )
-
-    good_indices = numpy.where(numpy.logical_and(
-        latitude_flags, longitude_flags
-    ))[0]
-
-    storm_object_table = storm_object_table.iloc[good_indices]
-
     valid_times_unix_sec = numpy.unique(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values)
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):
+        this_storm_object_table = storm_object_table.loc[
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN] ==
+            valid_times_unix_sec[i]
+        ]
+
+        these_lat_flags = numpy.logical_and(
+            this_storm_object_table[
+                tracking_utils.CENTROID_LATITUDE_COLUMN
+            ].values >= min_plot_latitude_deg,
+            this_storm_object_table[
+                tracking_utils.CENTROID_LATITUDE_COLUMN
+            ].values <= max_plot_latitude_deg
+        )
+
+        these_lng_flags = numpy.logical_and(
+            this_storm_object_table[
+                tracking_utils.CENTROID_LONGITUDE_COLUMN
+            ].values >= min_plot_longitude_deg,
+            this_storm_object_table[
+                tracking_utils.CENTROID_LONGITUDE_COLUMN
+            ].values <= max_plot_longitude_deg
+        )
+
+        these_good_indices = numpy.where(numpy.logical_and(
+            these_lat_flags, these_lng_flags
+        ))[0]
+
+        if len(these_good_indices) == 0:
+            continue
+
+        this_storm_object_table = this_storm_object_table.iloc[
+            these_good_indices]
+
         if top_myrorss_dir_name is None:
             this_radar_matrix = None
             these_radar_latitudes_deg = None
@@ -481,15 +494,10 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 max_longitude_deg=max_plot_longitude_deg, resolution_string='i')
         )
 
-        this_storm_object_table = storm_object_table.loc[
-            storm_object_table[tracking_utils.VALID_TIME_COLUMN] ==
-            valid_times_unix_sec[i]
-        ]
-
-        these_storm_ids = this_storm_object_table[
+        current_id_strings = this_storm_object_table[
             tracking_utils.PRIMARY_ID_COLUMN].values
 
-        this_num_storm_objects = len(these_storm_ids)
+        this_num_storm_objects = len(current_id_strings)
         these_alt_colour_flags = numpy.full(
             this_num_storm_objects, False, dtype=bool)
 
@@ -499,11 +507,12 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 valid_times_unix_sec[i - 1]
             ]
 
-            prev_storm_ids = prev_storm_object_table[
+            prev_id_strings = prev_storm_object_table[
                 tracking_utils.PRIMARY_ID_COLUMN].values
 
             these_new_flags = numpy.array(
-                [s not in prev_storm_ids for s in these_storm_ids], dtype=bool
+                [s not in prev_id_strings for s in current_id_strings],
+                dtype=bool
             )
 
             these_alt_colour_flags = numpy.logical_or(
@@ -515,11 +524,12 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 valid_times_unix_sec[i + 1]
             ]
 
-            next_storm_ids = next_storm_object_table[
+            next_id_strings = next_storm_object_table[
                 tracking_utils.PRIMARY_ID_COLUMN].values
 
             these_new_flags = numpy.array(
-                [s not in next_storm_ids for s in these_storm_ids], dtype=bool
+                [s not in next_id_strings for s in current_id_strings],
+                dtype=bool
             )
 
             these_alt_colour_flags = numpy.logical_or(
