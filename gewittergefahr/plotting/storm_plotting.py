@@ -235,8 +235,8 @@ def plot_storm_ids(
             )
 
             this_index = numpy.argmax(these_x_metres - these_y_metres)
-            text_x_coords_metres = these_x_metres[this_index]
-            text_y_coords_metres = these_y_metres[this_index]
+            text_x_coords_metres[i] = these_x_metres[this_index]
+            text_y_coords_metres[i] = these_y_metres[this_index]
 
     for i in range(num_storm_objects):
         this_primary_id_string = storm_object_table[
