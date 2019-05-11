@@ -27,13 +27,12 @@ DEFAULT_START_MARKER_SIZE = 8
 DEFAULT_END_MARKER_SIZE = 12
 DEFAULT_CENTROID_MARKER_SIZE = 6
 
-DEFAULT_OUTLINE_WIDTH = 2
+DEFAULT_POLYGON_WIDTH = 2
 
 DEFAULT_FONT_SIZE = 12
-DEFAULT_TEXT_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
-DEFAULT_OUTLINE_COLOUR = matplotlib.colors.to_rgba(DEFAULT_TEXT_COLOUR, 0.5)
-DEFAULT_CENTROID_COLOUR = matplotlib.colors.to_rgba(DEFAULT_TEXT_COLOUR, 0.5)
-DEFAULT_ALT_TEXT_COLOUR = numpy.full(3, 0.)
+DEFAULT_FONT_COLOUR = numpy.full(3, 0.)
+DEFAULT_CENTROID_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+DEFAULT_POLYGON_COLOUR = matplotlib.colors.to_rgba(DEFAULT_CENTROID_COLOUR, 0.5)
 
 
 def get_storm_track_colours():
@@ -134,18 +133,9 @@ def plot_storm_track(
 
 def plot_storm_outlines(
         storm_object_table, axes_object, basemap_object,
-        line_width=DEFAULT_OUTLINE_WIDTH,
-        line_colour=DEFAULT_OUTLINE_COLOUR, plot_storm_ids=False,
-        storm_id_colour=DEFAULT_TEXT_COLOUR,
-        storm_id_font_size=DEFAULT_FONT_SIZE, alt_id_colour_flags=None,
-        alt_storm_id_colour=DEFAULT_ALT_TEXT_COLOUR):
-    """Plots all storm objects in the table (as unfilled outlines).
-
-    Recommended use of this method is for all storm objects at one time step.
-    However, this is not enforced; the method will plot all storm objects in
-    `storm_object_table`.
-
-    N = number of storm objects = number of rows in `storm_object_table`
+        line_width=DEFAULT_POLYGON_WIDTH,
+        line_colour=DEFAULT_POLYGON_COLOUR):
+    """Plots all storm objects in the table (as unfilled polygons).
 
     :param storm_object_table: See doc for `storm_tracking_io.write_file`.
     :param axes_object: Will plot on these axes (instance of
@@ -153,44 +143,16 @@ def plot_storm_outlines(
     :param basemap_object: Will use this object (instance of
         `mpl_toolkits.basemap.Basemap`) to convert between x-y and lat-long
         coords.
-    :param line_width: Width of each storm outline.
-    :param line_colour: Colour of each storm outline.
-    :param plot_storm_ids: Boolean flag.  If True, will print ID (string) inside
-        each storm object.
-    :param storm_id_colour: [used only if plot_storm_ids = True]
-        Colour for storm IDs.
-    :param storm_id_font_size: [used only if plot_storm_ids = True]
-        Font size for storm IDs.
-    :param alt_id_colour_flags: [used only if plot_storm_ids = True]
-        length-N numpy array of Boolean flags.  If alt_id_colour_flags[i] =
-        True, [i]th storm ID will be printed in alternate colour.  If
-        `alt_id_colour_flags = None`, defaults to False for every storm object.
-    :param alt_storm_id_colour:
-        [used only if `plot_storm_ids = True and
-        alt_id_colour_flags is not None`]
-        Alternate colour for storm IDs.
+    :param line_width: Width of each polygon.
+    :param line_colour: Colour of each polygon.
     """
 
-    error_checking.assert_is_boolean(plot_storm_ids)
     num_storm_objects = len(storm_object_table.index)
 
-    if plot_storm_ids:
-        if alt_id_colour_flags is None:
-            alt_id_colour_flags = numpy.full(
-                num_storm_objects, False, dtype=bool)
-
-        these_expected_dim = numpy.array([num_storm_objects], dtype=int)
-
-        error_checking.assert_is_boolean_numpy_array(alt_id_colour_flags)
-        error_checking.assert_is_numpy_array(
-            alt_id_colour_flags, exact_dimensions=these_expected_dim)
-
     for i in range(num_storm_objects):
-        this_polygon_object_latlng = storm_object_table[
-            tracking_utils.LATLNG_POLYGON_COLUMN].values[i]
-
         this_vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
-            this_polygon_object_latlng)
+            storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values[i]
+        )
 
         these_x_coords_metres, these_y_coords_metres = basemap_object(
             this_vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
@@ -201,41 +163,12 @@ def plot_storm_outlines(
             these_x_coords_metres, these_y_coords_metres, color=line_colour,
             linestyle='solid', linewidth=line_width)
 
-        if not plot_storm_ids:
-            continue
-
-        this_label_string = storm_object_table[
-            tracking_utils.PRIMARY_ID_COLUMN
-        ].values[i].split('_')[0]
-
-        try:
-            this_label_string = str(int(this_label_string))
-        except ValueError:
-            pass
-
-        this_index = numpy.argmax(these_x_coords_metres - these_y_coords_metres)
-        this_x_metres = these_x_coords_metres[this_index]
-        this_y_metres = these_y_coords_metres[this_index]
-
-        if alt_id_colour_flags[i]:
-            this_colour = alt_storm_id_colour
-        else:
-            this_colour = storm_id_colour
-
-        axes_object.text(
-            this_x_metres, this_y_metres, this_label_string,
-            fontsize=storm_id_font_size, fontweight='bold', color=this_colour,
-            horizontalalignment='left', verticalalignment='top')
-
 
 def plot_storm_centroids(
         storm_object_table, axes_object, basemap_object,
         marker_type=DEFAULT_CENTROID_MARKER_TYPE,
         marker_colour=DEFAULT_CENTROID_COLOUR,
-        marker_size=DEFAULT_CENTROID_MARKER_SIZE, plot_storm_ids=False,
-        storm_id_colour=DEFAULT_TEXT_COLOUR,
-        storm_id_font_size=DEFAULT_FONT_SIZE, alt_id_colour_flags=None,
-        alt_storm_id_colour=DEFAULT_ALT_TEXT_COLOUR):
+        marker_size=DEFAULT_CENTROID_MARKER_SIZE):
     """Plots all storm centroids in the table (as markers).
 
     :param storm_object_table: See doc for `plot_storm_outlines`.
@@ -245,60 +178,94 @@ def plot_storm_centroids(
         by `matplotlib.lines`).
     :param marker_colour: Colour for storm centroids.
     :param marker_size: Marker size for storm centroids.
-    :param plot_storm_ids: See doc for `plot_storm_outlines`.
-    :param storm_id_colour: Same.
-    :param storm_id_font_size: Same.
-    :param alt_id_colour_flags: Same.
-    :param alt_storm_id_colour: Same.
     """
 
-    error_checking.assert_is_boolean(plot_storm_ids)
+    x_coords_metres, y_coords_metres = basemap_object(
+        storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
+        storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
+    )
+
+    axes_object.plot(
+        x_coords_metres, y_coords_metres, linestyle='None', marker=marker_type,
+        markerfacecolor=marker_colour, markeredgecolor=marker_colour,
+        markersize=marker_size, markeredgewidth=0)
+
+
+def plot_storm_ids(
+        storm_object_table, axes_object, basemap_object,
+        plot_near_centroids=False, include_secondary_ids=False,
+        font_colour=DEFAULT_FONT_COLOUR, font_size=DEFAULT_FONT_SIZE):
+    """Plots storm IDs as text.
+
+    :param storm_object_table: See doc for `plot_storm_outlines`.
+    :param axes_object: Same.
+    :param basemap_object: Same.
+    :param plot_near_centroids: Boolean flag.  If True, will plot each ID near
+        the storm centroid.  If False, will plot each ID near southeasternmost
+        point in storm outline.
+    :param include_secondary_ids: Boolean flag.  If True, will plot full IDs
+        (primary_secondary).  If False, will plot only primary IDs.
+    :param font_colour: Font colour.
+    :param font_size: Font size.
+    """
+
+    error_checking.assert_is_boolean(plot_near_centroids)
+    error_checking.assert_is_boolean(include_secondary_ids)
+
     num_storm_objects = len(storm_object_table.index)
 
-    if plot_storm_ids:
-        if alt_id_colour_flags is None:
-            alt_id_colour_flags = numpy.full(
-                num_storm_objects, False, dtype=bool)
+    if plot_near_centroids:
+        text_x_coords_metres, text_y_coords_metres = basemap_object(
+            storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
+            storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
+        )
+    else:
+        text_x_coords_metres = numpy.full(num_storm_objects, numpy.nan)
+        text_y_coords_metres = numpy.full(num_storm_objects, numpy.nan)
 
-        these_expected_dim = numpy.array([num_storm_objects], dtype=int)
+        for i in range(num_storm_objects):
+            this_vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
+                storm_object_table[
+                    tracking_utils.LATLNG_POLYGON_COLUMN].values[i]
+            )
 
-        error_checking.assert_is_boolean_numpy_array(alt_id_colour_flags)
-        error_checking.assert_is_numpy_array(
-            alt_id_colour_flags, exact_dimensions=these_expected_dim)
+            these_x_metres, these_y_metres = basemap_object(
+                this_vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
+                this_vertex_dict_latlng[polygons.EXTERIOR_Y_COLUMN]
+            )
+
+            this_index = numpy.argmax(these_x_metres - these_y_metres)
+            text_x_coords_metres = these_x_metres[this_index]
+            text_y_coords_metres = these_y_metres[this_index]
 
     for i in range(num_storm_objects):
-        this_x_metres, this_y_metres = basemap_object(
-            storm_object_table[
-                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i],
-            storm_object_table[
-                tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
-        )
-
-        axes_object.plot(
-            this_x_metres, this_y_metres, linestyle='None', marker=marker_type,
-            markerfacecolor=marker_colour, markeredgecolor=marker_colour,
-            markersize=marker_size, markeredgewidth=0)
-
-        if not plot_storm_ids:
-            continue
-
-        this_label_string = storm_object_table[
+        this_primary_id_string = storm_object_table[
             tracking_utils.PRIMARY_ID_COLUMN
         ].values[i].split('_')[0]
 
         try:
-            this_label_string = str(int(this_label_string))
+            this_primary_id_string = str(int(this_primary_id_string))
         except ValueError:
             pass
 
-        if alt_id_colour_flags[i]:
-            this_colour = alt_storm_id_colour
+        if include_secondary_ids:
+            this_secondary_id_string = storm_object_table[
+                tracking_utils.SECONDARY_ID_COLUMN
+            ].values[i]
+
+            try:
+                this_secondary_id_string = str(int(this_secondary_id_string))
+            except ValueError:
+                pass
+
+            this_label_string = '{0:s}_{1:s}'.format(
+                this_primary_id_string, this_secondary_id_string)
         else:
-            this_colour = storm_id_colour
+            this_label_string = this_primary_id_string
 
         axes_object.text(
-            this_x_metres, this_y_metres, this_label_string,
-            fontsize=storm_id_font_size, fontweight='bold', color=this_colour,
+            text_x_coords_metres[i], text_y_coords_metres[i], this_label_string,
+            fontsize=font_size, fontweight='bold', color=font_colour,
             horizontalalignment='left', verticalalignment='top')
 
 

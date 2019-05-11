@@ -31,7 +31,7 @@ NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = 0.5
 BORDER_COLOUR = numpy.full(3, 0.)
-ALT_STORM_ID_COLOUR = numpy.full(3, 0.)
+ALT_STORM_ID_COLOUR = storm_plotting.DEFAULT_CENTROID_COLOUR
 
 FIGURE_RESOLUTION_DPI = 300
 
@@ -40,6 +40,7 @@ FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 STORM_COLOUR_ARG_NAME = 'storm_colour'
 STORM_OPACITY_ARG_NAME = 'storm_opacity'
+INCLUDE_SECONDARY_ARG_NAME = 'include_secondary_ids'
 MIN_LATITUDE_ARG_NAME = 'min_plot_latitude_deg'
 MAX_LATITUDE_ARG_NAME = 'max_plot_latitude_deg'
 MIN_LONGITUDE_ARG_NAME = 'min_plot_longitude_deg'
@@ -64,6 +65,10 @@ STORM_COLOUR_HELP_STRING = (
     'range 0...255).')
 
 STORM_OPACITY_HELP_STRING = 'Opacity of storm outlines (in range 0...1).'
+
+INCLUDE_SECONDARY_HELP_STRING = (
+    'Boolean flag.  If 1, primary_secondary ID will be plotted next to each '
+    'storm object.  If 0, only primary ID will be plotted.')
 
 LATITUDE_HELP_STRING = (
     'Latitude (deg N, in range -90...90).  Plotting area will be '
@@ -121,6 +126,10 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_STORM_OPACITY, help=STORM_OPACITY_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + INCLUDE_SECONDARY_ARG_NAME, type=int, required=False,
+    default=0, help=INCLUDE_SECONDARY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + MIN_LATITUDE_ARG_NAME, type=float, required=False,
     default=SENTINEL_VALUE, help=LATITUDE_HELP_STRING)
 
@@ -154,22 +163,26 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_storm_outlines_one_time(
-        storm_object_table, axes_object, basemap_object, alt_id_colour_flags,
-        storm_colour, storm_opacity, output_dir_name, radar_matrix=None,
-        radar_field_name=None, radar_latitudes_deg=None,
-        radar_longitudes_deg=None):
+        storm_object_table, axes_object, basemap_object, storm_colour,
+        storm_opacity, include_secondary_ids, alt_id_colour_flags,
+        output_dir_name, radar_matrix=None, radar_field_name=None,
+        radar_latitudes_deg=None, radar_longitudes_deg=None):
     """Plots storm outlines (and may underlay radar data) at one time step.
 
     M = number of rows in radar grid
     N = number of columns in radar grid
+    K = number of storm objects
 
     :param storm_object_table: See doc for `storm_plotting.plot_storm_outlines`.
     :param axes_object: Same.
     :param basemap_object: Same.
-    :param alt_id_colour_flags: Same.
-    :param storm_colour: See documentation at top of file.
+    :param storm_colour: Same.
     :param storm_opacity: Same.
-    :param output_dir_name: Same.
+    :param include_secondary_ids: Same.
+    :param alt_id_colour_flags: length-K numpy array of Boolean flags.  If
+        alt_id_colour_flags[k] = True, [k]th storm ID will be plotted in
+        alternative colour.  If False, will be plotted in default colour.
+    :param output_dir_name: See documentation at top of file.
     :param radar_matrix: M-by-N numpy array of radar values.  If
         `radar_matrix is None`, radar data will simply not be plotted.
     :param radar_field_name: [used only if `radar_matrix is not None`]
@@ -192,10 +205,17 @@ def _plot_storm_outlines_one_time(
         (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
     )
 
-    parallel_spacing_deg = number_rounding.round_to_nearest(
-        parallel_spacing_deg, 0.1)
-    meridian_spacing_deg = number_rounding.round_to_nearest(
-        meridian_spacing_deg, 0.1)
+    if parallel_spacing_deg < 1.:
+        parallel_spacing_deg = number_rounding.round_to_nearest(
+            parallel_spacing_deg, 0.1)
+    else:
+        parallel_spacing_deg = numpy.round(parallel_spacing_deg)
+
+    if meridian_spacing_deg < 1.:
+        meridian_spacing_deg = number_rounding.round_to_nearest(
+            meridian_spacing_deg, 0.1)
+    else:
+        meridian_spacing_deg = numpy.round(meridian_spacing_deg)
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -237,11 +257,6 @@ def _plot_storm_outlines_one_time(
             radar_longitudes_deg[1] - radar_longitudes_deg[0]
         )
 
-        # radar_matrix = echo_top_tracking._gaussian_smooth_radar_field(
-        #     radar_matrix=radar_matrix,
-        #     e_folding_radius_pixels=DEFAULT_SMOOTHING_RADIUS_DEG_LAT / 0.0208
-        # )
-
         radar_plotting.plot_latlng_grid(
             field_matrix=radar_matrix, field_name=radar_field_name,
             axes_object=axes_object,
@@ -273,10 +288,22 @@ def _plot_storm_outlines_one_time(
 
     storm_plotting.plot_storm_outlines(
         storm_object_table=storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, line_colour=line_colour,
-        plot_storm_ids=True, storm_id_colour=storm_colour,
-        alt_id_colour_flags=alt_id_colour_flags,
-        alt_storm_id_colour=ALT_STORM_ID_COLOUR)
+        basemap_object=basemap_object, line_colour=line_colour)
+
+    default_colour_indices = numpy.where(numpy.invert(alt_id_colour_flags))[0]
+    alt_colour_indices = numpy.where(alt_id_colour_flags)[0]
+
+    storm_plotting.plot_storm_ids(
+        storm_object_table=storm_object_table.iloc[default_colour_indices],
+        axes_object=axes_object, basemap_object=basemap_object,
+        plot_near_centroids=False, include_secondary_ids=include_secondary_ids,
+        font_colour=storm_plotting.DEFAULT_FONT_COLOUR)
+
+    storm_plotting.plot_storm_ids(
+        storm_object_table=storm_object_table.iloc[alt_colour_indices],
+        axes_object=axes_object, basemap_object=basemap_object,
+        plot_near_centroids=False, include_secondary_ids=include_secondary_ids,
+        font_colour=ALT_STORM_ID_COLOUR)
 
     valid_time_string = time_conversion.unix_sec_to_string(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[0],
@@ -295,10 +322,10 @@ def _plot_storm_outlines_one_time(
 
 
 def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
-         storm_colour, storm_opacity, min_plot_latitude_deg,
-         max_plot_latitude_deg, min_plot_longitude_deg, max_plot_longitude_deg,
-         top_myrorss_dir_name, radar_field_name, radar_height_m_asl,
-         output_dir_name):
+         storm_colour, storm_opacity, include_secondary_ids,
+         min_plot_latitude_deg, max_plot_latitude_deg, min_plot_longitude_deg,
+         max_plot_longitude_deg, top_myrorss_dir_name, radar_field_name,
+         radar_height_m_asl, output_dir_name):
     """Plots storm outlines (along with IDs) at each time step.
 
     This is effectively the main method.
@@ -308,6 +335,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     :param last_spc_date_string: Same.
     :param storm_colour: Same.
     :param storm_opacity: Same.
+    :param include_secondary_ids: Same.
     :param min_plot_latitude_deg: Same.
     :param max_plot_latitude_deg: Same.
     :param min_plot_longitude_deg: Same.
@@ -463,7 +491,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
         this_num_storm_objects = len(these_storm_ids)
         these_alt_colour_flags = numpy.full(
-            this_num_storm_objects, True, dtype=bool)
+            this_num_storm_objects, False, dtype=bool)
 
         if i != 0:
             prev_storm_object_table = storm_object_table.loc[
@@ -475,8 +503,10 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 tracking_utils.PRIMARY_ID_COLUMN].values
 
             these_new_flags = numpy.array(
-                [s in prev_storm_ids for s in these_storm_ids], dtype=bool)
-            these_alt_colour_flags = numpy.logical_and(
+                [s not in prev_storm_ids for s in these_storm_ids], dtype=bool
+            )
+
+            these_alt_colour_flags = numpy.logical_or(
                 these_alt_colour_flags, these_new_flags)
 
         if i != num_times - 1:
@@ -489,15 +519,18 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 tracking_utils.PRIMARY_ID_COLUMN].values
 
             these_new_flags = numpy.array(
-                [s in next_storm_ids for s in these_storm_ids], dtype=bool)
-            these_alt_colour_flags = numpy.logical_and(
+                [s not in next_storm_ids for s in these_storm_ids], dtype=bool
+            )
+
+            these_alt_colour_flags = numpy.logical_or(
                 these_alt_colour_flags, these_new_flags)
 
         _plot_storm_outlines_one_time(
             storm_object_table=this_storm_object_table,
             axes_object=this_axes_object, basemap_object=this_basemap_object,
-            alt_id_colour_flags=these_alt_colour_flags,
             storm_colour=storm_colour, storm_opacity=storm_opacity,
+            include_secondary_ids=include_secondary_ids,
+            alt_id_colour_flags=these_alt_colour_flags,
             output_dir_name=output_dir_name, radar_matrix=this_radar_matrix,
             radar_field_name=radar_field_name,
             radar_latitudes_deg=these_radar_latitudes_deg,
@@ -515,6 +548,8 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, STORM_COLOUR_ARG_NAME), dtype=float
         ) / 255,
         storm_opacity=getattr(INPUT_ARG_OBJECT, STORM_OPACITY_ARG_NAME),
+        include_secondary_ids=bool(getattr(
+            INPUT_ARG_OBJECT, INCLUDE_SECONDARY_ARG_NAME)),
         min_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MIN_LATITUDE_ARG_NAME),
         max_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MAX_LATITUDE_ARG_NAME),
         min_plot_longitude_deg=getattr(
