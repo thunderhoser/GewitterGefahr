@@ -21,13 +21,10 @@ from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
 DEFAULT_DILATION_PERCENTILE_LEVEL = 100.
-
-GRIDRAD_TIME_FORMAT = '%Y%m%dT%H%M%SZ'
 DEFAULT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
-# TODO(thunderhoser): Might need more.
 STORM_COLUMNS_TO_KEEP = [
-    tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN
+    tracking_utils.FULL_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN
 ]
 
 IS_GRIDRAD_STATISTIC_KEY = 'is_gridrad_statistic'
@@ -43,7 +40,7 @@ GRID_METADATA_KEYS_TO_COMPARE = [
 ]
 
 STORM_OBJECT_TO_GRID_PTS_COLUMNS = [
-    tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.ROWS_IN_STORM_COLUMN,
+    tracking_utils.FULL_ID_COLUMN, tracking_utils.ROWS_IN_STORM_COLUMN,
     tracking_utils.COLUMNS_IN_STORM_COLUMN
 ]
 
@@ -51,54 +48,6 @@ GRID_POINT_LATLNG_COLUMNS = [
     tracking_utils.LATITUDES_IN_STORM_COLUMN,
     tracking_utils.LONGITUDES_IN_STORM_COLUMN
 ]
-
-STORM_NUMBER_NAME_GRIDRAD_ORIG = 'Stormno'
-TIME_NAME_GRIDRAD_ORIG = 'Time'
-ECHO_TOP_40DBZ_NAME_GRIDRAD_ORIG = 'Ztop40'
-SPECTRUM_WIDTH_NAME_GRIDRAD_ORIG = 'Spectrum_width'
-MAX_DIVERGENCE_NAME_GRIDRAD_ORIG = 'Max_div'
-UPPER_LEVEL_DIVERGENCE_NAME_GRIDRAD_ORIG = 'Ul_div'
-LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD_ORIG = 'Ll_con'
-DIVERGENCE_AREA_NAME_GRIDRAD_ORIG = 'Div_area'
-MAX_ROTATION_NAME_GRIDRAD_ORIG = 'Max_rot'
-UPPER_LEVEL_ROTATION_NAME_GRIDRAD_ORIG = 'Ul_rot'
-LOW_LEVEL_ROTATION_NAME_GRIDRAD_ORIG = 'Ll_rot'
-
-GRIDRAD_STATISTIC_NAMES_ORIG = [
-    ECHO_TOP_40DBZ_NAME_GRIDRAD_ORIG, SPECTRUM_WIDTH_NAME_GRIDRAD_ORIG,
-    MAX_DIVERGENCE_NAME_GRIDRAD_ORIG, UPPER_LEVEL_DIVERGENCE_NAME_GRIDRAD_ORIG,
-    LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD_ORIG, DIVERGENCE_AREA_NAME_GRIDRAD_ORIG,
-    MAX_ROTATION_NAME_GRIDRAD_ORIG, UPPER_LEVEL_ROTATION_NAME_GRIDRAD_ORIG,
-    LOW_LEVEL_ROTATION_NAME_GRIDRAD_ORIG
-]
-
-STORM_NUMBER_NAME_GRIDRAD = 'storm_number'
-ECHO_TOP_40DBZ_NAME_GRIDRAD = 'mean_echo_top_40dbz_thea_km_asl'
-SPECTRUM_WIDTH_NAME_GRIDRAD = 'mean_spectrum_width_thea_m_s01'
-MAX_DIVERGENCE_NAME_GRIDRAD = 'column_max_divergence_thea_s01'
-UPPER_LEVEL_DIVERGENCE_NAME_GRIDRAD = 'upper_level_divergence_thea_s01'
-LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD = 'low_level_divergence_thea_s01'
-DIVERGENCE_AREA_NAME_GRIDRAD = 'divergence_area_thea_km2'
-MAX_ROTATION_NAME_GRIDRAD = 'max_rotation_thea_s01'
-UPPER_LEVEL_ROTATION_NAME_GRIDRAD = 'upper_level_rotation_thea_s01'
-LOW_LEVEL_ROTATION_NAME_GRIDRAD = 'low_level_rotation_thea_s01'
-
-GRIDRAD_STATISTIC_NAMES = [
-    ECHO_TOP_40DBZ_NAME_GRIDRAD, SPECTRUM_WIDTH_NAME_GRIDRAD,
-    MAX_DIVERGENCE_NAME_GRIDRAD, UPPER_LEVEL_DIVERGENCE_NAME_GRIDRAD,
-    LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD, DIVERGENCE_AREA_NAME_GRIDRAD,
-    MAX_ROTATION_NAME_GRIDRAD, UPPER_LEVEL_ROTATION_NAME_GRIDRAD,
-    LOW_LEVEL_ROTATION_NAME_GRIDRAD
-]
-
-GRIDRAD_DIVERGENCE_NAMES = [
-    MAX_DIVERGENCE_NAME_GRIDRAD, UPPER_LEVEL_DIVERGENCE_NAME_GRIDRAD,
-    LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD, MAX_ROTATION_NAME_GRIDRAD,
-    UPPER_LEVEL_ROTATION_NAME_GRIDRAD, LOW_LEVEL_ROTATION_NAME_GRIDRAD
-]
-
-# All GridRad divergences are in 10^-3 s^-1.  I want SI units (s^-1).
-CONVERSION_RATIO_FOR_GRIDRAD_DIVERGENCE = 1e-3
 
 # TODO(thunderhoser): Currently statistic names cannot have underscores (this
 # will ruin _column_name_to_statistic_params).  This should be fixed.
@@ -187,13 +136,6 @@ def _column_name_to_statistic_params(column_name):
         statistics and non-percentile statistics.
     """
 
-    if column_name in GRIDRAD_STATISTIC_NAMES:
-        return {IS_GRIDRAD_STATISTIC_KEY: True,
-                RADAR_FIELD_NAME_KEY: None,
-                RADAR_HEIGHT_KEY: None,
-                STATISTIC_NAME_KEY: None,
-                PERCENTILE_LEVEL_KEY: None}
-
     column_name_parts = column_name.split('_')
     if len(column_name_parts) < 2:
         return None
@@ -231,11 +173,13 @@ def _column_name_to_statistic_params(column_name):
     except ValueError:
         return None
 
-    return {IS_GRIDRAD_STATISTIC_KEY: False,
-            RADAR_FIELD_NAME_KEY: radar_field_name,
-            RADAR_HEIGHT_KEY: radar_height_m_asl,
-            STATISTIC_NAME_KEY: statistic_name,
-            PERCENTILE_LEVEL_KEY: percentile_level}
+    return {
+        IS_GRIDRAD_STATISTIC_KEY: False,
+        RADAR_FIELD_NAME_KEY: radar_field_name,
+        RADAR_HEIGHT_KEY: radar_height_m_asl,
+        STATISTIC_NAME_KEY: statistic_name,
+        PERCENTILE_LEVEL_KEY: percentile_level
+    }
 
 
 def _check_statistic_params(statistic_names, percentile_levels):
@@ -417,7 +361,7 @@ def get_grid_points_in_storm_objects(
     """Finds grid points inside each storm object.
 
     :param storm_object_table: pandas DataFrame with columns specified by
-        `storm_tracking_io.write_processed_file`.
+        `storm_tracking_io.write_file`.
     :param orig_grid_metadata_dict: Dictionary with the following keys,
         describing radar grid used to create storm objects.
     orig_grid_metadata_dict['nw_grid_point_lat_deg']: Latitude (deg N) of
@@ -599,14 +543,20 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
         reflectivity_heights_m_asl=reflectivity_heights_m_asl)
 
     radar_file_name_matrix = file_dictionary[
-        myrorss_and_mrms_io.RADAR_FILE_NAMES_KEY]
-    valid_times_unix_sec = file_dictionary[myrorss_and_mrms_io.UNIQUE_TIMES_KEY]
-    valid_spc_dates_unix_sec = file_dictionary[
-        myrorss_and_mrms_io.SPC_DATES_AT_UNIQUE_TIMES_KEY]
+        myrorss_and_mrms_io.RADAR_FILE_NAMES_KEY
+    ]
     radar_field_name_by_pair = file_dictionary[
-        myrorss_and_mrms_io.FIELD_NAME_BY_PAIR_KEY]
+        myrorss_and_mrms_io.FIELD_NAME_BY_PAIR_KEY
+    ]
     radar_height_by_pair_m_asl = file_dictionary[
-        myrorss_and_mrms_io.HEIGHT_BY_PAIR_KEY]
+        myrorss_and_mrms_io.HEIGHT_BY_PAIR_KEY
+    ]
+
+    valid_times_unix_sec = file_dictionary[myrorss_and_mrms_io.UNIQUE_TIMES_KEY]
+    valid_spc_date_strings = [
+        time_conversion.time_to_spc_date_string(t) for t in
+        file_dictionary[myrorss_and_mrms_io.SPC_DATES_AT_UNIQUE_TIMES_KEY]
+    ]
 
     # Initialize output.
     num_field_height_pairs = len(radar_field_name_by_pair)
@@ -685,15 +635,12 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
                 numpy.isnan(radar_matrix_this_field_height)
             ] = 0.
 
-            # TODO(thunderhoser): SPC date in table has changed from number to
-            # string.  This will be a problem.
-
             # Find storm objects at [i]th valid time.
             these_storm_flags = numpy.logical_and(
                 storm_object_table[tracking_utils.VALID_TIME_COLUMN].values ==
                 valid_times_unix_sec[i],
                 storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
-                valid_spc_dates_unix_sec[i]
+                valid_spc_date_strings[i]
             )
 
             these_storm_indices = numpy.where(these_storm_flags)[0]
@@ -765,7 +712,7 @@ def get_storm_based_radar_stats_gridrad(
     S = number of statistics (percentile- and non-percentile-based)
 
     :param storm_object_table: N-row pandas DataFrame with columns listed in
-        `storm_tracking_io.write_processed_file`.  Each row is one storm object.
+        `storm_tracking_io.write_file`.  Each row is one storm object.
     :param top_radar_dir_name: [input] Name of top-level directory with radar
         data from the given source.
     :param statistic_names: 1-D list of non-percentile-based statistics.
@@ -954,88 +901,3 @@ def read_stats_for_storm_objects(pickle_file_name):
     check_statistic_table(
         storm_object_statistic_table, require_storm_objects=True)
     return storm_object_statistic_table
-
-
-def read_gridrad_stats_from_thea(csv_file_name):
-    """Reads radar statistics created by GridRad software (file format by Thea).
-
-    :param csv_file_name: Path to input file.
-    :return: gridrad_statistic_table: pandas DataFrame with mandatory columns
-        listed below.  Other column names come from the list
-        `GRIDRAD_STATISTIC_NAMES`.
-    gridrad_statistic_table.storm_number: Numeric ID (integer) for storm cell.
-    gridrad_statistic_table.unix_time_sec: Valid time of storm object.
-    """
-
-    error_checking.assert_file_exists(csv_file_name)
-    gridrad_statistic_table = pandas.read_csv(csv_file_name, header=0, sep=',')
-
-    # Convert times from Thea's format to Unix format.
-    unix_times_sec = numpy.array(
-        [time_conversion.string_to_unix_sec(s, GRIDRAD_TIME_FORMAT) for s in
-         gridrad_statistic_table[TIME_NAME_GRIDRAD_ORIG].values])
-    gridrad_statistic_table = gridrad_statistic_table.assign(
-        **{tracking_utils.VALID_TIME_COLUMN: unix_times_sec})
-
-    columns_to_keep = GRIDRAD_STATISTIC_NAMES_ORIG + [
-        STORM_NUMBER_NAME_GRIDRAD_ORIG, tracking_utils.VALID_TIME_COLUMN]
-    gridrad_statistic_table = gridrad_statistic_table[columns_to_keep]
-
-    # Rename columns.
-    column_dict_old_to_new = {
-        STORM_NUMBER_NAME_GRIDRAD_ORIG: STORM_NUMBER_NAME_GRIDRAD,
-        ECHO_TOP_40DBZ_NAME_GRIDRAD_ORIG: ECHO_TOP_40DBZ_NAME_GRIDRAD,
-        SPECTRUM_WIDTH_NAME_GRIDRAD_ORIG: SPECTRUM_WIDTH_NAME_GRIDRAD,
-        MAX_DIVERGENCE_NAME_GRIDRAD_ORIG: MAX_DIVERGENCE_NAME_GRIDRAD,
-        UPPER_LEVEL_DIVERGENCE_NAME_GRIDRAD_ORIG:
-            UPPER_LEVEL_DIVERGENCE_NAME_GRIDRAD,
-        LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD_ORIG:
-            LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD,
-        DIVERGENCE_AREA_NAME_GRIDRAD_ORIG: DIVERGENCE_AREA_NAME_GRIDRAD,
-        MAX_ROTATION_NAME_GRIDRAD_ORIG: MAX_ROTATION_NAME_GRIDRAD,
-        UPPER_LEVEL_ROTATION_NAME_GRIDRAD_ORIG:
-            UPPER_LEVEL_ROTATION_NAME_GRIDRAD,
-        LOW_LEVEL_ROTATION_NAME_GRIDRAD_ORIG: LOW_LEVEL_ROTATION_NAME_GRIDRAD
-    }
-
-    gridrad_statistic_table.rename(columns=column_dict_old_to_new, inplace=True)
-
-    # Convert units of divergence/convergence.
-    gridrad_statistic_table[LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD] *= -1
-    for this_name in GRIDRAD_DIVERGENCE_NAMES:
-        gridrad_statistic_table[
-            this_name] *= CONVERSION_RATIO_FOR_GRIDRAD_DIVERGENCE
-
-    return gridrad_statistic_table
-
-
-def merge_gg_and_gridrad_stats(
-        storm_object_statistic_table, gridrad_statistic_table):
-    """Merges GewitterGefahr statistics with GridRad statistics.
-
-    :param storm_object_statistic_table: pandas DataFrame created by
-        `get_storm_based_radar_stats_gridrad`.
-    :param gridrad_statistic_table: pandas DataFrame created by
-        `read_gridrad_stats_from_thea`.
-    :return: storm_object_statistic_table: Same as input but with extra columns.
-        Names of these extra columns are from the list
-        `GRIDRAD_STATISTIC_NAMES`.
-    """
-
-    # TODO(thunderhoser): I will probably just get rid of this.
-
-    storm_ids_for_gridrad_table = _orig_to_new_storm_ids(
-        orig_storm_id_list=storm_object_statistic_table[
-            tracking_utils.PRIMARY_ID_COLUMN].values,
-        unique_indices_for_new_list=gridrad_statistic_table[
-            STORM_NUMBER_NAME_GRIDRAD].values.astype(int))
-
-    gridrad_statistic_table = gridrad_statistic_table.assign(
-        **{tracking_utils.PRIMARY_ID_COLUMN: storm_ids_for_gridrad_table})
-    gridrad_statistic_table.drop(
-        STORM_NUMBER_NAME_GRIDRAD, axis=1, inplace=True)
-
-    columns_to_merge_on = [
-        tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN]
-    return storm_object_statistic_table.merge(
-        gridrad_statistic_table, on=columns_to_merge_on, how='left')

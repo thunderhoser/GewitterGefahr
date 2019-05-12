@@ -361,17 +361,18 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
             continue
 
         track_mismatch_errors[i] = numpy.std(
-            median_by_storm_object[these_object_indices], ddof=1)
+            median_by_storm_object[these_object_indices], ddof=1
+        )
 
     mean_mismatch_error = numpy.nanmean(
         track_mismatch_errors[long_track_indices]
     )
 
-    print 'Mean mismatch error = {0:.4e} units of "{1:s}"'.format(
-        mean_mismatch_error, radar_field_name)
+    print 'Mean mismatch error for "{0:s}" = {1:.4e}'.format(
+        radar_field_name, mean_mismatch_error)
 
     return {
-        DURATIONS_KEY: track_durations_sec.astype(int),
+        DURATIONS_KEY: track_durations_sec,
         LINEARITY_ERRORS_KEY: track_linearity_errors_metres,
         MISMATCH_ERRORS_KEY: track_mismatch_errors,
         MEAN_LINEARITY_ERROR_KEY: mean_linearity_error_metres,
