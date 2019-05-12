@@ -419,7 +419,7 @@ def storm_objects_to_tracks(storm_object_table):
     storm_track_table.valid_times_unix_sec: length-T numpy array of valid times.
     storm_track_table.object_indices: length-T numpy array with indices of storm
         objects in track.  These are indices into the rows of
-            `storm_object_table`.
+        `storm_object_table`.
     storm_track_table.centroid_latitudes_deg: length-T numpy array of centroid
         latitudes (deg N).
     storm_track_table.centroid_longitudes_deg: length-T numpy array of centroid
@@ -481,48 +481,6 @@ def storm_objects_to_tracks(storm_object_table):
         )
         storm_track_table[TRACK_Y_COORDS_COLUMN].values[i] = (
             storm_object_table[CENTROID_Y_COLUMN].values[these_object_indices]
-        )
-
-    # TODO(thunderhoser): Remove this shit eventually.
-    if (SECOND_PREV_SECONDARY_ID_COLUMN in list(storm_object_table) and
-            SECOND_NEXT_SECONDARY_ID_COLUMN in list(storm_object_table)):
-
-        num_storm_objects = len(storm_object_table.index)
-
-        merger_flags = numpy.array([
-            storm_object_table[SECOND_PREV_SECONDARY_ID_COLUMN].values[i] != ''
-            for i in range(num_storm_objects)
-        ], dtype=bool)
-
-        split_flags = numpy.array([
-            storm_object_table[
-                SECOND_NEXT_SECONDARY_ID_COLUMN].values[i] != ''
-            for i in range(num_storm_objects)
-        ], dtype=bool)
-
-        print (
-            'Number of storm objects = {0:d} ... number of tracks = {1:d} ... '
-            'number of mergers = {2:d} ... number of splits = {3:d}'
-        ).format(
-            num_storm_objects, num_storm_tracks, numpy.sum(merger_flags),
-            numpy.sum(split_flags)
-        )
-
-    start_times_unix_sec = numpy.array([
-        numpy.min(storm_track_table[TRACK_TIMES_COLUMN].values[i])
-        for i in range(num_storm_tracks)
-    ], dtype=int)
-
-    end_times_unix_sec = numpy.array([
-        numpy.max(storm_track_table[TRACK_TIMES_COLUMN].values[i])
-        for i in range(num_storm_tracks)
-    ], dtype=int)
-
-    storm_durations_sec = end_times_unix_sec - start_times_unix_sec
-
-    for p in [50, 75, 90, 95, 99]:
-        print '{0:d}th percentile of storm durations = {1:.1f} seconds'.format(
-            int(p), numpy.percentile(storm_durations_sec, p)
         )
 
     return storm_track_table

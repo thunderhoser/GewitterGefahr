@@ -24,8 +24,10 @@ DEFAULT_DILATION_PERCENTILE_LEVEL = 100.
 
 GRIDRAD_TIME_FORMAT = '%Y%m%dT%H%M%SZ'
 DEFAULT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+
+# TODO(thunderhoser): Might need more.
 STORM_COLUMNS_TO_KEEP = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN
+    tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN
 ]
 
 IS_GRIDRAD_STATISTIC_KEY = 'is_gridrad_statistic'
@@ -37,13 +39,18 @@ PERCENTILE_LEVEL_KEY = 'percentile_level'
 GRID_METADATA_KEYS_TO_COMPARE = [
     radar_utils.NW_GRID_POINT_LAT_COLUMN, radar_utils.NW_GRID_POINT_LNG_COLUMN,
     radar_utils.LAT_SPACING_COLUMN, radar_utils.LNG_SPACING_COLUMN,
-    radar_utils.NUM_LAT_COLUMN, radar_utils.NUM_LNG_COLUMN]
+    radar_utils.NUM_LAT_COLUMN, radar_utils.NUM_LNG_COLUMN
+]
 
 STORM_OBJECT_TO_GRID_PTS_COLUMNS = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.GRID_POINT_ROW_COLUMN,
-    tracking_utils.GRID_POINT_COLUMN_COLUMN]
+    tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.ROWS_IN_STORM_COLUMN,
+    tracking_utils.COLUMNS_IN_STORM_COLUMN
+]
+
 GRID_POINT_LATLNG_COLUMNS = [
-    tracking_utils.GRID_POINT_LAT_COLUMN, tracking_utils.GRID_POINT_LNG_COLUMN]
+    tracking_utils.LATITUDES_IN_STORM_COLUMN,
+    tracking_utils.LONGITUDES_IN_STORM_COLUMN
+]
 
 STORM_NUMBER_NAME_GRIDRAD_ORIG = 'Stormno'
 TIME_NAME_GRIDRAD_ORIG = 'Time'
@@ -62,7 +69,8 @@ GRIDRAD_STATISTIC_NAMES_ORIG = [
     MAX_DIVERGENCE_NAME_GRIDRAD_ORIG, UPPER_LEVEL_DIVERGENCE_NAME_GRIDRAD_ORIG,
     LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD_ORIG, DIVERGENCE_AREA_NAME_GRIDRAD_ORIG,
     MAX_ROTATION_NAME_GRIDRAD_ORIG, UPPER_LEVEL_ROTATION_NAME_GRIDRAD_ORIG,
-    LOW_LEVEL_ROTATION_NAME_GRIDRAD_ORIG]
+    LOW_LEVEL_ROTATION_NAME_GRIDRAD_ORIG
+]
 
 STORM_NUMBER_NAME_GRIDRAD = 'storm_number'
 ECHO_TOP_40DBZ_NAME_GRIDRAD = 'mean_echo_top_40dbz_thea_km_asl'
@@ -80,12 +88,14 @@ GRIDRAD_STATISTIC_NAMES = [
     MAX_DIVERGENCE_NAME_GRIDRAD, UPPER_LEVEL_DIVERGENCE_NAME_GRIDRAD,
     LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD, DIVERGENCE_AREA_NAME_GRIDRAD,
     MAX_ROTATION_NAME_GRIDRAD, UPPER_LEVEL_ROTATION_NAME_GRIDRAD,
-    LOW_LEVEL_ROTATION_NAME_GRIDRAD]
+    LOW_LEVEL_ROTATION_NAME_GRIDRAD
+]
 
 GRIDRAD_DIVERGENCE_NAMES = [
     MAX_DIVERGENCE_NAME_GRIDRAD, UPPER_LEVEL_DIVERGENCE_NAME_GRIDRAD,
     LOW_LEVEL_CONVERGENCE_NAME_GRIDRAD, MAX_ROTATION_NAME_GRIDRAD,
-    UPPER_LEVEL_ROTATION_NAME_GRIDRAD, LOW_LEVEL_ROTATION_NAME_GRIDRAD]
+    UPPER_LEVEL_ROTATION_NAME_GRIDRAD, LOW_LEVEL_ROTATION_NAME_GRIDRAD
+]
 
 # All GridRad divergences are in 10^-3 s^-1.  I want SI units (s^-1).
 CONVERSION_RATIO_FOR_GRIDRAD_DIVERGENCE = 1e-3
@@ -96,12 +106,17 @@ AVERAGE_NAME = 'mean'
 STANDARD_DEVIATION_NAME = 'stdev'
 SKEWNESS_NAME = 'skewness'
 KURTOSIS_NAME = 'kurtosis'
-STATISTIC_NAMES = [
-    AVERAGE_NAME, STANDARD_DEVIATION_NAME, SKEWNESS_NAME, KURTOSIS_NAME]
-DEFAULT_STATISTIC_NAMES = [
-    AVERAGE_NAME, STANDARD_DEVIATION_NAME, SKEWNESS_NAME, KURTOSIS_NAME]
 
-DEFAULT_PERCENTILE_LEVELS = numpy.array([0., 5., 25., 50., 75., 95., 100.])
+STATISTIC_NAMES = [
+    AVERAGE_NAME, STANDARD_DEVIATION_NAME, SKEWNESS_NAME, KURTOSIS_NAME
+]
+DEFAULT_STATISTIC_NAMES = [
+    AVERAGE_NAME, STANDARD_DEVIATION_NAME, SKEWNESS_NAME, KURTOSIS_NAME
+]
+
+DEFAULT_PERCENTILE_LEVELS = numpy.array(
+    [0, 5, 25, 50, 75, 95, 100], dtype=float
+)
 PERCENTILE_LEVEL_PRECISION = 0.1
 
 DEFAULT_FIELDS_FOR_MYRORSS_AND_MRMS = [
@@ -110,19 +125,23 @@ DEFAULT_FIELDS_FOR_MYRORSS_AND_MRMS = [
     radar_utils.REFL_COLUMN_MAX_NAME, radar_utils.MESH_NAME,
     radar_utils.REFL_0CELSIUS_NAME, radar_utils.REFL_M10CELSIUS_NAME,
     radar_utils.REFL_M20CELSIUS_NAME, radar_utils.REFL_LOWEST_ALTITUDE_NAME,
-    radar_utils.SHI_NAME, radar_utils.VIL_NAME]
+    radar_utils.SHI_NAME, radar_utils.VIL_NAME
+]
 
 AZIMUTHAL_SHEAR_FIELD_NAMES = [
-    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
+]
 
 # TODO(thunderhoser): Deal with dual-pol variables in GridRad and the fact that
 # they might be missing.
 DEFAULT_FIELDS_FOR_GRIDRAD = [
     radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
-    radar_utils.VORTICITY_NAME, radar_utils.DIVERGENCE_NAME]
+    radar_utils.VORTICITY_NAME, radar_utils.DIVERGENCE_NAME
+]
 
 DEFAULT_HEIGHTS_FOR_GRIDRAD_M_ASL = numpy.array(
-    [1000, 2000, 3000, 4000, 5000, 8000, 10000, 12000], dtype=int)
+    [1000, 2000, 3000, 4000, 5000, 8000, 10000, 12000], dtype=int
+)
 
 
 def _orig_to_new_storm_ids(orig_storm_id_list, unique_indices_for_new_list):
@@ -438,9 +457,9 @@ def get_grid_points_in_storm_objects(
     for i in range(num_storm_objects):
         these_grid_rows, these_grid_columns = radar_utils.latlng_to_rowcol(
             latitudes_deg=storm_object_to_grid_points_table[
-                tracking_utils.GRID_POINT_LAT_COLUMN].values[i],
+                tracking_utils.LATITUDES_IN_STORM_COLUMN].values[i],
             longitudes_deg=storm_object_to_grid_points_table[
-                tracking_utils.GRID_POINT_LNG_COLUMN].values[i],
+                tracking_utils.LONGITUDES_IN_STORM_COLUMN].values[i],
             nw_grid_point_lat_deg=new_grid_metadata_dict[
                 radar_utils.NW_GRID_POINT_LAT_COLUMN],
             nw_grid_point_lng_deg=new_grid_metadata_dict[
@@ -452,11 +471,11 @@ def get_grid_points_in_storm_objects(
         )
 
         storm_object_to_grid_points_table[
-            tracking_utils.GRID_POINT_ROW_COLUMN
+            tracking_utils.ROWS_IN_STORM_COLUMN
         ].values[i] = these_grid_rows
 
         storm_object_to_grid_points_table[
-            tracking_utils.GRID_POINT_COLUMN_COLUMN
+            tracking_utils.COLUMNS_IN_STORM_COLUMN
         ].values[i] = these_grid_columns
 
     return storm_object_to_grid_points_table[STORM_OBJECT_TO_GRID_PTS_COLUMNS]
@@ -568,14 +587,13 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
         statistic_names, percentile_levels)
 
     # Find radar files.
-    spc_date_strings = [
-        time_conversion.time_to_spc_date_string(t)
-        for t in storm_object_table[tracking_utils.SPC_DATE_COLUMN].values
-    ]
+    spc_date_strings = (
+        storm_object_table[tracking_utils.SPC_DATE_COLUMN].values.tolist()
+    )
 
     file_dictionary = myrorss_and_mrms_io.find_many_raw_files(
-        desired_times_unix_sec=
-        storm_object_table[tracking_utils.TIME_COLUMN].values.astype(int),
+        desired_times_unix_sec=storm_object_table[
+            tracking_utils.VALID_TIME_COLUMN].values.astype(int),
         spc_date_strings=spc_date_strings, data_source=radar_source,
         field_names=radar_field_names, top_directory_name=top_radar_dir_name,
         reflectivity_heights_m_asl=reflectivity_heights_m_asl)
@@ -667,9 +685,12 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
                 numpy.isnan(radar_matrix_this_field_height)
             ] = 0.
 
+            # TODO(thunderhoser): SPC date in table has changed from number to
+            # string.  This will be a problem.
+
             # Find storm objects at [i]th valid time.
             these_storm_flags = numpy.logical_and(
-                storm_object_table[tracking_utils.TIME_COLUMN].values ==
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN].values ==
                 valid_times_unix_sec[i],
                 storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
                 valid_spc_dates_unix_sec[i]
@@ -683,10 +704,10 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
                 radar_values_this_storm = extract_radar_grid_points(
                     radar_matrix_this_field_height,
                     row_indices=this_storm_to_grid_points_table[
-                        tracking_utils.GRID_POINT_ROW_COLUMN].values[
+                        tracking_utils.ROWS_IN_STORM_COLUMN].values[
                             this_storm_index].astype(int),
                     column_indices=this_storm_to_grid_points_table[
-                        tracking_utils.GRID_POINT_COLUMN_COLUMN].values[
+                        tracking_utils.COLUMNS_IN_STORM_COLUMN].values[
                             this_storm_index].astype(int)
                 )
 
@@ -776,7 +797,7 @@ def get_storm_based_radar_stats_gridrad(
 
     # Find radar files.
     radar_times_unix_sec = numpy.unique(
-        storm_object_table[tracking_utils.TIME_COLUMN].values)
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values)
     radar_time_strings = [
         time_conversion.unix_sec_to_string(t, DEFAULT_TIME_FORMAT)
         for t in radar_times_unix_sec]
@@ -811,7 +832,7 @@ def get_storm_based_radar_stats_gridrad(
         this_metadata_dict = gridrad_io.read_metadata_from_full_grid_file(
             radar_file_names[i])
         these_storm_indices = numpy.where(
-            storm_object_table[tracking_utils.TIME_COLUMN].values ==
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values ==
             radar_times_unix_sec[i])[0]
 
         for j in range(num_radar_fields):
@@ -848,10 +869,10 @@ def get_storm_based_radar_stats_gridrad(
 
                 for this_storm_index in these_storm_indices:
                     these_grid_point_rows = storm_object_table[
-                        tracking_utils.GRID_POINT_ROW_COLUMN].values[
+                        tracking_utils.ROWS_IN_STORM_COLUMN].values[
                             this_storm_index].astype(int)
                     these_grid_point_columns = storm_object_table[
-                        tracking_utils.GRID_POINT_COLUMN_COLUMN].values[
+                        tracking_utils.COLUMNS_IN_STORM_COLUMN].values[
                             this_storm_index].astype(int)
 
                     radar_values_this_storm = extract_radar_grid_points(
@@ -954,10 +975,10 @@ def read_gridrad_stats_from_thea(csv_file_name):
         [time_conversion.string_to_unix_sec(s, GRIDRAD_TIME_FORMAT) for s in
          gridrad_statistic_table[TIME_NAME_GRIDRAD_ORIG].values])
     gridrad_statistic_table = gridrad_statistic_table.assign(
-        **{tracking_utils.TIME_COLUMN: unix_times_sec})
+        **{tracking_utils.VALID_TIME_COLUMN: unix_times_sec})
 
     columns_to_keep = GRIDRAD_STATISTIC_NAMES_ORIG + [
-        STORM_NUMBER_NAME_GRIDRAD_ORIG, tracking_utils.TIME_COLUMN]
+        STORM_NUMBER_NAME_GRIDRAD_ORIG, tracking_utils.VALID_TIME_COLUMN]
     gridrad_statistic_table = gridrad_statistic_table[columns_to_keep]
 
     # Rename columns.
@@ -1001,18 +1022,20 @@ def merge_gg_and_gridrad_stats(
         `GRIDRAD_STATISTIC_NAMES`.
     """
 
+    # TODO(thunderhoser): I will probably just get rid of this.
+
     storm_ids_for_gridrad_table = _orig_to_new_storm_ids(
         orig_storm_id_list=storm_object_statistic_table[
-            tracking_utils.STORM_ID_COLUMN].values,
+            tracking_utils.PRIMARY_ID_COLUMN].values,
         unique_indices_for_new_list=gridrad_statistic_table[
             STORM_NUMBER_NAME_GRIDRAD].values.astype(int))
 
     gridrad_statistic_table = gridrad_statistic_table.assign(
-        **{tracking_utils.STORM_ID_COLUMN: storm_ids_for_gridrad_table})
+        **{tracking_utils.PRIMARY_ID_COLUMN: storm_ids_for_gridrad_table})
     gridrad_statistic_table.drop(
         STORM_NUMBER_NAME_GRIDRAD, axis=1, inplace=True)
 
     columns_to_merge_on = [
-        tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
+        tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN]
     return storm_object_statistic_table.merge(
         gridrad_statistic_table, on=columns_to_merge_on, how='left')
