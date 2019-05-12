@@ -25,7 +25,8 @@ DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))
 DUMMY_SOURCE_NAME = tracking_utils.SEGMOTION_NAME
 SENTINEL_VALUE = -9999
 
-TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
+FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+NICE_TIME_FORMAT = '%H00 UTC %-d %b %Y'
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -277,12 +278,16 @@ def _plot_storm_outlines_one_time(
         else:
             orientation_string = 'horizontal'
 
-        plotting_utils.add_colour_bar(
+        colour_bar_object = plotting_utils.add_colour_bar(
             axes_object_or_list=axes_object, values_to_colour=radar_matrix,
             colour_map=colour_map_object, colour_norm_object=colour_norm_object,
             orientation=orientation_string,
             extend_min=radar_field_name in radar_plotting.SHEAR_VORT_DIV_NAMES,
             extend_max=True, fraction_of_axis_length=0.9)
+
+        colour_bar_object.set_label(
+            radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[radar_field_name]
+        )
 
     line_colour = matplotlib.colors.to_rgba(storm_colour, storm_opacity)
 
@@ -305,13 +310,19 @@ def _plot_storm_outlines_one_time(
         plot_near_centroids=False, include_secondary_ids=include_secondary_ids,
         font_colour=ALT_STORM_ID_COLOUR)
 
-    valid_time_string = time_conversion.unix_sec_to_string(
+    nice_time_string = time_conversion.unix_sec_to_string(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[0],
-        TIME_FORMAT_IN_FILE_NAMES
+        NICE_TIME_FORMAT
     )
 
+    abbrev_time_string = time_conversion.unix_sec_to_string(
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[0],
+        FILE_NAME_TIME_FORMAT
+    )
+
+    pyplot.title('Storm objects at {0:s}'.format(nice_time_string))
     output_file_name = '{0:s}/storm_outlines_{1:s}.jpg'.format(
-        output_dir_name, valid_time_string)
+        output_dir_name, abbrev_time_string)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
