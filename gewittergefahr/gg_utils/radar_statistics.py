@@ -110,9 +110,13 @@ def _orig_to_new_storm_ids(orig_storm_id_list, unique_indices_for_new_list):
     """
 
     _, these_unique_indices = numpy.unique(
-        numpy.array(orig_storm_id_list), return_index=True)
+        numpy.array(orig_storm_id_list), return_index=True
+    )
+
     orig_unique_storm_ids = [
-        orig_storm_id_list[i] for i in sorted(these_unique_indices)]
+        orig_storm_id_list[i] for i in sorted(these_unique_indices)
+    ]
+
     return [orig_unique_storm_ids[i] for i in unique_indices_for_new_list]
 
 
@@ -302,7 +306,7 @@ def check_statistic_table(statistic_table, require_storm_objects=True):
 
     :param statistic_table: pandas DataFrame.
     :param require_storm_objects: Boolean flag.  If True, statistic_table must
-        contain columns "storm_id" and "unix_time_sec".  If False,
+        contain columns "full_id_string" and "unix_time_sec".  If False,
         statistic_table does not need these columns.
     :return: statistic_column_names: 1-D list containing names of columns with
         radar statistics.
@@ -382,7 +386,7 @@ def get_grid_points_in_storm_objects(
         for the new grid.
     :return: storm_object_to_grid_points_table: pandas DataFrame with the
         following columns.  Each row is one storm object.
-    storm_object_to_grid_points_table.storm_id: String ID for storm cell.
+    storm_object_to_grid_points_table.full_id_string: String ID for storm cell.
     storm_object_to_grid_points_table.grid_point_rows: 1-D numpy array with row
         indices (integers) of grid points in storm object.
     storm_object_to_grid_points_table.grid_point_columns: 1-D numpy array with
@@ -520,7 +524,7 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
         `radar_field_and_statistic_to_column_name` and
         `radar_field_and_percentile_to_column_name`.  The first 2 columns are
         listed below.
-    storm_object_statistic_table.storm_id: Storm ID (string) (taken from input
+    storm_object_statistic_table.full_id_string: Storm ID (taken from input
         table).
     storm_object_statistic_table.unix_time_sec: Valid time (taken from input
         table).
@@ -727,7 +731,7 @@ def get_storm_based_radar_stats_gridrad(
         `radar_field_and_statistic_to_column_name` and
         `radar_field_and_percentile_to_column_name`.  The first 2 columns are
         listed below.
-    storm_object_statistic_table.storm_id: Storm ID (string) (taken from input
+    storm_object_statistic_table.full_id_string: Storm ID (taken from input
         table).
     storm_object_statistic_table.unix_time_sec: Valid time (taken from input
         table).
