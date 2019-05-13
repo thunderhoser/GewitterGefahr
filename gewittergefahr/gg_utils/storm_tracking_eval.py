@@ -215,9 +215,8 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
 
     T = number of storm tracks
 
-    :param storm_object_table: pandas DataFrame with the set of storm tracks.
-        Should contain columns listed in
-        `storm_tracking_io.write_processed_file`.
+    :param storm_object_table: pandas DataFrame with storm objects.  Should
+        contain columns listed in `storm_tracking_io.write_file`.
     :param top_myrorss_dir_name: Name of top-level directory with MYRORSS data.
         Files therein will be found by `myrorss_and_mrms_io.find_raw_file` and
         read by `myrorss_and_mrms_io.read_data_from_sparse_grid_file`.
@@ -288,7 +287,19 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
         this_percentile_seconds = numpy.percentile(
             track_durations_sec, this_percentile_level)
 
-        print '{0:d} percentile of track durations = {1:.1f} seconds'.format(
+        print '{0:d}th percentile of track durations = {1:.1f} seconds'.format(
+            int(numpy.round(this_percentile_level)), this_percentile_seconds
+        )
+
+    print '\n'
+
+    for this_percentile_level in DURATION_PERCENTILE_LEVELS:
+        this_percentile_seconds = numpy.percentile(
+            track_durations_sec[track_durations_sec != 0], this_percentile_level)
+
+        print (
+            '{0:d}th percentile of non-zero track durations = {1:.1f} seconds'
+        ).format(
             int(numpy.round(this_percentile_level)), this_percentile_seconds
         )
 
