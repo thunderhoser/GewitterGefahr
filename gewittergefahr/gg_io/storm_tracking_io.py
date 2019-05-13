@@ -13,7 +13,7 @@ from gewittergefahr.gg_utils import error_checking
 
 RANDOM_LEAP_YEAR = 4000
 
-STORM_IDS_KEY = 'storm_ids'
+FULL_IDS_KEY = 'full_id_strings'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
 
 SPC_DATE_REGEX = '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9]'
@@ -532,28 +532,30 @@ def read_many_files(pickle_file_names):
     return pandas.concat(list_of_storm_object_tables, axis=0, ignore_index=True)
 
 
-def write_ids_and_times(storm_ids, storm_times_unix_sec, pickle_file_name):
-    """Writes storm IDs and times (minimal metadata) to Pickle file.
+def write_ids_and_times(full_id_strings, storm_times_unix_sec,
+                        pickle_file_name):
+    """Writes full storm IDs and valid times (minimal metadata) to Pickle file.
 
     N = number of storm objects
 
-    :param storm_ids: length-N list of IDs (strings).
+    :param full_id_strings: length-N list of full IDs.
     :param storm_times_unix_sec: length-N numpy array of valid times.
     :param pickle_file_name: Path to output file.
     """
 
-    error_checking.assert_is_string_list(storm_ids)
+    error_checking.assert_is_string_list(full_id_strings)
     error_checking.assert_is_numpy_array(
-        numpy.array(storm_ids), num_dimensions=1)
-    num_storm_objects = len(storm_ids)
+        numpy.array(full_id_strings), num_dimensions=1)
+    num_storm_objects = len(full_id_strings)
 
     error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
-        storm_times_unix_sec, exact_dimensions=numpy.array([num_storm_objects])
+        storm_times_unix_sec,
+        exact_dimensions=numpy.array([num_storm_objects], dtype=int)
     )
 
     metadata_dict = {
-        STORM_IDS_KEY: storm_ids,
+        FULL_IDS_KEY: full_id_strings,
         STORM_TIMES_KEY: storm_times_unix_sec,
     }
 
@@ -568,7 +570,7 @@ def read_ids_and_times(pickle_file_name):
     """Reads storm IDs and times (minimal metadata) from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: storm_ids: See doc for `write_ids_and_times`.
+    :return: full_id_strings: See doc for `write_ids_and_times`.
     :return: storm_times_unix_sec: Same.
     """
 
@@ -582,5 +584,5 @@ def read_ids_and_times(pickle_file_name):
     if not isinstance(storm_metadata_dict, dict):
         raise ValueError('Cannot find dictionary in file.')
 
-    return (storm_metadata_dict[STORM_IDS_KEY],
+    return (storm_metadata_dict[FULL_IDS_KEY],
             storm_metadata_dict[STORM_TIMES_KEY])

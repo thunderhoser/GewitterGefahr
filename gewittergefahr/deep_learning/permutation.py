@@ -43,8 +43,8 @@ REQUIRED_KEYS = [
 ]
 
 # Optional keys in result dictionary (see `write_results`).
-STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
-STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
+FULL_IDS_KEY = tracking_io.FULL_IDS_KEY
+STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
 MODEL_FILE_KEY = 'model_file_name'
 TARGET_VALUES_KEY = 'target_values'
 

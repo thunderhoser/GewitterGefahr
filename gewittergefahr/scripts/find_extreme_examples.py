@@ -28,8 +28,8 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-STORM_IDS_KEY = 'storm_ids'
-STORM_TIMES_KEY = 'storm_times_unix_sec'
+FULL_IDS_KEY = model_activation.FULL_IDS_KEY
+STORM_TIMES_KEY = model_activation.STORM_TIMES_KEY
 STORM_ACTIVATIONS_KEY = 'storm_activations'
 TARGET_VALUES_KEY = 'storm_target_values'
 
@@ -128,7 +128,7 @@ def _read_target_values(
     :param activation_metadata_dict: Dictionary returned by
         `model_activation.read_file`.
     :return: target_dict: Dictionary with the following keys.
-    target_dict['storm_ids']: length-E list of storm IDs.
+    target_dict['full_id_strings']: length-E list of full storm IDs.
     target_dict['storm_times_unix_sec']: length-E numpy array of storm times.
     target_dict['storm_activations']: length-E numpy array of model activations.
     target_dict['storm_target_values']: length-E numpy array of target values.
@@ -137,7 +137,7 @@ def _read_target_values(
     """
 
     # Convert input args.
-    storm_ids = activation_metadata_dict[model_activation.STORM_IDS_KEY]
+    full_id_strings = activation_metadata_dict[model_activation.FULL_IDS_KEY]
     storm_times_unix_sec = activation_metadata_dict[
         model_activation.STORM_TIMES_KEY]
 
@@ -178,7 +178,7 @@ def _read_target_values(
 
     # Read target values.
     storm_target_values = numpy.array([], dtype=int)
-    sort_indices_for_storm_id = numpy.array([], dtype=int)
+    id_sort_indices = numpy.array([], dtype=int)
     num_spc_dates = len(unique_spc_date_strings_numpy)
 
     for i in range(num_spc_dates):
@@ -194,15 +194,14 @@ def _read_target_values(
         these_indices = numpy.where(
             storm_spc_date_strings_numpy == unique_spc_date_strings_numpy[i]
         )[0]
-        sort_indices_for_storm_id = numpy.concatenate((
-            sort_indices_for_storm_id, these_indices))
+        id_sort_indices = numpy.concatenate((id_sort_indices, these_indices))
 
         these_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=this_target_value_dict[
+            all_id_strings=this_target_value_dict[
                 target_val_utils.STORM_IDS_KEY],
             all_times_unix_sec=this_target_value_dict[
                 target_val_utils.VALID_TIMES_KEY],
-            storm_ids_to_keep=[storm_ids[k] for k in these_indices],
+            id_strings_to_keep=[full_id_strings[k] for k in these_indices],
             times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
 
         storm_target_values = numpy.concatenate((
@@ -216,7 +215,7 @@ def _read_target_values(
     )[0]
 
     storm_target_values = storm_target_values[good_indices]
-    sort_indices_for_storm_id = sort_indices_for_storm_id[good_indices]
+    id_sort_indices = id_sort_indices[good_indices]
 
     if binarize_target:
         storm_target_values = (
@@ -224,9 +223,9 @@ def _read_target_values(
         ).astype(int)
 
     return {
-        STORM_IDS_KEY: [storm_ids[k] for k in sort_indices_for_storm_id],
-        STORM_TIMES_KEY: storm_times_unix_sec[sort_indices_for_storm_id],
-        STORM_ACTIVATIONS_KEY: storm_activations[sort_indices_for_storm_id],
+        FULL_IDS_KEY: [full_id_strings[k] for k in id_sort_indices],
+        STORM_TIMES_KEY: storm_times_unix_sec[id_sort_indices],
+        STORM_ACTIVATIONS_KEY: storm_activations[id_sort_indices],
         TARGET_VALUES_KEY: storm_target_values
     }
 
@@ -276,11 +275,11 @@ def _run(
         raise ValueError(error_string)
 
     storm_activations = activation_matrix[:, 0]
-    storm_ids = activation_metadata_dict[model_activation.STORM_IDS_KEY]
+    full_id_strings = activation_metadata_dict[model_activation.FULL_IDS_KEY]
     storm_times_unix_sec = activation_metadata_dict[
         model_activation.STORM_TIMES_KEY]
 
-    num_storm_objects = len(storm_ids)
+    num_storm_objects = len(full_id_strings)
     error_checking.assert_is_leq(numpy.sum(example_counts), num_storm_objects)
 
     # Find high- and low-activation examples.
@@ -308,7 +307,7 @@ def _run(
         model_activation.write_file(
             pickle_file_name=high_activation_file_name,
             activation_matrix=this_activation_matrix,
-            storm_ids=[storm_ids[k] for k in high_indices],
+            full_id_strings=[full_id_strings[k] for k in high_indices],
             storm_times_unix_sec=storm_times_unix_sec[high_indices],
             model_file_name=activation_metadata_dict[
                 model_activation.MODEL_FILE_NAME_KEY],
@@ -337,7 +336,7 @@ def _run(
         model_activation.write_file(
             pickle_file_name=low_activation_file_name,
             activation_matrix=this_activation_matrix,
-            storm_ids=[storm_ids[k] for k in low_indices],
+            full_id_strings=[full_id_strings[k] for k in low_indices],
             storm_times_unix_sec=storm_times_unix_sec[low_indices],
             model_file_name=activation_metadata_dict[
                 model_activation.MODEL_FILE_NAME_KEY],
@@ -362,7 +361,7 @@ def _run(
         activation_metadata_dict=activation_metadata_dict)
     print SEPARATOR_STRING
 
-    storm_ids = target_value_dict[STORM_IDS_KEY]
+    full_id_strings = target_value_dict[FULL_IDS_KEY]
     storm_times_unix_sec = target_value_dict[STORM_TIMES_KEY]
     storm_activations = target_value_dict[STORM_ACTIVATIONS_KEY]
     storm_target_values = target_value_dict[TARGET_VALUES_KEY]
@@ -392,7 +391,7 @@ def _run(
         model_activation.write_file(
             pickle_file_name=best_hit_file_name,
             activation_matrix=this_activation_matrix,
-            storm_ids=[storm_ids[k] for k in hit_indices],
+            full_id_strings=[full_id_strings[k] for k in hit_indices],
             storm_times_unix_sec=storm_times_unix_sec[hit_indices],
             model_file_name=activation_metadata_dict[
                 model_activation.MODEL_FILE_NAME_KEY],
@@ -419,7 +418,7 @@ def _run(
         model_activation.write_file(
             pickle_file_name=worst_miss_file_name,
             activation_matrix=this_activation_matrix,
-            storm_ids=[storm_ids[k] for k in miss_indices],
+            full_id_strings=[full_id_strings[k] for k in miss_indices],
             storm_times_unix_sec=storm_times_unix_sec[miss_indices],
             model_file_name=activation_metadata_dict[
                 model_activation.MODEL_FILE_NAME_KEY],
@@ -449,7 +448,7 @@ def _run(
         model_activation.write_file(
             pickle_file_name=worst_fa_file_name,
             activation_matrix=this_activation_matrix,
-            storm_ids=[storm_ids[k] for k in false_alarm_indices],
+            full_id_strings=[full_id_strings[k] for k in false_alarm_indices],
             storm_times_unix_sec=storm_times_unix_sec[false_alarm_indices],
             model_file_name=activation_metadata_dict[
                 model_activation.MODEL_FILE_NAME_KEY],
@@ -479,7 +478,7 @@ def _run(
         model_activation.write_file(
             pickle_file_name=best_cn_file_name,
             activation_matrix=this_activation_matrix,
-            storm_ids=[storm_ids[k] for k in correct_null_indices],
+            full_id_strings=[full_id_strings[k] for k in correct_null_indices],
             storm_times_unix_sec=storm_times_unix_sec[correct_null_indices],
             model_file_name=activation_metadata_dict[
                 model_activation.MODEL_FILE_NAME_KEY],

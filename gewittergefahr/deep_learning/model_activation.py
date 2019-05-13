@@ -16,8 +16,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_interpretation
 
-STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
-STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
+FULL_IDS_KEY = tracking_io.FULL_IDS_KEY
+STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
 MODEL_FILE_NAME_KEY = 'model_file_name'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
@@ -348,9 +348,10 @@ def get_contingency_table_extremes(
 
 
 def write_file(
-        pickle_file_name, activation_matrix, storm_ids, storm_times_unix_sec,
-        model_file_name, component_type_string, target_class=None,
-        layer_name=None, neuron_index_matrix=None, channel_indices=None):
+        pickle_file_name, activation_matrix, full_id_strings,
+        storm_times_unix_sec, model_file_name, component_type_string,
+        target_class=None, layer_name=None, neuron_index_matrix=None,
+        channel_indices=None):
     """Writes activations to Pickle file.
 
     E = number of examples (storm objects)
@@ -361,7 +362,7 @@ def write_file(
     :param activation_matrix: E-by-C numpy array of activations, where
         activation_matrix[i, j] = activation of the [j]th model component for
         the [i]th example.
-    :param storm_ids: length-E list of storm IDs.
+    :param full_id_strings: length-E list of full storm IDs.
     :param storm_times_unix_sec: length-E numpy array of storm times.
     :param model_file_name: Path to file with trained model.
     :param component_type_string: See doc for `check_metadata`.
@@ -377,10 +378,10 @@ def write_file(
         channel_indices=channel_indices)
     error_checking.assert_is_string(model_file_name)
 
-    error_checking.assert_is_string_list(storm_ids)
+    error_checking.assert_is_string_list(full_id_strings)
     error_checking.assert_is_numpy_array(
-        numpy.array(storm_ids), num_dimensions=1)
-    num_examples = len(storm_ids)
+        numpy.array(full_id_strings), num_dimensions=1)
+    num_examples = len(full_id_strings)
 
     error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
@@ -392,7 +393,7 @@ def write_file(
         exact_dimensions=numpy.array([num_examples, num_components]))
 
     metadata_dict = {
-        STORM_IDS_KEY: storm_ids,
+        FULL_IDS_KEY: full_id_strings,
         STORM_TIMES_KEY: storm_times_unix_sec,
         MODEL_FILE_NAME_KEY: model_file_name,
         COMPONENT_TYPE_KEY: component_type_string,
@@ -415,7 +416,7 @@ def read_file(pickle_file_name):
     :param pickle_file_name: Path to input file.
     :return: activation_matrix: See doc for `write_file`.
     :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['storm_ids']: See doc for `write_file`.
+    metadata_dict['full_id_strings']: See doc for `write_file`.
     metadata_dict['storm_times_unix_sec']: Same.
     metadata_dict['model_file_name']: Same.
     metadata_dict['component_type_string']: Same.

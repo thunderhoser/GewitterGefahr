@@ -244,15 +244,15 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         print 'Reading storm metadata from: "{0:s}"...'.format(
             storm_metafile_name)
 
-        storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
+        full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
             storm_metafile_name)
 
-        if 0 < num_examples < len(storm_ids):
-            storm_ids = storm_ids[:num_examples]
+        if 0 < num_examples < len(full_id_strings):
+            full_id_strings = full_id_strings[:num_examples]
             storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
         list_of_init_matrices = testing_io.read_specific_examples(
-            desired_storm_ids=storm_ids,
+            desired_storm_ids=full_id_strings,
             desired_times_unix_sec=storm_times_unix_sec,
             option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
             top_example_dir_name=top_example_dir_name,
@@ -264,7 +264,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         print SEPARATOR_STRING
 
     else:
-        storm_ids = None
+        full_id_strings = None
         storm_times_unix_sec = None
         num_examples = 1
 
@@ -360,7 +360,8 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, neuron_indices=neuron_indices,
         channel_index=channel_index, ideal_activation=ideal_activation,
-        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
+        full_id_strings=full_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec)
 
 
 if __name__ == '__main__':

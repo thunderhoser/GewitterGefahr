@@ -114,18 +114,18 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
     print 'Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name)
-    storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
+    full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
         storm_metafile_name)
     print SEPARATOR_STRING
 
-    if 0 < num_examples < len(storm_ids):
-        storm_ids = storm_ids[:num_examples]
+    if 0 < num_examples < len(full_id_strings):
+        full_id_strings = full_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
     list_of_input_matrices, sounding_pressure_matrix_pascals = (
         testing_io.read_specific_examples(
             top_example_dir_name=top_example_dir_name,
-            desired_storm_ids=storm_ids,
+            desired_storm_ids=full_id_strings,
             desired_times_unix_sec=storm_times_unix_sec,
             option_dict=training_option_dict,
             list_of_layer_operation_dicts=model_metadata_dict[
@@ -138,7 +138,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     ggradcam_output_matrix = None
     new_model_object = None
 
-    num_examples = len(storm_ids)
+    num_examples = len(full_id_strings)
 
     for i in range(num_examples):
         print 'Running Grad-CAM for example {0:d} of {1:d}...'.format(
@@ -190,7 +190,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
         list_of_input_matrices=list_of_input_matrices,
         class_activation_matrix=class_activation_matrix,
         ggradcam_output_matrix=ggradcam_output_matrix,
-        model_file_name=model_file_name, storm_ids=storm_ids,
+        model_file_name=model_file_name, full_id_strings=full_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
         target_class=target_class, target_layer_name=target_layer_name,
         sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)

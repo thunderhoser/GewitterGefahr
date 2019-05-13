@@ -206,7 +206,7 @@ def _run(
             option_dict=training_option_dict, num_examples_total=LARGE_INTEGER)
 
     # Compute activation for each example (storm object) and model component.
-    storm_ids = []
+    full_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)
     activation_matrix = None
     print SEPARATOR_STRING
@@ -219,11 +219,11 @@ def _run(
 
         this_list_of_input_matrices = this_storm_object_dict[
             testing_io.INPUT_MATRICES_KEY]
-        these_storm_ids = this_storm_object_dict[testing_io.STORM_IDS_KEY]
+        these_id_strings = this_storm_object_dict[testing_io.STORM_IDS_KEY]
         these_times_unix_sec = this_storm_object_dict[
             testing_io.STORM_TIMES_KEY]
 
-        storm_ids += these_storm_ids
+        full_id_strings += these_id_strings
         storm_times_unix_sec = numpy.concatenate((
             storm_times_unix_sec, these_times_unix_sec))
 
@@ -303,7 +303,8 @@ def _run(
     print 'Writing activations to file: "{0:s}"...'.format(output_file_name)
     model_activation.write_file(
         pickle_file_name=output_file_name, activation_matrix=activation_matrix,
-        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+        full_id_strings=full_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec,
         model_file_name=model_file_name,
         component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, neuron_index_matrix=neuron_index_matrix,

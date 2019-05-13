@@ -79,14 +79,14 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_saliency_for_2d3d_radar(
         list_of_input_matrices, list_of_saliency_matrices,
         training_option_dict, saliency_colour_map_object,
-        max_colour_value_by_example, output_dir_name, storm_ids=None,
+        max_colour_value_by_example, output_dir_name, full_id_strings=None,
         storm_times_unix_sec=None):
     """Plots saliency for 2-D azimuthal-shear and 3-D reflectivity fields.
 
     E = number of examples (storm objects)
 
-    If `storm_ids is None` and `storm_times_unix_sec is None`, will assume that
-    the input matrices contain probability-matched means.
+    If `full_id_strings is None` and `storm_times_unix_sec is None`, will assume
+    that the input matrices contain probability-matched means.
 
     :param list_of_input_matrices: See doc for
         `saliency_maps.read_standard_file`.
@@ -100,11 +100,11 @@ def _plot_saliency_for_2d3d_radar(
         zero-centered and divergent.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
-    :param storm_ids: length-E list of storm IDs (strings).
+    :param full_id_strings: length-E list of storm IDs (strings).
     :param storm_times_unix_sec: length-E numpy array of storm times.
     """
 
-    pmm_flag = storm_ids is None and storm_times_unix_sec is None
+    pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     reflectivity_matrix_dbz = list_of_input_matrices[0]
     reflectivity_saliency_matrix = list_of_saliency_matrices[0]
@@ -160,12 +160,12 @@ def _plot_saliency_for_2d3d_radar(
                 storm_times_unix_sec[i], TIME_FORMAT)
 
             this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                storm_ids[i], this_storm_time_string)
+                full_id_strings[i], this_storm_time_string)
 
             this_file_name = (
                 '{0:s}/saliency_{1:s}_{2:s}_reflectivity.jpg'
             ).format(
-                output_dir_name, storm_ids[i].replace('_', '-'),
+                output_dir_name, full_id_strings[i].replace('_', '-'),
                 this_storm_time_string
             )
 
@@ -217,7 +217,7 @@ def _plot_saliency_for_2d3d_radar(
 def _plot_saliency_for_2d_radar(
         radar_matrix, radar_saliency_matrix, model_metadata_dict,
         saliency_colour_map_object, max_colour_value_by_example,
-        output_dir_name, storm_ids=None, storm_times_unix_sec=None):
+        output_dir_name, full_id_strings=None, storm_times_unix_sec=None):
     """Plots saliency for 2-D radar fields.
 
     E = number of examples
@@ -225,8 +225,8 @@ def _plot_saliency_for_2d_radar(
     N = number of columns in spatial grid
     C = number of channels (field/height pairs)
 
-    If `storm_ids is None` and `storm_times_unix_sec is None`, will assume that
-    the input matrices contain probability-matched means.
+    If `full_id_strings is None` and `storm_times_unix_sec is None`, will assume
+    that the input matrices contain probability-matched means.
 
     :param radar_matrix: E-by-M-by-N-by-C numpy array of radar values
         (predictors).
@@ -237,11 +237,11 @@ def _plot_saliency_for_2d_radar(
         `_plot_saliency_for_2d3d_radar`.
     :param max_colour_value_by_example: Same.
     :param output_dir_name: Same.
-    :param storm_ids: Same.
+    :param full_id_strings: Same.
     :param storm_times_unix_sec: Same.
     """
 
-    pmm_flag = storm_ids is None and storm_times_unix_sec is None
+    pmm_flag = full_id_strings is None and storm_times_unix_sec is None
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
@@ -306,10 +306,10 @@ def _plot_saliency_for_2d_radar(
                 storm_times_unix_sec[i], TIME_FORMAT)
 
             this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                storm_ids[i], this_storm_time_string)
+                full_id_strings[i], this_storm_time_string)
 
             this_file_name = '{0:s}/saliency_{1:s}_{2:s}_radar.jpg'.format(
-                output_dir_name, storm_ids[i].replace('_', '-'),
+                output_dir_name, full_id_strings[i].replace('_', '-'),
                 this_storm_time_string)
 
         this_title_string += ' (max absolute saliency = {0:.3f})'.format(
@@ -324,7 +324,7 @@ def _plot_saliency_for_2d_radar(
 def _plot_saliency_for_3d_radar(
         radar_matrix, radar_saliency_matrix, model_metadata_dict,
         saliency_colour_map_object, max_colour_value_by_example,
-        output_dir_name, storm_ids=None, storm_times_unix_sec=None):
+        output_dir_name, full_id_strings=None, storm_times_unix_sec=None):
     """Plots saliency for 3-D radar fields.
 
     E = number of examples
@@ -333,8 +333,8 @@ def _plot_saliency_for_3d_radar(
     H = number of heights in spatial grid
     F = number of fields
 
-    If `storm_ids is None` and `storm_times_unix_sec is None`, will assume that
-    the input matrices contain probability-matched means.
+    If `full_id_strings is None` and `storm_times_unix_sec is None`, will assume
+    that the input matrices contain probability-matched means.
 
     :param radar_matrix: E-by-M-by-N-by-H-by-F numpy array of radar values
         (predictors).
@@ -345,11 +345,11 @@ def _plot_saliency_for_3d_radar(
         `_plot_saliency_for_2d3d_radar`.
     :param max_colour_value_by_example: Same.
     :param output_dir_name: Same.
-    :param storm_ids: Same.
+    :param full_id_strings: Same.
     :param storm_times_unix_sec: Same.
     """
 
-    pmm_flag = storm_ids is None and storm_times_unix_sec is None
+    pmm_flag = full_id_strings is None and storm_times_unix_sec is None
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     num_examples = radar_matrix.shape[0]
@@ -400,10 +400,10 @@ def _plot_saliency_for_3d_radar(
                     storm_times_unix_sec[i], TIME_FORMAT)
 
                 this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                    storm_ids[i], this_storm_time_string)
+                    full_id_strings[i], this_storm_time_string)
 
                 this_file_name = '{0:s}/saliency_{1:s}_{2:s}_{3:s}.jpg'.format(
-                    output_dir_name, storm_ids[i].replace('_', '-'),
+                    output_dir_name, full_id_strings[i].replace('_', '-'),
                     this_storm_time_string, this_field_name.replace('_', '-')
                 )
 
@@ -459,14 +459,13 @@ def _plot_sounding_saliency(
             field_names=sounding_field_names + [soundings.PRESSURE_NAME])
 
     for i in range(num_examples):
-        this_storm_id = saliency_metadata_dict[
-            saliency_maps.STORM_IDS_KEY][i]
+        this_id_string = saliency_metadata_dict[saliency_maps.FULL_IDS_KEY][i]
         this_storm_time_string = time_conversion.unix_sec_to_string(
             saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY][i],
             TIME_FORMAT)
 
         this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-            this_storm_id, this_storm_time_string)
+            this_id_string, this_storm_time_string)
         sounding_plotting.plot_sounding(
             sounding_dict_for_metpy=metpy_dict_by_example[i],
             title_string=this_title_string)
@@ -474,7 +473,7 @@ def _plot_sounding_saliency(
         this_left_file_name = (
             '{0:s}/{1:s}_{2:s}_sounding-actual.jpg'
         ).format(
-            output_dir_name, this_storm_id.replace('_', '-'),
+            output_dir_name, this_id_string.replace('_', '-'),
             this_storm_time_string
         )
 
@@ -498,7 +497,7 @@ def _plot_sounding_saliency(
         this_right_file_name = (
             '{0:s}/{1:s}_{2:s}_sounding-saliency.jpg'
         ).format(
-            output_dir_name, this_storm_id.replace('_', '-'),
+            output_dir_name, this_id_string.replace('_', '-'),
             this_storm_time_string
         )
 
@@ -514,7 +513,7 @@ def _plot_sounding_saliency(
         this_file_name = (
             '{0:s}/saliency_{1:s}_{2:s}_sounding.jpg'
         ).format(
-            output_dir_name, this_storm_id.replace('_', '-'),
+            output_dir_name, this_id_string.replace('_', '-'),
             this_storm_time_string
         )
 
@@ -564,7 +563,7 @@ def _run(input_file_name, saliency_colour_map_name,
             saliency_maps.SALIENCY_MATRICES_KEY)
 
         saliency_metadata_dict = saliency_dict
-        storm_ids = saliency_metadata_dict[saliency_maps.STORM_IDS_KEY]
+        full_id_strings = saliency_metadata_dict[saliency_maps.FULL_IDS_KEY]
         storm_times_unix_sec = saliency_metadata_dict[
             saliency_maps.STORM_TIMES_KEY]
 
@@ -593,7 +592,7 @@ def _run(input_file_name, saliency_colour_map_name,
         orig_saliency_dict.pop(saliency_maps.SALIENCY_MATRICES_KEY)
         saliency_metadata_dict = orig_saliency_dict
 
-        storm_ids = None
+        full_id_strings = None
         storm_times_unix_sec = None
 
     num_examples = list_of_input_matrices[0].shape[0]
@@ -637,7 +636,7 @@ def _run(input_file_name, saliency_colour_map_name,
             training_option_dict=training_option_dict,
             saliency_colour_map_object=saliency_colour_map_object,
             max_colour_value_by_example=max_colour_value_by_example,
-            output_dir_name=output_dir_name, storm_ids=storm_ids,
+            output_dir_name=output_dir_name, full_id_strings=full_id_strings,
             storm_times_unix_sec=storm_times_unix_sec)
         return
 
@@ -649,7 +648,7 @@ def _run(input_file_name, saliency_colour_map_name,
             model_metadata_dict=model_metadata_dict,
             saliency_colour_map_object=saliency_colour_map_object,
             max_colour_value_by_example=max_colour_value_by_example,
-            output_dir_name=output_dir_name, storm_ids=storm_ids,
+            output_dir_name=output_dir_name, full_id_strings=full_id_strings,
             storm_times_unix_sec=storm_times_unix_sec)
         return
 
@@ -659,7 +658,7 @@ def _run(input_file_name, saliency_colour_map_name,
         model_metadata_dict=model_metadata_dict,
         saliency_colour_map_object=saliency_colour_map_object,
         max_colour_value_by_example=max_colour_value_by_example,
-        output_dir_name=output_dir_name, storm_ids=storm_ids,
+        output_dir_name=output_dir_name, full_id_strings=full_id_strings,
         storm_times_unix_sec=storm_times_unix_sec)
 
 

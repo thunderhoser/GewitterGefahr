@@ -27,8 +27,8 @@ DEFAULT_NUM_ITERATIONS = 100
 INIT_FUNCTION_KEY = 'init_function_name_or_matrices'
 OPTIMIZED_MATRICES_KEY = 'list_of_optimized_matrices'
 
-STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
-STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
+FULL_IDS_KEY = tracking_io.FULL_IDS_KEY
+STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
 
 MODEL_FILE_NAME_KEY = 'model_file_name'
 NUM_ITERATIONS_KEY = 'num_iterations'
@@ -44,7 +44,7 @@ STANDARD_FILE_KEYS = [
     INIT_FUNCTION_KEY, OPTIMIZED_MATRICES_KEY, MODEL_FILE_NAME_KEY,
     NUM_ITERATIONS_KEY, LEARNING_RATE_KEY, COMPONENT_TYPE_KEY,
     TARGET_CLASS_KEY, LAYER_NAME_KEY, IDEAL_ACTIVATION_KEY, NEURON_INDICES_KEY,
-    CHANNEL_INDEX_KEY, STORM_IDS_KEY, STORM_TIMES_KEY
+    CHANNEL_INDEX_KEY, FULL_IDS_KEY, STORM_TIMES_KEY
 ]
 
 MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
@@ -605,7 +605,7 @@ def write_standard_file(
         list_of_optimized_matrices, model_file_name, num_iterations,
         learning_rate, component_type_string, target_class=None,
         layer_name=None, neuron_indices=None, channel_index=None,
-        ideal_activation=None, storm_ids=None, storm_times_unix_sec=None):
+        ideal_activation=None, full_id_strings=None, storm_times_unix_sec=None):
     """Writes optimized learning examples to Pickle file.
 
     E = number of examples (storm objects)
@@ -628,9 +628,9 @@ def write_standard_file(
     :param channel_index: Same.
     :param ideal_activation: See doc for `optimize_input_for_neuron` or
         `optimize_input_for_channel`.
-    :param storm_ids:
+    :param full_id_strings:
         [used only if `init_function_name_or_matrices` is list of matrices]
-        length-E list of storm IDs (strings).
+        length-E list of full storm IDs.
     :param storm_times_unix_sec:
         [used only if `init_function_name_or_matrices` is list of matrices]
         length-E numpy array of storm times.
@@ -664,11 +664,11 @@ def write_standard_file(
 
             raise ValueError(error_string)
 
-        error_checking.assert_is_string_list(storm_ids)
+        error_checking.assert_is_string_list(full_id_strings)
         error_checking.assert_is_numpy_array(
-            numpy.array(storm_ids), num_dimensions=1)
+            numpy.array(full_id_strings), num_dimensions=1)
 
-        num_storm_objects = len(storm_ids)
+        num_storm_objects = len(full_id_strings)
         these_expected_dim = numpy.array([num_storm_objects], dtype=int)
 
         error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
@@ -712,7 +712,7 @@ def write_standard_file(
         IDEAL_ACTIVATION_KEY: ideal_activation,
         NEURON_INDICES_KEY: neuron_indices,
         CHANNEL_INDEX_KEY: channel_index,
-        STORM_IDS_KEY: storm_ids,
+        FULL_IDS_KEY: full_id_strings,
         STORM_TIMES_KEY: storm_times_unix_sec
     }
 
@@ -739,7 +739,7 @@ def read_standard_file(pickle_file_name):
     optimization_dict['ideal_activation']: Same.
     optimization_dict['neuron_indices']: Same.
     optimization_dict['channel_index']: Same.
-    optimization_dict['storm_ids']: Same.
+    optimization_dict['full_id_strings']: Same.
     optimization_dict['storm_times_unix_sec']: Same.
     """
 
