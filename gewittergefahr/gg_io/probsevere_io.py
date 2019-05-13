@@ -47,10 +47,6 @@ V_MOTION_KEY_IN_JSON_FILES = 'MOTION_SOUTH'
 LATITUDE_INDEX_IN_JSON_FILES = 1
 LONGITUDE_INDEX_IN_JSON_FILES = 0
 
-NON_POLYGON_COLUMNS = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.EAST_VELOCITY_COLUMN,
-    tracking_utils.NORTH_VELOCITY_COLUMN, tracking_utils.TIME_COLUMN]
-
 POLYGON_INDEX_IN_ASCII_FILES = 7
 STORM_ID_INDEX_IN_ASCII_FILES = 8
 U_MOTION_INDEX_IN_ASCII_FILES = 9
@@ -77,11 +73,13 @@ def _check_raw_file_extension(file_extension):
     """
 
     error_checking.assert_is_string(file_extension)
+
     if file_extension not in VALID_RAW_FILE_EXTENSIONS:
         error_string = (
-            '\n\n{0:s}\nValid extensions for raw files (listed above) do not '
+            '\n{0:s}\nValid extensions for raw files (listed above) do not '
             'include "{1:s}".'
         ).format(str(VALID_RAW_FILE_EXTENSIONS), file_extension)
+
         raise ValueError(error_string)
 
 
@@ -122,8 +120,11 @@ def _find_io_files_for_renaming(
         start_time_unix_sec=first_date_unix_sec,
         end_time_unix_sec=last_date_unix_sec, time_interval_sec=DAYS_TO_SECONDS,
         include_endpoint=True)
-    date_strings = [time_conversion.unix_sec_to_string(t, DATE_FORMAT)
-                    for t in dates_unix_sec]
+
+    date_strings = [
+        time_conversion.unix_sec_to_string(t, DATE_FORMAT)
+        for t in dates_unix_sec
+    ]
 
     num_dates = len(date_strings)
     input_file_names_by_date = [numpy.array([], dtype=object)] * num_dates
@@ -133,27 +134,28 @@ def _find_io_files_for_renaming(
     for i in range(num_dates):
         print 'Finding input files for date {0:s}...'.format(date_strings[i])
 
-        (these_input_file_names, _
-        ) = tracking_io.find_processed_files_one_spc_date(
+        these_input_file_names = tracking_io.find_files_one_spc_date(
             spc_date_string=date_strings[i],
-            data_source=tracking_utils.PROBSEVERE_SOURCE_ID,
-            top_processed_dir_name=top_input_dir_name,
+            source_name=tracking_utils.PROBSEVERE_NAME,
+            top_tracking_dir_name=top_input_dir_name,
             tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
-            raise_error_if_missing=True)
+            raise_error_if_missing=True
+        )[0]
 
         these_input_file_names.sort()
-        these_valid_times_unix_sec = numpy.array(
-            [tracking_io.processed_file_name_to_time(f)
-             for f in these_input_file_names], dtype=int)
+        these_valid_times_unix_sec = numpy.array([
+            tracking_io.file_name_to_time(f) for f in these_input_file_names
+        ], dtype=int)
 
         these_output_file_names = []
         for t in these_valid_times_unix_sec:
-            these_output_file_names.append(tracking_io.find_processed_file(
-                unix_time_sec=t,
-                data_source=tracking_utils.PROBSEVERE_SOURCE_ID,
-                top_processed_dir_name=top_output_dir_name,
+            these_output_file_names.append(tracking_io.find_file(
+                valid_time_unix_sec=t,
+                source_name=tracking_utils.PROBSEVERE_NAME,
+                top_tracking_dir_name=top_output_dir_name,
                 tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
-                raise_error_if_missing=False))
+                raise_error_if_missing=False
+            ))
 
         input_file_names_by_date[i] = numpy.array(
             these_input_file_names, dtype=object)
@@ -162,6 +164,7 @@ def _find_io_files_for_renaming(
         valid_times_by_date_unix_sec[i] = these_valid_times_unix_sec
 
     print SEPARATOR_STRING
+
     return (input_file_names_by_date, output_file_names_by_date,
             valid_times_by_date_unix_sec)
 
@@ -203,7 +206,7 @@ def _shuffle_io_for_renaming(
     :param storm_object_table_by_date: length-N list, where the [i]th element is
         a pandas DataFrame with tracking data for the [i]th date.  At any given
         time, all but 3 items should be None.  Each table has columns documented
-        in `storm_tracking_io.write_processed_file`, plus the following column.
+        in `storm_tracking_io.write_file`, plus the following column.
     storm_object_table_by_date.date_index: Array index.  If date_index[i] = j,
         the [i]th row (storm object) comes from the [j]th date.
     :param working_date_index: Index of date currently being processed.  Only
@@ -225,17 +228,20 @@ def _shuffle_io_for_renaming(
 
     for j in range(num_dates):
         if j in date_needed_indices and storm_object_table_by_date[j] is None:
-            storm_object_table_by_date[j] = (
-                tracking_io.read_many_processed_files(
-                    input_file_names_by_date[j].tolist()))
+            storm_object_table_by_date[j] = tracking_io.read_many_files(
+                input_file_names_by_date[j].tolist()
+            )
             print SEPARATOR_STRING
 
             this_num_storm_objects = len(storm_object_table_by_date[j].index)
             these_date_indices = numpy.full(
                 this_num_storm_objects, j, dtype=int)
-            argument_dict = {DATE_INDEX_KEY: these_date_indices}
-            storm_object_table_by_date[j] = storm_object_table_by_date[
-                j].assign(**argument_dict)
+
+            storm_object_table_by_date[j] = (
+                storm_object_table_by_date[j].assign(
+                    **{DATE_INDEX_KEY: these_date_indices}
+                )
+            )
 
         if j not in date_needed_indices:
             if storm_object_table_by_date[j] is not None:
@@ -248,12 +254,15 @@ def _shuffle_io_for_renaming(
 
                     these_indices = numpy.where(
                         storm_object_table_by_date[j][
-                            tracking_utils.TIME_COLUMN].values ==
-                        these_valid_times_unix_sec[k])[0]
-                    tracking_io.write_processed_file(
-                        storm_object_table=
-                        storm_object_table_by_date[j].iloc[these_indices],
-                        pickle_file_name=these_output_file_names[k])
+                            tracking_utils.VALID_TIME_COLUMN].values ==
+                        these_valid_times_unix_sec[k]
+                    )[0]
+
+                    tracking_io.write_file(
+                        storm_object_table=storm_object_table_by_date[j].iloc[
+                            these_indices],
+                        pickle_file_name=these_output_file_names[k]
+                    )
 
                 print SEPARATOR_STRING
 
@@ -277,7 +286,7 @@ def _rename_storms_one_table(
     For more details on renaming storms, see the public method `rename_storms`.
 
     :param storm_object_table: pandas DataFrame with columns documented in
-        `storm_tracking_io.write_processed_file`.
+        `storm_tracking_io.write_file`.
     :param next_id_number: Will start with this ID.
     :param max_dropout_time_seconds: See documentation for `rename_storms`.
     :param working_date_index: Index of working date.
@@ -286,12 +295,15 @@ def _rename_storms_one_table(
     """
 
     working_object_indices = numpy.where(
-        storm_object_table[DATE_INDEX_KEY].values == working_date_index)[0]
-    storm_object_ids = storm_object_table[
-        tracking_utils.STORM_ID_COLUMN].values[working_object_indices]
+        storm_object_table[DATE_INDEX_KEY].values == working_date_index
+    )[0]
 
-    storm_cell_ids = numpy.unique(storm_object_ids).tolist()
-    num_storm_cells = len(storm_cell_ids)
+    object_id_strings = storm_object_table[
+        tracking_utils.PRIMARY_ID_COLUMN
+    ].values[working_object_indices]
+
+    cell_id_strings = numpy.unique(object_id_strings).tolist()
+    num_storm_cells = len(cell_id_strings)
 
     for j in range(num_storm_cells):
         if numpy.mod(j, 1000) == 0:
@@ -301,23 +313,27 @@ def _rename_storms_one_table(
             ).format(j, num_storm_cells, next_id_number)
 
         these_object_indices = numpy.where(
-            storm_object_table[tracking_utils.STORM_ID_COLUMN].values ==
-            storm_cell_ids[j])[0]
+            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values ==
+            cell_id_strings[j]
+        )[0]
+
         these_valid_times_unix_sec = storm_object_table[
-            tracking_utils.TIME_COLUMN].values[these_object_indices]
+            tracking_utils.VALID_TIME_COLUMN
+        ].values[these_object_indices]
 
         these_sort_indices = numpy.argsort(these_valid_times_unix_sec)
         these_object_indices = these_object_indices[these_sort_indices]
         these_valid_times_unix_sec = these_valid_times_unix_sec[
             these_sort_indices]
 
-        these_storm_object_ids, next_id_number = _rename_storms_one_original_id(
+        these_id_strings, next_id_number = _rename_storms_one_original_id(
             valid_times_unix_sec=these_valid_times_unix_sec,
             next_id_number=next_id_number,
             max_dropout_time_seconds=max_dropout_time_seconds)
 
-        storm_object_table[tracking_utils.STORM_ID_COLUMN].values[
-            these_object_indices] = numpy.array(these_storm_object_ids)
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values[
+            these_object_indices
+        ] = numpy.array(these_id_strings)
 
     print SEPARATOR_STRING
     return storm_object_table, next_id_number
@@ -332,13 +348,14 @@ def _rename_storms_one_original_id(
     :param valid_times_unix_sec: length-N numpy array of valid times.
     :param next_id_number: Will start with this ID.
     :param max_dropout_time_seconds: See documentation for `rename_storms`.
-    :return: storm_object_ids: length-N list of new IDs.
+    :return: storm_id_strings: length-N list of new IDs.
     :return: next_id_number: Same as input, but maybe incremented.
     """
 
     time_differences_sec = numpy.diff(valid_times_unix_sec)
     dropout_indices = numpy.where(
-        time_differences_sec > max_dropout_time_seconds)[0]
+        time_differences_sec > max_dropout_time_seconds
+    )[0]
 
     num_storm_objects = len(valid_times_unix_sec)
     storm_cell_start_indices = numpy.concatenate((
@@ -349,7 +366,8 @@ def _rename_storms_one_original_id(
     )).astype(int)
 
     num_storm_cells = len(storm_cell_start_indices)
-    storm_object_ids = [''] * num_storm_objects
+    storm_id_strings = [''] * num_storm_objects
+
     for j in range(num_storm_cells):
         these_object_indices = numpy.linspace(
             storm_cell_start_indices[j], storm_cell_end_indices[j],
@@ -357,11 +375,11 @@ def _rename_storms_one_original_id(
             dtype=int)
 
         for k in these_object_indices:
-            storm_object_ids[k] = '{0:d}_probSevere'.format(next_id_number)
+            storm_id_strings[k] = '{0:d}_probSevere'.format(next_id_number)
 
         next_id_number += 1
 
-    return storm_object_ids, next_id_number
+    return storm_id_strings, next_id_number
 
 
 def get_json_file_name_on_ftp(unix_time_sec, ftp_directory_name):
@@ -375,7 +393,8 @@ def get_json_file_name_on_ftp(unix_time_sec, ftp_directory_name):
     return '{0:s}/{1:s}'.format(
         ftp_directory_name,
         _get_pathless_raw_file_name(
-            unix_time_sec=unix_time_sec, file_extension=JSON_FILE_EXTENSION))
+            unix_time_sec=unix_time_sec, file_extension=JSON_FILE_EXTENSION)
+    )
 
 
 def find_raw_file(top_directory_name, unix_time_sec, file_extension,
@@ -408,22 +427,26 @@ def find_raw_file(top_directory_name, unix_time_sec, file_extension,
         time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
         time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
         pathless_file_name)
+
     if os.path.isfile(raw_file_name) or not raise_error_if_missing:
         return raw_file_name
 
     pathless_file_name = pathless_file_name.replace(
         RAW_FILE_NAME_PREFIX, ALT_RAW_FILE_NAME_PREFIX)
+
     alt_raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_directory_name,
         time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
         time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
         pathless_file_name)
+
     if os.path.isfile(alt_raw_file_name):
         return alt_raw_file_name
 
     error_string = (
         'Cannot find raw probSevere file.  Expected at: {0:s}'
     ).format(raw_file_name)
+
     raise ValueError(error_string)
 
 
@@ -459,17 +482,20 @@ def find_raw_files_one_day(top_directory_name, unix_time_sec, file_extension,
         time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
         time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
         pathless_file_name_pattern)
+
     raw_file_names = glob.glob(raw_file_pattern)
     if len(raw_file_names):
         return raw_file_names
 
     pathless_file_name_pattern = pathless_file_name_pattern.replace(
         RAW_FILE_NAME_PREFIX, ALT_RAW_FILE_NAME_PREFIX)
+
     raw_file_pattern = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_directory_name,
         time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
         time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
         pathless_file_name_pattern)
+
     raw_file_names = glob.glob(raw_file_pattern)
 
     if len(raw_file_names):
@@ -496,6 +522,7 @@ def raw_file_name_to_time(raw_file_name):
     time_string = extensionless_file_name.replace(
         RAW_FILE_NAME_PREFIX + '_', '')
     time_string = time_string.replace(ALT_RAW_FILE_NAME_PREFIX + '_', '')
+
     return time_conversion.string_to_unix_sec(time_string, RAW_FILE_TIME_FORMAT)
 
 
@@ -506,7 +533,7 @@ def read_raw_file(raw_file_name):
 
     :param raw_file_name: Path to input file.
     :return: storm_object_table: See documentation for
-        `storm_tracking_io.write_processed_file`.
+        `storm_tracking_io.write_file`.
     """
 
     error_checking.assert_file_exists(raw_file_name)
@@ -517,7 +544,7 @@ def read_raw_file(raw_file_name):
     unix_time_sec = raw_file_name_to_time(raw_file_name)
 
     if file_extension == ASCII_FILE_EXTENSION:
-        storm_ids = []
+        primary_id_strings = []
         east_velocities_m_s01 = []
         north_velocities_m_s01 = []
         list_of_latitude_vertex_arrays_deg = []
@@ -528,98 +555,116 @@ def read_raw_file(raw_file_name):
             if len(these_words) < MIN_WORDS_PER_ASCII_LINE:
                 continue
 
-            storm_ids.append(these_words[STORM_ID_INDEX_IN_ASCII_FILES])
+            primary_id_strings.append(
+                these_words[STORM_ID_INDEX_IN_ASCII_FILES]
+            )
             east_velocities_m_s01.append(
-                float(these_words[U_MOTION_INDEX_IN_ASCII_FILES]))
+                float(these_words[U_MOTION_INDEX_IN_ASCII_FILES])
+            )
             north_velocities_m_s01.append(
-                -1 * float(these_words[V_MOTION_INDEX_IN_ASCII_FILES]))
+                -1 * float(these_words[V_MOTION_INDEX_IN_ASCII_FILES])
+            )
 
             these_polygon_words = numpy.array(
-                these_words[POLYGON_INDEX_IN_ASCII_FILES].split(','))
+                these_words[POLYGON_INDEX_IN_ASCII_FILES].split(',')
+            )
             these_latitude_words = these_polygon_words[
-                LATITUDE_INDEX_IN_ASCII_FILES::2].tolist()
+                LATITUDE_INDEX_IN_ASCII_FILES::2
+            ].tolist()
             these_longitude_words = these_polygon_words[
-                LONGITUDE_INDEX_IN_ASCII_FILES::2].tolist()
+                LONGITUDE_INDEX_IN_ASCII_FILES::2
+            ].tolist()
 
-            these_latitudes_deg = numpy.array(
-                [float(w) for w in these_latitude_words])
-            these_longitudes_deg = numpy.array(
-                [float(w) for w in these_longitude_words])
+            these_latitudes_deg = numpy.array([
+                float(w) for w in these_latitude_words
+            ])
+            these_longitudes_deg = numpy.array([
+                float(w) for w in these_longitude_words
+            ])
             list_of_latitude_vertex_arrays_deg.append(these_latitudes_deg)
             list_of_longitude_vertex_arrays_deg.append(these_longitudes_deg)
 
         east_velocities_m_s01 = numpy.array(east_velocities_m_s01)
         north_velocities_m_s01 = numpy.array(north_velocities_m_s01)
-        num_storms = len(storm_ids)
+        num_storms = len(primary_id_strings)
 
     else:
         with open(raw_file_name) as json_file_handle:
             probsevere_dict = json.load(json_file_handle)
 
         num_storms = len(probsevere_dict[FEATURES_KEY_IN_JSON_FILES])
-        storm_ids = [None] * num_storms
+        primary_id_strings = [None] * num_storms
         east_velocities_m_s01 = numpy.full(num_storms, numpy.nan)
         north_velocities_m_s01 = numpy.full(num_storms, numpy.nan)
         list_of_latitude_vertex_arrays_deg = [None] * num_storms
         list_of_longitude_vertex_arrays_deg = [None] * num_storms
 
         for i in range(num_storms):
-            storm_ids[i] = str(
+            primary_id_strings[i] = str(
                 probsevere_dict[FEATURES_KEY_IN_JSON_FILES][i][
-                    PROPERTIES_KEY_IN_JSON_FILES][STORM_ID_KEY_IN_JSON_FILES])
+                    PROPERTIES_KEY_IN_JSON_FILES][STORM_ID_KEY_IN_JSON_FILES]
+            )
             east_velocities_m_s01[i] = float(
                 probsevere_dict[FEATURES_KEY_IN_JSON_FILES][i][
-                    PROPERTIES_KEY_IN_JSON_FILES][U_MOTION_KEY_IN_JSON_FILES])
+                    PROPERTIES_KEY_IN_JSON_FILES][U_MOTION_KEY_IN_JSON_FILES]
+            )
             north_velocities_m_s01[i] = -1 * float(
                 probsevere_dict[FEATURES_KEY_IN_JSON_FILES][i][
-                    PROPERTIES_KEY_IN_JSON_FILES][V_MOTION_KEY_IN_JSON_FILES])
+                    PROPERTIES_KEY_IN_JSON_FILES][V_MOTION_KEY_IN_JSON_FILES]
+            )
 
             this_vertex_matrix_deg = numpy.array(
                 probsevere_dict[FEATURES_KEY_IN_JSON_FILES][i][
                     GEOMETRY_KEY_IN_JSON_FILES
-                ][COORDINATES_KEY_IN_JSON_FILES][0])
+                ][COORDINATES_KEY_IN_JSON_FILES][0]
+            )
             list_of_latitude_vertex_arrays_deg[i] = numpy.array(
-                this_vertex_matrix_deg[:, LATITUDE_INDEX_IN_JSON_FILES])
+                this_vertex_matrix_deg[:, LATITUDE_INDEX_IN_JSON_FILES]
+            )
             list_of_longitude_vertex_arrays_deg[i] = numpy.array(
-                this_vertex_matrix_deg[:, LONGITUDE_INDEX_IN_JSON_FILES])
+                this_vertex_matrix_deg[:, LONGITUDE_INDEX_IN_JSON_FILES]
+            )
 
-    spc_date_unix_sec = time_conversion.time_to_spc_date_unix_sec(unix_time_sec)
     unix_times_sec = numpy.full(num_storms, unix_time_sec, dtype=int)
-    spc_dates_unix_sec = numpy.full(num_storms, spc_date_unix_sec, dtype=int)
+    spc_date_strings = num_storms * [
+        time_conversion.time_to_spc_date_string(unix_time_sec)
+    ]
+
     tracking_start_times_unix_sec = numpy.full(
         num_storms, DUMMY_TRACKING_START_TIME_UNIX_SEC, dtype=int)
     tracking_end_times_unix_sec = numpy.full(
         num_storms, DUMMY_TRACKING_END_TIME_UNIX_SEC, dtype=int)
 
     storm_object_dict = {
-        tracking_utils.STORM_ID_COLUMN: storm_ids,
+        tracking_utils.PRIMARY_ID_COLUMN: primary_id_strings,
         tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
         tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01,
-        tracking_utils.TIME_COLUMN: unix_times_sec,
-        tracking_utils.SPC_DATE_COLUMN: spc_dates_unix_sec,
+        tracking_utils.VALID_TIME_COLUMN: unix_times_sec,
+        tracking_utils.SPC_DATE_COLUMN: spc_date_strings,
         tracking_utils.TRACKING_START_TIME_COLUMN:
             tracking_start_times_unix_sec,
         tracking_utils.TRACKING_END_TIME_COLUMN: tracking_end_times_unix_sec
     }
+
     storm_object_table = pandas.DataFrame.from_dict(storm_object_dict)
 
     storm_ages_sec = numpy.full(num_storms, numpy.nan)
     simple_array = numpy.full(num_storms, numpy.nan)
     object_array = numpy.full(num_storms, numpy.nan, dtype=object)
     nested_array = storm_object_table[[
-        tracking_utils.STORM_ID_COLUMN,
-        tracking_utils.STORM_ID_COLUMN]].values.tolist()
+        tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.PRIMARY_ID_COLUMN
+    ]].values.tolist()
 
     argument_dict = {
         tracking_utils.AGE_COLUMN: storm_ages_sec,
-        tracking_utils.CENTROID_LAT_COLUMN: simple_array,
-        tracking_utils.CENTROID_LNG_COLUMN: simple_array,
-        tracking_utils.GRID_POINT_LAT_COLUMN: nested_array,
-        tracking_utils.GRID_POINT_LNG_COLUMN: nested_array,
-        tracking_utils.GRID_POINT_ROW_COLUMN: nested_array,
-        tracking_utils.GRID_POINT_COLUMN_COLUMN: nested_array,
-        tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN: object_array,
-        tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN: object_array
+        tracking_utils.CENTROID_LATITUDE_COLUMN: simple_array,
+        tracking_utils.CENTROID_LONGITUDE_COLUMN: simple_array,
+        tracking_utils.LATITUDES_IN_STORM_COLUMN: nested_array,
+        tracking_utils.LONGITUDES_IN_STORM_COLUMN: nested_array,
+        tracking_utils.ROWS_IN_STORM_COLUMN: nested_array,
+        tracking_utils.COLUMNS_IN_STORM_COLUMN: nested_array,
+        tracking_utils.LATLNG_POLYGON_COLUMN: object_array,
+        tracking_utils.ROWCOL_POLYGON_COLUMN: object_array
     }
     storm_object_table = storm_object_table.assign(**argument_dict)
 
@@ -631,12 +676,14 @@ def read_raw_file(raw_file_name):
                 nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
                 nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
                 lat_spacing_deg=GRID_LAT_SPACING_DEG,
-                lng_spacing_deg=GRID_LNG_SPACING_DEG))
+                lng_spacing_deg=GRID_LNG_SPACING_DEG)
+        )
 
         these_vertex_rows, these_vertex_columns = (
             polygons.fix_probsevere_vertices(
                 row_indices_orig=these_vertex_rows,
-                column_indices_orig=these_vertex_columns))
+                column_indices_orig=these_vertex_columns)
+        )
 
         these_vertex_latitudes_deg, these_vertex_longitudes_deg = (
             radar_utils.rowcol_to_latlng(
@@ -644,43 +691,44 @@ def read_raw_file(raw_file_name):
                 nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
                 nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
                 lat_spacing_deg=GRID_LAT_SPACING_DEG,
-                lng_spacing_deg=GRID_LNG_SPACING_DEG))
+                lng_spacing_deg=GRID_LNG_SPACING_DEG)
+        )
 
-        (storm_object_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
-         storm_object_table[tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i]
+        (storm_object_table[tracking_utils.ROWCOL_POLYGON_COLUMN].values[i],
+         storm_object_table[tracking_utils.COLUMNS_IN_STORM_COLUMN].values[i]
         ) = polygons.simple_polygon_to_grid_points(
             vertex_row_indices=these_vertex_rows,
             vertex_column_indices=these_vertex_columns)
 
-        (storm_object_table[tracking_utils.GRID_POINT_LAT_COLUMN].values[i],
-         storm_object_table[tracking_utils.GRID_POINT_LNG_COLUMN].values[i]
+        (storm_object_table[tracking_utils.LATITUDES_IN_STORM_COLUMN].values[i],
+         storm_object_table[tracking_utils.LONGITUDES_IN_STORM_COLUMN].values[i]
         ) = radar_utils.rowcol_to_latlng(
             grid_rows=storm_object_table[
-                tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
+                tracking_utils.ROWS_IN_STORM_COLUMN].values[i],
             grid_columns=storm_object_table[
-                tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i],
+                tracking_utils.COLUMNS_IN_STORM_COLUMN].values[i],
             nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
             nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
             lat_spacing_deg=GRID_LAT_SPACING_DEG,
             lng_spacing_deg=GRID_LNG_SPACING_DEG)
 
-        (storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values[i],
-         storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values[i]
+        (storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values[i],
+         storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i]
         ) = geodetic_utils.get_latlng_centroid(
             latitudes_deg=these_vertex_latitudes_deg,
             longitudes_deg=these_vertex_longitudes_deg)
 
-        storm_object_table[
-            tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN
-        ].values[i] = polygons.vertex_arrays_to_polygon_object(
-            exterior_x_coords=these_vertex_columns,
-            exterior_y_coords=these_vertex_rows)
+        storm_object_table[tracking_utils.ROWCOL_POLYGON_COLUMN].values[i] = (
+            polygons.vertex_arrays_to_polygon_object(
+                exterior_x_coords=these_vertex_columns,
+                exterior_y_coords=these_vertex_rows)
+        )
 
-        storm_object_table[
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN
-        ].values[i] = polygons.vertex_arrays_to_polygon_object(
-            exterior_x_coords=these_vertex_longitudes_deg,
-            exterior_y_coords=these_vertex_latitudes_deg)
+        storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values[i] = (
+            polygons.vertex_arrays_to_polygon_object(
+                exterior_x_coords=these_vertex_longitudes_deg,
+                exterior_y_coords=these_vertex_latitudes_deg)
+        )
 
     return storm_object_table
 
@@ -691,8 +739,7 @@ def rename_storms(
     """Renames storms.  This ensures that all storm IDs are unique.
 
     :param top_input_dir_name: Name of top-level directory with input files
-        (processed probSevere files, readable by
-        `storm_tracking_io.read_processed_file`).
+        (processed probSevere files, readable by `storm_tracking_io.read_file`).
     :param first_date_unix_sec: First date in time period.  This method will fix
         IDs for all dates from `first_date_unix_sec`...`last_date_unix_sec`.
     :param last_date_unix_sec: See above.
@@ -703,8 +750,7 @@ def rename_storms(
         `max_dropout_time_seconds`.  Each such period will get a new, unique
         storm ID.
     :param top_output_dir_name: Name of top-level directory for output files
-        (files with new IDs, to be written by
-        `storm_tracking_io.write_processed_file`).
+        (files with new IDs, to be written by `storm_tracking_io.write_file`).
     """
 
     error_checking.assert_is_integer(first_id_number)
@@ -713,11 +759,12 @@ def rename_storms(
     error_checking.assert_is_greater(max_dropout_time_seconds, 0)
 
     (input_file_names_by_date, output_file_names_by_date,
-     valid_times_by_date_unix_sec) = _find_io_files_for_renaming(
-         top_input_dir_name=top_input_dir_name,
-         first_date_unix_sec=first_date_unix_sec,
-         last_date_unix_sec=last_date_unix_sec,
-         top_output_dir_name=top_output_dir_name)
+     valid_times_by_date_unix_sec
+    ) = _find_io_files_for_renaming(
+        top_input_dir_name=top_input_dir_name,
+        first_date_unix_sec=first_date_unix_sec,
+        last_date_unix_sec=last_date_unix_sec,
+        top_output_dir_name=top_output_dir_name)
 
     num_dates = len(input_file_names_by_date)
     storm_object_table_by_date = [None] * num_dates
@@ -736,7 +783,8 @@ def rename_storms(
 
         concat_storm_object_table = pandas.concat(
             [storm_object_table_by_date[j] for j in date_needed_indices],
-            axis=0, ignore_index=True)
+            axis=0, ignore_index=True
+        )
 
         concat_storm_object_table, next_id_number = _rename_storms_one_table(
             storm_object_table=concat_storm_object_table,
@@ -746,7 +794,8 @@ def rename_storms(
 
         for j in date_needed_indices:
             storm_object_table_by_date[j] = concat_storm_object_table.loc[
-                concat_storm_object_table[DATE_INDEX_KEY] == j]
+                concat_storm_object_table[DATE_INDEX_KEY] == j
+            ]
 
     _shuffle_io_for_renaming(
         input_file_names_by_date=input_file_names_by_date,
