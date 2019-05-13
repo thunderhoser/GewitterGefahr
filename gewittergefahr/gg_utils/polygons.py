@@ -789,19 +789,10 @@ def grid_points_in_poly_to_vertices(
     if numpy.sum(binary_matrix) == 1:
         vertex_row_indices, vertex_column_indices = numpy.where(binary_matrix)
     else:
-        try:
-            _, contour_list, _ = cv2.findContours(
-                binary_matrix.astype(numpy.uint8), cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_SIMPLE)
-        except:
-            a, b = cv2.findContours(
-                binary_matrix.astype(numpy.uint8), cv2.RETR_EXTERNAL,
-                cv2.CHAIN_APPROX_SIMPLE)
-
-            print a
-            print '\n\n\n'
-            print b
-            raise
+        contour_list = cv2.findContours(
+            binary_matrix.astype(numpy.uint8), cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE
+        )[1]
 
         contour_matrix = _get_longest_inner_list(contour_list)
         contour_matrix = numpy.array(contour_matrix)[:, 0, :]
