@@ -1061,9 +1061,12 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             local_max_dict_by_time[i][VALID_TIME_KEY], dtype=int
         )
 
-        these_spc_date_strings = this_num_storm_objects * [
-            time_conversion.time_to_spc_date_string(these_times_unix_sec[0])
-        ]
+        if len(these_times_unix_sec) > 0:
+            these_spc_date_strings = this_num_storm_objects * [
+                time_conversion.time_to_spc_date_string(these_times_unix_sec[0])
+            ]
+        else:
+            these_spc_date_strings = []
 
         all_times_unix_sec = numpy.concatenate((
             all_times_unix_sec, these_times_unix_sec
