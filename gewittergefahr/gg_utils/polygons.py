@@ -792,7 +792,7 @@ def grid_points_in_poly_to_vertices(
         contour_list = cv2.findContours(
             binary_matrix.astype(numpy.uint8), cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_SIMPLE
-        )[1]
+        )[-2]
 
         contour_matrix = _get_longest_inner_list(contour_list)
         contour_matrix = numpy.array(contour_matrix)[:, 0, :]
