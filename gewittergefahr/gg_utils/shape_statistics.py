@@ -18,11 +18,14 @@ REPORT_EVERY_N_STORM_OBJECTS = 100
 
 RADIANS_TO_DEGREES = 180. / numpy.pi
 GRID_SPACING_FOR_BINARY_MATRIX_DEFAULT_METRES = 100.
+
 STORM_COLUMNS_TO_KEEP = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
+    tracking_utils.FULL_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN
+]
 
 NUM_VERTICES_IN_SMOOTHING_HALF_WINDOW_DEFAULT = (
-    sia.NUM_VERTICES_IN_HALF_WINDOW_DEFAULT)
+    sia.NUM_VERTICES_IN_HALF_WINDOW_DEFAULT
+)
 NUM_SMOOTHING_ITERS_DEFAULT = sia.NUM_ITERATIONS_DEFAULT
 
 AREA_NAME = 'area_metres2'
@@ -240,7 +243,7 @@ def check_statistic_table(statistic_table, require_storm_objects=True):
 
     :param statistic_table: pandas DataFrame.
     :param require_storm_objects: Boolean flag.  If True, statistic_table must
-        contain columns "storm_id" and "unix_time_sec".  If False,
+        contain columns "full_id_string" and "valid_time_unix_sec".  If False,
         statistic_table does not need these columns.
     :return: statistic_column_names: 1-D list containing names of columns with
         shape statistics.
@@ -375,7 +378,7 @@ def get_stats_for_storm_objects(
     K = number of statistics
 
     :param storm_object_table: pandas DataFrame with columns documented in
-        `storm_tracking_io.write_processed_file`.  May contain additional
+        `storm_tracking_io.write_file`.  May contain additional
         columns.
     :param statistic_names: length-K list of statistics to compute.
     :param grid_spacing_for_binary_matrix_metres: See documentation for
@@ -388,10 +391,8 @@ def get_stats_for_storm_objects(
         where the last K columns are shape statistics.  Names of these columns
         come from the input list statistic_names.  The first 2 columns are
         listed below.
-    storm_shape_statistic_table.storm_id: String ID for storm cell.  Same as
-        input column `storm_object_table.storm_id`.
-    storm_shape_statistic_table.unix_time_sec: Valid time.  Same as input column
-        `storm_object_table.unix_time_sec`.
+    storm_shape_statistic_table.full_id_string: Full storm ID.
+    storm_shape_statistic_table.valid_time_unix_sec: Valid time.
     """
 
     _check_statistic_names(statistic_names)
@@ -414,12 +415,13 @@ def get_stats_for_storm_objects(
                    'objects...').format(i, num_storm_objects)
 
         this_polygon_object_xy = _project_polygon_latlng_to_xy(
-            storm_object_table[
-                tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i],
-            centroid_latitude_deg=
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values[i],
-            centroid_longitude_deg=
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values[i])
+            polygon_object_latlng=storm_object_table[
+                tracking_utils.LATLNG_POLYGON_COLUMN].values[i],
+            centroid_latitude_deg=storm_object_table[
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values[i],
+            centroid_longitude_deg=storm_object_table[
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i]
+        )
 
         if basic_stat_names:
             this_basic_stat_dict = get_basic_statistics(
@@ -481,9 +483,11 @@ def write_stats_for_storm_objects(storm_shape_statistic_table,
     columns_to_write = STORM_COLUMNS_TO_KEEP + statistic_column_names
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(storm_shape_statistic_table[columns_to_write],
-                pickle_file_handle)
+    pickle.dump(
+        storm_shape_statistic_table[columns_to_write], pickle_file_handle
+    )
     pickle_file_handle.close()
 
 

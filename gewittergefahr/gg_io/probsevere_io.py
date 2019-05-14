@@ -348,7 +348,7 @@ def _rename_storms_one_original_id(
     :param valid_times_unix_sec: length-N numpy array of valid times.
     :param next_id_number: Will start with this ID.
     :param max_dropout_time_seconds: See documentation for `rename_storms`.
-    :return: storm_id_strings: length-N list of new IDs.
+    :return: primary_id_strings: length-N list of new primary IDs.
     :return: next_id_number: Same as input, but maybe incremented.
     """
 
@@ -366,7 +366,7 @@ def _rename_storms_one_original_id(
     )).astype(int)
 
     num_storm_cells = len(storm_cell_start_indices)
-    storm_id_strings = [''] * num_storm_objects
+    primary_id_strings = [''] * num_storm_objects
 
     for j in range(num_storm_cells):
         these_object_indices = numpy.linspace(
@@ -375,11 +375,11 @@ def _rename_storms_one_original_id(
             dtype=int)
 
         for k in these_object_indices:
-            storm_id_strings[k] = '{0:d}_probSevere'.format(next_id_number)
+            primary_id_strings[k] = '{0:d}_probSevere'.format(next_id_number)
 
         next_id_number += 1
 
-    return storm_id_strings, next_id_number
+    return primary_id_strings, next_id_number
 
 
 def get_json_file_name_on_ftp(unix_time_sec, ftp_directory_name):

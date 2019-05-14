@@ -1786,11 +1786,11 @@ def write_storm_images(
             ROTATED_GRID_SPACING_KEY, rotated_grid_spacing_metres)
 
     num_storm_objects = storm_image_matrix.shape[0]
-    num_storm_id_chars = 1
+    num_id_characters = 1
 
     for i in range(num_storm_objects):
-        num_storm_id_chars = max([
-            num_storm_id_chars, len(full_id_strings[i])
+        num_id_characters = max([
+            num_id_characters, len(full_id_strings[i])
         ])
 
     netcdf_dataset.createDimension(
@@ -1802,14 +1802,14 @@ def write_storm_images(
     netcdf_dataset.createDimension(
         COLUMN_DIMENSION_KEY, storm_image_matrix.shape[2]
     )
-    netcdf_dataset.createDimension(CHARACTER_DIMENSION_KEY, num_storm_id_chars)
+    netcdf_dataset.createDimension(CHARACTER_DIMENSION_KEY, num_id_characters)
 
     netcdf_dataset.createVariable(
         FULL_IDS_KEY, datatype='S1',
         dimensions=(STORM_OBJECT_DIMENSION_KEY, CHARACTER_DIMENSION_KEY)
     )
 
-    string_type = 'S{0:d}'.format(num_storm_id_chars)
+    string_type = 'S{0:d}'.format(num_id_characters)
     full_ids_char_array = netCDF4.stringtochar(numpy.array(
         full_id_strings, dtype=string_type
     ))

@@ -1204,13 +1204,10 @@ def write_soundings(
     netcdf_dataset.createDimension(HEIGHT_DIMENSION_KEY, num_height_levels)
     netcdf_dataset.createDimension(FIELD_DIMENSION_KEY, num_fields)
 
-    storm_id_lengths = [
-        len(f) for f in sounding_dict_height_coords[FULL_IDS_KEY]
-    ]
-
-    num_storm_id_chars = max(storm_id_lengths + [1])
+    id_lengths = [len(f) for f in sounding_dict_height_coords[FULL_IDS_KEY]]
+    num_id_characters = max(id_lengths + [1])
     netcdf_dataset.createDimension(
-        STORM_ID_CHAR_DIMENSION_KEY, num_storm_id_chars)
+        STORM_ID_CHAR_DIMENSION_KEY, num_id_characters)
 
     num_field_name_chars = max([
         len(f) for f in sounding_dict_height_coords[FIELD_NAMES_KEY]
@@ -1224,12 +1221,11 @@ def write_soundings(
         dimensions=(STORM_OBJECT_DIMENSION_KEY, STORM_ID_CHAR_DIMENSION_KEY)
     )
 
-    string_type = 'S{0:d}'.format(num_storm_id_chars)
-    storm_ids_as_char_array = netCDF4.stringtochar(numpy.array(
+    string_type = 'S{0:d}'.format(num_id_characters)
+    full_ids_char_array = netCDF4.stringtochar(numpy.array(
         sounding_dict_height_coords[FULL_IDS_KEY], dtype=string_type
     ))
-    netcdf_dataset.variables[FULL_IDS_KEY][:] = numpy.array(
-        storm_ids_as_char_array)
+    netcdf_dataset.variables[FULL_IDS_KEY][:] = numpy.array(full_ids_char_array)
 
     # Add initial times (storm times) to file.
     netcdf_dataset.createVariable(

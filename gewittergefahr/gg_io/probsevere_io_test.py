@@ -39,14 +39,14 @@ DATE_NEEDED_INDICES_END = numpy.array([18, 19], dtype=int)
 DATE_NEEDED_INDICES_MIDDLE = numpy.array([9, 10, 11], dtype=int)
 
 # The following constants are used to test _rename_storms_one_original_id.
-STORM_OBJECT_TIMES_UNIX_SEC = numpy.array(
+STORM_TIMES_UNIX_SEC = numpy.array(
     [0, 1, 2, 3, 6, 7, 8, 9, 12, 15], dtype=int
 )
 
 NEXT_ID_NUMBER = 5
 MAX_DROPOUT_TIME_SECONDS = 2
 
-STORM_OBJECT_IDS = [
+STORM_ID_STRINGS = [
     '5_probSevere', '5_probSevere', '5_probSevere', '5_probSevere',
     '6_probSevere', '6_probSevere', '6_probSevere', '6_probSevere',
     '7_probSevere', '8_probSevere'
@@ -57,7 +57,7 @@ NEXT_ID_NUMBER_AFTER_ONE_ORIG_ID = 9
 # The following constants are used to test _rename_storms_one_table.
 WORKING_DATE_INDEX_FOR_TABLE = 1
 
-THESE_STORM_IDS = [
+THESE_ID_STRINGS = [
     'a', 'b', 'c',
     'b', 'd',
     'a', 'b', 'd',
@@ -70,13 +70,13 @@ THESE_DATE_INDICES = numpy.full(
 )
 
 THIS_DICT = {
-    tracking_utils.PRIMARY_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.PRIMARY_ID_COLUMN: THESE_ID_STRINGS,
     tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     probsevere_io.DATE_INDEX_KEY: THESE_DATE_INDICES
 }
 STORM_OBJECT_TABLE_ORIG_IDS_1DAY = pandas.DataFrame.from_dict(THIS_DICT)
 
-THESE_STORM_IDS = [
+THESE_ID_STRINGS = [
     '5_probSevere', '6_probSevere', '7_probSevere',
     '6_probSevere', '9_probSevere',
     '5_probSevere', '6_probSevere', '9_probSevere',
@@ -84,7 +84,7 @@ THESE_STORM_IDS = [
 ]
 
 THIS_DICT = {
-    tracking_utils.PRIMARY_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.PRIMARY_ID_COLUMN: THESE_ID_STRINGS,
     tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     probsevere_io.DATE_INDEX_KEY: THESE_DATE_INDICES
 }
@@ -92,7 +92,7 @@ THIS_DICT = {
 STORM_OBJECT_TABLE_NEW_IDS_1DAY = pandas.DataFrame.from_dict(THIS_DICT)
 NEXT_ID_NUMBER_AFTER_1DAY = 10
 
-THESE_STORM_IDS = [
+THESE_ID_STRINGS = [
     'a', 'b', 'c',
     'a', 'b', 'c',
     'a', 'c', 'd'
@@ -102,20 +102,20 @@ THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=int)
 THESE_DATE_INDICES = numpy.array([0, 0, 0, 0, 0, 0, 1, 1, 1], dtype=int)
 
 THIS_DICT = {
-    tracking_utils.PRIMARY_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.PRIMARY_ID_COLUMN: THESE_ID_STRINGS,
     tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     probsevere_io.DATE_INDEX_KEY: THESE_DATE_INDICES
 }
 STORM_OBJECT_TABLE_ORIG_IDS_2DAYS = pandas.DataFrame.from_dict(THIS_DICT)
 
-THESE_STORM_IDS = [
+THESE_ID_STRINGS = [
     '5_probSevere', 'b', '6_probSevere',
     '5_probSevere', 'b', '6_probSevere',
     '5_probSevere', '6_probSevere', '7_probSevere'
 ]
 
 THIS_DICT = {
-    tracking_utils.PRIMARY_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.PRIMARY_ID_COLUMN: THESE_ID_STRINGS,
     tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     probsevere_io.DATE_INDEX_KEY: THESE_DATE_INDICES
 }
@@ -278,14 +278,14 @@ class ProbsevereIoTests(unittest.TestCase):
     def test_rename_storms_one_original_id(self):
         """Ensures correct output from _rename_storms_one_original_id."""
 
-        these_object_ids, this_id_number = (
+        these_id_strings, this_id_number = (
             probsevere_io._rename_storms_one_original_id(
-                valid_times_unix_sec=STORM_OBJECT_TIMES_UNIX_SEC,
+                valid_times_unix_sec=STORM_TIMES_UNIX_SEC,
                 next_id_number=NEXT_ID_NUMBER + 0,
                 max_dropout_time_seconds=MAX_DROPOUT_TIME_SECONDS)
         )
 
-        self.assertTrue(these_object_ids == STORM_OBJECT_IDS)
+        self.assertTrue(these_id_strings == STORM_ID_STRINGS)
         self.assertTrue(this_id_number == NEXT_ID_NUMBER_AFTER_ONE_ORIG_ID)
 
     def test_rename_storms_one_table_1day(self):

@@ -9,6 +9,7 @@ import numpy
 from gewittergefahr.gg_io import probsevere_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 DATE_FORMAT = '%Y%m%d'
@@ -62,6 +63,11 @@ def _convert_files(top_probsevere_dir_name, date_string, top_output_dir_name):
         print 'Reading data from "{0:s}"...'.format(this_raw_file_name)
         this_storm_object_table = probsevere_io.read_raw_file(
             this_raw_file_name)
+
+        this_storm_object_table = (
+            temporal_tracking._finish_segmotion_or_probsevere_ids(
+                this_storm_object_table)
+        )
 
         this_new_file_name = tracking_io.find_file(
             valid_time_unix_sec=probsevere_io.raw_file_name_to_time(

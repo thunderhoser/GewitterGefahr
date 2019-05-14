@@ -126,6 +126,7 @@ def check_metadata(
     """
 
     model_interpretation.check_component_type(component_type_string)
+
     if (component_type_string ==
             model_interpretation.CLASS_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer(target_class)
@@ -268,7 +269,8 @@ def get_saliency_maps_for_channel_activation(
         component_type_string=
         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
         layer_name=layer_name, ideal_activation=ideal_activation,
-        channel_index=channel_index)
+        channel_index=channel_index
+    )
 
     if ideal_activation is None:
         loss_tensor = -K.abs(stat_function_for_neuron_activations(

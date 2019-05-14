@@ -1099,12 +1099,12 @@ def create_forecast_grids(
 
     Other required columns are listed below.
 
-    storm_object_table.storm_id: String ID for storm cell.
-    storm_object_table.unix_time_sec: Valid time of storm object.
-    storm_object_table.centroid_lat_deg: Latitude (deg N) at centroid of storm
-        object.
-    storm_object_table.centroid_lng_deg: Longitude (deg E) at centroid of storm
-        object.
+    storm_object_table.full_id_string: Full storm ID.
+    storm_object_table.valid_time_unix_sec: Valid time.
+    storm_object_table.centroid_latitude_deg: Latitude (deg N) of storm
+        centroid.
+    storm_object_table.centroid_longitude_deg: Longitude (deg E) of storm
+        centroid.
     storm_object_table.east_velocity_m_s01: Eastward velocity of storm cell
         (metres per second).
     storm_object_table.north_velocity_m_s01: Northward velocity of storm cell

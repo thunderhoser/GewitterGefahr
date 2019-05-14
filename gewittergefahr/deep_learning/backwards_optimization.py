@@ -443,8 +443,7 @@ def optimize_input_for_class(
     """
 
     model_interpretation.check_component_metadata(
-        component_type_string=
-        model_interpretation.CLASS_COMPONENT_TYPE_STRING,
+        component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
         target_class=target_class)
 
     _check_input_args(
@@ -505,8 +504,7 @@ def optimize_input_for_neuron(
     """
 
     model_interpretation.check_component_metadata(
-        component_type_string=
-        model_interpretation.NEURON_COMPONENT_TYPE_STRING,
+        component_type_string=model_interpretation.NEURON_COMPONENT_TYPE_STRING,
         layer_name=layer_name, neuron_indices=neuron_indices)
 
     _check_input_args(
@@ -574,7 +572,8 @@ def optimize_input_for_channel(
     model_interpretation.check_component_metadata(
         component_type_string=
         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
-        layer_name=layer_name, channel_index=channel_index)
+        layer_name=layer_name, channel_index=channel_index
+    )
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,

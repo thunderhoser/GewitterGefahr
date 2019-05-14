@@ -64,7 +64,7 @@ CORRELATION_COEFF_NAME = 'correlation_coefficient'
 SPECTRUM_WIDTH_NAME = 'spectrum_width_m_s01'
 VORTICITY_NAME = 'vorticity_s01'
 DIVERGENCE_NAME = 'divergence_s01'
-STORM_ID_NAME = 'storm_id'
+STORM_ID_NAME = 'storm_id_string'
 
 SHEAR_NAMES = [LOW_LEVEL_SHEAR_NAME, MID_LEVEL_SHEAR_NAME]
 ECHO_TOP_NAMES = [
@@ -361,7 +361,7 @@ def get_valid_heights(data_source, field_name=None):
     :param field_name: Field name in GewitterGefahr format (string).
     :return: valid_heights_m_asl: 1-D numpy array of valid heights (integer
         metres above sea level).
-    :raises: ValueError: if field name is "storm_id".
+    :raises: ValueError: if field name is "full_id_string".
     """
 
     check_data_source(data_source)

@@ -8,13 +8,17 @@ from gewittergefahr.gg_utils import polygons
 FAKE_STATISTIC_NAME = 'foo'
 
 VERTEX_X_METRES = numpy.array(
-    [3., 3., 0., 0., 3., 3., 5., 5., 8., 8., 5., 5., 3.])
+    [3, 3, 0, 0, 3, 3, 5, 5, 8, 8, 5, 5, 3], dtype=float
+)
 VERTEX_Y_METRES = numpy.array(
-    [6., 3., 3., 1., 1., 0., 0., 1., 1., 3., 3., 6., 6.])
+    [6, 3, 3, 1, 1, 0, 0, 1, 1, 3, 3, 6, 6], dtype=float
+)
+
 POLYGON_OBJECT_XY = polygons.vertex_arrays_to_polygon_object(
     VERTEX_X_METRES, VERTEX_Y_METRES)
 
 GRID_SPACING_FOR_BINARY_MATRIX_METRES = 0.5
+
 BINARY_IMAGE_MATRIX = numpy.array([
     [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
@@ -27,7 +31,8 @@ BINARY_IMAGE_MATRIX = numpy.array([
     [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0]], dtype=bool)
+    [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0]
+], dtype=bool)
 
 X_OFFSET_METRES = -8.1472
 Y_OFFSET_METRES = 9.0579
@@ -67,6 +72,7 @@ class ShapeStatisticsTests(unittest.TestCase):
 
         this_statistic_name_orig = shape_stats._stat_name_new_to_orig(
             shape_stats.AREA_NAME)
+
         self.assertTrue(this_statistic_name_orig == shape_stats.AREA_NAME_ORIG)
 
     def test_stat_name_new_to_orig_same(self):
@@ -78,34 +84,44 @@ class ShapeStatisticsTests(unittest.TestCase):
 
         this_statistic_name_orig = shape_stats._stat_name_new_to_orig(
             shape_stats.SOLIDITY_NAME)
+
         self.assertTrue(
-            this_statistic_name_orig == shape_stats.SOLIDITY_NAME_ORIG)
+            this_statistic_name_orig == shape_stats.SOLIDITY_NAME_ORIG
+        )
 
     def test_get_basic_statistic_names(self):
         """Ensures correct output from _get_basic_statistic_names."""
 
         these_basic_stat_names = shape_stats._get_basic_statistic_names(
             shape_stats.STATISTIC_NAMES)
-        self.assertTrue(set(these_basic_stat_names) ==
-                        set(shape_stats.BASIC_STAT_NAMES))
+
+        self.assertTrue(
+            set(these_basic_stat_names) == set(shape_stats.BASIC_STAT_NAMES)
+        )
 
     def test_get_region_property_names(self):
         """Ensures correct output from _get_region_property_names."""
 
         these_region_prop_names = shape_stats._get_region_property_names(
             shape_stats.STATISTIC_NAMES)
-        self.assertTrue(set(these_region_prop_names) ==
-                        set(shape_stats.REGION_PROPERTY_NAMES))
+
+        self.assertTrue(
+            set(these_region_prop_names) ==
+            set(shape_stats.REGION_PROPERTY_NAMES)
+        )
 
     def test_get_curvature_based_stat_names(self):
         """Ensures correct output from _get_curvature_based_stat_names."""
 
         these_curvature_based_stat_names = (
             shape_stats._get_curvature_based_stat_names(
-                shape_stats.STATISTIC_NAMES))
+                shape_stats.STATISTIC_NAMES)
+        )
 
-        self.assertTrue(set(these_curvature_based_stat_names) ==
-                        set(shape_stats.CURVATURE_BASED_STAT_NAMES))
+        self.assertTrue(
+            set(these_curvature_based_stat_names) ==
+            set(shape_stats.CURVATURE_BASED_STAT_NAMES)
+        )
 
     def test_xy_polygon_to_binary_matrix_no_offset(self):
         """Ensures correct output from _xy_polygon_to_binary_matrix.
@@ -115,11 +131,12 @@ class ShapeStatisticsTests(unittest.TestCase):
         """
 
         this_binary_image_matrix = shape_stats._xy_polygon_to_binary_matrix(
-            POLYGON_OBJECT_XY,
+            polygon_object_xy=POLYGON_OBJECT_XY,
             grid_spacing_metres=GRID_SPACING_FOR_BINARY_MATRIX_METRES)
 
         self.assertTrue(numpy.array_equal(
-            this_binary_image_matrix, BINARY_IMAGE_MATRIX))
+            this_binary_image_matrix, BINARY_IMAGE_MATRIX
+        ))
 
 
 if __name__ == '__main__':

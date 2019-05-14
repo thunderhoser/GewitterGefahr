@@ -476,7 +476,7 @@ def _update_full_ids(storm_object_table):
 
     :param storm_object_table: See doc for `storm_tracking_io.write_file`.
     :return: storm_object_table: Same as input but maybe with different values
-        in "storm_id" column.
+        in "full_id_string" column.
     """
 
     full_id_strings = [

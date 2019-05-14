@@ -346,10 +346,13 @@ INTERP_VERTEX_TABLE_2OBJECTS = pandas.DataFrame.from_dict(THIS_DICT)
 
 # The following constants are used to test _find_nearest_storms_one_time.
 MAX_LINK_DISTANCE_METRES = 10000.
+
 EVENT_X_COORDS_1TIME_METRES = numpy.array(
-    [49000, 49000, 49000, 49000, -46500, -36500, -31500, 0], dtype=float)
+    [49000, 49000, 49000, 49000, -46500, -36500, -31500, 0], dtype=float
+)
 EVENT_Y_COORDS_1TIME_METRES = numpy.array(
-    [55000, 50000, 45000, 0, -43625, -43625, -43625, -43625], dtype=float)
+    [55000, 50000, 45000, 0, -43625, -43625, -43625, -43625], dtype=float
+)
 
 NEAREST_PRIMARY_ID_STRINGS_1TIME = [
     'bar', 'bar', 'bar', None, 'foo', 'foo', 'foo', None
@@ -365,10 +368,12 @@ THESE_X_METRES = numpy.array([
     49000, 49000, 49000, 49000, -46500, -36500, -31500, 0,
     49000, 49000, 49000, 49000, -46000, -36000, -31000, 0
 ], dtype=float)
+
 THESE_Y_METRES = numpy.array([
     55000, 50000, 45000, 0, -43625, -43625, -43625, -43625,
     55000, 50000, 45000, 0, -43500, -43500, -43500, -43500
 ], dtype=float)
+
 THESE_TIMES_UNIX_SEC = numpy.array([
     600, 600, 600, 600, 600, 600, 600, 600,
     700, 700, 700, 700, 700, 700, 700, 700
@@ -449,29 +454,24 @@ THESE_LINK_DISTANCES_METRES = numpy.array([0, 0, 5000, 0, 0, 5000], dtype=float)
 FOO_ROWS = numpy.array([0, 2, 4], dtype=int)
 
 for this_row in FOO_ROWS:
-    STORM_TO_WINDS_TABLE[
-        linkage.WIND_STATION_IDS_COLUMN
-    ].values[this_row] = THESE_STATION_IDS
-
-    STORM_TO_WINDS_TABLE[
-        linkage.EVENT_LATITUDES_COLUMN
-    ].values[this_row] = THESE_WIND_LATITUDES_DEG
-
-    STORM_TO_WINDS_TABLE[
-        linkage.EVENT_LONGITUDES_COLUMN
-    ].values[this_row] = THESE_WIND_LONGITUDES_DEG
-
-    STORM_TO_WINDS_TABLE[
-        linkage.U_WINDS_COLUMN
-    ].values[this_row] = THESE_U_WINDS_M_S01
-
-    STORM_TO_WINDS_TABLE[
-        linkage.V_WINDS_COLUMN
-    ].values[this_row] = THESE_V_WINDS_M_S01
-
-    STORM_TO_WINDS_TABLE[
-        linkage.LINKAGE_DISTANCES_COLUMN
-    ].values[this_row] = THESE_LINK_DISTANCES_METRES
+    STORM_TO_WINDS_TABLE[linkage.WIND_STATION_IDS_COLUMN].values[this_row] = (
+        THESE_STATION_IDS
+    )
+    STORM_TO_WINDS_TABLE[linkage.EVENT_LATITUDES_COLUMN].values[this_row] = (
+        THESE_WIND_LATITUDES_DEG
+    )
+    STORM_TO_WINDS_TABLE[linkage.EVENT_LONGITUDES_COLUMN].values[this_row] = (
+        THESE_WIND_LONGITUDES_DEG
+    )
+    STORM_TO_WINDS_TABLE[linkage.U_WINDS_COLUMN].values[this_row] = (
+        THESE_U_WINDS_M_S01
+    )
+    STORM_TO_WINDS_TABLE[linkage.V_WINDS_COLUMN].values[this_row] = (
+        THESE_V_WINDS_M_S01
+    )
+    STORM_TO_WINDS_TABLE[linkage.LINKAGE_DISTANCES_COLUMN].values[this_row] = (
+        THESE_LINK_DISTANCES_METRES
+    )
 
 STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[0] = (
     numpy.array([600, 600, 600, 700, 700, 700], dtype=int)
@@ -493,29 +493,24 @@ THESE_LINK_DISTANCES_METRES = numpy.array([0, 0, 5000], dtype=float)
 BAR_ROWS = numpy.array([1, 3, 5], dtype=int)
 
 for this_row in BAR_ROWS:
-    STORM_TO_WINDS_TABLE[
-        linkage.WIND_STATION_IDS_COLUMN
-    ].values[this_row] = THESE_STATION_IDS
-
-    STORM_TO_WINDS_TABLE[
-        linkage.EVENT_LATITUDES_COLUMN
-    ].values[this_row] = THESE_WIND_LATITUDES_DEG
-
-    STORM_TO_WINDS_TABLE[
-        linkage.EVENT_LONGITUDES_COLUMN
-    ].values[this_row] = THESE_WIND_LONGITUDES_DEG
-
-    STORM_TO_WINDS_TABLE[
-        linkage.U_WINDS_COLUMN
-    ].values[this_row] = THESE_U_WINDS_M_S01
-
-    STORM_TO_WINDS_TABLE[
-        linkage.V_WINDS_COLUMN
-    ].values[this_row] = THESE_V_WINDS_M_S01
-
-    STORM_TO_WINDS_TABLE[
-        linkage.LINKAGE_DISTANCES_COLUMN
-    ].values[this_row] = THESE_LINK_DISTANCES_METRES
+    STORM_TO_WINDS_TABLE[linkage.WIND_STATION_IDS_COLUMN].values[this_row] = (
+        THESE_STATION_IDS
+    )
+    STORM_TO_WINDS_TABLE[linkage.EVENT_LATITUDES_COLUMN].values[this_row] = (
+        THESE_WIND_LATITUDES_DEG
+    )
+    STORM_TO_WINDS_TABLE[linkage.EVENT_LONGITUDES_COLUMN].values[this_row] = (
+        THESE_WIND_LONGITUDES_DEG
+    )
+    STORM_TO_WINDS_TABLE[linkage.U_WINDS_COLUMN].values[this_row] = (
+        THESE_U_WINDS_M_S01
+    )
+    STORM_TO_WINDS_TABLE[linkage.V_WINDS_COLUMN].values[this_row] = (
+        THESE_V_WINDS_M_S01
+    )
+    STORM_TO_WINDS_TABLE[linkage.LINKAGE_DISTANCES_COLUMN].values[this_row] = (
+        THESE_LINK_DISTANCES_METRES
+    )
 
 STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[1] = (
     numpy.array([600, 600, 600], dtype=int)
@@ -750,12 +745,15 @@ FILE_TIME_UNIX_SEC = 1517523991  # 222631 1 Feb 2018
 FILE_SPC_DATE_STRING = '20180201'
 
 LINKAGE_FILE_NAME_WIND_ONE_TIME = (
-    'linkage/2018/20180201/storm_to_winds_2018-02-01-222631.p')
+    'linkage/2018/20180201/storm_to_winds_2018-02-01-222631.p'
+)
 LINKAGE_FILE_NAME_WIND_ONE_DATE = 'linkage/2018/storm_to_winds_20180201.p'
 LINKAGE_FILE_NAME_TORNADO_ONE_TIME = (
-    'linkage/2018/20180201/storm_to_tornadoes_2018-02-01-222631.p')
+    'linkage/2018/20180201/storm_to_tornadoes_2018-02-01-222631.p'
+)
 LINKAGE_FILE_NAME_TORNADO_ONE_DATE = (
-    'linkage/2018/storm_to_tornadoes_20180201.p')
+    'linkage/2018/storm_to_tornadoes_20180201.p'
+)
 
 
 def _compare_storm_to_events_tables(first_table, second_table):
@@ -822,7 +820,8 @@ class LinkageTests(unittest.TestCase):
             min_end_time_unix_sec=EARLY_END_TIME_UNIX_SEC)
 
         self.assertTrue(this_storm_object_table.equals(
-            STORM_OBJECT_TABLE_EARLY_START_EARLY_END))
+            STORM_OBJECT_TABLE_EARLY_START_EARLY_END
+        ))
 
     def test_filter_storms_by_time_early_start_late_end(self):
         """Ensures correct output from _filter_storms_by_time.
@@ -837,7 +836,8 @@ class LinkageTests(unittest.TestCase):
             min_end_time_unix_sec=LATE_END_TIME_UNIX_SEC)
 
         self.assertTrue(this_storm_object_table.equals(
-            STORM_OBJECT_TABLE_EARLY_START_LATE_END))
+            STORM_OBJECT_TABLE_EARLY_START_LATE_END
+        ))
 
     def test_filter_storms_by_time_late_start_early_end(self):
         """Ensures correct output from _filter_storms_by_time.
@@ -852,7 +852,8 @@ class LinkageTests(unittest.TestCase):
             min_end_time_unix_sec=EARLY_END_TIME_UNIX_SEC)
 
         self.assertTrue(this_storm_object_table.equals(
-            STORM_OBJECT_TABLE_LATE_START_EARLY_END))
+            STORM_OBJECT_TABLE_LATE_START_EARLY_END
+        ))
 
     def test_filter_storms_by_time_late_start_late_end(self):
         """Ensures correct output from _filter_storms_by_time.
@@ -867,7 +868,8 @@ class LinkageTests(unittest.TestCase):
             min_end_time_unix_sec=LATE_END_TIME_UNIX_SEC)
 
         self.assertTrue(this_storm_object_table.equals(
-            STORM_OBJECT_TABLE_LATE_START_LATE_END))
+            STORM_OBJECT_TABLE_LATE_START_LATE_END
+        ))
 
     def test_interp_one_storm_in_time_interp(self):
         """Ensures correct output from _interp_one_storm_in_time.
@@ -906,9 +908,11 @@ class LinkageTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.allclose(
-            these_x_limits_metres, BOUNDING_BOX_X_METRES, atol=TOLERANCE))
+            these_x_limits_metres, BOUNDING_BOX_X_METRES, atol=TOLERANCE
+        ))
         self.assertTrue(numpy.allclose(
-            these_y_limits_metres, BOUNDING_BOX_Y_METRES, atol=TOLERANCE))
+            these_y_limits_metres, BOUNDING_BOX_Y_METRES, atol=TOLERANCE
+        ))
 
     def test_filter_events_by_bounding_box(self):
         """Ensures correct output from _filter_events_by_bounding_box."""
@@ -934,7 +938,7 @@ class LinkageTests(unittest.TestCase):
     def test_find_nearest_storms_one_time(self):
         """Ensures correct output from _find_nearest_storms_one_time."""
 
-        these_nearest_storm_ids, these_link_distances_metres = (
+        these_nearest_id_strings, these_link_distances_metres = (
             linkage._find_nearest_storms_one_time(
                 interp_vertex_table=INTERP_VERTEX_TABLE_2OBJECTS,
                 event_x_coords_metres=EVENT_X_COORDS_1TIME_METRES,
@@ -942,10 +946,13 @@ class LinkageTests(unittest.TestCase):
                 max_link_distance_metres=MAX_LINK_DISTANCE_METRES)
         )
 
-        self.assertTrue(these_nearest_storm_ids == NEAREST_PRIMARY_ID_STRINGS_1TIME)
+        self.assertTrue(
+            these_nearest_id_strings == NEAREST_PRIMARY_ID_STRINGS_1TIME
+        )
         self.assertTrue(numpy.allclose(
             these_link_distances_metres, LINK_DISTANCES_1TIME_METRES,
-            equal_nan=True, atol=TOLERANCE))
+            equal_nan=True, atol=TOLERANCE
+        ))
 
     def test_find_nearest_storms(self):
         """Ensures correct output from _find_nearest_storms."""
@@ -959,7 +966,8 @@ class LinkageTests(unittest.TestCase):
             interp_time_resolution_sec=INTERP_TIME_RESOLUTION_SEC)
 
         self.assertTrue(this_wind_to_storm_table.equals(
-            EVENT_TO_STORM_TABLE_SIMPLE))
+            EVENT_TO_STORM_TABLE_SIMPLE
+        ))
 
     def test_reverse_wind_linkages(self):
         """Ensures correct output from _reverse_wind_linkages."""
@@ -969,7 +977,8 @@ class LinkageTests(unittest.TestCase):
             wind_to_storm_table=WIND_TO_STORM_TABLE)
 
         self.assertTrue(_compare_storm_to_events_tables(
-            this_storm_to_winds_table, STORM_TO_WINDS_TABLE))
+            this_storm_to_winds_table, STORM_TO_WINDS_TABLE
+        ))
 
     def test_share_linkages_between_periods(self):
         """Ensures correct output from _share_linkages_between_periods."""
@@ -984,9 +993,11 @@ class LinkageTests(unittest.TestCase):
         )
 
         self.assertTrue(_compare_storm_to_events_tables(
-            this_early_table, EARLY_STORM_TO_TORNADOES_TABLE_WITH_SHARING))
+            this_early_table, EARLY_STORM_TO_TORNADOES_TABLE_WITH_SHARING
+        ))
         self.assertTrue(_compare_storm_to_events_tables(
-            this_late_table, LATE_STORM_TO_TORNADOES_TABLE_WITH_SHARING))
+            this_late_table, LATE_STORM_TO_TORNADOES_TABLE_WITH_SHARING
+        ))
 
     def test_find_linkage_file_wind_one_time(self):
         """Ensures correct output from find_linkage_file.

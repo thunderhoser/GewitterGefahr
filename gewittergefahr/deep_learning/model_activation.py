@@ -55,6 +55,7 @@ def check_metadata(
     """
 
     model_interpretation.check_component_type(component_type_string)
+
     if (component_type_string ==
             model_interpretation.CLASS_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer(target_class)
@@ -101,7 +102,8 @@ def get_class_activation_for_examples(
 
     check_metadata(
         component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
-        target_class=target_class)
+        target_class=target_class
+    )
 
     if isinstance(model_object.input, list):
         list_of_input_tensors = model_object.input
@@ -147,7 +149,8 @@ def get_neuron_activation_for_examples(
     check_metadata(
         component_type_string=model_interpretation.NEURON_COMPONENT_TYPE_STRING,
         layer_name=layer_name,
-        neuron_index_matrix=numpy.expand_dims(neuron_indices, axis=0))
+        neuron_index_matrix=numpy.expand_dims(neuron_indices, axis=0)
+    )
 
     if isinstance(model_object.input, list):
         list_of_input_tensors = model_object.input
@@ -186,7 +189,9 @@ def get_channel_activation_for_examples(
     check_metadata(
         component_type_string=
         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
-        layer_name=layer_name, channel_indices=numpy.array([channel_index]))
+        layer_name=layer_name,
+        channel_indices=numpy.array([channel_index], dtype=int)
+    )
 
     if isinstance(model_object.input, list):
         list_of_input_tensors = model_object.input

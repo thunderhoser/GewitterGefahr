@@ -1441,7 +1441,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
         )
 
     # Set dimensions.
-    num_storm_id_chars = 10 + numpy.max(
+    num_id_characters = 10 + numpy.max(
         numpy.array([len(s) for s in example_dict[FULL_IDS_KEY]])
     )
     num_radar_field_chars = numpy.max(
@@ -1449,7 +1449,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     )
 
     netcdf_dataset.createDimension(EXAMPLE_DIMENSION_KEY, None)
-    netcdf_dataset.createDimension(STORM_ID_CHAR_DIM_KEY, num_storm_id_chars)
+    netcdf_dataset.createDimension(STORM_ID_CHAR_DIM_KEY, num_id_characters)
     netcdf_dataset.createDimension(
         RADAR_FIELD_CHAR_DIM_KEY, num_radar_field_chars)
 
@@ -1499,7 +1499,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
         num_radar_dimensions = -1
 
     # Add storm IDs.
-    this_string_type = 'S{0:d}'.format(num_storm_id_chars)
+    this_string_type = 'S{0:d}'.format(num_id_characters)
     full_ids_char_array = netCDF4.stringtochar(numpy.array(
         example_dict[FULL_IDS_KEY], dtype=this_string_type
     ))
