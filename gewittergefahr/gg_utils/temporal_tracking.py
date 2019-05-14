@@ -649,7 +649,34 @@ def create_full_storm_id(primary_id_string, secondary_id_string):
     :return: full_id_string: Full ID.
     """
 
+    # TODO(thunderhoser): Could use better input-checking.
+
+    error_checking.assert_is_string(primary_id_string)
+    error_checking.assert_is_string(secondary_id_string)
     return '{0:s}_{1:s}'.format(primary_id_string, secondary_id_string)
+
+
+def full_to_partial_ids(full_id_strings):
+    """Converts full storm IDs to partial ones.
+
+    N = number of storm objects
+
+    :param full_id_strings: length-N list of full storm IDs.
+    :return: primary_id_strings: length-N list of primary storm IDs.
+    :return: secondary_id_strings: length-N list of secondary storm IDs.
+    """
+
+    # TODO(thunderhoser): Could use better input-checking.
+
+    error_checking.assert_is_string_list(full_id_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(full_id_strings), num_dimensions=1
+    )
+
+    primary_id_strings = ['_'.join(f.split('_')[:-1]) for f in full_id_strings]
+    secondary_id_strings = [f.split('_')[-1] for f in full_id_strings]
+
+    return primary_id_strings, secondary_id_strings
 
 
 def link_local_maxima_in_time(

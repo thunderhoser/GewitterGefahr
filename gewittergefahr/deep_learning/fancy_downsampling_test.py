@@ -52,23 +52,15 @@ MAIN_TARGET_VALUES = numpy.array([
     1, 1, 0, 1, 0, 0
 ], dtype=int)
 
-THESE_INDICES = numpy.array(
+NON_TRAINING_INDICES = numpy.array(
     [5, 6, 7, 8, 9, 10, 11, 12, 15, 13, 14, 17, 18, 19, 22, 23, 24, 26],
     dtype=int
 )
 
-NON_TRAINING_ID_STRINGS = [MAIN_ID_STRINGS[k] for k in THESE_INDICES]
-NON_TRAINING_TIMES_UNIX_SEC = MAIN_STORM_TIMES_UNIX_SEC[THESE_INDICES]
-NON_TRAINING_TARGET_VALUES = MAIN_TARGET_VALUES[THESE_INDICES]
-
 # The following constants are used to test downsample_for_training.
-THESE_INDICES = numpy.linspace(
+TRAINING_INDICES = numpy.linspace(
     5, len(MAIN_ID_STRINGS) - 1, num=len(MAIN_ID_STRINGS) - 5, dtype=int
 )
-
-TRAINING_ID_STRINGS = [MAIN_ID_STRINGS[k] for k in THESE_INDICES]
-TRAINING_TIMES_UNIX_SEC = MAIN_STORM_TIMES_UNIX_SEC[THESE_INDICES]
-TRAINING_TARGET_VALUES = MAIN_TARGET_VALUES[THESE_INDICES]
 
 
 class FancyDownsamplingTests(unittest.TestCase):
@@ -85,7 +77,8 @@ class FancyDownsamplingTests(unittest.TestCase):
             desired_cell_id_strings=DESIRED_CELL_ID_STRINGS_NONE_MISSING)
 
         self.assertTrue(numpy.array_equal(
-            these_indices, DESIRED_OBJECT_INDICES))
+            these_indices, DESIRED_OBJECT_INDICES
+        ))
 
     def test_find_storm_cells_none_bad(self):
         """Ensures correct output from find_storm_cells.
@@ -133,39 +126,27 @@ class FancyDownsamplingTests(unittest.TestCase):
     def test_downsample_for_non_training(self):
         """Ensures correct output from downsample_for_non_training."""
 
-        these_id_strings, these_times_unix_sec, these_target_values = (
-            fancy_downsampling.downsample_for_non_training(
-                full_id_strings=copy.deepcopy(MAIN_ID_STRINGS),
-                storm_times_unix_sec=MAIN_STORM_TIMES_UNIX_SEC + 0,
-                target_values=MAIN_TARGET_VALUES + 0, target_name=TARGET_NAME,
-                class_fraction_dict=CLASS_FRACTION_DICT, test_mode=True)
-        )
+        these_indices = fancy_downsampling.downsample_for_non_training(
+            primary_id_strings=copy.deepcopy(MAIN_ID_STRINGS),
+            storm_times_unix_sec=MAIN_STORM_TIMES_UNIX_SEC + 0,
+            target_values=MAIN_TARGET_VALUES + 0, target_name=TARGET_NAME,
+            class_fraction_dict=CLASS_FRACTION_DICT, test_mode=True)
 
-        self.assertTrue(NON_TRAINING_ID_STRINGS == these_id_strings)
         self.assertTrue(numpy.array_equal(
-            NON_TRAINING_TIMES_UNIX_SEC, these_times_unix_sec
-        ))
-        self.assertTrue(numpy.array_equal(
-            NON_TRAINING_TARGET_VALUES, these_target_values
+            NON_TRAINING_INDICES, these_indices
         ))
 
     def test_downsample_for_training(self):
         """Ensures correct output from downsample_for_training."""
 
-        these_id_strings, these_times_unix_sec, these_target_values = (
-            fancy_downsampling.downsample_for_training(
-                full_id_strings=copy.deepcopy(MAIN_ID_STRINGS),
-                storm_times_unix_sec=MAIN_STORM_TIMES_UNIX_SEC + 0,
-                target_values=MAIN_TARGET_VALUES + 0, target_name=TARGET_NAME,
-                class_fraction_dict=CLASS_FRACTION_DICT, test_mode=True)
-        )
+        these_indices = fancy_downsampling.downsample_for_training(
+            primary_id_strings=copy.deepcopy(MAIN_ID_STRINGS),
+            storm_times_unix_sec=MAIN_STORM_TIMES_UNIX_SEC + 0,
+            target_values=MAIN_TARGET_VALUES + 0, target_name=TARGET_NAME,
+            class_fraction_dict=CLASS_FRACTION_DICT, test_mode=True)
 
-        self.assertTrue(TRAINING_ID_STRINGS == these_id_strings)
         self.assertTrue(numpy.array_equal(
-            TRAINING_TIMES_UNIX_SEC, these_times_unix_sec
-        ))
-        self.assertTrue(numpy.array_equal(
-            TRAINING_TARGET_VALUES, these_target_values
+            TRAINING_INDICES, these_indices
         ))
 
 

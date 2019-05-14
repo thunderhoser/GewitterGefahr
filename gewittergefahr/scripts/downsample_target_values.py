@@ -6,6 +6,7 @@ import numpy
 import pandas
 from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.deep_learning import fancy_downsampling
 
@@ -154,6 +155,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     full_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)
     target_values = numpy.array([], dtype=int)
+    storm_to_file_indices = numpy.array([], dtype=int)
 
     for i in range(num_files):
         print 'Reading "{0:s}" from: "{1:s}"...'.format(
@@ -164,14 +166,25 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             netcdf_file_name=input_target_file_names[i],
             target_name=target_name)
 
-        full_id_strings += target_dict_by_file[i][target_val_utils.FULL_IDS_KEY]
+        these_full_id_strings = (
+            target_dict_by_file[i][target_val_utils.FULL_IDS_KEY]
+        )
+        full_id_strings += these_full_id_strings
+        this_num_storm_objects = len(these_full_id_strings)
+
         storm_times_unix_sec = numpy.concatenate((
             storm_times_unix_sec,
             target_dict_by_file[i][target_val_utils.VALID_TIMES_KEY]
         ))
+
         target_values = numpy.concatenate((
             target_values,
             target_dict_by_file[i][target_val_utils.TARGET_VALUES_KEY]
+        ))
+
+        storm_to_file_indices = numpy.concatenate((
+            storm_to_file_indices,
+            numpy.full(this_num_storm_objects, i, dtype=int)
         ))
 
     print SEPARATOR_STRING
@@ -183,36 +196,37 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     full_id_strings = [full_id_strings[k] for k in good_indices]
     storm_times_unix_sec = storm_times_unix_sec[good_indices]
     target_values = target_values[good_indices]
+    storm_to_file_indices = storm_to_file_indices[good_indices]
+
+    primary_id_strings = temporal_tracking.full_to_partial_ids(
+        full_id_strings
+    )[0]
+    del full_id_strings
 
     if for_training:
-        full_id_strings, storm_times_unix_sec, target_values = (
-            fancy_downsampling.downsample_for_training(
-                full_id_strings=full_id_strings,
-                storm_times_unix_sec=storm_times_unix_sec,
-                target_values=target_values, target_name=target_name,
-                class_fraction_dict=class_fraction_dict)
-        )
+        indices_to_keep = fancy_downsampling.downsample_for_training(
+            primary_id_strings=primary_id_strings,
+            storm_times_unix_sec=storm_times_unix_sec,
+            target_values=target_values, target_name=target_name,
+            class_fraction_dict=class_fraction_dict)
     else:
-        full_id_strings, storm_times_unix_sec, target_values = (
-            fancy_downsampling.downsample_for_non_training(
-                full_id_strings=full_id_strings,
-                storm_times_unix_sec=storm_times_unix_sec,
-                target_values=target_values, target_name=target_name,
-                class_fraction_dict=class_fraction_dict)
-        )
+        indices_to_keep = fancy_downsampling.downsample_for_non_training(
+            primary_id_strings=primary_id_strings,
+            storm_times_unix_sec=storm_times_unix_sec,
+            target_values=target_values, target_name=target_name,
+            class_fraction_dict=class_fraction_dict)
 
     print SEPARATOR_STRING
+    del primary_id_strings
+    del storm_times_unix_sec
+    del target_values
 
     for i in range(num_files):
-        these_indices = tracking_utils.find_storm_objects(
-            all_id_strings=target_dict_by_file[i][
-                target_val_utils.FULL_IDS_KEY],
-            all_times_unix_sec=target_dict_by_file[i][
-                target_val_utils.VALID_TIMES_KEY],
-            id_strings_to_keep=full_id_strings,
-            times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
+        these_subindices = numpy.where(
+            storm_to_file_indices[indices_to_keep] == i
+        )[0]
 
-        these_indices = these_indices[these_indices >= 0]
+        these_indices = indices_to_keep[these_subindices]
         if len(these_indices) == 0:
             continue
 

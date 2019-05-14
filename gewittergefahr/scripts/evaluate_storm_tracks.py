@@ -95,7 +95,6 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
     list_of_storm_object_tables = []
-    print top_tracking_dir_name
 
     for this_spc_date_string in spc_date_strings:
         these_file_names = tracking_io.find_files_one_spc_date(

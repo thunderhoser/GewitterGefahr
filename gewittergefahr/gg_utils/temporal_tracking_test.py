@@ -329,14 +329,23 @@ SECONDARY_ID_STRING = '000035'
 FULL_ID_STRING_SAME_DAY = '000017_20190314_000035'
 FULL_ID_STRING_NEXT_DAY = '000000_20190315_000035'
 
-# The following constants are used to test _local_maxima_to_tracks_mergers.
-FIRST_PRIMARY_ID_STRINGS = [
+# The following constants are used to test full_to_partial_ids.
+TOY_PRIMARY_ID_STRINGS = [
     '000000_19691231', '000001_19691231', '000002_19691231', '000003_19691231',
     '000004_19691231', '000005_19691231'
 ]
-FIRST_SECONDARY_ID_STRINGS = [
+TOY_SECONDARY_ID_STRINGS = [
     '000000', '000001', '000002', '000003', '000004', '000005'
 ]
+TOY_FULL_ID_STRINGS = [
+    '000000_19691231_000000', '000001_19691231_000001',
+    '000002_19691231_000002', '000003_19691231_000003',
+    '000004_19691231_000004', '000005_19691231_000005'
+]
+
+# The following constants are used to test _local_maxima_to_tracks_mergers.
+FIRST_PRIMARY_ID_STRINGS = copy.deepcopy(TOY_PRIMARY_ID_STRINGS)
+FIRST_SECONDARY_ID_STRINGS = copy.deepcopy(TOY_SECONDARY_ID_STRINGS)
 
 FIRST_LOCAL_MAX_DICT_WITH_IDS = copy.deepcopy(FIRST_LOCAL_MAX_DICT_SANS_IDS)
 FIRST_LOCAL_MAX_DICT_WITH_IDS.update({
@@ -1190,6 +1199,16 @@ class TemporalTrackingTests(unittest.TestCase):
             secondary_id_string=SECONDARY_ID_STRING)
 
         self.assertTrue(this_id_string == FULL_ID_STRING_NEXT_DAY)
+
+    def test_full_to_partial_ids(self):
+        """Ensures correct output from full_to_partial_ids."""
+
+        these_primary_id_strings, these_secondary_id_strings = (
+            temporal_tracking.full_to_partial_ids(TOY_FULL_ID_STRINGS)
+        )
+
+        self.assertTrue(these_primary_id_strings == TOY_PRIMARY_ID_STRINGS)
+        self.assertTrue(these_secondary_id_strings == TOY_SECONDARY_ID_STRINGS)
 
     def test_local_maxima_to_tracks_mergers_1to2(self):
         """Ensures correct output from _local_maxima_to_tracks_mergers.

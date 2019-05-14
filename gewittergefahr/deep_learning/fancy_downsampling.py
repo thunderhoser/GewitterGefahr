@@ -20,9 +20,12 @@ def _report_class_fractions(target_values):
         target_values, return_counts=True)
 
     print '\n'
+
     for k in range(len(unique_target_values)):
         print '{0:d} examples in class = {1:d}'.format(
-            unique_counts[k], unique_target_values[k])
+            unique_counts[k], unique_target_values[k]
+        )
+
     print '\n'
 
 
@@ -96,7 +99,7 @@ def _find_uncovered_times(all_times_unix_sec, covered_times_unix_sec):
 
 
 def _downsampling_base(
-        full_id_strings, storm_times_unix_sec, target_values, target_name,
+        primary_id_strings, storm_times_unix_sec, target_values, target_name,
         class_fraction_dict, test_mode=False):
     """Base for `downsample_for_training` and `downsample_for_non_training`.
 
@@ -113,10 +116,8 @@ def _downsampling_base(
         each class (according to `class_fraction_dict`).
 
     N = number of storm objects before downsampling
-    K = number of storm objects after intermediate downsampling
-    n = number of storm objects after final downsampling
 
-    :param full_id_strings: length-N list of full storm IDs.
+    :param primary_id_strings: length-N list of primary storm IDs.
     :param storm_times_unix_sec: length-N numpy array of corresponding times.
     :param target_values: length-N numpy array of corresponding target values
         (integer class labels).
@@ -126,18 +127,13 @@ def _downsampling_base(
         label (-2 for "dead storm") and the corresponding value is the
         sampling fraction.
     :param test_mode: Never mind.  Just leave this alone.
-    :return: full_id_strings: length-K list of full storm IDs.
-    :return: storm_times_unix_sec: length-K numpy array of corresponding times.
-    :return: target_values: length-K numpy array of corresponding target values.
-    :return: indices_to_keep: length-n numpy array of indices to keep.  These
-        are indices are into the output arrays `full_id_strings`,
-        `storm_times_unix_sec`, and `target_values`.
+    :return: indices_to_keep: 1-D numpy array of indices to keep.
     """
 
     _report_class_fractions(target_values)
     error_checking.assert_is_boolean(test_mode)
 
-    num_storm_objects = len(full_id_strings)
+    num_storm_objects = len(primary_id_strings)
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
 
@@ -157,9 +153,9 @@ def _downsampling_base(
            'yielding set {S_highest}...')
 
     highest_class_indices = _find_storm_cells(
-        object_id_strings=full_id_strings,
+        object_id_strings=primary_id_strings,
         desired_cell_id_strings=
-        [full_id_strings[k] for k in highest_class_indices]
+        [primary_id_strings[k] for k in highest_class_indices]
     )
 
     print '{{S_highest}} contains {0:d} of {1:d} storm objects.'.format(
@@ -194,24 +190,20 @@ def _downsampling_base(
         all_times_unix_sec=storm_times_unix_sec,
         covered_times_unix_sec=times_to_remove_unix_sec)
 
-    full_id_strings = [full_id_strings[k] for k in indices_to_keep]
-    storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
-    target_values = target_values[indices_to_keep]
-
-    _report_class_fractions(target_values)
+    _report_class_fractions(target_values[indices_to_keep])
 
     # Step 5.
     print 'Downsampling storm objects from remaining times...'
-    indices_to_keep = dl_utils.sample_by_class(
+    subindices_to_keep = dl_utils.sample_by_class(
         sampling_fraction_by_class_dict=class_fraction_dict,
-        target_name=target_name, target_values=target_values,
+        target_name=target_name, target_values=target_values[indices_to_keep],
         num_examples_total=LARGE_INTEGER, test_mode=test_mode)
 
-    return full_id_strings, storm_times_unix_sec, target_values, indices_to_keep
+    return indices_to_keep[subindices_to_keep]
 
 
 def downsample_for_non_training(
-        full_id_strings, storm_times_unix_sec, target_values, target_name,
+        primary_id_strings, storm_times_unix_sec, target_values, target_name,
         class_fraction_dict, test_mode=False):
     """Fancy downsampling to create validation or testing data.
 
@@ -220,36 +212,28 @@ def downsample_for_non_training(
     N = number of storm objects before downsampling
     n = number of storm objects after final downsampling
 
-    :param full_id_strings: See doc for `_downsampling_base`.
+    :param primary_id_strings: See doc for `_downsampling_base`.
     :param storm_times_unix_sec: Same.
     :param target_values: Same.
     :param target_name: Same.
     :param class_fraction_dict: Same.
     :param test_mode: Same.
-    :return: full_id_strings: length-K list of full storm IDs.
-    :return: storm_times_unix_sec: length-K numpy array of corresponding times.
-    :return: target_values: length-K numpy array of corresponding target values.
+    :return: indices_to_keep: Same.
     """
 
-    full_id_strings, storm_times_unix_sec, target_values, indices_to_keep = (
-        _downsampling_base(
-            full_id_strings=full_id_strings,
-            storm_times_unix_sec=storm_times_unix_sec,
-            target_values=target_values, target_name=target_name,
-            class_fraction_dict=class_fraction_dict, test_mode=test_mode)
-    )
+    indices_to_keep = _downsampling_base(
+        primary_id_strings=primary_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec,
+        target_values=target_values, target_name=target_name,
+        class_fraction_dict=class_fraction_dict, test_mode=test_mode)
 
-    full_id_strings = [full_id_strings[k] for k in indices_to_keep]
-    storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
-    target_values = target_values[indices_to_keep]
+    _report_class_fractions(target_values[indices_to_keep])
 
-    _report_class_fractions(target_values)
-
-    return full_id_strings, storm_times_unix_sec, target_values
+    return indices_to_keep
 
 
 def downsample_for_training(
-        full_id_strings, storm_times_unix_sec, target_values, target_name,
+        primary_id_strings, storm_times_unix_sec, target_values, target_name,
         class_fraction_dict, test_mode=False):
     """Fancy downsampling to create training data.
 
@@ -262,26 +246,21 @@ def downsample_for_training(
         Call this set {S_highest}.  Add storm objects from {S_highest} to the
         selected set.
 
-    :param full_id_strings: See doc for `_downsampling_base`.
+    :param primary_id_strings: See doc for `_downsampling_base`.
     :param storm_times_unix_sec: Same.
     :param target_values: Same.
     :param target_name: Same.
     :param class_fraction_dict: Same.
     :param test_mode: Same.
-    :return: full_id_strings: Same.
-    :return: storm_times_unix_sec: Same.
-    :return: target_values: Same.
+    :return: indices_to_keep: Same.
     """
 
-    full_id_strings, storm_times_unix_sec, target_values, indices_to_keep = (
-        _downsampling_base(
-            full_id_strings=full_id_strings,
-            storm_times_unix_sec=storm_times_unix_sec,
-            target_values=target_values, target_name=target_name,
-            class_fraction_dict=class_fraction_dict, test_mode=test_mode)
-    )
+    indices_to_keep = _downsampling_base(
+        primary_id_strings=primary_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec,
+        target_values=target_values, target_name=target_name,
+        class_fraction_dict=class_fraction_dict, test_mode=test_mode)
 
-    num_storm_objects = len(full_id_strings)
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
 
@@ -291,33 +270,34 @@ def downsample_for_training(
         ' {{s_highest}}...'
     ).format(num_classes - 1)
 
-    highest_class_indices = numpy.where(target_values == num_classes - 1)[0]
+    these_subindices = numpy.where(
+        target_values[indices_to_keep] == num_classes - 1
+    )[0]
+
+    highest_class_indices = indices_to_keep[these_subindices]
 
     print '{{s_highest}} contains {0:d} of {1:d} storm objects.'.format(
-        len(highest_class_indices), num_storm_objects)
+        len(highest_class_indices), len(indices_to_keep)
+    )
 
     # Step 7.
     print ('Finding storm cells with at least one object in {s_highest}, '
            'yielding set {S_highest}...')
 
     highest_class_indices = _find_storm_cells(
-        object_id_strings=full_id_strings,
+        object_id_strings=primary_id_strings,
         desired_cell_id_strings=
-        [full_id_strings[k] for k in highest_class_indices]
+        [primary_id_strings[k] for k in highest_class_indices]
     )
 
     print '{{S_highest}} contains {0:d} of {1:d} storm objects.'.format(
-        len(highest_class_indices), num_storm_objects)
+        len(highest_class_indices), len(primary_id_strings)
+    )
 
     indices_to_keep = (
         set(indices_to_keep.tolist()) | set(highest_class_indices.tolist())
     )
     indices_to_keep = numpy.array(list(indices_to_keep), dtype=int)
 
-    full_id_strings = [full_id_strings[k] for k in indices_to_keep]
-    storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
-    target_values = target_values[indices_to_keep]
-
-    _report_class_fractions(target_values)
-
-    return full_id_strings, storm_times_unix_sec, target_values
+    _report_class_fractions(target_values[indices_to_keep])
+    return indices_to_keep
