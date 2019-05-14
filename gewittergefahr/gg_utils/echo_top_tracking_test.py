@@ -71,11 +71,6 @@ LOCAL_MAX_DICT_LARGE_DISTANCE = {
     temporal_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES[:-1]
 }
 
-# _get_grid_points_in_storm(
-#     centroid_latitude_deg, centroid_longitude_deg, grid_point_latitudes_deg,
-#     grid_point_longitudes_deg, echo_top_matrix_km, min_echo_top_km,
-#     min_intermax_distance_metres)
-
 # The following constants are used to test _get_grid_points_in_storm.
 MIN_ECHO_TOP_KM = 5.
 
@@ -91,9 +86,9 @@ ECHO_TOP_MATRIX_KM = numpy.array([
     [0.0, 1.1, 3.4, 1.4, 4.3, 2.8, 0.1, 1.5, 1.3, 2.7, 3.3]
 ])
 
-GRID_POINT_LATITUDES_DEG = numpy.array(
-    [53.58, 53.56, 53.54, 53.52, 53.5, 53.48, 53.46, 53.44, 53.42]
-)
+GRID_POINT_LATITUDES_DEG = numpy.array([
+    53.58, 53.56, 53.54, 53.52, 53.5, 53.48, 53.46, 53.44, 53.42
+])
 GRID_POINT_LONGITUDES_DEG = numpy.array([
     246.4, 246.42, 246.44, 246.46, 246.48, 246.5, 246.52, 246.54, 246.56,
     246.58, 246.6
@@ -176,16 +171,19 @@ LOCAL_MAX_DICT_WITHOUT_SMALL = {
 }
 
 # The following constants are used to test _velocities_latlng_to_xy.
-START_LATITUDES_DEG = numpy.array(
-    [49.5, 58.3, 42.4, 58.5, 39.3, 46.4, 44.9, 58, 47.4, 32.5, 54.7, 53.1])
+START_LATITUDES_DEG = numpy.array([
+    49.5, 58.3, 42.4, 58.5, 39.3, 46.4, 44.9, 58, 47.4, 32.5, 54.7, 53.1
+])
 START_LONGITUDES_DEG = numpy.array([
     259.6, 258.7, 249.8, 241.1, 241, 250.3, 248.2, 239.7, 236.7, 249.2, 234.1,
     235.5
 ])
-EAST_VELOCITIES_M_S01 = numpy.array(
-    [-7.9, -7.9, -10.4, -11.6, -5.1, -1.3, -9.6, -6.6, 13.4, -7.7, -4.7, 1])
-NORTH_VELOCITIES_M_S01 = numpy.array(
-    [-11.3, 12.8, -1, 2.7, -13.7, 8.5, -8.3, 2.2, -8.1, -2.6, 13.5, -12.1])
+EAST_VELOCITIES_M_S01 = numpy.array([
+    -7.9, -7.9, -10.4, -11.6, -5.1, -1.3, -9.6, -6.6, 13.4, -7.7, -4.7, 1
+])
+NORTH_VELOCITIES_M_S01 = numpy.array([
+    -11.3, 12.8, -1, 2.7, -13.7, 8.5, -8.3, 2.2, -8.1, -2.6, 13.5, -12.1
+])
 
 
 def _compare_local_max_dicts(first_local_max_dict, second_local_max_dict):

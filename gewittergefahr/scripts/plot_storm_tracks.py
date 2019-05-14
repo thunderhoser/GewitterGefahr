@@ -9,6 +9,7 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
@@ -217,19 +218,35 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
     )
 
+    if parallel_spacing_deg < 1.:
+        parallel_spacing_deg = number_rounding.round_to_nearest(
+            parallel_spacing_deg, 0.1)
+    else:
+        parallel_spacing_deg = numpy.round(parallel_spacing_deg)
+
+    if meridian_spacing_deg < 1.:
+        meridian_spacing_deg = number_rounding.round_to_nearest(
+            meridian_spacing_deg, 0.1)
+    else:
+        meridian_spacing_deg = numpy.round(meridian_spacing_deg)
+
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
         bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
         parallel_spacing_deg=parallel_spacing_deg)
+
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
         bottom_left_lng_deg=0., upper_right_lng_deg=360.,

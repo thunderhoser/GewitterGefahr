@@ -20,16 +20,15 @@ DATE_ARG_NAME = 'date_string'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 PROBSEVERE_DIR_HELP_STRING = (
-    'Name of top-level directory with raw probSevere files.'
-)
+    'Name of top-level directory with raw probSevere files.')
+
 DATE_HELP_STRING = (
     'Date (format "yyyymmdd").  probSevere files will be converted for all time'
-    ' steps on this date.'
-)
+    ' steps on this date.')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory (for converted probSevere files, to be '
-    'written by `storm_tracking_io.write_processed_file`).'
-)
+    'written by `storm_tracking_io.write_processed_file`).')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(

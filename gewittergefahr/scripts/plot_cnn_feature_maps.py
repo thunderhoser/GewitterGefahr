@@ -241,7 +241,8 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
     model_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(model_file_name)[0])
+        os.path.split(model_file_name)[0]
+    )
 
     print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
@@ -265,6 +266,7 @@ def _run(model_file_name, layer_names, top_example_dir_name,
         list_of_layer_operation_dicts=model_metadata_dict[
             cnn.LAYER_OPERATIONS_KEY]
     )[0]
+
     print SEPARATOR_STRING
 
     num_layers = len(layer_names)
@@ -282,7 +284,8 @@ def _run(model_file_name, layer_names, top_example_dir_name,
                 reflectivity_matrix_dbz=list_of_predictor_matrices[0],
                 azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
                 sounding_matrix=sounding_matrix,
-                return_features=True, feature_layer_name=layer_names[k])
+                return_features=True, feature_layer_name=layer_names[k]
+            )
         else:
             if len(list_of_predictor_matrices) == 2:
                 sounding_matrix = list_of_predictor_matrices[-1]
@@ -296,17 +299,20 @@ def _run(model_file_name, layer_names, top_example_dir_name,
                     model_object=model_object,
                     radar_image_matrix=list_of_predictor_matrices[0],
                     sounding_matrix=sounding_matrix,
-                    return_features=True, feature_layer_name=layer_names[k])
+                    return_features=True, feature_layer_name=layer_names[k]
+                )
             else:
                 feature_matrix_by_layer[k] = cnn.apply_2d_or_3d_cnn(
                     model_object=model_object,
                     radar_image_matrix=list_of_predictor_matrices[0],
                     sounding_matrix=sounding_matrix,
-                    return_features=True, feature_layer_name=layer_names[k])
+                    return_features=True, feature_layer_name=layer_names[k]
+                )
 
     for k in range(num_layers):
         this_output_dir_name = '{0:s}/{1:s}'.format(
-            top_output_dir_name, layer_names[k])
+            top_output_dir_name, layer_names[k]
+        )
         file_system_utils.mkdir_recursive_if_necessary(
             directory_name=this_output_dir_name)
 

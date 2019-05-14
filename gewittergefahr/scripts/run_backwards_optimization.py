@@ -169,7 +169,8 @@ def _create_initializer(init_function_name, model_metadata_dict):
             return backwards_opt.create_constant_initializer(
                 (training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY] -
                  training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY])
-                / 2)
+                / 2
+            )
 
         return backwards_opt.create_constant_initializer(0.)
 
@@ -179,7 +180,8 @@ def _create_initializer(init_function_name, model_metadata_dict):
                 min_value=training_option_dict[
                     trainval_io.MIN_NORMALIZED_VALUE_KEY],
                 max_value=training_option_dict[
-                    trainval_io.MAX_NORMALIZED_VALUE_KEY])
+                    trainval_io.MAX_NORMALIZED_VALUE_KEY]
+            )
 
         return backwards_opt.create_uniform_random_initializer(
             min_value=-3., max_value=3.)
@@ -235,7 +237,8 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         init_function_name = None
 
     model_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(model_file_name)[0])
+        os.path.split(model_file_name)[0]
+    )
 
     print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)

@@ -163,18 +163,24 @@ def _interp_soundings(
     if numpy.all(extreme_init_times_unix_sec < FIRST_RAP_TIME_UNIX_SEC):
         top_grib_directory_name = top_ruc_directory_name
         model_name = nwp_model_utils.RUC_MODEL_NAME
+
     elif numpy.all(extreme_init_times_unix_sec >= FIRST_RAP_TIME_UNIX_SEC):
         top_grib_directory_name = top_rap_directory_name
         model_name = nwp_model_utils.RAP_MODEL_NAME
+
     else:
         first_storm_time_string = time_conversion.unix_sec_to_string(
-            first_storm_time_unix_sec, STORM_TIME_FORMAT)
+            first_storm_time_unix_sec, STORM_TIME_FORMAT
+        )
         last_storm_time_string = time_conversion.unix_sec_to_string(
-            last_storm_time_unix_sec, STORM_TIME_FORMAT)
+            last_storm_time_unix_sec, STORM_TIME_FORMAT
+        )
         first_init_time_string = time_conversion.unix_sec_to_string(
-            first_init_time_unix_sec, MODEL_INIT_TIME_FORMAT)
+            first_init_time_unix_sec, MODEL_INIT_TIME_FORMAT
+        )
         last_init_time_string = time_conversion.unix_sec_to_string(
-            last_init_time_unix_sec, MODEL_INIT_TIME_FORMAT)
+            last_init_time_unix_sec, MODEL_INIT_TIME_FORMAT
+        )
 
         error_string = (
             'First and last storm times are {0:s} and {1:s}.  Thus, first and '

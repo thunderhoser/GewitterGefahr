@@ -141,17 +141,19 @@ def _read_target_values(
     storm_times_unix_sec = activation_metadata_dict[
         model_activation.STORM_TIMES_KEY]
 
-    storm_spc_date_strings_numpy = numpy.array(
-        [time_conversion.time_to_spc_date_string(t)
-         for t in storm_times_unix_sec],
-        dtype=object)
+    storm_spc_date_strings_numpy = numpy.array([
+        time_conversion.time_to_spc_date_string(t) for t in storm_times_unix_sec
+    ], dtype=object)
+
     unique_spc_date_strings_numpy = numpy.unique(storm_spc_date_strings_numpy)
 
     # Read metadata for machine-learning model.
     model_file_name = activation_metadata_dict[
-        model_activation.MODEL_FILE_NAME_KEY]
+        model_activation.MODEL_FILE_NAME_KEY
+    ]
     model_metadata_file_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(model_file_name)[0])
+        os.path.split(model_file_name)[0]
+    )
 
     print 'Reading metadata from: "{0:s}"...'.format(model_metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(model_metadata_file_name)
@@ -171,6 +173,7 @@ def _read_target_values(
             'The target variable ("{0:s}") is multiclass, which this script '
             'cannot handle.'
         ).format(target_name)
+
         raise ValueError(error_string)
 
     event_type_string = target_val_utils.target_name_to_params(target_name)[
@@ -186,7 +189,8 @@ def _read_target_values(
         this_target_file_name = target_val_utils.find_target_file(
             top_directory_name=top_target_dir_name,
             event_type_string=event_type_string,
-            spc_date_string=unique_spc_date_strings_numpy[i])
+            spc_date_string=unique_spc_date_strings_numpy[i]
+        )
 
         print 'Reading data from: "{0:s}"...'.format(this_target_file_name)
         this_target_value_dict = target_val_utils.read_target_values(
@@ -203,7 +207,8 @@ def _read_target_values(
             all_times_unix_sec=this_target_value_dict[
                 target_val_utils.VALID_TIMES_KEY],
             id_strings_to_keep=[full_id_strings[k] for k in these_indices],
-            times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
+            times_to_keep_unix_sec=storm_times_unix_sec[these_indices]
+        )
 
         storm_target_values = numpy.concatenate((
             storm_target_values,
@@ -253,9 +258,11 @@ def _run(
     """
 
     # Check input args.
-    example_counts = numpy.array(
-        [num_low_activation_examples, num_high_activation_examples, num_hits,
-         num_misses, num_false_alarms, num_correct_nulls], dtype=int)
+    example_counts = numpy.array([
+        num_low_activation_examples, num_high_activation_examples, num_hits,
+        num_misses, num_false_alarms, num_correct_nulls
+    ], dtype=int)
+
     error_checking.assert_is_greater(numpy.sum(example_counts), 0)
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -273,6 +280,7 @@ def _run(
             'The file should contain activations for only one model component, '
             'not {0:d}.'
         ).format(num_model_components)
+
         raise ValueError(error_string)
 
     storm_activations = activation_matrix[:, 0]
@@ -285,11 +293,12 @@ def _run(
 
     # Find high- and low-activation examples.
     if num_low_activation_examples + num_high_activation_examples > 0:
-        (high_indices, low_indices
-        ) = model_activation.get_hilo_activation_examples(
-            storm_activations=storm_activations,
-            num_low_activation_examples=num_low_activation_examples,
-            num_high_activation_examples=num_high_activation_examples)
+        high_indices, low_indices = (
+            model_activation.get_hilo_activation_examples(
+                storm_activations=storm_activations,
+                num_low_activation_examples=num_low_activation_examples,
+                num_high_activation_examples=num_high_activation_examples)
+        )
     else:
         high_indices = numpy.array([], dtype=int)
         low_indices = numpy.array([], dtype=int)
@@ -298,12 +307,14 @@ def _run(
     if len(high_indices) > 0:
         high_activation_file_name = '{0:s}/high_activation_examples.p'.format(
             output_dir_name)
+
         print (
             'Writing IDs and times for high-activation examples to: "{0:s}"...'
         ).format(high_activation_file_name)
 
         this_activation_matrix = numpy.reshape(
-            storm_activations[high_indices], (len(high_indices), 1))
+            storm_activations[high_indices], (len(high_indices), 1)
+        )
 
         model_activation.write_file(
             pickle_file_name=high_activation_file_name,
@@ -321,18 +332,21 @@ def _run(
             neuron_index_matrix=activation_metadata_dict[
                 model_activation.NEURON_INDICES_KEY],
             channel_indices=activation_metadata_dict[
-                model_activation.CHANNEL_INDICES_KEY])
+                model_activation.CHANNEL_INDICES_KEY]
+        )
 
     # Write low-activation examples to file
     if len(low_indices) > 0:
         low_activation_file_name = '{0:s}/low_activation_examples.p'.format(
             output_dir_name)
+
         print (
             'Writing IDs and times for low-activation examples to: "{0:s}"...'
         ).format(low_activation_file_name)
 
         this_activation_matrix = numpy.reshape(
-            storm_activations[low_indices], (len(low_indices), 1))
+            storm_activations[low_indices], (len(low_indices), 1)
+        )
 
         model_activation.write_file(
             pickle_file_name=low_activation_file_name,
@@ -350,7 +364,8 @@ def _run(
             neuron_index_matrix=activation_metadata_dict[
                 model_activation.NEURON_INDICES_KEY],
             channel_indices=activation_metadata_dict[
-                model_activation.CHANNEL_INDICES_KEY])
+                model_activation.CHANNEL_INDICES_KEY]
+        )
 
     if num_hits + num_misses + num_false_alarms + num_correct_nulls == 0:
         return
@@ -387,7 +402,8 @@ def _run(
             best_hit_file_name)
 
         this_activation_matrix = numpy.reshape(
-            storm_activations[hit_indices], (len(hit_indices), 1))
+            storm_activations[hit_indices], (len(hit_indices), 1)
+        )
 
         model_activation.write_file(
             pickle_file_name=best_hit_file_name,
@@ -405,7 +421,8 @@ def _run(
             neuron_index_matrix=activation_metadata_dict[
                 model_activation.NEURON_INDICES_KEY],
             channel_indices=activation_metadata_dict[
-                model_activation.CHANNEL_INDICES_KEY])
+                model_activation.CHANNEL_INDICES_KEY]
+        )
 
     # Write worst misses to file.
     if len(miss_indices) > 0:
@@ -414,7 +431,8 @@ def _run(
             worst_miss_file_name)
 
         this_activation_matrix = numpy.reshape(
-            storm_activations[miss_indices], (len(miss_indices), 1))
+            storm_activations[miss_indices], (len(miss_indices), 1)
+        )
 
         model_activation.write_file(
             pickle_file_name=worst_miss_file_name,
@@ -432,19 +450,22 @@ def _run(
             neuron_index_matrix=activation_metadata_dict[
                 model_activation.NEURON_INDICES_KEY],
             channel_indices=activation_metadata_dict[
-                model_activation.CHANNEL_INDICES_KEY])
+                model_activation.CHANNEL_INDICES_KEY]
+        )
 
     # Write worst false alarms to file.
     if len(false_alarm_indices) > 0:
         worst_fa_file_name = '{0:s}/worst_false_alarms.p'.format(
             output_dir_name)
+
         print (
             'Writing IDs and times for worst false alarms to: "{0:s}"...'
         ).format(worst_fa_file_name)
 
         this_activation_matrix = numpy.reshape(
             storm_activations[false_alarm_indices],
-            (len(false_alarm_indices), 1))
+            (len(false_alarm_indices), 1)
+        )
 
         model_activation.write_file(
             pickle_file_name=worst_fa_file_name,
@@ -462,19 +483,22 @@ def _run(
             neuron_index_matrix=activation_metadata_dict[
                 model_activation.NEURON_INDICES_KEY],
             channel_indices=activation_metadata_dict[
-                model_activation.CHANNEL_INDICES_KEY])
+                model_activation.CHANNEL_INDICES_KEY]
+        )
 
     # Write best correct nulls to file.
     if len(correct_null_indices) > 0:
         best_cn_file_name = '{0:s}/best_correct_nulls.p'.format(
             output_dir_name)
+
         print (
             'Writing IDs and times for best correct nulls to: "{0:s}"...'
         ).format(best_cn_file_name)
 
         this_activation_matrix = numpy.reshape(
             storm_activations[correct_null_indices],
-            (len(correct_null_indices), 1))
+            (len(correct_null_indices), 1)
+        )
 
         model_activation.write_file(
             pickle_file_name=best_cn_file_name,
@@ -492,7 +516,8 @@ def _run(
             neuron_index_matrix=activation_metadata_dict[
                 model_activation.NEURON_INDICES_KEY],
             channel_indices=activation_metadata_dict[
-                model_activation.CHANNEL_INDICES_KEY])
+                model_activation.CHANNEL_INDICES_KEY]
+        )
 
 
 if __name__ == '__main__':

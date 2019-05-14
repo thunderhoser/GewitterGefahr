@@ -239,7 +239,8 @@ def plot_examples(
 
         if myrorss_2d3d:
             this_reflectivity_matrix_dbz = numpy.flip(
-                list_of_predictor_matrices[0][i, ..., 0], axis=0)
+                list_of_predictor_matrices[0][i, ..., 0], axis=0
+            )
 
             this_num_heights = this_reflectivity_matrix_dbz.shape[-1]
             this_num_panel_rows = int(numpy.floor(numpy.sqrt(this_num_heights)))
@@ -274,7 +275,8 @@ def plot_examples(
             pyplot.close()
 
             this_az_shear_matrix_s01 = numpy.flip(
-                list_of_predictor_matrices[1][i, ..., 0], axis=0)
+                list_of_predictor_matrices[1][i, ..., 0], axis=0
+            )
 
             _, these_axes_objects = (
                 radar_plotting.plot_many_2d_grids_without_coords(
@@ -298,8 +300,9 @@ def plot_examples(
                 colour_norm_object=this_colour_norm_object,
                 orientation='horizontal', extend_min=True, extend_max=True)
 
-            this_file_name = '{0:s}_shear.jpg'.format(this_base_file_name)
             pyplot.suptitle(this_base_title_string, fontsize=TITLE_FONT_SIZE)
+
+            this_file_name = '{0:s}_shear.jpg'.format(this_base_file_name)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -478,6 +481,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     if 0 < num_examples < len(full_id_strings):
         full_id_strings = full_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
+
         if storm_activations is not None:
             storm_activations = storm_activations[:num_examples]
 
