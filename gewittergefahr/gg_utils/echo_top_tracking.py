@@ -452,7 +452,7 @@ def _find_input_tracking_files(
 
     :param top_tracking_dir_name: Name of top-level directory with tracking
         files.  Files therein will be found by
-        `storm_tracking_io.find_processed_files_one_spc_date`.
+        `storm_tracking_io.find_files_one_spc_date`.
     :param first_spc_date_string: See doc for `_check_time_period`.
     :param last_spc_date_string: Same.
     :param first_time_unix_sec: Same.
@@ -785,10 +785,9 @@ def _write_new_tracks(storm_object_table, top_output_dir_name,
     These files are the main output of both `run_tracking` and
     `reanalyze_across_spc_dates`.
 
-    :param storm_object_table: See doc for
-        `storm_tracking_io.write_processed_file`.
+    :param storm_object_table: See doc for `storm_tracking_io.write_file`.
     :param top_output_dir_name: Name of top-level directory.  File locations
-        therein will be determined by `storm_tracking_io.find_processed_file`.
+        therein will be determined by `storm_tracking_io.find_file`.
     :param valid_times_unix_sec: 1-D numpy array of valid times.  One file will
         be written for each.
     """
@@ -924,7 +923,7 @@ def _shuffle_tracking_data(
         data for the [i]th date are currently out of memory,
         storm_object_table_by_date[i] = None.  If data for the [i]th date are
         currently in memory, storm_object_table_by_date[i] has columns listed in
-        `storm_tracking_io.write_processed_file`.
+        `storm_tracking_io.write_file`.
     :param tracking_file_names_by_date: See doc for
         `_find_input_tracking_files`.
     :param valid_times_by_date_unix_sec: Same.

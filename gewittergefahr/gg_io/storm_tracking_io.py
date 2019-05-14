@@ -420,8 +420,8 @@ def write_file(storm_object_table, pickle_file_name):
 
     Note that, in addition to the required columns listed for
     `storm_object_table`, it may contain one or more distance buffers around
-    each storm object.  See `tracking_utils.get_distance_buffer_columns` for
-    legal column names.
+    each storm object.  See `tracking_utils.get_buffer_columns` for legal column
+    names.
 
     :param storm_object_table: pandas DataFrame with the following columns.
         Each row is one storm object.

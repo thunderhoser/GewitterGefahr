@@ -983,7 +983,7 @@ def _read_input_storm_tracks(tracking_file_names):
     """Reads storm tracks (input to linkage algorithm).
 
     :param tracking_file_names: 1-D list of paths to storm-tracking files
-        (readable by `storm_tracking_io.read_processed_file`).
+        (readable by `storm_tracking_io.read_file`).
     :return: storm_object_table: pandas DataFrame with the following columns.
         Each row is one storm object.
     storm_object_table.primary_id_string: Primary ID for storm cell.
