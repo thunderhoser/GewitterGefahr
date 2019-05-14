@@ -33,7 +33,8 @@ DEFAULT_LEAD_TIMES_SEC = numpy.array([0], dtype=int)
 TEMPORAL_INTERP_METHOD = interp.PREV_NEIGHBOUR_METHOD_STRING
 SPATIAL_INTERP_METHOD = interp.NEAREST_NEIGHBOUR_METHOD_STRING
 STORM_COLUMNS_TO_KEEP = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
+    tracking_utils.FULL_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN
+]
 
 MIN_RELATIVE_HUMIDITY_PERCENT = 1.
 SENTINEL_VALUE_FOR_SHARPPY = -9999.
@@ -79,7 +80,8 @@ CONVECTIVE_TEMPERATURE_NAME = 'convective_temperature_kelvins'
 HELICITY_NAMES_SHARPPY = ['srh1km', 'srh3km', 'left_esrh', 'right_esrh']
 STORM_VELOCITY_NAME_SHARPPY = 'storm_velocity_m_s01'
 SHARPPY_NAMES_FOR_MASKED_WIND_ARRAYS = [
-    'mean_1km', 'mean_3km', 'mean_6km', 'mean_8km', 'mean_lcl_el']
+    'mean_1km', 'mean_3km', 'mean_6km', 'mean_8km', 'mean_lcl_el'
+]
 
 X_COMPONENT_SUFFIX = 'x'
 Y_COMPONENT_SUFFIX = 'y'
@@ -88,7 +90,8 @@ COSINE_SUFFIX = 'cos'
 SINE_SUFFIX = 'sin'
 VECTOR_SUFFIXES = [
     X_COMPONENT_SUFFIX, Y_COMPONENT_SUFFIX, MAGNITUDE_SUFFIX, COSINE_SUFFIX,
-    SINE_SUFFIX]
+    SINE_SUFFIX
+]
 
 STATISTIC_NAME_COLUMN = 'statistic_name'
 SHARPPY_STATISTIC_NAME_COLUMN = 'statistic_name_sharppy'
@@ -99,7 +102,9 @@ MIN_VALUES_FOR_NORM_COLUMN = 'min_values_for_normalization'
 MAX_VALUES_FOR_NORM_COLUMN = 'max_values_for_normalization'
 
 METAFILE_NAME = os.path.join(
-    os.path.dirname(__file__), 'metadata_for_sounding_stats.p')
+    os.path.dirname(__file__), 'metadata_for_sounding_stats.p'
+)
+
 METADATA_COLUMNS = [
     STATISTIC_NAME_COLUMN, SHARPPY_STATISTIC_NAME_COLUMN,
     CONVERSION_FACTOR_COLUMN, IS_VECTOR_COLUMN, IN_MUPCL_COLUMN,
@@ -857,7 +862,7 @@ def _create_query_points(storm_object_table, lead_times_sec):
     T = number of lead times
 
     :param storm_object_table: pandas DataFrame with columns documented in
-        `storm_tracking_io.write_processed_file`.
+        `storm_tracking_io.write_file`.
     :param lead_times_sec: length-T numpy array of lead times.  For each lead
         time t, each storm object will be extrapolated t seconds into the
         future, along its estimated motion vector at the initial time.
@@ -891,10 +896,12 @@ def _create_query_points(storm_object_table, lead_times_sec):
     for i in range(num_lead_times):
         if lead_times_sec[i] == 0:
             list_of_query_point_tables[i] = storm_object_table[[
-                tracking_utils.CENTROID_LAT_COLUMN,
-                tracking_utils.CENTROID_LNG_COLUMN, tracking_utils.TIME_COLUMN,
+                tracking_utils.CENTROID_LATITUDE_COLUMN,
+                tracking_utils.CENTROID_LONGITUDE_COLUMN,
+                tracking_utils.VALID_TIME_COLUMN,
                 tracking_utils.EAST_VELOCITY_COLUMN,
-                tracking_utils.NORTH_VELOCITY_COLUMN]]
+                tracking_utils.NORTH_VELOCITY_COLUMN
+            ]]
 
             argument_dict = {
                 LEAD_TIME_COLUMN: numpy.full(num_storm_objects, 0, dtype=int)}
@@ -905,19 +912,24 @@ def _create_query_points(storm_object_table, lead_times_sec):
             (these_extrap_latitudes_deg, these_extrap_longitudes_deg
             ) = geodetic_utils.start_points_and_displacements_to_endpoints(
                 start_latitudes_deg=storm_object_table[
-                    tracking_utils.CENTROID_LAT_COLUMN].values,
+                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
                 start_longitudes_deg=storm_object_table[
-                    tracking_utils.CENTROID_LNG_COLUMN].values,
+                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
                 scalar_displacements_metres=
                 storm_speeds_m_s01 * lead_times_sec[i],
                 geodetic_bearings_deg=geodetic_bearings_deg)
 
+            these_times_unix_sec = (
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN].values +
+                lead_times_sec[i]
+            )
+
             this_dict = {
-                tracking_utils.CENTROID_LAT_COLUMN: these_extrap_latitudes_deg,
-                tracking_utils.CENTROID_LNG_COLUMN: these_extrap_longitudes_deg,
-                tracking_utils.TIME_COLUMN:
-                    (storm_object_table[tracking_utils.TIME_COLUMN].values +
-                     lead_times_sec[i]),
+                tracking_utils.CENTROID_LATITUDE_COLUMN:
+                    these_extrap_latitudes_deg,
+                tracking_utils.CENTROID_LONGITUDE_COLUMN:
+                    these_extrap_longitudes_deg,
+                tracking_utils.VALID_TIME_COLUMN: these_times_unix_sec,
                 tracking_utils.EAST_VELOCITY_COLUMN: storm_object_table[
                     tracking_utils.EAST_VELOCITY_COLUMN].values,
                 tracking_utils.NORTH_VELOCITY_COLUMN: storm_object_table[
@@ -925,6 +937,7 @@ def _create_query_points(storm_object_table, lead_times_sec):
                 LEAD_TIME_COLUMN: numpy.full(
                     num_storm_objects, lead_times_sec[i], dtype=int)
             }
+
             list_of_query_point_tables[i] = pandas.DataFrame.from_dict(
                 this_dict)
 
@@ -962,15 +975,16 @@ def _interp_soundings_from_nwp(
     """
 
     sounding_field_names, sounding_field_names_grib1 = (
-        _get_nwp_fields_for_sounding(model_name=model_name, return_dict=False))
+        _get_nwp_fields_for_sounding(model_name=model_name, return_dict=False)
+    )
 
     return interp.interp_nwp_from_xy_grid(
-        query_point_table=query_point_table, model_name=model_name,
-        grid_id=grid_id, field_names=sounding_field_names,
-        field_names_grib1=sounding_field_names_grib1,
         top_grib_directory_name=top_grib_directory_name,
-        temporal_interp_method=TEMPORAL_INTERP_METHOD,
-        spatial_interp_method=SPATIAL_INTERP_METHOD,
+        query_point_table=query_point_table, field_names=sounding_field_names,
+        field_names_grib1=sounding_field_names_grib1,
+        model_name=model_name, grid_id=grid_id,
+        temporal_interp_method_string=TEMPORAL_INTERP_METHOD,
+        spatial_interp_method_string=SPATIAL_INTERP_METHOD,
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_missing=raise_error_if_missing)
 
@@ -995,14 +1009,16 @@ def _interp_soundings_from_ruc(
 
     sounding_field_names, sounding_field_names_grib1 = (
         _get_nwp_fields_for_sounding(
-            model_name=nwp_model_utils.RUC_MODEL_NAME, return_dict=False))
+            model_name=nwp_model_utils.RUC_MODEL_NAME, return_dict=False)
+    )
 
-    return interp.interp_ruc_all_grids(
-        query_point_table, field_names=sounding_field_names,
-        field_names_grib1=sounding_field_names_grib1,
+    return interp.interp_nwp_from_xy_grid(
         top_grib_directory_name=top_grib_directory_name,
-        temporal_interp_method=TEMPORAL_INTERP_METHOD,
-        spatial_interp_method=SPATIAL_INTERP_METHOD,
+        query_point_table=query_point_table, field_names=sounding_field_names,
+        field_names_grib1=sounding_field_names_grib1,
+        model_name=nwp_model_utils.RUC_MODEL_NAME, use_all_grids=True,
+        temporal_interp_method_string=TEMPORAL_INTERP_METHOD,
+        spatial_interp_method_string=SPATIAL_INTERP_METHOD,
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_missing=raise_error_if_missing)
 
@@ -1405,7 +1421,7 @@ def check_sounding_statistic_table(
 
     :param sounding_statistic_table: pandas DataFrame.
     :param require_storm_objects: Boolean flag.  If True, the table must contain
-        columns "storm_id" and "unix_time_sec".
+        columns "full_id_string" and "valid_time_unix_sec".
     :return: statistic_column_names: 1-D list with names of columns containing
         sounding statistics.  If there are no such columns, this is None.
     :raises: ValueError: `sounding_statistic_table` contains no columns with
@@ -1501,7 +1517,7 @@ def get_sounding_stats_for_storm_objects(
     K = number of sounding stats (after decomposing vectors into scalars)
 
     :param storm_object_table: pandas DataFrame with columns documented in
-        `storm_tracking_io.write_processed_file`.
+        `storm_tracking_io.write_file`.
     :param top_grib_directory_name: Name of top-level directory with grib files
         from the NWP model.
     :param lead_times_sec: length-T numpy array of lead times.  For each lead
@@ -1524,8 +1540,8 @@ def get_sounding_stats_for_storm_objects(
         each storm object and lead time) and 3 + K columns.  The first 3 columns
         are listed below.  The other K column names can be found by running the
         table through `get_statistic_columns`.
-    sounding_statistic_table.storm_id: String ID for storm cell.
-    sounding_statistic_table.unix_time_sec: Valid time for storm object.
+    sounding_statistic_table.full_id_string: Full storm ID.
+    sounding_statistic_table.valid_time_unix_sec: Valid time.
     sounding_statistic_table.lead_time_seconds: Lead time for sounding
         statistics.  Valid time of sounding statistics is `unix_time_sec +
         lead_time_seconds`.
@@ -1540,9 +1556,11 @@ def get_sounding_stats_for_storm_objects(
         storm_object_table=storm_object_table, lead_times_sec=lead_times_sec)
 
     column_dict_old_to_new = {
-        tracking_utils.CENTROID_LAT_COLUMN: interp.QUERY_LAT_COLUMN,
-        tracking_utils.CENTROID_LNG_COLUMN: interp.QUERY_LNG_COLUMN,
-        tracking_utils.TIME_COLUMN: interp.QUERY_TIME_COLUMN}
+        tracking_utils.CENTROID_LATITUDE_COLUMN: interp.QUERY_LAT_COLUMN,
+        tracking_utils.CENTROID_LONGITUDE_COLUMN: interp.QUERY_LNG_COLUMN,
+        tracking_utils.VALID_TIME_COLUMN: interp.QUERY_TIME_COLUMN
+    }
+
     query_point_table.rename(columns=column_dict_old_to_new, inplace=True)
 
     if all_ruc_grids:
@@ -1561,6 +1579,7 @@ def get_sounding_stats_for_storm_objects(
 
     list_of_sharppy_sounding_tables = _create_sharppy_sounding_tables(
         interp_table=interp_table, model_name=model_name)
+
     unique_indices, orig_to_unique_indices = _get_unique_storm_soundings(
         list_of_sharppy_sounding_tables=list_of_sharppy_sounding_tables,
         u_motions_m_s01=query_point_table[
@@ -1701,10 +1720,12 @@ def write_sounding_statistics(
         sounding_statistic_table, require_storm_objects=True)
 
     error_checking.assert_equals_numpy_array(
-        sounding_statistic_table[tracking_utils.TIME_COLUMN].values,
-        init_time_unix_sec)
+        sounding_statistic_table[tracking_utils.VALID_TIME_COLUMN].values,
+        init_time_unix_sec
+    )
     error_checking.assert_equals_numpy_array(
-        sounding_statistic_table[LEAD_TIME_COLUMN].values, lead_time_sec)
+        sounding_statistic_table[LEAD_TIME_COLUMN].values, lead_time_sec
+    )
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     netcdf_dataset = netCDF4.Dataset(
@@ -1721,7 +1742,7 @@ def write_sounding_statistics(
         num_statistic_chars = max(
             [num_statistic_chars, len(statistic_names[j])])
 
-    storm_ids = sounding_statistic_table[tracking_utils.STORM_ID_COLUMN].values
+    storm_ids = sounding_statistic_table[tracking_utils.FULL_ID_COLUMN].values
     num_storm_id_chars = 0
     for i in range(num_storm_objects):
         num_storm_id_chars = max([num_storm_id_chars, len(storm_ids[i])])
@@ -1780,9 +1801,11 @@ def write_sounding_statistics_many_times(
     """
 
     init_times_unix_sec = numpy.unique(
-        sounding_statistic_table[tracking_utils.TIME_COLUMN].values)
+        sounding_statistic_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
     lead_times_sec = numpy.unique(
-        sounding_statistic_table[LEAD_TIME_COLUMN].values)
+        sounding_statistic_table[LEAD_TIME_COLUMN].values
+    )
 
     num_init_times = len(init_times_unix_sec)
     num_lead_times = len(lead_times_sec)
@@ -1790,10 +1813,12 @@ def write_sounding_statistics_many_times(
     for i in range(num_init_times):
         for j in range(num_lead_times):
             these_indices = numpy.where(numpy.logical_and(
-                sounding_statistic_table[tracking_utils.TIME_COLUMN].values ==
-                init_times_unix_sec[i],
+                sounding_statistic_table[
+                    tracking_utils.VALID_TIME_COLUMN
+                ].values == init_times_unix_sec[i],
                 sounding_statistic_table[LEAD_TIME_COLUMN].values ==
-                lead_times_sec[j]))[0]
+                lead_times_sec[j]
+            ))[0]
 
             write_sounding_statistics(
                 top_directory_name=top_directory_name,

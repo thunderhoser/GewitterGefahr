@@ -8,23 +8,6 @@ TOLERANCE = 1e-6
 FAKE_STATISTIC_NAME = 'foo'
 FAKE_PERCENTILE_LEVEL = -9999.
 
-# The following constants are used to test _orig_to_new_storm_ids.
-ORIG_STORM_ID_LIST = [
-    'Ricky', 'Ricky', 'Ricky', 'Julian', 'Julian', 'Ricky', 'Ricky', 'Ricky',
-    'Ricky', 'Julian', 'Bubbles', 'Julian', 'Ricky', 'Ricky', 'Bubbles',
-    'Trinity', 'Trinity', 'Trinity', 'Bubbles', 'Bubbles', 'Bubbles', 'Julian',
-    'Julian', 'Julian', 'Julian'
-]
-
-UNIQUE_INDICES_FOR_NEW_LIST = numpy.array(
-    [1, 3, 3, 1, 0, 2, 0, 1, 1, 0], dtype=int
-)
-
-NEW_STORM_ID_LIST = [
-    'Julian', 'Trinity', 'Trinity', 'Julian', 'Ricky', 'Bubbles', 'Ricky',
-    'Julian', 'Julian', 'Ricky'
-]
-
 # The following constants are used to test
 # radar_field_and_statistic_to_column_name,
 # radar_field_and_percentile_to_column_name, and
@@ -76,15 +59,6 @@ PERCENTILE_VALUES = numpy.array([0, 4, 20, 20, 50, 58, 60], dtype=float)
 
 class RadarStatisticsTests(unittest.TestCase):
     """Each method is a unit test for radar_statistics.py."""
-
-    def test_orig_to_new_storm_ids(self):
-        """Ensures correct output from _orig_to_new_storm_ids."""
-
-        these_new_storm_ids = radar_stats._orig_to_new_storm_ids(
-            orig_storm_id_list=ORIG_STORM_ID_LIST,
-            unique_indices_for_new_list=UNIQUE_INDICES_FOR_NEW_LIST)
-
-        self.assertTrue(these_new_storm_ids == NEW_STORM_ID_LIST)
 
     def test_radar_field_and_statistic_to_column_name(self):
         """Ensures correctness of radar_field_and_statistic_to_column_name."""

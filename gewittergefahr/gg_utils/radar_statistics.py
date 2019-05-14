@@ -93,33 +93,6 @@ DEFAULT_HEIGHTS_FOR_GRIDRAD_M_ASL = numpy.array(
 )
 
 
-def _orig_to_new_storm_ids(orig_storm_id_list, unique_indices_for_new_list):
-    """Converts original storm-ID list to new storm-ID list.
-
-    N_o = number of original storm IDs
-    N_n = number of new storm IDs
-
-    :param orig_storm_id_list: List of original storm IDs (length N_o, strings).
-        These are not necessarily unique.
-    :param unique_indices_for_new_list: numpy array (length N_n) of indices in
-        original list that will be used to create new list.  If
-        unique_indices_for_new_list[i] = j, this means that the [i]th element of
-        the new list will be the [j]th unique element of the original list.
-    :return: new_storm_id_list: List of new storm IDs (length N_n, strings).
-        These are not necessarily unique.
-    """
-
-    _, these_unique_indices = numpy.unique(
-        numpy.array(orig_storm_id_list), return_index=True
-    )
-
-    orig_unique_storm_ids = [
-        orig_storm_id_list[i] for i in sorted(these_unique_indices)
-    ]
-
-    return [orig_unique_storm_ids[i] for i in unique_indices_for_new_list]
-
-
 def _column_name_to_statistic_params(column_name):
     """Determines parameters of statistic from column name.
 
