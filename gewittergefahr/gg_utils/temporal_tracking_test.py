@@ -4,6 +4,7 @@ import copy
 import unittest
 from collections import OrderedDict
 import numpy
+import pandas
 from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
@@ -751,6 +752,80 @@ NORTH_VELOCITIES_NO_NEIGH_5SEC_M_S01 = numpy.nanmean(
     numpy.array([THESE_FIRST_VELOCITIES_M_S01, THESE_SECOND_VELOCITIES_M_S01]),
     axis=0
 )
+
+# The following constants are used to test _finish_segmotion_or_probsevere_ids.
+THESE_PRIMARY_ID_STRINGS = [
+    'a', 'b', 'c',
+    'a', 'b', 'c', 'd',
+    'a', 'c', 'd', 'e',
+    'a', 'c', 'e',
+    'a', 'c', 'e',
+    'c', 'e', 'f',
+    'c', 'e'
+]
+
+STORM_OBJECT_TABLE_UNFINISHED_IDS = pandas.DataFrame.from_dict({
+    tracking_utils.PRIMARY_ID_COLUMN: THESE_PRIMARY_ID_STRINGS
+})
+
+THESE_SECONDARY_ID_STRINGS = [
+    '000000', '000001', '000002',
+    '000000', '000001', '000002', '000003',
+    '000000', '000002', '000003', '000004',
+    '000000', '000002', '000004',
+    '000000', '000002', '000004',
+    '000002', '000004', '000005',
+    '000002', '000004'
+]
+
+THESE_FULL_ID_STRINGS = [
+    'a_000000', 'b_000001', 'c_000002',
+    'a_000000', 'b_000001', 'c_000002', 'd_000003',
+    'a_000000', 'c_000002', 'd_000003', 'e_000004',
+    'a_000000', 'c_000002', 'e_000004',
+    'a_000000', 'c_000002', 'e_000004',
+    'c_000002', 'e_000004', 'f_000005',
+    'c_000002', 'e_000004'
+]
+
+THESE_FIRST_PREV_SEC_ID_STRINGS = [
+    '', '', '',
+    '000000', '000001', '000002', '',
+    '000000', '000002', '000003', '',
+    '000000', '000002', '000004',
+    '000000', '000002', '000004',
+    '000002', '000004', '',
+    '000002', '000004'
+]
+
+THESE_FIRST_NEXT_SEC_ID_STRINGS = [
+    '000000', '000001', '000002',
+    '000000', '', '000002', '000003',
+    '000000', '000002', '', '000004',
+    '000000', '000002', '000004',
+    '', '000002', '000004',
+    '000002', '000004', '',
+    '', ''
+]
+
+THESE_SECOND_PREV_SEC_ID_STRINGS = [''] * len(THESE_FULL_ID_STRINGS)
+THESE_SECOND_NEXT_SEC_ID_STRINGS = [''] * len(THESE_FULL_ID_STRINGS)
+
+STORM_OBJECT_TABLE_FINISHED_IDS = copy.deepcopy(
+    STORM_OBJECT_TABLE_UNFINISHED_IDS)
+
+STORM_OBJECT_TABLE_FINISHED_IDS = STORM_OBJECT_TABLE_FINISHED_IDS.assign(**{
+    tracking_utils.SECONDARY_ID_COLUMN: THESE_SECONDARY_ID_STRINGS,
+    tracking_utils.FULL_ID_COLUMN: THESE_FULL_ID_STRINGS,
+    tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
+        THESE_FIRST_PREV_SEC_ID_STRINGS,
+    tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
+        THESE_SECOND_PREV_SEC_ID_STRINGS,
+    tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN:
+        THESE_FIRST_NEXT_SEC_ID_STRINGS,
+    tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN:
+        THESE_SECOND_NEXT_SEC_ID_STRINGS
+})
 
 
 def _add_ids_to_dict(local_max_dict):
@@ -1899,6 +1974,21 @@ class TemporalTrackingTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             these_north_velocities_m_s01[real_indices],
             NORTH_VELOCITIES_NO_NEIGH_5SEC_M_S01[real_indices], atol=TOLERANCE
+        ))
+
+    def test_finish_segmotion_or_probsevere_ids(self):
+        """Ensures correctness of _finish_segmotion_or_probsevere_ids."""
+
+        this_table = temporal_tracking._finish_segmotion_or_probsevere_ids(
+            copy.deepcopy(STORM_OBJECT_TABLE_UNFINISHED_IDS)
+        )
+
+        expected_columns = list(STORM_OBJECT_TABLE_FINISHED_IDS)
+        actual_columns = list(this_table)
+        self.assertTrue(set(expected_columns) == set(actual_columns))
+
+        self.assertTrue(this_table[expected_columns].equals(
+            STORM_OBJECT_TABLE_FINISHED_IDS[expected_columns]
         ))
 
 

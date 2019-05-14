@@ -1480,3 +1480,87 @@ def get_storm_velocities(
     }
 
     return storm_object_table.assign(**argument_dict)
+
+
+def _finish_segmotion_or_probsevere_ids(storm_object_table):
+    """Finishes storm IDs created by segmotion or probSevere.
+
+    :param storm_object_table: pandas DataFrame with the following columns,
+        where each row is one storm object.  This table should ideally be
+        created by `join_stats_and_polygons`.
+    storm_object_table.primary_id_string: Primary storm ID.
+
+    :return: storm_object_table: Same as input but with the following extra
+        columns.
+    storm_object_table.full_id_string: See doc for
+        `storm_tracking_io.write_file`.
+    storm_object_table.secondary_id_string: Same.
+    storm_object_table.first_prev_secondary_id_string: Same.
+    storm_object_table.second_prev_secondary_id_string: Same.
+    storm_object_table.first_next_secondary_id_string: Same.
+    storm_object_table.second_next_secondary_id_string: Same.
+    """
+
+    # primary_id_strings = [
+    #     '{0:s}_{1:s}'.format(p, s)
+    #     for p, s in zip(
+    #         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
+    #         storm_object_table[tracking_utils.SPC_DATE_COLUMN].values
+    #     )
+    # ]
+
+    primary_id_strings = storm_object_table[
+        tracking_utils.PRIMARY_ID_COLUMN].values
+
+    unique_primary_id_strings, orig_to_unique_indices = numpy.unique(
+        numpy.array(primary_id_strings), return_inverse=True
+    )
+
+    secondary_id_strings = ['{0:06d}'.format(i) for i in orig_to_unique_indices]
+    storm_object_table = storm_object_table.assign(**{
+        tracking_utils.SECONDARY_ID_COLUMN: secondary_id_strings
+    })
+
+    full_id_strings = [
+        create_full_storm_id(primary_id_string=p, secondary_id_string=s)
+        for p, s in zip(
+            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
+            storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values
+        )
+    ]
+
+    num_storm_objects = len(storm_object_table.index)
+
+    first_prev_secondary_id_strings = numpy.full(
+        num_storm_objects, '', dtype=object)
+    second_prev_secondary_id_strings = numpy.full(
+        num_storm_objects, '', dtype=object)
+    first_next_secondary_id_strings = numpy.full(
+        num_storm_objects, '', dtype=object)
+    second_next_secondary_id_strings = numpy.full(
+        num_storm_objects, '', dtype=object)
+
+    num_storm_cells = len(unique_primary_id_strings)
+
+    for j in range(num_storm_cells):
+        these_object_indices = numpy.where(orig_to_unique_indices == j)[0]
+
+        first_prev_secondary_id_strings[these_object_indices[1:]] = (
+            secondary_id_strings[these_object_indices[0]]
+        )
+        first_next_secondary_id_strings[these_object_indices[:-1]] = (
+            secondary_id_strings[these_object_indices[0]]
+        )
+
+    return storm_object_table.assign(**{
+        tracking_utils.PRIMARY_ID_COLUMN: primary_id_strings,
+        tracking_utils.FULL_ID_COLUMN: full_id_strings,
+        tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
+            first_prev_secondary_id_strings,
+        tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
+            second_prev_secondary_id_strings,
+        tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN:
+            first_next_secondary_id_strings,
+        tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN:
+            second_next_secondary_id_strings
+    })
