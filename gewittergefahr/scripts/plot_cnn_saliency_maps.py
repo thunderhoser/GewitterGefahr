@@ -456,7 +456,8 @@ def _plot_sounding_saliency(
 
         metpy_dict_by_example = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=this_sounding_matrix,
-            field_names=sounding_field_names + [soundings.PRESSURE_NAME])
+            field_names=sounding_field_names + [soundings.PRESSURE_NAME]
+        )
 
     for i in range(num_examples):
         this_id_string = saliency_metadata_dict[saliency_maps.FULL_IDS_KEY][i]

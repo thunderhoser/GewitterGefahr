@@ -47,7 +47,7 @@ TORNADO_PREFIX = 'tornado'
 
 CHARACTER_DIMENSION_KEY = 'storm_id_character'
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
-STORM_IDS_KEY = 'storm_ids'
+FULL_IDS_KEY = 'full_id_strings'
 VALID_TIMES_KEY = 'valid_times_unix_sec'
 TARGET_VALUES_KEY = 'target_values'
 
@@ -158,8 +158,8 @@ def _find_storms_near_end_of_period(storm_to_events_table, max_lead_time_sec):
     """
 
     times_before_end_sec = (
-        storm_to_events_table[tracking_utils.TRACKING_END_TIME_COLUMN] -
-        storm_to_events_table[tracking_utils.TIME_COLUMN]
+        storm_to_events_table[tracking_utils.TRACKING_END_TIME_COLUMN].values -
+        storm_to_events_table[tracking_utils.VALID_TIME_COLUMN].values
     )
 
     return numpy.where(times_before_end_sec < max_lead_time_sec)[0]
@@ -175,8 +175,8 @@ def _find_dead_storms(storm_to_events_table, min_lead_time_sec):
     """
 
     remaining_lifetimes_sec = (
-        storm_to_events_table[tracking_utils.CELL_END_TIME_COLUMN] -
-        storm_to_events_table[tracking_utils.TIME_COLUMN]
+        storm_to_events_table[tracking_utils.CELL_END_TIME_COLUMN].values -
+        storm_to_events_table[tracking_utils.VALID_TIME_COLUMN].values
     )
 
     return numpy.where(remaining_lifetimes_sec < min_lead_time_sec)[0]
@@ -704,32 +704,37 @@ def write_target_values(storm_to_events_table, target_names, netcdf_file_name):
     netcdf_dataset = netCDF4.Dataset(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
-    storm_ids = storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+    full_id_strings = storm_to_events_table[
+        tracking_utils.FULL_ID_COLUMN].values
 
-    num_storm_objects = len(storm_ids)
-    num_storm_id_chars = 0
+    num_storm_objects = len(full_id_strings)
+    num_id_characters = 0
+
     for i in range(num_storm_objects):
-        num_storm_id_chars = max([num_storm_id_chars, len(storm_ids[i])])
+        num_id_characters = max([
+            num_id_characters, len(full_id_strings[i])
+        ])
 
     netcdf_dataset.createDimension(
         STORM_OBJECT_DIMENSION_KEY, num_storm_objects)
-    netcdf_dataset.createDimension(CHARACTER_DIMENSION_KEY, num_storm_id_chars)
+    netcdf_dataset.createDimension(CHARACTER_DIMENSION_KEY, num_id_characters)
 
     netcdf_dataset.createVariable(
-        STORM_IDS_KEY, datatype='S1',
-        dimensions=(STORM_OBJECT_DIMENSION_KEY, CHARACTER_DIMENSION_KEY))
+        FULL_IDS_KEY, datatype='S1',
+        dimensions=(STORM_OBJECT_DIMENSION_KEY, CHARACTER_DIMENSION_KEY)
+    )
 
-    string_type = 'S{0:d}'.format(num_storm_id_chars)
-    storm_ids_as_char_array = netCDF4.stringtochar(numpy.array(
-        storm_ids, dtype=string_type))
-    netcdf_dataset.variables[STORM_IDS_KEY][:] = numpy.array(
-        storm_ids_as_char_array)
+    string_type = 'S{0:d}'.format(num_id_characters)
+    full_ids_char_array = netCDF4.stringtochar(numpy.array(
+        full_id_strings, dtype=string_type
+    ))
+    netcdf_dataset.variables[FULL_IDS_KEY][:] = numpy.array(full_ids_char_array)
 
     netcdf_dataset.createVariable(
         VALID_TIMES_KEY, datatype=numpy.int32,
         dimensions=STORM_OBJECT_DIMENSION_KEY)
     netcdf_dataset.variables[VALID_TIMES_KEY][:] = storm_to_events_table[
-        tracking_utils.TIME_COLUMN].values
+        tracking_utils.VALID_TIME_COLUMN].values
 
     for this_target_name in target_names:
         netcdf_dataset.createVariable(
@@ -749,7 +754,7 @@ def read_target_values(netcdf_file_name, target_name):
     :param netcdf_file_name: Path to input file.
     :param target_name: Name of target variable.
     :return: storm_label_dict: Dictionary with the following keys.
-    storm_label_dict['storm_ids']: length-N list of storm IDs.
+    storm_label_dict['full_id_strings']: length-N list of full storm IDs.
     storm_label_dict['valid_times_unix_sec']: length-N numpy array of valid
         times.
     storm_label_dict['target_values']: length-N numpy array with values of
@@ -760,16 +765,20 @@ def read_target_values(netcdf_file_name, target_name):
     netcdf_dataset = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
 
-    storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
+    full_id_strings = netCDF4.chartostring(
+        netcdf_dataset.variables[FULL_IDS_KEY][:]
+    )
     valid_times_unix_sec = numpy.array(
-        netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int)
+        netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int
+    )
     target_values = numpy.array(
-        netcdf_dataset.variables[target_name][:], dtype=int)
+        netcdf_dataset.variables[target_name][:], dtype=int
+    )
 
     netcdf_dataset.close()
 
     return {
-        STORM_IDS_KEY: [str(s) for s in storm_ids],
+        FULL_IDS_KEY: [str(f) for f in full_id_strings],
         VALID_TIMES_KEY: valid_times_unix_sec,
         TARGET_VALUES_KEY: target_values
     }

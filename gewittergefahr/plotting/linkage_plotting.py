@@ -39,7 +39,9 @@ def _find_unique_events(
         event_longitudes_deg, LATLNG_TOLERANCE_DEG)
 
     coord_matrix = numpy.transpose(numpy.vstack((
-        event_latitudes_deg, event_longitudes_deg, event_times_unix_sec)))
+        event_latitudes_deg, event_longitudes_deg, event_times_unix_sec
+    )))
+
     _, unique_indices = numpy.unique(coord_matrix, return_index=True, axis=0)
 
     return (event_latitudes_deg[unique_indices],
@@ -62,7 +64,7 @@ def plot_wind_linkages(
     :param storm_to_winds_table: pandas DataFrame with columns listed in
         `link_events_to_storms.write_storm_to_winds_table`.  This method will
         plot linkages for all storm cells in the table.
-    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param basemap_object: Instance of `mpl_toolkits.basemap.SBasemap`.
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param storm_colour: Colour for storm tracks and outlines (in any format
         accepted by `matplotlib.colors`).
@@ -75,40 +77,45 @@ def plot_wind_linkages(
     :param colour_maximum_kt: Same.
     """
 
-    storm_object_ids = numpy.array(
-        storm_to_winds_table[tracking_utils.STORM_ID_COLUMN].values)
-    storm_cell_ids, object_to_cell_indices = numpy.unique(
-        storm_object_ids, return_inverse=True)
-    num_storm_cells = len(storm_cell_ids)
+    unique_primary_id_strings, object_to_cell_indices = numpy.unique(
+        storm_to_winds_table[tracking_utils.PRIMARY_ID_COLUMN].values,
+        return_inverse=True)
+
+    num_storm_cells = len(unique_primary_id_strings)
 
     for i in range(num_storm_cells):
         these_object_indices = numpy.where(object_to_cell_indices == i)[0]
+
         storm_plotting.plot_storm_track(
             basemap_object=basemap_object, axes_object=axes_object,
             centroid_latitudes_deg=storm_to_winds_table[
-                tracking_utils.CENTROID_LAT_COLUMN
+                tracking_utils.CENTROID_LATITUDE_COLUMN
             ].values[these_object_indices],
             centroid_longitudes_deg=storm_to_winds_table[
-                tracking_utils.CENTROID_LNG_COLUMN
+                tracking_utils.CENTROID_LONGITUDE_COLUMN
             ].values[these_object_indices],
-            line_colour=storm_colour, line_width=storm_line_width)
+            line_colour=storm_colour, line_width=storm_line_width
+        )
 
-        these_wind_latitudes_deg = numpy.concatenate(tuple(
-            [storm_to_winds_table[
-                linkage.EVENT_LATITUDES_COLUMN
-            ].values[j] for j in these_object_indices]))
-        these_wind_longitudes_deg = numpy.concatenate(tuple(
-            [storm_to_winds_table[
-                linkage.EVENT_LONGITUDES_COLUMN
-            ].values[j] for j in these_object_indices]))
-        these_u_winds_m_s01 = numpy.concatenate(tuple(
-            [storm_to_winds_table[
-                linkage.U_WINDS_COLUMN
-            ].values[j] for j in these_object_indices]))
-        these_v_winds_m_s01 = numpy.concatenate(tuple(
-            [storm_to_winds_table[
-                linkage.V_WINDS_COLUMN
-            ].values[j] for j in these_object_indices]))
+        these_wind_latitudes_deg = numpy.concatenate(tuple([
+            storm_to_winds_table[linkage.EVENT_LATITUDES_COLUMN].values[j]
+            for j in these_object_indices
+        ]))
+
+        these_wind_longitudes_deg = numpy.concatenate(tuple([
+            storm_to_winds_table[linkage.EVENT_LONGITUDES_COLUMN].values[j]
+            for j in these_object_indices
+        ]))
+
+        these_u_winds_m_s01 = numpy.concatenate(tuple([
+            storm_to_winds_table[linkage.U_WINDS_COLUMN].values[j]
+            for j in these_object_indices
+        ]))
+
+        these_v_winds_m_s01 = numpy.concatenate(tuple([
+            storm_to_winds_table[linkage.V_WINDS_COLUMN].values[j]
+            for j in these_object_indices
+        ]))
 
         wind_plotting.plot_wind_barbs(
             basemap_object=basemap_object, axes_object=axes_object,
@@ -149,11 +156,11 @@ def plot_tornado_linkages(
 
     error_checking.assert_is_boolean(plot_times)
 
-    storm_object_ids = numpy.array(
-        storm_to_tornadoes_table[tracking_utils.STORM_ID_COLUMN].values)
-    storm_cell_ids, object_to_cell_indices = numpy.unique(
-        storm_object_ids, return_inverse=True)
-    num_storm_cells = len(storm_cell_ids)
+    unique_primary_id_strings, object_to_cell_indices = numpy.unique(
+        storm_to_tornadoes_table[tracking_utils.FULL_ID_COLUMN].values,
+        return_inverse=True)
+
+    num_storm_cells = len(unique_primary_id_strings)
 
     if tornado_marker_type == 'x':
         tornado_marker_edge_width = 2
@@ -165,31 +172,37 @@ def plot_tornado_linkages(
         storm_plotting.plot_storm_track(
             basemap_object=basemap_object, axes_object=axes_object,
             centroid_latitudes_deg=storm_to_tornadoes_table[
-                tracking_utils.CENTROID_LAT_COLUMN
+                tracking_utils.CENTROID_LATITUDE_COLUMN
             ].values[these_object_indices],
             centroid_longitudes_deg=storm_to_tornadoes_table[
-                tracking_utils.CENTROID_LNG_COLUMN
+                tracking_utils.CENTROID_LONGITUDE_COLUMN
             ].values[these_object_indices],
-            line_colour=storm_colour, line_width=storm_line_width)
+            line_colour=storm_colour, line_width=storm_line_width
+        )
 
         these_tornado_latitudes_deg = numpy.concatenate(tuple(
             [storm_to_tornadoes_table[
                 linkage.EVENT_LATITUDES_COLUMN
-            ].values[j] for j in these_object_indices]))
+            ].values[j] for j in these_object_indices]
+        ))
 
         this_num_tornadoes = len(these_tornado_latitudes_deg)
         if this_num_tornadoes == 0:
             continue
 
-        these_tornado_longitudes_deg = numpy.concatenate(tuple(
-            [storm_to_tornadoes_table[
-                linkage.EVENT_LONGITUDES_COLUMN
-            ].values[j] for j in these_object_indices]))
-        these_tornado_times_unix_sec = numpy.concatenate(tuple(
-            [storm_to_tornadoes_table[tracking_utils.TIME_COLUMN].values[j] +
-             storm_to_tornadoes_table[
-                 linkage.RELATIVE_EVENT_TIMES_COLUMN
-             ].values[j] for j in these_object_indices]))
+        these_tornado_longitudes_deg = numpy.concatenate(tuple([
+            storm_to_tornadoes_table[linkage.EVENT_LONGITUDES_COLUMN].values[j]
+            for j in these_object_indices
+        ]))
+
+        these_tornado_times_unix_sec = numpy.concatenate(tuple([
+            storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values[j]
+            +
+            storm_to_tornadoes_table[
+                linkage.RELATIVE_EVENT_TIMES_COLUMN
+            ].values[j]
+            for j in these_object_indices
+        ]))
 
         (these_tornado_latitudes_deg, these_tornado_longitudes_deg,
          these_tornado_times_unix_sec
@@ -212,6 +225,7 @@ def plot_tornado_linkages(
             return
 
         this_num_tornadoes = len(these_tornado_x_metres)
+
         for j in range(this_num_tornadoes):
             axes_object.text(
                 these_tornado_x_metres[j], these_tornado_y_metres[j],

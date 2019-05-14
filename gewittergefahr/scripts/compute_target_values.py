@@ -98,13 +98,17 @@ OUTPUT_DIR_HELP_STRING = (
     ' `target_val_utils.find_target_file`.')
 
 DEFAULT_MIN_LEAD_TIMES_SEC = numpy.array(
-    [0, 900, 1800, 2700, 3600, 5400, 0], dtype=int)
+    [0, 900, 1800, 2700, 3600, 5400, 0], dtype=int
+)
 DEFAULT_MAX_LEAD_TIMES_SEC = numpy.array(
-    [900, 1800, 2700, 3600, 5400, 7200, 7200], dtype=int)
+    [900, 1800, 2700, 3600, 5400, 7200, 7200], dtype=int
+)
 DEFAULT_MIN_LINK_DISTANCES_METRES = numpy.array(
-    [0, 1, 5000, 0], dtype=int)
+    [0, 1, 5000, 0], dtype=int
+)
 DEFAULT_MAX_LINK_DISTANCES_METRES = numpy.array(
-    [0, 5000, 10000, 30000], dtype=int)
+    [0, 5000, 10000, 30000], dtype=int
+)
 
 DEFAULT_PERCENTILE_LEVEL = 100.
 DEFAULT_CUTOFFS_KT = numpy.array([50.])

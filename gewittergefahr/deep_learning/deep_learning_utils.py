@@ -806,10 +806,8 @@ def soundings_to_metpy_dictionaries(
         dewpoint_matrix_kelvins)
 
     try:
-        u_wind_index = field_names.index(
-            soundings.U_WIND_NAME)
-        v_wind_index = field_names.index(
-            soundings.V_WIND_NAME)
+        u_wind_index = field_names.index(soundings.U_WIND_NAME)
+        v_wind_index = field_names.index(soundings.V_WIND_NAME)
         include_wind = True
     except ValueError:
         include_wind = False
