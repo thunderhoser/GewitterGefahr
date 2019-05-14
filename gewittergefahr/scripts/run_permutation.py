@@ -427,7 +427,7 @@ def _run(model_file_name, top_example_dir_name,
         except StopIteration:
             break
 
-        full_id_strings += this_storm_object_dict[testing_io.STORM_IDS_KEY]
+        full_id_strings += this_storm_object_dict[testing_io.FULL_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
             storm_times_unix_sec,
             this_storm_object_dict[testing_io.STORM_TIMES_KEY]

@@ -26,38 +26,42 @@ def _report_class_fractions(target_values):
     print '\n'
 
 
-def _find_storm_cells(storm_id_by_object, desired_storm_cell_ids):
+def _find_storm_cells(object_id_strings, desired_cell_id_strings):
     """Finds storm IDs from set 2 in set 1.
 
     N = number of storm objects
     n = number of desired storm cells
 
-    :param storm_id_by_object: length-N list of storm IDs (strings).
-    :param desired_storm_cell_ids: length-n list of storm IDs (strings).
+    :param object_id_strings: length-N list with all storm IDs.
+    :param desired_cell_id_strings: length-n list with desired storm IDs.
     :return: relevant_indices: 1-D numpy array of indices, such that
-        `storm_id_by_object[relevant_indices]` yields all IDs in
-        `storm_id_by_object` that are in `desired_storm_cell_ids`, including
+        `object_id_strings[relevant_indices]` yields all IDs in
+        `object_id_strings` that are in `desired_cell_id_strings`, including
         duplicates.
     :raises: ValueError: if not all desired ID were found in
-        `storm_id_by_object`.
+        `object_id_strings`.
     """
 
-    desired_storm_cell_ids = numpy.unique(numpy.array(desired_storm_cell_ids))
+    desired_cell_id_strings = numpy.unique(numpy.array(desired_cell_id_strings))
 
     relevant_flags = numpy.in1d(
-        numpy.array(storm_id_by_object), desired_storm_cell_ids,
+        numpy.array(object_id_strings), desired_cell_id_strings,
         assume_unique=False)
     relevant_indices = numpy.where(relevant_flags)[0]
 
-    found_storm_ids = numpy.unique(
-        numpy.array(storm_id_by_object)[relevant_indices])
-    if numpy.array_equal(found_storm_ids, desired_storm_cell_ids):
+    cell_id_strings = numpy.unique(
+        numpy.array(object_id_strings)[relevant_indices]
+    )
+    if numpy.array_equal(cell_id_strings, desired_cell_id_strings):
         return relevant_indices
 
     error_string = (
         '\nDesired storm IDs:\n{0:s}\nFound storm IDs:\n{1:s}\nNot all desired '
         'storm IDs were found, as shown above.'
-    ).format(str(desired_storm_cell_ids), str(found_storm_ids))
+    ).format(
+        str(desired_cell_id_strings), str(cell_id_strings)
+    )
+
     raise ValueError(error_string)
 
 
@@ -92,7 +96,7 @@ def _find_uncovered_times(all_times_unix_sec, covered_times_unix_sec):
 
 
 def _downsampling_base(
-        storm_ids, storm_times_unix_sec, target_values, target_name,
+        full_id_strings, storm_times_unix_sec, target_values, target_name,
         class_fraction_dict, test_mode=False):
     """Base for `downsample_for_training` and `downsample_for_non_training`.
 
@@ -112,7 +116,7 @@ def _downsampling_base(
     K = number of storm objects after intermediate downsampling
     n = number of storm objects after final downsampling
 
-    :param storm_ids: length-N list of storm IDs (strings).
+    :param full_id_strings: length-N list of full storm IDs.
     :param storm_times_unix_sec: length-N numpy array of corresponding times.
     :param target_values: length-N numpy array of corresponding target values
         (integer class labels).
@@ -122,18 +126,18 @@ def _downsampling_base(
         label (-2 for "dead storm") and the corresponding value is the
         sampling fraction.
     :param test_mode: Never mind.  Just leave this alone.
-    :return: storm_ids: length-K list of storm IDs (strings).
+    :return: full_id_strings: length-K list of full storm IDs.
     :return: storm_times_unix_sec: length-K numpy array of corresponding times.
     :return: target_values: length-K numpy array of corresponding target values.
     :return: indices_to_keep: length-n numpy array of indices to keep.  These
-        are indices are into the output arrays `storm_ids`,
+        are indices are into the output arrays `full_id_strings`,
         `storm_times_unix_sec`, and `target_values`.
     """
 
     _report_class_fractions(target_values)
     error_checking.assert_is_boolean(test_mode)
 
-    num_storm_objects = len(storm_ids)
+    num_storm_objects = len(full_id_strings)
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
 
@@ -151,9 +155,12 @@ def _downsampling_base(
     # Step 2.
     print ('Finding storm cells with at least one object in {s_highest}, '
            'yielding set {S_highest}...')
+
     highest_class_indices = _find_storm_cells(
-        storm_id_by_object=storm_ids,
-        desired_storm_cell_ids=[storm_ids[k] for k in highest_class_indices])
+        object_id_strings=full_id_strings,
+        desired_cell_id_strings=
+        [full_id_strings[k] for k in highest_class_indices]
+    )
 
     print '{{S_highest}} contains {0:d} of {1:d} storm objects.'.format(
         len(highest_class_indices), num_storm_objects)
@@ -187,7 +194,7 @@ def _downsampling_base(
         all_times_unix_sec=storm_times_unix_sec,
         covered_times_unix_sec=times_to_remove_unix_sec)
 
-    storm_ids = [storm_ids[k] for k in indices_to_keep]
+    full_id_strings = [full_id_strings[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     target_values = target_values[indices_to_keep]
 
@@ -200,11 +207,11 @@ def _downsampling_base(
         target_name=target_name, target_values=target_values,
         num_examples_total=LARGE_INTEGER, test_mode=test_mode)
 
-    return storm_ids, storm_times_unix_sec, target_values, indices_to_keep
+    return full_id_strings, storm_times_unix_sec, target_values, indices_to_keep
 
 
 def downsample_for_non_training(
-        storm_ids, storm_times_unix_sec, target_values, target_name,
+        full_id_strings, storm_times_unix_sec, target_values, target_name,
         class_fraction_dict, test_mode=False):
     """Fancy downsampling to create validation or testing data.
 
@@ -213,35 +220,37 @@ def downsample_for_non_training(
     N = number of storm objects before downsampling
     n = number of storm objects after final downsampling
 
-    :param storm_ids: See doc for `_downsampling_base`.
+    :param full_id_strings: See doc for `_downsampling_base`.
     :param storm_times_unix_sec: Same.
     :param target_values: Same.
     :param target_name: Same.
     :param class_fraction_dict: Same.
     :param test_mode: Same.
-    :return: storm_ids: length-K list of storm IDs (strings).
+    :return: full_id_strings: length-K list of full storm IDs.
     :return: storm_times_unix_sec: length-K numpy array of corresponding times.
     :return: target_values: length-K numpy array of corresponding target values.
     """
 
-    storm_ids, storm_times_unix_sec, target_values, indices_to_keep = (
+    full_id_strings, storm_times_unix_sec, target_values, indices_to_keep = (
         _downsampling_base(
-            storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+            full_id_strings=full_id_strings,
+            storm_times_unix_sec=storm_times_unix_sec,
             target_values=target_values, target_name=target_name,
             class_fraction_dict=class_fraction_dict, test_mode=test_mode)
     )
 
-    storm_ids = [storm_ids[k] for k in indices_to_keep]
+    full_id_strings = [full_id_strings[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     target_values = target_values[indices_to_keep]
 
     _report_class_fractions(target_values)
 
-    return storm_ids, storm_times_unix_sec, target_values
+    return full_id_strings, storm_times_unix_sec, target_values
 
 
-def downsample_for_training(storm_ids, storm_times_unix_sec, target_values,
-                            target_name, class_fraction_dict, test_mode=False):
+def downsample_for_training(
+        full_id_strings, storm_times_unix_sec, target_values, target_name,
+        class_fraction_dict, test_mode=False):
     """Fancy downsampling to create training data.
 
     The procedure is described below.
@@ -253,25 +262,26 @@ def downsample_for_training(storm_ids, storm_times_unix_sec, target_values,
         Call this set {S_highest}.  Add storm objects from {S_highest} to the
         selected set.
 
-    :param storm_ids: See doc for `_downsampling_base`.
+    :param full_id_strings: See doc for `_downsampling_base`.
     :param storm_times_unix_sec: Same.
     :param target_values: Same.
     :param target_name: Same.
     :param class_fraction_dict: Same.
     :param test_mode: Same.
-    :return: storm_ids: Same.
+    :return: full_id_strings: Same.
     :return: storm_times_unix_sec: Same.
     :return: target_values: Same.
     """
 
-    storm_ids, storm_times_unix_sec, target_values, indices_to_keep = (
+    full_id_strings, storm_times_unix_sec, target_values, indices_to_keep = (
         _downsampling_base(
-            storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+            full_id_strings=full_id_strings,
+            storm_times_unix_sec=storm_times_unix_sec,
             target_values=target_values, target_name=target_name,
             class_fraction_dict=class_fraction_dict, test_mode=test_mode)
     )
 
-    num_storm_objects = len(storm_ids)
+    num_storm_objects = len(full_id_strings)
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
 
@@ -289,9 +299,12 @@ def downsample_for_training(storm_ids, storm_times_unix_sec, target_values,
     # Step 7.
     print ('Finding storm cells with at least one object in {s_highest}, '
            'yielding set {S_highest}...')
+
     highest_class_indices = _find_storm_cells(
-        storm_id_by_object=storm_ids,
-        desired_storm_cell_ids=[storm_ids[k] for k in highest_class_indices])
+        object_id_strings=full_id_strings,
+        desired_cell_id_strings=
+        [full_id_strings[k] for k in highest_class_indices]
+    )
 
     print '{{S_highest}} contains {0:d} of {1:d} storm objects.'.format(
         len(highest_class_indices), num_storm_objects)
@@ -301,10 +314,10 @@ def downsample_for_training(storm_ids, storm_times_unix_sec, target_values,
     )
     indices_to_keep = numpy.array(list(indices_to_keep), dtype=int)
 
-    storm_ids = [storm_ids[k] for k in indices_to_keep]
+    full_id_strings = [full_id_strings[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     target_values = target_values[indices_to_keep]
 
     _report_class_fractions(target_values)
 
-    return storm_ids, storm_times_unix_sec, target_values
+    return full_id_strings, storm_times_unix_sec, target_values

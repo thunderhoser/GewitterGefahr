@@ -174,7 +174,8 @@ def _read_target_values(
         raise ValueError(error_string)
 
     event_type_string = target_val_utils.target_name_to_params(target_name)[
-        target_val_utils.EVENT_TYPE_KEY]
+        target_val_utils.EVENT_TYPE_KEY
+    ]
 
     # Read target values.
     storm_target_values = numpy.array([], dtype=int)
@@ -198,7 +199,7 @@ def _read_target_values(
 
         these_indices = tracking_utils.find_storm_objects(
             all_id_strings=this_target_value_dict[
-                target_val_utils.STORM_IDS_KEY],
+                target_val_utils.FULL_IDS_KEY],
             all_times_unix_sec=this_target_value_dict[
                 target_val_utils.VALID_TIMES_KEY],
             id_strings_to_keep=[full_id_strings[k] for k in these_indices],
@@ -508,4 +509,5 @@ if __name__ == '__main__':
         num_false_alarms=getattr(INPUT_ARG_OBJECT, NUM_FALSE_ALARMS_ARG_NAME),
         num_correct_nulls=getattr(INPUT_ARG_OBJECT, NUM_CORRECT_NULLS_ARG_NAME),
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+    )

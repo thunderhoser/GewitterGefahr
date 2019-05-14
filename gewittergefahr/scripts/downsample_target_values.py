@@ -140,6 +140,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             event_type_string=target_param_dict[
                 target_val_utils.EVENT_TYPE_KEY],
             spc_date_string=this_spc_date_string, raise_error_if_missing=False)
+
         if not os.path.isfile(this_file_name):
             continue
 
@@ -150,18 +151,20 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     spc_date_strings = spc_date_string_by_file
     target_dict_by_file = [None] * num_files
 
-    storm_ids = []
+    full_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)
     target_values = numpy.array([], dtype=int)
 
     for i in range(num_files):
         print 'Reading "{0:s}" from: "{1:s}"...'.format(
-            target_name, input_target_file_names[i])
+            target_name, input_target_file_names[i]
+        )
+
         target_dict_by_file[i] = target_val_utils.read_target_values(
             netcdf_file_name=input_target_file_names[i],
             target_name=target_name)
 
-        storm_ids += target_dict_by_file[i][target_val_utils.STORM_IDS_KEY]
+        full_id_strings += target_dict_by_file[i][target_val_utils.FULL_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
             storm_times_unix_sec,
             target_dict_by_file[i][target_val_utils.VALID_TIMES_KEY]
@@ -177,21 +180,23 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         target_values != target_val_utils.INVALID_STORM_INTEGER
     )[0]
 
-    storm_ids = [storm_ids[k] for k in good_indices]
+    full_id_strings = [full_id_strings[k] for k in good_indices]
     storm_times_unix_sec = storm_times_unix_sec[good_indices]
     target_values = target_values[good_indices]
 
     if for_training:
-        storm_ids, storm_times_unix_sec, target_values = (
+        full_id_strings, storm_times_unix_sec, target_values = (
             fancy_downsampling.downsample_for_training(
-                storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+                full_id_strings=full_id_strings,
+                storm_times_unix_sec=storm_times_unix_sec,
                 target_values=target_values, target_name=target_name,
                 class_fraction_dict=class_fraction_dict)
         )
     else:
-        storm_ids, storm_times_unix_sec, target_values = (
+        full_id_strings, storm_times_unix_sec, target_values = (
             fancy_downsampling.downsample_for_non_training(
-                storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+                full_id_strings=full_id_strings,
+                storm_times_unix_sec=storm_times_unix_sec,
                 target_values=target_values, target_name=target_name,
                 class_fraction_dict=class_fraction_dict)
         )
@@ -200,11 +205,11 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
 
     for i in range(num_files):
         these_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=target_dict_by_file[i][
-                target_val_utils.STORM_IDS_KEY],
+            all_id_strings=target_dict_by_file[i][
+                target_val_utils.FULL_IDS_KEY],
             all_times_unix_sec=target_dict_by_file[i][
                 target_val_utils.VALID_TIMES_KEY],
-            storm_ids_to_keep=storm_ids,
+            id_strings_to_keep=full_id_strings,
             times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
 
         these_indices = these_indices[these_indices >= 0]
@@ -212,17 +217,18 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             continue
 
         this_output_dict = {
-            tracking_utils.STORM_ID_COLUMN: [
-                target_dict_by_file[i][target_val_utils.STORM_IDS_KEY][k]
+            tracking_utils.FULL_ID_COLUMN: [
+                target_dict_by_file[i][target_val_utils.FULL_IDS_KEY][k]
                 for k in these_indices
             ],
-            tracking_utils.TIME_COLUMN:
+            tracking_utils.VALID_TIME_COLUMN:
                 target_dict_by_file[i][target_val_utils.VALID_TIMES_KEY][
                     these_indices],
             target_name:
                 target_dict_by_file[i][target_val_utils.TARGET_VALUES_KEY][
                     these_indices]
         }
+
         this_output_table = pandas.DataFrame.from_dict(this_output_dict)
 
         this_new_file_name = target_val_utils.find_target_file(
@@ -236,7 +242,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             '"{2:s}"...'
         ).format(
             len(this_output_table.index),
-            len(target_dict_by_file[i][target_val_utils.STORM_IDS_KEY]),
+            len(target_dict_by_file[i][target_val_utils.FULL_IDS_KEY]),
             this_new_file_name
         )
 

@@ -125,7 +125,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     list_of_input_matrices, sounding_pressure_matrix_pascals = (
         testing_io.read_specific_examples(
             top_example_dir_name=top_example_dir_name,
-            desired_storm_ids=full_id_strings,
+            desired_full_id_strings=full_id_strings,
             desired_times_unix_sec=storm_times_unix_sec,
             option_dict=training_option_dict,
             list_of_layer_operation_dicts=model_metadata_dict[

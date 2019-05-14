@@ -114,7 +114,8 @@ def _find_input_files(
             netcdf_file_name=this_file_name, metadata_only=True)
 
         num_input_examples += len(
-            this_example_dict[input_examples.STORM_IDS_KEY])
+            this_example_dict[input_examples.FULL_IDS_KEY]
+        )
 
     return input_example_file_names, num_input_examples
 
@@ -173,7 +174,7 @@ def _shuffle_one_input_file(
         netcdf_file_name=input_example_file_name,
         radar_field_names_to_keep=radar_field_names)
 
-    num_examples = len(example_dict[input_examples.STORM_IDS_KEY])
+    num_examples = len(example_dict[input_examples.FULL_IDS_KEY])
     shuffled_indices = numpy.linspace(
         0, num_examples - 1, num=num_examples, dtype=int)
     numpy.random.shuffle(shuffled_indices)

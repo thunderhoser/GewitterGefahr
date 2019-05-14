@@ -96,7 +96,8 @@ def _get_batch_size_by_class(
 
         if include_dead_storms:
             first_keys = numpy.array(
-                [target_val_utils.DEAD_STORM_INTEGER], dtype=int)
+                [target_val_utils.DEAD_STORM_INTEGER], dtype=int
+            )
 
             second_keys = numpy.linspace(
                 0, num_classes - 1, num=num_classes, dtype=int)

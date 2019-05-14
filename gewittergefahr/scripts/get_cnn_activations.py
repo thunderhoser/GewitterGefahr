@@ -219,7 +219,7 @@ def _run(
 
         this_list_of_input_matrices = this_storm_object_dict[
             testing_io.INPUT_MATRICES_KEY]
-        these_id_strings = this_storm_object_dict[testing_io.STORM_IDS_KEY]
+        these_id_strings = this_storm_object_dict[testing_io.FULL_IDS_KEY]
         these_times_unix_sec = this_storm_object_dict[
             testing_io.STORM_TIMES_KEY]
 

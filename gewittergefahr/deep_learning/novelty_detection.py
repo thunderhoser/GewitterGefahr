@@ -28,9 +28,9 @@ PERCENT_VARIANCE_KEY = 'percent_svd_variance_to_keep'
 CNN_FEATURE_LAYER_KEY = 'cnn_feature_layer_name'
 MULTIPASS_KEY = 'multipass'
 
-BASELINE_STORM_IDS_KEY = 'baseline_storm_ids'
+BASELINE_IDS_KEY = 'baseline_full_id_strings'
 BASELINE_STORM_TIMES_KEY = 'baseline_storm_times_unix_sec'
-TRIAL_STORM_IDS_KEY = 'trial_storm_ids'
+TRIAL_IDS_KEY = 'trial_full_id_strings'
 TRIAL_STORM_TIMES_KEY = 'trial_storm_times_unix_sec'
 CNN_FILE_KEY = 'cnn_file_name'
 UPCONVNET_FILE_KEY = 'upconvnet_file_name'
@@ -38,9 +38,9 @@ UPCONVNET_FILE_KEY = 'upconvnet_file_name'
 STANDARD_FILE_KEYS = [
     BASELINE_INPUTS_KEY, TRIAL_INPUTS_KEY, NOVEL_INDICES_KEY,
     NOVEL_IMAGES_UPCONV_KEY, NOVEL_IMAGES_UPCONV_SVD_KEY, PERCENT_VARIANCE_KEY,
-    CNN_FEATURE_LAYER_KEY, MULTIPASS_KEY,
-    BASELINE_STORM_IDS_KEY, BASELINE_STORM_TIMES_KEY, TRIAL_STORM_IDS_KEY,
-    TRIAL_STORM_TIMES_KEY, CNN_FILE_KEY, UPCONVNET_FILE_KEY
+    CNN_FEATURE_LAYER_KEY, MULTIPASS_KEY, BASELINE_IDS_KEY,
+    BASELINE_STORM_TIMES_KEY, TRIAL_IDS_KEY, TRIAL_STORM_TIMES_KEY,
+    CNN_FILE_KEY, UPCONVNET_FILE_KEY
 ]
 
 MEAN_NOVEL_IMAGE_KEY = 'mean_novel_image_matrix'
@@ -394,8 +394,8 @@ def do_novelty_detection(
 
 
 def add_metadata(
-        novelty_dict, baseline_storm_ids, baseline_storm_times_unix_sec,
-        trial_storm_ids, trial_storm_times_unix_sec, cnn_file_name,
+        novelty_dict, baseline_full_id_strings, baseline_storm_times_unix_sec,
+        trial_full_id_strings, trial_storm_times_unix_sec, cnn_file_name,
         upconvnet_file_name):
     """Adds metadata to novelty-detection results.
 
@@ -403,11 +403,11 @@ def add_metadata(
     T = number of trial examples
 
     :param novelty_dict: Dictionary created by `do_novelty_detection`.
-    :param baseline_storm_ids: length-B list of storm IDs (strings) for baseline
-        examples.
+    :param baseline_full_id_strings: length-B list of full storm IDs for
+        baseline examples.
     :param baseline_storm_times_unix_sec: length-B numpy array of valid times
         for baseline examples.
-    :param trial_storm_ids: length-T list of storm IDs (strings) for trial
+    :param trial_full_id_strings: length-T list of full storm IDs for trial
         examples.
     :param trial_storm_times_unix_sec: length-T numpy array of valid times for
         baseline examples.
@@ -426,9 +426,9 @@ def add_metadata(
     novelty_dict['percent_svd_variance_to_keep']: Same.
     novelty_dict['cnn_feature_layer_name']: Same.
     novelty_dict['multipass']: Same.
-    novelty_dict['baseline_storm_ids']: See input doc for this method.
+    novelty_dict['baseline_full_id_strings']: See input doc for this method.
     novelty_dict['baseline_storm_times_unix_sec']: Same.
-    novelty_dict['trial_storm_ids']: Same.
+    novelty_dict['trial_full_id_strings']: Same.
     novelty_dict['trial_storm_times_unix_sec']: Same.
     novelty_dict['cnn_file_name']: Same.
     novelty_dict['upconvnet_file_name']: Same.
@@ -437,9 +437,12 @@ def add_metadata(
     num_baseline_examples = novelty_dict[BASELINE_INPUTS_KEY][0].shape[0]
     these_expected_dim = numpy.array([num_baseline_examples], dtype=int)
 
-    error_checking.assert_is_string_list(baseline_storm_ids)
+    error_checking.assert_is_string_list(baseline_full_id_strings)
     error_checking.assert_is_numpy_array(
-        numpy.array(baseline_storm_ids), exact_dimensions=these_expected_dim)
+        numpy.array(baseline_full_id_strings),
+        exact_dimensions=these_expected_dim
+    )
+
     error_checking.assert_is_integer_numpy_array(baseline_storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
         baseline_storm_times_unix_sec, exact_dimensions=these_expected_dim)
@@ -447,9 +450,11 @@ def add_metadata(
     num_trial_examples = novelty_dict[TRIAL_INPUTS_KEY][0].shape[0]
     these_expected_dim = numpy.array([num_trial_examples], dtype=int)
 
-    error_checking.assert_is_string_list(trial_storm_ids)
+    error_checking.assert_is_string_list(trial_full_id_strings)
     error_checking.assert_is_numpy_array(
-        numpy.array(trial_storm_ids), exact_dimensions=these_expected_dim)
+        numpy.array(trial_full_id_strings), exact_dimensions=these_expected_dim
+    )
+
     error_checking.assert_is_integer_numpy_array(trial_storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
         trial_storm_times_unix_sec, exact_dimensions=these_expected_dim)
@@ -458,9 +463,9 @@ def add_metadata(
     error_checking.assert_is_string(upconvnet_file_name)
 
     novelty_dict.update({
-        BASELINE_STORM_IDS_KEY: baseline_storm_ids,
+        BASELINE_IDS_KEY: baseline_full_id_strings,
         BASELINE_STORM_TIMES_KEY: baseline_storm_times_unix_sec,
-        TRIAL_STORM_IDS_KEY: trial_storm_ids,
+        TRIAL_IDS_KEY: trial_full_id_strings,
         TRIAL_STORM_TIMES_KEY: trial_storm_times_unix_sec,
         CNN_FILE_KEY: cnn_file_name,
         UPCONVNET_FILE_KEY: upconvnet_file_name

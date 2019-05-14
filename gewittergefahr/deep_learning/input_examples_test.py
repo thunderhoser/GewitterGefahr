@@ -11,41 +11,46 @@ TOLERANCE = 1e-6
 
 # The following constants are used to test _filter_examples_by_class.
 TARGET_VALUES_TORNADO = numpy.array(
-    [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0], dtype=int)
+    [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0], dtype=int
+)
 
 FIRST_TORNADO_CLASS_TO_NUM_EX_DICT = {0: 2, 1: 50}
 SECOND_TORNADO_CLASS_TO_NUM_EX_DICT = {0: 0, 1: 50}
 FIRST_TORNADO_INDICES_TO_KEEP = numpy.array([0, 1, 2, 4, 6], dtype=int)
 SECOND_TORNADO_INDICES_TO_KEEP = numpy.array([2, 4, 6], dtype=int)
 
-TARGET_VALUES_WIND = numpy.array(
-    [0, -2, 0, 5, 2, 1, 3, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 2, -2, 0, 1,
-     3, 2, 4, 1, 0, 0, 1, 0, 0, -2, 4, -2, 0, 0, -2, 0], dtype=int)
+TARGET_VALUES_WIND = numpy.array([
+    0, -2, 0, 5, 2, 1, 3, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 2, -2, 0, 1,
+    3, 2, 4, 1, 0, 0, 1, 0, 0, -2, 4, -2, 0, 0, -2, 0
+], dtype=int)
 
 FIRST_WIND_CLASS_TO_NUM_EX_DICT = {-2: 5, 0: 1, 1: 2, 2: 3, 3: 4, 4: 25, 5: 100}
 SECOND_WIND_CLASS_TO_NUM_EX_DICT = {-2: 0, 0: 1, 1: 0, 2: 3, 3: 0, 4: 25, 5: 0}
 
 FIRST_WIND_INDICES_TO_KEEP = numpy.array(
-    [0, 5, 7, 4, 13, 20, 6, 18, 24, 26, 34, 3, 1, 21, 33, 35, 38], dtype=int)
+    [0, 5, 7, 4, 13, 20, 6, 18, 24, 26, 34, 3, 1, 21, 33, 35, 38], dtype=int
+)
 SECOND_WIND_INDICES_TO_KEEP = numpy.array([0, 4, 13, 20, 26, 34], dtype=int)
 
 # The following constants are used to test remove_storms_with_undefined_target.
-STORM_IDS = ['Matthews', 'Tavares', 'Marner', 'Nylander']
+FULL_ID_STRINGS = ['Matthews', 'Tavares', 'Marner', 'Nylander']
 STORM_TIMES_UNIX_SEC = numpy.array([1, 2, 3, 4], dtype=int)
 TARGET_VALUES = numpy.array([-1, 0, -1, -2], dtype=int)
 THIS_RADAR_IMAGE_MATRIX = numpy.random.uniform(
-    low=0., high=1., size=(4, 32, 32, 3))
+    low=0., high=1., size=(4, 32, 32, 3)
+)
 
 RADAR_IMAGE_DICT_UNFILTERED = {
-    storm_images.STORM_IDS_KEY: STORM_IDS,
+    storm_images.FULL_IDS_KEY: FULL_ID_STRINGS,
     storm_images.VALID_TIMES_KEY: STORM_TIMES_UNIX_SEC,
     storm_images.LABEL_VALUES_KEY: TARGET_VALUES,
     storm_images.STORM_IMAGE_MATRIX_KEY: THIS_RADAR_IMAGE_MATRIX
 }
 
 INDICES_TO_KEEP = numpy.array([1, 3], dtype=int)
+
 RADAR_IMAGE_DICT_NO_UNDEF_TARGETS = {
-    storm_images.STORM_IDS_KEY: [STORM_IDS[i] for i in INDICES_TO_KEEP],
+    storm_images.FULL_IDS_KEY: [FULL_ID_STRINGS[i] for i in INDICES_TO_KEEP],
     storm_images.VALID_TIMES_KEY: STORM_TIMES_UNIX_SEC[INDICES_TO_KEEP],
     storm_images.LABEL_VALUES_KEY: TARGET_VALUES[INDICES_TO_KEEP],
     storm_images.STORM_IMAGE_MATRIX_KEY:
@@ -55,7 +60,7 @@ RADAR_IMAGE_DICT_NO_UNDEF_TARGETS = {
 # The following constants are used to test subset_examples.
 EQUALS_SIGN_KEYS = [
     input_examples.ROTATED_GRIDS_KEY, input_examples.TARGET_NAME_KEY,
-    input_examples.RADAR_FIELDS_KEY, input_examples.STORM_IDS_KEY
+    input_examples.RADAR_FIELDS_KEY, input_examples.FULL_IDS_KEY
 ]
 ARRAY_EQUAL_KEYS = [
     input_examples.STORM_TIMES_KEY, input_examples.TARGET_VALUES_KEY
@@ -80,25 +85,25 @@ EXAMPLE_DICT_2D_ORIG = {
     input_examples.TARGET_NAME_KEY: 'foo',
     input_examples.RADAR_FIELDS_KEY: THESE_FIELD_NAMES,
     input_examples.RADAR_HEIGHTS_KEY: THESE_HEIGHTS_M_AGL,
-    input_examples.STORM_IDS_KEY: STORM_IDS,
+    input_examples.FULL_IDS_KEY: FULL_ID_STRINGS,
     input_examples.STORM_TIMES_KEY: STORM_TIMES_UNIX_SEC,
     input_examples.TARGET_VALUES_KEY: TARGET_VALUES,
     input_examples.RADAR_IMAGE_MATRIX_KEY: THIS_RADAR_IMAGE_MATRIX
 }
 
 EXAMPLE_DICT_2D_SUBSET = copy.deepcopy(EXAMPLE_DICT_2D_ORIG)
-EXAMPLE_DICT_2D_SUBSET[
-    input_examples.STORM_IDS_KEY
-] = [STORM_IDS[k] for k in INDICES_TO_KEEP]
-EXAMPLE_DICT_2D_SUBSET[
-    input_examples.STORM_TIMES_KEY
-] = STORM_TIMES_UNIX_SEC[INDICES_TO_KEEP]
-EXAMPLE_DICT_2D_SUBSET[
-    input_examples.TARGET_VALUES_KEY
-] = TARGET_VALUES[INDICES_TO_KEEP]
-EXAMPLE_DICT_2D_SUBSET[
-    input_examples.RADAR_IMAGE_MATRIX_KEY
-] = THIS_RADAR_IMAGE_MATRIX[INDICES_TO_KEEP, ...]
+EXAMPLE_DICT_2D_SUBSET[input_examples.FULL_IDS_KEY] = [
+    FULL_ID_STRINGS[k] for k in INDICES_TO_KEEP
+]
+EXAMPLE_DICT_2D_SUBSET[input_examples.STORM_TIMES_KEY] = (
+    STORM_TIMES_UNIX_SEC[INDICES_TO_KEEP]
+)
+EXAMPLE_DICT_2D_SUBSET[input_examples.TARGET_VALUES_KEY] = (
+    TARGET_VALUES[INDICES_TO_KEEP]
+)
+EXAMPLE_DICT_2D_SUBSET[input_examples.RADAR_IMAGE_MATRIX_KEY] = (
+    THIS_RADAR_IMAGE_MATRIX[INDICES_TO_KEEP, ...]
+)
 
 THESE_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.DIFFERENTIAL_REFL_NAME,
@@ -116,25 +121,25 @@ EXAMPLE_DICT_3D_ORIG = {
     input_examples.TARGET_NAME_KEY: 'foo',
     input_examples.RADAR_FIELDS_KEY: THESE_FIELD_NAMES,
     input_examples.RADAR_HEIGHTS_KEY: THESE_HEIGHTS_M_AGL,
-    input_examples.STORM_IDS_KEY: STORM_IDS,
+    input_examples.FULL_IDS_KEY: FULL_ID_STRINGS,
     input_examples.STORM_TIMES_KEY: STORM_TIMES_UNIX_SEC,
     input_examples.TARGET_VALUES_KEY: TARGET_VALUES,
     input_examples.RADAR_IMAGE_MATRIX_KEY: THIS_RADAR_IMAGE_MATRIX
 }
 
 EXAMPLE_DICT_3D_SUBSET = copy.deepcopy(EXAMPLE_DICT_3D_ORIG)
-EXAMPLE_DICT_3D_SUBSET[
-    input_examples.STORM_IDS_KEY
-] = [STORM_IDS[k] for k in INDICES_TO_KEEP]
-EXAMPLE_DICT_3D_SUBSET[
-    input_examples.STORM_TIMES_KEY
-] = STORM_TIMES_UNIX_SEC[INDICES_TO_KEEP]
-EXAMPLE_DICT_3D_SUBSET[
-    input_examples.TARGET_VALUES_KEY
-] = TARGET_VALUES[INDICES_TO_KEEP]
-EXAMPLE_DICT_3D_SUBSET[
-    input_examples.RADAR_IMAGE_MATRIX_KEY
-] = THIS_RADAR_IMAGE_MATRIX[INDICES_TO_KEEP, ...]
+EXAMPLE_DICT_3D_SUBSET[input_examples.FULL_IDS_KEY] = [
+    FULL_ID_STRINGS[k] for k in INDICES_TO_KEEP
+]
+EXAMPLE_DICT_3D_SUBSET[input_examples.STORM_TIMES_KEY] = (
+    STORM_TIMES_UNIX_SEC[INDICES_TO_KEEP]
+)
+EXAMPLE_DICT_3D_SUBSET[input_examples.TARGET_VALUES_KEY] = (
+    TARGET_VALUES[INDICES_TO_KEEP]
+)
+EXAMPLE_DICT_3D_SUBSET[input_examples.RADAR_IMAGE_MATRIX_KEY] = (
+    THIS_RADAR_IMAGE_MATRIX[INDICES_TO_KEEP, ...]
+)
 
 THESE_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
@@ -154,7 +159,7 @@ EXAMPLE_DICT_2D3D_ORIG = {
     input_examples.TARGET_NAME_KEY: 'foo',
     input_examples.RADAR_FIELDS_KEY: THESE_FIELD_NAMES,
     input_examples.RADAR_HEIGHTS_KEY: THESE_HEIGHTS_M_AGL,
-    input_examples.STORM_IDS_KEY: STORM_IDS,
+    input_examples.FULL_IDS_KEY: FULL_ID_STRINGS,
     input_examples.STORM_TIMES_KEY: STORM_TIMES_UNIX_SEC,
     input_examples.TARGET_VALUES_KEY: TARGET_VALUES,
     input_examples.REFL_IMAGE_MATRIX_KEY: THIS_REFL_IMAGE_MATRIX_DBZ,
@@ -162,21 +167,21 @@ EXAMPLE_DICT_2D3D_ORIG = {
 }
 
 EXAMPLE_DICT_2D3D_SUBSET = copy.deepcopy(EXAMPLE_DICT_2D3D_ORIG)
-EXAMPLE_DICT_2D3D_SUBSET[
-    input_examples.STORM_IDS_KEY
-] = [STORM_IDS[k] for k in INDICES_TO_KEEP]
-EXAMPLE_DICT_2D3D_SUBSET[
-    input_examples.STORM_TIMES_KEY
-] = STORM_TIMES_UNIX_SEC[INDICES_TO_KEEP]
-EXAMPLE_DICT_2D3D_SUBSET[
-    input_examples.TARGET_VALUES_KEY
-] = TARGET_VALUES[INDICES_TO_KEEP]
-EXAMPLE_DICT_2D3D_SUBSET[
-    input_examples.REFL_IMAGE_MATRIX_KEY
-] = THIS_REFL_IMAGE_MATRIX_DBZ[INDICES_TO_KEEP, ...]
-EXAMPLE_DICT_2D3D_SUBSET[
-    input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY
-] = THIS_AZ_SHEAR_IMAGE_MATRIX_S01[INDICES_TO_KEEP, ...]
+EXAMPLE_DICT_2D3D_SUBSET[input_examples.FULL_IDS_KEY] = [
+    FULL_ID_STRINGS[k] for k in INDICES_TO_KEEP
+]
+EXAMPLE_DICT_2D3D_SUBSET[input_examples.STORM_TIMES_KEY] = (
+    STORM_TIMES_UNIX_SEC[INDICES_TO_KEEP]
+)
+EXAMPLE_DICT_2D3D_SUBSET[input_examples.TARGET_VALUES_KEY] = (
+    TARGET_VALUES[INDICES_TO_KEEP]
+)
+EXAMPLE_DICT_2D3D_SUBSET[input_examples.REFL_IMAGE_MATRIX_KEY] = (
+    THIS_REFL_IMAGE_MATRIX_DBZ[INDICES_TO_KEEP, ...]
+)
+EXAMPLE_DICT_2D3D_SUBSET[input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY] = (
+    THIS_AZ_SHEAR_IMAGE_MATRIX_S01[INDICES_TO_KEEP, ...]
+)
 
 # The following constants are used to test _check_layer_operation.
 OPERATION_DICT_3D_GOOD = {
@@ -210,23 +215,28 @@ OPERATION_DICT_2D3D_BAD = {
 # The following constants are used to test _apply_layer_operation.
 THESE_FIELD_NAMES = [radar_utils.REFL_NAME, radar_utils.DIFFERENTIAL_REFL_NAME]
 THESE_HEIGHTS_M_AGL = numpy.array(
-    [1000, 2000, 3000, 4000, 5000, 6000], dtype=int)
+    [1000, 2000, 3000, 4000, 5000, 6000], dtype=int
+)
 
-THIS_HEIGHT1_MATRIX = numpy.array([[1, 2, 3, 4, 5, 6],
-                                   [7, 8, 9, 10, 11, 12],
-                                   [13, 14, 15, 16, 17, 18],
-                                   [19, 20, 21, 22, 23, 24]])
+THIS_HEIGHT1_MATRIX = numpy.array([
+    [1, 2, 3, 4, 5, 6],
+    [7, 8, 9, 10, 11, 12],
+    [13, 14, 15, 16, 17, 18],
+    [19, 20, 21, 22, 23, 24]
+])
 
 THIS_EXAMPLE1_MATRIX = numpy.stack(
     (THIS_HEIGHT1_MATRIX, THIS_HEIGHT1_MATRIX + 6, THIS_HEIGHT1_MATRIX + 12,
      THIS_HEIGHT1_MATRIX + 18, THIS_HEIGHT1_MATRIX + 24,
      THIS_HEIGHT1_MATRIX + 30),
-    axis=-1)
+    axis=-1
+)
 
 THIS_REFL_MATRIX_DBZ = numpy.stack(
     (THIS_EXAMPLE1_MATRIX, THIS_EXAMPLE1_MATRIX - 10,
      THIS_EXAMPLE1_MATRIX + 10),
-    axis=0)
+    axis=0
+)
 
 THIS_RADAR_IMAGE_MATRIX = numpy.stack(
     (THIS_REFL_MATRIX_DBZ, THIS_REFL_MATRIX_DBZ - 1000), axis=-1
@@ -287,7 +297,8 @@ BATCH_NUMBER = 1967
 SPC_DATE_STRING = '19670502'
 
 EXAMPLE_FILE_NAME_SHUFFLED = (
-    'foo/batches0001000-0001999/input_examples_batch0001967.nc')
+    'foo/batches0001000-0001999/input_examples_batch0001967.nc'
+)
 EXAMPLE_FILE_NAME_UNSHUFFLED = 'foo/1967/input_examples_19670502.nc'
 
 
@@ -305,7 +316,7 @@ def _compare_radar_image_dicts(first_radar_image_dict, second_radar_image_dict):
         return False
 
     for this_key in first_keys:
-        if this_key == storm_images.STORM_IDS_KEY:
+        if this_key == storm_images.FULL_IDS_KEY:
             if (first_radar_image_dict[this_key] !=
                     second_radar_image_dict[this_key]):
                 return False
@@ -372,7 +383,8 @@ class InputExamplesTests(unittest.TestCase):
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
-            these_indices_to_keep, FIRST_TORNADO_INDICES_TO_KEEP))
+            these_indices_to_keep, FIRST_TORNADO_INDICES_TO_KEEP
+        ))
 
     def test_filter_examples_by_class_tornado_second(self):
         """Ensures correct output from _filter_examples_by_class.
@@ -387,7 +399,8 @@ class InputExamplesTests(unittest.TestCase):
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
-            these_indices_to_keep, SECOND_TORNADO_INDICES_TO_KEEP))
+            these_indices_to_keep, SECOND_TORNADO_INDICES_TO_KEEP
+        ))
 
     def test_filter_examples_by_class_wind_first(self):
         """Ensures correct output from _filter_examples_by_class.
@@ -402,7 +415,8 @@ class InputExamplesTests(unittest.TestCase):
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
-            these_indices_to_keep, FIRST_WIND_INDICES_TO_KEEP))
+            these_indices_to_keep, FIRST_WIND_INDICES_TO_KEEP
+        ))
 
     def test_filter_examples_by_class_wind_second(self):
         """Ensures correct output from _filter_examples_by_class.
@@ -417,7 +431,8 @@ class InputExamplesTests(unittest.TestCase):
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
-            these_indices_to_keep, SECOND_WIND_INDICES_TO_KEEP))
+            these_indices_to_keep, SECOND_WIND_INDICES_TO_KEEP
+        ))
 
     def test_remove_storms_with_undefined_target(self):
         """Ensures correct output from remove_storms_with_undefined_target."""
@@ -428,7 +443,8 @@ class InputExamplesTests(unittest.TestCase):
         )
 
         self.assertTrue(_compare_radar_image_dicts(
-            this_radar_image_dict, RADAR_IMAGE_DICT_NO_UNDEF_TARGETS))
+            this_radar_image_dict, RADAR_IMAGE_DICT_NO_UNDEF_TARGETS
+        ))
 
     def test_subset_examples_2d(self):
         """Ensures correct output from subset_examples.
@@ -441,7 +457,8 @@ class InputExamplesTests(unittest.TestCase):
             create_new_dict=True)
 
         self.assertTrue(_compare_example_dicts(
-            this_example_dict, EXAMPLE_DICT_2D_SUBSET))
+            this_example_dict, EXAMPLE_DICT_2D_SUBSET
+        ))
 
     def test_subset_examples_3d(self):
         """Ensures correct output from subset_examples.
@@ -454,7 +471,8 @@ class InputExamplesTests(unittest.TestCase):
             create_new_dict=True)
 
         self.assertTrue(_compare_example_dicts(
-            this_example_dict, EXAMPLE_DICT_3D_SUBSET))
+            this_example_dict, EXAMPLE_DICT_3D_SUBSET
+        ))
 
     def test_subset_examples_2d3d(self):
         """Ensures correct output from subset_examples.
@@ -467,7 +485,8 @@ class InputExamplesTests(unittest.TestCase):
             indices_to_keep=INDICES_TO_KEEP, create_new_dict=True)
 
         self.assertTrue(_compare_example_dicts(
-            this_example_dict, EXAMPLE_DICT_2D3D_SUBSET))
+            this_example_dict, EXAMPLE_DICT_2D3D_SUBSET
+        ))
 
     def test_check_layer_operation_3d_good(self):
         """Ensures correct output from _check_layer_operation.
@@ -529,7 +548,8 @@ class InputExamplesTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.allclose(
-            this_radar_matrix, MAX_REFL_MATRIX_DBZ, atol=TOLERANCE))
+            this_radar_matrix, MAX_REFL_MATRIX_DBZ, atol=TOLERANCE
+        ))
         self.assertTrue(this_operation_dict == MAX_REFL_OPERATION_DICT_NEW)
 
     def test_apply_layer_operation_min_diff_refl(self):
@@ -546,7 +566,8 @@ class InputExamplesTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.allclose(
-            this_radar_matrix, MIN_DIFF_REFL_MATRIX_DB, atol=TOLERANCE))
+            this_radar_matrix, MIN_DIFF_REFL_MATRIX_DB, atol=TOLERANCE
+        ))
         self.assertTrue(this_operation_dict == MIN_DIFF_REFL_OPERATION_DICT_NEW)
 
     def test_find_example_file_shuffled(self):
@@ -582,6 +603,7 @@ class InputExamplesTests(unittest.TestCase):
 
         this_batch_number = input_examples._file_name_to_batch_number(
             EXAMPLE_FILE_NAME_SHUFFLED)
+
         self.assertTrue(this_batch_number == BATCH_NUMBER)
 
     def test_file_name_to_batch_number_unshuffled(self):

@@ -688,7 +688,8 @@ def write_target_values(storm_to_events_table, target_names, netcdf_file_name):
 
     error_checking.assert_is_string_list(target_names)
     error_checking.assert_is_numpy_array(
-        numpy.array(target_names), num_dimensions=1)
+        numpy.array(target_names), num_dimensions=1
+    )
 
     for this_target_name in target_names:
         this_param_dict = target_name_to_params(this_target_name)
@@ -698,6 +699,7 @@ def write_target_values(storm_to_events_table, target_names, netcdf_file_name):
         error_string = (
             '"{0:s}" is not a valid name for a target variable.'
         ).format(this_target_name)
+
         raise ValueError(error_string)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
@@ -732,14 +734,16 @@ def write_target_values(storm_to_events_table, target_names, netcdf_file_name):
 
     netcdf_dataset.createVariable(
         VALID_TIMES_KEY, datatype=numpy.int32,
-        dimensions=STORM_OBJECT_DIMENSION_KEY)
+        dimensions=STORM_OBJECT_DIMENSION_KEY
+    )
     netcdf_dataset.variables[VALID_TIMES_KEY][:] = storm_to_events_table[
         tracking_utils.VALID_TIME_COLUMN].values
 
     for this_target_name in target_names:
         netcdf_dataset.createVariable(
             this_target_name, datatype=numpy.float32,
-            dimensions=STORM_OBJECT_DIMENSION_KEY)
+            dimensions=STORM_OBJECT_DIMENSION_KEY
+        )
         netcdf_dataset.variables[this_target_name][:] = storm_to_events_table[
             this_target_name].values
 

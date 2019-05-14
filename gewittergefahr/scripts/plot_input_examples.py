@@ -219,11 +219,13 @@ def plot_examples(
 
         if storm_activations is not None:
             this_base_title_string += ' (activation = {0:.3f})'.format(
-                storm_activations[i])
+                storm_activations[i]
+            )
 
         this_base_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
             output_dir_name, full_id_strings[i].replace('_', '-'),
-            this_time_string)
+            this_time_string
+        )
 
         if plot_soundings:
             sounding_plotting.plot_sounding(
@@ -360,7 +362,8 @@ def plot_examples(
                 orientation='horizontal', extend_min=True, extend_max=True)
 
             this_title_string = '{0:s}; {1:s}'.format(
-                this_base_title_string, radar_field_names[j])
+                this_base_title_string, radar_field_names[j]
+            )
             this_file_name = '{0:s}_{1:s}.jpg'.format(
                 this_base_file_name, radar_field_names[j].replace('_', '-')
             )
@@ -453,7 +456,8 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         model_file_name = activation_metadata_dict[
             model_activation.MODEL_FILE_NAME_KEY]
         model_metafile_name = '{0:s}/model_metadata.p'.format(
-            os.path.split(model_file_name)[0])
+            os.path.split(model_file_name)[0]
+        )
 
         print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
         model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
@@ -479,7 +483,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
     print SEPARATOR_STRING
     list_of_predictor_matrices = testing_io.read_specific_examples(
-        desired_storm_ids=full_id_strings,
+        desired_full_id_strings=full_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
         top_example_dir_name=top_example_dir_name,
