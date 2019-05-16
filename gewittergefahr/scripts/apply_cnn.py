@@ -3,8 +3,11 @@
 import os.path
 import argparse
 import numpy
+import netCDF4
 import keras.backend as K
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import target_val_utils
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
@@ -17,6 +20,16 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 LARGE_INTEGER = int(1e10)
 INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+
+TARGET_NAME_KEY = 'target_name'
+EXAMPLE_DIMENSION_KEY = 'storm_object'
+CLASS_DIMENSION_KEY = 'class'
+STORM_ID_CHAR_DIM_KEY = 'storm_id_character'
+
+STORM_IDS_KEY = 'storm_ids'
+STORM_TIMES_KEY = 'storm_times_unix_sec'
+PROBABILITY_MATRIX_KEY = 'class_probability_matrix'
+OBSERVED_LABELS_KEY = 'observed_labels'
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
@@ -38,9 +51,9 @@ TIME_HELP_STRING = (
     'examples in the file `{0:s}` in the time period `{1:s}`...`{2:s}`.'
 ).format(EXAMPLE_FILE_ARG_NAME, FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
-# TODO(thunderhoser): Fix this help string.
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file.  Predictions will be written here by ``.')
+    'Path to output file.  Predictions will be written here by '
+    '`_write_predictions`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -60,6 +73,81 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
+
+
+def _write_predictions(
+        netcdf_file_name, class_probability_matrix, storm_ids,
+        storm_times_unix_sec, target_name, observed_labels=None):
+    """Writes predictions to NetCDF file.
+
+    K = number of classes
+    E = number of examples (storm objects)
+
+    :param netcdf_file_name: Path to output file.
+    :param class_probability_matrix: E-by-K numpy array of forecast
+        probabilities.
+    :param storm_ids: length-E list of storm IDs (strings).
+    :param storm_times_unix_sec: length-E numpy array of valid times.
+    :param target_name: Name of target variable.
+    :param observed_labels: [this may be None]
+        length-E numpy array of observed labels (integers in 0...[K - 1]).
+    """
+
+    # TODO(thunderhoser): Move this method to another file.
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    dataset_object.setncattr(TARGET_NAME_KEY, target_name)
+    dataset_object.createDimension(
+        EXAMPLE_DIMENSION_KEY, class_probability_matrix.shape[0]
+    )
+    dataset_object.createDimension(
+        CLASS_DIMENSION_KEY, class_probability_matrix.shape[1]
+    )
+
+    num_id_characters = 1 + numpy.max(numpy.array([
+        len(s) for s in storm_ids
+    ]))
+    dataset_object.createDimension(STORM_ID_CHAR_DIM_KEY, num_id_characters)
+
+    # Add storm IDs.
+    this_string_format = 'S{0:d}'.format(num_id_characters)
+    storm_ids_char_array = netCDF4.stringtochar(numpy.array(
+        storm_ids, dtype=this_string_format
+    ))
+
+    dataset_object.createVariable(
+        STORM_IDS_KEY, datatype='S1',
+        dimensions=(EXAMPLE_DIMENSION_KEY, STORM_ID_CHAR_DIM_KEY)
+    )
+    dataset_object.variables[STORM_IDS_KEY][:] = numpy.array(
+        storm_ids_char_array)
+
+    # Add storm times.
+    dataset_object.createVariable(
+        STORM_TIMES_KEY, datatype=numpy.int32, dimensions=EXAMPLE_DIMENSION_KEY
+    )
+    dataset_object.variables[STORM_TIMES_KEY][:] = storm_times_unix_sec
+
+    # Add probabilities.
+    dataset_object.createVariable(
+        PROBABILITY_MATRIX_KEY, datatype=numpy.float32,
+        dimensions=(EXAMPLE_DIMENSION_KEY, CLASS_DIMENSION_KEY)
+    )
+    dataset_object.variables[PROBABILITY_MATRIX_KEY][:] = (
+        class_probability_matrix
+    )
+
+    if observed_labels is not None:
+        dataset_object.createVariable(
+            OBSERVED_LABELS_KEY, datatype=numpy.int32,
+            dimensions=EXAMPLE_DIMENSION_KEY
+        )
+        dataset_object.variables[OBSERVED_LABELS_KEY][:] = observed_labels
+
+    dataset_object.close()
 
 
 def _run(model_file_name, example_file_name, first_time_string,
@@ -122,12 +210,11 @@ def _run(model_file_name, example_file_name, first_time_string,
         else:
             this_sounding_matrix = None
 
-        forecast_probabilities = cnn.apply_2d3d_cnn(
+        class_probability_matrix = cnn.apply_2d3d_cnn(
             model_object=model_object,
             reflectivity_matrix_dbz=list_of_predictor_matrices[0],
             azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
-            sounding_matrix=this_sounding_matrix, verbose=True
-        )[:, -1]
+            sounding_matrix=this_sounding_matrix, verbose=True)
 
     else:
         if len(list_of_predictor_matrices) == 2:
@@ -135,26 +222,49 @@ def _run(model_file_name, example_file_name, first_time_string,
         else:
             this_sounding_matrix = None
 
-        forecast_probabilities = cnn.apply_2d_or_3d_cnn(
+        class_probability_matrix = cnn.apply_2d_or_3d_cnn(
             model_object=model_object,
             radar_image_matrix=list_of_predictor_matrices[0],
-            sounding_matrix=this_sounding_matrix, verbose=True
-        )[:, -1]
+            sounding_matrix=this_sounding_matrix, verbose=True)
 
     print SEPARATOR_STRING
+    num_examples = class_probability_matrix.shape[0]
 
     for k in [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
         print '{0:d}th percentile of {1:d} forecast probs = {2:.4f}'.format(
-            k, len(forecast_probabilities),
-            numpy.percentile(forecast_probabilities, k)
+            k, num_examples, numpy.percentile(class_probability_matrix[:, 1], k)
         )
 
     print '\n'
 
-    for i in range(len(forecast_probabilities)):
-        print 'Observed label = {0:d} ... forecast prob = {1:.4f}'.format(
-            observed_labels[i], forecast_probabilities[i]
-        )
+    # for i in range(num_examples):
+    #     print 'Observed label = {0:d} ... forecast prob = {1:.4f}'.format(
+    #         observed_labels[i], class_probability_matrix[i, 1]
+    #     )
+    #
+    # print '\n'
+
+    target_param_dict = target_val_utils.target_name_to_params(
+        model_metadata_dict[cnn.TARGET_NAME_KEY]
+    )
+
+    target_name = target_val_utils.target_params_to_name(
+        min_lead_time_sec=target_param_dict[target_val_utils.MIN_LEAD_TIME_KEY],
+        max_lead_time_sec=target_param_dict[target_val_utils.MAX_LEAD_TIME_KEY],
+        min_link_distance_metres=target_param_dict[
+            target_val_utils.MIN_LINKAGE_DISTANCE_KEY],
+        max_link_distance_metres=10000.
+    )
+
+    print 'Writing "{0:s}" predictions to: "{1:s}"...'.format(
+        target_name, output_file_name)
+
+    _write_predictions(
+        netcdf_file_name=output_file_name,
+        class_probability_matrix=class_probability_matrix,
+        storm_ids=storm_object_dict[testing_io.STORM_IDS_KEY],
+        storm_times_unix_sec=storm_object_dict[testing_io.STORM_TIMES_KEY],
+        target_name=target_name, observed_labels=observed_labels)
 
 
 if __name__ == '__main__':

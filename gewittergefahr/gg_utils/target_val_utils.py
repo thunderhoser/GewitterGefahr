@@ -246,7 +246,7 @@ def target_name_to_params(target_name):
     target_param_dict['min_lead_time_sec']: See doc for `_check_target_params`.
     target_param_dict['max_lead_time_sec']: Same.
     target_param_dict['min_link_distance_metres']: Same.
-    target_param_dict['min_link_distance_metres']: Same.
+    target_param_dict['max_link_distance_metres']: Same.
     target_param_dict['wind_speed_percentile_level']: Same.
     target_param_dict['wind_speed_cutoffs_kt']: Same.
     target_param_dict['event_type_string']: Event type (one of the strings
