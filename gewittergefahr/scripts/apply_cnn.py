@@ -149,6 +149,13 @@ def _run(model_file_name, example_file_name, first_time_string,
             numpy.percentile(forecast_probabilities, k)
         )
 
+    print '\n'
+
+    for i in range(len(forecast_probabilities)):
+        print 'Observed label = {0:d} ... forecast prob = {1:.4f}'.format(
+            observed_labels[i], forecast_probabilities[i]
+        )
+
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
