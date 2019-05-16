@@ -55,14 +55,31 @@ OUTPUT_FILE_HELP_STRING = (
     'Path to output file.  Predictions will be written here by '
     '`_write_predictions`.')
 
+DEFAULT_MODEL_FILE_NAME = (
+    '/condo/swatwork/ralager/data_aug_experiment_gridrad/'
+    'rotation-angles-deg=15-m15-30-m30_noise-stdev=0.05_flip=0_'
+    'x-translations-px=m3-0-3-3-3-0-m3-m3_y-translations-px=3-3-3-0-m3-m3-m3-0/'
+    'model.h5')
+
+DEFAULT_EXAMPLE_FILE_NAME = (
+    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
+    'correct_echo_tops/reanalyzed/input_examples/2018/'
+    'input_examples_20180403.nc')
+
+DEFAULT_PREDICTION_FILE_NAME = (
+    '/condo/swatwork/ralager/data_aug_experiment_gridrad/'
+    'rotation-angles-deg=15-m15-30-m30_noise-stdev=0.05_flip=0_'
+    'x-translations-px=m3-0-3-3-3-0-m3-m3_y-translations-px=3-3-3-0-m3-m3-m3-0/'
+    'predictions.nc')
+
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + MODEL_FILE_ARG_NAME, type=str, required=True,
-    help=MODEL_FILE_HELP_STRING)
+    '--' + MODEL_FILE_ARG_NAME, type=str, required=False,
+    default=DEFAULT_MODEL_FILE_NAME, help=MODEL_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + EXAMPLE_FILE_ARG_NAME, type=str, required=True,
-    help=EXAMPLE_FILE_HELP_STRING)
+    '--' + EXAMPLE_FILE_ARG_NAME, type=str, required=False,
+    default=DEFAULT_EXAMPLE_FILE_NAME, help=EXAMPLE_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
@@ -71,8 +88,8 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
-    help=OUTPUT_FILE_HELP_STRING)
+    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=False,
+    default=DEFAULT_PREDICTION_FILE_NAME, help=OUTPUT_FILE_HELP_STRING)
 
 
 def _write_predictions(
