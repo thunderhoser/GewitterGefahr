@@ -52,6 +52,9 @@ PREV_SECONDARY_ID_COLUMNS = [
     tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN
 ]
 
+DEFAULT_EAST_VELOCITY_M_S01 = 0.
+DEFAULT_NORTH_VELOCITY_M_S01 = 0.
+
 
 def _estimate_velocity_by_neigh(
         x_coords_metres, y_coords_metres, x_velocities_m_s01,
@@ -639,6 +642,160 @@ def _local_maxima_to_tracks_simple(
         PREVIOUS_SPC_DATE_KEY: prev_spc_date_string,
         PREVIOUS_SECONDARY_ID_KEY: prev_secondary_id_numeric
     }
+
+
+def _get_storm_velocities_missing(
+        storm_object_table,
+        e_folding_radius_metres=DEFAULT_VELOCITY_EFOLD_RADIUS_METRES):
+    """Fills velocities that could not be estimated by `get_storm_velocities`.
+
+    :param storm_object_table: See input doc for `get_storm_velocities`.
+    :param e_folding_radius_metres: See doc for `_estimate_velocity_by_neigh`.
+    :return: storm_object_table: See output doc for `get_storm_velocities`.
+    """
+
+    east_velocities_m_s01 = storm_object_table[
+        tracking_utils.EAST_VELOCITY_COLUMN].values
+
+    north_velocities_m_s01 = storm_object_table[
+        tracking_utils.NORTH_VELOCITY_COLUMN].values
+
+    if not numpy.any(numpy.isnan(east_velocities_m_s01)):
+        return storm_object_table
+
+    unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
+        return_inverse=True)
+
+    num_times = len(unique_times_unix_sec)
+
+    # Use neighbouring storms at same time to estimate missing velocities.
+    for j in range(num_times):
+        these_indices = numpy.where(orig_to_unique_indices == j)[0]
+        if not numpy.any(numpy.isnan(east_velocities_m_s01[these_indices])):
+            continue
+
+        print (
+            'Using neighbouring storms at {0:d} time to estimate missing '
+            'velocities...'
+        ).format(j)
+
+        (east_velocities_m_s01[these_indices],
+         north_velocities_m_s01[these_indices]
+        ) = _estimate_velocity_by_neigh(
+            x_coords_metres=storm_object_table[
+                CENTROID_X_COLUMN].values[these_indices],
+            y_coords_metres=storm_object_table[
+                CENTROID_Y_COLUMN].values[these_indices],
+            x_velocities_m_s01=east_velocities_m_s01[these_indices],
+            y_velocities_m_s01=north_velocities_m_s01[these_indices],
+            e_folding_radius_metres=e_folding_radius_metres)
+
+    if not numpy.any(numpy.isnan(east_velocities_m_s01)):
+        return storm_object_table.assign(**{
+            tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
+            tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01
+        })
+
+    # Use all storms at same time to estimate missing velocities.
+    for j in range(num_times):
+        these_indices = numpy.where(orig_to_unique_indices == j)[0]
+        if not numpy.any(numpy.isnan(east_velocities_m_s01[these_indices])):
+            continue
+
+        print (
+            'Using all storms at {0:d} time to estimate missing velocities...'
+        ).format(j)
+
+        (east_velocities_m_s01[these_indices],
+         north_velocities_m_s01[these_indices]
+        ) = _estimate_velocity_by_neigh(
+            x_coords_metres=storm_object_table[
+                CENTROID_X_COLUMN].values[these_indices],
+            y_coords_metres=storm_object_table[
+                CENTROID_Y_COLUMN].values[these_indices],
+            x_velocities_m_s01=east_velocities_m_s01[these_indices],
+            y_velocities_m_s01=north_velocities_m_s01[these_indices],
+            e_folding_radius_metres=1e7)
+
+    if not numpy.any(numpy.isnan(east_velocities_m_s01)):
+        return storm_object_table.assign(**{
+            tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
+            tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01
+        })
+
+    # Use neighbouring storms at all times to estimate missing velocities.
+    for j in range(num_times):
+        these_indices = numpy.where(orig_to_unique_indices == j)[0]
+        if not numpy.any(numpy.isnan(east_velocities_m_s01[these_indices])):
+            continue
+
+        print (
+            'Using neighbouring storms at all times to estimate missing '
+            'velocities...'
+        ).format(j)
+
+        these_east_velocities_m_s01, these_north_velocities_m_s01 = (
+            _estimate_velocity_by_neigh(
+                x_coords_metres=storm_object_table[CENTROID_X_COLUMN].values,
+                y_coords_metres=storm_object_table[CENTROID_Y_COLUMN].values,
+                x_velocities_m_s01=east_velocities_m_s01 + 0.,
+                y_velocities_m_s01=north_velocities_m_s01 + 0.,
+                e_folding_radius_metres=e_folding_radius_metres)
+        )
+
+        east_velocities_m_s01[these_indices] = these_east_velocities_m_s01[
+            these_indices]
+        north_velocities_m_s01[these_indices] = these_north_velocities_m_s01[
+            these_indices]
+
+    if not numpy.any(numpy.isnan(east_velocities_m_s01)):
+        return storm_object_table.assign(**{
+            tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
+            tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01
+        })
+
+    # Use all storms at all times to estimate missing velocities.
+    for j in range(num_times):
+        these_indices = numpy.where(orig_to_unique_indices == j)[0]
+        if not numpy.any(numpy.isnan(east_velocities_m_s01[these_indices])):
+            continue
+
+        print (
+            'Using all storms at all times to estimate missing velocities...'
+        ).format(j)
+
+        these_east_velocities_m_s01, these_north_velocities_m_s01 = (
+            _estimate_velocity_by_neigh(
+                x_coords_metres=storm_object_table[CENTROID_X_COLUMN].values,
+                y_coords_metres=storm_object_table[CENTROID_Y_COLUMN].values,
+                x_velocities_m_s01=east_velocities_m_s01 + 0.,
+                y_velocities_m_s01=north_velocities_m_s01 + 0.,
+                e_folding_radius_metres=1e7)
+        )
+
+        east_velocities_m_s01[these_indices] = these_east_velocities_m_s01[
+            these_indices]
+        north_velocities_m_s01[these_indices] = these_north_velocities_m_s01[
+            these_indices]
+
+    if not numpy.any(numpy.isnan(east_velocities_m_s01)):
+        return storm_object_table.assign(**{
+            tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
+            tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01
+        })
+
+    # Replace missing velocities with defaults.
+    print 'Replacing missing velocities with defaults...'
+
+    nan_indices = numpy.where(numpy.isnan(east_velocities_m_s01))[0]
+    east_velocities_m_s01[nan_indices] = DEFAULT_EAST_VELOCITY_M_S01
+    north_velocities_m_s01[nan_indices] = DEFAULT_NORTH_VELOCITY_M_S01
+
+    return storm_object_table.assign(**{
+        tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
+        tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01
+    })
 
 
 def create_full_storm_id(primary_id_string, secondary_id_string):
@@ -1407,13 +1564,12 @@ def get_storm_velocities(
     """Estimates instantaneous velocity for each storm object.
 
     :param storm_object_table: pandas DataFrame with at least the following
-        columns.  Each row is one storm object, and all storm objects should be
-        from the same track (same primary ID).
+        columns.  Each row is one storm object.
     storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
     storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
     storm_object_table.centroid_x_metres: x-coordinate of storm centroid.
     storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
-    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.valid_time_unix_sec: Valid time.
     storm_object_table.secondary_storm_id: Secondary ID (string).
     storm_object_table.first_prev_secondary_id: Secondary ID of first
         predecessor ("" if no predecessors).
@@ -1432,6 +1588,7 @@ def get_storm_velocities(
     """
 
     error_checking.assert_is_boolean(test_mode)
+
     num_storm_objects = len(storm_object_table.index)
     east_velocities_m_s01 = numpy.full(num_storm_objects, numpy.nan)
     north_velocities_m_s01 = numpy.full(num_storm_objects, numpy.nan)
@@ -1494,19 +1651,12 @@ def get_storm_velocities(
             these_north_displacements_metres / these_time_diffs_seconds
         )
 
-    east_velocities_m_s01, north_velocities_m_s01 = _estimate_velocity_by_neigh(
-        x_coords_metres=storm_object_table[CENTROID_X_COLUMN].values,
-        y_coords_metres=storm_object_table[CENTROID_Y_COLUMN].values,
-        x_velocities_m_s01=east_velocities_m_s01,
-        y_velocities_m_s01=north_velocities_m_s01,
-        e_folding_radius_metres=DEFAULT_VELOCITY_EFOLD_RADIUS_METRES)
-
-    argument_dict = {
+    storm_object_table = storm_object_table.assign(**{
         tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
         tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01
-    }
+    })
 
-    return storm_object_table.assign(**argument_dict)
+    return _get_storm_velocities_missing(storm_object_table=storm_object_table)
 
 
 def _finish_segmotion_or_probsevere_ids(storm_object_table):
