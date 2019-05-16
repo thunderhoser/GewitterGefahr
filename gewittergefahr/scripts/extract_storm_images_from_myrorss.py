@@ -13,7 +13,8 @@ from gewittergefahr.deep_learning import storm_images
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 ALL_AZ_SHEAR_FIELD_NAMES = [
-    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
+]
 
 NUM_ROWS_ARG_NAME = 'num_rows_per_image'
 NUM_COLUMNS_ARG_NAME = 'num_columns_per_image'
@@ -25,6 +26,7 @@ SPC_DATE_ARG_NAME = 'spc_date_string'
 TARRED_MYRORSS_DIR_ARG_NAME = 'input_tarred_myrorss_dir_name'
 UNTARRED_MYRORSS_DIR_ARG_NAME = 'input_untarred_myrorss_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
+ELEVATION_DIR_ARG_NAME = 'input_elevation_dir_name'
 TRACKING_SCALE_ARG_NAME = 'tracking_scale_metres2'
 TARGET_NAME_ARG_NAME = 'target_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
@@ -73,6 +75,10 @@ UNTARRED_MYRORSS_DIR_HELP_STRING = (
 TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-tracking data.')
 
+ELEVATION_DIR_HELP_STRING = (
+    'Name of directory with elevation data (used by the Python package "srtm").'
+)
+
 TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum storm area).  This argument is used to find the '
     'specific tracking files in `{0:s}`.').format(TRACKING_DIR_ARG_NAME)
@@ -97,10 +103,13 @@ DEFAULT_TARRED_DIR_NAME = '/condo/swatcommon/common/myrorss'
 DEFAULT_UNTARRED_DIR_NAME = '/condo/swatwork/ralager/myrorss_temp'
 DEFAULT_TRACKING_DIR_NAME = (
     '/condo/swatwork/ralager/myrorss_40dbz_echo_tops/echo_top_tracking/'
-    'joined_across_spc_dates/smart_polygons')
+    'joined_across_spc_dates/smart_polygons'
+)
+DEFAULT_ELEVATION_DIR_NAME = '/condo/swatwork/ralager/elevation'
 DEFAULT_OUTPUT_DIR_NAME = (
     '/condo/swatwork/ralager/myrorss_40dbz_echo_tops/echo_top_tracking/'
-    'joined_across_spc_dates/smart_polygons/storm_images')
+    'joined_across_spc_dates/smart_polygons/storm_images'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -148,6 +157,10 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_TRACKING_DIR_NAME, help=TRACKING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + ELEVATION_DIR_ARG_NAME, type=str, required=False,
+    default=DEFAULT_ELEVATION_DIR_NAME, help=ELEVATION_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
     default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
     help=TRACKING_SCALE_HELP_STRING)
@@ -169,8 +182,8 @@ def _extract_storm_images(
         num_image_rows, num_image_columns, rotate_grids,
         rotated_grid_spacing_metres, radar_field_names, refl_heights_m_agl,
         spc_date_string, tarred_myrorss_dir_name, untarred_myrorss_dir_name,
-        top_tracking_dir_name, tracking_scale_metres2, target_name,
-        top_target_dir_name, top_output_dir_name):
+        top_tracking_dir_name, elevation_dir_name, tracking_scale_metres2,
+        target_name, top_target_dir_name, top_output_dir_name):
     """Extracts storm-centered img for each field/height pair and storm object.
 
     :param num_image_rows: See documentation at top of file.
@@ -183,6 +196,7 @@ def _extract_storm_images(
     :param tarred_myrorss_dir_name: Same.
     :param untarred_myrorss_dir_name: Same.
     :param top_tracking_dir_name: Same.
+    :param elevation_dir_name: Same.
     :param tracking_scale_metres2: Same.
     :param target_name: Same.
     :param top_target_dir_name: Same.
@@ -194,6 +208,7 @@ def _extract_storm_images(
 
     if target_name is not None:
         target_param_dict = target_val_utils.target_name_to_params(target_name)
+
         target_file_name = target_val_utils.find_target_file(
             top_directory_name=top_target_dir_name,
             event_type_string=target_param_dict[
@@ -216,8 +231,8 @@ def _extract_storm_images(
 
     if len(az_shear_field_names):
         az_shear_tar_file_name = (
-            '{0:s}/{1:s}/azimuthal_shear_only/{2:s}.tar'.format(
-                tarred_myrorss_dir_name, spc_date_string[:4], spc_date_string))
+            '{0:s}/{1:s}/azimuthal_shear_only/{2:s}.tar'
+        ).format(tarred_myrorss_dir_name, spc_date_string[:4], spc_date_string)
 
         myrorss_io.unzip_1day_tar_file(
             tar_file_name=az_shear_tar_file_name,
@@ -232,7 +247,8 @@ def _extract_storm_images(
 
     if len(non_shear_field_names):
         non_shear_tar_file_name = '{0:s}/{1:s}/{2:s}.tar'.format(
-            tarred_myrorss_dir_name, spc_date_string[:4], spc_date_string)
+            tarred_myrorss_dir_name, spc_date_string[:4], spc_date_string
+        )
 
         myrorss_io.unzip_1day_tar_file(
             tar_file_name=non_shear_tar_file_name,
@@ -242,13 +258,14 @@ def _extract_storm_images(
         print SEPARATOR_STRING
 
     # Read storm tracks for the given SPC date.
-    tracking_file_names = tracking_io.find_processed_files_one_spc_date(
+    tracking_file_names = tracking_io.find_files_one_spc_date(
         spc_date_string=spc_date_string,
-        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-        top_processed_dir_name=top_tracking_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2)[0]
+        source_name=tracking_utils.SEGMOTION_NAME,
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2
+    )[0]
 
-    storm_object_table = tracking_io.read_many_processed_files(
+    storm_object_table = tracking_io.read_many_files(
         tracking_file_names
     )[storm_images.STORM_COLUMNS_NEEDED]
     print SEPARATOR_STRING
@@ -260,11 +277,11 @@ def _extract_storm_images(
         ).format(target_name)
 
         these_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=storm_object_table[
-                tracking_utils.STORM_ID_COLUMN].values.tolist(),
+            all_id_strings=storm_object_table[
+                tracking_utils.FULL_ID_COLUMN].values.tolist(),
             all_times_unix_sec=storm_object_table[
-                tracking_utils.TIME_COLUMN].values.astype(int),
-            storm_ids_to_keep=target_dict[target_val_utils.STORM_IDS_KEY],
+                tracking_utils.VALID_TIME_COLUMN].values.astype(int),
+            id_strings_to_keep=target_dict[target_val_utils.FULL_IDS_KEY],
             times_to_keep_unix_sec=target_dict[
                 target_val_utils.VALID_TIMES_KEY],
             allow_missing=False)
@@ -274,7 +291,8 @@ def _extract_storm_images(
         num_storm_objects = len(storm_object_table.index)
 
         print 'Removed {0:d} of {1:d} storm objects!\n'.format(
-            num_storm_objects_orig - num_storm_objects, num_storm_objects_orig)
+            num_storm_objects_orig - num_storm_objects, num_storm_objects_orig
+        )
 
     # Extract storm-centered radar images.
     storm_images.extract_storm_images_myrorss_or_mrms(
@@ -282,6 +300,7 @@ def _extract_storm_images(
         radar_source=radar_utils.MYRORSS_SOURCE_ID,
         top_radar_dir_name=untarred_myrorss_dir_name,
         top_output_dir_name=top_output_dir_name,
+        elevation_dir_name=elevation_dir_name,
         num_storm_image_rows=num_image_rows,
         num_storm_image_columns=num_image_columns, rotate_grids=rotate_grids,
         rotated_grid_spacing_metres=rotated_grid_spacing_metres,
@@ -315,8 +334,10 @@ if __name__ == '__main__':
         untarred_myrorss_dir_name=getattr(
             INPUT_ARG_OBJECT, UNTARRED_MYRORSS_DIR_ARG_NAME),
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
+        elevation_dir_name=getattr(INPUT_ARG_OBJECT, ELEVATION_DIR_ARG_NAME),
         tracking_scale_metres2=getattr(
             INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME),
         target_name=getattr(INPUT_ARG_OBJECT, TARGET_NAME_ARG_NAME),
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
-        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+    )

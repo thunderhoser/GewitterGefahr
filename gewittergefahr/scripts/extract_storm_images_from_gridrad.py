@@ -19,6 +19,7 @@ RADAR_HEIGHTS_ARG_NAME = 'radar_heights_m_agl'
 SPC_DATE_ARG_NAME = 'spc_date_string'
 RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
+ELEVATION_DIR_ARG_NAME = 'input_elevation_dir_name'
 TRACKING_SCALE_ARG_NAME = 'tracking_scale_metres2'
 TARGET_NAME_ARG_NAME = 'target_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
@@ -64,6 +65,10 @@ RADAR_DIR_HELP_STRING = (
 TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-tracking data.')
 
+ELEVATION_DIR_HELP_STRING = (
+    'Name of directory with elevation data (used by the Python package "srtm").'
+)
+
 TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum storm area).  This argument is used to find the '
     'specific tracking files in `{0:s}`.'
@@ -86,6 +91,7 @@ OUTPUT_DIR_HELP_STRING = (
     'Name of top-level directory for storm-centered radar images.')
 
 DEFAULT_RADAR_DIR_NAME = '/condo/swatcommon/common/gridrad_final/native_format'
+DEFAULT_ELEVATION_DIR_NAME = '/condo/swatwork/ralager/elevation'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -129,6 +135,10 @@ INPUT_ARG_PARSER.add_argument(
     help=TRACKING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + ELEVATION_DIR_ARG_NAME, type=str, required=False,
+    default=DEFAULT_ELEVATION_DIR_NAME, help=ELEVATION_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
     default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
     help=TRACKING_SCALE_HELP_STRING)
@@ -150,8 +160,8 @@ def _extract_storm_images(
         num_image_rows, num_image_columns, rotate_grids,
         rotated_grid_spacing_metres, radar_field_names, radar_heights_m_agl,
         spc_date_string, top_radar_dir_name, top_tracking_dir_name,
-        tracking_scale_metres2, target_name, top_target_dir_name,
-        top_output_dir_name):
+        elevation_dir_name, tracking_scale_metres2, target_name,
+        top_target_dir_name, top_output_dir_name):
     """Extracts storm-centered radar images from GridRad data.
 
     :param num_image_rows: See documentation at top of file.
@@ -163,6 +173,7 @@ def _extract_storm_images(
     :param spc_date_string: Same.
     :param top_radar_dir_name: Same.
     :param top_tracking_dir_name: Same.
+    :param elevation_dir_name: Same.
     :param tracking_scale_metres2: Same.
     :param target_name: Same.
     :param top_target_dir_name: Same.
@@ -174,6 +185,7 @@ def _extract_storm_images(
 
     if target_name is not None:
         target_param_dict = target_val_utils.target_name_to_params(target_name)
+
         target_file_name = target_val_utils.find_target_file(
             top_directory_name=top_target_dir_name,
             event_type_string=target_param_dict[
@@ -186,14 +198,15 @@ def _extract_storm_images(
         print '\n'
 
     # Find storm objects on the given SPC date.
-    tracking_file_names = tracking_io.find_processed_files_one_spc_date(
+    tracking_file_names = tracking_io.find_files_one_spc_date(
         spc_date_string=spc_date_string,
-        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-        top_processed_dir_name=top_tracking_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2)[0]
+        source_name=tracking_utils.SEGMOTION_NAME,
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2
+    )[0]
 
     # Read storm objects on the given SPC date.
-    storm_object_table = tracking_io.read_many_processed_files(
+    storm_object_table = tracking_io.read_many_files(
         tracking_file_names
     )[storm_images.STORM_COLUMNS_NEEDED]
     print SEPARATOR_STRING
@@ -205,11 +218,11 @@ def _extract_storm_images(
         ).format(target_name)
 
         these_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=storm_object_table[
-                tracking_utils.STORM_ID_COLUMN].values.tolist(),
+            all_id_strings=storm_object_table[
+                tracking_utils.FULL_ID_COLUMN].values.tolist(),
             all_times_unix_sec=storm_object_table[
-                tracking_utils.TIME_COLUMN].values.astype(int),
-            storm_ids_to_keep=target_dict[target_val_utils.STORM_IDS_KEY],
+                tracking_utils.VALID_TIME_COLUMN].values.astype(int),
+            id_strings_to_keep=target_dict[target_val_utils.FULL_IDS_KEY],
             times_to_keep_unix_sec=target_dict[
                 target_val_utils.VALID_TIMES_KEY],
             allow_missing=False)
@@ -219,13 +232,15 @@ def _extract_storm_images(
         num_storm_objects = len(storm_object_table.index)
 
         print 'Removed {0:d} of {1:d} storm objects!\n'.format(
-            num_storm_objects_orig - num_storm_objects, num_storm_objects_orig)
+            num_storm_objects_orig - num_storm_objects, num_storm_objects_orig
+        )
 
     # Extract storm-centered radar images.
     storm_images.extract_storm_images_gridrad(
         storm_object_table=storm_object_table,
         top_radar_dir_name=top_radar_dir_name,
         top_output_dir_name=top_output_dir_name,
+        elevation_dir_name=elevation_dir_name,
         num_storm_image_rows=num_image_rows,
         num_storm_image_columns=num_image_columns, rotate_grids=rotate_grids,
         rotated_grid_spacing_metres=rotated_grid_spacing_metres,
@@ -248,6 +263,7 @@ if __name__ == '__main__':
         spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
         top_radar_dir_name=getattr(INPUT_ARG_OBJECT, RADAR_DIR_ARG_NAME),
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
+        elevation_dir_name=getattr(INPUT_ARG_OBJECT, ELEVATION_DIR_ARG_NAME),
         tracking_scale_metres2=getattr(
             INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME),
         target_name=getattr(INPUT_ARG_OBJECT, TARGET_NAME_ARG_NAME),
