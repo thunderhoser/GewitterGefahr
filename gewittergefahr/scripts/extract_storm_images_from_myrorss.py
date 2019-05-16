@@ -26,6 +26,7 @@ SPC_DATE_ARG_NAME = 'spc_date_string'
 TARRED_MYRORSS_DIR_ARG_NAME = 'input_tarred_myrorss_dir_name'
 UNTARRED_MYRORSS_DIR_ARG_NAME = 'input_untarred_myrorss_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
+ELEVATION_DIR_ARG_NAME = 'input_elevation_dir_name'
 TRACKING_SCALE_ARG_NAME = 'tracking_scale_metres2'
 TARGET_NAME_ARG_NAME = 'target_name'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
@@ -74,6 +75,10 @@ UNTARRED_MYRORSS_DIR_HELP_STRING = (
 TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-tracking data.')
 
+ELEVATION_DIR_HELP_STRING = (
+    'Name of directory with elevation data (used by the Python package "srtm").'
+)
+
 TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum storm area).  This argument is used to find the '
     'specific tracking files in `{0:s}`.').format(TRACKING_DIR_ARG_NAME)
@@ -100,6 +105,7 @@ DEFAULT_TRACKING_DIR_NAME = (
     '/condo/swatwork/ralager/myrorss_40dbz_echo_tops/echo_top_tracking/'
     'joined_across_spc_dates/smart_polygons'
 )
+DEFAULT_ELEVATION_DIR_NAME = '/condo/swatwork/ralager/elevation'
 DEFAULT_OUTPUT_DIR_NAME = (
     '/condo/swatwork/ralager/myrorss_40dbz_echo_tops/echo_top_tracking/'
     'joined_across_spc_dates/smart_polygons/storm_images'
@@ -151,6 +157,10 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_TRACKING_DIR_NAME, help=TRACKING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + ELEVATION_DIR_ARG_NAME, type=str, required=False,
+    default=DEFAULT_ELEVATION_DIR_NAME, help=ELEVATION_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
     default=echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
     help=TRACKING_SCALE_HELP_STRING)
@@ -172,8 +182,8 @@ def _extract_storm_images(
         num_image_rows, num_image_columns, rotate_grids,
         rotated_grid_spacing_metres, radar_field_names, refl_heights_m_agl,
         spc_date_string, tarred_myrorss_dir_name, untarred_myrorss_dir_name,
-        top_tracking_dir_name, tracking_scale_metres2, target_name,
-        top_target_dir_name, top_output_dir_name):
+        top_tracking_dir_name, elevation_dir_name, tracking_scale_metres2,
+        target_name, top_target_dir_name, top_output_dir_name):
     """Extracts storm-centered img for each field/height pair and storm object.
 
     :param num_image_rows: See documentation at top of file.
@@ -186,6 +196,7 @@ def _extract_storm_images(
     :param tarred_myrorss_dir_name: Same.
     :param untarred_myrorss_dir_name: Same.
     :param top_tracking_dir_name: Same.
+    :param elevation_dir_name: Same.
     :param tracking_scale_metres2: Same.
     :param target_name: Same.
     :param top_target_dir_name: Same.
@@ -289,6 +300,7 @@ def _extract_storm_images(
         radar_source=radar_utils.MYRORSS_SOURCE_ID,
         top_radar_dir_name=untarred_myrorss_dir_name,
         top_output_dir_name=top_output_dir_name,
+        elevation_dir_name=elevation_dir_name,
         num_storm_image_rows=num_image_rows,
         num_storm_image_columns=num_image_columns, rotate_grids=rotate_grids,
         rotated_grid_spacing_metres=rotated_grid_spacing_metres,
@@ -322,6 +334,7 @@ if __name__ == '__main__':
         untarred_myrorss_dir_name=getattr(
             INPUT_ARG_OBJECT, UNTARRED_MYRORSS_DIR_ARG_NAME),
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
+        elevation_dir_name=getattr(INPUT_ARG_OBJECT, ELEVATION_DIR_ARG_NAME),
         tracking_scale_metres2=getattr(
             INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME),
         target_name=getattr(INPUT_ARG_OBJECT, TARGET_NAME_ARG_NAME),

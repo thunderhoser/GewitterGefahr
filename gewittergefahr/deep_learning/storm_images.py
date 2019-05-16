@@ -31,7 +31,6 @@ AZ_SHEAR_GRID_SPACING_MULTIPLIER = 2
 
 LABEL_FILE_EXTENSION = '.nc'
 ELEVATION_COLUMN = 'elevation_m_asl'
-ELEVATION_DIR_NAME = '/condo/swatwork/ralager/elevation'
 
 GRIDRAD_TIME_INTERVAL_SEC = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -1082,7 +1081,8 @@ def downsize_storm_images(
 
 def extract_storm_images_myrorss_or_mrms(
         storm_object_table, radar_source, top_radar_dir_name,
-        top_output_dir_name, num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
+        top_output_dir_name, elevation_dir_name,
+        num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
         num_storm_image_columns=DEFAULT_NUM_IMAGE_COLUMNS, rotate_grids=True,
         rotated_grid_spacing_metres=DEFAULT_ROTATED_GRID_SPACING_METRES,
         radar_field_names=DEFAULT_MYRORSS_MRMS_FIELD_NAMES,
@@ -1114,6 +1114,8 @@ def extract_storm_images_myrorss_or_mrms(
         radar data from the given source.
     :param top_output_dir_name: Name of top-level output directory, to which
         storm-centered images will be written.
+    :param elevation_dir_name: Name of directory where elevations are stored
+        (by the Python package "srtm").
     :param num_storm_image_rows: See doc for `_check_extraction_args`.
     :param num_storm_image_columns: Same.
     :param rotate_grids: Same.
@@ -1207,7 +1209,7 @@ def extract_storm_images_myrorss_or_mrms(
                 tracking_utils.CENTROID_LATITUDE_COLUMN].values,
             longitudes_deg=this_storm_object_table[
                 tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
-            working_dir_name=ELEVATION_DIR_NAME
+            working_dir_name=elevation_dir_name
         )
 
         this_storm_object_table = this_storm_object_table.assign(**{
@@ -1456,7 +1458,7 @@ def extract_storm_images_myrorss_or_mrms(
 
 def extract_storm_images_gridrad(
         storm_object_table, top_radar_dir_name, top_output_dir_name,
-        num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
+        elevation_dir_name, num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
         num_storm_image_columns=DEFAULT_NUM_IMAGE_COLUMNS, rotate_grids=True,
         rotated_grid_spacing_metres=DEFAULT_ROTATED_GRID_SPACING_METRES,
         radar_field_names=DEFAULT_GRIDRAD_FIELD_NAMES,
@@ -1472,6 +1474,7 @@ def extract_storm_images_gridrad(
         `extract_storm_images_myrorss_or_mrms`.
     :param top_radar_dir_name: Same.
     :param top_output_dir_name: Same.
+    :param elevation_dir_name: Same.
     :param num_storm_image_rows: Same.
     :param num_storm_image_columns: Same.
     :param rotate_grids: Same.
@@ -1555,7 +1558,7 @@ def extract_storm_images_gridrad(
                 tracking_utils.CENTROID_LATITUDE_COLUMN].values,
             longitudes_deg=this_storm_object_table[
                 tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
-            working_dir_name=ELEVATION_DIR_NAME)
+            working_dir_name=elevation_dir_name)
 
         this_storm_object_table = this_storm_object_table.assign(**{
             ELEVATION_COLUMN: these_elevations_m_asl
