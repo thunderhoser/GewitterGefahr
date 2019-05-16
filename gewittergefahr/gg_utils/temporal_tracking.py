@@ -64,6 +64,9 @@ def _estimate_velocity_by_neigh(
     Specifically, this method replaces each missing velocity with an
     exponentially weighted average of neighbouring non-missing velocities.
 
+    If `e_folding_radius_metres` is NaN, this method will use an unweighted
+    average.
+
     N = number of storm objects
 
     :param x_coords_metres: length-N numpy array of x-coordinates.
@@ -77,17 +80,36 @@ def _estimate_velocity_by_neigh(
     :return: y_velocities_m_s01: Same as input but without NaN.
     """
 
-    neigh_radius_metres = 3 * e_folding_radius_metres
+    if numpy.isnan(e_folding_radius_metres):
+        neigh_radius_metres = numpy.inf
+    else:
+        neigh_radius_metres = 3 * e_folding_radius_metres
+
     orig_x_velocities_m_s01 = x_velocities_m_s01 + 0.
     orig_y_velocities_m_s01 = y_velocities_m_s01 + 0.
 
-    nan_flags = numpy.logical_and(
+    nan_flags = numpy.logical_or(
         numpy.isnan(orig_x_velocities_m_s01),
         numpy.isnan(orig_y_velocities_m_s01)
     )
     nan_indices = numpy.where(nan_flags)[0]
 
     for this_index in nan_indices:
+        if numpy.isnan(e_folding_radius_metres):
+            these_neighbour_indices = numpy.where(numpy.invert(nan_flags))[0]
+            if len(these_neighbour_indices) == 0:
+                continue
+
+            x_velocities_m_s01[this_index] = numpy.mean(
+                orig_x_velocities_m_s01[these_neighbour_indices]
+            )
+
+            y_velocities_m_s01[this_index] = numpy.mean(
+                orig_y_velocities_m_s01[these_neighbour_indices]
+            )
+
+            continue
+
         these_x_diffs_metres = numpy.absolute(
             x_coords_metres[this_index] - x_coords_metres)
         these_y_diffs_metres = numpy.absolute(
@@ -675,11 +697,6 @@ def _get_storm_velocities_missing(
         if not numpy.any(numpy.isnan(east_velocities_m_s01[these_indices])):
             continue
 
-        print (
-            'Using neighbouring storms at {0:d} time to estimate missing '
-            'velocities...'
-        ).format(j)
-
         (east_velocities_m_s01[these_indices],
          north_velocities_m_s01[these_indices]
         ) = _estimate_velocity_by_neigh(
@@ -703,10 +720,6 @@ def _get_storm_velocities_missing(
         if not numpy.any(numpy.isnan(east_velocities_m_s01[these_indices])):
             continue
 
-        print (
-            'Using all storms at {0:d} time to estimate missing velocities...'
-        ).format(j)
-
         (east_velocities_m_s01[these_indices],
          north_velocities_m_s01[these_indices]
         ) = _estimate_velocity_by_neigh(
@@ -716,7 +729,7 @@ def _get_storm_velocities_missing(
                 CENTROID_Y_COLUMN].values[these_indices],
             x_velocities_m_s01=east_velocities_m_s01[these_indices],
             y_velocities_m_s01=north_velocities_m_s01[these_indices],
-            e_folding_radius_metres=1e7)
+            e_folding_radius_metres=numpy.nan)
 
     if not numpy.any(numpy.isnan(east_velocities_m_s01)):
         return storm_object_table.assign(**{
@@ -729,11 +742,6 @@ def _get_storm_velocities_missing(
         these_indices = numpy.where(orig_to_unique_indices == j)[0]
         if not numpy.any(numpy.isnan(east_velocities_m_s01[these_indices])):
             continue
-
-        print (
-            'Using neighbouring storms at all times to estimate missing '
-            'velocities...'
-        ).format(j)
 
         these_east_velocities_m_s01, these_north_velocities_m_s01 = (
             _estimate_velocity_by_neigh(
@@ -761,17 +769,13 @@ def _get_storm_velocities_missing(
         if not numpy.any(numpy.isnan(east_velocities_m_s01[these_indices])):
             continue
 
-        print (
-            'Using all storms at all times to estimate missing velocities...'
-        ).format(j)
-
         these_east_velocities_m_s01, these_north_velocities_m_s01 = (
             _estimate_velocity_by_neigh(
                 x_coords_metres=storm_object_table[CENTROID_X_COLUMN].values,
                 y_coords_metres=storm_object_table[CENTROID_Y_COLUMN].values,
                 x_velocities_m_s01=east_velocities_m_s01 + 0.,
                 y_velocities_m_s01=north_velocities_m_s01 + 0.,
-                e_folding_radius_metres=1e7)
+                e_folding_radius_metres=numpy.nan)
         )
 
         east_velocities_m_s01[these_indices] = these_east_velocities_m_s01[
@@ -786,8 +790,6 @@ def _get_storm_velocities_missing(
         })
 
     # Replace missing velocities with defaults.
-    print 'Replacing missing velocities with defaults...'
-
     nan_indices = numpy.where(numpy.isnan(east_velocities_m_s01))[0]
     east_velocities_m_s01[nan_indices] = DEFAULT_EAST_VELOCITY_M_S01
     north_velocities_m_s01[nan_indices] = DEFAULT_NORTH_VELOCITY_M_S01
@@ -1659,7 +1661,7 @@ def get_storm_velocities(
     return _get_storm_velocities_missing(storm_object_table=storm_object_table)
 
 
-def _finish_segmotion_or_probsevere_ids(storm_object_table):
+def finish_segmotion_or_probsevere_ids(storm_object_table):
     """Finishes storm IDs created by segmotion or probSevere.
 
     :param storm_object_table: pandas DataFrame with the following columns,

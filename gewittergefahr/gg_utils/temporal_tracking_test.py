@@ -762,7 +762,80 @@ NORTH_VELOCITIES_NO_NEIGH_5SEC_M_S01 = numpy.nanmean(
     axis=0
 )
 
-# The following constants are used to test _finish_segmotion_or_probsevere_ids.
+# The following constants are used to test _get_storm_velocities_missing.
+THESE_X_COORDS_METRES = numpy.array([
+    -1, 0, 1, 0, 0,
+    -2, 0, 2, 0, 0,
+    -3, 0, 3, 0, 0,
+    1000,
+    6
+], dtype=float)
+
+THESE_Y_COORDS_METRES = numpy.array([
+    0, 1, 0, -1, 0,
+    0, 2, 0, -2, 0,
+    0, 3, 0, -3, 0,
+    1000,
+    0
+], dtype=float)
+
+THESE_TIMES_UNIX_SEC = numpy.array([
+    0, 0, 0, 0, 0,
+    300, 300, 300, 300, 300,
+    600, 600, 600, 600, 600,
+    900,
+    1200
+], dtype=int)
+
+THESE_EAST_VELOCITIES_M_S01 = numpy.array([
+    -5, 1, 5, 1, numpy.nan,
+    -10, 2, 10, 2, numpy.nan,
+    -15, 3, 15, 3, numpy.nan,
+    numpy.nan,
+    numpy.nan
+])
+
+THESE_NORTH_VELOCITIES_M_S01 = numpy.array([
+    -1, 2, -1, -2, numpy.nan,
+    -2, 4, -2, -4, numpy.nan,
+    -3, 6, -3, -6, numpy.nan,
+    numpy.nan,
+    numpy.nan
+])
+
+STORM_OBJECT_TABLE_MISSING_VEL = pandas.DataFrame.from_dict({
+    temporal_tracking.CENTROID_X_COLUMN: THESE_X_COORDS_METRES,
+    temporal_tracking.CENTROID_Y_COLUMN: THESE_Y_COORDS_METRES,
+    tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.EAST_VELOCITY_COLUMN: THESE_EAST_VELOCITIES_M_S01,
+    tracking_utils.NORTH_VELOCITY_COLUMN: THESE_NORTH_VELOCITIES_M_S01
+})
+
+THESE_EAST_VELOCITIES_M_S01 = numpy.array([
+    -5, 1, 5, 1, 0.5,
+    -10, 2, 10, 2, 1,
+    -15, 3, 15, 3, 1.5,
+    1.875,
+    15
+])
+
+THESE_NORTH_VELOCITIES_M_S01 = numpy.array([
+    -1, 2, -1, -2, -0.5,
+    -2, 4, -2, -4, -1,
+    -3, 6, -3, -6, -1.5,
+    -1.125,
+    -3
+])
+
+STORM_OBJECT_TABLE_FILLED_VEL = pandas.DataFrame.from_dict({
+    temporal_tracking.CENTROID_X_COLUMN: THESE_X_COORDS_METRES,
+    temporal_tracking.CENTROID_Y_COLUMN: THESE_Y_COORDS_METRES,
+    tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.EAST_VELOCITY_COLUMN: THESE_EAST_VELOCITIES_M_S01,
+    tracking_utils.NORTH_VELOCITY_COLUMN: THESE_NORTH_VELOCITIES_M_S01
+})
+
+# The following constants are used to test finish_segmotion_or_probsevere_ids.
 THESE_PRIMARY_ID_STRINGS = [
     'a', 'b', 'c',
     'a', 'b', 'c', 'd',
@@ -1946,6 +2019,9 @@ class TemporalTrackingTests(unittest.TestCase):
         these_north_velocities_m_s01 = this_storm_object_table[
             tracking_utils.NORTH_VELOCITY_COLUMN].values
 
+        self.assertFalse(numpy.any(numpy.isnan(these_east_velocities_m_s01)))
+        self.assertFalse(numpy.any(numpy.isnan(these_north_velocities_m_s01)))
+
         self.assertTrue(numpy.allclose(
             these_east_velocities_m_s01[real_indices],
             EAST_VELOCITIES_NO_NEIGH_15SEC_M_S01[real_indices], atol=TOLERANCE
@@ -1986,6 +2062,9 @@ class TemporalTrackingTests(unittest.TestCase):
         these_north_velocities_m_s01 = this_storm_object_table[
             tracking_utils.NORTH_VELOCITY_COLUMN].values
 
+        self.assertFalse(numpy.any(numpy.isnan(these_east_velocities_m_s01)))
+        self.assertFalse(numpy.any(numpy.isnan(these_north_velocities_m_s01)))
+
         self.assertTrue(numpy.allclose(
             these_east_velocities_m_s01[real_indices],
             EAST_VELOCITIES_NO_NEIGH_5SEC_M_S01[real_indices], atol=TOLERANCE
@@ -1995,10 +2074,34 @@ class TemporalTrackingTests(unittest.TestCase):
             NORTH_VELOCITIES_NO_NEIGH_5SEC_M_S01[real_indices], atol=TOLERANCE
         ))
 
-    def test_finish_segmotion_or_probsevere_ids(self):
-        """Ensures correctness of _finish_segmotion_or_probsevere_ids."""
+    def test_get_storm_velocities_missing(self):
+        """Ensures correct output from _get_storm_velocities_missing."""
 
-        this_table = temporal_tracking._finish_segmotion_or_probsevere_ids(
+        this_storm_object_table = (
+            temporal_tracking._get_storm_velocities_missing(
+                storm_object_table=copy.deepcopy(
+                    STORM_OBJECT_TABLE_MISSING_VEL),
+                e_folding_radius_metres=VELOCITY_EFOLD_RADIUS_METRES)
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values,
+            STORM_OBJECT_TABLE_FILLED_VEL[
+                tracking_utils.EAST_VELOCITY_COLUMN].values,
+            atol=TOLERANCE
+        ))
+
+        self.assertTrue(numpy.allclose(
+            this_storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values,
+            STORM_OBJECT_TABLE_FILLED_VEL[
+                tracking_utils.NORTH_VELOCITY_COLUMN].values,
+            atol=TOLERANCE
+        ))
+
+    def test_finish_segmotion_or_probsevere_ids(self):
+        """Ensures correctness of finish_segmotion_or_probsevere_ids."""
+
+        this_table = temporal_tracking.finish_segmotion_or_probsevere_ids(
             copy.deepcopy(STORM_OBJECT_TABLE_UNFINISHED_IDS)
         )
 

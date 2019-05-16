@@ -2,9 +2,7 @@
 
 import unittest
 import numpy
-import pandas
 from gewittergefahr.gg_utils import radar_utils
-from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.deep_learning import storm_images
 
 TOLERANCE = 1e-6
@@ -48,38 +46,6 @@ FIELD_NAME_BY_PAIR_MRMS = FIELD_NAME_BY_PAIR_MYRORSS + []
 HEIGHT_BY_PAIR_MRMS_M_AGL = numpy.array(
     [500, 250, 1000, 2000, 500], dtype=int
 )
-
-# The following constants are used to test _get_relevant_storm_objects.
-THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 1, 1, 1], dtype=int)
-THESE_SPC_DATE_STRINGS = [
-    '19691231', '19691231', '19700101', '19700101', '19700102', '19700102'
-]
-THESE_EAST_VELOCITIES_M_S01 = numpy.array(
-    [10, numpy.nan, 10, numpy.nan, 10, numpy.nan]
-)
-THESE_NORTH_VELOCITIES_M_S01 = numpy.array(
-    [10, numpy.nan, 10, numpy.nan, 10, 10]
-)
-
-THIS_DICT = {
-    tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.SPC_DATE_COLUMN: THESE_SPC_DATE_STRINGS,
-    tracking_utils.EAST_VELOCITY_COLUMN: THESE_EAST_VELOCITIES_M_S01,
-    tracking_utils.NORTH_VELOCITY_COLUMN: THESE_NORTH_VELOCITIES_M_S01
-}
-STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
-
-TIME_UNROTATED_GRID_UNIX_SEC = 0
-SPC_DATE_STRING_UNROTATED = '19691231'
-RELEVANT_INDICES_UNROTATED_GRID = numpy.array([0, 1], dtype=int)
-
-FIRST_TIME_ROTATED_GRID_UNIX_SEC = 1
-FIRST_SPC_DATE_STRING_ROTATED = '19700101'
-FIRST_RELEVANT_INDICES_ROTATED_GRID = numpy.array([], dtype=int)
-
-SECOND_TIME_ROTATED_GRID_UNIX_SEC = 1
-SECOND_SPC_DATE_STRING_ROTATED = '19700102'
-SECOND_RELEVANT_INDICES_ROTATED_GRID = numpy.array([4], dtype=int)
 
 # The following constants are used to test _rotate_grid_one_storm_object.
 ONE_CENTROID_LATITUDE_DEG = 53.5
@@ -422,54 +388,6 @@ class StormImagesTests(unittest.TestCase):
         self.assertTrue(this_field_name_by_pair == FIELD_NAME_BY_PAIR_MRMS)
         self.assertTrue(numpy.array_equal(
             this_height_by_pair_m_agl, HEIGHT_BY_PAIR_MRMS_M_AGL
-        ))
-
-    def test_get_relevant_storm_objects_unrotated(self):
-        """Ensures correct output from _get_relevant_storm_objects.
-
-        In this case, storm-centered grids are unrotated.
-        """
-
-        these_indices = storm_images._get_relevant_storm_objects(
-            storm_object_table=STORM_OBJECT_TABLE,
-            valid_time_unix_sec=TIME_UNROTATED_GRID_UNIX_SEC,
-            valid_spc_date_string=SPC_DATE_STRING_UNROTATED,
-            rotate_grids=False)
-
-        self.assertTrue(numpy.array_equal(
-            these_indices, RELEVANT_INDICES_UNROTATED_GRID
-        ))
-
-    def test_get_relevant_storm_objects_rotated_first(self):
-        """Ensures correct output from _get_relevant_storm_objects.
-
-        In this case, storm-centered grids are rotated.
-        """
-
-        these_indices = storm_images._get_relevant_storm_objects(
-            storm_object_table=STORM_OBJECT_TABLE,
-            valid_time_unix_sec=FIRST_TIME_ROTATED_GRID_UNIX_SEC,
-            valid_spc_date_string=FIRST_SPC_DATE_STRING_ROTATED,
-            rotate_grids=True)
-
-        self.assertTrue(numpy.array_equal(
-            these_indices, FIRST_RELEVANT_INDICES_ROTATED_GRID
-        ))
-
-    def test_get_relevant_storm_objects_rotated_second(self):
-        """Ensures correct output from _get_relevant_storm_objects.
-
-        In this case, storm-centered grids are rotated.
-        """
-
-        these_indices = storm_images._get_relevant_storm_objects(
-            storm_object_table=STORM_OBJECT_TABLE,
-            valid_time_unix_sec=SECOND_TIME_ROTATED_GRID_UNIX_SEC,
-            valid_spc_date_string=SECOND_SPC_DATE_STRING_ROTATED,
-            rotate_grids=True)
-
-        self.assertTrue(numpy.array_equal(
-            these_indices, SECOND_RELEVANT_INDICES_ROTATED_GRID
         ))
 
     def test_rotate_grid_one_storm_object_zero_motion(self):

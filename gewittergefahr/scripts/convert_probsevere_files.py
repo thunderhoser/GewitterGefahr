@@ -65,7 +65,7 @@ def _convert_files(top_probsevere_dir_name, date_string, top_output_dir_name):
             this_raw_file_name)
 
         this_storm_object_table = (
-            temporal_tracking._finish_segmotion_or_probsevere_ids(
+            temporal_tracking.finish_segmotion_or_probsevere_ids(
                 this_storm_object_table)
         )
 

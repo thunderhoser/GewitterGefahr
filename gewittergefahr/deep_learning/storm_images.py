@@ -372,8 +372,7 @@ def _fields_and_heights_to_pairs(
 
 
 def _get_relevant_storm_objects(
-        storm_object_table, valid_time_unix_sec, valid_spc_date_string,
-        rotate_grids):
+        storm_object_table, valid_time_unix_sec, valid_spc_date_string):
     """Returns indices of relevant storm objects (at the given time & SPC date).
 
     :param storm_object_table: See doc for
@@ -382,8 +381,6 @@ def _get_relevant_storm_objects(
     :param valid_time_unix_sec: Will find storm objects with this valid time.
     :param valid_spc_date_string: Will find storm objects on this SPC date
         (format "yyyymmdd").
-    :param rotate_grids: See doc for `extract_storm_images_myrorss_or_mrms` or
-        `extract_storm_images_gridrad`.
     :return: relevant_indices: 1-D numpy array with indices of relevant storm
         objects.
     """
@@ -394,17 +391,6 @@ def _get_relevant_storm_objects(
         storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
         valid_spc_date_string
     )
-
-    if rotate_grids:
-        east_velocities_m_s01 = storm_object_table[
-            tracking_utils.EAST_VELOCITY_COLUMN].values
-        north_velocities_m_s01 = storm_object_table[
-            tracking_utils.NORTH_VELOCITY_COLUMN].values
-
-        good_velocity_flags = numpy.logical_and(
-            numpy.invert(numpy.isnan(east_velocities_m_s01)),
-            numpy.invert(numpy.isnan(north_velocities_m_s01)))
-        relevant_flags = numpy.logical_and(relevant_flags, good_velocity_flags)
 
     return numpy.where(relevant_flags)[0]
 
@@ -520,29 +506,21 @@ def _rotate_grids_many_storm_objects(
     list_of_latitude_matrices = [None] * num_storm_objects
     list_of_longitude_matrices = [None] * num_storm_objects
 
-    good_indices = numpy.where(numpy.invert(numpy.logical_or(
-        numpy.isnan(
-            storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values),
-        numpy.isnan(
-            storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values)
-    )))[0]
-
-    for i in range(len(good_indices)):
-        j = good_indices[i]
-
-        (list_of_latitude_matrices[j], list_of_longitude_matrices[j]
-        ) = _rotate_grid_one_storm_object(
-            centroid_latitude_deg=storm_object_table[
-                tracking_utils.CENTROID_LATITUDE_COLUMN].values[j],
-            centroid_longitude_deg=storm_object_table[
-                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[j],
-            eastward_motion_m_s01=storm_object_table[
-                tracking_utils.EAST_VELOCITY_COLUMN].values[j],
-            northward_motion_m_s01=storm_object_table[
-                tracking_utils.NORTH_VELOCITY_COLUMN].values[j],
-            num_storm_image_rows=num_storm_image_rows,
-            num_storm_image_columns=num_storm_image_columns,
-            storm_grid_spacing_metres=storm_grid_spacing_metres)
+    for i in range(num_storm_objects):
+        list_of_latitude_matrices[i], list_of_longitude_matrices[i] = (
+            _rotate_grid_one_storm_object(
+                centroid_latitude_deg=storm_object_table[
+                    tracking_utils.CENTROID_LATITUDE_COLUMN].values[i],
+                centroid_longitude_deg=storm_object_table[
+                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i],
+                eastward_motion_m_s01=storm_object_table[
+                    tracking_utils.EAST_VELOCITY_COLUMN].values[i],
+                northward_motion_m_s01=storm_object_table[
+                    tracking_utils.NORTH_VELOCITY_COLUMN].values[i],
+                num_storm_image_rows=num_storm_image_rows,
+                num_storm_image_columns=num_storm_image_columns,
+                storm_grid_spacing_metres=storm_grid_spacing_metres)
+        )
 
     if for_azimuthal_shear:
         argument_dict = {
@@ -1216,8 +1194,7 @@ def extract_storm_images_myrorss_or_mrms(
         these_storm_indices = _get_relevant_storm_objects(
             storm_object_table=storm_object_table,
             valid_time_unix_sec=valid_times_unix_sec[i],
-            valid_spc_date_string=valid_spc_date_strings[i],
-            rotate_grids=rotate_grids)
+            valid_spc_date_string=valid_spc_date_strings[i])
 
         this_storm_object_table = storm_object_table.iloc[these_storm_indices]
 
@@ -1565,8 +1542,7 @@ def extract_storm_images_gridrad(
         these_storm_indices = _get_relevant_storm_objects(
             storm_object_table=storm_object_table,
             valid_time_unix_sec=valid_times_unix_sec[i],
-            valid_spc_date_string=valid_spc_date_strings[i],
-            rotate_grids=rotate_grids)
+            valid_spc_date_string=valid_spc_date_strings[i])
 
         this_storm_object_table = storm_object_table.iloc[these_storm_indices]
 

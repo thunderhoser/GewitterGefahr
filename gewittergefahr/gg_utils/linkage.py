@@ -59,10 +59,6 @@ REQUIRED_STORM_COLUMNS = [
     tracking_utils.LATLNG_POLYGON_COLUMN
 ]
 
-STORM_VELOCITY_COLUMNS = [
-    tracking_utils.EAST_VELOCITY_COLUMN, tracking_utils.NORTH_VELOCITY_COLUMN
-]
-
 REQUIRED_WIND_COLUMNS = [
     raw_wind_io.STATION_ID_COLUMN, raw_wind_io.LATITUDE_COLUMN,
     raw_wind_io.LONGITUDE_COLUMN, raw_wind_io.TIME_COLUMN,
@@ -1006,23 +1002,9 @@ def _read_input_storm_tracks(tracking_file_names):
 
     for this_file_name in tracking_file_names:
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
-        this_storm_object_table = tracking_io.read_file(
-            this_file_name
-        )[REQUIRED_STORM_COLUMNS + STORM_VELOCITY_COLUMNS]
-
-        these_bad_u_flags = numpy.isnan(
-            this_storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values
-        )
-        these_bad_v_flags = numpy.isnan(
-            this_storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values
-        )
-
-        these_good_indices = numpy.where(numpy.invert(numpy.logical_or(
-            these_bad_u_flags, these_bad_v_flags
-        )))[0]
-        this_storm_object_table = this_storm_object_table.iloc[
-            these_good_indices
-        ][REQUIRED_STORM_COLUMNS]
+        this_storm_object_table = tracking_io.read_file(this_file_name)[
+            REQUIRED_STORM_COLUMNS
+        ]
 
         list_of_storm_object_tables.append(this_storm_object_table)
         if len(list_of_storm_object_tables) == 1:

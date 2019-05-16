@@ -1024,15 +1024,6 @@ def interp_soundings_to_storm_objects(
     error_checking.assert_is_integer(lag_time_for_convective_contamination_sec)
     error_checking.assert_is_geq(lag_time_for_convective_contamination_sec, 0)
 
-    good_indices = numpy.where(numpy.invert(numpy.logical_or(
-        numpy.isnan(
-            storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values),
-        numpy.isnan(
-            storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values)
-    )))[0]
-
-    storm_object_table = storm_object_table.iloc[good_indices]
-
     print (
         'Creating target point for each storm object and lead time ({0:s} '
         'seconds)...'
