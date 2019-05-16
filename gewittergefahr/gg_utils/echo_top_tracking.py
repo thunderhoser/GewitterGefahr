@@ -1386,25 +1386,12 @@ def reanalyze_across_spc_dates(
             break
 
         if i != num_spc_dates - 1:
-            this_early_time_unix_sec = numpy.max(
-                valid_times_by_date_unix_sec[i]
-            )
-            this_early_table = storm_object_table_by_date[i].loc[
-                storm_object_table_by_date[i][tracking_utils.VALID_TIME_COLUMN]
-                == this_early_time_unix_sec
-            ]
-
             this_late_time_unix_sec = numpy.min(
                 valid_times_by_date_unix_sec[i + 1]
             )
-            this_late_table = storm_object_table_by_date[i + 1].loc[
-                storm_object_table_by_date[i + 1][
-                    tracking_utils.VALID_TIME_COLUMN]
-                == this_late_time_unix_sec
-            ]
 
             concat_storm_object_table = pandas.concat(
-                [this_early_table, this_late_table],
+                [storm_object_table_by_date[k] for k in [i, i + 1]],
                 axis=0, ignore_index=True)
 
             concat_storm_object_table = track_reanalysis.join_collinear_tracks(
@@ -1416,23 +1403,17 @@ def reanalyze_across_spc_dates(
                 max_join_distance_m_s01=max_link_distance_m_s01)
             print SEPARATOR_STRING
 
-            storm_object_table_by_date[i] = concat_storm_object_table.loc[
-                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-                spc_date_strings[i]
-            ]
-            storm_object_table_by_date[i + 1] = concat_storm_object_table.loc[
-                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-                spc_date_strings[i + 1]
-            ]
+            if i == 0:
+                this_first_time_unix_sec = numpy.min(
+                    storm_object_table_by_date[i][
+                        tracking_utils.VALID_TIME_COLUMN].values
+                )
+            else:
+                this_first_time_unix_sec = numpy.min(
+                    storm_object_table_by_date[i + 1][
+                        tracking_utils.VALID_TIME_COLUMN].values
+                )
 
-            concat_storm_object_table = pandas.concat(
-                [storm_object_table_by_date[k] for k in [i, i + 1]],
-                axis=0, ignore_index=True)
-
-            this_first_time_unix_sec = numpy.min(
-                storm_object_table_by_date[i + 1][
-                    tracking_utils.VALID_TIME_COLUMN].values
-            )
             this_last_time_unix_sec = numpy.max(
                 storm_object_table_by_date[i + 1][
                     tracking_utils.VALID_TIME_COLUMN].values
@@ -1450,6 +1431,7 @@ def reanalyze_across_spc_dates(
                 concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
                 spc_date_strings[i]
             ]
+
             storm_object_table_by_date[i + 1] = concat_storm_object_table.loc[
                 concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
                 spc_date_strings[i + 1]
