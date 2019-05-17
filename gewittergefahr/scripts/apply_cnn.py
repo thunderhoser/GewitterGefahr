@@ -204,7 +204,7 @@ def _run(model_file_name, example_file_name, first_time_string,
 
         prediction_io.write_ungridded_predictions(
             netcdf_file_name=output_file_name,
-            class_probability_matrix=numpy.full((0, num_classes), numpy.nan),
+            class_probability_matrix=class_probability_matrix,
             storm_ids=[], storm_times_unix_sec=numpy.array([], dtype=int),
             target_name=target_name, observed_labels=numpy.array([], dtype=int)
         )

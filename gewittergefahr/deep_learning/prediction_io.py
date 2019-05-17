@@ -150,9 +150,13 @@ def write_ungridded_predictions(
         CLASS_DIMENSION_KEY, class_probability_matrix.shape[1]
     )
 
-    num_id_characters = 1 + numpy.max(numpy.array([
-        len(s) for s in storm_ids
-    ]))
+    if num_examples == 0:
+        num_id_characters = 1
+    else:
+        num_id_characters = 1 + numpy.max(numpy.array([
+            len(s) for s in storm_ids
+        ]))
+
     dataset_object.createDimension(STORM_ID_CHAR_DIM_KEY, num_id_characters)
 
     # Add storm IDs.
