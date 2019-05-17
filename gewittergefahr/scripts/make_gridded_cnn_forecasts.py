@@ -92,7 +92,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_METHOD_ARG_NAME, type=str, required=False,
-    default='', help=SMOOTHING_METHOD_HELP_STRING)
+    default=gridded_forecasts.GAUSSIAN_SMOOTHING_METHOD,
+    help=SMOOTHING_METHOD_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + CUTOFF_RADIUS_ARG_NAME, type=float, required=False,
