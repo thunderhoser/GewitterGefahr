@@ -12,10 +12,13 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import prediction_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import probability_plotting
-from gewittergefahr.plotting import nwp_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+
+TEST_LATITUDES_DEG = numpy.array([25.])
+TEST_LONGITUDES_DEG = numpy.array([265.])
+PYPROJ_OBJECT = nwp_model_utils.init_projection(nwp_model_utils.RAP_MODEL_NAME)
 
 TITLE_FONT_SIZE = 20
 BORDER_COLOUR = numpy.full(3, 0.)
@@ -44,6 +47,40 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _get_projection_offsets(
+        basemap_object, pyproj_object, test_latitudes_deg, test_longitudes_deg):
+    """Finds offsets between basemap and pyproj projections.
+
+    P = number of points used to find offsets
+
+    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param pyproj_object: Instance of `pyproj.Proj`.  The two objects should
+        encode the same projection, just with different false easting/northing.
+    :param test_latitudes_deg: length-P numpy array of latitudes (deg N).
+    :param test_longitudes_deg: length-P numpy array of longitudes (deg E).
+    :return: x_offset_metres: x-offset (basemap minus pyproj).
+    :return: y_offset_metres: y-offset (basemap minus pyproj).
+    """
+
+    pyproj_x_coords_metres, pyproj_y_coords_metres = (
+        projections.project_latlng_to_xy(
+            latitudes_deg=test_latitudes_deg,
+            longitudes_deg=test_longitudes_deg, projection_object=pyproj_object)
+    )
+
+    basemap_x_coords_metres, basemap_y_coords_metres = basemap_object(
+        test_longitudes_deg, test_latitudes_deg)
+
+    x_offset_metres = numpy.mean(
+        basemap_x_coords_metres - pyproj_x_coords_metres
+    )
+    y_offset_metres = numpy.mean(
+        basemap_y_coords_metres - pyproj_y_coords_metres
+    )
+
+    return x_offset_metres, y_offset_metres
+
+
 def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
     """Plots gridded forecast at one time.
 
@@ -59,6 +96,11 @@ def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
         model_name=nwp_model_utils.RAP_MODEL_NAME,
         grid_name=nwp_model_utils.NAME_OF_130GRID, xy_limit_dict=None
     )[1:]
+
+    x_offset_metres, y_offset_metres = _get_projection_offsets(
+        basemap_object=basemap_object, pyproj_object=PYPROJ_OBJECT,
+        test_latitudes_deg=TEST_LATITUDES_DEG,
+        test_longitudes_deg=TEST_LONGITUDES_DEG)
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -90,8 +132,12 @@ def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
     if not isinstance(probability_matrix, numpy.ndarray):
         probability_matrix = probability_matrix.toarray()
 
-    x_coords_metres = gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY]
-    y_coords_metres = gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY]
+    x_coords_metres = (
+        gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] + x_offset_metres
+    )
+    y_coords_metres = (
+        gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] + y_offset_metres
+    )
 
     probability_plotting.plot_xy_grid(
         probability_matrix=probability_matrix,
@@ -177,35 +223,6 @@ def _run(input_prediction_file_name, output_dir_name):
     print 'Reading data from: "{0:s}"...'.format(input_prediction_file_name)
     gridded_forecast_dict = prediction_io.read_gridded_predictions(
         input_prediction_file_name)
-
-    basemap_object = plotting_utils.init_map_with_nwp_projection(
-        model_name=nwp_model_utils.RAP_MODEL_NAME,
-        grid_name=nwp_model_utils.NAME_OF_130GRID, xy_limit_dict=None
-    )[-1]
-
-    test_latitudes_deg = numpy.array([25.])
-    test_longitudes_deg = numpy.array([265.])
-
-    pyproj_object = nwp_model_utils.init_projection(
-        nwp_model_utils.RAP_MODEL_NAME)
-
-    pyproj_x_coords_metres, pyproj_y_coords_metres = (
-        projections.project_latlng_to_xy(
-            latitudes_deg=test_latitudes_deg,
-            longitudes_deg=test_longitudes_deg, projection_object=pyproj_object)
-    )
-
-    basemap_x_coords_metres, basemap_y_coords_metres = basemap_object(
-        test_longitudes_deg, test_latitudes_deg)
-
-    x_offset_metres = numpy.mean(basemap_x_coords_metres - pyproj_x_coords_metres)
-    y_offset_metres = numpy.mean(basemap_y_coords_metres - pyproj_y_coords_metres)
-
-    print x_offset_metres
-    print y_offset_metres
-
-    gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] = gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] + x_offset_metres
-    gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] = gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] + y_offset_metres
 
     num_times = len(gridded_forecast_dict[prediction_io.INIT_TIMES_KEY])
 
