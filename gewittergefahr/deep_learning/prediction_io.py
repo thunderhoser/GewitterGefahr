@@ -63,11 +63,13 @@ def find_file(
     :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
     """
 
+    # TODO(thunderhoser): Put lead time in file names.
+
     error_checking.assert_is_string(top_prediction_dir_name)
     error_checking.assert_is_integer(first_init_time_unix_sec)
     error_checking.assert_is_integer(last_init_time_unix_sec)
     error_checking.assert_is_geq(
-        first_init_time_unix_sec, last_init_time_unix_sec)
+        last_init_time_unix_sec, first_init_time_unix_sec)
 
     error_checking.assert_is_boolean(gridded)
     error_checking.assert_is_boolean(raise_error_if_missing)
