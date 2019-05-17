@@ -3,13 +3,12 @@
 import os.path
 import argparse
 import numpy
-import netCDF4
 import keras.backend as K
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import target_val_utils
-from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import testing_io
+from gewittergefahr.deep_learning import prediction_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
@@ -21,21 +20,11 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 LARGE_INTEGER = int(1e10)
 INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
-EXAMPLE_DIMENSION_KEY = 'storm_object'
-CLASS_DIMENSION_KEY = 'class'
-STORM_ID_CHAR_DIM_KEY = 'storm_id_character'
-
-TARGET_NAME_KEY = 'target_name'
-STORM_IDS_KEY = 'storm_ids'
-STORM_TIMES_KEY = 'storm_times_unix_sec'
-PROBABILITY_MATRIX_KEY = 'class_probability_matrix'
-OBSERVED_LABELS_KEY = 'observed_labels'
-
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
-OUTPUT_FILE_ARG_NAME = 'output_prediction_file_name'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
     'Path to trained CNN.  Will be read by `cnn.read_model`.')
@@ -51,9 +40,10 @@ TIME_HELP_STRING = (
     'examples in the file `{0:s}` in the time period `{1:s}`...`{2:s}`.'
 ).format(EXAMPLE_FILE_ARG_NAME, FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
-OUTPUT_FILE_HELP_STRING = (
-    'Path to output file.  Predictions will be written here by '
-    '`_write_predictions`.')
+OUTPUT_DIR_HELP_STRING = (
+    'Name of output directory.  Predictions will be written here by '
+    '`predictions_io.write_ungridded_predictions`, to an exact location '
+    'determined by `prediction_io.find_file`.')
 
 DEFAULT_MODEL_FILE_NAME = (
     '/condo/swatwork/ralager/data_aug_experiment_gridrad/'
@@ -66,11 +56,7 @@ DEFAULT_EXAMPLE_FILE_NAME = (
     'correct_echo_tops/reanalyzed/input_examples/2018/'
     'input_examples_20180403.nc')
 
-DEFAULT_PREDICTION_FILE_NAME = (
-    '/condo/swatwork/ralager/data_aug_experiment_gridrad/'
-    'rotation-angles-deg=15-m15-30-m30_noise-stdev=0.05_flip=0_'
-    'x-translations-px=m3-0-3-3-3-0-m3-m3_y-translations-px=3-3-3-0-m3-m3-m3-0/'
-    'predictions.nc')
+DEFAULT_OUTPUT_DIR_NAME = '{0:s}/predictions'.format(DEFAULT_MODEL_FILE_NAME)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -88,125 +74,12 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=False,
-    default=DEFAULT_PREDICTION_FILE_NAME, help=OUTPUT_FILE_HELP_STRING)
-
-
-def _write_predictions(
-        netcdf_file_name, class_probability_matrix, storm_ids,
-        storm_times_unix_sec, target_name, observed_labels=None):
-    """Writes predictions to NetCDF file.
-
-    K = number of classes
-    E = number of examples (storm objects)
-
-    :param netcdf_file_name: Path to output file.
-    :param class_probability_matrix: E-by-K numpy array of forecast
-        probabilities.
-    :param storm_ids: length-E list of storm IDs (strings).
-    :param storm_times_unix_sec: length-E numpy array of valid times.
-    :param target_name: Name of target variable.
-    :param observed_labels: [this may be None]
-        length-E numpy array of observed labels (integers in 0...[K - 1]).
-    """
-
-    # TODO(thunderhoser): Move this method to another file.
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
-    dataset_object = netCDF4.Dataset(
-        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
-
-    dataset_object.setncattr(TARGET_NAME_KEY, target_name)
-    dataset_object.createDimension(
-        EXAMPLE_DIMENSION_KEY, class_probability_matrix.shape[0]
-    )
-    dataset_object.createDimension(
-        CLASS_DIMENSION_KEY, class_probability_matrix.shape[1]
-    )
-
-    num_id_characters = 1 + numpy.max(numpy.array([
-        len(s) for s in storm_ids
-    ]))
-    dataset_object.createDimension(STORM_ID_CHAR_DIM_KEY, num_id_characters)
-
-    # Add storm IDs.
-    this_string_format = 'S{0:d}'.format(num_id_characters)
-    storm_ids_char_array = netCDF4.stringtochar(numpy.array(
-        storm_ids, dtype=this_string_format
-    ))
-
-    dataset_object.createVariable(
-        STORM_IDS_KEY, datatype='S1',
-        dimensions=(EXAMPLE_DIMENSION_KEY, STORM_ID_CHAR_DIM_KEY)
-    )
-    dataset_object.variables[STORM_IDS_KEY][:] = numpy.array(
-        storm_ids_char_array)
-
-    # Add storm times.
-    dataset_object.createVariable(
-        STORM_TIMES_KEY, datatype=numpy.int32, dimensions=EXAMPLE_DIMENSION_KEY
-    )
-    dataset_object.variables[STORM_TIMES_KEY][:] = storm_times_unix_sec
-
-    # Add probabilities.
-    dataset_object.createVariable(
-        PROBABILITY_MATRIX_KEY, datatype=numpy.float32,
-        dimensions=(EXAMPLE_DIMENSION_KEY, CLASS_DIMENSION_KEY)
-    )
-    dataset_object.variables[PROBABILITY_MATRIX_KEY][:] = (
-        class_probability_matrix
-    )
-
-    if observed_labels is not None:
-        dataset_object.createVariable(
-            OBSERVED_LABELS_KEY, datatype=numpy.int32,
-            dimensions=EXAMPLE_DIMENSION_KEY
-        )
-        dataset_object.variables[OBSERVED_LABELS_KEY][:] = observed_labels
-
-    dataset_object.close()
-
-
-def _read_predictions(netcdf_file_name):
-    """Reads predictions from NetCDF file created by `_write_predictions`.
-
-    :param netcdf_file_name: Path to input file.
-    :return: prediction_dict: Dictionary with the following keys.
-    prediction_dict['target_name']: See doc for `_write_predictions`.
-    prediction_dict['storm_ids']: Same.
-    prediction_dict['storm_times_unix_sec']: Same.
-    prediction_dict['class_probability_matrix']: Same.
-    prediction_dict['observed_labels']: See doc for `_write_predictions`.  This
-        may be None.
-    """
-
-    dataset_object = netCDF4.Dataset(netcdf_file_name)
-
-    prediction_dict = {
-        TARGET_NAME_KEY: str(getattr(dataset_object, TARGET_NAME_KEY)),
-        STORM_IDS_KEY: [
-            str(s) for s in
-            netCDF4.chartostring(dataset_object.variables[STORM_IDS_KEY][:])
-        ],
-        STORM_TIMES_KEY: numpy.array(
-            dataset_object.variables[STORM_TIMES_KEY][:], dtype=int
-        ),
-        PROBABILITY_MATRIX_KEY:
-            dataset_object.variables[PROBABILITY_MATRIX_KEY][:]
-    }
-
-    if OBSERVED_LABELS_KEY in dataset_object.variables:
-        prediction_dict.update({
-            OBSERVED_LABELS_KEY:
-                dataset_object.variables[OBSERVED_LABELS_KEY][:].astype(int)
-        })
-
-    dataset_object.close()
-    return prediction_dict
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=False,
+    default=DEFAULT_OUTPUT_DIR_NAME, help=OUTPUT_DIR_HELP_STRING)
 
 
 def _run(model_file_name, example_file_name, first_time_string,
-         last_time_string, output_file_name):
+         last_time_string, top_output_dir_name):
     """Applies CNN to one example file.
 
     This is effectively the main method.
@@ -215,7 +88,7 @@ def _run(model_file_name, example_file_name, first_time_string,
     :param example_file_name: Same.
     :param first_time_string: Same.
     :param last_time_string: Same.
-    :param output_file_name: Same.
+    :param top_output_dir_name: Same.
     """
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
@@ -311,10 +184,19 @@ def _run(model_file_name, example_file_name, first_time_string,
         max_link_distance_metres=10000.
     )
 
+    output_file_name = prediction_io.find_file(
+        top_prediction_dir_name=top_output_dir_name,
+        first_init_time_unix_sec=numpy.min(
+            storm_object_dict[testing_io.STORM_TIMES_KEY]),
+        last_init_time_unix_sec=numpy.max(
+            storm_object_dict[testing_io.STORM_TIMES_KEY]),
+        gridded=False, raise_error_if_missing=False
+    )
+
     print 'Writing "{0:s}" predictions to: "{1:s}"...'.format(
         target_name, output_file_name)
 
-    _write_predictions(
+    prediction_io.write_ungridded_predictions(
         netcdf_file_name=output_file_name,
         class_probability_matrix=class_probability_matrix,
         storm_ids=storm_object_dict[testing_io.STORM_IDS_KEY],
@@ -330,5 +212,5 @@ if __name__ == '__main__':
         example_file_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_FILE_ARG_NAME),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
-        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

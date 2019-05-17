@@ -15,10 +15,13 @@ from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import prediction_io
 
 # TODO(thunderhoser): This file needs to be cleaned up a bit.  I used to allow
 # each init time to have its own grid, and some of the code for this is still
 # hanging around.
+
+MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 MAX_STORM_SPEED_M_S01 = 60.
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -1125,18 +1128,16 @@ def create_forecast_grids(
         Cressman smoother.  See documentation for
         `grid_smoothing_2d.apply_gaussian` or
         `grid_smoothing_2d.apply_cressman`.
-    :return: gridded_forecast_table: pandas DataFrame with columns listed below.
-        Each row corresponds to one forecast-initialization time.
-    gridded_forecast_table.init_time_unix_sec: Forecast-init time.
-    gridded_forecast_table.sparse_probability_matrix: Forecast grid.  This is an
-        instance of `scipy.sparse.csr_matrix`, and the corresponding full matrix
-        is M x N, with x-coordinate increasing to the right (along the columns)
-        and y-coordinate increasing down the columns.
-    gridded_forecast_table.grid_points_x_metres: length-N numpy array with x-
-        coordinates of grid points.
-    gridded_forecast_table.grid_points_y_metres: length-M numpy array with y-
-        coordinates of grid points.
+    :return: gridded_forecast_dict: See doc for
+        `prediction_io.write_gridded_predictions`.
     """
+
+    # TODO(thunderhoser): Min and max lead time should be determined by params
+    # for target variable.
+
+    # TODO(thunderhoser): Effective radius should allow non-zero probs outside
+    # of polygon buffer.  Or maybe allowing for uncertainty in the future track
+    # would handle this.
 
     error_checking.assert_is_integer(min_lead_time_sec)
     error_checking.assert_is_geq(min_lead_time_sec, 0)
@@ -1210,29 +1211,29 @@ def create_forecast_grids(
         for t in init_times_unix_sec
     ]
 
-    gridded_forecast_table = pandas.DataFrame.from_dict({
-        INIT_TIME_COLUMN: init_times_unix_sec
-    })
+    grid_point_x_coords_metres, grid_point_y_coords_metres = (
+        _create_default_xy_grid(
+            x_spacing_metres=grid_spacing_x_metres,
+            y_spacing_metres=grid_spacing_y_metres)
+    )
 
-    num_init_times = len(init_times_unix_sec)
-    object_array = numpy.full(num_init_times, numpy.nan, dtype=object)
+    num_xy_rows = len(grid_point_y_coords_metres)
+    num_xy_columns = len(grid_point_x_coords_metres)
+    num_init_times = len(init_time_strings)
 
-    nested_array = gridded_forecast_table[[
-        INIT_TIME_COLUMN, INIT_TIME_COLUMN
-    ]].values.tolist()
-
-    gridded_forecast_table = gridded_forecast_table.assign(**{
-        GRID_POINTS_X_COLUMN: nested_array,
-        GRID_POINTS_Y_COLUMN: nested_array,
-        PROBABILITY_MATRIX_XY_COLUMN: nested_array,
-        PROJECTION_OBJECT_COLUMN: object_array
-    })
+    gridded_forecast_dict = {
+        prediction_io.INIT_TIMES_KEY: init_times_unix_sec,
+        prediction_io.MIN_LEAD_TIME_KEY: min_lead_time_sec,
+        prediction_io.MAX_LEAD_TIME_KEY: max_lead_time_sec,
+        prediction_io.GRID_X_COORDS_KEY: grid_point_x_coords_metres,
+        prediction_io.GRID_Y_COORDS_KEY: grid_point_y_coords_metres,
+        prediction_io.XY_PROBABILITIES_KEY: [None] * num_init_times,
+        prediction_io.PROJECTION_KEY: DEFAULT_PROJECTION_OBJECT
+    }
 
     if interp_to_latlng_grid:
-        gridded_forecast_table = gridded_forecast_table.assign(**{
-            GRID_POINT_LATITUDES_COLUMN: nested_array,
-            GRID_POINT_LONGITUDES_COLUMN: nested_array,
-            PROBABILITY_MATRIX_LATLNG_COLUMN: nested_array
+        gridded_forecast_dict.update({
+            prediction_io.LATLNG_PROBABILITIES_KEY: [None] * num_init_times
         })
 
     for i in range(num_init_times):
@@ -1250,25 +1251,16 @@ def create_forecast_grids(
             storm_object_table=this_storm_object_table,
             prob_radius_for_grid_metres=prob_radius_for_grid_metres)
 
-        these_grid_point_x_metres, these_grid_point_y_metres = (
-            _create_default_xy_grid(
-                x_spacing_metres=grid_spacing_x_metres,
-                y_spacing_metres=grid_spacing_y_metres)
-        )
-
         this_storm_object_table = _polygons_to_grid_points(
             storm_object_table=this_storm_object_table,
-            grid_points_x_metres=these_grid_point_x_metres,
-            grid_points_y_metres=these_grid_point_y_metres)
-
-        this_num_grid_rows = len(these_grid_point_y_metres)
-        this_num_grid_columns = len(these_grid_point_x_metres)
+            grid_points_x_metres=grid_point_x_coords_metres,
+            grid_points_y_metres=grid_point_y_coords_metres)
 
         this_probability_matrix_xy = numpy.full(
-            (this_num_grid_rows, this_num_grid_columns), 0.
+            (num_xy_rows, num_xy_columns), 0.
         )
         this_num_forecast_matrix = numpy.full(
-            (this_num_grid_rows, this_num_grid_columns), 0, dtype=int
+            (num_xy_rows, num_xy_columns), 0, dtype=int
         )
 
         for this_lead_time_sec in lead_times_seconds:
@@ -1330,51 +1322,58 @@ def create_forecast_grids(
                     grid_spacing_y=grid_spacing_y_metres,
                     cutoff_radius=smoothing_cutoff_radius_metres)
 
-        if interp_to_latlng_grid:
-            print (
-                'Interpolating forecast to lat-long grid for initial time '
-                '{0:s}...'
-            ).format(init_time_strings[i])
-
-            (this_probability_matrix_latlng,
-             gridded_forecast_table[GRID_POINT_LATITUDES_COLUMN].values[i],
-             gridded_forecast_table[GRID_POINT_LONGITUDES_COLUMN].values[i]
-            ) = _interp_probabilities_to_latlng_grid(
-                probability_matrix_xy=this_probability_matrix_xy,
-                grid_points_x_metres=these_grid_point_x_metres,
-                grid_points_y_metres=these_grid_point_y_metres,
-                latitude_spacing_deg=latitude_spacing_deg,
-                longitude_spacing_deg=longitude_spacing_deg)
-
-            gridded_forecast_table[PROBABILITY_MATRIX_LATLNG_COLUMN].values[
-                i
-            ] = scipy.sparse.csr_matrix(this_probability_matrix_latlng)
-
-        print (
-            'Creating final forecast grid for initial time {0:s}...'
-        ).format(init_time_strings[i])
-
-        false_easting_metres, false_northing_metres = (
-            nwp_model_utils.get_false_easting_and_northing(
-                model_name=nwp_model_utils.RAP_MODEL_NAME,
-                grid_name=nwp_model_utils.NAME_OF_130GRID)
-        )
-
-        # TODO(thunderhoser): Adding the false easting/northing makes the
-        # plotting work out in probability_plotting.py, but I don't understand
-        # why.
-
-        gridded_forecast_table[GRID_POINTS_X_COLUMN].values[i] = (
-            these_grid_point_x_metres + false_easting_metres
-        )
-        gridded_forecast_table[GRID_POINTS_Y_COLUMN].values[i] = (
-            these_grid_point_y_metres + false_northing_metres
-        )
-        gridded_forecast_table[PROJECTION_OBJECT_COLUMN].values[i] = (
-            DEFAULT_PROJECTION_OBJECT
-        )
-        gridded_forecast_table[PROBABILITY_MATRIX_XY_COLUMN].values[i] = (
+        gridded_forecast_dict[prediction_io.XY_PROBABILITIES_KEY][i] = (
             scipy.sparse.csr_matrix(this_probability_matrix_xy)
         )
 
-    return gridded_forecast_table
+        if not interp_to_latlng_grid:
+            if i != num_init_times - 1:
+                print MINOR_SEPARATOR_STRING
+
+            continue
+
+        print (
+            'Interpolating forecast to lat-long grid for initial time '
+            '{0:s}...'
+        ).format(init_time_strings[i])
+
+        if i != num_init_times - 1:
+            print MINOR_SEPARATOR_STRING
+
+        (this_prob_matrix_latlng, these_latitudes_deg, these_longitudes_deg
+        ) = _interp_probabilities_to_latlng_grid(
+            probability_matrix_xy=this_probability_matrix_xy,
+            grid_points_x_metres=grid_point_x_coords_metres,
+            grid_points_y_metres=grid_point_y_coords_metres,
+            latitude_spacing_deg=latitude_spacing_deg,
+            longitude_spacing_deg=longitude_spacing_deg)
+
+        gridded_forecast_dict[prediction_io.LATLNG_PROBABILITIES_KEY][i] = (
+            scipy.sparse.csr_matrix(this_prob_matrix_latlng)
+        )
+
+        if i != 0:
+            continue
+
+        gridded_forecast_dict.update({
+            prediction_io.GRID_LATITUDES_KEY: these_latitudes_deg,
+            prediction_io.GRID_LONGITUDES_KEY: these_longitudes_deg
+        })
+
+    # TODO(thunderhoser): Adding the false easting/northing makes the
+    # plotting work out in probability_plotting.py, but I don't understand
+    # why.
+    false_easting_metres, false_northing_metres = (
+        nwp_model_utils.get_false_easting_and_northing(
+            model_name=nwp_model_utils.RAP_MODEL_NAME,
+            grid_name=nwp_model_utils.NAME_OF_130GRID)
+    )
+
+    gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += (
+        false_easting_metres
+    )
+    gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += (
+        false_northing_metres
+    )
+
+    return gridded_forecast_dict
