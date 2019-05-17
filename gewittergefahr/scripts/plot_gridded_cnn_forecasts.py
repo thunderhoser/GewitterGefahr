@@ -14,6 +14,7 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import probability_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
+SENTINEL_VALUE = -9999
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 TEST_LATITUDES_DEG = numpy.array([25.])
@@ -28,11 +29,27 @@ MERIDIAN_SPACING_DEG = 15.
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_prediction_file_name'
+MIN_LATITUDE_ARG_NAME = 'min_plot_latitude_deg'
+MAX_LATITUDE_ARG_NAME = 'max_plot_latitude_deg'
+MIN_LONGITUDE_ARG_NAME = 'min_plot_longitude_deg'
+MAX_LONGITUDE_ARG_NAME = 'max_plot_longitude_deg'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
     'Path to input file (will be read by '
     '`prediction_io.read_gridded_predictions`).')
+
+LATITUDE_HELP_STRING = (
+    'Latitude (deg N, in range -90...90).  Plotting area will be '
+    '`{0:s}`...`{1:s}`.  To let plotting area be determined by data, make this '
+    '{2:d}.'
+).format(MIN_LATITUDE_ARG_NAME, MAX_LATITUDE_ARG_NAME, SENTINEL_VALUE)
+
+LONGITUDE_HELP_STRING = (
+    'Longitude (deg E, in range 0...360).  Plotting area will be '
+    '`{0:s}`...`{1:s}`.  To let plotting area be determined by data, make this '
+    '{2:d}.'
+).format(MIN_LONGITUDE_ARG_NAME, MAX_LONGITUDE_ARG_NAME, SENTINEL_VALUE)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
@@ -41,6 +58,22 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
     help=INPUT_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_LATITUDE_ARG_NAME, type=float, required=False,
+    default=SENTINEL_VALUE, help=LATITUDE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_LATITUDE_ARG_NAME, type=float, required=False,
+    default=SENTINEL_VALUE, help=LATITUDE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_LONGITUDE_ARG_NAME, type=float, required=False,
+    default=SENTINEL_VALUE, help=LONGITUDE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_LONGITUDE_ARG_NAME, type=float, required=False,
+    default=SENTINEL_VALUE, help=LONGITUDE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -81,23 +114,39 @@ def _get_projection_offsets(
     return x_offset_metres, y_offset_metres
 
 
-def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
+def _plot_forecast_one_time(
+        gridded_forecast_dict, time_index, min_plot_latitude_deg,
+        max_plot_latitude_deg, min_plot_longitude_deg, max_plot_longitude_deg,
+        output_dir_name):
     """Plots gridded forecast at one time.
 
     :param gridded_forecast_dict: Dictionary returned by
         `prediction_io.read_gridded_predictions`.
     :param time_index: Will plot the [i]th gridded forecast, where
         i = `time_index`.
+    :param min_plot_latitude_deg: See documentation at top of file.
+    :param max_plot_latitude_deg: Same.
+    :param min_plot_longitude_deg: Same.
+    :param max_plot_longitude_deg: Same.
     :param output_dir_name: Name of output directory.  Figure will be saved
         here.
     """
 
-    latlng_limit_dict = {
-        plotting_utils.MIN_LATITUDE_KEY: 27.27,
-        plotting_utils.MAX_LATITUDE_KEY: 43.34,
-        plotting_utils.MIN_LONGITUDE_KEY: 259.48,
-        plotting_utils.MAX_LONGITUDE_KEY: 282.30
-    }
+    custom_area = all([
+        x is not None for x in
+        [min_plot_latitude_deg, max_plot_latitude_deg, min_plot_longitude_deg,
+         max_plot_longitude_deg]
+    ])
+
+    if custom_area:
+        latlng_limit_dict = {
+            plotting_utils.MIN_LATITUDE_KEY: min_plot_latitude_deg,
+            plotting_utils.MAX_LATITUDE_KEY: max_plot_latitude_deg,
+            plotting_utils.MIN_LONGITUDE_KEY: min_plot_longitude_deg,
+            plotting_utils.MAX_LONGITUDE_KEY: max_plot_longitude_deg
+        }
+    else:
+        latlng_limit_dict = None
 
     axes_object, basemap_object = plotting_utils.init_map_with_nwp_projection(
         model_name=nwp_model_utils.RAP_MODEL_NAME,
@@ -216,14 +265,29 @@ def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
                                       output_file_name=output_file_name)
 
 
-def _run(input_prediction_file_name, output_dir_name):
+def _run(input_prediction_file_name, min_plot_latitude_deg,
+         max_plot_latitude_deg, min_plot_longitude_deg,
+         max_plot_longitude_deg, output_dir_name):
     """Plots CNN forecasts on the RAP grid.
 
     This is effectively the main method.
 
     :param input_prediction_file_name: See documentation at top of file.
+    :param min_plot_latitude_deg: Same.
+    :param max_plot_latitude_deg: Same.
+    :param min_plot_longitude_deg: Same.
+    :param max_plot_longitude_deg: Same.
     :param output_dir_name: Same.
     """
+
+    if min_plot_latitude_deg <= SENTINEL_VALUE:
+        min_plot_latitude_deg = None
+    if max_plot_latitude_deg <= SENTINEL_VALUE:
+        max_plot_latitude_deg = None
+    if min_plot_longitude_deg <= SENTINEL_VALUE:
+        min_plot_longitude_deg = None
+    if max_plot_longitude_deg <= SENTINEL_VALUE:
+        max_plot_longitude_deg = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -237,6 +301,10 @@ def _run(input_prediction_file_name, output_dir_name):
     for i in range(num_times):
         _plot_forecast_one_time(
             gridded_forecast_dict=gridded_forecast_dict, time_index=i,
+            min_plot_latitude_deg=min_plot_latitude_deg,
+            max_plot_latitude_deg=max_plot_latitude_deg,
+            min_plot_longitude_deg=min_plot_longitude_deg,
+            max_plot_longitude_deg=max_plot_longitude_deg,
             output_dir_name=output_dir_name)
 
 
@@ -246,5 +314,11 @@ if __name__ == '__main__':
     _run(
         input_prediction_file_name=getattr(
             INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
+        min_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MIN_LATITUDE_ARG_NAME),
+        max_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MAX_LATITUDE_ARG_NAME),
+        min_plot_longitude_deg=getattr(
+            INPUT_ARG_OBJECT, MIN_LONGITUDE_ARG_NAME),
+        max_plot_longitude_deg=getattr(
+            INPUT_ARG_OBJECT, MAX_LONGITUDE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
