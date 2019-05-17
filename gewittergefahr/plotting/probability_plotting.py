@@ -23,7 +23,8 @@ def get_default_colour_map():
     """
 
     main_colour_list = [
-        numpy.array([0, 90, 50]), numpy.array([35, 139, 69]),
+        # numpy.array([0, 90, 50]),
+        numpy.array([35, 139, 69]),
         numpy.array([65, 171, 93]), numpy.array([116, 196, 118]),
         numpy.array([161, 217, 155]), numpy.array([8, 69, 148]),
         numpy.array([33, 113, 181]), numpy.array([66, 146, 198]),
@@ -44,8 +45,12 @@ def get_default_colour_map():
 
     colour_boundaries = numpy.linspace(0.05, 0.95, num=19)
     colour_boundaries = numpy.concatenate((
-        numpy.array([0.01]), colour_boundaries, numpy.array([1.])
+        colour_boundaries, numpy.array([1.])
     ))
+
+    # colour_boundaries = numpy.concatenate((
+    #     numpy.array([0.01]), colour_boundaries, numpy.array([1.])
+    # ))
 
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_boundaries, colour_map_object.N)

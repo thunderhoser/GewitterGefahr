@@ -23,6 +23,11 @@ TEST_LATITUDES_DEG = numpy.array([25.])
 TEST_LONGITUDES_DEG = numpy.array([265.])
 PYPROJ_OBJECT = nwp_model_utils.init_projection(nwp_model_utils.RAP_MODEL_NAME)
 
+TORNADO_MARKER_TYPE = '^'
+TORNADO_MARKER_SIZE = 8
+TORNADO_MARKER_EDGE_WIDTH = 1
+TORNADO_MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 BORDER_COLOUR = numpy.full(3, 0.)
@@ -309,8 +314,10 @@ def _plot_forecast_one_time(
 
         axes_object.plot(
             tornado_x_coords_metres, tornado_y_coords_metres, linestyle='None',
-            marker='o', markersize=8, markeredgewidth=1,
-            markerfacecolor=BORDER_COLOUR, markeredgecolor=BORDER_COLOUR)
+            marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
+            markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
+            markerfacecolor=TORNADO_MARKER_COLOUR,
+            markeredgecolor=TORNADO_MARKER_COLOUR)
 
     init_time_string = time_conversion.unix_sec_to_string(
         init_time_unix_sec, FILE_NAME_TIME_FORMAT
