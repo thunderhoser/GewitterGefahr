@@ -21,11 +21,11 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 LARGE_INTEGER = int(1e10)
 INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
-TARGET_NAME_KEY = 'target_name'
 EXAMPLE_DIMENSION_KEY = 'storm_object'
 CLASS_DIMENSION_KEY = 'class'
 STORM_ID_CHAR_DIM_KEY = 'storm_id_character'
 
+TARGET_NAME_KEY = 'target_name'
 STORM_IDS_KEY = 'storm_ids'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
 PROBABILITY_MATRIX_KEY = 'class_probability_matrix'
@@ -165,6 +165,44 @@ def _write_predictions(
         dataset_object.variables[OBSERVED_LABELS_KEY][:] = observed_labels
 
     dataset_object.close()
+
+
+def _read_predictions(netcdf_file_name):
+    """Reads predictions from NetCDF file created by `_write_predictions`.
+
+    :param netcdf_file_name: Path to input file.
+    :return: prediction_dict: Dictionary with the following keys.
+    prediction_dict['target_name']: See doc for `_write_predictions`.
+    prediction_dict['storm_ids']: Same.
+    prediction_dict['storm_times_unix_sec']: Same.
+    prediction_dict['class_probability_matrix']: Same.
+    prediction_dict['observed_labels']: See doc for `_write_predictions`.  This
+        may be None.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    prediction_dict = {
+        TARGET_NAME_KEY: str(getattr(dataset_object, TARGET_NAME_KEY)),
+        STORM_IDS_KEY: [
+            str(s) for s in
+            netCDF4.chartostring(dataset_object.variables[STORM_IDS_KEY][:])
+        ],
+        STORM_TIMES_KEY: numpy.array(
+            dataset_object.variables[STORM_TIMES_KEY][:], dtype=int
+        ),
+        PROBABILITY_MATRIX_KEY:
+            dataset_object.variables[PROBABILITY_MATRIX_KEY][:]
+    }
+
+    if OBSERVED_LABELS_KEY in dataset_object.variables:
+        prediction_dict.update({
+            OBSERVED_LABELS_KEY:
+                dataset_object.variables[OBSERVED_LABELS_KEY][:].astype(int)
+        })
+
+    dataset_object.close()
+    return prediction_dict
 
 
 def _run(model_file_name, example_file_name, first_time_string,
