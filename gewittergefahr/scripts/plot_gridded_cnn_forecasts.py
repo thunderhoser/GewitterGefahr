@@ -26,7 +26,8 @@ PYPROJ_OBJECT = nwp_model_utils.init_projection(nwp_model_utils.RAP_MODEL_NAME)
 TORNADO_MARKER_TYPE = '^'
 TORNADO_MARKER_SIZE = 8
 TORNADO_MARKER_EDGE_WIDTH = 1
-TORNADO_MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+TORNADO_MARKER_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+# TORNADO_MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
