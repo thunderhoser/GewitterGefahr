@@ -10,6 +10,8 @@ from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.deep_learning import prediction_io
 
+# TODO(thunderhoser): Make this script handle times with no storms.
+
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 INPUT_FILE_ARG_NAME = 'input_prediction_file_name'

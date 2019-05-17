@@ -1271,9 +1271,12 @@ def create_forecast_grids(
 
             for j in range(num_buffers):
                 for k in range(this_num_storm_objects):
-                    these_rows = this_extrap_storm_object_table[
-                        buffer_row_list_columns[j]
-                    ].values[k]
+                    try:
+                        these_rows = this_extrap_storm_object_table[
+                            buffer_row_list_columns[j]
+                        ].values[k]
+                    except IndexError:
+                        print this_extrap_storm_object_table.iloc[k]
 
                     these_columns = this_extrap_storm_object_table[
                         buffer_column_list_columns[j]
