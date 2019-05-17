@@ -156,6 +156,8 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
         max_buffer_dist_metres=max_buffer_dist_metres,
         column_type=gridded_forecasts.FORECAST_COLUMN_TYPE)
 
+    print forecast_column_name
+
     init_times_unix_sec = numpy.unique(
         ungridded_forecast_dict[prediction_io.STORM_TIMES_KEY]
     )
