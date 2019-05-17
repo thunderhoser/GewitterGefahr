@@ -15,6 +15,7 @@ from gewittergefahr.plotting import imagemagick_utils
 
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
+TITLE_FONT_SIZE = 20
 BORDER_COLOUR = numpy.full(3, 0.)
 GRID_LINE_COLOUR = numpy.full(3, 1.)
 PARALLEL_SPACING_DEG = 5.
@@ -121,7 +122,7 @@ def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
         first_valid_time_unix_sec, FILE_NAME_TIME_FORMAT)
 
     max_lead_time_seconds = gridded_forecast_dict[
-        prediction_io.MIN_LEAD_TIME_KEY
+        prediction_io.MAX_LEAD_TIME_KEY
     ]
     last_valid_time_unix_sec = init_time_unix_sec + max_lead_time_seconds
     last_valid_time_string = time_conversion.unix_sec_to_string(
@@ -130,7 +131,7 @@ def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
     title_string = 'Forecast init {0:s}, valid {1:s} to {2:s}'.format(
         init_time_string, first_valid_time_string, last_valid_time_string
     )
-    pyplot.title(title_string)
+    pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
     output_file_name = (
         '{0:s}/gridded_forecast_init-{1:s}_lead-{2:04d}-{3:04d}sec.jpg'
@@ -162,6 +163,19 @@ def _run(input_prediction_file_name, output_dir_name):
     print 'Reading data from: "{0:s}"...'.format(input_prediction_file_name)
     gridded_forecast_dict = prediction_io.read_gridded_predictions(
         input_prediction_file_name)
+
+    false_easting_metres, false_northing_metres = (
+        nwp_model_utils.get_false_easting_and_northing(
+            model_name=nwp_model_utils.RAP_MODEL_NAME,
+            grid_name=nwp_model_utils.NAME_OF_130GRID)
+    )
+
+    gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += (
+        false_easting_metres
+    )
+    gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] += (
+        false_northing_metres
+    )
 
     num_times = len(gridded_forecast_dict[prediction_io.INIT_TIMES_KEY])
 
