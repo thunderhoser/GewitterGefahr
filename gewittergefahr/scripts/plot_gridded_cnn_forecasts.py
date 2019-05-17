@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import prediction_io
@@ -89,33 +90,33 @@ def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
     if not isinstance(probability_matrix, numpy.ndarray):
         probability_matrix = probability_matrix.toarray()
 
-    # x_coords_metres = gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY]
-    # y_coords_metres = gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY]
-    #
-    # probability_plotting.plot_xy_grid(
-    #     probability_matrix=probability_matrix,
-    #     x_min_metres=numpy.min(x_coords_metres),
-    #     y_min_metres=numpy.min(y_coords_metres),
-    #     x_spacing_metres=numpy.diff(x_coords_metres[:2])[0],
-    #     y_spacing_metres=numpy.diff(y_coords_metres[:2])[0],
-    #     axes_object=axes_object, basemap_object=basemap_object)
+    x_coords_metres = gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY]
+    y_coords_metres = gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY]
+
+    probability_plotting.plot_xy_grid(
+        probability_matrix=probability_matrix,
+        x_min_metres=numpy.min(x_coords_metres),
+        y_min_metres=numpy.min(y_coords_metres),
+        x_spacing_metres=numpy.diff(x_coords_metres[:2])[0],
+        y_spacing_metres=numpy.diff(y_coords_metres[:2])[0],
+        axes_object=axes_object, basemap_object=basemap_object)
 
     colour_map_object, colour_norm_object = (
         probability_plotting.get_default_colour_map()
     )
 
-    probability_matrix[
-        probability_matrix < colour_norm_object.boundaries[0]
-    ] = numpy.nan
-
-    nwp_plotting.plot_subgrid(
-        field_matrix=probability_matrix,
-        model_name=nwp_model_utils.RAP_MODEL_NAME,
-        axes_object=axes_object, basemap_object=basemap_object,
-        colour_map_object=colour_map_object,
-        colour_norm_object=colour_norm_object,
-        grid_id=nwp_model_utils.NAME_OF_130GRID,
-        first_row_in_full_grid=40, first_column_in_full_grid=50, opacity=1.)
+    # probability_matrix[
+    #     probability_matrix < colour_norm_object.boundaries[0]
+    # ] = numpy.nan
+    #
+    # nwp_plotting.plot_subgrid(
+    #     field_matrix=probability_matrix,
+    #     model_name=nwp_model_utils.RAP_MODEL_NAME,
+    #     axes_object=axes_object, basemap_object=basemap_object,
+    #     colour_map_object=colour_map_object,
+    #     colour_norm_object=colour_norm_object,
+    #     grid_id=nwp_model_utils.NAME_OF_130GRID,
+    #     first_row_in_full_grid=40, first_column_in_full_grid=50, opacity=1.)
 
     plotting_utils.add_colour_bar(
         axes_object_or_list=axes_object, values_to_colour=probability_matrix,
@@ -129,15 +130,14 @@ def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
         init_time_unix_sec, FILE_NAME_TIME_FORMAT)
 
     min_lead_time_seconds = gridded_forecast_dict[
-        prediction_io.MIN_LEAD_TIME_KEY
-    ]
+        prediction_io.MIN_LEAD_TIME_KEY]
+    max_lead_time_seconds = gridded_forecast_dict[
+        prediction_io.MAX_LEAD_TIME_KEY]
+
     first_valid_time_unix_sec = init_time_unix_sec + min_lead_time_seconds
     first_valid_time_string = time_conversion.unix_sec_to_string(
         first_valid_time_unix_sec, FILE_NAME_TIME_FORMAT)
 
-    max_lead_time_seconds = gridded_forecast_dict[
-        prediction_io.MAX_LEAD_TIME_KEY
-    ]
     last_valid_time_unix_sec = init_time_unix_sec + max_lead_time_seconds
     last_valid_time_string = time_conversion.unix_sec_to_string(
         last_valid_time_unix_sec, FILE_NAME_TIME_FORMAT)
@@ -177,6 +177,35 @@ def _run(input_prediction_file_name, output_dir_name):
     print 'Reading data from: "{0:s}"...'.format(input_prediction_file_name)
     gridded_forecast_dict = prediction_io.read_gridded_predictions(
         input_prediction_file_name)
+
+    basemap_object = plotting_utils.init_map_with_nwp_projection(
+        model_name=nwp_model_utils.RAP_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_130GRID, xy_limit_dict=None
+    )[-1]
+
+    test_latitudes_deg = numpy.array([25.])
+    test_longitudes_deg = numpy.array([265.])
+
+    pyproj_object = nwp_model_utils.init_projection(
+        nwp_model_utils.RAP_MODEL_NAME)
+
+    pyproj_x_coords_metres, pyproj_y_coords_metres = (
+        projections.project_latlng_to_xy(
+            latitudes_deg=test_latitudes_deg,
+            longitudes_deg=test_longitudes_deg, projection_object=pyproj_object)
+    )
+
+    basemap_x_coords_metres, basemap_y_coords_metres = basemap_object(
+        test_longitudes_deg, test_latitudes_deg)
+
+    x_offset_metres = numpy.mean(basemap_x_coords_metres - pyproj_x_coords_metres)
+    y_offset_metres = numpy.mean(basemap_y_coords_metres - pyproj_y_coords_metres)
+
+    print x_offset_metres
+    print y_offset_metres
+
+    gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] = gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] + x_offset_metres
+    gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] = gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] + y_offset_metres
 
     num_times = len(gridded_forecast_dict[prediction_io.INIT_TIMES_KEY])
 
