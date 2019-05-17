@@ -121,6 +121,10 @@ def _run(top_input_dir_name, first_init_time_string, last_init_time_string,
         if this_key in gridded_forecast_dict:
             gridded_forecast_dict.pop(this_key)
 
+    print init_times_unix_sec[0]
+    print init_times_unix_sec[-1]
+    print init_times_unix_sec[-1] + MAX_LEAD_TIME_SECONDS - init_times_unix_sec[0]
+
     gridded_forecast_dict[prediction_io.INIT_TIMES_KEY] = (
         init_times_unix_sec[[0]]
     )
