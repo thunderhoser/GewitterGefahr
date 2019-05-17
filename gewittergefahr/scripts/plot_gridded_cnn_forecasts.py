@@ -15,8 +15,8 @@ from gewittergefahr.plotting import imagemagick_utils
 
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
-BORDER_COLOUR = numpy.array(3, 0.)
-GRID_LINE_COLOUR = numpy.array(3, 1.)
+BORDER_COLOUR = numpy.full(3, 0.)
+GRID_LINE_COLOUR = numpy.full(3, 1.)
 PARALLEL_SPACING_DEG = 5.
 MERIDIAN_SPACING_DEG = 15.
 FIGURE_RESOLUTION_DPI = 300
