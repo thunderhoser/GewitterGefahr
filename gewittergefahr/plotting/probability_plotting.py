@@ -104,4 +104,4 @@ def plot_xy_grid(
         x_coords_metres, y_coords_metres, probability_matrix,
         cmap=colour_map_object, norm=colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', axes=axes_object)
+        edgecolors='None', axes=axes_object, zorder=1e-9)
