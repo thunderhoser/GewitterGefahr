@@ -11,6 +11,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import prediction_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import probability_plotting
+from gewittergefahr.plotting import nwp_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -88,20 +89,33 @@ def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
     if not isinstance(probability_matrix, numpy.ndarray):
         probability_matrix = probability_matrix.toarray()
 
-    x_coords_metres = gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY]
-    y_coords_metres = gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY]
-
-    probability_plotting.plot_xy_grid(
-        probability_matrix=probability_matrix,
-        x_min_metres=numpy.min(x_coords_metres),
-        y_min_metres=numpy.min(y_coords_metres),
-        x_spacing_metres=numpy.diff(x_coords_metres[:2])[0],
-        y_spacing_metres=numpy.diff(y_coords_metres[:2])[0],
-        axes_object=axes_object, basemap_object=basemap_object)
+    # x_coords_metres = gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY]
+    # y_coords_metres = gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY]
+    #
+    # probability_plotting.plot_xy_grid(
+    #     probability_matrix=probability_matrix,
+    #     x_min_metres=numpy.min(x_coords_metres),
+    #     y_min_metres=numpy.min(y_coords_metres),
+    #     x_spacing_metres=numpy.diff(x_coords_metres[:2])[0],
+    #     y_spacing_metres=numpy.diff(y_coords_metres[:2])[0],
+    #     axes_object=axes_object, basemap_object=basemap_object)
 
     colour_map_object, colour_norm_object = (
         probability_plotting.get_default_colour_map()
     )
+
+    probability_matrix[
+        probability_matrix < colour_norm_object.boundaries[0]
+    ] = numpy.nan
+
+    nwp_plotting.plot_subgrid(
+        field_matrix=probability_matrix,
+        model_name=nwp_model_utils.RAP_MODEL_NAME,
+        axes_object=axes_object, basemap_object=basemap_object,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
+        grid_id=nwp_model_utils.NAME_OF_130GRID,
+        first_row_in_full_grid=40, first_column_in_full_grid=50, opacity=1.)
 
     plotting_utils.add_colour_bar(
         axes_object_or_list=axes_object, values_to_colour=probability_matrix,
@@ -163,69 +177,6 @@ def _run(input_prediction_file_name, output_dir_name):
     print 'Reading data from: "{0:s}"...'.format(input_prediction_file_name)
     gridded_forecast_dict = prediction_io.read_gridded_predictions(
         input_prediction_file_name)
-
-    basemap_object = plotting_utils.init_map_with_nwp_projection(
-        model_name=nwp_model_utils.RAP_MODEL_NAME,
-        grid_name=nwp_model_utils.NAME_OF_130GRID, xy_limit_dict=None
-    )[-1]
-
-    num_grid_rows = len(gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY])
-    num_grid_columns = len(
-        gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY]
-    )
-    num_grid_cells = num_grid_rows * num_grid_columns
-
-    linear_indices = numpy.random.random_integers(
-        low=0, high=num_grid_cells - 1, size=100)
-
-    row_indices, column_indices = numpy.unravel_index(
-        linear_indices, (num_grid_rows, num_grid_columns)
-    )
-
-    pyproj_x_coords_metres = gridded_forecast_dict[
-        prediction_io.GRID_X_COORDS_KEY
-    ][column_indices]
-
-    pyproj_y_coords_metres = gridded_forecast_dict[
-        prediction_io.GRID_Y_COORDS_KEY
-    ][row_indices]
-
-    latitudes_deg, longitudes_deg = nwp_model_utils.project_xy_to_latlng(
-        x_coords_metres=pyproj_x_coords_metres,
-        y_coords_metres=pyproj_y_coords_metres,
-        model_name=nwp_model_utils.RAP_MODEL_NAME,
-        grid_name=nwp_model_utils.NAME_OF_130GRID)
-
-    basemap_x_coords_metres, basemap_y_coords_metres = basemap_object(
-        longitudes_deg, latitudes_deg)
-
-    false_easting_metres, false_northing_metres = nwp_model_utils.get_false_easting_and_northing(model_name=nwp_model_utils.RAP_MODEL_NAME, grid_name=nwp_model_utils.NAME_OF_130GRID)
-
-    x_offset_metres = numpy.mean(
-        basemap_x_coords_metres - pyproj_x_coords_metres + false_easting_metres
-    )
-    y_offset_metres = numpy.mean(
-        basemap_y_coords_metres - pyproj_y_coords_metres + false_northing_metres
-    )
-
-    print x_offset_metres
-    print y_offset_metres
-
-    gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += x_offset_metres
-    gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] += y_offset_metres
-
-    # false_easting_metres, false_northing_metres = (
-    #     nwp_model_utils.get_false_easting_and_northing(
-    #         model_name=nwp_model_utils.RAP_MODEL_NAME,
-    #         grid_name=nwp_model_utils.NAME_OF_130GRID)
-    # )
-    #
-    # gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += (
-    #     false_easting_metres
-    # )
-    # gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] += (
-    #     false_northing_metres
-    # )
 
     num_times = len(gridded_forecast_dict[prediction_io.INIT_TIMES_KEY])
 
