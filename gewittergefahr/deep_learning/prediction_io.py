@@ -274,6 +274,9 @@ def write_gridded_predictions(gridded_forecast_dict, pickle_file_name):
     :raises: ValueError: if any of the required keys are not in the dictionary.
     """
 
+    # TODO(thunderhoser): Need more memory-efficient output format (probably
+    # MYRORSS format -- or NetCDF, anyways).
+
     if any([k in gridded_forecast_dict for k in LATLNG_KEYS]):
         these_required_keys = REQUIRED_KEYS + LATLNG_KEYS
     else:

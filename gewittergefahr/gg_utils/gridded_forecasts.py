@@ -66,15 +66,6 @@ COLUMN_TYPES = [
 SPEED_COLUMN = 'speed_m_s01'
 GEOGRAPHIC_BEARING_COLUMN = 'geographic_bearing_deg'
 
-INIT_TIME_COLUMN = 'init_time_unix_sec'
-GRID_POINTS_X_COLUMN = 'grid_points_x_metres'
-GRID_POINTS_Y_COLUMN = 'grid_points_y_metres'
-GRID_POINT_LATITUDES_COLUMN = 'grid_point_latitudes_deg'
-GRID_POINT_LONGITUDES_COLUMN = 'grid_point_longitudes_deg'
-PROBABILITY_MATRIX_XY_COLUMN = 'sparse_probability_matrix_xy'
-PROBABILITY_MATRIX_LATLNG_COLUMN = 'sparse_probability_matrix_latlng'
-PROJECTION_OBJECT_COLUMN = 'projection_object'
-
 
 def _check_smoothing_method(smoothing_method):
     """Ensures that smoothing method is valid.
