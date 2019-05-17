@@ -1322,8 +1322,12 @@ def create_forecast_grids(
                     grid_spacing_y=grid_spacing_y_metres,
                     cutoff_radius=smoothing_cutoff_radius_metres)
 
+        # gridded_forecast_dict[prediction_io.XY_PROBABILITIES_KEY][i] = (
+        #     scipy.sparse.csr_matrix(this_probability_matrix_xy)
+        # )
+
         gridded_forecast_dict[prediction_io.XY_PROBABILITIES_KEY][i] = (
-            scipy.sparse.csr_matrix(this_probability_matrix_xy)
+            this_probability_matrix_xy
         )
 
         if not interp_to_latlng_grid:
@@ -1348,8 +1352,12 @@ def create_forecast_grids(
             latitude_spacing_deg=latitude_spacing_deg,
             longitude_spacing_deg=longitude_spacing_deg)
 
+        # gridded_forecast_dict[prediction_io.LATLNG_PROBABILITIES_KEY][i] = (
+        #     scipy.sparse.csr_matrix(this_prob_matrix_latlng)
+        # )
+
         gridded_forecast_dict[prediction_io.LATLNG_PROBABILITIES_KEY][i] = (
-            scipy.sparse.csr_matrix(this_prob_matrix_latlng)
+            this_prob_matrix_latlng
         )
 
         if i != 0:

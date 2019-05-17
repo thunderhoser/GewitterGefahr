@@ -294,7 +294,6 @@ def write_gridded_predictions(gridded_forecast_dict, pickle_file_name):
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
 
     pickle_file_handle = open(pickle_file_name, 'wb')
-    gridded_forecast_dict.pop(PROJECTION_KEY)
     pickle.dump(gridded_forecast_dict, pickle_file_handle)
     pickle_file_handle.close()
 
