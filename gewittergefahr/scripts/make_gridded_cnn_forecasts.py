@@ -142,7 +142,7 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
     min_buffer_dist_metres = target_param_dict[
         target_val_utils.MIN_LINKAGE_DISTANCE_KEY]
 
-    # TODO(thunderhoser): This is hacky.
+    # TODO(thunderhoser): This is HACKY.
     if min_buffer_dist_metres == 0:
         min_buffer_dist_metres = numpy.nan
 
@@ -159,8 +159,6 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
         min_buffer_dist_metres=min_buffer_dist_metres,
         max_buffer_dist_metres=max_buffer_dist_metres,
         column_type=gridded_forecasts.FORECAST_COLUMN_TYPE)
-
-    print forecast_column_name
 
     init_times_unix_sec = numpy.unique(
         ungridded_forecast_dict[prediction_io.STORM_TIMES_KEY]
