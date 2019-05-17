@@ -101,14 +101,15 @@ def _run(model_file_name, example_file_name, first_time_string,
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
+    first_time_unix_sec = time_conversion.string_to_unix_sec(
+        first_time_string, INPUT_TIME_FORMAT)
+    last_time_unix_sec = time_conversion.string_to_unix_sec(
+        last_time_string, INPUT_TIME_FORMAT)
+
     training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
     training_option_dict[trainval_io.EXAMPLE_FILES_KEY] = [example_file_name]
-    training_option_dict[trainval_io.FIRST_STORM_TIME_KEY] = (
-        time_conversion.string_to_unix_sec(first_time_string, INPUT_TIME_FORMAT)
-    )
-    training_option_dict[trainval_io.LAST_STORM_TIME_KEY] = (
-        time_conversion.string_to_unix_sec(last_time_string, INPUT_TIME_FORMAT)
-    )
+    training_option_dict[trainval_io.FIRST_STORM_TIME_KEY] = first_time_unix_sec
+    training_option_dict[trainval_io.LAST_STORM_TIME_KEY] = last_time_unix_sec
 
     if model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] is not None:
         generator_object = testing_io.gridrad_generator_2d_reduced(
@@ -125,52 +126,51 @@ def _run(model_file_name, example_file_name, first_time_string,
         generator_object = testing_io.generator_2d_or_3d(
             option_dict=training_option_dict, num_examples_total=LARGE_INTEGER)
 
-    storm_object_dict = next(generator_object)
-    print SEPARATOR_STRING
-
-    observed_labels = storm_object_dict[testing_io.TARGET_ARRAY_KEY]
-    list_of_predictor_matrices = storm_object_dict[
-        testing_io.INPUT_MATRICES_KEY]
-
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        if len(list_of_predictor_matrices) == 3:
-            this_sounding_matrix = list_of_predictor_matrices[2]
-        else:
-            this_sounding_matrix = None
-
-        class_probability_matrix = cnn.apply_2d3d_cnn(
-            model_object=model_object,
-            reflectivity_matrix_dbz=list_of_predictor_matrices[0],
-            azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
-            sounding_matrix=this_sounding_matrix, verbose=True)
-
-    else:
-        if len(list_of_predictor_matrices) == 2:
-            this_sounding_matrix = list_of_predictor_matrices[1]
-        else:
-            this_sounding_matrix = None
-
-        class_probability_matrix = cnn.apply_2d_or_3d_cnn(
-            model_object=model_object,
-            radar_image_matrix=list_of_predictor_matrices[0],
-            sounding_matrix=this_sounding_matrix, verbose=True)
+    try:
+        storm_object_dict = next(generator_object)
+    except StopIteration:
+        storm_object_dict = None
 
     print SEPARATOR_STRING
-    num_examples = class_probability_matrix.shape[0]
 
-    for k in [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
-        print '{0:d}th percentile of {1:d} forecast probs = {2:.4f}'.format(
-            k, num_examples, numpy.percentile(class_probability_matrix[:, 1], k)
-        )
+    if storm_object_dict is not None:
+        observed_labels = storm_object_dict[testing_io.TARGET_ARRAY_KEY]
+        list_of_predictor_matrices = storm_object_dict[
+            testing_io.INPUT_MATRICES_KEY]
 
-    print '\n'
+        if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+            if len(list_of_predictor_matrices) == 3:
+                this_sounding_matrix = list_of_predictor_matrices[2]
+            else:
+                this_sounding_matrix = None
 
-    # for i in range(num_examples):
-    #     print 'Observed label = {0:d} ... forecast prob = {1:.4f}'.format(
-    #         observed_labels[i], class_probability_matrix[i, 1]
-    #     )
-    #
-    # print '\n'
+            class_probability_matrix = cnn.apply_2d3d_cnn(
+                model_object=model_object,
+                reflectivity_matrix_dbz=list_of_predictor_matrices[0],
+                azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
+                sounding_matrix=this_sounding_matrix, verbose=True)
+
+        else:
+            if len(list_of_predictor_matrices) == 2:
+                this_sounding_matrix = list_of_predictor_matrices[1]
+            else:
+                this_sounding_matrix = None
+
+            class_probability_matrix = cnn.apply_2d_or_3d_cnn(
+                model_object=model_object,
+                radar_image_matrix=list_of_predictor_matrices[0],
+                sounding_matrix=this_sounding_matrix, verbose=True)
+
+        print SEPARATOR_STRING
+        num_examples = class_probability_matrix.shape[0]
+
+        for k in [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
+            print '{0:d}th percentile of {1:d} forecast probs = {2:.4f}'.format(
+                k, num_examples,
+                numpy.percentile(class_probability_matrix[:, 1], k)
+            )
+
+        print '\n'
 
     target_param_dict = target_val_utils.target_name_to_params(
         model_metadata_dict[cnn.TARGET_NAME_KEY]
@@ -186,15 +186,30 @@ def _run(model_file_name, example_file_name, first_time_string,
 
     output_file_name = prediction_io.find_file(
         top_prediction_dir_name=top_output_dir_name,
-        first_init_time_unix_sec=numpy.min(
-            storm_object_dict[testing_io.STORM_TIMES_KEY]),
-        last_init_time_unix_sec=numpy.max(
-            storm_object_dict[testing_io.STORM_TIMES_KEY]),
+        first_init_time_unix_sec=first_time_unix_sec,
+        last_init_time_unix_sec=last_time_unix_sec,
         gridded=False, raise_error_if_missing=False
     )
 
     print 'Writing "{0:s}" predictions to: "{1:s}"...'.format(
         target_name, output_file_name)
+
+    if storm_object_dict is None:
+        num_output_neurons = (
+            model_object.layers[-1].output.get_shape().as_list()[-1]
+        )
+
+        num_classes = max([num_output_neurons, 2])
+        class_probability_matrix = numpy.full((0, num_classes), numpy.nan)
+
+        prediction_io.write_ungridded_predictions(
+            netcdf_file_name=output_file_name,
+            class_probability_matrix=numpy.full((0, num_classes), numpy.nan),
+            storm_ids=[], storm_times_unix_sec=numpy.array([], dtype=int),
+            target_name=target_name, observed_labels=numpy.array([], dtype=int)
+        )
+
+        return
 
     prediction_io.write_ungridded_predictions(
         netcdf_file_name=output_file_name,
