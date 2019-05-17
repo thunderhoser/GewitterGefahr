@@ -92,9 +92,17 @@ def _plot_forecast_one_time(gridded_forecast_dict, time_index, output_dir_name):
         here.
     """
 
+    latlng_limit_dict = {
+        plotting_utils.MIN_LATITUDE_KEY: 27.27,
+        plotting_utils.MAX_LATITUDE_KEY: 43.34,
+        plotting_utils.MIN_LONGITUDE_KEY: 259.48,
+        plotting_utils.MAX_LONGITUDE_KEY: 282.30
+    }
+
     axes_object, basemap_object = plotting_utils.init_map_with_nwp_projection(
         model_name=nwp_model_utils.RAP_MODEL_NAME,
-        grid_name=nwp_model_utils.NAME_OF_130GRID, xy_limit_dict=None
+        grid_name=nwp_model_utils.NAME_OF_130GRID, xy_limit_dict=None,
+        latlng_limit_dict=latlng_limit_dict
     )[1:]
 
     x_offset_metres, y_offset_metres = _get_projection_offsets(
