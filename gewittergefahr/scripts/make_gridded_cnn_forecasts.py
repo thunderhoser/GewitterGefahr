@@ -142,6 +142,10 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
     min_buffer_dist_metres = target_param_dict[
         target_val_utils.MIN_LINKAGE_DISTANCE_KEY]
 
+    # TODO(thunderhoser): This is hacky.
+    if min_buffer_dist_metres == 0:
+        min_buffer_dist_metres = numpy.nan
+
     max_buffer_dist_metres = target_param_dict[
         target_val_utils.MAX_LINKAGE_DISTANCE_KEY]
 
