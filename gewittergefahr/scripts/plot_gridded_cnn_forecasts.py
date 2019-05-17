@@ -199,11 +199,13 @@ def _run(input_prediction_file_name, output_dir_name):
     basemap_x_coords_metres, basemap_y_coords_metres = basemap_object(
         longitudes_deg, latitudes_deg)
 
+    false_easting_metres, false_northing_metres = nwp_model_utils.get_false_easting_and_northing(model_name=nwp_model_utils.RAP_MODEL_NAME, grid_name=nwp_model_utils.NAME_OF_130GRID)
+
     x_offset_metres = numpy.mean(
-        basemap_x_coords_metres - pyproj_x_coords_metres
+        basemap_x_coords_metres - pyproj_x_coords_metres + false_easting_metres
     )
     y_offset_metres = numpy.mean(
-        basemap_y_coords_metres - pyproj_y_coords_metres
+        basemap_y_coords_metres - pyproj_y_coords_metres + false_northing_metres
     )
 
     print x_offset_metres
