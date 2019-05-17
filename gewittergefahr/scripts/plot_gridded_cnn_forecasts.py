@@ -164,6 +164,54 @@ def _run(input_prediction_file_name, output_dir_name):
     gridded_forecast_dict = prediction_io.read_gridded_predictions(
         input_prediction_file_name)
 
+    basemap_object = plotting_utils.init_map_with_nwp_projection(
+        model_name=nwp_model_utils.RAP_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_130GRID, xy_limit_dict=None
+    )[-1]
+
+    num_grid_rows = len(gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY])
+    num_grid_columns = len(
+        gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY]
+    )
+    num_grid_cells = num_grid_rows * num_grid_columns
+
+    linear_indices = numpy.random.random_integers(
+        low=0, high=num_grid_cells - 1, size=100)
+
+    row_indices, column_indices = numpy.unravel_index(
+        linear_indices, (num_grid_rows, num_grid_columns)
+    )
+
+    pyproj_x_coords_metres = gridded_forecast_dict[
+        prediction_io.GRID_X_COORDS_KEY
+    ][column_indices]
+
+    pyproj_y_coords_metres = gridded_forecast_dict[
+        prediction_io.GRID_Y_COORDS_KEY
+    ][row_indices]
+
+    latitudes_deg, longitudes_deg = nwp_model_utils.project_xy_to_latlng(
+        x_coords_metres=pyproj_x_coords_metres,
+        y_coords_metres=pyproj_y_coords_metres,
+        model_name=nwp_model_utils.RAP_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_130GRID)
+
+    basemap_x_coords_metres, basemap_y_coords_metres = basemap_object(
+        longitudes_deg, latitudes_deg)
+
+    x_offset_metres = numpy.mean(
+        basemap_x_coords_metres - pyproj_x_coords_metres
+    )
+    y_offset_metres = numpy.mean(
+        basemap_y_coords_metres - pyproj_y_coords_metres
+    )
+
+    print x_offset_metres
+    print y_offset_metres
+
+    gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += x_offset_metres
+    gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] += y_offset_metres
+
     # false_easting_metres, false_northing_metres = (
     #     nwp_model_utils.get_false_easting_and_northing(
     #         model_name=nwp_model_utils.RAP_MODEL_NAME,
