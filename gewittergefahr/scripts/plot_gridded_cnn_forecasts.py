@@ -223,52 +223,10 @@ def _plot_forecast_one_time(
         latlng_limit_dict=latlng_limit_dict, resolution_string='i'
     )[1:]
 
-    # TODO(thunderhoser): Put this business into a method.
-    parallel_spacing_deg = (
-        (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
-    )
-    meridian_spacing_deg = (
-        (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
-    )
-
-    if parallel_spacing_deg < 1.:
-        parallel_spacing_deg = number_rounding.round_to_nearest(
-            parallel_spacing_deg, 0.1)
-    else:
-        parallel_spacing_deg = numpy.round(parallel_spacing_deg)
-
-    if meridian_spacing_deg < 1.:
-        meridian_spacing_deg = number_rounding.round_to_nearest(
-            meridian_spacing_deg, 0.1)
-    else:
-        meridian_spacing_deg = numpy.round(meridian_spacing_deg)
-
     x_offset_metres, y_offset_metres = _get_projection_offsets(
         basemap_object=basemap_object, pyproj_object=PYPROJ_OBJECT,
         test_latitudes_deg=TEST_LATITUDES_DEG,
         test_longitudes_deg=TEST_LONGITUDES_DEG)
-
-    plotting_utils.plot_coastlines(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-
-    plotting_utils.plot_countries(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-
-    plotting_utils.plot_states_and_provinces(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-
-    plotting_utils.plot_parallels(
-        basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=parallel_spacing_deg, line_colour=GRID_LINE_COLOUR)
-
-    plotting_utils.plot_meridians(
-        basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=meridian_spacing_deg, line_colour=GRID_LINE_COLOUR)
 
     probability_matrix = gridded_forecast_dict[
         prediction_io.XY_PROBABILITIES_KEY
@@ -292,6 +250,48 @@ def _plot_forecast_one_time(
         x_spacing_metres=numpy.diff(x_coords_metres[:2])[0],
         y_spacing_metres=numpy.diff(y_coords_metres[:2])[0],
         axes_object=axes_object, basemap_object=basemap_object)
+
+    # TODO(thunderhoser): Put this business into a method.
+    parallel_spacing_deg = (
+        (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
+    )
+    meridian_spacing_deg = (
+        (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
+    )
+
+    if parallel_spacing_deg < 1.:
+        parallel_spacing_deg = number_rounding.round_to_nearest(
+            parallel_spacing_deg, 0.1)
+    else:
+        parallel_spacing_deg = numpy.round(parallel_spacing_deg)
+
+    if meridian_spacing_deg < 1.:
+        meridian_spacing_deg = number_rounding.round_to_nearest(
+            meridian_spacing_deg, 0.1)
+    else:
+        meridian_spacing_deg = numpy.round(meridian_spacing_deg)
+
+    plotting_utils.plot_coastlines(
+        basemap_object=basemap_object, axes_object=axes_object,
+        line_colour=BORDER_COLOUR)
+
+    plotting_utils.plot_countries(
+        basemap_object=basemap_object, axes_object=axes_object,
+        line_colour=BORDER_COLOUR)
+
+    plotting_utils.plot_states_and_provinces(
+        basemap_object=basemap_object, axes_object=axes_object,
+        line_colour=BORDER_COLOUR)
+
+    plotting_utils.plot_parallels(
+        basemap_object=basemap_object, axes_object=axes_object,
+        bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
+        parallel_spacing_deg=parallel_spacing_deg, line_colour=GRID_LINE_COLOUR)
+
+    plotting_utils.plot_meridians(
+        basemap_object=basemap_object, axes_object=axes_object,
+        bottom_left_lng_deg=0., upper_right_lng_deg=360.,
+        meridian_spacing_deg=meridian_spacing_deg, line_colour=GRID_LINE_COLOUR)
 
     colour_map_object, colour_norm_object = (
         probability_plotting.get_default_colour_map()
@@ -328,7 +328,7 @@ def _plot_forecast_one_time(
     # pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
     output_file_name = (
-        '{0:s}/gridded_forecast_init-{1:s}_lead-{2:04d}-{3:04d}sec.jpg'
+        '{0:s}/gridded_forecast_init-{1:s}_lead-{2:06d}-{3:06d}sec.jpg'
     ).format(
         output_dir_name, init_time_string, min_lead_time_seconds,
         max_lead_time_seconds
