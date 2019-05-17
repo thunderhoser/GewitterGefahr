@@ -1275,15 +1275,14 @@ def create_forecast_grids(
                         buffer_row_list_columns[j]
                     ].values[k]
 
+                    if len(these_rows) == 0:  # Outside of grid.
+                        continue
+
                     these_columns = this_extrap_storm_object_table[
                         buffer_column_list_columns[j]
                     ].values[k]
 
-                    try:
-                        this_num_forecast_matrix[these_rows, these_columns] += 1
-                    except IndexError:
-                        print this_extrap_storm_object_table.iloc[k]
-                        raise
+                    this_num_forecast_matrix[these_rows, these_columns] += 1
 
                     this_probability_matrix_xy[these_rows, these_columns] = (
                         this_probability_matrix_xy[these_rows, these_columns] +
