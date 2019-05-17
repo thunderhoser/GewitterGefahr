@@ -211,27 +211,38 @@ def read_ungridded_predictions(netcdf_file_name):
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
+    num_examples = dataset_object.variables[STORM_IDS_KEY].shape[0]
+
+    if num_examples == 0:
+        num_classes = dataset_object.variables[PROBABILITY_MATRIX_KEY].shape[1]
+
+        prediction_dict = {
+            TARGET_NAME_KEY: str(getattr(dataset_object, TARGET_NAME_KEY)),
+            STORM_IDS_KEY: [],
+            STORM_TIMES_KEY: numpy.array([], dtype=int),
+            PROBABILITY_MATRIX_KEY: numpy.full((0, num_classes), numpy.nan)
+        }
+
+        if OBSERVED_LABELS_KEY in dataset_object.variables:
+            prediction_dict.update({
+                OBSERVED_LABELS_KEY: numpy.array([], dtype=int)
+            })
+
+        dataset_object.close()
+        return prediction_dict
 
     prediction_dict = {
         TARGET_NAME_KEY: str(getattr(dataset_object, TARGET_NAME_KEY)),
+        STORM_IDS_KEY: [
+            str(s) for s in
+            netCDF4.chartostring(dataset_object.variables[STORM_IDS_KEY][:])
+        ],
         STORM_TIMES_KEY: numpy.array(
             dataset_object.variables[STORM_TIMES_KEY][:], dtype=int
         ),
         PROBABILITY_MATRIX_KEY:
             dataset_object.variables[PROBABILITY_MATRIX_KEY][:]
     }
-
-    num_examples = len(prediction_dict[STORM_TIMES_KEY])
-
-    if num_examples == 0:
-        prediction_dict.update({STORM_IDS_KEY: []})
-    else:
-        prediction_dict.update({
-            STORM_IDS_KEY: [
-                str(s) for s in
-                netCDF4.chartostring(dataset_object.variables[STORM_IDS_KEY][:])
-            ]
-        })
 
     if OBSERVED_LABELS_KEY in dataset_object.variables:
         prediction_dict.update({
