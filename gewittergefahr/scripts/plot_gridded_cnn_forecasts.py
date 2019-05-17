@@ -164,18 +164,18 @@ def _run(input_prediction_file_name, output_dir_name):
     gridded_forecast_dict = prediction_io.read_gridded_predictions(
         input_prediction_file_name)
 
-    false_easting_metres, false_northing_metres = (
-        nwp_model_utils.get_false_easting_and_northing(
-            model_name=nwp_model_utils.RAP_MODEL_NAME,
-            grid_name=nwp_model_utils.NAME_OF_130GRID)
-    )
-
-    gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += (
-        false_easting_metres
-    )
-    gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] += (
-        false_northing_metres
-    )
+    # false_easting_metres, false_northing_metres = (
+    #     nwp_model_utils.get_false_easting_and_northing(
+    #         model_name=nwp_model_utils.RAP_MODEL_NAME,
+    #         grid_name=nwp_model_utils.NAME_OF_130GRID)
+    # )
+    #
+    # gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += (
+    #     false_easting_metres
+    # )
+    # gridded_forecast_dict[prediction_io.GRID_Y_COORDS_KEY] += (
+    #     false_northing_metres
+    # )
 
     num_times = len(gridded_forecast_dict[prediction_io.INIT_TIMES_KEY])
 

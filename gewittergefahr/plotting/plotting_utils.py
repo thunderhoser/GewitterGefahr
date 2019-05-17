@@ -64,6 +64,16 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
+X_MIN_KEY = 'x_min_metres'
+X_MAX_KEY = 'x_max_metres'
+Y_MIN_KEY = 'y_min_metres'
+Y_MAX_KEY = 'y_max_metres'
+
+MIN_LATITUDE_KEY = 'min_latitude_deg'
+MAX_LATITUDE_KEY = 'max_latitude_deg'
+MIN_LONGITUDE_KEY = 'min_longitude_deg'
+MAX_LONGITUDE_KEY = 'max_longitude_deg'
+
 
 def annotate_axes(
         axes_object, annotation_string, font_size=DEFAULT_ANNOT_FONT_SIZE,
@@ -255,10 +265,10 @@ def init_map_with_nwp_projection(
         all_y_coords_metres -= false_northing_metres
 
         xy_limit_dict = {
-            'x_min_metres': numpy.min(all_x_coords_metres),
-            'x_max_metres': numpy.max(all_x_coords_metres),
-            'y_min_metres': numpy.min(all_y_coords_metres),
-            'y_max_metres': numpy.max(all_y_coords_metres)
+            X_MIN_KEY: numpy.min(all_x_coords_metres),
+            X_MAX_KEY: numpy.max(all_x_coords_metres),
+            Y_MIN_KEY: numpy.min(all_y_coords_metres),
+            Y_MAX_KEY: numpy.max(all_y_coords_metres)
         }
 
     figure_object, axes_object = pyplot.subplots(
@@ -266,19 +276,19 @@ def init_map_with_nwp_projection(
     )
 
     if latlng_limit_dict is not None:
-        min_latitude_deg = latlng_limit_dict['min_latitude_deg']
-        max_latitude_deg = latlng_limit_dict['max_latitude_deg']
+        min_latitude_deg = latlng_limit_dict[MIN_LATITUDE_KEY]
+        max_latitude_deg = latlng_limit_dict[MAX_LATITUDE_KEY]
 
         error_checking.assert_is_valid_lat_numpy_array(
             numpy.array([min_latitude_deg, max_latitude_deg])
         )
 
         min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
-            latlng_limit_dict['min_longitude_deg']
+            latlng_limit_dict[MIN_LONGITUDE_KEY]
         )
 
         max_longitude_deg = lng_conversion.convert_lng_positive_in_west(
-            latlng_limit_dict['max_longitude_deg']
+            latlng_limit_dict[MAX_LONGITUDE_KEY]
         )
 
         error_checking.assert_is_greater(max_latitude_deg, min_latitude_deg)
@@ -292,10 +302,10 @@ def init_map_with_nwp_projection(
             llcrnrlon=min_longitude_deg, urcrnrlat=max_latitude_deg,
             urcrnrlon=max_longitude_deg)
     else:
-        x_min_metres = xy_limit_dict['x_min_metres']
-        x_max_metres = xy_limit_dict['x_max_metres']
-        y_min_metres = xy_limit_dict['y_min_metres']
-        y_max_metres = xy_limit_dict['y_max_metres']
+        x_min_metres = xy_limit_dict[X_MIN_KEY]
+        x_max_metres = xy_limit_dict[X_MAX_KEY]
+        y_min_metres = xy_limit_dict[Y_MIN_KEY]
+        y_max_metres = xy_limit_dict[Y_MAX_KEY]
 
         error_checking.assert_is_greater(x_max_metres, x_min_metres)
         error_checking.assert_is_greater(y_max_metres, y_min_metres)

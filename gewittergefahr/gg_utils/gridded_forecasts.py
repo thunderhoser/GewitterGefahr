@@ -1362,17 +1362,17 @@ def create_forecast_grids(
     # TODO(thunderhoser): Adding the false easting/northing makes the
     # plotting work out in probability_plotting.py, but I don't understand
     # why.
-    false_easting_metres, false_northing_metres = (
-        nwp_model_utils.get_false_easting_and_northing(
-            model_name=nwp_model_utils.RAP_MODEL_NAME,
-            grid_name=nwp_model_utils.NAME_OF_130GRID)
-    )
-
-    gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += (
-        false_easting_metres
-    )
-    gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += (
-        false_northing_metres
-    )
+    # false_easting_metres, false_northing_metres = (
+    #     nwp_model_utils.get_false_easting_and_northing(
+    #         model_name=nwp_model_utils.RAP_MODEL_NAME,
+    #         grid_name=nwp_model_utils.NAME_OF_130GRID)
+    # )
+    #
+    # gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += (
+    #     false_easting_metres
+    # )
+    # gridded_forecast_dict[prediction_io.GRID_X_COORDS_KEY] += (
+    #     false_northing_metres
+    # )
 
     return gridded_forecast_dict
