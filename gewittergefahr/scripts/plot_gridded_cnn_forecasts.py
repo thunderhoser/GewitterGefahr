@@ -23,11 +23,13 @@ TEST_LATITUDES_DEG = numpy.array([25.])
 TEST_LONGITUDES_DEG = numpy.array([265.])
 PYPROJ_OBJECT = nwp_model_utils.init_projection(nwp_model_utils.RAP_MODEL_NAME)
 
-TORNADO_MARKER_TYPE = '^'
-TORNADO_MARKER_SIZE = 8
+TORNADO_MARKER_TYPE = 'o'
+TORNADO_MARKER_SIZE = 10
 TORNADO_MARKER_EDGE_WIDTH = 1
-TORNADO_MARKER_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+
 # TORNADO_MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+# TORNADO_MARKER_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -228,6 +230,12 @@ def _plot_forecast_one_time(
         grid_name=nwp_model_utils.NAME_OF_130GRID, xy_limit_dict=None,
         latlng_limit_dict=latlng_limit_dict, resolution_string='i'
     )[1:]
+
+    if not custom_area:
+        min_plot_latitude_deg = basemap_object.llcrnrlat
+        max_plot_latitude_deg = basemap_object.urcrnrlat
+        min_plot_longitude_deg = basemap_object.llcrnrlon
+        max_plot_longitude_deg = basemap_object.urcrnrlon
 
     x_offset_metres, y_offset_metres = _get_projection_offsets(
         basemap_object=basemap_object, pyproj_object=PYPROJ_OBJECT,
