@@ -297,15 +297,15 @@ def _plot_forecast_one_time(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
 
-    plotting_utils.plot_parallels(
-        basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=parallel_spacing_deg, line_colour=GRID_LINE_COLOUR)
-
-    plotting_utils.plot_meridians(
-        basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=meridian_spacing_deg, line_colour=GRID_LINE_COLOUR)
+    # plotting_utils.plot_parallels(
+    #     basemap_object=basemap_object, axes_object=axes_object,
+    #     bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
+    #     parallel_spacing_deg=parallel_spacing_deg, line_colour=GRID_LINE_COLOUR)
+    #
+    # plotting_utils.plot_meridians(
+    #     basemap_object=basemap_object, axes_object=axes_object,
+    #     bottom_left_lng_deg=0., upper_right_lng_deg=360.,
+    #     meridian_spacing_deg=meridian_spacing_deg, line_colour=GRID_LINE_COLOUR)
 
     colour_map_object, colour_norm_object = (
         probability_plotting.get_default_colour_map()
