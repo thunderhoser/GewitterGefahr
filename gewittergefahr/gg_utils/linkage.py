@@ -1407,15 +1407,27 @@ def link_storms_to_tornadoes(
     storm_object_table = _read_input_storm_tracks(tracking_file_names)
     print SEPARATOR_STRING
 
+    num_storm_objects = len(storm_object_table.index)
+
+    if num_storm_objects == 0:
+        these_times_unix_sec = numpy.array(
+            [tracking_io.file_name_to_time(f) for f in tracking_file_names],
+            dtype=int
+        )
+
+        these_times_unix_sec = numpy.array([
+            numpy.min(these_times_unix_sec), numpy.max(these_times_unix_sec)
+        ], dtype=int)
+    else:
+        these_times_unix_sec = storm_object_table[
+            tracking_utils.VALID_TIME_COLUMN].values
+
     tornado_table = _read_input_tornado_reports(
         input_directory_name=tornado_directory_name,
-        storm_times_unix_sec=storm_object_table[
-            tracking_utils.VALID_TIME_COLUMN].values,
+        storm_times_unix_sec=these_times_unix_sec,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec)
     print SEPARATOR_STRING
-
-    num_storm_objects = len(storm_object_table.index)
 
     if num_storm_objects == 0:
         num_tornadoes = len(tornado_table.index)
