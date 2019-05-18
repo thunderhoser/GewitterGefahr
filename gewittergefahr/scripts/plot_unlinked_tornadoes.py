@@ -40,6 +40,7 @@ TORNADO_DIR_ARG_NAME = 'input_tornado_dir_name'
 LINKAGE_DIR_ARG_NAME = 'input_linkage_dir_name'
 MYRORSS_DIR_ARG_NAME = 'input_myrorss_dir_name'
 SPC_DATE_ARG_NAME = 'spc_date_string'
+MAX_DISTANCE_ARG_NAME = 'max_link_distance_metres'
 RADAR_FIELD_ARG_NAME = 'radar_field_name'
 RADAR_HEIGHT_ARG_NAME = 'radar_height_m_asl'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -62,6 +63,11 @@ MYRORSS_DIR_HELP_STRING = (
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  Unlinked tornadoes will be found and '
     'plotted for this date only.'
+)
+MAX_DISTANCE_HELP_STRING = (
+    'Max linkage distance.  Any tornado linked with greater distance will be '
+    'considered unlinked.  To use the default max linkage distance (whatever '
+    'was used to create the files), leave this argument alone.'
 )
 RADAR_FIELD_HELP_STRING = (
     'Radar field to be plotted with unlinked tornadoes.  Must be accepted by '
@@ -98,6 +104,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + SPC_DATE_ARG_NAME, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_DISTANCE_ARG_NAME, type=float, required=False, default=-1,
+    help=MAX_DISTANCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_FIELD_ARG_NAME, type=str, required=False,
@@ -288,8 +298,8 @@ def _plot_tornado_and_radar(
 
 
 def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
-         spc_date_string, radar_field_name, radar_height_m_asl,
-         output_dir_name):
+         spc_date_string, max_link_distance_metres, radar_field_name,
+         radar_height_m_asl, output_dir_name):
     """Plots tornado reports that could not be linked to a storm.
 
     This is effectively the main method.
@@ -298,10 +308,14 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
     :param top_linkage_dir_name: Same.
     :param top_myrorss_dir_name: Same.
     :param spc_date_string: Same.
+    :param max_link_distance_metres: Same.
     :param radar_field_name: Same.
     :param radar_height_m_asl: Same.
     :param output_dir_name: Same.
     """
+
+    if max_link_distance_metres <= 0.:
+        max_link_distance_metres = numpy.inf
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -391,17 +405,27 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
         if this_num_tornadoes == 0:
             continue
 
+        these_link_distances_metres = storm_to_tornadoes_table[
+            linkage.LINKAGE_DISTANCES_COLUMN].values[i]
+
+        these_good_indices = numpy.where(
+            these_link_distances_metres <= max_link_distance_metres
+        )[0]
+
         these_times_unix_sec = (
             storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values[i]
             + storm_to_tornadoes_table[
-                linkage.RELATIVE_EVENT_TIMES_COLUMN].values[i]
+                linkage.RELATIVE_EVENT_TIMES_COLUMN
+            ].values[i][these_good_indices]
         )
 
         these_latitudes_deg = storm_to_tornadoes_table[
-            linkage.EVENT_LATITUDES_COLUMN].values[i]
+            linkage.EVENT_LATITUDES_COLUMN
+        ].values[i][these_good_indices]
 
         these_longitudes_deg = storm_to_tornadoes_table[
-            linkage.EVENT_LONGITUDES_COLUMN].values[i]
+            linkage.EVENT_LONGITUDES_COLUMN
+        ].values[i][these_good_indices]
 
         linked_tornado_times_unix_sec = numpy.concatenate((
             linked_tornado_times_unix_sec, these_times_unix_sec
@@ -526,6 +550,7 @@ if __name__ == '__main__':
         top_linkage_dir_name=getattr(INPUT_ARG_OBJECT, LINKAGE_DIR_ARG_NAME),
         top_myrorss_dir_name=getattr(INPUT_ARG_OBJECT, MYRORSS_DIR_ARG_NAME),
         spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
+        max_link_distance_metres=getattr(INPUT_ARG_OBJECT, MAX_DISTANCE_ARG_NAME),
         radar_field_name=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_ARG_NAME),
         radar_height_m_asl=getattr(INPUT_ARG_OBJECT, RADAR_HEIGHT_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
