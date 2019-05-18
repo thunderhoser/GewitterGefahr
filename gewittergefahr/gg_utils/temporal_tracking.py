@@ -1471,26 +1471,27 @@ def get_storm_ages(storm_object_table, tracking_start_time_unix_sec,
     return storm_object_table.assign(**argument_dict)
 
 
-def find_predecessors_old(storm_object_table, target_row, num_seconds_back):
-    """Finds predecessors of one storm object.
+def find_predecessors(storm_object_table, target_row, num_seconds_back):
+    """Finds all predecessors of one storm object.
 
     :param storm_object_table: pandas DataFrame with at least the following
         columns.  Each row is one storm object.
     storm_object_table.valid_time_unix_sec: Valid time.
-    storm_object_table.secondary_storm_id: Secondary ID (string).
-    storm_object_table.first_prev_secondary_id: Secondary ID of first
-        predecessor ("" if no predecessors).
-    storm_object_table.second_prev_secondary_id: Secondary ID of second
-        predecessor ("" if only one predecessor).
+    storm_object_table.secondary_id_string: Secondary storm ID.
+    storm_object_table.first_prev_secondary_id_string: Secondary ID of first
+        immediate predecessor.
+    storm_object_table.second_prev_secondary_id_string: Secondary ID of second
+        immediate predecessor.
 
-    :param target_row: This method will find predecessors for the storm object
-        in the [k]th row of the table, where k = `target_row`.
-    :param num_seconds_back: This method will find predecessors at the earliest
-        time <= N seconds back, where N = `num_seconds_back`.
-    :return: predecessor_rows: 1-D numpy array with rows of predecessors.
+    :param target_row: Will find predecessors for object in [k]th row of
+        `storm_object_table`, where k = `target_row`.
+    :param num_seconds_back: Max time difference between target object and a
+        given predecessor.
+    :return: predecessor_rows: 1-D numpy array with rows of predecessors.  These
+        are rows in `storm_object_table`.
     """
 
-    # TODO(thunderhoser): This algorithm could probably be more efficient.
+    # TODO(thunderhoser): Could probably make this more efficient.
 
     error_checking.assert_is_integer(target_row)
     error_checking.assert_is_geq(target_row, 0)
@@ -1521,68 +1522,40 @@ def find_predecessors_old(storm_object_table, target_row, num_seconds_back):
     )[0][0]
 
     predecessor_rows = []
-    sec_id_strings_in_frontier = {
-        storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[
-             target_row]
-    }
+    rows_in_frontier = {target_row}
 
     while this_time_index > earliest_time_index:
-        this_time_rows = numpy.where(
+        these_current_rows = numpy.where(
             orig_to_unique_indices == this_time_index
         )[0]
 
-        sec_id_strings_in_old_frontier = copy.deepcopy(
-            sec_id_strings_in_frontier
-        )
-        sec_id_strings_in_frontier = set()
+        old_rows_in_frontier = copy.deepcopy(rows_in_frontier)
+        rows_in_frontier = set()
 
-        for this_sec_id_string in sec_id_strings_in_old_frontier:
-            these_subrows = numpy.where(
-                storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[
-                    this_time_rows] ==
-                this_sec_id_string
-            )[0]
-
-            if len(these_subrows) == 0:
-                sec_id_strings_in_frontier.add(this_sec_id_string)
+        for this_row in old_rows_in_frontier:
+            if this_row not in these_current_rows:
+                rows_in_frontier.add(this_row)
                 continue
 
-            these_current_rows = this_time_rows[these_subrows]
-
-            for i in these_current_rows:
-                these_previous_rows = find_immediate_predecessors(
-                    storm_object_table=storm_object_table, target_row=i,
-                    max_time_diff_seconds=(
-                        unique_times_unix_sec[this_time_index] -
-                        unique_times_unix_sec[earliest_time_index]
-                    )
+            these_previous_rows = find_immediate_predecessors(
+                storm_object_table=storm_object_table, target_row=this_row,
+                max_time_diff_seconds=(
+                    unique_times_unix_sec[this_time_index] -
+                    unique_times_unix_sec[earliest_time_index]
                 )
+            )
 
-                these_sec_id_strings = storm_object_table[
-                    tracking_utils.SECONDARY_ID_COLUMN
-                ].values[these_previous_rows].tolist()
-
-                if len(these_sec_id_strings) == 0:
-                    if i != target_row:
-                        predecessor_rows.append(i)
-                else:
-                    sec_id_strings_in_frontier = (
-                        sec_id_strings_in_frontier | set(these_sec_id_strings)
-                    )
+            if len(these_previous_rows) == 0:
+                if this_row != target_row:
+                    predecessor_rows.append(this_row)
+            else:
+                rows_in_frontier = (
+                    rows_in_frontier | set(these_previous_rows.tolist())
+                )
 
         this_time_index -= 1
 
-    new_predecessor_rows = numpy.where(
-        orig_to_unique_indices == earliest_time_index
-    )[0]
-
-    new_predecessor_rows = [
-        k for k in new_predecessor_rows
-        if storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[k] in
-           sec_id_strings_in_frontier
-    ]
-
-    return numpy.array(predecessor_rows + new_predecessor_rows, dtype=int)
+    return numpy.array(predecessor_rows + list(rows_in_frontier), dtype=int)
 
 
 def find_immediate_predecessors(

@@ -622,20 +622,19 @@ TRACKING_START_TIMES_UNIX_SEC = numpy.full(
     len(STORM_AGES_SECONDS), 0, dtype=int)
 TRACKING_END_TIMES_UNIX_SEC = numpy.full(len(STORM_AGES_SECONDS), 15, dtype=int)
 
-# The following constants are used to test find_predecessors.
-PREDECESSOR_ROWS_15SEC_LISTLIST = [
-    [], [], [], [], [], [],
-    [3], [5], [], [3], [4], [0, 2], [1], [],
-    [3, 8], [5], [], [13], [0, 2], [0, 2], [13]
-]
-
-PREDECESSOR_ROWS_5SEC_LISTLIST = [
-    [], [], [], [], [], [],
-    [], [], [], [], [], [], [], [],
-    [6, 8], [7], [], [13], [11], [11], [13]
-]
-
 # The following constants are used to test get_storm_velocities.
+# PREDECESSOR_DICT_15SEC = {
+#     0: [], 1: [], 2: [], 3: [], 4: [], 5: [],
+#     6: [3], 7: [5], 8: [], 9: [3], 10: [4], 11: [0, 2], 12: [1], 13: [],
+#     14: [3, 8], 15: [5], 16: [], 17: [13], 18: [0, 2], 19: [0, 2], 20: [13]
+# }
+#
+# PREDECESSOR_DICT_5SEC = {
+#     0: [], 1: [], 2: [], 3: [], 4: [], 5: [],
+#     6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: [], 13: [],
+#     14: [6, 8], 15: [7], 16: [], 17: [13], 18: [11], 19: [11], 20: [13]
+# }
+
 THESE_FIRST_TIME_DIFFS_SEC = numpy.array([
     -1, -1, -1, -1, -1, -1,
     10, 10, -1, 10, 10, 10, 10, -1,
@@ -1919,74 +1918,6 @@ class TemporalTrackingTests(unittest.TestCase):
                 tracking_utils.CELL_END_TIME_COLUMN].values,
             CELL_END_TIMES_UNIX_SEC
         ))
-
-    def test_find_predecessors_15sec(self):
-        """Ensures correct output from find_predecessors.
-
-        In this case, searches back 15 seconds at the most.
-        """
-
-        this_max_dict_by_time = [
-            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
-            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
-            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
-        ]
-
-        this_storm_object_table = (
-            temporal_tracking.local_maxima_to_storm_tracks(
-                this_max_dict_by_time
-            )
-        )
-
-        this_num_storm_objects = len(this_storm_object_table.index)
-
-        for i in range(this_num_storm_objects):
-            these_predecessor_rows = temporal_tracking.find_predecessors(
-                storm_object_table=this_storm_object_table, target_row=i,
-                num_seconds_back=15)
-
-            these_predecessor_rows = numpy.sort(these_predecessor_rows)
-            these_expected_rows = numpy.sort(numpy.array(
-                PREDECESSOR_ROWS_15SEC_LISTLIST[i], dtype=int
-            ))
-
-            self.assertTrue(numpy.array_equal(
-                these_predecessor_rows, these_expected_rows
-            ))
-
-    def test_find_predecessors_5sec(self):
-        """Ensures correct output from find_predecessors.
-
-        In this case, searches back 5 seconds at the most.
-        """
-
-        this_max_dict_by_time = [
-            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
-            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
-            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
-        ]
-
-        this_storm_object_table = (
-            temporal_tracking.local_maxima_to_storm_tracks(
-                this_max_dict_by_time
-            )
-        )
-
-        this_num_storm_objects = len(this_storm_object_table.index)
-
-        for i in range(this_num_storm_objects):
-            these_predecessor_rows = temporal_tracking.find_predecessors(
-                storm_object_table=this_storm_object_table, target_row=i,
-                num_seconds_back=5)
-
-            these_predecessor_rows = numpy.sort(these_predecessor_rows)
-            these_expected_rows = numpy.sort(numpy.array(
-                PREDECESSOR_ROWS_5SEC_LISTLIST[i], dtype=int
-            ))
-
-            self.assertTrue(numpy.array_equal(
-                these_predecessor_rows, these_expected_rows
-            ))
 
     def test_get_storm_velocities_15sec(self):
         """Ensures correct output from get_storm_velocities.
