@@ -83,14 +83,10 @@ def _link_tornadoes_one_period(
     if len(tracking_file_names) == 0:
         return
 
-    try:
-        storm_to_tornadoes_table = linkage.link_storms_to_tornadoes(
-            tracking_file_names=tracking_file_names,
-            tornado_directory_name=tornado_dir_name)
-        print SEPARATOR_STRING
-    except:
-        print SEPARATOR_STRING
-        return
+    storm_to_tornadoes_table = linkage.link_storms_to_tornadoes(
+        tracking_file_names=tracking_file_names,
+        tornado_directory_name=tornado_dir_name)
+    print SEPARATOR_STRING
 
     spc_date_string = time_conversion.time_to_spc_date_string(
         tracking_io.file_name_to_time(tracking_file_names[0])

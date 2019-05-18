@@ -354,6 +354,16 @@ def plot_storm_tracks(
             these_next_indices = temporal_tracking.find_immediate_successors(
                 storm_object_table=storm_object_table, target_row=i)
 
+            # if len(these_next_indices) > 1:
+            #     axes_object.text(
+            #         storm_object_table[
+            #             tracking_utils.CENTROID_X_COLUMN].values[i],
+            #         storm_object_table[
+            #             tracking_utils.CENTROID_Y_COLUMN].values[i],
+            #         '{0:d}-WAY SPLIT'.format(len(these_next_indices)),
+            #         fontsize=12, color='k',
+            #         horizontalalignment='left', verticalalignment='top')
+
             for j in these_next_indices:
                 these_x_coords_metres = storm_object_table[
                     tracking_utils.CENTROID_X_COLUMN
@@ -395,6 +405,16 @@ def plot_storm_tracks(
 
             these_prev_indices = temporal_tracking.find_immediate_predecessors(
                 storm_object_table=storm_object_table, target_row=i)
+
+            # if len(these_prev_indices) > 1:
+            #     axes_object.text(
+            #         storm_object_table[
+            #             tracking_utils.CENTROID_X_COLUMN].values[i],
+            #         storm_object_table[
+            #             tracking_utils.CENTROID_Y_COLUMN].values[i],
+            #         '{0:d}-WAY MERGER'.format(len(these_prev_indices)),
+            #         fontsize=12, color='k',
+            #         horizontalalignment='left', verticalalignment='top')
 
             plot_this_start_marker = (
                 (plot_start_markers and len(these_prev_indices) == 0)
