@@ -80,17 +80,10 @@ def _link_winds_one_period(
     :param top_output_dir_name: Same.
     """
 
-    if len(tracking_file_names) == 0:
-        return
-
-    try:
-        storm_to_winds_table = linkage.link_storms_to_winds(
-            tracking_file_names=tracking_file_names,
-            top_wind_directory_name=top_wind_dir_name)
-        print SEPARATOR_STRING
-    except:
-        print SEPARATOR_STRING
-        return
+    storm_to_winds_table = linkage.link_storms_to_winds(
+        tracking_file_names=tracking_file_names,
+        top_wind_directory_name=top_wind_dir_name)
+    print SEPARATOR_STRING
 
     spc_date_string = time_conversion.time_to_spc_date_string(
         tracking_io.file_name_to_time(tracking_file_names[0])
@@ -137,14 +130,15 @@ def _run(top_wind_dir_name, top_tracking_dir_name, tracking_scale_metres2,
         )[0]
 
         if len(these_file_names) == 0:
-            _link_winds_one_period(
-                tracking_file_names=tracking_file_names,
-                top_wind_dir_name=top_wind_dir_name,
-                top_output_dir_name=top_output_dir_name)
+            if len(tracking_file_names) > 0:
+                _link_winds_one_period(
+                    tracking_file_names=tracking_file_names,
+                    top_wind_dir_name=top_wind_dir_name,
+                    top_output_dir_name=top_output_dir_name)
 
-            print SEPARATOR_STRING
+                print SEPARATOR_STRING
+                tracking_file_names = []
 
-            tracking_file_names = []
             continue
 
         tracking_file_names += these_file_names

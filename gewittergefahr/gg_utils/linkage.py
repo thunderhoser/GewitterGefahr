@@ -1329,48 +1329,70 @@ def link_storms_to_winds(
     storm_object_table = _read_input_storm_tracks(tracking_file_names)
     print SEPARATOR_STRING
 
+    num_storm_objects = len(storm_object_table.index)
+
+    if num_storm_objects == 0:
+        these_times_unix_sec = numpy.array(
+            [tracking_io.file_name_to_time(f) for f in tracking_file_names],
+            dtype=int
+        )
+
+        these_times_unix_sec = numpy.array([
+            numpy.min(these_times_unix_sec), numpy.max(these_times_unix_sec)
+        ], dtype=int)
+    else:
+        these_times_unix_sec = storm_object_table[
+            tracking_utils.VALID_TIME_COLUMN].values
+
     wind_table = _read_input_wind_observations(
         top_directory_name=top_wind_directory_name,
-        storm_times_unix_sec=storm_object_table[
-            tracking_utils.VALID_TIME_COLUMN].values,
+        storm_times_unix_sec=these_times_unix_sec,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec)
     print SEPARATOR_STRING
 
-    global_centroid_lat_deg, global_centroid_lng_deg = (
-        geodetic_utils.get_latlng_centroid(
-            latitudes_deg=storm_object_table[
-                tracking_utils.CENTROID_LATITUDE_COLUMN].values,
-            longitudes_deg=storm_object_table[
-                tracking_utils.CENTROID_LONGITUDE_COLUMN].values)
-    )
+    if num_storm_objects == 0:
+        num_wind_obs = len(wind_table.index)
 
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=global_centroid_lat_deg,
-        central_longitude_deg=global_centroid_lng_deg)
+        wind_to_storm_table = wind_table.assign(**{
+            NEAREST_PRIMARY_ID_COLUMN: [None] * num_wind_obs,
+            LINKAGE_DISTANCE_COLUMN: numpy.full(num_wind_obs, numpy.nan)
+        })
+    else:
+        global_centroid_lat_deg, global_centroid_lng_deg = (
+            geodetic_utils.get_latlng_centroid(
+                latitudes_deg=storm_object_table[
+                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
+                longitudes_deg=storm_object_table[
+                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values)
+        )
 
-    storm_object_table = _project_storms_latlng_to_xy(
-        storm_object_table=storm_object_table,
-        projection_object=projection_object)
+        projection_object = projections.init_azimuthal_equidistant_projection(
+            central_latitude_deg=global_centroid_lat_deg,
+            central_longitude_deg=global_centroid_lng_deg)
 
-    wind_table = _project_events_latlng_to_xy(
-        event_table=wind_table, projection_object=projection_object)
+        storm_object_table = _project_storms_latlng_to_xy(
+            storm_object_table=storm_object_table,
+            projection_object=projection_object)
 
-    wind_x_limits_metres, wind_y_limits_metres = _get_bounding_box_for_storms(
-        storm_object_table=storm_object_table,
-        padding_metres=bounding_box_padding_metres)
+        wind_table = _project_events_latlng_to_xy(
+            event_table=wind_table, projection_object=projection_object)
 
-    wind_table = _filter_events_by_bounding_box(
-        event_table=wind_table, x_limits_metres=wind_x_limits_metres,
-        y_limits_metres=wind_y_limits_metres)
+        wind_x_limits_metres, wind_y_limits_metres = _get_bounding_box_for_storms(
+            storm_object_table=storm_object_table,
+            padding_metres=bounding_box_padding_metres)
 
-    wind_to_storm_table = _find_nearest_storms(
-        storm_object_table=storm_object_table, event_table=wind_table,
-        max_time_before_storm_start_sec=max_time_before_storm_start_sec,
-        max_time_after_storm_end_sec=max_time_after_storm_end_sec,
-        interp_time_resolution_sec=interp_time_resolution_sec,
-        max_link_distance_metres=max_link_distance_metres)
-    print SEPARATOR_STRING
+        wind_table = _filter_events_by_bounding_box(
+            event_table=wind_table, x_limits_metres=wind_x_limits_metres,
+            y_limits_metres=wind_y_limits_metres)
+
+        wind_to_storm_table = _find_nearest_storms(
+            storm_object_table=storm_object_table, event_table=wind_table,
+            max_time_before_storm_start_sec=max_time_before_storm_start_sec,
+            max_time_after_storm_end_sec=max_time_after_storm_end_sec,
+            interp_time_resolution_sec=interp_time_resolution_sec,
+            max_link_distance_metres=max_link_distance_metres)
+        print SEPARATOR_STRING
 
     return _reverse_wind_linkages(storm_object_table=storm_object_table,
                                   wind_to_storm_table=wind_to_storm_table)
