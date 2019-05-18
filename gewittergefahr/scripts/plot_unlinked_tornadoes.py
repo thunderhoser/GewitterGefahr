@@ -313,11 +313,20 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
 
     print 'Reading data from: "{0:s}"...'.format(linkage_file_name)
     storm_to_tornadoes_table = linkage.read_linkage_file(linkage_file_name)
+    num_storm_objects = len(storm_to_tornadoes_table.index)
+
+    if num_storm_objects == 0:
+        these_times_unix_sec = numpy.array([
+            time_conversion.get_start_of_spc_date(spc_date_string),
+            time_conversion.get_end_of_spc_date(spc_date_string)
+        ], dtype=int)
+    else:
+        these_times_unix_sec = storm_to_tornadoes_table[
+            tracking_utils.VALID_TIME_COLUMN].values
 
     tornado_table = linkage._read_input_tornado_reports(
         input_directory_name=tornado_dir_name,
-        storm_times_unix_sec=storm_to_tornadoes_table[
-            tracking_utils.VALID_TIME_COLUMN].values,
+        storm_times_unix_sec=these_times_unix_sec,
         max_time_before_storm_start_sec=
         linkage.DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
         max_time_after_storm_end_sec=linkage.DEFAULT_MAX_TIME_AFTER_STORM_SEC)
@@ -358,13 +367,17 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
     )[0]
 
     tornado_table = tornado_table.iloc[good_indices]
+    num_tornadoes = len(tornado_table.index)
+
+    if num_tornadoes == 0:
+        print 'No tornadoes in bounding box.  There is nothing more to do!'
+        return
 
     print 'Finding linked tornadoes...'
 
     linked_tornado_times_unix_sec = numpy.array([], dtype=int)
     linked_tornado_latitudes_deg = numpy.array([])
     linked_tornado_longitudes_deg = numpy.array([])
-    num_storm_objects = len(storm_to_tornadoes_table.index)
 
     for i in range(num_storm_objects):
         this_num_tornadoes = len(
@@ -399,11 +412,22 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
         ))
 
     print 'Finding unlinked tornadoes...'
-
-    num_tornadoes = len(tornado_table.index)
     unlinked_indices = []
 
     for j in range(num_tornadoes):
+        if len(linked_tornado_times_unix_sec) == 0:
+            this_tornado_time_string = time_conversion.unix_sec_to_string(
+                tornado_table[linkage.EVENT_TIME_COLUMN].values[j],
+                TIME_FORMAT)
+
+            print (
+                'Tornado at {0:s} was not linked.  Nearest linked tornado is '
+                'N/A, because no tornadoes were linked.'
+            ).format(this_tornado_time_string)
+
+            unlinked_indices.append(j)
+            continue
+
         these_time_diffs_sec = numpy.absolute(
             linked_tornado_times_unix_sec -
             tornado_table[linkage.EVENT_TIME_COLUMN].values[j]

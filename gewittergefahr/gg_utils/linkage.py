@@ -1107,16 +1107,12 @@ def _read_input_tornado_reports(
     tornado_table.f_or_ef_rating: F-scale or EF-scale rating (string).
     """
 
-    if len(storm_times_unix_sec) == 0:
-        min_tornado_time_unix_sec = 0
-        max_tornado_time_unix_sec = int(1e10)
-    else:
-        min_tornado_time_unix_sec = (
-            numpy.min(storm_times_unix_sec) - max_time_before_storm_start_sec
-        )
-        max_tornado_time_unix_sec = (
-            numpy.max(storm_times_unix_sec) + max_time_after_storm_end_sec
-        )
+    min_tornado_time_unix_sec = (
+        numpy.min(storm_times_unix_sec) - max_time_before_storm_start_sec
+    )
+    max_tornado_time_unix_sec = (
+        numpy.max(storm_times_unix_sec) + max_time_after_storm_end_sec
+    )
 
     min_tornado_year = int(time_conversion.unix_sec_to_string(
         min_tornado_time_unix_sec, YEAR_FORMAT
