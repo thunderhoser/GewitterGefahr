@@ -80,7 +80,6 @@ DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
 
 DEFAULT_MAX_JOIN_TIME_SEC = 610
 DEFAULT_MAX_JOIN_ERROR_M_S01 = 30.
-DEFAULT_NUM_SECONDS_FOR_VELOCITY = 915
 DEFAULT_MIN_REANALYZED_DURATION_SEC = 1
 
 DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))  # 10-km radius
@@ -1002,8 +1001,7 @@ def run_tracking(
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
-        min_track_duration_seconds=0,
-        num_seconds_back_for_velocity=DEFAULT_NUM_SECONDS_FOR_VELOCITY):
+        min_track_duration_seconds=0):
     """Runs echo-top-tracking.  This is effectively the main method.
 
     :param top_radar_dir_name: See doc for `_find_input_radar_files`.
@@ -1032,8 +1030,6 @@ def run_tracking(
     :param max_link_distance_m_s01: Same.
     :param min_track_duration_seconds: See doc for
         `temporal_tracking.remove_short_lived_storms`.
-    :param num_seconds_back_for_velocity: See doc for
-        `temporal_tracking.get_storm_velocities`.
     """
 
     if min_polygon_size_pixels is None:
@@ -1236,8 +1232,7 @@ def run_tracking(
 
     print 'Computing storm velocities...'
     storm_object_table = temporal_tracking.get_storm_velocities(
-        storm_object_table=storm_object_table,
-        num_seconds_back=num_seconds_back_for_velocity)
+        storm_object_table=storm_object_table)
 
     print SEPARATOR_STRING
     _write_new_tracks(
@@ -1255,8 +1250,7 @@ def reanalyze_across_spc_dates(
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_join_time_seconds=DEFAULT_MAX_JOIN_TIME_SEC,
         max_join_error_m_s01=DEFAULT_MAX_JOIN_ERROR_M_S01,
-        min_track_duration_seconds=DEFAULT_MIN_REANALYZED_DURATION_SEC,
-        num_seconds_back_for_velocity=DEFAULT_NUM_SECONDS_FOR_VELOCITY):
+        min_track_duration_seconds=DEFAULT_MIN_REANALYZED_DURATION_SEC):
     """Reanalyzes tracks across SPC dates.
 
     :param top_input_dir_name: Name of top-level directory with original tracks
@@ -1285,8 +1279,6 @@ def reanalyze_across_spc_dates(
     :param max_join_error_m_s01: Same.
     :param min_track_duration_seconds: See doc for
         `temporal_tracking.remove_short_lived_storms`.
-    :param num_seconds_back_for_velocity: See doc for
-        `temporal_tracking.get_storm_velocities`.
     """
 
     (spc_date_strings, tracking_file_names_by_date, valid_times_by_date_unix_sec
@@ -1361,8 +1353,7 @@ def reanalyze_across_spc_dates(
 
         print 'Computing storm velocities...'
         storm_object_table = temporal_tracking.get_storm_velocities(
-            storm_object_table=storm_object_table,
-            num_seconds_back=num_seconds_back_for_velocity)
+            storm_object_table=storm_object_table)
 
         print SEPARATOR_STRING
         _write_new_tracks(
@@ -1465,8 +1456,7 @@ def reanalyze_across_spc_dates(
 
         print 'Computing storm velocities...'
         concat_storm_object_table = temporal_tracking.get_storm_velocities(
-            storm_object_table=concat_storm_object_table,
-            num_seconds_back=num_seconds_back_for_velocity)
+            storm_object_table=concat_storm_object_table)
 
         storm_object_table_by_date[i] = concat_storm_object_table.loc[
             concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==

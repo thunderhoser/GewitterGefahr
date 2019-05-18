@@ -1938,7 +1938,8 @@ class TemporalTrackingTests(unittest.TestCase):
         )
 
         this_storm_object_table = temporal_tracking.get_storm_velocities(
-            storm_object_table=this_storm_object_table, num_seconds_back=15,
+            storm_object_table=this_storm_object_table,
+            min_time_difference_sec=5, max_time_difference_sec=15,
             test_mode=True)
 
         real_indices = numpy.where(
@@ -1981,7 +1982,8 @@ class TemporalTrackingTests(unittest.TestCase):
         )
 
         this_storm_object_table = temporal_tracking.get_storm_velocities(
-            storm_object_table=this_storm_object_table, num_seconds_back=5,
+            storm_object_table=this_storm_object_table,
+            min_time_difference_sec=5, max_time_difference_sec=5,
             test_mode=True)
 
         real_indices = numpy.where(

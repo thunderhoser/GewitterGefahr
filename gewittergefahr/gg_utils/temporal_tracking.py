@@ -12,7 +12,8 @@ from gewittergefahr.gg_utils import error_checking
 MAX_STORMS_IN_SPLIT = 2
 MAX_STORMS_IN_MERGER = 2
 DEFAULT_VELOCITY_EFOLD_RADIUS_METRES = 100000.
-DEFAULT_VELOCITY_WINDOW_SECONDS = 915
+DEFAULT_MIN_VELOCITY_TIME_SEC = 590
+DEFAULT_MAX_VELOCITY_TIME_SEC = 910
 
 VALID_TIME_KEY = 'valid_time_unix_sec'
 LATITUDES_KEY = 'latitudes_deg'
@@ -1693,7 +1694,9 @@ def find_immediate_successors(
 
 
 def get_storm_velocities(
-        storm_object_table, num_seconds_back=DEFAULT_VELOCITY_WINDOW_SECONDS,
+        storm_object_table,
+        min_time_difference_sec=DEFAULT_MIN_VELOCITY_TIME_SEC,
+        max_time_difference_sec=DEFAULT_MAX_VELOCITY_TIME_SEC,
         test_mode=False):
     """Estimates instantaneous velocity for each storm object.
 
@@ -1710,8 +1713,10 @@ def get_storm_velocities(
     storm_object_table.second_next_secondary_id: Secondary ID of second
         predecessor ("" if only one predecessor).
 
-    :param num_seconds_back: Number of seconds to use in each estimate
-        (backwards differencing).
+    :param min_time_difference_sec: Minimum time difference for backwards
+        differencing.
+    :param max_time_difference_sec: Max time difference for backwards
+        differencing.
     :param test_mode: Never mind.  Just leave this empty.
     :return: storm_object_table: Same as input but with the following extra
         columns.
@@ -1720,6 +1725,11 @@ def get_storm_velocities(
     storm_object_table.north_velocity_m_s01: Northward velocity (metres per
         second).
     """
+
+    error_checking.assert_is_integer(min_time_difference_sec)
+    error_checking.assert_is_integer(max_time_difference_sec)
+    error_checking.assert_is_geq(
+        max_time_difference_sec, min_time_difference_sec)
 
     error_checking.assert_is_boolean(test_mode)
 
@@ -1730,21 +1740,32 @@ def get_storm_velocities(
     for i in range(num_storm_objects):
         these_predecessor_rows = find_predecessors(
             storm_object_table=storm_object_table, target_row=i,
-            num_seconds_back=num_seconds_back)
+            num_seconds_back=max_time_difference_sec)
 
-        this_num_predecessors = len(these_predecessor_rows)
-        if this_num_predecessors == 0:
+        if len(these_predecessor_rows) == 0:
             continue
 
-        this_end_latitude_deg = storm_object_table[
-            tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
-        this_end_longitude_deg = storm_object_table[
-            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i]
         these_time_diffs_seconds = (
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[i] -
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[
                 these_predecessor_rows]
         )
+
+        these_subrows = numpy.where(
+            these_time_diffs_seconds >= min_time_difference_sec
+        )[0]
+
+        if len(these_subrows) == 0:
+            continue
+
+        these_time_diffs_seconds = these_time_diffs_seconds[these_subrows]
+        these_predecessor_rows = these_predecessor_rows[these_subrows]
+        this_num_predecessors = len(these_predecessor_rows)
+
+        this_end_latitude_deg = storm_object_table[
+            tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
+        this_end_longitude_deg = storm_object_table[
+            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i]
 
         these_east_displacements_metres = numpy.full(
             this_num_predecessors, numpy.nan)
