@@ -313,23 +313,27 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
 
     print 'Reading data from: "{0:s}"...'.format(linkage_file_name)
     storm_to_tornadoes_table = linkage.read_linkage_file(linkage_file_name)
-    num_storm_objects = len(storm_to_tornadoes_table.index)
 
+    num_storm_objects = len(storm_to_tornadoes_table.index)
     if num_storm_objects == 0:
-        these_times_unix_sec = numpy.array([
-            time_conversion.get_start_of_spc_date(spc_date_string),
-            time_conversion.get_end_of_spc_date(spc_date_string)
-        ], dtype=int)
-    else:
-        these_times_unix_sec = storm_to_tornadoes_table[
-            tracking_utils.VALID_TIME_COLUMN].values
+        print 'No storms for SPC date "{0:s]".  There is nothing to do!'.format(
+            spc_date_string)
+        return
 
     tornado_table = linkage._read_input_tornado_reports(
         input_directory_name=tornado_dir_name,
-        storm_times_unix_sec=these_times_unix_sec,
+        storm_times_unix_sec=storm_to_tornadoes_table[
+            tracking_utils.VALID_TIME_COLUMN].values,
         max_time_before_storm_start_sec=
         linkage.DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
         max_time_after_storm_end_sec=linkage.DEFAULT_MAX_TIME_AFTER_STORM_SEC)
+
+    num_tornadoes = len(tornado_table.index)
+    if num_tornadoes == 0:
+        print (
+            'No tornadoes for SPC date "{0:s]".  There is nothing to do!'
+        ).format(spc_date_string)
+        return
 
     print '\nRemoving tornadoes outside bounding box of storms...'
 
