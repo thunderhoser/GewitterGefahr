@@ -27,7 +27,12 @@ BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
 REQUIRED_COLUMNS = [
-    tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN,
+    tracking_utils.VALID_TIME_COLUMN, tracking_utils.PRIMARY_ID_COLUMN,
+    tracking_utils.SECONDARY_ID_COLUMN,
+    tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN,
+    tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN,
+    tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN,
+    tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN,
     tracking_utils.CENTROID_LATITUDE_COLUMN,
     tracking_utils.CENTROID_LONGITUDE_COLUMN
 ]

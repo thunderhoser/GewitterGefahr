@@ -518,8 +518,8 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
         if i != 0:
             prev_storm_object_table = storm_object_table.loc[
-                storm_object_table[tracking_utils.VALID_TIME_COLUMN] ==
-                valid_times_unix_sec[i - 1]
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN] <
+                valid_times_unix_sec[i]
             ]
 
             prev_id_strings = prev_storm_object_table[
@@ -535,8 +535,8 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
         if i != num_times - 1:
             next_storm_object_table = storm_object_table.loc[
-                storm_object_table[tracking_utils.VALID_TIME_COLUMN] ==
-                valid_times_unix_sec[i + 1]
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN] >
+                valid_times_unix_sec[i]
             ]
 
             next_id_strings = next_storm_object_table[
