@@ -1107,10 +1107,16 @@ def _read_input_tornado_reports(
     tornado_table.f_or_ef_rating: F-scale or EF-scale rating (string).
     """
 
-    min_tornado_time_unix_sec = numpy.min(
-        storm_times_unix_sec) - max_time_before_storm_start_sec
-    max_tornado_time_unix_sec = numpy.max(
-        storm_times_unix_sec) + max_time_after_storm_end_sec
+    if len(storm_times_unix_sec) == 0:
+        min_tornado_time_unix_sec = 0
+        max_tornado_time_unix_sec = int(1e10)
+    else:
+        min_tornado_time_unix_sec = (
+            numpy.min(storm_times_unix_sec) - max_time_before_storm_start_sec
+        )
+        max_tornado_time_unix_sec = (
+            numpy.max(storm_times_unix_sec) + max_time_after_storm_end_sec
+        )
 
     min_tornado_year = int(time_conversion.unix_sec_to_string(
         min_tornado_time_unix_sec, YEAR_FORMAT
@@ -1409,42 +1415,52 @@ def link_storms_to_tornadoes(
         max_time_after_storm_end_sec=max_time_after_storm_end_sec)
     print SEPARATOR_STRING
 
-    global_centroid_lat_deg, global_centroid_lng_deg = (
-        geodetic_utils.get_latlng_centroid(
-            latitudes_deg=storm_object_table[
-                tracking_utils.CENTROID_LATITUDE_COLUMN].values,
-            longitudes_deg=storm_object_table[
-                tracking_utils.CENTROID_LONGITUDE_COLUMN].values)
-    )
+    num_storm_objects = len(storm_object_table.index)
 
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=global_centroid_lat_deg,
-        central_longitude_deg=global_centroid_lng_deg)
+    if num_storm_objects == 0:
+        num_tornadoes = len(tornado_table.index)
 
-    storm_object_table = _project_storms_latlng_to_xy(
-        storm_object_table=storm_object_table,
-        projection_object=projection_object)
+        tornado_to_storm_table = tornado_table.assign(**{
+            NEAREST_PRIMARY_ID_COLUMN: [None] * num_tornadoes,
+            LINKAGE_DISTANCE_COLUMN: numpy.full(num_tornadoes, numpy.nan)
+        })
+    else:
+        global_centroid_lat_deg, global_centroid_lng_deg = (
+            geodetic_utils.get_latlng_centroid(
+                latitudes_deg=storm_object_table[
+                    tracking_utils.CENTROID_LATITUDE_COLUMN].values,
+                longitudes_deg=storm_object_table[
+                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values)
+        )
 
-    tornado_table = _project_events_latlng_to_xy(
-        event_table=tornado_table, projection_object=projection_object)
+        projection_object = projections.init_azimuthal_equidistant_projection(
+            central_latitude_deg=global_centroid_lat_deg,
+            central_longitude_deg=global_centroid_lng_deg)
 
-    tornado_x_limits_metres, tornado_y_limits_metres = (
-        _get_bounding_box_for_storms(
+        storm_object_table = _project_storms_latlng_to_xy(
             storm_object_table=storm_object_table,
-            padding_metres=bounding_box_padding_metres)
-    )
+            projection_object=projection_object)
 
-    tornado_table = _filter_events_by_bounding_box(
-        event_table=tornado_table, x_limits_metres=tornado_x_limits_metres,
-        y_limits_metres=tornado_y_limits_metres)
+        tornado_table = _project_events_latlng_to_xy(
+            event_table=tornado_table, projection_object=projection_object)
 
-    tornado_to_storm_table = _find_nearest_storms(
-        storm_object_table=storm_object_table, event_table=tornado_table,
-        max_time_before_storm_start_sec=max_time_before_storm_start_sec,
-        max_time_after_storm_end_sec=max_time_after_storm_end_sec,
-        interp_time_resolution_sec=interp_time_resolution_sec,
-        max_link_distance_metres=max_link_distance_metres)
-    print SEPARATOR_STRING
+        tornado_x_limits_metres, tornado_y_limits_metres = (
+            _get_bounding_box_for_storms(
+                storm_object_table=storm_object_table,
+                padding_metres=bounding_box_padding_metres)
+        )
+
+        tornado_table = _filter_events_by_bounding_box(
+            event_table=tornado_table, x_limits_metres=tornado_x_limits_metres,
+            y_limits_metres=tornado_y_limits_metres)
+
+        tornado_to_storm_table = _find_nearest_storms(
+            storm_object_table=storm_object_table, event_table=tornado_table,
+            max_time_before_storm_start_sec=max_time_before_storm_start_sec,
+            max_time_after_storm_end_sec=max_time_after_storm_end_sec,
+            interp_time_resolution_sec=interp_time_resolution_sec,
+            max_link_distance_metres=max_link_distance_metres)
+        print SEPARATOR_STRING
 
     return _reverse_tornado_linkages(
         storm_object_table=storm_object_table,

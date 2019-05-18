@@ -80,9 +80,6 @@ def _link_tornadoes_one_period(
     :param top_output_dir_name: Same.
     """
 
-    if len(tracking_file_names) == 0:
-        return
-
     storm_to_tornadoes_table = linkage.link_storms_to_tornadoes(
         tracking_file_names=tracking_file_names,
         tornado_directory_name=tornado_dir_name)
@@ -133,14 +130,15 @@ def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
         )[0]
 
         if len(these_file_names) == 0:
-            _link_tornadoes_one_period(
-                tracking_file_names=tracking_file_names,
-                tornado_dir_name=tornado_dir_name,
-                top_output_dir_name=top_output_dir_name)
+            if len(tracking_file_names) > 0:
+                _link_tornadoes_one_period(
+                    tracking_file_names=tracking_file_names,
+                    tornado_dir_name=tornado_dir_name,
+                    top_output_dir_name=top_output_dir_name)
 
-            print SEPARATOR_STRING
+                print SEPARATOR_STRING
+                tracking_file_names = []
 
-            tracking_file_names = []
             continue
 
         tracking_file_names += these_file_names
