@@ -316,7 +316,7 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
 
     num_storm_objects = len(storm_to_tornadoes_table.index)
     if num_storm_objects == 0:
-        print 'No storms for SPC date "{0:s]".  There is nothing to do!'.format(
+        print 'No storms for SPC date "{0:s}".  There is nothing to do!'.format(
             spc_date_string)
         return
 
@@ -331,7 +331,7 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
     num_tornadoes = len(tornado_table.index)
     if num_tornadoes == 0:
         print (
-            'No tornadoes for SPC date "{0:s]".  There is nothing to do!'
+            'No tornadoes for SPC date "{0:s}".  There is nothing to do!'
         ).format(spc_date_string)
         return
 
