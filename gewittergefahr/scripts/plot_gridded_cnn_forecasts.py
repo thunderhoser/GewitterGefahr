@@ -344,7 +344,7 @@ def _plot_forecast_one_time(
     # pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
     output_file_name = (
-        '{0:s}/gridded_forecast_init-{1:s}_lead-{2:06d}-{3:06d}sec.jpg'
+        '{0:s}/gridded_forecast_init-{1:s}_lead-{2:06d}-{3:06d}sec.png'
     ).format(
         output_dir_name, init_time_string, min_lead_time_seconds,
         max_lead_time_seconds
