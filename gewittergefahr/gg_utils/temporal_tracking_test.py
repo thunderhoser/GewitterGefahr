@@ -6,7 +6,6 @@ from collections import OrderedDict
 import numpy
 import pandas
 from gewittergefahr.gg_utils import temporal_tracking
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TOLERANCE = 1e-6
@@ -18,6 +17,7 @@ NEIGH_X_COORDS_METRES = numpy.array([
     0, 1.5, 3, 4.5,
     0, 1.5, 3, 4.5
 ])
+
 NEIGH_Y_COORDS_METRES = numpy.array([
     0, 0, 0, 0,
     2, 2, 2, 2,
@@ -29,6 +29,7 @@ X_VELOCITIES_WITH_NAN_M_S01 = numpy.array([
     14, numpy.nan, 1, 5,
     5, 7, numpy.nan, 7
 ])
+
 Y_VELOCITIES_WITH_NAN_M_S01 = numpy.array([
     numpy.nan, -4, 0, 0,
     3, numpy.nan, 2, 6,
@@ -108,15 +109,16 @@ THESE_X_COORDS_METRES = numpy.array(
 THESE_Y_COORDS_METRES = numpy.array(
     [-14, 25, -12, 1, -14, 4, -5, 18], dtype=float)
 
-THIS_CURRENT_TO_PREV_MATRIX = numpy.array(
-    [[0, 0, 0, 0, 0, 0],
-     [1, 1, 0, 0, 0, 0],
-     [0, 0, 1, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0],
-     [0, 0, 1, 0, 0, 0],
-     [0, 0, 0, 0, 1, 0],
-     [0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 1]], dtype=bool)
+THIS_CURRENT_TO_PREV_MATRIX = numpy.array([
+    [0, 0, 0, 0, 0, 0],
+    [1, 1, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1]
+], dtype=bool)
 
 SECOND_MAX_DICT_NO_VELOCITY = {
     temporal_tracking.VALID_TIME_KEY: 10,
@@ -136,10 +138,12 @@ FIRST_MAX_DICT_WITH_VELOCITY.update({
 
 SECOND_MAX_DICT_WITH_VELOCITY = copy.deepcopy(SECOND_MAX_DICT_NO_VELOCITY)
 
-THESE_X_VELOCITIES_M_S01 = numpy.array(
-    [numpy.nan, (-0.3 + 0.6) / 2, 1.9, numpy.nan, -0.9, 0, numpy.nan, 2.3])
-THESE_Y_VELOCITIES_M_S01 = numpy.array(
-    [numpy.nan, (2.1 + 2.6) / 2, -1.7, numpy.nan, -1.9, 0.7, numpy.nan, 0.9])
+THESE_X_VELOCITIES_M_S01 = numpy.array([
+    numpy.nan, (-0.3 + 0.6) / 2, 1.9, numpy.nan, -0.9, 0, numpy.nan, 2.3
+])
+THESE_Y_VELOCITIES_M_S01 = numpy.array([
+    numpy.nan, (2.1 + 2.6) / 2, -1.7, numpy.nan, -1.9, 0.7, numpy.nan, 0.9
+])
 
 SECOND_MAX_DICT_WITH_VELOCITY.update({
     temporal_tracking.X_VELOCITIES_KEY: THESE_X_VELOCITIES_M_S01,
@@ -165,9 +169,11 @@ NUM_SECOND_MAXIMA = len(
 )
 
 VELOCITY_DIFF_MATRIX_1TO2_M_S01 = numpy.full(
-    (NUM_SECOND_MAXIMA, NUM_FIRST_MAXIMA), numpy.inf)
+    (NUM_SECOND_MAXIMA, NUM_FIRST_MAXIMA), numpy.inf
+)
 CURRENT_TO_PREV_MATRIX_VELOCITY_1TO2 = numpy.full(
-    (NUM_SECOND_MAXIMA, NUM_FIRST_MAXIMA), False, dtype=bool)
+    (NUM_SECOND_MAXIMA, NUM_FIRST_MAXIMA), False, dtype=bool
+)
 
 THIS_X_DISTANCE_MATRIX_METRES = numpy.array([
     [11, 20, 12, 7, 8, 17],
@@ -195,30 +201,34 @@ DISTANCE_MATRIX_1TO2_M_S01 = numpy.sqrt(
     THIS_X_DISTANCE_MATRIX_METRES ** 2 + THIS_Y_DISTANCE_MATRIX_METRES ** 2
 ) / 10
 
-CURRENT_TO_PREV_MATRIX_DISTANCE_1TO2 = numpy.array(
-    [[0, 0, 0, 1, 1, 0],
-     [0, 0, 0, 0, 0, 1],
-     [0, 0, 0, 1, 1, 0],
-     [0, 0, 0, 1, 1, 0],
-     [0, 1, 0, 0, 1, 0],
-     [1, 0, 1, 0, 0, 0],
-     [0, 1, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0]], dtype=bool)
+CURRENT_TO_PREV_MATRIX_DISTANCE_1TO2 = numpy.array([
+    [0, 0, 0, 1, 1, 0],
+    [0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 1, 1, 0],
+    [0, 0, 0, 1, 1, 0],
+    [0, 1, 0, 0, 1, 0],
+    [1, 0, 1, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0]
+], dtype=bool)
 
-CURRENT_TO_PREV_MATRIX_1TO2 = numpy.array(
-    [[0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 1],
-     [0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 1, 0],
-     [1, 0, 1, 0, 0, 0],
-     [0, 1, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0]], dtype=bool)
+CURRENT_TO_PREV_MATRIX_1TO2 = numpy.array([
+    [0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 1, 0],
+    [1, 0, 1, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0]
+], dtype=bool)
 
 THESE_X_COORDS_METRES = numpy.array(
-    [21, 5, 30, 31, 0, 17, 28], dtype=float)
+    [21, 5, 30, 31, 0, 17, 28], dtype=float
+)
 THESE_Y_COORDS_METRES = numpy.array(
-    [-9, 34, 0, 12, -4, 12, 25], dtype=float)
+    [-9, 34, 0, 12, -4, 12, 25], dtype=float
+)
 
 THIRD_LOCAL_MAX_DICT_SANS_IDS = {
     temporal_tracking.VALID_TIME_KEY: 15,
@@ -233,27 +243,27 @@ THIRD_LOCAL_MAX_DICT_SANS_IDS = {
 # SECOND_EXTRAP_Y_COORDS_METRES = numpy.array(
 #     [numpy.nan, 36.75, -20.5, numpy.nan, -23.5, 7.5, numpy.nan, 22.5])
 
-THIS_X_DISTANCE_MATRIX_METRES = numpy.array(
-    [[-1, 21.25, 8.5, -1, 33.5, 16, -1, 9.5],
-     [-1, 5.25, 24.5, -1, 17.5, 0, -1, 25.5],
-     [-1, 30.25, 0.5, -1, 42.5, 25, -1, 0.5],
-     [-1, 31.25, 1.5, -1, 43.5, 26, -1, 0.5],
-     [-1, 0.25, 29.5, -1, 12.5, 5, -1, 30.5],
-     [-1, 17.25, 12.5, -1, 29.5, 12, -1, 13.5],
-     [-1, 28.25, 1.5, -1, 40.5, 23, -1, 2.5]]
-)
+THIS_X_DISTANCE_MATRIX_METRES = numpy.array([
+    [-1, 21.25, 8.5, -1, 33.5, 16, -1, 9.5],
+    [-1, 5.25, 24.5, -1, 17.5, 0, -1, 25.5],
+    [-1, 30.25, 0.5, -1, 42.5, 25, -1, 0.5],
+    [-1, 31.25, 1.5, -1, 43.5, 26, -1, 0.5],
+    [-1, 0.25, 29.5, -1, 12.5, 5, -1, 30.5],
+    [-1, 17.25, 12.5, -1, 29.5, 12, -1, 13.5],
+    [-1, 28.25, 1.5, -1, 40.5, 23, -1, 2.5]
+])
 
 THIS_X_DISTANCE_MATRIX_METRES[THIS_X_DISTANCE_MATRIX_METRES < 0] = numpy.inf
 
-THIS_Y_DISTANCE_MATRIX_METRES = numpy.array(
-    [[-1, 45.75, 11.5, -1, 14.5, 16.5, -1, 31.5],
-     [-1, 2.75, 54.5, -1, 57.5, 26.5, -1, 11.5],
-     [-1, 36.75, 20.5, -1, 23.5, 7.5, -1, 22.5],
-     [-1, 24.75, 32.5, -1, 35.5, 4.5, -1, 10.5],
-     [-1, 40.75, 16.5, -1, 19.5, 11.5, -1, 26.5],
-     [-1, 24.75, 32.5, -1, 35.5, 4.5, -1, 10.5],
-     [-1, 11.75, 45.5, -1, 48.5, 17.5, -1, 2.5]]
-)
+THIS_Y_DISTANCE_MATRIX_METRES = numpy.array([
+    [-1, 45.75, 11.5, -1, 14.5, 16.5, -1, 31.5],
+    [-1, 2.75, 54.5, -1, 57.5, 26.5, -1, 11.5],
+    [-1, 36.75, 20.5, -1, 23.5, 7.5, -1, 22.5],
+    [-1, 24.75, 32.5, -1, 35.5, 4.5, -1, 10.5],
+    [-1, 40.75, 16.5, -1, 19.5, 11.5, -1, 26.5],
+    [-1, 24.75, 32.5, -1, 35.5, 4.5, -1, 10.5],
+    [-1, 11.75, 45.5, -1, 48.5, 17.5, -1, 2.5]
+])
 
 THIS_Y_DISTANCE_MATRIX_METRES[THIS_Y_DISTANCE_MATRIX_METRES < 0] = numpy.inf
 
@@ -261,14 +271,15 @@ VELOCITY_DIFF_MATRIX_2TO3_M_S01 = numpy.sqrt(
     THIS_X_DISTANCE_MATRIX_METRES ** 2 + THIS_Y_DISTANCE_MATRIX_METRES ** 2
 ) / 5
 
-CURRENT_TO_PREV_MATRIX_VELOCITY_2TO3 = numpy.array(
-    [[0, 0, 1, 0, 0, 0, 0, 0],
-     [0, 1, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 1],
-     [0, 0, 0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 1]], dtype=bool)
+CURRENT_TO_PREV_MATRIX_VELOCITY_2TO3 = numpy.array([
+    [0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1]
+], dtype=bool)
 
 THIS_X_DISTANCE_MATRIX_METRES = numpy.array([
     [8, 22, 1, 1, 29, 16, 44, 2],
@@ -298,54 +309,38 @@ DISTANCE_MATRIX_2TO3_M_S01 = numpy.sqrt(
     THIS_X_DISTANCE_MATRIX_METRES ** 2 + THIS_Y_DISTANCE_MATRIX_METRES ** 2
 ) / 5
 
-CURRENT_TO_PREV_MATRIX_DISTANCE_2TO3 = numpy.array(
-    [[1, 0, 1, 0, 0, 0, 0, 0],
-     [0, 1, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 1],
-     [0, 0, 0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 1, 0, 1],
-     [0, 0, 0, 0, 0, 0, 0, 1]], dtype=bool)
+CURRENT_TO_PREV_MATRIX_DISTANCE_2TO3 = numpy.array([
+    [1, 0, 1, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 1],
+    [0, 0, 0, 0, 0, 0, 0, 1]
+], dtype=bool)
 
-CURRENT_TO_PREV_MATRIX_2TO3 = numpy.array(
-    [[1, 0, 1, 0, 0, 0, 0, 0],
-     [0, 1, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 1],
-     [0, 0, 0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 1]], dtype=bool)
+CURRENT_TO_PREV_MATRIX_2TO3 = numpy.array([
+    [1, 0, 1, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1]
+], dtype=bool)
 
-# The following constants are used to test _create_primary_storm_id,
-# _create_secondary_storm_id, and create_full_storm_id.
-PREV_SPC_DATE_STRING = '20190314'
-PREV_PRIMARY_ID_NUMERIC = 16
-PREV_SECONDARY_ID_NUMERIC = 34
+# The following constants are used to test _create_partial_storm_id.
+PREV_PRIMARY_ID_NUMERIC = 10
+NEXT_PRIMARY_ID_NUMERIC = 11
+NEXT_PRIMARY_ID_STRING = '11'
 
-NEXT_SPC_DATE_STRING = '20190315'
-PRIMARY_ID_STRING_SAME_DAY = '000017_20190314'
-PRIMARY_ID_STRING_NEXT_DAY = '000000_20190315'
-SECONDARY_ID_STRING = '000035'
-FULL_ID_STRING_SAME_DAY = '000017_20190314_000035'
-FULL_ID_STRING_NEXT_DAY = '000000_20190315_000035'
-
-# The following constants are used to test full_to_partial_ids.
-TOY_PRIMARY_ID_STRINGS = [
-    '000000_19691231', '000001_19691231', '000002_19691231', '000003_19691231',
-    '000004_19691231', '000005_19691231'
-]
-TOY_SECONDARY_ID_STRINGS = [
-    '000000', '000001', '000002', '000003', '000004', '000005'
-]
-TOY_FULL_ID_STRINGS = [
-    '000000_19691231_000000', '000001_19691231_000001',
-    '000002_19691231_000002', '000003_19691231_000003',
-    '000004_19691231_000004', '000005_19691231_000005'
-]
+PREV_SECONDARY_ID_NUMERIC = 8
+NEXT_SECONDARY_ID_NUMERIC = 9
+NEXT_SECONDARY_ID_STRING = '9'
 
 # The following constants are used to test _local_maxima_to_tracks_mergers.
-FIRST_PRIMARY_ID_STRINGS = copy.deepcopy(TOY_PRIMARY_ID_STRINGS)
-FIRST_SECONDARY_ID_STRINGS = copy.deepcopy(TOY_SECONDARY_ID_STRINGS)
+FIRST_PRIMARY_ID_STRINGS = ['0', '1', '2', '3', '4', '5']
+FIRST_SECONDARY_ID_STRINGS = ['0', '1', '2', '3', '4', '5']
 
 FIRST_LOCAL_MAX_DICT_WITH_IDS = copy.deepcopy(FIRST_LOCAL_MAX_DICT_SANS_IDS)
 FIRST_LOCAL_MAX_DICT_WITH_IDS.update({
@@ -353,93 +348,79 @@ FIRST_LOCAL_MAX_DICT_WITH_IDS.update({
     temporal_tracking.SECONDARY_IDS_KEY: FIRST_SECONDARY_ID_STRINGS,
 })
 
-PREV_SPC_DATE_STRING_1TO2_PREMERGE = '19691231'
 PREV_PRIMARY_ID_1TO2_PREMERGE = 5
 PREV_SECONDARY_ID_1TO2_PREMERGE = 5
 
 FIRST_NEXT_SECONDARY_IDS_POSTMERGE = [
-    ['000006'], [], ['000006'], [], [], []
+    ['6'], [], ['6'], [], [], []
 ]
 SECOND_PREV_SECONDARY_IDS_POSTMERGE = [
-    [], [], [], [], [], ['000000', '000002'], [], []
+    [], [], [], [], [], ['0', '2'], [], []
 ]
 
 SECOND_PRIMARY_ID_STRINGS_POSTMERGE = [
-    '', '', '', '', '', '000006_19691231', '', ''
+    '', '', '', '', '', '6', '', ''
 ]
 SECOND_SECONDARY_ID_STRINGS_POSTMERGE = [
-    '', '', '', '', '', '000006', '', ''
+    '', '', '', '', '', '6', '', ''
 ]
 
-PREV_SPC_DATE_STRING_1TO2_POSTMERGE = '19691231'
 PREV_PRIMARY_ID_1TO2_POSTMERGE = 6
 PREV_SECONDARY_ID_1TO2_POSTMERGE = 6
 
 OLD_TO_NEW_DICT_1TO2 = [
-    ('000000_19691231', '000006_19691231'),
-    ('000002_19691231', '000006_19691231')
+    ('0', '6'),
+    ('2', '6')
 ]
 OLD_TO_NEW_DICT_1TO2 = OrderedDict(OLD_TO_NEW_DICT_1TO2)
 
-CURRENT_TO_PREV_MATRIX_1TO2_POSTMERGE = numpy.array(
-    [[0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 1],
-     [0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 1, 0],
-     [0, 0, 0, 0, 0, 0],
-     [0, 1, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0]], dtype=bool)
+CURRENT_TO_PREV_MATRIX_1TO2_POSTMERGE = numpy.array([
+    [0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 1, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0]
+], dtype=bool)
 
 # The following constants are used to test _local_maxima_to_tracks_splits.
 FIRST_NEXT_SECONDARY_IDS_POSTSPLIT = [
-    ['000006'], [], ['000006'], ['000007', '000008'], [], []
+    ['6'], [], ['6'], ['7', '8'], [], []
 ]
 SECOND_PREV_SECONDARY_IDS_POSTSPLIT = [
-    ['000003'], [], [], ['000003'], [], ['000000', '000002'], [], []
+    ['3'], [], [], ['3'], [], ['0', '2'], [], []
 ]
 
-SECOND_PRIMARY_ID_STRINGS_POSTSPLIT = [
-    '000003_19691231', '', '', '000003_19691231', '', '000006_19691231', '', ''
-]
-SECOND_SECONDARY_ID_STRINGS_POSTSPLIT = [
-    '000007', '', '', '000008', '', '000006', '', ''
-]
+SECOND_PRIMARY_ID_STRINGS_POSTSPLIT = ['3', '', '', '3', '', '6', '', '']
+SECOND_SECONDARY_ID_STRINGS_POSTSPLIT = ['7', '', '', '8', '', '6', '', '']
 
-PREV_SPC_DATE_STRING_1TO2_POSTSPLIT = '19691231'
 PREV_PRIMARY_ID_1TO2_POSTSPLIT = 6
 PREV_SECONDARY_ID_1TO2_POSTSPLIT = 8
 
-CURRENT_TO_PREV_MATRIX_1TO2_POSTSPLIT = numpy.array(
-    [[0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 1],
-     [0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 1, 0],
-     [0, 0, 0, 0, 0, 0],
-     [0, 1, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0]], dtype=bool)
+CURRENT_TO_PREV_MATRIX_1TO2_POSTSPLIT = numpy.array([
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0]
+], dtype=bool)
 
 # The following constants are used to test _local_maxima_to_tracks_simple.
 FIRST_NEXT_SECONDARY_IDS_POST = [
-    ['000006'], ['000001'], ['000006'], ['000007', '000008'], ['000004'],
-    ['000005']
+    ['6'], ['1'], ['6'], ['7', '8'], ['4'], ['5']
 ]
 SECOND_PREV_SECONDARY_IDS_POST = [
-    ['000003'], ['000005'], [], ['000003'], ['000004'], ['000000', '000002'],
-    ['000001'], []
+    ['3'], ['5'], [], ['3'], ['4'], ['0', '2'], ['1'], []
 ]
 
-SECOND_PRIMARY_ID_STRINGS = [
-    '000003_19691231', '000005_19691231', '000007_19691231', '000003_19691231',
-    '000004_19691231', '000006_19691231', '000001_19691231', '000008_19691231'
-]
-SECOND_SECONDARY_ID_STRINGS = [
-    '000007', '000005', '000009', '000008', '000004', '000006', '000001',
-    '000010'
-]
+SECOND_PRIMARY_ID_STRINGS = ['3', '5', '7', '3', '4', '6', '1', '8']
+SECOND_SECONDARY_ID_STRINGS = ['7', '5', '9', '8', '4', '6', '1', '10']
 
-PREV_SPC_DATE_STRING_1TO2_POST = '19691231'
 PREV_PRIMARY_ID_1TO2_POST = 8
 PREV_SECONDARY_ID_1TO2_POST = 10
 
@@ -452,9 +433,9 @@ SECOND_LOCAL_MAX_DICT_WITH_IDS.update({
 
 # The following constants are used to test local_maxima_to_storm_tracks.
 PRIMARY_ID_STRINGS_1AND2 = FIRST_PRIMARY_ID_STRINGS + SECOND_PRIMARY_ID_STRINGS
-THESE_OLD_ID_STRINGS = ['000000_19691231', '000002_19691231']
+THESE_OLD_ID_STRINGS = ['0', '2']
 PRIMARY_ID_STRINGS_1AND2 = [
-    '000006_19691231' if s in THESE_OLD_ID_STRINGS else s
+    '6' if s in THESE_OLD_ID_STRINGS else s
     for s in PRIMARY_ID_STRINGS_1AND2
 ]
 
@@ -463,92 +444,73 @@ SECONDARY_ID_STRINGS_1AND2 = (
 )
 
 # The following constants are used to test _local_maxima_to_tracks_mergers.
-PREV_SPC_DATE_STRING_2TO3_PREMERGE = '19691231'
 PREV_PRIMARY_ID_2TO3_PREMERGE = 8
 PREV_SECONDARY_ID_2TO3_PREMERGE = 10
 
 SECOND_NEXT_SECONDARY_IDS_POSTMERGE = [
-    ['000011'], [], ['000011'], [], [], [], [], []
+    ['11'], [], ['11'], [], [], [], [], []
 ]
 THIRD_PREV_SECONDARY_IDS_POSTMERGE = [
-    ['000007', '000009'], [], [], [], [], [], []
+    ['7', '9'], [], [], [], [], [], []
 ]
 
-THIRD_PRIMARY_ID_STRINGS_POSTMERGE = [
-    '000009_19691231', '', '', '', '', '', ''
-]
-THIRD_SECONDARY_ID_STRINGS_POSTMERGE = [
-    '000011', '', '', '', '', '', ''
-]
+THIRD_PRIMARY_ID_STRINGS_POSTMERGE = ['9', '', '', '', '', '', '']
+THIRD_SECONDARY_ID_STRINGS_POSTMERGE = ['11', '', '', '', '', '', '']
 
-PREV_SPC_DATE_STRING_2TO3_POSTMERGE = '19691231'
 PREV_PRIMARY_ID_2TO3_POSTMERGE = 9
 PREV_SECONDARY_ID_2TO3_POSTMERGE = 11
 
 OLD_TO_NEW_DICT_2TO3 = [
-    ('000003_19691231', '000009_19691231'),
-    ('000007_19691231', '000009_19691231')
+    ('3', '9'),
+    ('7', '9')
 ]
 OLD_TO_NEW_DICT_2TO3 = OrderedDict(OLD_TO_NEW_DICT_2TO3)
 
-CURRENT_TO_PREV_MATRIX_2TO3_POSTMERGE = numpy.array(
-    [[0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 1, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 1],
-     [0, 0, 0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 1]], dtype=bool)
+CURRENT_TO_PREV_MATRIX_2TO3_POSTMERGE = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1]
+], dtype=bool)
 
 # The following constants are used to test _local_maxima_to_tracks_splits.
 SECOND_NEXT_SECONDARY_IDS_POSTSPLIT = [
-    ['000011'], [], ['000011'], [], [], ['000012', '000013'], [],
-    ['000014', '000015']
+    ['11'], [], ['11'], [], [], ['12', '13'], [], ['14', '15']
 ]
 THIRD_PREV_SECONDARY_IDS_POSTSPLIT = [
-    ['000007', '000009'], [], [], ['000010'], ['000006'], ['000006'], ['000010']
+    ['7', '9'], [], [], ['10'], ['6'], ['6'], ['10']
 ]
 
-THIRD_PRIMARY_ID_STRINGS_POSTSPLIT = [
-    '000009_19691231', '', '', '000008_19691231', '000006_19691231',
-    '000006_19691231', '000008_19691231'
-]
-THIRD_SECONDARY_ID_STRINGS_POSTSPLIT = [
-    '000011', '', '', '000014', '000012', '000013', '000015'
-]
+THIRD_PRIMARY_ID_STRINGS_POSTSPLIT = ['9', '', '', '8', '6', '6', '8']
+THIRD_SECONDARY_ID_STRINGS_POSTSPLIT = ['11', '', '', '14', '12', '13', '15']
 
-PREV_SPC_DATE_STRING_2TO3_POSTSPLIT = '19691231'
 PREV_PRIMARY_ID_2TO3_POSTSPLIT = 9
 PREV_SECONDARY_ID_2TO3_POSTSPLIT = 15
 
-CURRENT_TO_PREV_MATRIX_2TO3_POSTSPLIT = numpy.array(
-    [[0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 1, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0]], dtype=bool)
+CURRENT_TO_PREV_MATRIX_2TO3_POSTSPLIT = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0]
+], dtype=bool)
 
 # The following constants are used to test _local_maxima_to_tracks_simple.
 SECOND_NEXT_SECONDARY_IDS_POST = [
-    ['000011'], ['000005'], ['000011'], [], [], ['000012', '000013'], [],
-    ['000014', '000015']
+    ['11'], ['5'], ['11'], [], [], ['12', '13'], [], ['14', '15']
 ]
 THIRD_PREV_SECONDARY_IDS_POST = [
-    ['000007', '000009'], ['000005'], [], ['000010'], ['000006'], ['000006'],
-    ['000010']
+    ['7', '9'], ['5'], [], ['10'], ['6'], ['6'], ['10']
 ]
 
-THIRD_PRIMARY_ID_STRINGS = [
-    '000009_19691231', '000005_19691231', '000010_19691231', '000008_19691231',
-    '000006_19691231', '000006_19691231', '000008_19691231'
-]
-THIRD_SECONDARY_ID_STRINGS = [
-    '000011', '000005', '000016', '000014', '000012', '000013', '000015'
-]
+THIRD_PRIMARY_ID_STRINGS = ['9', '5', '10', '8', '6', '6', '8']
+THIRD_SECONDARY_ID_STRINGS = ['11', '5', '16', '14', '12', '13', '15']
 
-PREV_SPC_DATE_STRING_2TO3_POST = '19691231'
 PREV_PRIMARY_ID_2TO3_POST = 10
 PREV_SECONDARY_ID_2TO3_POST = 16
 
@@ -559,11 +521,19 @@ THIRD_LOCAL_MAX_DICT_WITH_IDS.update({
     temporal_tracking.SECONDARY_IDS_KEY: THIRD_SECONDARY_ID_STRINGS
 })
 
+# The following constants are used to test partial_to_full_ids and
+# full_to_partial_ids.
+TOY_PRIMARY_ID_STRINGS = ['Auston', 'Mitch', 'John', 'William']
+TOY_SECONDARY_ID_STRINGS = ['Matthews', 'Marner', 'Tavares', 'Nylander']
+TOY_FULL_ID_STRINGS = [
+    'Auston_Matthews', 'Mitch_Marner', 'John_Tavares', 'William_Nylander'
+]
+
 # The following constants are used to test local_maxima_to_storm_tracks.
 PRIMARY_ID_STRINGS = PRIMARY_ID_STRINGS_1AND2 + THIRD_PRIMARY_ID_STRINGS
-THESE_OLD_ID_STRINGS = ['000003_19691231', '000007_19691231']
+THESE_OLD_ID_STRINGS = ['3', '7']
 PRIMARY_ID_STRINGS = [
-    '000009_19691231' if s in THESE_OLD_ID_STRINGS else s
+    '9' if s in THESE_OLD_ID_STRINGS else s
     for s in PRIMARY_ID_STRINGS
 ]
 
@@ -573,7 +543,7 @@ SECONDARY_ID_STRINGS = (
 )
 
 # The following constants are used to test remove_short_lived_storms.
-THESE_SHORT_ID_STRINGS = ['000010_19691231']
+THESE_SHORT_ID_STRINGS = ['10']
 THESE_GOOD_FLAGS = numpy.array(
     [s not in THESE_SHORT_ID_STRINGS for s in PRIMARY_ID_STRINGS],
     dtype=bool
@@ -585,7 +555,7 @@ SECONDARY_ID_STRINGS_GE5SEC = [
     SECONDARY_ID_STRINGS[k] for k in THESE_GOOD_INDICES
 ]
 
-THESE_SHORT_ID_STRINGS = ['000008_19691231', '000010_19691231']
+THESE_SHORT_ID_STRINGS = ['8', '10']
 THESE_GOOD_FLAGS = numpy.array(
     [s not in THESE_SHORT_ID_STRINGS for s in PRIMARY_ID_STRINGS],
     dtype=bool
@@ -623,18 +593,6 @@ TRACKING_START_TIMES_UNIX_SEC = numpy.full(
 TRACKING_END_TIMES_UNIX_SEC = numpy.full(len(STORM_AGES_SECONDS), 15, dtype=int)
 
 # The following constants are used to test get_storm_velocities.
-# PREDECESSOR_DICT_15SEC = {
-#     0: [], 1: [], 2: [], 3: [], 4: [], 5: [],
-#     6: [3], 7: [5], 8: [], 9: [3], 10: [4], 11: [0, 2], 12: [1], 13: [],
-#     14: [3, 8], 15: [5], 16: [], 17: [13], 18: [0, 2], 19: [0, 2], 20: [13]
-# }
-#
-# PREDECESSOR_DICT_5SEC = {
-#     0: [], 1: [], 2: [], 3: [], 4: [], 5: [],
-#     6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: [], 13: [],
-#     14: [6, 8], 15: [7], 16: [], 17: [13], 18: [11], 19: [11], 20: [13]
-# }
-
 THESE_FIRST_TIME_DIFFS_SEC = numpy.array([
     -1, -1, -1, -1, -1, -1,
     10, 10, -1, 10, 10, 10, 10, -1,
@@ -850,42 +808,42 @@ STORM_OBJECT_TABLE_UNFINISHED_IDS = pandas.DataFrame.from_dict({
 })
 
 THESE_SECONDARY_ID_STRINGS = [
-    '000000', '000001', '000002',
-    '000000', '000001', '000002', '000003',
-    '000000', '000002', '000003', '000004',
-    '000000', '000002', '000004',
-    '000000', '000002', '000004',
-    '000002', '000004', '000005',
-    '000002', '000004'
+    '0', '1', '2',
+    '0', '1', '2', '3',
+    '0', '2', '3', '4',
+    '0', '2', '4',
+    '0', '2', '4',
+    '2', '4', '5',
+    '2', '4'
 ]
 
 THESE_FULL_ID_STRINGS = [
-    'a_000000', 'b_000001', 'c_000002',
-    'a_000000', 'b_000001', 'c_000002', 'd_000003',
-    'a_000000', 'c_000002', 'd_000003', 'e_000004',
-    'a_000000', 'c_000002', 'e_000004',
-    'a_000000', 'c_000002', 'e_000004',
-    'c_000002', 'e_000004', 'f_000005',
-    'c_000002', 'e_000004'
+    'a_0', 'b_1', 'c_2',
+    'a_0', 'b_1', 'c_2', 'd_3',
+    'a_0', 'c_2', 'd_3', 'e_4',
+    'a_0', 'c_2', 'e_4',
+    'a_0', 'c_2', 'e_4',
+    'c_2', 'e_4', 'f_5',
+    'c_2', 'e_4'
 ]
 
 THESE_FIRST_PREV_SEC_ID_STRINGS = [
     '', '', '',
-    '000000', '000001', '000002', '',
-    '000000', '000002', '000003', '',
-    '000000', '000002', '000004',
-    '000000', '000002', '000004',
-    '000002', '000004', '',
-    '000002', '000004'
+    '0', '1', '2', '',
+    '0', '2', '3', '',
+    '0', '2', '4',
+    '0', '2', '4',
+    '2', '4', '',
+    '2', '4'
 ]
 
 THESE_FIRST_NEXT_SEC_ID_STRINGS = [
-    '000000', '000001', '000002',
-    '000000', '', '000002', '000003',
-    '000000', '000002', '', '000004',
-    '000000', '000002', '000004',
-    '', '000002', '000004',
-    '000002', '000004', '',
+    '0', '1', '2',
+    '0', '', '2', '3',
+    '0', '2', '', '4',
+    '0', '2', '4',
+    '', '2', '4',
+    '2', '4', '',
     '', ''
 ]
 
@@ -1197,90 +1155,33 @@ class TemporalTrackingTests(unittest.TestCase):
             this_current_to_prev_matrix, CURRENT_TO_PREV_MATRIX_2TO3
         ))
 
-    def test_create_primary_storm_id_same_day(self):
-        """Ensures correct output from _create_primary_storm_id.
+    def test_create_partial_storm_id_primary(self):
+        """Ensures correct output from _create_partial_storm_id.
 
-        In this case the new storm occurs on the same SPC date as the previous
-        storm to get a new ID.
+        In this case, creating primary ID.
         """
 
-        this_id_string, this_id_numeric, this_spc_date_string = (
-            temporal_tracking._create_primary_storm_id(
-                storm_start_time_unix_sec=time_conversion.get_start_of_spc_date(
-                    PREV_SPC_DATE_STRING),
-                previous_numeric_id=PREV_PRIMARY_ID_NUMERIC,
-                previous_spc_date_string=PREV_SPC_DATE_STRING)
+        this_primary_id_string, this_primary_id_numeric = (
+            temporal_tracking._create_partial_storm_id(
+                PREV_PRIMARY_ID_NUMERIC + 0)
         )
 
-        self.assertTrue(this_id_string == PRIMARY_ID_STRING_SAME_DAY)
-        self.assertTrue(this_id_numeric == PREV_PRIMARY_ID_NUMERIC + 1)
-        self.assertTrue(this_spc_date_string == PREV_SPC_DATE_STRING)
+        self.assertTrue(this_primary_id_string == NEXT_PRIMARY_ID_STRING)
+        self.assertTrue(this_primary_id_numeric == NEXT_PRIMARY_ID_NUMERIC)
 
-    def test_create_primary_storm_id_next_day(self):
-        """Ensures correct output from _create_primary_storm_id.
+    def test_create_partial_storm_id_secondary(self):
+        """Ensures correct output from _create_partial_storm_id.
 
-        In this case the new storm *does not* occur on the same SPC date as the
-        previous storm to get a new ID.
+        In this case, creating secondary ID.
         """
 
-        this_id_string, this_id_numeric, this_spc_date_string = (
-            temporal_tracking._create_primary_storm_id(
-                storm_start_time_unix_sec=time_conversion.get_start_of_spc_date(
-                    NEXT_SPC_DATE_STRING),
-                previous_numeric_id=PREV_PRIMARY_ID_NUMERIC,
-                previous_spc_date_string=PREV_SPC_DATE_STRING)
+        this_secondary_id_string, this_secondary_id_numeric = (
+            temporal_tracking._create_partial_storm_id(
+                PREV_SECONDARY_ID_NUMERIC + 0)
         )
 
-        self.assertTrue(this_id_string == PRIMARY_ID_STRING_NEXT_DAY)
-        self.assertTrue(this_id_numeric == 0)
-        self.assertTrue(this_spc_date_string == NEXT_SPC_DATE_STRING)
-
-    def test_create_secondary_storm_id(self):
-        """Ensures correct output from _create_secondary_storm_id."""
-
-        this_id_string, this_id_numeric = (
-            temporal_tracking._create_secondary_storm_id(
-                PREV_SECONDARY_ID_NUMERIC)
-        )
-
-        self.assertTrue(this_id_string == SECONDARY_ID_STRING)
-        self.assertTrue(this_id_numeric == PREV_SECONDARY_ID_NUMERIC + 1)
-
-    def test_create_full_storm_id_same_day(self):
-        """Ensures correct output from create_full_storm_id.
-
-        In this case the new storm occurs on the same SPC date as the previous
-        storm to get a new ID.
-        """
-
-        this_id_string = temporal_tracking.create_full_storm_id(
-            primary_id_string=PRIMARY_ID_STRING_SAME_DAY,
-            secondary_id_string=SECONDARY_ID_STRING)
-
-        self.assertTrue(this_id_string == FULL_ID_STRING_SAME_DAY)
-
-    def test_create_full_storm_id_next_day(self):
-        """Ensures correct output from create_full_storm_id.
-
-        In this case the new storm *does not* occur on the same SPC date as the
-        previous storm to get a new ID.
-        """
-
-        this_id_string = temporal_tracking.create_full_storm_id(
-            primary_id_string=PRIMARY_ID_STRING_NEXT_DAY,
-            secondary_id_string=SECONDARY_ID_STRING)
-
-        self.assertTrue(this_id_string == FULL_ID_STRING_NEXT_DAY)
-
-    def test_full_to_partial_ids(self):
-        """Ensures correct output from full_to_partial_ids."""
-
-        these_primary_id_strings, these_secondary_id_strings = (
-            temporal_tracking.full_to_partial_ids(TOY_FULL_ID_STRINGS)
-        )
-
-        self.assertTrue(these_primary_id_strings == TOY_PRIMARY_ID_STRINGS)
-        self.assertTrue(these_secondary_id_strings == TOY_SECONDARY_ID_STRINGS)
+        self.assertTrue(this_secondary_id_string == NEXT_SECONDARY_ID_STRING)
+        self.assertTrue(this_secondary_id_numeric == NEXT_SECONDARY_ID_NUMERIC)
 
     def test_local_maxima_to_tracks_mergers_1to2(self):
         """Ensures correct output from _local_maxima_to_tracks_mergers.
@@ -1304,15 +1205,12 @@ class TemporalTrackingTests(unittest.TestCase):
             current_to_previous_matrix=copy.deepcopy(
                 CURRENT_TO_PREV_MATRIX_1TO2),
             prev_primary_id_numeric=PREV_PRIMARY_ID_1TO2_PREMERGE,
-            prev_spc_date_string=PREV_SPC_DATE_STRING_1TO2_PREMERGE,
             prev_secondary_id_numeric=PREV_SECONDARY_ID_1TO2_PREMERGE)
 
         this_current_to_prev_matrix = this_dict[
             temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY]
         prev_primary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_PRIMARY_ID_KEY]
-        prev_spc_date_string = this_dict[
-            temporal_tracking.PREVIOUS_SPC_DATE_KEY]
         prev_secondary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_SECONDARY_ID_KEY]
         this_old_to_new_dict = this_dict[
@@ -1323,9 +1221,6 @@ class TemporalTrackingTests(unittest.TestCase):
         ))
         self.assertTrue(
             prev_primary_id_numeric == PREV_PRIMARY_ID_1TO2_POSTMERGE
-        )
-        self.assertTrue(
-            prev_spc_date_string == PREV_SPC_DATE_STRING_1TO2_POSTMERGE
         )
         self.assertTrue(
             prev_secondary_id_numeric == PREV_SECONDARY_ID_1TO2_POSTMERGE
@@ -1383,15 +1278,12 @@ class TemporalTrackingTests(unittest.TestCase):
             current_to_previous_matrix=copy.deepcopy(
                 CURRENT_TO_PREV_MATRIX_2TO3),
             prev_primary_id_numeric=PREV_PRIMARY_ID_2TO3_PREMERGE,
-            prev_spc_date_string=PREV_SPC_DATE_STRING_2TO3_PREMERGE,
             prev_secondary_id_numeric=PREV_SECONDARY_ID_2TO3_PREMERGE)
 
         this_current_to_prev_matrix = this_dict[
             temporal_tracking.CURRENT_TO_PREV_MATRIX_KEY]
         prev_primary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_PRIMARY_ID_KEY]
-        prev_spc_date_string = this_dict[
-            temporal_tracking.PREVIOUS_SPC_DATE_KEY]
         prev_secondary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_SECONDARY_ID_KEY]
         this_old_to_new_dict = this_dict[
@@ -1402,9 +1294,6 @@ class TemporalTrackingTests(unittest.TestCase):
         ))
         self.assertTrue(
             prev_primary_id_numeric == PREV_PRIMARY_ID_2TO3_POSTMERGE
-        )
-        self.assertTrue(
-            prev_spc_date_string == PREV_SPC_DATE_STRING_2TO3_POSTMERGE
         )
         self.assertTrue(
             prev_secondary_id_numeric == PREV_SECONDARY_ID_2TO3_POSTMERGE
@@ -1626,21 +1515,15 @@ class TemporalTrackingTests(unittest.TestCase):
             current_to_previous_matrix=copy.deepcopy(
                 CURRENT_TO_PREV_MATRIX_1TO2_POSTSPLIT),
             prev_primary_id_numeric=PREV_PRIMARY_ID_1TO2_POSTSPLIT,
-            prev_spc_date_string=PREV_SPC_DATE_STRING_1TO2_POSTSPLIT,
             prev_secondary_id_numeric=PREV_SECONDARY_ID_1TO2_POSTSPLIT)
 
         prev_primary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_PRIMARY_ID_KEY]
-        prev_spc_date_string = this_dict[
-            temporal_tracking.PREVIOUS_SPC_DATE_KEY]
         prev_secondary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_SECONDARY_ID_KEY]
 
         self.assertTrue(
             prev_primary_id_numeric == PREV_PRIMARY_ID_1TO2_POST
-        )
-        self.assertTrue(
-            prev_spc_date_string == PREV_SPC_DATE_STRING_1TO2_POST
         )
         self.assertTrue(
             prev_secondary_id_numeric == PREV_SECONDARY_ID_1TO2_POST
@@ -1705,18 +1588,14 @@ class TemporalTrackingTests(unittest.TestCase):
             current_to_previous_matrix=copy.deepcopy(
                 CURRENT_TO_PREV_MATRIX_2TO3_POSTSPLIT),
             prev_primary_id_numeric=PREV_PRIMARY_ID_2TO3_POSTSPLIT,
-            prev_spc_date_string=PREV_SPC_DATE_STRING_2TO3_POSTSPLIT,
             prev_secondary_id_numeric=PREV_SECONDARY_ID_2TO3_POSTSPLIT)
 
         prev_primary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_PRIMARY_ID_KEY]
-        prev_spc_date_string = this_dict[
-            temporal_tracking.PREVIOUS_SPC_DATE_KEY]
         prev_secondary_id_numeric = this_dict[
             temporal_tracking.PREVIOUS_SECONDARY_ID_KEY]
 
         self.assertTrue(prev_primary_id_numeric == PREV_PRIMARY_ID_2TO3_POST)
-        self.assertTrue(prev_spc_date_string == PREV_SPC_DATE_STRING_2TO3_POST)
         self.assertTrue(
             prev_secondary_id_numeric == PREV_SECONDARY_ID_2TO3_POST
         )
@@ -1746,6 +1625,56 @@ class TemporalTrackingTests(unittest.TestCase):
             these_next_secondary_ids_listlist == SECOND_NEXT_SECONDARY_IDS_POST
         )
 
+    def test_partial_to_full_ids_good(self):
+        """Ensures correct output from partial_to_full_ids.
+
+        In this case, inputs are properly formatted (no errors).
+        """
+
+        these_full_id_strings = temporal_tracking.partial_to_full_ids(
+            primary_id_strings=TOY_PRIMARY_ID_STRINGS,
+            secondary_id_strings=TOY_SECONDARY_ID_STRINGS)
+
+        self.assertTrue(these_full_id_strings == TOY_FULL_ID_STRINGS)
+
+    def test_partial_to_full_ids_bad(self):
+        """Ensures correct output from partial_to_full_ids.
+
+        In this case, inputs are *not* properly formatted (there is an
+        underscore).
+        """
+
+        with self.assertRaises(AssertionError):
+            temporal_tracking.partial_to_full_ids(
+                primary_id_strings=TOY_PRIMARY_ID_STRINGS + ['foo'],
+                secondary_id_strings=TOY_SECONDARY_ID_STRINGS + ['_']
+            )
+
+    def test_full_to_partial_ids_good(self):
+        """Ensures correct output from full_to_partial_ids.
+
+        In this case, inputs are properly formatted (no errors).
+        """
+
+        these_primary_id_strings, these_secondary_id_strings = (
+            temporal_tracking.full_to_partial_ids(TOY_FULL_ID_STRINGS)
+        )
+
+        self.assertTrue(these_primary_id_strings == TOY_PRIMARY_ID_STRINGS)
+        self.assertTrue(these_secondary_id_strings == TOY_SECONDARY_ID_STRINGS)
+
+    def test_full_to_partial_ids_bad(self):
+        """Ensures correct output from full_to_partial_ids.
+
+        In this case, inputs are *not* properly formatted (there is an
+        underscore).
+        """
+
+        with self.assertRaises(AssertionError):
+            temporal_tracking.full_to_partial_ids(
+                TOY_FULL_ID_STRINGS + ['foo_bar_moo']
+            )
+
     def test_local_maxima_to_storm_tracks_1to2(self):
         """Ensures correct output from local_maxima_to_storm_tracks.
 
@@ -1759,7 +1688,7 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_storm_object_table = (
             temporal_tracking.local_maxima_to_storm_tracks(
-                this_max_dict_by_time
+                local_max_dict_by_time=this_max_dict_by_time, first_numeric_id=0
             )
         )
 
@@ -1790,7 +1719,7 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_storm_object_table = (
             temporal_tracking.local_maxima_to_storm_tracks(
-                this_max_dict_by_time
+                local_max_dict_by_time=this_max_dict_by_time, first_numeric_id=0
             )
         )
 
@@ -1819,7 +1748,7 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_storm_object_table = (
             temporal_tracking.local_maxima_to_storm_tracks(
-                this_max_dict_by_time
+                local_max_dict_by_time=this_max_dict_by_time, first_numeric_id=0
             )
         )
 
@@ -1853,7 +1782,7 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_storm_object_table = (
             temporal_tracking.local_maxima_to_storm_tracks(
-                this_max_dict_by_time
+                local_max_dict_by_time=this_max_dict_by_time, first_numeric_id=0
             )
         )
 
@@ -1884,7 +1813,7 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_storm_object_table = (
             temporal_tracking.local_maxima_to_storm_tracks(
-                this_max_dict_by_time
+                local_max_dict_by_time=this_max_dict_by_time, first_numeric_id=0
             )
         )
 
@@ -1933,7 +1862,7 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_storm_object_table = (
             temporal_tracking.local_maxima_to_storm_tracks(
-                this_max_dict_by_time
+                local_max_dict_by_time=this_max_dict_by_time, first_numeric_id=0
             )
         )
 
@@ -1977,7 +1906,7 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_storm_object_table = (
             temporal_tracking.local_maxima_to_storm_tracks(
-                this_max_dict_by_time
+                local_max_dict_by_time=this_max_dict_by_time, first_numeric_id=0
             )
         )
 

@@ -47,9 +47,9 @@ NEXT_ID_NUMBER = 5
 MAX_DROPOUT_TIME_SECONDS = 2
 
 STORM_ID_STRINGS = [
-    '5_probSevere', '5_probSevere', '5_probSevere', '5_probSevere',
-    '6_probSevere', '6_probSevere', '6_probSevere', '6_probSevere',
-    '7_probSevere', '8_probSevere'
+    '5probSevere', '5probSevere', '5probSevere', '5probSevere',
+    '6probSevere', '6probSevere', '6probSevere', '6probSevere',
+    '7probSevere', '8probSevere'
 ]
 
 NEXT_ID_NUMBER_AFTER_ONE_ORIG_ID = 9
@@ -77,10 +77,10 @@ THIS_DICT = {
 STORM_OBJECT_TABLE_ORIG_IDS_1DAY = pandas.DataFrame.from_dict(THIS_DICT)
 
 THESE_ID_STRINGS = [
-    '5_probSevere', '6_probSevere', '7_probSevere',
-    '6_probSevere', '9_probSevere',
-    '5_probSevere', '6_probSevere', '9_probSevere',
-    '5_probSevere', '6_probSevere', '8_probSevere'
+    '5probSevere', '6probSevere', '7probSevere',
+    '6probSevere', '9probSevere',
+    '5probSevere', '6probSevere', '9probSevere',
+    '5probSevere', '6probSevere', '8probSevere'
 ]
 
 THIS_DICT = {
@@ -109,9 +109,9 @@ THIS_DICT = {
 STORM_OBJECT_TABLE_ORIG_IDS_2DAYS = pandas.DataFrame.from_dict(THIS_DICT)
 
 THESE_ID_STRINGS = [
-    '5_probSevere', 'b', '6_probSevere',
-    '5_probSevere', 'b', '6_probSevere',
-    '5_probSevere', '6_probSevere', '7_probSevere'
+    '5probSevere', 'b', '6probSevere',
+    '5probSevere', 'b', '6probSevere',
+    '5probSevere', '6probSevere', '7probSevere'
 ]
 
 THIS_DICT = {

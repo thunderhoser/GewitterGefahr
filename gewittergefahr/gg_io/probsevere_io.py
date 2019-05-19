@@ -375,7 +375,7 @@ def _rename_storms_one_original_id(
             dtype=int)
 
         for k in these_object_indices:
-            primary_id_strings[k] = '{0:d}_probSevere'.format(next_id_number)
+            primary_id_strings[k] = '{0:d}probSevere'.format(next_id_number)
 
         next_id_number += 1
 

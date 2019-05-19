@@ -30,12 +30,9 @@ THESE_SECONDARY_ID_STRINGS = [
     '5', '9'
 ]
 
-THESE_FULL_ID_STRINGS = [
-    temporal_tracking.create_full_storm_id(
-        primary_id_string=p, secondary_id_string=s
-    )
-    for p, s in zip(THESE_PRIMARY_ID_STRINGS, THESE_SECONDARY_ID_STRINGS)
-]
+THESE_FULL_ID_STRINGS = temporal_tracking.partial_to_full_ids(
+    primary_id_strings=THESE_PRIMARY_ID_STRINGS,
+    secondary_id_strings=THESE_SECONDARY_ID_STRINGS)
 
 THESE_TIMES_UNIX_SEC = numpy.array([
     0, 0, 0,
@@ -221,12 +218,9 @@ THESE_SECONDARY_ID_STRINGS = [
     '0', '2'
 ]
 
-THESE_FULL_ID_STRINGS = [
-    temporal_tracking.create_full_storm_id(
-        primary_id_string=p, secondary_id_string=s
-    )
-    for p, s in zip(THESE_PRIMARY_ID_STRINGS, THESE_SECONDARY_ID_STRINGS)
-]
+THESE_FULL_ID_STRINGS = temporal_tracking.partial_to_full_ids(
+    primary_id_strings=THESE_PRIMARY_ID_STRINGS,
+    secondary_id_strings=THESE_SECONDARY_ID_STRINGS)
 
 THESE_TIMES_UNIX_SEC = numpy.array([
     0, 0,
@@ -525,12 +519,10 @@ STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[5] = (
 # The following constants are used to test _share_linkages_between_periods.
 THESE_EARLY_PRIMARY_ID_STRINGS = ['A', 'C', 'A', 'B', 'C']
 THESE_EARLY_SEC_ID_STRINGS = ['1', '2', '3', '4', '2']
-THESE_EARLY_FULL_ID_STRINGS = [
-    temporal_tracking.create_full_storm_id(
-        primary_id_string=p, secondary_id_string=s
-    )
-    for p, s in zip(THESE_EARLY_PRIMARY_ID_STRINGS, THESE_EARLY_SEC_ID_STRINGS)
-]
+
+THESE_EARLY_FULL_ID_STRINGS = temporal_tracking.partial_to_full_ids(
+    primary_id_strings=THESE_EARLY_PRIMARY_ID_STRINGS,
+    secondary_id_strings=THESE_EARLY_SEC_ID_STRINGS)
 
 THESE_EARLY_TIMES_UNIX_SEC = numpy.array([0, 0, 1, 1, 1], dtype=int)
 
@@ -579,12 +571,9 @@ EARLY_STORM_TO_TORNADOES_TABLE_SANS_SHARING = pandas.DataFrame.from_dict(
 
 THESE_LATE_PRIMARY_ID_STRINGS = ['B', 'C', 'D', 'C', 'D']
 THESE_LATE_SEC_ID_STRINGS = ['4', '2', '5', '2', '6']
-THESE_LATE_FULL_ID_STRINGS = [
-    temporal_tracking.create_full_storm_id(
-        primary_id_string=p, secondary_id_string=s
-    )
-    for p, s in zip(THESE_LATE_PRIMARY_ID_STRINGS, THESE_LATE_SEC_ID_STRINGS)
-]
+THESE_LATE_FULL_ID_STRINGS = temporal_tracking.partial_to_full_ids(
+    primary_id_strings=THESE_LATE_PRIMARY_ID_STRINGS,
+    secondary_id_strings=THESE_LATE_SEC_ID_STRINGS)
 
 THESE_LATE_TIMES_UNIX_SEC = numpy.array([2, 2, 2, 3, 3], dtype=int)
 

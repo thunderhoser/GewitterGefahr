@@ -241,18 +241,18 @@ def plot_storm_ids(
 
     for i in range(num_storm_objects):
         this_primary_id_string = storm_object_table[
-            tracking_utils.PRIMARY_ID_COLUMN
-        ].values[i].split('_')[0]
+            tracking_utils.PRIMARY_ID_COLUMN].values[i]
 
         try:
-            this_primary_id_string = str(int(this_primary_id_string))
+            this_primary_id_string = str(int(
+                this_primary_id_string.split('_')[0]
+            ))
         except ValueError:
             pass
 
         if include_secondary_ids:
             this_secondary_id_string = storm_object_table[
-                tracking_utils.SECONDARY_ID_COLUMN
-            ].values[i]
+                tracking_utils.SECONDARY_ID_COLUMN].values[i]
 
             try:
                 this_secondary_id_string = str(int(this_secondary_id_string))

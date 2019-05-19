@@ -32,7 +32,6 @@ CURRENT_TO_PREV_MATRIX_KEY = 'current_to_previous_matrix'
 CURRENT_LOCAL_MAXIMA_KEY = 'current_local_max_dict'
 PREVIOUS_LOCAL_MAXIMA_KEY = 'previous_local_max_dict'
 PREVIOUS_PRIMARY_ID_KEY = 'prev_primary_id_numeric'
-PREVIOUS_SPC_DATE_KEY = 'prev_spc_date_string'
 PREVIOUS_SECONDARY_ID_KEY = 'prev_secondary_id_numeric'
 OLD_TO_NEW_PRIMARY_IDS_KEY = 'old_to_new_primary_id_dict'
 
@@ -529,49 +528,22 @@ def _prune_connections(velocity_diff_matrix_m_s01, distance_matrix_m_s01,
     return current_to_previous_matrix
 
 
-def _create_primary_storm_id(storm_start_time_unix_sec, previous_numeric_id,
-                             previous_spc_date_string):
-    """Creates primary storm ID.
+def _create_partial_storm_id(previous_numeric_id):
+    """Creates partial (primary or secondary) storm ID.
 
-    :param storm_start_time_unix_sec: Start time of storm for which ID is being
-        created.
-    :param previous_numeric_id: Numeric ID (integer) of previous storm.
-    :param previous_spc_date_string: SPC date (format "yyyymmdd") of previous
-        storm.
+    :param previous_numeric_id: Integer ID for previous storm.
     :return: string_id: String ID for new storm.
-    :return: numeric_id: Numeric ID (integer) for new storm.
-    :return: spc_date_string: SPC date (format "yyyymmdd") for new storm.
-    """
-
-    spc_date_string = time_conversion.time_to_spc_date_string(
-        storm_start_time_unix_sec)
-
-    if spc_date_string == previous_spc_date_string:
-        numeric_id = previous_numeric_id + 1
-    else:
-        numeric_id = 0
-
-    string_id = '{0:06d}_{1:s}'.format(numeric_id, spc_date_string)
-
-    return string_id, numeric_id, spc_date_string
-
-
-def _create_secondary_storm_id(previous_numeric_id):
-    """Creates secondary storm ID.
-
-    :param previous_numeric_id: Numeric ID (integer) of previous storm.
-    :return: string_id: String ID for new storm.
-    :return: numeric_id: Numeric ID (integer) for new storm.
+    :return: numeric_id: Integer ID for new storm.
     """
 
     numeric_id = previous_numeric_id + 1
-    return '{0:06d}'.format(numeric_id), numeric_id
+    return '{0:d}'.format(numeric_id), numeric_id
 
 
 def _local_maxima_to_tracks_mergers(
         current_local_max_dict, previous_local_max_dict,
         current_to_previous_matrix, prev_primary_id_numeric,
-        prev_spc_date_string, prev_secondary_id_numeric):
+        prev_secondary_id_numeric):
     """Handles mergers for `local_maxima_to_storm_tracks`.
 
     N_c = number of maxima at current time
@@ -604,8 +576,6 @@ def _local_maxima_to_tracks_mergers(
         at the current time is linked to the [j]th local max at the previous
         time.
     :param prev_primary_id_numeric: Previous primary storm ID used.
-    :param prev_spc_date_string: Previous SPC date (format "yyyymmdd") used in a
-        primary storm ID.
     :param prev_secondary_id_numeric: Previous secondary storm ID used.
     :return: intermediate_track_dict: Dictionary with the following keys.
     intermediate_track_dict['current_local_max_dict']: Same as input but maybe
@@ -617,8 +587,6 @@ def _local_maxima_to_tracks_mergers(
         False.
     intermediate_track_dict['prev_primary_id_numeric']: Same as input but
         possibly incremented.
-    intermediate_track_dict['prev_spc_date_string']: Same as input but possibly
-        incremented.
     intermediate_track_dict['prev_secondary_id_numeric']: Same as input but
         possibly incremented.
     intermediate_track_dict['old_to_new_primary_id_dict']: Dictionary, where
@@ -640,16 +608,13 @@ def _local_maxima_to_tracks_mergers(
         # Create new secondary ID for [i]th local max at current time (because
         # this local max results from merger of two previous maxima).
         (current_local_max_dict[SECONDARY_IDS_KEY][i], prev_secondary_id_numeric
-        ) = _create_secondary_storm_id(prev_secondary_id_numeric)
+        ) = _create_partial_storm_id(prev_secondary_id_numeric)
 
         # Create new primary ID for [i]th local max at current time.  This will
         # be shared with the two previous local maxima involved in the merger.
-        (this_primary_id_string, prev_primary_id_numeric,
-         prev_spc_date_string
-        ) = _create_primary_storm_id(
-            storm_start_time_unix_sec=current_local_max_dict[VALID_TIME_KEY],
-            previous_numeric_id=prev_primary_id_numeric,
-            previous_spc_date_string=prev_spc_date_string)
+        this_primary_id_string, prev_primary_id_numeric = (
+            _create_partial_storm_id(prev_primary_id_numeric)
+        )
 
         current_local_max_dict[PRIMARY_IDS_KEY][i] = this_primary_id_string
 
@@ -672,7 +637,6 @@ def _local_maxima_to_tracks_mergers(
         PREVIOUS_LOCAL_MAXIMA_KEY: previous_local_max_dict,
         CURRENT_TO_PREV_MATRIX_KEY: current_to_previous_matrix,
         PREVIOUS_PRIMARY_ID_KEY: prev_primary_id_numeric,
-        PREVIOUS_SPC_DATE_KEY: prev_spc_date_string,
         PREVIOUS_SECONDARY_ID_KEY: prev_secondary_id_numeric,
         OLD_TO_NEW_PRIMARY_IDS_KEY: old_to_new_primary_id_dict
     }
@@ -724,7 +688,7 @@ def _local_maxima_to_tracks_splits(
             # Create new secondary ID for [i]th local max at current time.
             (current_local_max_dict[SECONDARY_IDS_KEY][i],
              prev_secondary_id_numeric
-            ) = _create_secondary_storm_id(prev_secondary_id_numeric)
+            ) = _create_partial_storm_id(prev_secondary_id_numeric)
 
             current_local_max_dict[PREV_SECONDARY_IDS_KEY][i].append(
                 previous_local_max_dict[SECONDARY_IDS_KEY][j]
@@ -745,7 +709,7 @@ def _local_maxima_to_tracks_splits(
 def _local_maxima_to_tracks_simple(
         current_local_max_dict, previous_local_max_dict,
         current_to_previous_matrix, prev_primary_id_numeric,
-        prev_spc_date_string, prev_secondary_id_numeric):
+        prev_secondary_id_numeric):
     """Handles simple connections for `local_maxima_to_storm_tracks`.
 
     "Simple connections" are those other than splits and mergers.
@@ -761,8 +725,6 @@ def _local_maxima_to_tracks_simple(
         at the current time is linked to the [j]th local max at the previous
         time.
     :param prev_primary_id_numeric: Previous primary storm ID used.
-    :param prev_spc_date_string: Previous SPC date (format "yyyymmdd") used in a
-        primary storm ID.
     :param prev_secondary_id_numeric: Previous secondary storm ID used.
     :return: intermediate_track_dict: Dictionary with the following keys.
     intermediate_track_dict['current_local_max_dict']: Same as input but maybe
@@ -771,8 +733,6 @@ def _local_maxima_to_tracks_simple(
         with different IDs.
     intermediate_track_dict['prev_primary_id_numeric']: Same as input but
         possibly incremented.
-    intermediate_track_dict['prev_spc_date_string']: Same as input but possibly
-        incremented.
     intermediate_track_dict['prev_secondary_id_numeric']: Same as input but
         possibly incremented.
     """
@@ -792,17 +752,12 @@ def _local_maxima_to_tracks_simple(
 
         # If [i]th local max at current time is beginning of a new track:
         if len(these_previous_indices) == 0:
-            (current_local_max_dict[PRIMARY_IDS_KEY][i],
-             prev_primary_id_numeric, prev_spc_date_string
-            ) = _create_primary_storm_id(
-                storm_start_time_unix_sec=current_local_max_dict[
-                    VALID_TIME_KEY],
-                previous_numeric_id=prev_primary_id_numeric,
-                previous_spc_date_string=prev_spc_date_string)
+            (current_local_max_dict[PRIMARY_IDS_KEY][i], prev_primary_id_numeric
+            ) = _create_partial_storm_id(prev_primary_id_numeric)
 
             (current_local_max_dict[SECONDARY_IDS_KEY][i],
              prev_secondary_id_numeric
-            ) = _create_secondary_storm_id(prev_secondary_id_numeric)
+            ) = _create_partial_storm_id(prev_secondary_id_numeric)
 
             continue
 
@@ -827,7 +782,6 @@ def _local_maxima_to_tracks_simple(
         CURRENT_LOCAL_MAXIMA_KEY: current_local_max_dict,
         PREVIOUS_LOCAL_MAXIMA_KEY: previous_local_max_dict,
         PREVIOUS_PRIMARY_ID_KEY: prev_primary_id_numeric,
-        PREVIOUS_SPC_DATE_KEY: prev_spc_date_string,
         PREVIOUS_SECONDARY_ID_KEY: prev_secondary_id_numeric
     }
 
@@ -966,32 +920,47 @@ def _get_storm_velocities_missing(
     })
 
 
-def create_full_storm_id(primary_id_string, secondary_id_string):
-    """Creates full storm ID from primary and secondary IDs.
-
-    :param primary_id_string: Primary ID.
-    :param secondary_id_string: Secondary ID.
-    :return: full_id_string: Full ID.
-    """
-
-    # TODO(thunderhoser): Could use better input-checking.
-
-    error_checking.assert_is_string(primary_id_string)
-    error_checking.assert_is_string(secondary_id_string)
-    return '{0:s}_{1:s}'.format(primary_id_string, secondary_id_string)
-
-
-def full_to_partial_ids(full_id_strings):
-    """Converts full storm IDs to partial ones.
+def partial_to_full_ids(primary_id_strings, secondary_id_strings):
+    """For each storm object, converts primary and secondary IDs to full ID.
 
     N = number of storm objects
 
-    :param full_id_strings: length-N list of full storm IDs.
-    :return: primary_id_strings: length-N list of primary storm IDs.
-    :return: secondary_id_strings: length-N list of secondary storm IDs.
+    :param primary_id_strings: length-N list of primary IDs.
+    :param secondary_id_strings: length-N list of secondary IDs.
+    :return: full_id_strings: length-N list of full IDs.
     """
 
-    # TODO(thunderhoser): Could use better input-checking.
+    error_checking.assert_is_string_list(primary_id_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(primary_id_strings), num_dimensions=1
+    )
+
+    num_storm_objects = len(primary_id_strings)
+    expected_dimensions = numpy.array([num_storm_objects], dtype=int)
+
+    error_checking.assert_is_string_list(secondary_id_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(secondary_id_strings), exact_dimensions=expected_dimensions
+    )
+
+    assert all('_' not in p for p in primary_id_strings)
+    assert all('_' not in s for s in secondary_id_strings)
+
+    return [
+        '{0:s}_{1:s}'.format(p, s)
+        for p, s in zip(primary_id_strings, secondary_id_strings)
+    ]
+
+
+def full_to_partial_ids(full_id_strings):
+    """For each storm object, converts full ID to primary and secondary.
+
+    N = number of storm objects
+
+    :param full_id_strings: length-N list of full IDs.
+    :return: primary_id_strings: length-N list of primary IDs.
+    :return: secondary_id_strings: length-N list of secondary IDs.
+    """
 
     error_checking.assert_is_string_list(full_id_strings)
     error_checking.assert_is_numpy_array(
@@ -999,7 +968,10 @@ def full_to_partial_ids(full_id_strings):
     )
 
     primary_id_strings = ['_'.join(f.split('_')[:-1]) for f in full_id_strings]
-    secondary_id_strings = [f.split('_')[-1] for f in full_id_strings]
+    secondary_id_strings = ['_'.join(f.split('_')[1:]) for f in full_id_strings]
+
+    assert all('_' not in p for p in primary_id_strings)
+    assert all('_' not in s for s in secondary_id_strings)
 
     return primary_id_strings, secondary_id_strings
 
@@ -1213,7 +1185,7 @@ def get_intermediate_velocities(
     return current_local_max_dict
 
 
-def local_maxima_to_storm_tracks(local_max_dict_by_time):
+def local_maxima_to_storm_tracks(local_max_dict_by_time, first_numeric_id):
     """Converts time series of local maxima to set of storm tracks.
 
     T = number of time steps
@@ -1229,6 +1201,9 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     "x_coords_metres": length-P numpy array with x-coordinates of local maxima.
     "y_coords_metres": length-P numpy array with y-coordinates of local maxima.
     "current_to_previous_matrix": See doc for `link_local_maxima_in_time`.
+
+    :param first_numeric_id: First numeric storm ID.  This will be used for
+        assigning both primary and secondary IDs.
 
     :return: storm_object_table: pandas DataFrame with the following columns
         (most of which are explained in `storm_tracking_io.write_file`).  Each
@@ -1258,9 +1233,8 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     storm_object_table.polygon_object_rowcol
     """
 
-    prev_primary_id_numeric = -1
-    prev_secondary_id_numeric = -1
-    prev_spc_date_string = '00000101'
+    prev_primary_id_numeric = first_numeric_id - 1
+    prev_secondary_id_numeric = first_numeric_id - 1
     num_times = len(local_max_dict_by_time)
 
     for i in range(num_times):
@@ -1281,16 +1255,12 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
         if i == 0:
             for j in range(this_num_storm_objects):
                 (local_max_dict_by_time[i][PRIMARY_IDS_KEY][j],
-                 prev_primary_id_numeric, prev_spc_date_string
-                ) = _create_primary_storm_id(
-                    storm_start_time_unix_sec=local_max_dict_by_time[i][
-                        VALID_TIME_KEY],
-                    previous_numeric_id=prev_primary_id_numeric,
-                    previous_spc_date_string=prev_spc_date_string)
+                 prev_primary_id_numeric
+                ) = _create_partial_storm_id(prev_primary_id_numeric)
 
                 (local_max_dict_by_time[i][SECONDARY_IDS_KEY][j],
                  prev_secondary_id_numeric
-                ) = _create_secondary_storm_id(prev_secondary_id_numeric)
+                ) = _create_partial_storm_id(prev_secondary_id_numeric)
 
             continue
 
@@ -1306,14 +1276,12 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             previous_local_max_dict=local_max_dict_by_time[i - 1],
             current_to_previous_matrix=this_current_to_prev_matrix,
             prev_primary_id_numeric=prev_primary_id_numeric,
-            prev_spc_date_string=prev_spc_date_string,
             prev_secondary_id_numeric=prev_secondary_id_numeric)
 
         local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
         local_max_dict_by_time[i - 1] = this_dict[PREVIOUS_LOCAL_MAXIMA_KEY]
         this_current_to_prev_matrix = this_dict[CURRENT_TO_PREV_MATRIX_KEY]
         prev_primary_id_numeric = this_dict[PREVIOUS_PRIMARY_ID_KEY]
-        prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
         prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
 
         this_old_to_new_dict = this_dict[OLD_TO_NEW_PRIMARY_IDS_KEY]
@@ -1348,13 +1316,11 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
             previous_local_max_dict=local_max_dict_by_time[i - 1],
             current_to_previous_matrix=this_current_to_prev_matrix,
             prev_primary_id_numeric=prev_primary_id_numeric,
-            prev_spc_date_string=prev_spc_date_string,
             prev_secondary_id_numeric=prev_secondary_id_numeric)
 
         local_max_dict_by_time[i] = this_dict[CURRENT_LOCAL_MAXIMA_KEY]
         local_max_dict_by_time[i - 1] = this_dict[PREVIOUS_LOCAL_MAXIMA_KEY]
         prev_primary_id_numeric = this_dict[PREVIOUS_PRIMARY_ID_KEY]
-        prev_spc_date_string = this_dict[PREVIOUS_SPC_DATE_KEY]
         prev_secondary_id_numeric = this_dict[PREVIOUS_SECONDARY_ID_KEY]
 
     all_primary_id_strings = []
@@ -1496,13 +1462,12 @@ def local_maxima_to_storm_tracks(local_max_dict_by_time):
     storm_object_table = pandas.DataFrame.from_dict(storm_object_dict)
 
     # Create full IDs (primary + secondary).
-    full_id_strings = [
-        create_full_storm_id(primary_id_string=p, secondary_id_string=s)
-        for p, s in zip(
-            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
-            storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values
-        )
-    ]
+    full_id_strings = partial_to_full_ids(
+        primary_id_strings=storm_object_table[
+            tracking_utils.PRIMARY_ID_COLUMN].values.tolist(),
+        secondary_id_strings=storm_object_table[
+            tracking_utils.SECONDARY_ID_COLUMN].values.tolist()
+    )
 
     argument_dict = {tracking_utils.FULL_ID_COLUMN: full_id_strings}
     return storm_object_table.assign(**argument_dict)
@@ -1927,14 +1892,6 @@ def finish_segmotion_or_probsevere_ids(storm_object_table):
     storm_object_table.second_next_secondary_id_string: Same.
     """
 
-    # primary_id_strings = [
-    #     '{0:s}_{1:s}'.format(p, s)
-    #     for p, s in zip(
-    #         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
-    #         storm_object_table[tracking_utils.SPC_DATE_COLUMN].values
-    #     )
-    # ]
-
     primary_id_strings = storm_object_table[
         tracking_utils.PRIMARY_ID_COLUMN].values
 
@@ -1942,18 +1899,17 @@ def finish_segmotion_or_probsevere_ids(storm_object_table):
         numpy.array(primary_id_strings), return_inverse=True
     )
 
-    secondary_id_strings = ['{0:06d}'.format(i) for i in orig_to_unique_indices]
+    secondary_id_strings = ['{0:d}'.format(i) for i in orig_to_unique_indices]
     storm_object_table = storm_object_table.assign(**{
         tracking_utils.SECONDARY_ID_COLUMN: secondary_id_strings
     })
 
-    full_id_strings = [
-        create_full_storm_id(primary_id_string=p, secondary_id_string=s)
-        for p, s in zip(
-            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
-            storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values
-        )
-    ]
+    full_id_strings = partial_to_full_ids(
+        primary_id_strings=storm_object_table[
+            tracking_utils.PRIMARY_ID_COLUMN].values.tolist(),
+        secondary_id_strings=storm_object_table[
+            tracking_utils.SECONDARY_ID_COLUMN].values.tolist()
+    )
 
     num_storm_objects = len(storm_object_table.index)
 

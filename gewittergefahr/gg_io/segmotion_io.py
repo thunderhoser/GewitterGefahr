@@ -143,7 +143,7 @@ def _append_spc_date_to_storm_ids(primary_id_strings, spc_date_string):
     """
 
     return [
-        '{0:s}_{1:s}'.format(p, spc_date_string) for p in primary_id_strings
+        '{0:s}-{1:s}'.format(p, spc_date_string) for p in primary_id_strings
     ]
 
 

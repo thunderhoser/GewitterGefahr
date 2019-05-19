@@ -471,28 +471,6 @@ def _update_velocities(storm_object_table, early_rows, late_rows,
     return storm_object_table
 
 
-def _update_full_ids(storm_object_table):
-    """Updates full storm IDs in table.
-
-    :param storm_object_table: See doc for `storm_tracking_io.write_file`.
-    :return: storm_object_table: Same as input but maybe with different values
-        in "full_id_string" column.
-    """
-
-    full_id_strings = [
-        temporal_tracking.create_full_storm_id(
-            primary_id_string=p, secondary_id_string=s
-        )
-        for p, s in zip(
-            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
-            storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values
-        )
-    ]
-
-    argument_dict = {tracking_utils.FULL_ID_COLUMN: full_id_strings}
-    return storm_object_table.assign(**argument_dict)
-
-
 def join_collinear_tracks(
         storm_object_table, first_late_time_unix_sec, last_late_time_unix_sec,
         max_join_time_seconds, max_join_error_m_s01,
@@ -708,4 +686,13 @@ def join_collinear_tracks(
 
             this_late_local_max_dict = None
 
-    return _update_full_ids(storm_object_table)
+    full_id_strings = temporal_tracking.partial_to_full_ids(
+        primary_id_strings=storm_object_table[
+            tracking_utils.PRIMARY_ID_COLUMN].values.tolist(),
+        secondary_id_strings=storm_object_table[
+            tracking_utils.SECONDARY_ID_COLUMN].values.tolist()
+    )
+
+    return storm_object_table.assign(**{
+        tracking_utils.FULL_ID_COLUMN: full_id_strings
+    })

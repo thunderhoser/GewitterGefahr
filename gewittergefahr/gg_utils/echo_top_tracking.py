@@ -989,6 +989,7 @@ def _shuffle_tracking_data(
 def run_tracking(
         top_radar_dir_name, top_output_dir_name, first_spc_date_string,
         last_spc_date_string, first_time_unix_sec=None, last_time_unix_sec=None,
+        first_numeric_id=None,
         echo_top_field_name=radar_utils.ECHO_TOP_40DBZ_NAME,
         radar_source_name=radar_utils.MYRORSS_SOURCE_ID,
         top_echo_classifn_dir_name=None,
@@ -1010,6 +1011,9 @@ def run_tracking(
     :param last_spc_date_string: Same.
     :param first_time_unix_sec: Same.
     :param last_time_unix_sec: Same.
+    :param first_numeric_id: First numeric storm ID.  Both primary and secondary
+        IDs will start at this number.  Default is 100 * (Unix time at beginning
+        of first SPC date).
     :param echo_top_field_name: See doc for `_find_input_radar_files`.
     :param radar_source_name: Same.
     :param top_echo_classifn_dir_name: Name of top-level directory with
@@ -1052,6 +1056,12 @@ def run_tracking(
         time_conversion.unix_sec_to_string(t, TIME_FORMAT)
         for t in valid_times_unix_sec
     ]
+
+    if first_numeric_id is None:
+        first_numeric_id = 100 * time_conversion.get_start_of_spc_date(
+            first_spc_date_string)
+
+    error_checking.assert_is_integer(first_numeric_id)
 
     projection_object = projections.init_azimuthal_equidistant_projection(
         central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
@@ -1214,7 +1224,8 @@ def run_tracking(
     print 'Converting time series of "{0:s}" maxima to storm tracks...'.format(
         echo_top_field_name)
     storm_object_table = temporal_tracking.local_maxima_to_storm_tracks(
-        local_max_dict_by_time)
+        local_max_dict_by_time=local_max_dict_by_time,
+        first_numeric_id=first_numeric_id)
 
     print 'Removing tracks that last < {0:d} seconds...'.format(
         int(min_track_duration_seconds)

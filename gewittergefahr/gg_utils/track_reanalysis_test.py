@@ -140,9 +140,16 @@ THIS_DICT = {
         ORIG_SECOND_NEXT_SECONDARY_IDS
 }
 
-ORIG_STORM_OBJECT_TABLE = track_reanalysis._update_full_ids(
-    pandas.DataFrame.from_dict(THIS_DICT)
+ORIG_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
+ORIG_FULL_ID_STRINGS = temporal_tracking.partial_to_full_ids(
+    primary_id_strings=ORIG_PRIMARY_ID_STRINGS,
+    secondary_id_strings=ORIG_SECONDARY_ID_STRINGS
 )
+
+ORIG_STORM_OBJECT_TABLE = ORIG_STORM_OBJECT_TABLE.assign(**{
+    tracking_utils.FULL_ID_COLUMN: ORIG_FULL_ID_STRINGS
+})
 
 COLUMNS_TO_COMPARE = list(ORIG_STORM_OBJECT_TABLE)
 COLUMNS_TO_COMPARE.remove(temporal_tracking.X_VELOCITY_COLUMN)
@@ -361,15 +368,33 @@ STORM_OBJECT_TABLE_POSTSIMPLE = STORM_OBJECT_TABLE_POSTSIMPLE.assign(**{
 # The following constants are used to test join_collinear_tracks.
 STORM_OBJECT_TABLE_1SEC = copy.deepcopy(ORIG_STORM_OBJECT_TABLE)
 STORM_OBJECT_TABLE_2SEC_5METRES = copy.deepcopy(STORM_OBJECT_TABLE_POSTMERGE)
-STORM_OBJECT_TABLE_2SEC_5METRES = track_reanalysis._update_full_ids(
-    STORM_OBJECT_TABLE_2SEC_5METRES)
+
+THESE_FULL_ID_STRINGS = temporal_tracking.partial_to_full_ids(
+    primary_id_strings=STORM_OBJECT_TABLE_2SEC_5METRES[
+        tracking_utils.PRIMARY_ID_COLUMN].values.tolist(),
+    secondary_id_strings=STORM_OBJECT_TABLE_2SEC_5METRES[
+        tracking_utils.SECONDARY_ID_COLUMN].values.tolist()
+)
+
+STORM_OBJECT_TABLE_2SEC_5METRES = STORM_OBJECT_TABLE_2SEC_5METRES.assign(**{
+    tracking_utils.FULL_ID_COLUMN: THESE_FULL_ID_STRINGS
+})
 
 STORM_OBJECT_TABLE_3SEC_5METRES = copy.deepcopy(STORM_OBJECT_TABLE_2SEC_5METRES)
 STORM_OBJECT_TABLE_2SEC_10METRES = copy.deepcopy(
     STORM_OBJECT_TABLE_2SEC_5METRES)
 STORM_OBJECT_TABLE_3SEC_10METRES = copy.deepcopy(STORM_OBJECT_TABLE_POSTSIMPLE)
-STORM_OBJECT_TABLE_3SEC_10METRES = track_reanalysis._update_full_ids(
-    STORM_OBJECT_TABLE_3SEC_10METRES)
+
+THESE_FULL_ID_STRINGS = temporal_tracking.partial_to_full_ids(
+    primary_id_strings=STORM_OBJECT_TABLE_3SEC_10METRES[
+        tracking_utils.PRIMARY_ID_COLUMN].values.tolist(),
+    secondary_id_strings=STORM_OBJECT_TABLE_3SEC_10METRES[
+        tracking_utils.SECONDARY_ID_COLUMN].values.tolist()
+)
+
+STORM_OBJECT_TABLE_3SEC_10METRES = STORM_OBJECT_TABLE_3SEC_10METRES.assign(**{
+    tracking_utils.FULL_ID_COLUMN: THESE_FULL_ID_STRINGS
+})
 
 STORM_OBJECT_TABLE_2SEC_30METRES = copy.deepcopy(
     STORM_OBJECT_TABLE_2SEC_5METRES)
@@ -430,8 +455,14 @@ STORM_OBJECT_TABLE_3SEC_30METRES = STORM_OBJECT_TABLE_3SEC_30METRES.assign(**{
         THESE_FIRST_NEXT_SECONDARY_IDS
 })
 
-STORM_OBJECT_TABLE_3SEC_30METRES = track_reanalysis._update_full_ids(
-    STORM_OBJECT_TABLE_3SEC_30METRES)
+THESE_FULL_ID_STRINGS = temporal_tracking.partial_to_full_ids(
+    primary_id_strings=THESE_PRIMARY_ID_STRINGS,
+    secondary_id_strings=THESE_SECONDARY_ID_STRINGS
+)
+
+STORM_OBJECT_TABLE_3SEC_30METRES = STORM_OBJECT_TABLE_3SEC_30METRES.assign(**{
+    tracking_utils.FULL_ID_COLUMN: THESE_FULL_ID_STRINGS
+})
 
 
 class TrackReanalysisTests(unittest.TestCase):
