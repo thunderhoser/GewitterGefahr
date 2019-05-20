@@ -32,6 +32,8 @@ NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = 0.5
 BORDER_COLOUR = numpy.full(3, 0.)
+
+TRACK_COLOUR = numpy.full(3, 0.)
 ALT_STORM_ID_COLOUR = storm_plotting.DEFAULT_CENTROID_COLOUR
 
 FIGURE_RESOLUTION_DPI = 300
@@ -319,6 +321,7 @@ def _plot_storm_outlines_one_time(
         storm_plotting.plot_storm_tracks(
             storm_object_table=big_storm_object_table, axes_object=axes_object,
             basemap_object=basemap_object, colour_map_object=None,
+            line_colour=TRACK_COLOUR,
             start_marker_type=',', end_marker_type=',',
             start_marker_size=1, end_marker_size=1)
 

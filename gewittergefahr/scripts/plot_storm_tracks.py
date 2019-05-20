@@ -135,7 +135,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     """
 
     if colour_map_name in ['', 'None']:
-        colour_map_object = None
+        colour_map_object = 'random'
     else:
         colour_map_object = pyplot.cm.get_cmap(colour_map_name)
 

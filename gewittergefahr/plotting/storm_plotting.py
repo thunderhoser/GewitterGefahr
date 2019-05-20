@@ -269,7 +269,8 @@ def plot_storm_ids(
 
 
 def plot_storm_tracks(
-        storm_object_table, axes_object, basemap_object, colour_map_object=None,
+        storm_object_table, axes_object, basemap_object,
+        colour_map_object='random', line_colour=None,
         line_width=DEFAULT_TRACK_WIDTH,
         start_marker_type=DEFAULT_START_MARKER_TYPE,
         end_marker_type=DEFAULT_END_MARKER_TYPE,
@@ -280,12 +281,18 @@ def plot_storm_tracks(
     :param storm_object_table: See doc for `plot_storm_outlines`.
     :param axes_object: Same.
     :param basemap_object: Same.
-    :param colour_map_object: Colour scheme (instance of
-        `matplotlib.pyplot.cm`).  Will be applied to median time of each track.
-        Min/max values in the colour scheme will be min/max of median track
-        times in `storm_object_table`.  If `colour_map_object is None`, tracks
-        will be plotted with random colours created by
-        `get_storm_track_colours`.
+    :param colour_map_object: There are 3 cases.
+
+    If "random", each track will be plotted in a random colour from
+    `get_storm_track_colours`.
+
+    If None, each track will be plotted in `line_colour` (the next input arg).
+
+    If real colour map (instance of `matplotlib.pyplot.cm`), track segments will
+    be coloured by time, according to this colour map.
+
+    :param line_colour: [used only if `colour_map_object is None`]
+        length-3 numpy array with (R, G, B).  Will be used for all tracks.
     :param line_width: Width of each storm track.
     :param start_marker_type: Marker type for beginning of track (in any format
         accepted by `matplotlib.lines`).  If `start_marker_type is None`,
@@ -320,8 +327,15 @@ def plot_storm_tracks(
     num_colours = None
     colour_norm_object = None
 
-    if colour_map_object is None:
+    if colour_map_object == 'random':
         rgb_matrix = get_storm_track_colours()
+        num_colours = rgb_matrix.shape[0]
+    elif colour_map_object is None:
+        error_checking.assert_is_numpy_array(
+            line_colour, exact_dimensions=numpy.array([3], dtype=int)
+        )
+
+        rgb_matrix = numpy.reshape(line_colour, (1, 3))
         num_colours = rgb_matrix.shape[0]
     else:
         first_time_unix_sec = numpy.min(
