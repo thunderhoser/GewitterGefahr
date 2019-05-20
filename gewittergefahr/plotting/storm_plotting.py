@@ -243,10 +243,7 @@ def plot_storm_ids(
         this_primary_id_string = storm_object_table[
             tracking_utils.PRIMARY_ID_COLUMN].values[i]
 
-        try:
-            this_primary_id_string = this_primary_id_string[-4:]
-        except ValueError:
-            pass
+        this_primary_id_string = this_primary_id_string[-4:]
 
         if include_secondary_ids:
             this_secondary_id_string = storm_object_table[
@@ -270,7 +267,7 @@ def plot_storm_ids(
 
 def plot_storm_tracks(
         storm_object_table, axes_object, basemap_object,
-        colour_map_object='random', line_colour=None,
+        colour_map_object='random', line_colour=DEFAULT_TRACK_COLOUR,
         line_width=DEFAULT_TRACK_WIDTH,
         start_marker_type=DEFAULT_START_MARKER_TYPE,
         end_marker_type=DEFAULT_END_MARKER_TYPE,
