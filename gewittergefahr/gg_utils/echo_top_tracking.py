@@ -406,7 +406,10 @@ def _find_input_radar_files(
         these_file_names = myrorss_and_mrms_io.find_raw_files_one_spc_date(
             spc_date_string=spc_date_strings[i],
             field_name=radar_field_name, data_source=radar_source_name,
-            top_directory_name=top_radar_dir_name, raise_error_if_missing=True)
+            top_directory_name=top_radar_dir_name, raise_error_if_missing=False)
+
+        if len(these_file_names) == 0:
+            continue
 
         if i == 0:
             this_first_time_unix_sec = first_time_unix_sec + 0
