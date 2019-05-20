@@ -210,23 +210,22 @@ def _get_plotting_limits(
     return latitude_limits_deg, longitude_limits_deg
 
 
-def _find_relevant_storm_objects(storm_object_table, current_time_unix_sec):
-    """Finds relevant storm objects at valid time t_0.
-
+def _find_relevant_storm_objects(storm_object_table, current_rows):
+    """Finds relevant storm objects.
+    
     "Relevant" storm objects include:
-
-    - all those at time t_0
-    - all those at time < t_0 with the same primary ID as one at t_0
-
+    
+    - Current objects (those at `current_rows` in `storm_object_table`)
+    - Those sharing an ID with a current object and occurring at an earlier time
+    
     :param storm_object_table: See doc for `storm_tracking_io.write_file`.
-    :param current_time_unix_sec: t_0 in the above discussion.
+    :param current_rows: 1-D numpy array with rows of current storm objects.
     :return: relevant_storm_object_table: Same as input but with fewer rows.
     """
 
-    current_rows = numpy.where(
-        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values ==
-        current_time_unix_sec
-    )[0]
+    current_time_unix_sec = storm_object_table[
+        tracking_utils.VALID_TIME_COLUMN].values[
+        current_rows[0]]
 
     current_primary_id_strings = storm_object_table[
         tracking_utils.PRIMARY_ID_COLUMN
@@ -429,9 +428,7 @@ def _plot_storm_outlines_one_time(
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=None,
-        line_colour=TRACK_COLOUR,
-        start_marker_type=',', end_marker_type=',',
-        start_marker_size=1, end_marker_size=1)
+        line_colour=TRACK_COLOUR)
 
     nice_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, NICE_TIME_FORMAT)
@@ -523,10 +520,26 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):
+        these_current_rows = numpy.where(
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values ==
+            valid_times_unix_sec[i]
+        )[0]
+
+        these_current_subrows = _filter_storm_objects_latlng(
+            storm_object_table=this_storm_object_table.iloc[these_current_rows],
+            min_latitude_deg=min_plot_latitude_deg,
+            max_latitude_deg=max_plot_latitude_deg,
+            min_longitude_deg=min_plot_longitude_deg,
+            max_longitude_deg=max_plot_longitude_deg)
+
+        if len(these_current_subrows) == 0:
+            continue
+
+        these_current_rows = these_current_rows[these_current_subrows]
+        
         this_storm_object_table = _find_relevant_storm_objects(
             storm_object_table=storm_object_table,
-            current_time_unix_sec=valid_times_unix_sec[i]
-        )
+            current_rows=these_current_rows)
 
         these_latlng_rows = _filter_storm_objects_latlng(
             storm_object_table=this_storm_object_table,
@@ -534,9 +547,6 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             max_latitude_deg=max_plot_latitude_deg,
             min_longitude_deg=min_plot_longitude_deg,
             max_longitude_deg=max_plot_longitude_deg)
-
-        if len(these_latlng_rows) == 0:
-            continue
 
         if top_myrorss_dir_name is None:
             this_radar_matrix = None
