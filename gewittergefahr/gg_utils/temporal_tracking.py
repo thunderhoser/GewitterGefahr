@@ -9,6 +9,8 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import error_checking
 
+LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+
 MAX_STORMS_IN_SPLIT = 2
 MAX_STORMS_IN_MERGER = 2
 DEFAULT_VELOCITY_EFOLD_RADIUS_METRES = 100000.
@@ -1512,89 +1514,146 @@ def remove_short_lived_storms(storm_object_table, min_duration_seconds):
         inplace=False)
 
 
-def get_storm_ages(storm_object_table, tracking_start_time_unix_sec,
-                   tracking_end_time_unix_sec, max_link_time_seconds,
-                   max_join_time_seconds=0):
+def get_storm_ages(storm_object_table, tracking_start_times_unix_sec,
+                   tracking_end_times_unix_sec, max_link_time_seconds):
     """Computes age of each storm cell at each time step.
 
+    T = number of tracking periods
+
     :param storm_object_table: pandas DataFrame with at least the following
-        columns.
-    storm_object_table.primary_storm_id: Primary storm ID.
+        columns.  Each row is one storm object (one cell at one time step).
+    storm_object_table.primary_id_string: Primary storm ID.
     storm_object_table.valid_time_unix_sec: Valid time.
 
-    :param tracking_start_time_unix_sec: Start of tracking period.
-    :param tracking_end_time_unix_sec: End of tracking period.
+    :param tracking_start_times_unix_sec: length-T numpy array with start times
+        of tracking periods.
+    :param tracking_end_times_unix_sec: length-T numpy array with end times of
+        tracking periods.
     :param max_link_time_seconds: See doc for `link_local_maxima_in_time`.
-    :param max_join_time_seconds: Max join time for reanalysis.  If tracks in
-        `storm_object_table` have not been reanalyzed, leave this alone.
-    :return: storm_object_table: Same as input, but with extra columns listed
-        below.
-    storm_object_table.age_sec: Age of storm cell.
+
+    :return: storm_object_table: Same as input but with the following extra
+        columns.
+    storm_object_table.age_seconds: Storm age.
     storm_object_table.tracking_start_time_unix_sec: Start of tracking period
-        (same for all storm objects).
-    storm_object_table.tracking_end_time_unix_sec: End of tracking period (same
-        for all storm objects).
+        for the given storm object.
+    storm_object_table.tracking_end_time_unix_sec: End of tracking period for
+        the given storm object.
     storm_object_table.cell_start_time_unix_sec: Start time of storm cell.
     storm_object_table.cell_end_time_unix_sec: End time of storm cell.
+
+    :raises: ValueError: if `tracking_start_times_unix_sec` and
+        `tracking_start_times_unix_sec` are not sorted in the same order.
     """
 
     error_checking.assert_is_integer(max_link_time_seconds)
     error_checking.assert_is_greater(max_link_time_seconds, 0)
-    error_checking.assert_is_integer(max_join_time_seconds)
-    error_checking.assert_is_geq(max_join_time_seconds, 0)
-    error_checking.assert_is_integer(tracking_start_time_unix_sec)
-    error_checking.assert_is_integer(tracking_end_time_unix_sec)
-    error_checking.assert_is_greater(
-        tracking_end_time_unix_sec, tracking_start_time_unix_sec)
 
-    num_storm_objects = len(storm_object_table.index)
-    ages_seconds = numpy.full(num_storm_objects, -1, dtype=int)
-    cell_start_times_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
-    cell_end_times_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
+    error_checking.assert_is_integer_numpy_array(tracking_start_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        tracking_start_times_unix_sec, num_dimensions=1)
 
-    id_string_by_track, object_to_track_indices = numpy.unique(
+    num_tracking_periods = len(tracking_start_times_unix_sec)
+    these_expected_dim = numpy.array([num_tracking_periods], dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(tracking_end_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        tracking_end_times_unix_sec, exact_dimensions=these_expected_dim)
+
+    error_checking.assert_is_geq_numpy_array(
+        tracking_end_times_unix_sec - tracking_start_times_unix_sec, 0)
+
+    start_time_sort_indices = numpy.argsort(tracking_start_times_unix_sec)
+    end_time_sort_indices = numpy.argsort(tracking_end_times_unix_sec)
+
+    if not numpy.array_equal(start_time_sort_indices, end_time_sort_indices):
+        tracking_start_time_strings = [
+            time_conversion.unix_sec_to_string(t, LOG_MESSAGE_TIME_FORMAT)
+            for t in tracking_start_times_unix_sec
+        ]
+
+        tracking_end_time_strings = [
+            time_conversion.unix_sec_to_string(t, LOG_MESSAGE_TIME_FORMAT)
+            for t in tracking_end_times_unix_sec
+        ]
+
+        print '\n'
+        for k in range(len(tracking_start_time_strings)):
+            print '{0:d}th tracking period = {1:s} to {2:s}'.format(
+                k + 1, tracking_start_time_strings[k],
+                tracking_end_time_strings[k]
+            )
+
+        print '\n'
+        raise ValueError(
+            'As shown above, start/end times of tracking periods are not sorted'
+            ' in the same order.'
+        )
+
+    tracking_start_times_unix_sec = tracking_start_times_unix_sec[
+        start_time_sort_indices
+    ]
+    tracking_end_times_unix_sec = tracking_end_times_unix_sec[
+        start_time_sort_indices
+    ]
+
+    track_id_strings, object_to_track_indices = numpy.unique(
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
         return_inverse=True)
 
-    num_storm_tracks = len(id_string_by_track)
-    age_invalid_before_unix_sec = (
-        tracking_start_time_unix_sec +
-        max([max_link_time_seconds, max_join_time_seconds])
-    )
+    num_storm_objects = len(storm_object_table.index)
+    this_array = numpy.full(num_storm_objects, -1, dtype=int)
 
-    for i in range(num_storm_tracks):
-        these_object_indices = numpy.where(object_to_track_indices == i)[0]
-        these_times_unix_sec = storm_object_table[
+    storm_object_table = storm_object_table.assign(**{
+        tracking_utils.AGE_COLUMN: this_array,
+        tracking_utils.CELL_START_TIME_COLUMN: this_array,
+        tracking_utils.CELL_END_TIME_COLUMN: this_array,
+        tracking_utils.TRACKING_START_TIME_COLUMN: this_array,
+        tracking_utils.TRACKING_END_TIME_COLUMN: this_array
+    })
+
+    num_storm_tracks = len(track_id_strings)
+
+    for j in range(num_storm_tracks):
+        these_object_indices = numpy.where(object_to_track_indices == j)[0]
+        these_object_times_unix_sec = storm_object_table[
             tracking_utils.VALID_TIME_COLUMN
         ].values[these_object_indices]
 
-        this_start_time_unix_sec = numpy.min(these_times_unix_sec)
+        this_cell_start_time_unix_sec = numpy.min(these_object_times_unix_sec)
 
-        cell_start_times_unix_sec[
-            these_object_indices] = this_start_time_unix_sec
-        cell_end_times_unix_sec[
-            these_object_indices] = numpy.max(these_times_unix_sec)
+        storm_object_table[tracking_utils.CELL_START_TIME_COLUMN].values[
+            these_object_indices
+        ] = this_cell_start_time_unix_sec
 
-        if this_start_time_unix_sec < age_invalid_before_unix_sec:
-            continue
+        storm_object_table[tracking_utils.CELL_END_TIME_COLUMN].values[
+            these_object_indices
+        ] = numpy.max(these_object_times_unix_sec)
 
-        ages_seconds[these_object_indices] = (
-            these_times_unix_sec - this_start_time_unix_sec
+        this_index = numpy.where(
+            this_cell_start_time_unix_sec >= tracking_start_times_unix_sec
+        )[0][-1]
+
+        storm_object_table[tracking_utils.TRACKING_START_TIME_COLUMN].values[
+            these_object_indices
+        ] = tracking_start_times_unix_sec[this_index]
+
+        storm_object_table[tracking_utils.TRACKING_END_TIME_COLUMN].values[
+            these_object_indices
+        ] = tracking_end_times_unix_sec[this_index]
+
+        this_tracking_time_elapsed_sec = (
+            this_cell_start_time_unix_sec -
+            tracking_start_times_unix_sec[this_index]
         )
 
-    argument_dict = {
-        tracking_utils.TRACKING_START_TIME_COLUMN: numpy.full(
-            num_storm_objects, tracking_start_time_unix_sec, dtype=int
-        ),
-        tracking_utils.TRACKING_END_TIME_COLUMN: numpy.full(
-            num_storm_objects, tracking_end_time_unix_sec, dtype=int
-        ),
-        tracking_utils.AGE_COLUMN: ages_seconds,
-        tracking_utils.CELL_START_TIME_COLUMN: cell_start_times_unix_sec,
-        tracking_utils.CELL_END_TIME_COLUMN: cell_end_times_unix_sec
-    }
+        if this_tracking_time_elapsed_sec < max_link_time_seconds:
+            continue
 
-    return storm_object_table.assign(**argument_dict)
+        storm_object_table[tracking_utils.AGE_COLUMN].values[
+            these_object_indices
+        ] = these_object_times_unix_sec - this_cell_start_time_unix_sec
+
+    return storm_object_table
 
 
 def find_predecessors(storm_object_table, target_row, num_seconds_back):

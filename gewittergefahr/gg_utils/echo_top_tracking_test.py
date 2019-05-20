@@ -185,6 +185,16 @@ NORTH_VELOCITIES_M_S01 = numpy.array([
     -11.3, 12.8, -1, 2.7, -13.7, 8.5, -8.3, 2.2, -8.1, -2.6, 13.5, -12.1
 ])
 
+# The following constants are used to test _radar_times_to_tracking_periods.
+FIRST_MAX_TIME_INTERVAL_SEC = 10
+SECOND_MAX_TIME_INTERVAL_SEC = 5
+RADAR_TIMES_UNIX_SEC = numpy.array([0, 10, 15], dtype=int)
+
+FIRST_TRACKING_START_TIMES_UNIX_SEC = numpy.array([0], dtype=int)
+FIRST_TRACKING_END_TIMES_UNIX_SEC = numpy.array([15], dtype=int)
+SECOND_TRACKING_START_TIMES_UNIX_SEC = numpy.array([0, 10], dtype=int)
+SECOND_TRACKING_END_TIMES_UNIX_SEC = numpy.array([0, 15], dtype=int)
+
 
 def _compare_local_max_dicts(first_local_max_dict, second_local_max_dict):
     """Compares two dictionaries with local maxima.
@@ -395,6 +405,44 @@ class EchoTopTrackingTests(unittest.TestCase):
                 these_y_velocities_m_s01[i], NORTH_VELOCITIES_M_S01[i],
                 atol=0.5 * speeds_m_s01[i]
             ))
+
+    def test_radar_times_to_tracking_periods_first(self):
+        """Ensures correct output from _radar_times_to_tracking_periods.
+
+        In this case, using first set of parameters.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._radar_times_to_tracking_periods(
+                radar_times_unix_sec=RADAR_TIMES_UNIX_SEC,
+                max_time_interval_sec=FIRST_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, FIRST_TRACKING_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, FIRST_TRACKING_END_TIMES_UNIX_SEC
+        ))
+
+    def test_radar_times_to_tracking_periods_second(self):
+        """Ensures correct output from _radar_times_to_tracking_periods.
+
+        In this case, using second set of parameters.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._radar_times_to_tracking_periods(
+                radar_times_unix_sec=RADAR_TIMES_UNIX_SEC,
+                max_time_interval_sec=SECOND_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, SECOND_TRACKING_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, SECOND_TRACKING_END_TIMES_UNIX_SEC
+        ))
 
 
 if __name__ == '__main__':

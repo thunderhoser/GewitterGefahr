@@ -989,6 +989,88 @@ def _shuffle_tracking_data(
     return storm_object_table_by_date
 
 
+def _radar_times_to_tracking_periods(
+        radar_times_unix_sec, max_time_interval_sec):
+    """Converts radar times to effective start/end times for tracking.
+
+    When there is a gap of > `max_time_interval_sec` between successive radar
+    times t_0 and t_1, tracking effectively ends at t_0 and then restarts at
+    t_1.
+
+    :param radar_times_unix_sec: 1-D numpy array of radar times.
+    :param max_time_interval_sec: Max time interval between successive radar
+        times.
+    :return: tracking_start_times_unix_sec: 1-D numpy array with start times of
+        effective tracking periods.
+    :return: tracking_end_times_unix_sec: 1-D numpy array with end times of
+        effective tracking periods.
+    """
+
+    radar_time_diffs_sec = numpy.diff(radar_times_unix_sec)
+    num_radar_times = len(radar_times_unix_sec)
+
+    gap_indices = numpy.where(radar_time_diffs_sec > max_time_interval_sec)[0]
+
+    tracking_start_indices = numpy.concatenate((
+        numpy.array([0], dtype=int),
+        gap_indices + 1
+    ))
+
+    tracking_end_indices = numpy.concatenate((
+        gap_indices,
+        numpy.array([num_radar_times - 1], dtype=int)
+    ))
+
+    tracking_start_indices = numpy.unique(tracking_start_indices)
+    tracking_end_indices = numpy.unique(tracking_end_indices)
+
+    return (
+        radar_times_unix_sec[tracking_start_indices],
+        radar_times_unix_sec[tracking_end_indices]
+    )
+
+
+# def _tracking_periods_to_radar_times(
+#         tracking_start_times_unix_sec, tracking_end_times_unix_sec,
+#         max_radar_time_interval_sec):
+#     """Converts tracking periods to radar times.
+#
+#     These radar times should be used only for input to
+#     `temporal_tracking.get_storm_ages`.  They are not the *actual* radar times
+#     used to create the tracks.
+#
+#     T = number of tracking periods
+#
+#     :param tracking_start_times_unix_sec: length-T numpy array of start times.
+#     :param tracking_end_times_unix_sec: length-T numpy array of end times.
+#     :param max_radar_time_interval_sec: See doc for
+#         `temporal_tracking.get_storm_ages`.
+#     :return: radar_times_unix_sec: 1-D numpy array of radar times.
+#     """
+#
+#     radar_times_unix_sec = numpy.array([], dtype=int)
+#
+#     for k in range(len(tracking_start_times_unix_sec)):
+#         this_time_elapsed_sec = (
+#             tracking_end_times_unix_sec[k] - tracking_start_times_unix_sec[k]
+#         )
+#
+#         this_num_times = 1 + int(numpy.round(
+#             float(this_time_elapsed_sec) / max_radar_time_interval_sec
+#         ))
+#         this_num_times = 2 * this_num_times
+#
+#         these_radar_times_unix_sec = numpy.linspace(
+#             tracking_start_times_unix_sec[k],
+#             tracking_end_times_unix_sec[k], num=this_num_times, dtype=int)
+#
+#         radar_times_unix_sec = numpy.concatenate((
+#             radar_times_unix_sec, these_radar_times_unix_sec
+#         ))
+#
+#     return radar_times_unix_sec
+
+
 def run_tracking(
         top_radar_dir_name, top_output_dir_name, first_spc_date_string,
         last_spc_date_string, first_time_unix_sec=None, last_time_unix_sec=None,
@@ -1046,7 +1128,7 @@ def run_tracking(
     error_checking.assert_is_geq(min_polygon_size_pixels, 0)
     error_checking.assert_is_greater(min_echo_top_km, 0.)
 
-    radar_file_names, valid_times_unix_sec = _find_input_radar_files(
+    radar_file_names, radar_times_unix_sec = _find_input_radar_files(
         top_radar_dir_name=top_radar_dir_name,
         radar_field_name=echo_top_field_name,
         radar_source_name=radar_source_name,
@@ -1055,9 +1137,9 @@ def run_tracking(
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec)
 
-    valid_time_strings = [
+    radar_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT)
-        for t in valid_times_unix_sec
+        for t in radar_times_unix_sec
     ]
 
     if first_numeric_id is None:
@@ -1070,7 +1152,7 @@ def run_tracking(
         central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
         central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
 
-    num_times = len(valid_times_unix_sec)
+    num_times = len(radar_times_unix_sec)
     local_max_dict_by_time = [{}] * num_times
     keep_time_indices = []
 
@@ -1082,7 +1164,7 @@ def run_tracking(
             this_echo_classifn_file_name = (
                 echo_classifn.find_classification_file(
                     top_directory_name=top_echo_classifn_dir_name,
-                    valid_time_unix_sec=valid_times_unix_sec[i],
+                    valid_time_unix_sec=radar_times_unix_sec[i],
                     desire_zipped=True, allow_zipped_or_unzipped=True,
                     raise_error_if_missing=False)
             )
@@ -1133,7 +1215,8 @@ def run_tracking(
             this_echo_top_matrix_km[this_convective_flag_matrix == False] = 0.
 
         print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
-            echo_top_field_name, valid_time_strings[i])
+            echo_top_field_name, radar_time_strings[i]
+        )
 
         this_latitude_spacing_deg = this_metadata_dict[
             radar_utils.LAT_SPACING_COLUMN]
@@ -1154,7 +1237,7 @@ def run_tracking(
             neigh_half_width_pixels=this_half_width_pixels)
 
         local_max_dict_by_time[i].update(
-            {temporal_tracking.VALID_TIME_KEY: valid_times_unix_sec[i]}
+            {temporal_tracking.VALID_TIME_KEY: radar_times_unix_sec[i]}
         )
 
         local_max_dict_by_time[i] = _local_maxima_to_polygons(
@@ -1185,7 +1268,7 @@ def run_tracking(
         else:
             print (
                 'Linking local maxima at {0:s} with those at {1:s}...\n'
-            ).format(valid_time_strings[i], valid_time_strings[i - 1])
+            ).format(radar_time_strings[i], radar_time_strings[i - 1])
 
             this_current_to_prev_matrix = (
                 temporal_tracking.link_local_maxima_in_time(
@@ -1217,8 +1300,8 @@ def run_tracking(
     print SEPARATOR_STRING
 
     keep_time_indices = numpy.array(keep_time_indices, dtype=int)
-    valid_times_unix_sec = valid_times_unix_sec[keep_time_indices]
-    del valid_time_strings
+    radar_times_unix_sec = radar_times_unix_sec[keep_time_indices]
+    del radar_time_strings
 
     local_max_dict_by_time = [
         local_max_dict_by_time[k] for k in keep_time_indices
@@ -1238,11 +1321,17 @@ def run_tracking(
         min_duration_seconds=min_track_duration_seconds)
 
     print 'Computing storm ages...'
+    tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
+        _radar_times_to_tracking_periods(
+            radar_times_unix_sec=radar_times_unix_sec,
+            max_time_interval_sec=max_link_time_seconds)
+    )
+
     storm_object_table = temporal_tracking.get_storm_ages(
         storm_object_table=storm_object_table,
-        tracking_start_time_unix_sec=valid_times_unix_sec[0],
-        tracking_end_time_unix_sec=valid_times_unix_sec[-1],
-        max_link_time_seconds=max_link_time_seconds, max_join_time_seconds=0)
+        tracking_start_times_unix_sec=tracking_start_times_unix_sec,
+        tracking_end_times_unix_sec=tracking_end_times_unix_sec,
+        max_link_time_seconds=max_link_time_seconds)
 
     print 'Computing storm velocities...'
     storm_object_table = temporal_tracking.get_storm_velocities(
@@ -1252,7 +1341,7 @@ def run_tracking(
     _write_new_tracks(
         storm_object_table=storm_object_table,
         top_output_dir_name=top_output_dir_name,
-        valid_times_unix_sec=valid_times_unix_sec)
+        valid_times_unix_sec=radar_times_unix_sec)
 
 
 def reanalyze_across_spc_dates(
@@ -1334,6 +1423,16 @@ def reanalyze_across_spc_dates(
 
         storm_object_table = _storm_objects_latlng_to_xy(storm_object_table)
 
+        # radar_times_unix_sec = _tracking_periods_to_radar_times(
+        #     tracking_start_times_unix_sec=storm_object_table[
+        #         tracking_utils.TRACKING_START_TIME_COLUMN].values,
+        #     tracking_end_times_unix_sec=storm_object_table[
+        #         tracking_utils.TRACKING_END_TIME_COLUMN].values,
+        #     max_radar_time_interval_sec=max([
+        #         max_link_time_seconds, max_join_time_seconds
+        #     ])
+        # )
+
         first_late_time_unix_sec = numpy.min(
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
         )
@@ -1360,8 +1459,7 @@ def reanalyze_across_spc_dates(
         print 'Recomputing storm ages...'
         storm_object_table = temporal_tracking.get_storm_ages(
             storm_object_table=storm_object_table,
-            tracking_start_time_unix_sec=tracking_start_time_unix_sec,
-            tracking_end_time_unix_sec=tracking_end_time_unix_sec,
+            radar_times_unix_sec=None,
             max_link_time_seconds=max_link_time_seconds,
             max_join_time_seconds=max_join_time_seconds)
 

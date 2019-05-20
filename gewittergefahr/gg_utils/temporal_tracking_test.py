@@ -568,29 +568,61 @@ SECONDARY_ID_STRINGS_GE10SEC = [
 ]
 
 # The following constants are used to test get_storm_ages.
-MAX_LINK_TIME_FOR_AGE_SEC = 3
+FIRST_MAX_LINK_TIME_SEC = 10
+SECOND_MAX_LINK_TIME_SEC = 5
 
-STORM_AGES_SECONDS = numpy.array([
+FIRST_MAIN_START_TIMES_UNIX_SEC = numpy.array([0], dtype=int)
+FIRST_MAIN_END_TIMES_UNIX_SEC = numpy.array([15], dtype=int)
+SECOND_MAIN_START_TIMES_UNIX_SEC = numpy.array([0, 10], dtype=int)
+SECOND_MAIN_END_TIMES_UNIX_SEC = numpy.array([0, 15], dtype=int)
+
+FIRST_STORM_AGES_SEC = numpy.array([
     -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, 0,
     -1, -1, 0, 5, -1, -1, 5
 ], dtype=int)
 
-CELL_START_TIMES_UNIX_SEC = numpy.array([
+FIRST_CELL_START_TIMES_UNIX_SEC = numpy.array([
     0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 10,
     0, 0, 15, 10, 0, 0, 10
 ], dtype=int)
 
-CELL_END_TIMES_UNIX_SEC = numpy.array([
+FIRST_CELL_END_TIMES_UNIX_SEC = numpy.array([
     15, 10, 15, 15, 10, 15,
     15, 15, 15, 15, 10, 15, 10, 15,
     15, 15, 15, 15, 15, 15, 15
 ], dtype=int)
 
-TRACKING_START_TIMES_UNIX_SEC = numpy.full(
-    len(STORM_AGES_SECONDS), 0, dtype=int)
-TRACKING_END_TIMES_UNIX_SEC = numpy.full(len(STORM_AGES_SECONDS), 15, dtype=int)
+FIRST_TRACKING_START_TIMES_UNIX_SEC = numpy.full(
+    len(FIRST_STORM_AGES_SEC), 0, dtype=int
+)
+FIRST_TRACKING_END_TIMES_UNIX_SEC = numpy.full(
+    len(FIRST_STORM_AGES_SEC), 15, dtype=int
+)
+
+SECOND_STORM_AGES_SEC = numpy.array([
+    -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, 0, -1, -1, -1, -1
+], dtype=int)
+
+SECOND_CELL_START_TIMES_UNIX_SEC = FIRST_CELL_START_TIMES_UNIX_SEC + 0
+SECOND_CELL_END_TIMES_UNIX_SEC = FIRST_CELL_END_TIMES_UNIX_SEC + 0
+
+# TODO(thunderhoser): The next two arrays are hacks, because a storm actually
+# shouldn't bridge the gap between two tracking periods.
+SECOND_TRACKING_START_TIMES_UNIX_SEC = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 10,
+    0, 0, 10, 10, 0, 0, 10
+], dtype=int)
+
+SECOND_TRACKING_END_TIMES_UNIX_SEC = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 15,
+    0, 0, 15, 15, 0, 0, 15
+], dtype=int)
 
 # The following constants are used to test get_storm_velocities.
 THESE_FIRST_TIME_DIFFS_SEC = numpy.array([
@@ -1802,8 +1834,11 @@ class TemporalTrackingTests(unittest.TestCase):
             these_secondary_id_strings == SECONDARY_ID_STRINGS_GE10SEC
         )
 
-    def test_get_storm_ages(self):
-        """Ensures correct output from get_storm_ages."""
+    def test_get_storm_ages_first(self):
+        """Ensures correct output from get_storm_ages.
+
+        In this case, using first set of parameters.
+        """
 
         this_max_dict_by_time = [
             copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
@@ -1819,33 +1854,82 @@ class TemporalTrackingTests(unittest.TestCase):
 
         this_storm_object_table = temporal_tracking.get_storm_ages(
             storm_object_table=this_storm_object_table,
-            tracking_start_time_unix_sec=0, tracking_end_time_unix_sec=15,
-            max_link_time_seconds=MAX_LINK_TIME_FOR_AGE_SEC,
-            max_join_time_seconds=0)
+            tracking_start_times_unix_sec=FIRST_MAIN_START_TIMES_UNIX_SEC,
+            tracking_end_times_unix_sec=FIRST_MAIN_END_TIMES_UNIX_SEC,
+            max_link_time_seconds=FIRST_MAX_LINK_TIME_SEC)
 
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[tracking_utils.AGE_COLUMN].values,
-            STORM_AGES_SECONDS
+            FIRST_STORM_AGES_SEC
         ))
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[
                 tracking_utils.TRACKING_START_TIME_COLUMN].values,
-            TRACKING_START_TIMES_UNIX_SEC
+            FIRST_TRACKING_START_TIMES_UNIX_SEC
         ))
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[
                 tracking_utils.TRACKING_END_TIME_COLUMN].values,
-            TRACKING_END_TIMES_UNIX_SEC
+            FIRST_TRACKING_END_TIMES_UNIX_SEC
         ))
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[
                 tracking_utils.CELL_START_TIME_COLUMN].values,
-            CELL_START_TIMES_UNIX_SEC
+            FIRST_CELL_START_TIMES_UNIX_SEC
         ))
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[
                 tracking_utils.CELL_END_TIME_COLUMN].values,
-            CELL_END_TIMES_UNIX_SEC
+            FIRST_CELL_END_TIMES_UNIX_SEC
+        ))
+
+    def test_get_storm_ages_second(self):
+        """Ensures correct output from get_storm_ages.
+
+        In this case, using second set of parameters.
+        """
+
+        this_max_dict_by_time = [
+            copy.deepcopy(FIRST_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(SECOND_LOCAL_MAX_DICT_WITH_IDS),
+            copy.deepcopy(THIRD_LOCAL_MAX_DICT_WITH_IDS)
+        ]
+
+        this_storm_object_table = (
+            temporal_tracking.local_maxima_to_storm_tracks(
+                local_max_dict_by_time=this_max_dict_by_time, first_numeric_id=0
+            )
+        )
+
+        this_storm_object_table = temporal_tracking.get_storm_ages(
+            storm_object_table=this_storm_object_table,
+            tracking_start_times_unix_sec=SECOND_MAIN_START_TIMES_UNIX_SEC,
+            tracking_end_times_unix_sec=SECOND_MAIN_END_TIMES_UNIX_SEC,
+            max_link_time_seconds=SECOND_MAX_LINK_TIME_SEC)
+
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[tracking_utils.AGE_COLUMN].values,
+            SECOND_STORM_AGES_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_utils.TRACKING_START_TIME_COLUMN].values,
+            SECOND_TRACKING_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_utils.TRACKING_END_TIME_COLUMN].values,
+            SECOND_TRACKING_END_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_utils.CELL_START_TIME_COLUMN].values,
+            SECOND_CELL_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_utils.CELL_END_TIME_COLUMN].values,
+            SECOND_CELL_END_TIMES_UNIX_SEC
         ))
 
     def test_get_storm_velocities_15sec(self):
