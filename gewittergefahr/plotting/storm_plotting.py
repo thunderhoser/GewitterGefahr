@@ -243,7 +243,10 @@ def plot_storm_ids(
         this_primary_id_string = storm_object_table[
             tracking_utils.PRIMARY_ID_COLUMN].values[i]
 
-        this_primary_id_string = this_primary_id_string[-4:]
+        try:
+            this_primary_id_string = this_primary_id_string[-4:]
+        except ValueError:
+            pass
 
         if include_secondary_ids:
             this_secondary_id_string = storm_object_table[
