@@ -167,7 +167,8 @@ def _plot_storm_outlines_one_time(
         storm_object_table, axes_object, basemap_object, storm_colour,
         storm_opacity, include_secondary_ids, alt_id_colour_flags,
         output_dir_name, radar_matrix=None, radar_field_name=None,
-        radar_latitudes_deg=None, radar_longitudes_deg=None):
+        radar_latitudes_deg=None, radar_longitudes_deg=None,
+        big_storm_object_table=None):
     """Plots storm outlines (and may underlay radar data) at one time step.
 
     M = number of rows in radar grid
@@ -314,6 +315,13 @@ def _plot_storm_outlines_one_time(
         plot_near_centroids=False, include_secondary_ids=include_secondary_ids,
         font_colour=ALT_STORM_ID_COLOUR)
 
+    if big_storm_object_table is not None:
+        storm_plotting.plot_storm_tracks(
+            storm_object_table=big_storm_object_table, axes_object=axes_object,
+            basemap_object=basemap_object, colour_map_object=None,
+            start_marker_type=',', end_marker_type=',',
+            start_marker_size=1, end_marker_size=1)
+
     nice_time_string = time_conversion.unix_sec_to_string(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[0],
         NICE_TIME_FORMAT
@@ -429,6 +437,22 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             valid_times_unix_sec[i]
         ]
 
+        these_primary_id_strings = this_storm_object_table[
+            tracking_utils.PRIMARY_ID_COLUMN].values
+
+        these_id_flags = numpy.array([
+            p in these_primary_id_strings for p in
+            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values
+        ], dtype=bool)
+
+        these_big_indices = numpy.where(numpy.logical_and(
+            these_id_flags,
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values <=
+            valid_times_unix_sec[i]
+        ))[0]
+
+        this_big_storm_object_table = storm_object_table.iloc[these_big_indices]
+
         these_lat_flags = numpy.logical_and(
             this_storm_object_table[
                 tracking_utils.CENTROID_LATITUDE_COLUMN
@@ -447,15 +471,12 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             ].values <= max_plot_longitude_deg
         )
 
-        these_good_indices = numpy.where(numpy.logical_and(
+        these_latlng_indices = numpy.where(numpy.logical_and(
             these_lat_flags, these_lng_flags
         ))[0]
 
-        if len(these_good_indices) == 0:
+        if len(these_latlng_indices) == 0:
             continue
-
-        this_storm_object_table = this_storm_object_table.iloc[
-            these_good_indices]
 
         if top_myrorss_dir_name is None:
             this_radar_matrix = None
@@ -550,6 +571,9 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             these_alt_colour_flags = numpy.logical_or(
                 these_alt_colour_flags, these_new_flags)
 
+        this_storm_object_table = this_storm_object_table.iloc[
+            these_latlng_indices]
+
         _plot_storm_outlines_one_time(
             storm_object_table=this_storm_object_table,
             axes_object=this_axes_object, basemap_object=this_basemap_object,
@@ -559,7 +583,8 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             output_dir_name=output_dir_name, radar_matrix=this_radar_matrix,
             radar_field_name=radar_field_name,
             radar_latitudes_deg=these_radar_latitudes_deg,
-            radar_longitudes_deg=these_radar_longitudes_deg)
+            radar_longitudes_deg=these_radar_longitudes_deg,
+            big_storm_object_table=this_big_storm_object_table)
 
 
 if __name__ == '__main__':

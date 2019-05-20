@@ -244,9 +244,7 @@ def plot_storm_ids(
             tracking_utils.PRIMARY_ID_COLUMN].values[i]
 
         try:
-            this_primary_id_string = str(int(
-                this_primary_id_string.split('_')[0]
-            ))
+            this_primary_id_string = this_primary_id_string[-4:]
         except ValueError:
             pass
 
@@ -255,7 +253,7 @@ def plot_storm_ids(
                 tracking_utils.SECONDARY_ID_COLUMN].values[i]
 
             try:
-                this_secondary_id_string = str(int(this_secondary_id_string))
+                this_secondary_id_string = this_secondary_id_string[-4:]
             except ValueError:
                 pass
 
