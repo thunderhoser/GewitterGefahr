@@ -161,8 +161,6 @@ INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
-# TODO(thunderhoser): Allow tracks to be included or not.
-
 
 def _get_plotting_limits(
         min_plot_latitude_deg, max_plot_latitude_deg, min_plot_longitude_deg,
@@ -436,14 +434,10 @@ def _plot_storm_outlines_one_time(
         start_marker_size=1, end_marker_size=1)
 
     nice_time_string = time_conversion.unix_sec_to_string(
-        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[0],
-        NICE_TIME_FORMAT
-    )
+        valid_time_unix_sec, NICE_TIME_FORMAT)
 
     abbrev_time_string = time_conversion.unix_sec_to_string(
-        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[0],
-        FILE_NAME_TIME_FORMAT
-    )
+        valid_time_unix_sec, FILE_NAME_TIME_FORMAT)
 
     pyplot.title('Storm objects at {0:s}'.format(nice_time_string))
     output_file_name = '{0:s}/storm_outlines_{1:s}.jpg'.format(
