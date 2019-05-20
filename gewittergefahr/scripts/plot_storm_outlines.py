@@ -526,7 +526,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         )[0]
 
         these_current_subrows = _filter_storm_objects_latlng(
-            storm_object_table=this_storm_object_table.iloc[these_current_rows],
+            storm_object_table=storm_object_table.iloc[these_current_rows],
             min_latitude_deg=min_plot_latitude_deg,
             max_latitude_deg=max_plot_latitude_deg,
             min_longitude_deg=min_plot_longitude_deg,
