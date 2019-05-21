@@ -1694,15 +1694,21 @@ def fix_tracking_periods(
         for t in radar_times_unix_sec
     ]
 
-    tracking_file_names_by_date = _find_input_tracking_files(
-        top_tracking_dir_name=top_input_tracking_dir_name,
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
         first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string,
-        first_time_unix_sec=None, last_time_unix_sec=None
-    )[1]
+        last_spc_date_string=last_spc_date_string)
 
-    tracking_file_names = list(chain(*tracking_file_names_by_date))
-    tracking_file_names.sort()
+    input_tracking_file_names = []
+
+    for this_spc_date_string in spc_date_strings:
+        input_tracking_file_names += tracking_io.find_files_one_spc_date(
+            top_tracking_dir_name=top_input_tracking_dir_name,
+            tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
+            source_name=tracking_utils.SEGMOTION_NAME,
+            spc_date_string=this_spc_date_string, raise_error_if_missing=False
+        )[0]
+
+    input_tracking_file_names.sort()
 
     num_times = len(radar_times_unix_sec)
     keep_time_indices = []
@@ -1737,7 +1743,7 @@ def fix_tracking_periods(
     radar_times_unix_sec = radar_times_unix_sec[keep_time_indices]
 
     print SEPARATOR_STRING
-    storm_object_table = tracking_io.read_many_files(tracking_file_names)
+    storm_object_table = tracking_io.read_many_files(input_tracking_file_names)
     print SEPARATOR_STRING
 
     print 'Computing storm ages...'
@@ -1752,10 +1758,6 @@ def fix_tracking_periods(
         tracking_start_times_unix_sec=tracking_start_times_unix_sec,
         tracking_end_times_unix_sec=tracking_end_times_unix_sec,
         max_link_time_seconds=max_link_time_seconds)
-
-    print 'Computing storm velocities...'
-    storm_object_table = temporal_tracking.get_storm_velocities(
-        storm_object_table=storm_object_table)
 
     print SEPARATOR_STRING
     _write_new_tracks(
