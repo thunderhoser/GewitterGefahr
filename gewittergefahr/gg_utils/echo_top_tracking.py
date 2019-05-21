@@ -1031,51 +1031,6 @@ def _radar_times_to_tracking_periods(
     )
 
 
-def _old_to_new_tracking_periods(
-        tracking_start_times_unix_sec, tracking_end_times_unix_sec,
-        max_time_interval_sec):
-    """Converts old tracking periods to new tracking periods.
-
-    N = number of original tracking periods
-    n = number of final tracking periods
-
-    :param tracking_start_times_unix_sec: length-N numpy array with start times
-        of original periods.
-    :param tracking_end_times_unix_sec: length-N numpy array with end times
-        of original periods.
-    :param max_time_interval_sec: Max time interval between successive local
-        maxima (storm objects).  If successive local maxima are >
-        `max_time_interval_sec` apart, they cannot be linked.  This is the max
-        time interval for the final tracking periods, and it may be different
-        than max interval for the original periods.
-    :return: tracking_start_times_unix_sec: length-n numpy array with start
-        times of final tracking periods.
-    :return: tracking_end_times_unix_sec: length-n numpy array with end times of
-        final tracking periods.
-    """
-
-    tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
-        temporal_tracking.check_tracking_periods(
-            tracking_start_times_unix_sec=tracking_start_times_unix_sec,
-            tracking_end_times_unix_sec=tracking_end_times_unix_sec)
-    )
-
-    interperiod_diffs_sec = (
-        tracking_start_times_unix_sec[1:] - tracking_end_times_unix_sec[:-1]
-    )
-
-    bad_indices = numpy.where(interperiod_diffs_sec <= max_time_interval_sec)[0]
-
-    tracking_start_times_unix_sec = numpy.delete(
-        tracking_start_times_unix_sec, bad_indices + 1
-    )
-    tracking_end_times_unix_sec = numpy.delete(
-        tracking_end_times_unix_sec, bad_indices
-    )
-
-    return tracking_start_times_unix_sec, tracking_end_times_unix_sec
-
-
 def _read_tracking_periods(tracking_file_names):
     """Reads tracking periods from files.
 
@@ -1116,6 +1071,74 @@ def _read_tracking_periods(tracking_file_names):
         numpy.unique(tracking_start_times_unix_sec),
         numpy.unique(tracking_end_times_unix_sec)
     )
+
+
+def _old_to_new_tracking_periods(
+        tracking_start_times_unix_sec, tracking_end_times_unix_sec,
+        max_time_interval_sec):
+    """Converts old tracking periods to new tracking periods.
+
+    N = number of original tracking periods
+    n = number of final tracking periods
+
+    :param tracking_start_times_unix_sec: length-N numpy array with start times
+        of original periods.
+    :param tracking_end_times_unix_sec: length-N numpy array with end times
+        of original periods.
+    :param max_time_interval_sec: Max time interval between successive local
+        maxima (storm objects).  If successive local maxima are >
+        `max_time_interval_sec` apart, they cannot be linked.  This is the max
+        time interval for the final tracking periods, and it may be different
+        than max interval for the original periods.
+    :return: tracking_start_times_unix_sec: length-n numpy array with start
+        times of final tracking periods.
+    :return: tracking_end_times_unix_sec: length-n numpy array with end times of
+        final tracking periods.
+    """
+
+    tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
+        temporal_tracking.check_tracking_periods(
+            tracking_start_times_unix_sec=tracking_start_times_unix_sec,
+            tracking_end_times_unix_sec=tracking_end_times_unix_sec)
+    )
+
+    tracking_start_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in tracking_start_times_unix_sec
+    ]
+
+    tracking_end_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in tracking_end_times_unix_sec
+    ]
+
+    print '\n'
+    for k in range(len(tracking_start_time_strings)):
+        print '{0:d}th tracking period = {1:s} to {2:s}'.format(
+            k + 1, tracking_start_time_strings[k],
+            tracking_end_time_strings[k]
+        )
+
+    print '\n'
+
+    interperiod_diffs_sec = (
+        tracking_start_times_unix_sec[1:] - tracking_end_times_unix_sec[:-1]
+    )
+
+    print 'Interperiod differences (seconds):\n{0:s}\n'.format(
+        str(interperiod_diffs_sec)
+    )
+
+    bad_indices = numpy.where(interperiod_diffs_sec <= max_time_interval_sec)[0]
+
+    tracking_start_times_unix_sec = numpy.delete(
+        tracking_start_times_unix_sec, bad_indices + 1
+    )
+    tracking_end_times_unix_sec = numpy.delete(
+        tracking_end_times_unix_sec, bad_indices
+    )
+
+    return tracking_start_times_unix_sec, tracking_end_times_unix_sec
 
 
 def run_tracking(
