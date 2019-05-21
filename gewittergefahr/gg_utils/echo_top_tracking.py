@@ -1449,7 +1449,7 @@ def reanalyze_across_spc_dates(
     """
 
     (spc_date_strings, tracking_file_names_by_date, valid_times_by_date_unix_sec
-    ) = _find_input_tracking_files(
+     ) = _find_input_tracking_files(
         top_tracking_dir_name=top_input_dir_name,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string,
@@ -1460,6 +1460,16 @@ def reanalyze_across_spc_dates(
         _read_tracking_periods(list(chain(*tracking_file_names_by_date)))
     )
     print SEPARATOR_STRING
+
+    tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
+        _old_to_new_tracking_periods(
+            tracking_start_times_unix_sec=tracking_start_times_unix_sec,
+            tracking_end_times_unix_sec=tracking_end_times_unix_sec,
+            max_time_interval_sec=max([
+                max_link_time_seconds, max_join_time_seconds
+            ])
+        )
+    )
 
     num_spc_dates = len(spc_date_strings)
 
