@@ -1474,7 +1474,7 @@ def reanalyze_across_spc_dates(
     """
 
     (spc_date_strings, tracking_file_names_by_date, valid_times_by_date_unix_sec
-     ) = _find_input_tracking_files(
+    ) = _find_input_tracking_files(
         top_tracking_dir_name=top_input_dir_name,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string,
