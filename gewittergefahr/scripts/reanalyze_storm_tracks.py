@@ -18,7 +18,6 @@ MAX_LINK_DISTANCE_ARG_NAME = 'max_link_distance_m_s01'
 MAX_JOIN_TIME_ARG_NAME = 'max_join_time_seconds'
 MAX_JOIN_ERROR_ARG_NAME = 'max_join_error_m_s01'
 MIN_DURATION_ARG_NAME = 'min_duration_seconds'
-MYRORSS_CLIMO_ARG_NAME = 'for_myrorss_climo'
 OUTPUT_DIR_ARG_NAME = 'output_tracking_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -58,10 +57,6 @@ MAX_JOIN_ERROR_HELP_STRING = (
 
 MIN_DURATION_HELP_STRING = (
     'Minimum storm duration.  Shorter-lived storms will be thrown out.')
-
-MYRORSS_CLIMO_HELP_STRING = (
-    'Boolean flag.  If 1, reanalysis is being done for a climatology of MYRORSS'
-    ' tracks, which will influence the start/end times of the tracking period.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level directory for new tracks (after reanalysis).  Files will'
@@ -115,10 +110,6 @@ INPUT_ARG_PARSER.add_argument(
     help=MIN_DURATION_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MYRORSS_CLIMO_ARG_NAME, type=int, required=False, default=0,
-    help=MYRORSS_CLIMO_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
@@ -126,7 +117,7 @@ INPUT_ARG_PARSER.add_argument(
 def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
          first_time_string, last_time_string, max_velocity_diff_m_s01,
          max_link_distance_m_s01, max_join_time_seconds, max_join_error_m_s01,
-         min_duration_seconds, for_myrorss_climo, top_output_dir_name):
+         min_duration_seconds, top_output_dir_name):
     """Reanalyzes storm tracks (preferably over many SPC dates).
 
     This is effectively the main method.
@@ -141,21 +132,8 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
     :param max_join_time_seconds: Same.
     :param max_join_error_m_s01: Same.
     :param min_duration_seconds: Same.
-    :param for_myrorss_climo: Same.
     :param top_output_dir_name: Same.
     """
-
-    if for_myrorss_climo:
-        myrorss_start_time_unix_sec = time_conversion.string_to_unix_sec(
-            MYRORSS_START_TIME_STRING, TIME_FORMAT)
-        myrorss_end_time_unix_sec = time_conversion.string_to_unix_sec(
-            MYRORSS_END_TIME_STRING, TIME_FORMAT)
-
-        tracking_start_time_unix_sec = myrorss_start_time_unix_sec + 0
-        tracking_end_time_unix_sec = myrorss_end_time_unix_sec + 0
-    else:
-        tracking_start_time_unix_sec = None
-        tracking_end_time_unix_sec = None
 
     if first_time_string in ['', 'None'] or last_time_string in ['', 'None']:
         first_time_unix_sec = None
@@ -173,8 +151,6 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
         last_spc_date_string=last_spc_date_string,
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec,
-        tracking_start_time_unix_sec=tracking_start_time_unix_sec,
-        tracking_end_time_unix_sec=tracking_end_time_unix_sec,
         max_velocity_diff_m_s01=max_velocity_diff_m_s01,
         max_link_distance_m_s01=max_link_distance_m_s01,
         max_join_time_seconds=max_join_time_seconds,
@@ -199,7 +175,5 @@ if __name__ == '__main__':
         max_join_time_seconds=getattr(INPUT_ARG_OBJECT, MAX_JOIN_TIME_ARG_NAME),
         max_join_error_m_s01=getattr(INPUT_ARG_OBJECT, MAX_JOIN_ERROR_ARG_NAME),
         min_duration_seconds=getattr(INPUT_ARG_OBJECT, MIN_DURATION_ARG_NAME),
-        for_myrorss_climo=bool(getattr(
-            INPUT_ARG_OBJECT, MYRORSS_CLIMO_ARG_NAME)),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
