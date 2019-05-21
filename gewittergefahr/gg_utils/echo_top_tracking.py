@@ -1022,13 +1022,32 @@ def _radar_times_to_tracking_periods(
         numpy.array([num_radar_times - 1], dtype=int)
     ))
 
-    tracking_start_indices = numpy.unique(tracking_start_indices)
-    tracking_end_indices = numpy.unique(tracking_end_indices)
+    tracking_start_times_unix_sec = radar_times_unix_sec[
+        numpy.unique(tracking_start_indices)
+    ]
+    tracking_end_times_unix_sec = radar_times_unix_sec[
+        numpy.unique(tracking_end_indices)
+    ]
 
-    return (
-        radar_times_unix_sec[tracking_start_indices],
-        radar_times_unix_sec[tracking_end_indices]
-    )
+    tracking_start_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in tracking_start_times_unix_sec
+    ]
+
+    tracking_end_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in tracking_end_times_unix_sec
+    ]
+
+    print '\n'
+    for k in range(len(tracking_start_time_strings)):
+        print '{0:d}th tracking period = {1:s} to {2:s}'.format(
+            k + 1, tracking_start_time_strings[k],
+            tracking_end_time_strings[k]
+        )
+
+    print '\n'
+    return tracking_start_times_unix_sec, tracking_end_times_unix_sec
 
 
 def _read_tracking_periods(tracking_file_names):
