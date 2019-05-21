@@ -195,6 +195,27 @@ FIRST_TRACKING_END_TIMES_UNIX_SEC = numpy.array([15], dtype=int)
 SECOND_TRACKING_START_TIMES_UNIX_SEC = numpy.array([0, 10], dtype=int)
 SECOND_TRACKING_END_TIMES_UNIX_SEC = numpy.array([0, 15], dtype=int)
 
+# The following constants are used to test _old_to_new_tracking_periods.
+OLD_TRACKING_START_TIMES_UNIX_SEC = numpy.array(
+    [-10, 0, 20, 50, 100], dtype=int
+)
+OLD_TRACKING_END_TIMES_UNIX_SEC = numpy.array([-5, 10, 35, 80, 200], dtype=int)
+
+THIRD_MAX_TIME_INTERVAL_SEC = 15
+FOURTH_MAX_TIME_INTERVAL_SEC = 20
+
+FIRST_NEW_START_TIMES_UNIX_SEC = numpy.array([-10, 50, 100], dtype=int)
+FIRST_NEW_END_TIMES_UNIX_SEC = numpy.array([35, 80, 200], dtype=int)
+
+SECOND_NEW_START_TIMES_UNIX_SEC = numpy.array([-10, 20, 50, 100], dtype=int)
+SECOND_NEW_END_TIMES_UNIX_SEC = numpy.array([10, 35, 80, 200], dtype=int)
+
+THIRD_NEW_START_TIMES_UNIX_SEC = numpy.array([-10, 100], dtype=int)
+THIRD_NEW_END_TIMES_UNIX_SEC = numpy.array([80, 200], dtype=int)
+
+FOURTH_NEW_START_TIMES_UNIX_SEC = numpy.array([-10], dtype=int)
+FOURTH_NEW_END_TIMES_UNIX_SEC = numpy.array([200], dtype=int)
+
 
 def _compare_local_max_dicts(first_local_max_dict, second_local_max_dict):
     """Compares two dictionaries with local maxima.
@@ -409,7 +430,7 @@ class EchoTopTrackingTests(unittest.TestCase):
     def test_radar_times_to_tracking_periods_first(self):
         """Ensures correct output from _radar_times_to_tracking_periods.
 
-        In this case, using first set of parameters.
+        In this case, using first max time interval.
         """
 
         these_start_times_unix_sec, these_end_times_unix_sec = (
@@ -428,7 +449,7 @@ class EchoTopTrackingTests(unittest.TestCase):
     def test_radar_times_to_tracking_periods_second(self):
         """Ensures correct output from _radar_times_to_tracking_periods.
 
-        In this case, using second set of parameters.
+        In this case, using second max time interval.
         """
 
         these_start_times_unix_sec, these_end_times_unix_sec = (
@@ -442,6 +463,90 @@ class EchoTopTrackingTests(unittest.TestCase):
         ))
         self.assertTrue(numpy.array_equal(
             these_end_times_unix_sec, SECOND_TRACKING_END_TIMES_UNIX_SEC
+        ))
+    
+    def test_old_to_new_tracking_periods_first(self):
+        """Ensures correct output from _old_to_new_tracking_periods.
+        
+        In this case, using first max time interval.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._old_to_new_tracking_periods(
+                tracking_start_times_unix_sec=
+                OLD_TRACKING_START_TIMES_UNIX_SEC + 0,
+                tracking_end_times_unix_sec=OLD_TRACKING_END_TIMES_UNIX_SEC + 0,
+                max_time_interval_sec=FIRST_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, FIRST_NEW_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, FIRST_NEW_END_TIMES_UNIX_SEC
+        ))
+
+    def test_old_to_new_tracking_periods_second(self):
+        """Ensures correct output from _old_to_new_tracking_periods.
+
+        In this case, using second max time interval.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._old_to_new_tracking_periods(
+                tracking_start_times_unix_sec=
+                OLD_TRACKING_START_TIMES_UNIX_SEC + 0,
+                tracking_end_times_unix_sec=OLD_TRACKING_END_TIMES_UNIX_SEC + 0,
+                max_time_interval_sec=SECOND_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, SECOND_NEW_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, SECOND_NEW_END_TIMES_UNIX_SEC
+        ))
+
+    def test_old_to_new_tracking_periods_third(self):
+        """Ensures correct output from _old_to_new_tracking_periods.
+
+        In this case, using third max time interval.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._old_to_new_tracking_periods(
+                tracking_start_times_unix_sec=
+                OLD_TRACKING_START_TIMES_UNIX_SEC + 0,
+                tracking_end_times_unix_sec=OLD_TRACKING_END_TIMES_UNIX_SEC + 0,
+                max_time_interval_sec=THIRD_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, THIRD_NEW_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, THIRD_NEW_END_TIMES_UNIX_SEC
+        ))
+
+    def test_old_to_new_tracking_periods_fourth(self):
+        """Ensures correct output from _old_to_new_tracking_periods.
+
+        In this case, using fourth max time interval.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._old_to_new_tracking_periods(
+                tracking_start_times_unix_sec=
+                OLD_TRACKING_START_TIMES_UNIX_SEC + 0,
+                tracking_end_times_unix_sec=OLD_TRACKING_END_TIMES_UNIX_SEC + 0,
+                max_time_interval_sec=FOURTH_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, FOURTH_NEW_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, FOURTH_NEW_END_TIMES_UNIX_SEC
         ))
 
 

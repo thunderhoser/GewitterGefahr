@@ -567,6 +567,16 @@ SECONDARY_ID_STRINGS_GE10SEC = [
     SECONDARY_ID_STRINGS[k] for k in THESE_GOOD_INDICES
 ]
 
+# The following constants are used to test check_tracking_periods.
+GOOD_START_TIMES_UNIX_SEC = numpy.array([-10, 0, 20, 50, 100], dtype=int)
+GOOD_END_TIMES_UNIX_SEC = numpy.array([-5, 10, 35, 80, 200], dtype=int)
+
+FIRST_BAD_START_TIMES_UNIX_SEC = numpy.array([-10, 0, 20, 50, 100], dtype=int)
+FIRST_BAD_END_TIMES_UNIX_SEC = numpy.array([-5, 20, 35, 80, 200], dtype=int)
+
+SECOND_BAD_START_TIMES_UNIX_SEC = numpy.array([-10, 0, 5, 50, 100], dtype=int)
+SECOND_BAD_END_TIMES_UNIX_SEC = numpy.array([-5, 10, 10, 80, 200], dtype=int)
+
 # The following constants are used to test get_storm_ages.
 FIRST_MAX_LINK_TIME_SEC = 10
 SECOND_MAX_LINK_TIME_SEC = 5
@@ -1833,6 +1843,55 @@ class TemporalTrackingTests(unittest.TestCase):
         self.assertTrue(
             these_secondary_id_strings == SECONDARY_ID_STRINGS_GE10SEC
         )
+
+    def test_check_tracking_periods_good(self):
+        """Ensures correct output from check_tracking_periods.
+
+        In this case all inputs are good.
+        """
+
+        random_indices = numpy.random.permutation(
+            len(GOOD_START_TIMES_UNIX_SEC))
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            temporal_tracking.check_tracking_periods(
+                tracking_start_times_unix_sec=
+                GOOD_START_TIMES_UNIX_SEC[random_indices] + 0,
+                tracking_end_times_unix_sec=
+                GOOD_END_TIMES_UNIX_SEC[random_indices] + 0
+            )
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, GOOD_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, GOOD_END_TIMES_UNIX_SEC
+        ))
+
+    def test_check_tracking_periods_bad1(self):
+        """Ensures correct output from check_tracking_periods.
+
+        In this case, one start time = previous end time.
+        """
+
+        with self.assertRaises(ValueError):
+            temporal_tracking.check_tracking_periods(
+                tracking_start_times_unix_sec=FIRST_BAD_START_TIMES_UNIX_SEC,
+                tracking_end_times_unix_sec=FIRST_BAD_END_TIMES_UNIX_SEC
+            )
+
+    def test_check_tracking_periods_bad2(self):
+        """Ensures correct output from check_tracking_periods.
+
+        In this case, one start time comes before previous end time.
+        """
+
+        with self.assertRaises(ValueError):
+            temporal_tracking.check_tracking_periods(
+                tracking_start_times_unix_sec=SECOND_BAD_START_TIMES_UNIX_SEC,
+                tracking_end_times_unix_sec=SECOND_BAD_END_TIMES_UNIX_SEC
+            )
 
     def test_get_storm_ages_first(self):
         """Ensures correct output from get_storm_ages.

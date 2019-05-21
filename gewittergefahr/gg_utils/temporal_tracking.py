@@ -1514,39 +1514,19 @@ def remove_short_lived_storms(storm_object_table, min_duration_seconds):
         inplace=False)
 
 
-def get_storm_ages(storm_object_table, tracking_start_times_unix_sec,
-                   tracking_end_times_unix_sec, max_link_time_seconds):
-    """Computes age of each storm cell at each time step.
+def check_tracking_periods(tracking_start_times_unix_sec,
+                           tracking_end_times_unix_sec):
+    """Ensures that list of tracking periods is valid.
 
     T = number of tracking periods
-
-    :param storm_object_table: pandas DataFrame with at least the following
-        columns.  Each row is one storm object (one cell at one time step).
-    storm_object_table.primary_id_string: Primary storm ID.
-    storm_object_table.valid_time_unix_sec: Valid time.
 
     :param tracking_start_times_unix_sec: length-T numpy array with start times
         of tracking periods.
     :param tracking_end_times_unix_sec: length-T numpy array with end times of
         tracking periods.
-    :param max_link_time_seconds: See doc for `link_local_maxima_in_time`.
-
-    :return: storm_object_table: Same as input but with the following extra
-        columns.
-    storm_object_table.age_seconds: Storm age.
-    storm_object_table.tracking_start_time_unix_sec: Start of tracking period
-        for the given storm object.
-    storm_object_table.tracking_end_time_unix_sec: End of tracking period for
-        the given storm object.
-    storm_object_table.cell_start_time_unix_sec: Start time of storm cell.
-    storm_object_table.cell_end_time_unix_sec: End time of storm cell.
-
-    :raises: ValueError: if `tracking_start_times_unix_sec` and
-        `tracking_start_times_unix_sec` are not sorted in the same order.
+    :return: tracking_start_times_unix_sec: Same as input but sorted.
+    :return: tracking_end_times_unix_sec: Same as input but sorted.
     """
-
-    error_checking.assert_is_integer(max_link_time_seconds)
-    error_checking.assert_is_greater(max_link_time_seconds, 0)
 
     error_checking.assert_is_integer_numpy_array(tracking_start_times_unix_sec)
     error_checking.assert_is_numpy_array(
@@ -1595,6 +1575,56 @@ def get_storm_ages(storm_object_table, tracking_start_times_unix_sec,
     tracking_end_times_unix_sec = tracking_end_times_unix_sec[
         start_time_sort_indices
     ]
+
+    error_checking.assert_is_geq_numpy_array(
+        tracking_end_times_unix_sec - tracking_start_times_unix_sec, 0
+    )
+    error_checking.assert_is_greater_numpy_array(
+        tracking_start_times_unix_sec[1:] - tracking_end_times_unix_sec[:-1], 0
+    )
+
+    return tracking_start_times_unix_sec, tracking_end_times_unix_sec
+
+
+def get_storm_ages(storm_object_table, tracking_start_times_unix_sec,
+                   tracking_end_times_unix_sec, max_link_time_seconds):
+    """Computes age of each storm cell at each time step.
+
+    T = number of tracking periods
+
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.  Each row is one storm object (one cell at one time step).
+    storm_object_table.primary_id_string: Primary storm ID.
+    storm_object_table.valid_time_unix_sec: Valid time.
+
+    :param tracking_start_times_unix_sec: length-T numpy array with start times
+        of tracking periods.
+    :param tracking_end_times_unix_sec: length-T numpy array with end times of
+        tracking periods.
+    :param max_link_time_seconds: See doc for `link_local_maxima_in_time`.
+
+    :return: storm_object_table: Same as input but with the following extra
+        columns.
+    storm_object_table.age_seconds: Storm age.
+    storm_object_table.tracking_start_time_unix_sec: Start of tracking period
+        for the given storm object.
+    storm_object_table.tracking_end_time_unix_sec: End of tracking period for
+        the given storm object.
+    storm_object_table.cell_start_time_unix_sec: Start time of storm cell.
+    storm_object_table.cell_end_time_unix_sec: End time of storm cell.
+
+    :raises: ValueError: if `tracking_start_times_unix_sec` and
+        `tracking_start_times_unix_sec` are not sorted in the same order.
+    """
+
+    tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
+        check_tracking_periods(
+            tracking_start_times_unix_sec=tracking_start_times_unix_sec,
+            tracking_end_times_unix_sec=tracking_end_times_unix_sec)
+    )
+
+    error_checking.assert_is_integer(max_link_time_seconds)
+    error_checking.assert_is_greater(max_link_time_seconds, 0)
 
     track_id_strings, object_to_track_indices = numpy.unique(
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,

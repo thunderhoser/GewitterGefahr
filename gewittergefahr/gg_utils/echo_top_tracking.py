@@ -26,6 +26,7 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
 import copy
 import os.path
 import warnings
+from itertools import chain
 import numpy
 import pandas
 from scipy.ndimage.filters import gaussian_filter
@@ -997,13 +998,13 @@ def _radar_times_to_tracking_periods(
     times t_0 and t_1, tracking effectively ends at t_0 and then restarts at
     t_1.
 
+    T = number of effective tracking periods
+
     :param radar_times_unix_sec: 1-D numpy array of radar times.
     :param max_time_interval_sec: Max time interval between successive radar
         times.
-    :return: tracking_start_times_unix_sec: 1-D numpy array with start times of
-        effective tracking periods.
-    :return: tracking_end_times_unix_sec: 1-D numpy array with end times of
-        effective tracking periods.
+    :return: tracking_start_times_unix_sec: length-T numpy array of start times.
+    :return: tracking_end_times_unix_sec: length-T numpy array of end times.
     """
 
     radar_time_diffs_sec = numpy.diff(radar_times_unix_sec)
@@ -1030,45 +1031,91 @@ def _radar_times_to_tracking_periods(
     )
 
 
-# def _tracking_periods_to_radar_times(
-#         tracking_start_times_unix_sec, tracking_end_times_unix_sec,
-#         max_radar_time_interval_sec):
-#     """Converts tracking periods to radar times.
-#
-#     These radar times should be used only for input to
-#     `temporal_tracking.get_storm_ages`.  They are not the *actual* radar times
-#     used to create the tracks.
-#
-#     T = number of tracking periods
-#
-#     :param tracking_start_times_unix_sec: length-T numpy array of start times.
-#     :param tracking_end_times_unix_sec: length-T numpy array of end times.
-#     :param max_radar_time_interval_sec: See doc for
-#         `temporal_tracking.get_storm_ages`.
-#     :return: radar_times_unix_sec: 1-D numpy array of radar times.
-#     """
-#
-#     radar_times_unix_sec = numpy.array([], dtype=int)
-#
-#     for k in range(len(tracking_start_times_unix_sec)):
-#         this_time_elapsed_sec = (
-#             tracking_end_times_unix_sec[k] - tracking_start_times_unix_sec[k]
-#         )
-#
-#         this_num_times = 1 + int(numpy.round(
-#             float(this_time_elapsed_sec) / max_radar_time_interval_sec
-#         ))
-#         this_num_times = 2 * this_num_times
-#
-#         these_radar_times_unix_sec = numpy.linspace(
-#             tracking_start_times_unix_sec[k],
-#             tracking_end_times_unix_sec[k], num=this_num_times, dtype=int)
-#
-#         radar_times_unix_sec = numpy.concatenate((
-#             radar_times_unix_sec, these_radar_times_unix_sec
-#         ))
-#
-#     return radar_times_unix_sec
+def _old_to_new_tracking_periods(
+        tracking_start_times_unix_sec, tracking_end_times_unix_sec,
+        max_time_interval_sec):
+    """Converts old tracking periods to new tracking periods.
+
+    N = number of original tracking periods
+    n = number of final tracking periods
+
+    :param tracking_start_times_unix_sec: length-N numpy array with start times
+        of original periods.
+    :param tracking_end_times_unix_sec: length-N numpy array with end times
+        of original periods.
+    :param max_time_interval_sec: Max time interval between successive local
+        maxima (storm objects).  If successive local maxima are >
+        `max_time_interval_sec` apart, they cannot be linked.  This is the max
+        time interval for the final tracking periods, and it may be different
+        than max interval for the original periods.
+    :return: tracking_start_times_unix_sec: length-n numpy array with start
+        times of final tracking periods.
+    :return: tracking_end_times_unix_sec: length-n numpy array with end times of
+        final tracking periods.
+    """
+
+    tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
+        temporal_tracking.check_tracking_periods(
+            tracking_start_times_unix_sec=tracking_start_times_unix_sec,
+            tracking_end_times_unix_sec=tracking_end_times_unix_sec)
+    )
+
+    interperiod_diffs_sec = (
+        tracking_start_times_unix_sec[1:] - tracking_end_times_unix_sec[:-1]
+    )
+
+    bad_indices = numpy.where(interperiod_diffs_sec <= max_time_interval_sec)[0]
+
+    tracking_start_times_unix_sec = numpy.delete(
+        tracking_start_times_unix_sec, bad_indices + 1
+    )
+    tracking_end_times_unix_sec = numpy.delete(
+        tracking_end_times_unix_sec, bad_indices
+    )
+
+    return tracking_start_times_unix_sec, tracking_end_times_unix_sec
+
+
+def _read_tracking_periods(tracking_file_names):
+    """Reads tracking periods from files.
+
+    T = number of tracking periods
+
+    :param tracking_file_names: 1-D list of paths to input files (will be read
+        by `storm_tracking_io.read_file`).
+    :return: tracking_start_times_unix_sec: length-T numpy array of start times.
+    :return: tracking_end_times_unix_sec: length-T numpy array of end times.
+    """
+
+    tracking_start_times_unix_sec = numpy.array([], dtype=int)
+    tracking_end_times_unix_sec = numpy.array([], dtype=int)
+
+    for this_file_name in tracking_file_names:
+        print 'Reading tracking periods from: "{0:s}"...'.format(this_file_name)
+        this_storm_object_table = tracking_io.read_file(this_file_name)
+
+        these_start_times_unix_sec = numpy.unique(
+            this_storm_object_table[
+                tracking_utils.TRACKING_START_TIME_COLUMN].values
+        )
+
+        these_end_times_unix_sec = numpy.unique(
+            this_storm_object_table[
+                tracking_utils.TRACKING_END_TIME_COLUMN].values
+        )
+
+        tracking_start_times_unix_sec = numpy.concatenate((
+            tracking_start_times_unix_sec, these_start_times_unix_sec
+        ))
+
+        tracking_end_times_unix_sec = numpy.concatenate((
+            tracking_end_times_unix_sec, these_end_times_unix_sec
+        ))
+
+    return (
+        numpy.unique(tracking_start_times_unix_sec),
+        numpy.unique(tracking_end_times_unix_sec)
+    )
 
 
 def run_tracking(
@@ -1347,7 +1394,6 @@ def run_tracking(
 def reanalyze_across_spc_dates(
         top_input_dir_name, top_output_dir_name, first_spc_date_string,
         last_spc_date_string, first_time_unix_sec=None, last_time_unix_sec=None,
-        tracking_start_time_unix_sec=None, tracking_end_time_unix_sec=None,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
@@ -1366,11 +1412,6 @@ def reanalyze_across_spc_dates(
     :param last_spc_date_string: Same.
     :param first_time_unix_sec: Same.
     :param last_time_unix_sec: Same.
-    :param tracking_start_time_unix_sec: First time in tracking period.  If
-        `tracking_start_time_unix_sec is None`, defaults to
-        `first_time_unix_sec`.
-    :param tracking_end_time_unix_sec: Last time in tracking period.  If
-        `tracking_end_time_unix_sec is None`, defaults to `last_time_unix_sec`.
     :param max_link_time_seconds: See doc for
         `temporal_tracking.link_local_maxima_in_time`.
     :param max_velocity_diff_m_s01: See doc for
@@ -1392,26 +1433,10 @@ def reanalyze_across_spc_dates(
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec)
 
-    if (tracking_start_time_unix_sec is None
-            or tracking_end_time_unix_sec is None):
-
-        these_times_unix_sec = numpy.array(
-            [numpy.min(t) for t in valid_times_by_date_unix_sec], dtype=int
-        )
-        tracking_start_time_unix_sec = numpy.min(these_times_unix_sec)
-
-        these_times_unix_sec = numpy.array(
-            [numpy.max(t) for t in valid_times_by_date_unix_sec], dtype=int
-        )
-        tracking_end_time_unix_sec = numpy.max(these_times_unix_sec)
-
-    else:  # Check input args.
-        time_conversion.unix_sec_to_string(
-            tracking_start_time_unix_sec, TIME_FORMAT)
-        time_conversion.unix_sec_to_string(
-            tracking_end_time_unix_sec, TIME_FORMAT)
-        error_checking.assert_is_greater(
-            tracking_end_time_unix_sec, tracking_start_time_unix_sec)
+    tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
+        _read_tracking_periods(list(chain(*tracking_file_names_by_date)))
+    )
+    print SEPARATOR_STRING
 
     num_spc_dates = len(spc_date_strings)
 
@@ -1422,16 +1447,6 @@ def reanalyze_across_spc_dates(
         print SEPARATOR_STRING
 
         storm_object_table = _storm_objects_latlng_to_xy(storm_object_table)
-
-        # radar_times_unix_sec = _tracking_periods_to_radar_times(
-        #     tracking_start_times_unix_sec=storm_object_table[
-        #         tracking_utils.TRACKING_START_TIME_COLUMN].values,
-        #     tracking_end_times_unix_sec=storm_object_table[
-        #         tracking_utils.TRACKING_END_TIME_COLUMN].values,
-        #     max_radar_time_interval_sec=max([
-        #         max_link_time_seconds, max_join_time_seconds
-        #     ])
-        # )
 
         first_late_time_unix_sec = numpy.min(
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
@@ -1459,9 +1474,12 @@ def reanalyze_across_spc_dates(
         print 'Recomputing storm ages...'
         storm_object_table = temporal_tracking.get_storm_ages(
             storm_object_table=storm_object_table,
-            radar_times_unix_sec=None,
-            max_link_time_seconds=max_link_time_seconds,
-            max_join_time_seconds=max_join_time_seconds)
+            tracking_start_times_unix_sec=tracking_start_times_unix_sec,
+            tracking_end_times_unix_sec=tracking_end_times_unix_sec,
+            max_link_time_seconds=max([
+                max_link_time_seconds, max_join_time_seconds
+            ])
+        )
 
         print 'Computing storm velocities...'
         storm_object_table = temporal_tracking.get_storm_velocities(
@@ -1561,10 +1579,12 @@ def reanalyze_across_spc_dates(
         print 'Recomputing storm ages...'
         concat_storm_object_table = temporal_tracking.get_storm_ages(
             storm_object_table=concat_storm_object_table,
-            tracking_start_time_unix_sec=tracking_start_time_unix_sec,
-            tracking_end_time_unix_sec=tracking_end_time_unix_sec,
-            max_link_time_seconds=max_link_time_seconds,
-            max_join_time_seconds=max_join_time_seconds)
+            tracking_start_times_unix_sec=tracking_start_times_unix_sec,
+            tracking_end_times_unix_sec=tracking_end_times_unix_sec,
+            max_link_time_seconds=max([
+                max_link_time_seconds, max_join_time_seconds
+            ])
+        )
 
         print 'Computing storm velocities...'
         concat_storm_object_table = temporal_tracking.get_storm_velocities(
