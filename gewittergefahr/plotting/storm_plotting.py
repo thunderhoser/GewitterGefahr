@@ -327,16 +327,20 @@ def plot_storm_tracks(
     num_colours = None
     colour_norm_object = None
 
-    if colour_map_object == 'random':
-        rgb_matrix = get_storm_track_colours()
-        num_colours = rgb_matrix.shape[0]
-    elif colour_map_object is None:
+    if colour_map_object is None:
         error_checking.assert_is_numpy_array(
             line_colour, exact_dimensions=numpy.array([3], dtype=int)
         )
 
         rgb_matrix = numpy.reshape(line_colour, (1, 3))
         num_colours = rgb_matrix.shape[0]
+
+    elif colour_map_object == 'random':
+        rgb_matrix = get_storm_track_colours()
+        num_colours = rgb_matrix.shape[0]
+
+        colour_map_object = None
+
     else:
         first_time_unix_sec = numpy.min(
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
