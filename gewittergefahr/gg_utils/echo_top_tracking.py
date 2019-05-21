@@ -1102,6 +1102,11 @@ def _old_to_new_tracking_periods(
             tracking_end_times_unix_sec=tracking_end_times_unix_sec)
     )
 
+    interperiod_diffs_sec = (
+        tracking_start_times_unix_sec[1:] - tracking_end_times_unix_sec[:-1]
+    )
+
+    # TODO(thunderhoser): Remove print statements.
     tracking_start_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT)
         for t in tracking_start_times_unix_sec
@@ -1114,20 +1119,21 @@ def _old_to_new_tracking_periods(
 
     print '\n'
     for k in range(len(tracking_start_time_strings)):
-        print '{0:d}th tracking period = {1:s} to {2:s}'.format(
+        this_message_string = (
+            '{0:d}th original tracking period = {1:s} to {2:s}'
+        ).format(
             k + 1, tracking_start_time_strings[k],
             tracking_end_time_strings[k]
         )
 
-    print '\n'
+        if k == 0:
+            print this_message_string
+            continue
 
-    interperiod_diffs_sec = (
-        tracking_start_times_unix_sec[1:] - tracking_end_times_unix_sec[:-1]
-    )
-
-    print 'Interperiod differences (seconds):\n{0:s}\n'.format(
-        str(interperiod_diffs_sec)
-    )
+        this_message_string += (
+            ' ... gap between this and previous period = {0:d} seconds'
+        ).format(interperiod_diffs_sec[k - 1])
+        print this_message_string
 
     bad_indices = numpy.where(interperiod_diffs_sec <= max_time_interval_sec)[0]
 
@@ -1138,6 +1144,25 @@ def _old_to_new_tracking_periods(
         tracking_end_times_unix_sec, bad_indices
     )
 
+    # TODO(thunderhoser): Remove print statements.
+    tracking_start_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in tracking_start_times_unix_sec
+    ]
+
+    tracking_end_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in tracking_end_times_unix_sec
+    ]
+
+    print '\n'
+    for k in range(len(tracking_start_time_strings)):
+        print '{0:d}th final tracking period = {1:s} to {2:s}'.format(
+            k + 1, tracking_start_time_strings[k],
+            tracking_end_time_strings[k]
+        )
+
+    print '\n'
     return tracking_start_times_unix_sec, tracking_end_times_unix_sec
 
 
