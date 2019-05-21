@@ -1653,3 +1653,112 @@ def reanalyze_across_spc_dates(
             spc_date_strings[i]
         ]
         print SEPARATOR_STRING
+
+
+def fix_tracking_periods(
+        top_radar_dir_name, top_input_tracking_dir_name,
+        top_output_tracking_dir_name, first_spc_date_string,
+        last_spc_date_string,
+        echo_top_field_name=radar_utils.ECHO_TOP_40DBZ_NAME,
+        radar_source_name=radar_utils.MYRORSS_SOURCE_ID,
+        top_echo_classifn_dir_name=None,
+        max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS):
+    """Fixes tracking periods in files written by `run_tracking`.
+
+    :param top_radar_dir_name: See doc for `run_tracking`.
+    :param top_input_tracking_dir_name: Name of top-level directory with input
+        tracks.  Files therein will be found by `storm_tracking_io.find_file`
+        and read by `storm_tracking_io.read_file`.
+    :param top_output_tracking_dir_name: Name of top-level directory for output
+        tracks (after fixing tracking period).  Files will be written by
+        `storm_tracking_io.write_file`, to locations therein determined by
+        `storm_tracking_io.find_file`.
+    :param first_spc_date_string: Same.
+    :param last_spc_date_string: Same.
+    :param echo_top_field_name: Same.
+    :param radar_source_name: Same.
+    :param top_echo_classifn_dir_name: Same.
+    :param max_link_time_seconds: Same.
+    """
+
+    _, radar_times_unix_sec = _find_input_radar_files(
+        top_radar_dir_name=top_radar_dir_name,
+        radar_field_name=echo_top_field_name,
+        radar_source_name=radar_source_name,
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string,
+        first_time_unix_sec=None, last_time_unix_sec=None)
+
+    radar_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in radar_times_unix_sec
+    ]
+
+    tracking_file_names_by_date = _find_input_tracking_files(
+        top_tracking_dir_name=top_input_tracking_dir_name,
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string,
+        first_time_unix_sec=None, last_time_unix_sec=None
+    )[1]
+
+    tracking_file_names = list(chain(*tracking_file_names_by_date))
+    tracking_file_names.sort()
+
+    num_times = len(radar_times_unix_sec)
+    keep_time_indices = []
+
+    for i in range(num_times):
+        print 'Looking for echo-classification file at "{0:s}"...'.format(
+            radar_time_strings[i]
+        )
+
+        if top_echo_classifn_dir_name is None:
+            keep_time_indices.append(i)
+            continue
+
+        this_echo_classifn_file_name = echo_classifn.find_classification_file(
+            top_directory_name=top_echo_classifn_dir_name,
+            valid_time_unix_sec=radar_times_unix_sec[i],
+            desire_zipped=True, allow_zipped_or_unzipped=True,
+            raise_error_if_missing=False)
+
+        if not os.path.isfile(this_echo_classifn_file_name):
+            warning_string = (
+                'POTENTIAL PROBLEM.  Cannot find echo-classification file.'
+                '  Expected at: "{0:s}"'
+            ).format(this_echo_classifn_file_name)
+
+            warnings.warn(warning_string)
+            continue
+
+        keep_time_indices.append(i)
+
+    keep_time_indices = numpy.array(keep_time_indices, dtype=int)
+    radar_times_unix_sec = radar_times_unix_sec[keep_time_indices]
+
+    print SEPARATOR_STRING
+    storm_object_table = tracking_io.read_many_files(tracking_file_names)
+    print SEPARATOR_STRING
+
+    print 'Computing storm ages...'
+    tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
+        _radar_times_to_tracking_periods(
+            radar_times_unix_sec=radar_times_unix_sec,
+            max_time_interval_sec=max_link_time_seconds)
+    )
+
+    storm_object_table = temporal_tracking.get_storm_ages(
+        storm_object_table=storm_object_table,
+        tracking_start_times_unix_sec=tracking_start_times_unix_sec,
+        tracking_end_times_unix_sec=tracking_end_times_unix_sec,
+        max_link_time_seconds=max_link_time_seconds)
+
+    print 'Computing storm velocities...'
+    storm_object_table = temporal_tracking.get_storm_velocities(
+        storm_object_table=storm_object_table)
+
+    print SEPARATOR_STRING
+    _write_new_tracks(
+        storm_object_table=storm_object_table,
+        top_output_dir_name=top_output_tracking_dir_name,
+        valid_times_unix_sec=radar_times_unix_sec)
