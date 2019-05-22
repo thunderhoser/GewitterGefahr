@@ -516,6 +516,78 @@ STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[5] = (
     numpy.array([0, 0, 0], dtype=int)
 )
 
+# The following constants are used to test _remove_storms_near_start_of_period.
+THESE_PRIMARY_ID_STRINGS = [
+    'A', 'A', 'A', 'A', 'A', 'A',
+    'B', 'B',
+    'C', 'C', 'C',
+    'D', 'D', 'D', 'D',
+    'E', 'E', 'E', 'E', 'E',
+    'H',
+    'G',
+    'F'
+]
+
+THESE_VALID_TIMES_UNIX_SEC = numpy.array([
+    0, 300, 600, 900, 1200, 1500,
+    0, 300,
+    0, 300, 600,
+    600, 900, 1200, 1500,
+    2400, 2700, 3000, 3300, 3600,
+    2700,
+    3000,
+    2400
+], dtype=int)
+
+THESE_START_TIMES_UNIX_SEC = numpy.array([
+    0, 0, 0, 0, 0, 0,
+    0, 0,
+    0, 0, 0,
+    0, 0, 0, 0,
+    2400, 2400, 2400, 2400, 2400,
+    2400,
+    2400,
+    2400
+], dtype=int)
+
+MIN_TIME_SINCE_START_SEC = 590
+
+STORM_OBJECT_TABLE_WITH_PERIOD_START = pandas.DataFrame.from_dict({
+    tracking_utils.PRIMARY_ID_COLUMN: THESE_PRIMARY_ID_STRINGS,
+    tracking_utils.VALID_TIME_COLUMN: THESE_VALID_TIMES_UNIX_SEC,
+    tracking_utils.TRACKING_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC
+})
+
+THESE_PRIMARY_ID_STRINGS = [
+    'A', 'A', 'A', 'A',
+    'C',
+    'D', 'D', 'D', 'D',
+    'E', 'E', 'E',
+    'G',
+]
+
+THESE_VALID_TIMES_UNIX_SEC = numpy.array([
+    600, 900, 1200, 1500,
+    600,
+    600, 900, 1200, 1500,
+    3000, 3300, 3600,
+    3000
+], dtype=int)
+
+THESE_START_TIMES_UNIX_SEC = numpy.array([
+    0, 0, 0, 0,
+    0,
+    0, 0, 0, 0,
+    2400, 2400, 2400,
+    2400
+], dtype=int)
+
+STORM_OBJECT_TABLE_SANS_PERIOD_START = pandas.DataFrame.from_dict({
+    tracking_utils.PRIMARY_ID_COLUMN: THESE_PRIMARY_ID_STRINGS,
+    tracking_utils.VALID_TIME_COLUMN: THESE_VALID_TIMES_UNIX_SEC,
+    tracking_utils.TRACKING_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC
+})
+
 # The following constants are used to test _share_linkages_between_periods.
 THESE_EARLY_PRIMARY_ID_STRINGS = ['A', 'C', 'A', 'B', 'C']
 THESE_EARLY_SEC_ID_STRINGS = ['1', '2', '3', '4', '2']
@@ -967,6 +1039,24 @@ class LinkageTests(unittest.TestCase):
 
         self.assertTrue(_compare_storm_to_events_tables(
             this_storm_to_winds_table, STORM_TO_WINDS_TABLE
+        ))
+
+    def test_remove_storms_near_start_of_period(self):
+        """Ensures correct output from _remove_storms_near_start_of_period."""
+
+        this_storm_object_table = linkage._remove_storms_near_start_of_period(
+            storm_object_table=copy.deepcopy(
+                STORM_OBJECT_TABLE_WITH_PERIOD_START),
+            min_time_elapsed_sec=MIN_TIME_SINCE_START_SEC)
+
+        expected_columns = list(STORM_OBJECT_TABLE_SANS_PERIOD_START)
+        actual_columns = list(this_storm_object_table)
+        self.assertTrue(set(expected_columns) == set(actual_columns))
+
+        this_storm_object_table.reset_index(inplace=True)
+
+        self.assertTrue(this_storm_object_table[actual_columns].equals(
+            STORM_OBJECT_TABLE_SANS_PERIOD_START[actual_columns]
         ))
 
     def test_share_linkages_between_periods(self):

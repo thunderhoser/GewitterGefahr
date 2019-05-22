@@ -28,6 +28,7 @@ from gewittergefahr.gg_utils import interp
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding
+from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -975,6 +976,33 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
     return storm_to_tornadoes_table
 
 
+def _remove_storms_near_start_of_period(
+        storm_object_table,
+        min_time_elapsed_sec=temporal_tracking.DEFAULT_MIN_VELOCITY_TIME_SEC):
+    """Removes any storm object near the start of a tracking period.
+
+    This is because velocity estimates near the start of a tracking period are
+    lower-quality, which may cause erroneous linkages.
+
+    :param storm_object_table: pandas DataFrame created by
+        `_read_input_storm_tracks`.  Each row is one storm object.
+    :param min_time_elapsed_sec: Minimum time into tracking period.  Any storm
+        object occurring < `min_time_elapsed_sec` into a tracking period will be
+        removed.
+    :return: storm_object_table: Same as input but maybe with fewer rows.
+    """
+
+    times_after_start_sec = (
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values -
+        storm_object_table[tracking_utils.TRACKING_START_TIME_COLUMN].values
+    )
+
+    bad_indices = numpy.where(times_after_start_sec < min_time_elapsed_sec)[0]
+
+    return storm_object_table.drop(
+        storm_object_table.index[bad_indices], axis=0, inplace=False)
+
+
 def _read_input_storm_tracks(tracking_file_names):
     """Reads storm tracks (input to linkage algorithm).
 
@@ -1015,7 +1043,11 @@ def _read_input_storm_tracks(tracking_file_names):
                 list_of_storm_object_tables[0], axis=1)
         )
 
-    return pandas.concat(list_of_storm_object_tables, axis=0, ignore_index=True)
+    storm_object_table = pandas.concat(
+        list_of_storm_object_tables, axis=0, ignore_index=True)
+
+    return _remove_storms_near_start_of_period(
+        storm_object_table=storm_object_table)
 
 
 def _read_input_wind_observations(
