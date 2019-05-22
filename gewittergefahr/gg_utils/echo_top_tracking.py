@@ -449,7 +449,7 @@ def _find_input_radar_files(
 def _find_input_tracking_files(
         top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         first_time_unix_sec, last_time_unix_sec):
-    """Finds tracking files (inputs to `run_tracking` -- basically main method).
+    """Finds tracking files (inputs to `reanalyze_across_spc_dates`).
 
     T = number of SPC dates
 
@@ -479,13 +479,22 @@ def _find_input_tracking_files(
     tracking_file_names_by_date = [['']] * num_spc_dates
     valid_times_by_date_unix_sec = [numpy.array([], dtype=int)] * num_spc_dates
 
+    keep_date_indices = []
+
     for i in range(num_spc_dates):
         these_file_names = tracking_io.find_files_one_spc_date(
             spc_date_string=spc_date_strings[i],
             source_name=tracking_utils.SEGMOTION_NAME,
             top_tracking_dir_name=top_tracking_dir_name,
-            tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2
+            tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
+            raise_error_if_missing=False
         )[0]
+
+        if len(these_file_names) == 0:
+            tracking_file_names_by_date[i] = []
+            continue
+
+        keep_date_indices.append(i)
 
         if i == 0:
             this_first_time_unix_sec = first_time_unix_sec + 0
@@ -516,6 +525,14 @@ def _find_input_tracking_files(
             these_file_names[k] for k in good_indices
         ]
         valid_times_by_date_unix_sec[i] = these_times_unix_sec[good_indices]
+
+    spc_date_strings = [spc_date_strings[i] for i in keep_date_indices]
+    tracking_file_names_by_date = [
+        tracking_file_names_by_date[i] for i in keep_date_indices
+    ]
+    valid_times_by_date_unix_sec = [
+        valid_times_by_date_unix_sec[i] for i in keep_date_indices
+    ]
 
     return (spc_date_strings, tracking_file_names_by_date,
             valid_times_by_date_unix_sec)
@@ -1500,8 +1517,9 @@ def reanalyze_across_spc_dates(
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec)
 
+    tracking_file_names = list(chain(*tracking_file_names_by_date))
     tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
-        _read_tracking_periods(list(chain(*tracking_file_names_by_date)))
+        _read_tracking_periods(tracking_file_names)
     )
     print SEPARATOR_STRING
 
