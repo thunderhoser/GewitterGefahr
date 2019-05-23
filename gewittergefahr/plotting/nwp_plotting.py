@@ -13,6 +13,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+import matplotlib.colors
 from mpl_toolkits.basemap import Basemap
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
@@ -263,32 +264,47 @@ def init_basemap(
 
 
 def plot_subgrid(
-        field_matrix, model_name, axes_object, basemap_object, colour_map,
-        min_value_in_colour_map, max_value_in_colour_map, grid_id=None,
+        field_matrix, model_name, axes_object, basemap_object,
+        colour_map_object, colour_norm_object=None, min_colour_value=None,
+        max_colour_value=None, grid_id=None,
         first_row_in_full_grid=0, first_column_in_full_grid=0, opacity=1.):
-    """Plots colour map over subgrid.
+    """Plots colour map on subset of the full model grid.
 
-    :param field_matrix: M-by-N numpy array with field to plot.
-    :param model_name: Name of NWP model (must be accepted by
-        `nwp_model_utils.check_grid_name`).
+    M = number of rows in subgrid
+    N = number of columns in subgrid
+
+    If `colour_norm_object is None`, both `min_colour_value` and
+    `max_colour_value` must be specified.
+
+    :param field_matrix: M-by-N numpy array of data values.
+    :param model_name: See doc for `_get_grid_point_coords`.
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
-    :param colour_map: Instance of `matplotlib.pyplot.cm`.
-    :param min_value_in_colour_map: Minimum value in colour map.
-    :param max_value_in_colour_map: Max value in colour map.
-    :param grid_id: Grid for NWP model (must be accepted by
-        `nwp_model_utils.check_grid_name`).
-    :param first_row_in_full_grid: Row 0 in the subgrid (i.e., row 0 in
-        `field_matrix` is row `first_row_in_full_grid` in the full grid).
-    :param first_column_in_full_grid: Column 0 in the subgrid (i.e., column 0 in
-        `field_matrix` is column `first_column_in_full_grid` in the full grid).
-    :param opacity: Opacity of colour map (from 0...1).
+        Will plot on these axes.
+    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.  Will be
+        used to convert between x-y and lat-long coordinates.
+    :param colour_map_object: Instance of `matplotlib.pyplot.cm`.  Determines
+        colours in scheme.
+    :param colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
+        Determines boundaries in colour scheme.
+    :param min_colour_value: [used only if `colour_norm_object is None`]
+        Minimum data value in colour scheme.
+    :param max_colour_value: [used only if `colour_norm_object is None`]
+        Max data value in colour scheme.
+    :param grid_id: See doc for `_get_grid_point_coords`.
+    :param first_row_in_full_grid: Row offset.  field_matrix[0, 0] is at row m
+        in the full model grid, where m = `first_row_in_full_grid`.
+    :param first_column_in_full_grid: Same but for columns.
+    :param opacity: Opacity of colour map (in range 0...1).
     """
+
+    if colour_norm_object is None:
+        error_checking.assert_is_greater(max_colour_value, min_colour_value)
+
+        colour_norm_object = matplotlib.colors.Normalize(
+            vmin=min_colour_value, vmax=max_colour_value, clip=False)
 
     error_checking.assert_is_real_numpy_array(field_matrix)
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=2)
-    error_checking.assert_is_greater(
-        max_value_in_colour_map, min_value_in_colour_map)
 
     num_rows_in_subgrid = field_matrix.shape[0]
     num_columns_in_subgrid = field_matrix.shape[1]
@@ -324,13 +340,15 @@ def plot_subgrid(
         x_spacing_metres=x_spacing_metres, y_spacing_metres=y_spacing_metres)
 
     field_matrix_at_edges = numpy.ma.masked_where(
-        numpy.isnan(field_matrix_at_edges), field_matrix_at_edges)
+        numpy.isnan(field_matrix_at_edges), field_matrix_at_edges
+    )
 
     basemap_object.pcolormesh(
         grid_cell_edges_x_metres, grid_cell_edges_y_metres,
-        field_matrix_at_edges, cmap=colour_map, vmin=min_value_in_colour_map,
-        vmax=max_value_in_colour_map, shading='flat', edgecolors='None',
-        axes=axes_object, zorder=-1e9, alpha=opacity)
+        field_matrix_at_edges, cmap=colour_map_object, norm=colour_norm_object,
+        vmin=colour_norm_object.boundaries[0],
+        vmax=colour_norm_object.boundaries[1], shading='flat',
+        edgecolors='None', axes=axes_object, zorder=-1e9, alpha=opacity)
 
 
 def plot_wind_barbs_on_subgrid(

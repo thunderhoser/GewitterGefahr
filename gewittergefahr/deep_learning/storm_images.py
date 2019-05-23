@@ -144,20 +144,24 @@ def _check_extraction_args(
 
     error_checking.assert_is_integer(num_storm_image_rows)
     error_checking.assert_is_greater(num_storm_image_rows, 0)
+
     if num_storm_image_rows != rounder.round_to_nearest(
             num_storm_image_rows, 2):
         error_string = (
             'Number of rows per storm-centered image ({0:d}) should be even.'
         ).format(num_storm_image_rows)
+
         raise ValueError(error_string)
 
     error_checking.assert_is_integer(num_storm_image_columns)
     error_checking.assert_is_greater(num_storm_image_columns, 0)
+
     if num_storm_image_columns != rounder.round_to_nearest(
             num_storm_image_columns, 2):
         error_string = (
             'Number of columns per storm-centered image ({0:d}) should be even.'
         ).format(num_storm_image_columns)
+
         raise ValueError(error_string)
 
     error_checking.assert_is_boolean(rotate_grids)
@@ -231,6 +235,7 @@ def _check_grid_spacing(
             'New file has spacing of {2:.4f} deg N, {3:.4f} deg E.'
         ).format(orig_lat_spacing_deg, orig_lng_spacing_deg,
                  new_lat_spacing_deg, new_lng_spacing_deg)
+
         raise ValueError(error_string)
 
     return orig_lat_spacing_deg, orig_lng_spacing_deg
@@ -482,7 +487,6 @@ def _rotate_grids_many_storm_objects(
     storm_object_table.east_velocity_m_s01: Eastward storm velocity (metres per
         second).
     storm_object_table.north_velocity_m_s01: Northward storm velocity.
-
     :param num_storm_image_rows: m in the above discussion.
     :param num_storm_image_columns: n in the above discussion.
     :param storm_grid_spacing_metres: Spacing between grid points in adjacent
@@ -495,7 +499,6 @@ def _rotate_grids_many_storm_objects(
         latitudes (deg N) of grid points.
     storm_object_table.rotated_lng_matrix_non_shear_deg: m-by-n numpy array with
         longitudes (deg E) of grid points.
-
     If `for_azimuthal_shear = True`, these columns will be named
     "rotated_lat_matrix_for_shear_deg" and "rotated_lng_matrix_for_shear_deg",
     instead.
@@ -701,14 +704,17 @@ def _subset_xy_grid_for_interp(
 
     subset_field_matrix = field_matrix[
         first_valid_y_index:(last_valid_y_index + 1),
-        first_valid_x_index:(last_valid_x_index + 1)]
+        first_valid_x_index:(last_valid_x_index + 1)
+    ]
 
     return (
         subset_field_matrix,
         grid_point_x_coords_metres[
-            first_valid_x_index:(last_valid_x_index + 1)],
+            first_valid_x_index:(last_valid_x_index + 1)
+        ],
         grid_point_y_coords_metres[
-            first_valid_y_index:(last_valid_y_index + 1)]
+            first_valid_y_index:(last_valid_y_index + 1)
+        ]
     )
 
 
@@ -1108,7 +1114,6 @@ def extract_storm_images_myrorss_or_mrms(
     storm_object_table.east_velocity_m_s01: Eastward storm velocity (metres per
         second).
     storm_object_table.north_velocity_m_s01: Northward storm velocity.
-
     :param radar_source: Data source (either "myrorss" or "mrms").
     :param top_radar_dir_name: Name of top-level input directory, containing
         radar data from the given source.
@@ -1209,8 +1214,7 @@ def extract_storm_images_myrorss_or_mrms(
                 tracking_utils.CENTROID_LATITUDE_COLUMN].values,
             longitudes_deg=this_storm_object_table[
                 tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
-            working_dir_name=elevation_dir_name
-        )
+            working_dir_name=elevation_dir_name)
 
         this_storm_object_table = this_storm_object_table.assign(**{
             ELEVATION_COLUMN: these_elevations_m_asl

@@ -133,6 +133,9 @@ def _find_examples_to_read(option_dict, num_examples_total):
             num_rows_to_keep=num_grid_rows,
             num_columns_to_keep=num_grid_columns)
 
+        if this_example_dict is None:
+            continue
+
         target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
         full_id_strings += this_example_dict[input_examples.FULL_IDS_KEY]

@@ -64,6 +64,16 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
+X_MIN_KEY = 'x_min_metres'
+X_MAX_KEY = 'x_max_metres'
+Y_MIN_KEY = 'y_min_metres'
+Y_MAX_KEY = 'y_max_metres'
+
+MIN_LATITUDE_KEY = 'min_latitude_deg'
+MAX_LATITUDE_KEY = 'max_latitude_deg'
+MIN_LONGITUDE_KEY = 'min_longitude_deg'
+MAX_LONGITUDE_KEY = 'max_longitude_deg'
+
 
 def annotate_axes(
         axes_object, annotation_string, font_size=DEFAULT_ANNOT_FONT_SIZE,
@@ -196,72 +206,119 @@ def init_lambert_conformal_map(
 
 
 def init_map_with_nwp_projection(
-        model_name, min_latitude_deg, max_latitude_deg, min_longitude_deg,
-        max_longitude_deg, grid_id=None,
+        model_name, grid_name=None, latlng_limit_dict=None, xy_limit_dict=None,
         fig_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         fig_height_inches=DEFAULT_FIG_HEIGHT_INCHES,
         resolution_string=DEFAULT_BOUNDARY_RESOLUTION_STRING):
-    """Initializes map with NWP (numerical weather prediction)-model projection.
+    """Initializes map with same projection as NWP model.
 
-    If min_latitude_deg = max_latitude_deg = min_longitude_deg =
-    max_longitude_deg = None, corners of the map will be corners of the model
-    grid.
+    However, this map will have false easting = false northing = 0 metres.
 
-    :param model_name: Name of NWP model.
-    :param min_latitude_deg: Latitude at bottom-left corner (deg N) of map.
-    :param max_latitude_deg: Latitude at upper-right corner (deg N) of map.
-    :param min_longitude_deg: Longitude at bottom-left corner (deg E) of map.
-    :param max_longitude_deg: Longitude at upper-right corner (deg E) of map.
-    :param grid_id: String ID for model grid.
+    If `latlng_limit_dict is not None`, corners of the map will be determined by
+    lat-long coords.
+
+    If `xy_limit_dict is not None`, corners of the map will be determined by
+    x-y coords.
+
+    If both are None, corners of the map will be x-y corners of model grid.
+
+    :param model_name: See doc for `nwp_model_utils.check_grid_name`.
+    :param grid_name: See doc for `nwp_model_utils.check_grid_name`.
+    :param latlng_limit_dict: Dictionary with the following keys:
+    latlng_limit_dict['min_latitude_deg']: Minimum latitude (deg N) in map.
+    latlng_limit_dict['max_latitude_deg']: Max latitude (deg N) in map.
+    latlng_limit_dict['min_longitude_deg']: Minimum longitude (deg E) in map.
+    latlng_limit_dict['max_longitude_deg']: Max longitude (deg E) in map.
+
+    :param xy_limit_dict: Dictionary with the following keys:
+    xy_limit_dict['x_min_metres']: Minimum x-coord in map.
+    xy_limit_dict['x_max_metres']: Max x-coord in map.
+    xy_limit_dict['y_min_metres']: Minimum y-coord in map.
+    xy_limit_dict['y_max_metres']: Max y-coord in map.
+
     :param fig_width_inches: Figure width.
     :param fig_height_inches: Figure height.
-    :param resolution_string: See documentation for init_lambert_conformal_map.
+    :param resolution_string: See doc for `init_lambert_conformal_map`.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :return: basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
     """
 
-    nwp_model_utils.check_grid_name(model_name, grid_id)
-    map_corners_deg = [
-        min_latitude_deg, max_latitude_deg, min_longitude_deg, max_longitude_deg
-    ]
-
-    if any([c is None for c in map_corners_deg]):
-        grid_cell_edge_x_metres, grid_cell_edge_y_metres = (
-            nwp_model_utils.get_xy_grid_cell_edges(
-                model_name=model_name, grid_name=grid_id)
-        )
-
-        min_latitude_deg_as_array, min_longitude_deg_as_array = (
-            nwp_model_utils.project_xy_to_latlng(
-                x_coords_metres=grid_cell_edge_x_metres[[0]],
-                y_coords_metres=grid_cell_edge_y_metres[[0]],
-                model_name=model_name, grid_name=grid_id)
-        )
-
-        max_latitude_deg_as_array, max_longitude_deg_as_array = (
-            nwp_model_utils.project_xy_to_latlng(
-                x_coords_metres=grid_cell_edge_x_metres[[-1]],
-                y_coords_metres=grid_cell_edge_y_metres[[-1]],
-                model_name=model_name, grid_name=grid_id)
-        )
-
-        min_latitude_deg = min_latitude_deg_as_array[0]
-        max_latitude_deg = max_latitude_deg_as_array[0]
-        min_longitude_deg = min_longitude_deg_as_array[0]
-        max_longitude_deg = max_longitude_deg_as_array[0]
+    nwp_model_utils.check_grid_name(model_name=model_name, grid_name=grid_name)
 
     standard_latitudes_deg, central_longitude_deg = (
         nwp_model_utils.get_projection_params(model_name)
     )
 
-    return init_lambert_conformal_map(
-        standard_latitudes_deg=standard_latitudes_deg,
-        central_longitude_deg=central_longitude_deg,
-        fig_width_inches=fig_width_inches, fig_height_inches=fig_height_inches,
-        resolution_string=resolution_string, min_latitude_deg=min_latitude_deg,
-        max_latitude_deg=max_latitude_deg, min_longitude_deg=min_longitude_deg,
-        max_longitude_deg=max_longitude_deg)
+    if latlng_limit_dict is None and xy_limit_dict is None:
+        all_x_coords_metres, all_y_coords_metres = (
+            nwp_model_utils.get_xy_grid_cell_edges(
+                model_name=model_name, grid_name=grid_name)
+        )
+
+        false_easting_metres, false_northing_metres = (
+            nwp_model_utils.get_false_easting_and_northing(
+                model_name=model_name, grid_name=grid_name)
+        )
+
+        all_x_coords_metres -= false_easting_metres
+        all_y_coords_metres -= false_northing_metres
+
+        xy_limit_dict = {
+            X_MIN_KEY: numpy.min(all_x_coords_metres),
+            X_MAX_KEY: numpy.max(all_x_coords_metres),
+            Y_MIN_KEY: numpy.min(all_y_coords_metres),
+            Y_MAX_KEY: numpy.max(all_y_coords_metres)
+        }
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(fig_width_inches, fig_height_inches)
+    )
+
+    if latlng_limit_dict is not None:
+        min_latitude_deg = latlng_limit_dict[MIN_LATITUDE_KEY]
+        max_latitude_deg = latlng_limit_dict[MAX_LATITUDE_KEY]
+
+        error_checking.assert_is_valid_lat_numpy_array(
+            numpy.array([min_latitude_deg, max_latitude_deg])
+        )
+
+        min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+            latlng_limit_dict[MIN_LONGITUDE_KEY]
+        )
+
+        max_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+            latlng_limit_dict[MAX_LONGITUDE_KEY]
+        )
+
+        error_checking.assert_is_greater(max_latitude_deg, min_latitude_deg)
+        error_checking.assert_is_greater(max_longitude_deg, min_longitude_deg)
+
+        basemap_object = Basemap(
+            projection='lcc', lat_1=standard_latitudes_deg[0],
+            lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
+            rsphere=EARTH_RADIUS_METRES, ellps=ELLIPSOID,
+            resolution=resolution_string, llcrnrlat=min_latitude_deg,
+            llcrnrlon=min_longitude_deg, urcrnrlat=max_latitude_deg,
+            urcrnrlon=max_longitude_deg)
+    else:
+        x_min_metres = xy_limit_dict[X_MIN_KEY]
+        x_max_metres = xy_limit_dict[X_MAX_KEY]
+        y_min_metres = xy_limit_dict[Y_MIN_KEY]
+        y_max_metres = xy_limit_dict[Y_MAX_KEY]
+
+        error_checking.assert_is_greater(x_max_metres, x_min_metres)
+        error_checking.assert_is_greater(y_max_metres, y_min_metres)
+
+        basemap_object = Basemap(
+            projection='lcc', lat_1=standard_latitudes_deg[0],
+            lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
+            rsphere=EARTH_RADIUS_METRES, ellps=ELLIPSOID,
+            resolution=resolution_string,
+            llcrnrx=x_min_metres, urcrnrx=x_max_metres,
+            llcrnry=y_min_metres, urcrnry=y_max_metres)
+
+    return figure_object, axes_object, basemap_object
 
 
 def init_equidistant_cylindrical_map(
