@@ -125,7 +125,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     :param top_output_dir_name: Same.
     """
 
-    spc_date_strings = time_conversion.get_spc_dates_in_range(
+    all_spc_date_strings = time_conversion.get_spc_dates_in_range(
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
@@ -135,7 +135,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     input_target_file_names = []
     spc_date_string_by_file = []
 
-    for this_spc_date_string in spc_date_strings:
+    for this_spc_date_string in all_spc_date_strings:
         this_file_name = target_val_utils.find_target_file(
             top_directory_name=top_input_dir_name,
             event_type_string=target_param_dict[
@@ -149,7 +149,6 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         spc_date_string_by_file.append(this_spc_date_string)
 
     num_files = len(input_target_file_names)
-    spc_date_strings = spc_date_string_by_file
     target_dict_by_file = [None] * num_files
 
     full_id_strings = []
@@ -169,6 +168,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         these_full_id_strings = (
             target_dict_by_file[i][target_val_utils.FULL_IDS_KEY]
         )
+
         full_id_strings += these_full_id_strings
         this_num_storm_objects = len(these_full_id_strings)
 
@@ -201,7 +201,6 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     primary_id_strings = temporal_tracking.full_to_partial_ids(
         full_id_strings
     )[0]
-    del full_id_strings
 
     if for_training:
         indices_to_keep = fancy_downsampling.downsample_for_training(
@@ -217,30 +216,37 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             class_fraction_dict=class_fraction_dict)
 
     print SEPARATOR_STRING
-    del primary_id_strings
-    del storm_times_unix_sec
-    del target_values
 
     for i in range(num_files):
-        these_subindices = numpy.where(
+        these_object_subindices = numpy.where(
             storm_to_file_indices[indices_to_keep] == i
         )[0]
 
-        these_indices = indices_to_keep[these_subindices]
-        if len(these_indices) == 0:
+        these_object_indices = indices_to_keep[these_object_subindices]
+        if len(these_object_indices) == 0:
             continue
+
+        these_indices_in_file = tracking_utils.find_storm_objects(
+            all_id_strings=target_dict_by_file[i][
+                target_val_utils.FULL_IDS_KEY],
+            all_times_unix_sec=target_dict_by_file[i][
+                target_val_utils.VALID_TIMES_KEY],
+            id_strings_to_keep=
+            [full_id_strings[k] for k in these_object_indices],
+            times_to_keep_unix_sec=storm_times_unix_sec[these_object_indices],
+            allow_missing=False)
 
         this_output_dict = {
             tracking_utils.FULL_ID_COLUMN: [
                 target_dict_by_file[i][target_val_utils.FULL_IDS_KEY][k]
-                for k in these_indices
+                for k in these_indices_in_file
             ],
             tracking_utils.VALID_TIME_COLUMN:
                 target_dict_by_file[i][target_val_utils.VALID_TIMES_KEY][
-                    these_indices],
+                    these_indices_in_file],
             target_name:
                 target_dict_by_file[i][target_val_utils.TARGET_VALUES_KEY][
-                    these_indices]
+                    these_indices_in_file]
         }
 
         this_output_table = pandas.DataFrame.from_dict(this_output_dict)
@@ -249,7 +255,8 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             top_directory_name=top_output_dir_name,
             event_type_string=target_param_dict[
                 target_val_utils.EVENT_TYPE_KEY],
-            spc_date_string=spc_date_strings[i], raise_error_if_missing=False)
+            spc_date_string=spc_date_string_by_file[i],
+            raise_error_if_missing=False)
 
         print (
             'Writing {0:d} downsampled storm objects (out of {1:d} total) to: '
