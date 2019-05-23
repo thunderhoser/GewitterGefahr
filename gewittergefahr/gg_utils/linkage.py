@@ -999,6 +999,13 @@ def _remove_storms_near_start_of_period(
 
     bad_indices = numpy.where(times_after_start_sec < min_time_elapsed_sec)[0]
 
+    print (
+        '{0:d} of {1:d} storm objects occur within {2:d} seconds of beginning '
+        'of tracking period.  REMOVING.'
+    ).format(
+        len(bad_indices), len(storm_object_table.index), min_time_elapsed_sec
+    )
+
     return storm_object_table.drop(
         storm_object_table.index[bad_indices], axis=0, inplace=False)
 

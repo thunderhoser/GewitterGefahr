@@ -583,6 +583,14 @@ def create_tornado_targets(
         storm_to_events_table=storm_to_tornadoes_table,
         max_lead_time_sec=max_lead_time_sec)
 
+    print (
+        '{0:d} of {1:d} storm objects occur within {2:d} seconds of end '
+        'of tracking period.'
+    ).format(
+        len(end_of_period_indices), len(storm_to_tornadoes_table.index),
+        max_lead_time_sec
+    )
+
     num_storm_objects = len(storm_to_tornadoes_table.index)
     tornado_classes = numpy.full(num_storm_objects, -1, dtype=int)
 
