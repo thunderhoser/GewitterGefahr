@@ -271,10 +271,10 @@ def _polygons_from_latlng_to_xy(
 
     for j in range(num_buffers):
         min_buffer_distances_metres[j], max_buffer_distances_metres[j] = (
-            _column_name_to_distance_buffer(buffer_column_names_latlng[j])
+            _column_name_to_buffer(buffer_column_names_latlng[j])
         )
 
-        buffer_column_names_xy[j] = _distance_buffer_to_column_name(
+        buffer_column_names_xy[j] = _buffer_to_column_name(
             min_buffer_distances_metres[j], max_buffer_distances_metres[j],
             column_type=XY_POLYGON_COLUMN_TYPE)
 
@@ -1240,25 +1240,25 @@ def create_forecast_grids(
 
     for j in range(num_buffers):
         min_buffer_distances_metres[j], max_buffer_distances_metres[j] = (
-            _column_name_to_distance_buffer(latlng_buffer_columns[j])
+            _column_name_to_buffer(latlng_buffer_columns[j])
         )
 
-        xy_buffer_columns[j] = _distance_buffer_to_column_name(
+        xy_buffer_columns[j] = _buffer_to_column_name(
             min_buffer_dist_metres=min_buffer_distances_metres[j],
             max_buffer_dist_metres=max_buffer_distances_metres[j],
             column_type=XY_POLYGON_COLUMN_TYPE)
 
-        buffer_forecast_columns[j] = _distance_buffer_to_column_name(
+        buffer_forecast_columns[j] = _buffer_to_column_name(
             min_buffer_dist_metres=min_buffer_distances_metres[j],
             max_buffer_dist_metres=max_buffer_distances_metres[j],
             column_type=FORECAST_COLUMN_TYPE)
 
-        buffer_row_list_columns[j] = _distance_buffer_to_column_name(
+        buffer_row_list_columns[j] = _buffer_to_column_name(
             min_buffer_dist_metres=min_buffer_distances_metres[j],
             max_buffer_dist_metres=max_buffer_distances_metres[j],
             column_type=GRID_ROWS_IN_POLYGON_COLUMN_TYPE)
 
-        buffer_column_list_columns[j] = _distance_buffer_to_column_name(
+        buffer_column_list_columns[j] = _buffer_to_column_name(
             min_buffer_dist_metres=min_buffer_distances_metres[j],
             max_buffer_dist_metres=max_buffer_distances_metres[j],
             column_type=GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE)
@@ -1317,7 +1317,7 @@ def create_forecast_grids(
         this_storm_object_table = _normalize_probs_by_polygon_area(
             storm_object_table=this_storm_object_table,
             prob_radius_for_grid_metres=prob_radius_for_grid_metres)
-        
+
         this_storm_object_table = _polygons_to_grid_points(
             storm_object_table=this_storm_object_table,
             grid_points_x_metres=grid_point_x_coords_metres,
@@ -1391,6 +1391,7 @@ def create_forecast_grids(
                     grid_spacing_x=grid_spacing_x_metres,
                     grid_spacing_y=grid_spacing_y_metres,
                     cutoff_radius=smoothing_cutoff_radius_metres)
+
         # gridded_forecast_dict[prediction_io.XY_PROBABILITIES_KEY][i] = (
         #     scipy.sparse.csr_matrix(this_probability_matrix_xy)
         # )
