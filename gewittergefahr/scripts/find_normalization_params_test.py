@@ -16,8 +16,10 @@ ORIGINAL_Z_SCORE_DICT = {
     find_norm_params.MEAN_OF_SQUARES_KEY: 10.
 }
 
-NEW_MATRIX_FOR_Z_SCORES = numpy.array([[0, 1, 2, 3, 4],
-                                       [1, 2, 4, 2, 1]], dtype=float)
+NEW_MATRIX_FOR_Z_SCORES = numpy.array([
+    [0, 1, 2, 3, 4],
+    [1, 2, 4, 2, 1]
+], dtype=float)
 
 NEW_Z_SCORE_DICT = {
     find_norm_params.NUM_VALUES_KEY: 30,
@@ -31,9 +33,11 @@ MAIN_FREQUENCY_DICT = {
     0.001: 5, 0.002: 3, 0.004: 7, 0.006: 2
 }
 
-NEW_MATRIX_FOR_FREQUENCIES = numpy.array([[0.003, 0.007, 0.002, 0.004],
-                                          [0.006, 0.005, 0.002, -0.001],
-                                          [0.006, 0.001, 0.008, 0.007]])
+NEW_MATRIX_FOR_FREQUENCIES = numpy.array([
+    [0.003, 0.007, 0.002, 0.004],
+    [0.006, 0.005, 0.002, -0.001],
+    [0.006, 0.001, 0.008, 0.007]
+])
 
 NEW_FREQUENCY_DICT = {
     -0.001: 1, 0.001: 6, 0.002: 5, 0.003: 1, 0.004: 8, 0.005: 1, 0.006: 4,
@@ -41,8 +45,11 @@ NEW_FREQUENCY_DICT = {
 }
 
 # The following constants are used to test _get_standard_deviation.
-STDEV_INPUT_MATRIX = numpy.array([[1, 2, 3, 4, 5],
-                                  [6, 7, 8, 9, 10]], dtype=float)
+STDEV_INPUT_MATRIX = numpy.array([
+    [1, 2, 3, 4, 5],
+    [6, 7, 8, 9, 10]
+], dtype=float)
+
 STANDARD_DEVIATION = numpy.std(STDEV_INPUT_MATRIX, ddof=1)
 
 # The following constants are used to test _get_percentile.
@@ -135,12 +142,14 @@ FIRST_PERCENTILES = numpy.array([
         FIRST_FREQUENCY_DICT, MIN_PERCENTILE_LEVEL),
     find_norm_params._get_percentile(FIRST_FREQUENCY_DICT, MAX_PERCENTILE_LEVEL)
 ])
+
 SECOND_PERCENTILES = numpy.array([
     find_norm_params._get_percentile(
         SECOND_FREQUENCY_DICT, MIN_PERCENTILE_LEVEL),
     find_norm_params._get_percentile(
         SECOND_FREQUENCY_DICT, MAX_PERCENTILE_LEVEL)
 ])
+
 THIRD_PERCENTILES = numpy.array([
     find_norm_params._get_percentile(
         THIRD_FREQUENCY_DICT, MIN_PERCENTILE_LEVEL),
@@ -155,6 +164,7 @@ NORMALIZATION_DICT_WITH_PRCTILE = {
     THIRD_KEY_NO_HEIGHT: numpy.concatenate((
         THIRD_Z_SCORE_PARAMS, THIRD_PERCENTILES))
 }
+
 NORMALIZATION_TABLE_WITH_PRCTILE = pandas.DataFrame.from_dict(
     NORMALIZATION_DICT_WITH_PRCTILE, orient='index')
 
@@ -162,6 +172,7 @@ COLUMN_DICT_OLD_TO_NEW.update({
     2: dl_utils.MIN_VALUE_COLUMN,
     3: dl_utils.MAX_VALUE_COLUMN
 })
+
 NORMALIZATION_TABLE_WITH_PRCTILE.rename(
     columns=COLUMN_DICT_OLD_TO_NEW, inplace=True)
 
@@ -182,6 +193,7 @@ NORMALIZATION_DICT_WITH_HEIGHT = {
     SECOND_KEY_WITH_HEIGHT: SECOND_Z_SCORE_PARAMS,
     THIRD_KEY_WITH_HEIGHT: THIRD_Z_SCORE_PARAMS
 }
+
 NORMALIZATION_TABLE_WITH_HEIGHT = pandas.DataFrame.from_dict(
     NORMALIZATION_DICT_WITH_HEIGHT, orient='index')
 NORMALIZATION_TABLE_WITH_HEIGHT.rename(
@@ -285,7 +297,8 @@ class FindNormalizationParamsTests(unittest.TestCase):
             new_data_matrix=NEW_MATRIX_FOR_Z_SCORES)
 
         self.assertTrue(_compare_z_score_dicts(
-            this_new_param_dict, NEW_Z_SCORE_DICT))
+            this_new_param_dict, NEW_Z_SCORE_DICT
+        ))
 
     def test_update_frequency_dict(self):
         """Ensures correct output from _update_frequency_dict."""
@@ -296,7 +309,8 @@ class FindNormalizationParamsTests(unittest.TestCase):
             rounding_base=ROUNDING_BASE)
 
         self.assertTrue(_compare_frequency_dicts(
-            this_new_frequency_dict, NEW_FREQUENCY_DICT))
+            this_new_frequency_dict, NEW_FREQUENCY_DICT
+        ))
 
     def test_get_standard_deviation(self):
         """Ensures correct output from _get_standard_deviation."""
@@ -310,8 +324,10 @@ class FindNormalizationParamsTests(unittest.TestCase):
 
         this_standard_deviation = find_norm_params._get_standard_deviation(
             this_z_score_param_dict)
+
         self.assertTrue(numpy.isclose(
-            this_standard_deviation, STANDARD_DEVIATION, atol=TOLERANCE))
+            this_standard_deviation, STANDARD_DEVIATION, atol=TOLERANCE
+        ))
 
     def test_get_percentile_small(self):
         """Ensures correct output from _get_percentile.
@@ -322,8 +338,10 @@ class FindNormalizationParamsTests(unittest.TestCase):
         this_percentile = find_norm_params._get_percentile(
             frequency_dict=MAIN_FREQUENCY_DICT,
             percentile_level=SMALL_PERCENTILE_LEVEL)
+
         self.assertTrue(numpy.isclose(
-            this_percentile, SMALL_PERCENTILE, atol=TOLERANCE))
+            this_percentile, SMALL_PERCENTILE, atol=TOLERANCE
+        ))
 
     def test_get_percentile_medium(self):
         """Ensures correct output from _get_percentile.
@@ -334,8 +352,10 @@ class FindNormalizationParamsTests(unittest.TestCase):
         this_percentile = find_norm_params._get_percentile(
             frequency_dict=MAIN_FREQUENCY_DICT,
             percentile_level=MEDIUM_PERCENTILE_LEVEL)
+
         self.assertTrue(numpy.isclose(
-            this_percentile, MEDIUM_PERCENTILE, atol=TOLERANCE))
+            this_percentile, MEDIUM_PERCENTILE, atol=TOLERANCE
+        ))
 
     def test_get_percentile_large(self):
         """Ensures correct output from _get_percentile.
@@ -346,8 +366,10 @@ class FindNormalizationParamsTests(unittest.TestCase):
         this_percentile = find_norm_params._get_percentile(
             frequency_dict=MAIN_FREQUENCY_DICT,
             percentile_level=LARGE_PERCENTILE_LEVEL)
+
         self.assertTrue(numpy.isclose(
-            this_percentile, LARGE_PERCENTILE, atol=TOLERANCE))
+            this_percentile, LARGE_PERCENTILE, atol=TOLERANCE
+        ))
 
     def test_convert_normalization_params_no_prctile(self):
         """Ensures correct output from _convert_normalization_params.
@@ -360,7 +382,8 @@ class FindNormalizationParamsTests(unittest.TestCase):
             z_score_dict_dict=Z_SCORE_DICT_DICT_NO_HEIGHT)
 
         self.assertTrue(_compare_normalization_tables(
-            this_norm_table, NORMALIZATION_TABLE_NO_PRCTILE))
+            this_norm_table, NORMALIZATION_TABLE_NO_PRCTILE
+        ))
 
     def test_convert_normalization_params_with_prctile(self):
         """Ensures correct output from _convert_normalization_params.
@@ -376,7 +399,8 @@ class FindNormalizationParamsTests(unittest.TestCase):
             max_percentile_level=MAX_PERCENTILE_LEVEL)
 
         self.assertTrue(_compare_normalization_tables(
-            this_norm_table, NORMALIZATION_TABLE_WITH_PRCTILE))
+            this_norm_table, NORMALIZATION_TABLE_WITH_PRCTILE
+        ))
 
     def test_convert_normalization_params_with_height(self):
         """Ensures correct output from _convert_normalization_params.
@@ -389,7 +413,8 @@ class FindNormalizationParamsTests(unittest.TestCase):
             z_score_dict_dict=Z_SCORE_DICT_DICT_WITH_HEIGHT)
 
         self.assertTrue(_compare_normalization_tables(
-            this_norm_table, NORMALIZATION_TABLE_WITH_HEIGHT))
+            this_norm_table, NORMALIZATION_TABLE_WITH_HEIGHT
+        ))
 
 
 if __name__ == '__main__':

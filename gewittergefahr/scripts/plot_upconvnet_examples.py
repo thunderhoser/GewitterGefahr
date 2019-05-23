@@ -100,16 +100,16 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
 
     print 'Reading storm IDs and times from: "{0:s}"...'.format(
         storm_metafile_name)
-    storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
+    full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
         storm_metafile_name)
 
-    if 0 < num_examples < len(storm_ids):
-        storm_ids = storm_ids[:num_examples]
+    if 0 < num_examples < len(full_id_strings):
+        full_id_strings = full_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
     print SEPARATOR_STRING
     list_of_predictor_matrices = testing_io.read_specific_examples(
-        desired_storm_ids=storm_ids,
+        desired_full_id_strings=full_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
         top_example_dir_name=top_example_dir_name,
@@ -163,7 +163,8 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     # TODO(thunderhoser): Calling a method in another script is hacky.  If this
     # method is going to be reused, should be in a module.
     plot_input_examples.plot_examples(
-        list_of_predictor_matrices=[actual_radar_matrix], storm_ids=storm_ids,
+        list_of_predictor_matrices=[actual_radar_matrix],
+        full_id_strings=full_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
         model_metadata_dict=cnn_metadata_dict,
         output_dir_name=actual_output_dir_name)
@@ -176,7 +177,8 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
 
     plot_input_examples.plot_examples(
         list_of_predictor_matrices=[reconstructed_radar_matrix],
-        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+        full_id_strings=full_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec,
         model_metadata_dict=cnn_metadata_dict,
         output_dir_name=reconstructed_output_dir_name)
 

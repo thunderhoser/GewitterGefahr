@@ -82,9 +82,11 @@ OUTPUT_FIELD_HELP_STRING = (
     'following list:\n{0:s}').format(str(VALID_OUTPUT_FIELD_NAMES))
 
 TOP_GRIDRAD_DIR_NAME_DEFAULT = (
-    '/condo/swatcommon/common/gridrad_final/native_format')
+    '/condo/swatcommon/common/gridrad_final/native_format'
+)
 TOP_MYRORSS_DIR_NAME_DEFAULT = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format')
+    '/condo/swatcommon/common/gridrad_final/myrorss_format'
+)
 TOP_RUC_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/ruc_data'
 TOP_RAP_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/rap_data'
 
@@ -119,8 +121,10 @@ def _check_output_field(output_field_name):
 
     if output_field_name not in VALID_OUTPUT_FIELD_NAMES:
         error_string = (
-            '\n\n{0:s}\nValid output fields (listed above) do not include '
-            '"{1:s}".').format(VALID_OUTPUT_FIELD_NAMES, output_field_name)
+            '\n{0:s}\nValid output fields (listed above) do not include '
+            '"{1:s}".'
+        ).format(str(VALID_OUTPUT_FIELD_NAMES), output_field_name)
+
         raise ValueError(error_string)
 
 
@@ -246,6 +250,7 @@ if __name__ == '__main__':
     OUTPUT_FIELD_NAME = getattr(INPUT_ARG_OBJECT, OUTPUT_FIELD_ARG_NAME)
 
     _check_output_field(OUTPUT_FIELD_NAME)
+
     _convert_to_myrorss_format(
         top_gridrad_dir_name=TOP_GRIDRAD_DIR_NAME,
         top_myrorss_dir_name=TOP_MYRORSS_DIR_NAME,

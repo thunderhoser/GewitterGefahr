@@ -185,6 +185,7 @@ def _extract_storm_images(
 
     if target_name is not None:
         target_param_dict = target_val_utils.target_name_to_params(target_name)
+
         target_file_name = target_val_utils.find_target_file(
             top_directory_name=top_target_dir_name,
             event_type_string=target_param_dict[
@@ -197,14 +198,15 @@ def _extract_storm_images(
         print '\n'
 
     # Find storm objects on the given SPC date.
-    tracking_file_names = tracking_io.find_processed_files_one_spc_date(
+    tracking_file_names = tracking_io.find_files_one_spc_date(
         spc_date_string=spc_date_string,
-        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-        top_processed_dir_name=top_tracking_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2)[0]
+        source_name=tracking_utils.SEGMOTION_NAME,
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2
+    )[0]
 
     # Read storm objects on the given SPC date.
-    storm_object_table = tracking_io.read_many_processed_files(
+    storm_object_table = tracking_io.read_many_files(
         tracking_file_names
     )[storm_images.STORM_COLUMNS_NEEDED]
     print SEPARATOR_STRING
@@ -216,11 +218,11 @@ def _extract_storm_images(
         ).format(target_name)
 
         these_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=storm_object_table[
-                tracking_utils.STORM_ID_COLUMN].values.tolist(),
+            all_id_strings=storm_object_table[
+                tracking_utils.FULL_ID_COLUMN].values.tolist(),
             all_times_unix_sec=storm_object_table[
-                tracking_utils.TIME_COLUMN].values.astype(int),
-            storm_ids_to_keep=target_dict[target_val_utils.STORM_IDS_KEY],
+                tracking_utils.VALID_TIME_COLUMN].values.astype(int),
+            id_strings_to_keep=target_dict[target_val_utils.FULL_IDS_KEY],
             times_to_keep_unix_sec=target_dict[
                 target_val_utils.VALID_TIMES_KEY],
             allow_missing=False)
@@ -230,7 +232,8 @@ def _extract_storm_images(
         num_storm_objects = len(storm_object_table.index)
 
         print 'Removed {0:d} of {1:d} storm objects!\n'.format(
-            num_storm_objects_orig - num_storm_objects, num_storm_objects_orig)
+            num_storm_objects_orig - num_storm_objects, num_storm_objects_orig
+        )
 
     # Extract storm-centered radar images.
     storm_images.extract_storm_images_gridrad(

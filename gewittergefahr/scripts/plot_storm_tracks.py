@@ -9,6 +9,7 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
@@ -26,8 +27,14 @@ BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
 REQUIRED_COLUMNS = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
-    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN
+    tracking_utils.VALID_TIME_COLUMN, tracking_utils.PRIMARY_ID_COLUMN,
+    tracking_utils.SECONDARY_ID_COLUMN,
+    tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN,
+    tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN,
+    tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN,
+    tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN,
+    tracking_utils.CENTROID_LATITUDE_COLUMN,
+    tracking_utils.CENTROID_LONGITUDE_COLUMN
 ]
 
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
@@ -128,7 +135,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     """
 
     if colour_map_name in ['', 'None']:
-        colour_map_object = None
+        colour_map_object = 'random'
     else:
         colour_map_object = pyplot.cm.get_cmap(colour_map_name)
 
@@ -150,18 +157,18 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     list_of_storm_object_tables = []
 
     for this_spc_date_string in spc_date_strings:
-        these_file_names = tracking_io.find_processed_files_one_spc_date(
-            top_processed_dir_name=top_tracking_dir_name,
+        these_file_names = tracking_io.find_files_one_spc_date(
+            top_tracking_dir_name=top_tracking_dir_name,
             tracking_scale_metres2=
             echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
-            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+            source_name=tracking_utils.SEGMOTION_NAME,
             spc_date_string=this_spc_date_string, raise_error_if_missing=False
         )[0]
 
         if len(these_file_names) == 0:
             continue
 
-        this_storm_object_table = tracking_io.read_many_processed_files(
+        this_storm_object_table = tracking_io.read_many_files(
             these_file_names
         )[REQUIRED_COLUMNS]
 
@@ -183,22 +190,22 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
     if min_plot_latitude_deg is None:
         min_plot_latitude_deg = numpy.min(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
         ) - LATLNG_BUFFER_DEG
 
     if max_plot_latitude_deg is None:
         max_plot_latitude_deg = numpy.max(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
         ) + LATLNG_BUFFER_DEG
 
     if min_plot_longitude_deg is None:
         min_plot_longitude_deg = numpy.min(
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
         ) - LATLNG_BUFFER_DEG
 
     if max_plot_longitude_deg is None:
         max_plot_longitude_deg = numpy.max(
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
+            storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
         ) + LATLNG_BUFFER_DEG
 
     _, axes_object, basemap_object = (
@@ -209,26 +216,42 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             max_longitude_deg=max_plot_longitude_deg, resolution_string='i')
     )
 
-    parallel_spacing_deg = numpy.round(
+    parallel_spacing_deg = (
         (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
     )
-    meridian_spacing_deg = numpy.round(
+    meridian_spacing_deg = (
         (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
     )
+
+    if parallel_spacing_deg < 1.:
+        parallel_spacing_deg = number_rounding.round_to_nearest(
+            parallel_spacing_deg, 0.1)
+    else:
+        parallel_spacing_deg = numpy.round(parallel_spacing_deg)
+
+    if meridian_spacing_deg < 1.:
+        meridian_spacing_deg = number_rounding.round_to_nearest(
+            meridian_spacing_deg, 0.1)
+    else:
+        meridian_spacing_deg = numpy.round(meridian_spacing_deg)
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
         bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
         parallel_spacing_deg=parallel_spacing_deg)
+
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
         bottom_left_lng_deg=0., upper_right_lng_deg=360.,

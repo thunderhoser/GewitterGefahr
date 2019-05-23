@@ -95,7 +95,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_feature_maps_one_layer(
-        feature_matrix, storm_ids, storm_times_unix_sec, layer_name,
+        feature_matrix, full_id_strings, storm_times_unix_sec, layer_name,
         output_dir_name):
     """Plots all feature maps for one layer.
 
@@ -107,7 +107,7 @@ def _plot_feature_maps_one_layer(
 
     :param feature_matrix: numpy array (E x M x N x C or E x M x N x H x C) of
         feature maps.
-    :param storm_ids: length-E list of storm IDs.
+    :param full_id_strings: length-E list of full storm IDs.
     :param storm_times_unix_sec: length-E numpy array of storm times.
     :param layer_name: Name of layer.
     :param output_dir_name: Name of output directory for this layer.
@@ -165,14 +165,16 @@ def _plot_feature_maps_one_layer(
                 extend_min=True, extend_max=True)
 
             this_title_string = 'Layer "{0:s}", storm "{1:s}" at {2:s}'.format(
-                layer_name, storm_ids[i], this_time_string)
+                layer_name, full_id_strings[i], this_time_string
+            )
             pyplot.suptitle(this_title_string, fontsize=MAIN_FONT_SIZE)
 
             this_figure_file_name = (
                 '{0:s}/storm={1:s}_{2:s}_features.jpg'
             ).format(
-                output_dir_name, storm_ids[i].replace('_', '-'),
-                this_time_string)
+                output_dir_name, full_id_strings[i].replace('_', '-'),
+                this_time_string
+            )
 
             print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
             pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -202,16 +204,18 @@ def _plot_feature_maps_one_layer(
                     'Layer "{0:s}", height {1:d} of {2:d}, storm "{3:s}" at '
                     '{4:s}'
                 ).format(
-                    layer_name, k + 1, num_heights, storm_ids[i],
-                    this_time_string)
+                    layer_name, k + 1, num_heights, full_id_strings[i],
+                    this_time_string
+                )
 
                 pyplot.suptitle(this_title_string, fontsize=MAIN_FONT_SIZE)
 
                 this_figure_file_name = (
                     '{0:s}/storm={1:s}_{2:s}_features_height{3:02d}.jpg'
                 ).format(
-                    output_dir_name, storm_ids[i].replace('_', '-'),
-                    this_time_string, k + 1)
+                    output_dir_name, full_id_strings[i].replace('_', '-'),
+                    this_time_string, k + 1
+                )
 
                 print 'Saving figure to: "{0:s}"...'.format(
                     this_figure_file_name)
@@ -237,7 +241,8 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
     model_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(model_file_name)[0])
+        os.path.split(model_file_name)[0]
+    )
 
     print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
@@ -245,22 +250,23 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
     print 'Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name)
-    storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
+    full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
         storm_metafile_name)
     print SEPARATOR_STRING
 
-    if 0 < num_examples < len(storm_ids):
-        storm_ids = storm_ids[:num_examples]
+    if 0 < num_examples < len(full_id_strings):
+        full_id_strings = full_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
     list_of_predictor_matrices = testing_io.read_specific_examples(
         top_example_dir_name=top_example_dir_name,
-        desired_storm_ids=storm_ids,
+        desired_full_id_strings=full_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
         list_of_layer_operation_dicts=model_metadata_dict[
             cnn.LAYER_OPERATIONS_KEY]
     )[0]
+
     print SEPARATOR_STRING
 
     num_layers = len(layer_names)
@@ -278,7 +284,8 @@ def _run(model_file_name, layer_names, top_example_dir_name,
                 reflectivity_matrix_dbz=list_of_predictor_matrices[0],
                 azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
                 sounding_matrix=sounding_matrix,
-                return_features=True, feature_layer_name=layer_names[k])
+                return_features=True, feature_layer_name=layer_names[k]
+            )
         else:
             if len(list_of_predictor_matrices) == 2:
                 sounding_matrix = list_of_predictor_matrices[-1]
@@ -292,22 +299,26 @@ def _run(model_file_name, layer_names, top_example_dir_name,
                     model_object=model_object,
                     radar_image_matrix=list_of_predictor_matrices[0],
                     sounding_matrix=sounding_matrix,
-                    return_features=True, feature_layer_name=layer_names[k])
+                    return_features=True, feature_layer_name=layer_names[k]
+                )
             else:
                 feature_matrix_by_layer[k] = cnn.apply_2d_or_3d_cnn(
                     model_object=model_object,
                     radar_image_matrix=list_of_predictor_matrices[0],
                     sounding_matrix=sounding_matrix,
-                    return_features=True, feature_layer_name=layer_names[k])
+                    return_features=True, feature_layer_name=layer_names[k]
+                )
 
     for k in range(num_layers):
         this_output_dir_name = '{0:s}/{1:s}'.format(
-            top_output_dir_name, layer_names[k])
+            top_output_dir_name, layer_names[k]
+        )
         file_system_utils.mkdir_recursive_if_necessary(
             directory_name=this_output_dir_name)
 
         _plot_feature_maps_one_layer(
-            feature_matrix=feature_matrix_by_layer[k], storm_ids=storm_ids,
+            feature_matrix=feature_matrix_by_layer[k],
+            full_id_strings=full_id_strings,
             storm_times_unix_sec=storm_times_unix_sec,
             layer_name=layer_names[k],
             output_dir_name=this_output_dir_name)

@@ -14,6 +14,7 @@ dist/
 
 # Slurm scripts, figure-making scripts for papers and talks.
 slurm/
+casper/
 purdue_talk/
 bams2019/
 

@@ -93,28 +93,37 @@ def check_class_fractions(sampling_fraction_by_class_dict, target_name):
         target_name=target_name, include_dead_storms=True)
 
     expected_keys = numpy.linspace(
-        0, num_classes - 1, num=num_classes, dtype=int).tolist()
+        0, num_classes - 1, num=num_classes, dtype=int
+    ).tolist()
+
     if num_extended_classes > num_classes:
         expected_keys.append(target_val_utils.DEAD_STORM_INTEGER)
 
     if set(expected_keys) != set(sampling_fraction_by_class_dict.keys()):
         error_string = (
-            '\n\n{0:s}\nExpected sampling_fraction_by_class_dict to contain the'
+            '\n{0:s}\nExpected sampling_fraction_by_class_dict to contain the'
             ' keys listed above.  Instead, contains the keys listed below.'
             '\n{1:s}'
-        ).format(str(expected_keys),
-                 str(sampling_fraction_by_class_dict.keys()))
+        ).format(
+            str(expected_keys), str(sampling_fraction_by_class_dict.keys())
+        )
+
         raise KeyError(error_string)
 
-    sum_of_class_fractions = numpy.sum(
-        numpy.array(sampling_fraction_by_class_dict.values()))
+    sum_of_class_fractions = numpy.sum(numpy.array(
+        sampling_fraction_by_class_dict.values()
+    ))
     absolute_diff = numpy.absolute(sum_of_class_fractions - 1.)
+
     if absolute_diff > TOLERANCE_FOR_FREQUENCY_SUM:
         error_string = (
-            '\n\n{0:s}\nSum of sampling fractions (listed above) should be 1.  '
+            '\n{0:s}\nSum of sampling fractions (listed above) should be 1.  '
             'Instead, got sum = {1:.4f}.'
-        ).format(sampling_fraction_by_class_dict.values(),
-                 sum_of_class_fractions)
+        ).format(
+            str(sampling_fraction_by_class_dict.values()),
+            sum_of_class_fractions
+        )
+
         raise ValueError(error_string)
 
 
@@ -204,9 +213,12 @@ def class_fractions_to_weights(
             del new_sampling_fraction_dict[target_val_utils.DEAD_STORM_INTEGER]
 
     loss_function_weights = (
-        1. / numpy.array(new_sampling_fraction_dict.values()))
+        1. / numpy.array(new_sampling_fraction_dict.values())
+    )
     loss_function_weights = (
-        loss_function_weights / numpy.sum(loss_function_weights))
+        loss_function_weights / numpy.sum(loss_function_weights)
+    )
+
     return dict(zip(new_sampling_fraction_dict.keys(), loss_function_weights))
 
 
@@ -294,22 +306,27 @@ def check_target_array(target_array, num_dimensions, num_classes):
     num_examples = target_array.shape[0]
 
     if num_dimensions == 1:
-        error_checking.assert_is_numpy_array(
-            target_array, exact_dimensions=numpy.array([num_examples]))
         error_checking.assert_is_integer_numpy_array(target_array)
 
+        these_expected_dim = numpy.array([num_examples], dtype=int)
+        error_checking.assert_is_numpy_array(
+            target_array, exact_dimensions=these_expected_dim)
+
         live_storm_object_indices = numpy.where(
-            target_array != target_val_utils.DEAD_STORM_INTEGER)[0]
+            target_array != target_val_utils.DEAD_STORM_INTEGER
+        )[0]
         error_checking.assert_is_geq_numpy_array(
-            target_array[live_storm_object_indices], 0)
+            target_array[live_storm_object_indices], 0
+        )
         error_checking.assert_is_less_than_numpy_array(
             target_array, num_classes)
     else:
-        error_checking.assert_is_numpy_array(
-            target_array,
-            exact_dimensions=numpy.array([num_examples, num_classes]))
         error_checking.assert_is_geq_numpy_array(target_array, 0)
         error_checking.assert_is_leq_numpy_array(target_array, 1)
+
+        these_expected_dim = numpy.array([num_examples, num_classes], dtype=int)
+        error_checking.assert_is_numpy_array(
+            target_array, exact_dimensions=these_expected_dim)
 
 
 def stack_radar_fields(tuple_of_3d_matrices):
@@ -806,10 +823,8 @@ def soundings_to_metpy_dictionaries(
         dewpoint_matrix_kelvins)
 
     try:
-        u_wind_index = field_names.index(
-            soundings.U_WIND_NAME)
-        v_wind_index = field_names.index(
-            soundings.V_WIND_NAME)
+        u_wind_index = field_names.index(soundings.U_WIND_NAME)
+        v_wind_index = field_names.index(soundings.V_WIND_NAME)
         include_wind = True
     except ValueError:
         include_wind = False

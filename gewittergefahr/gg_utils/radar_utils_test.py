@@ -255,7 +255,6 @@ class RadarUtilsTests(unittest.TestCase):
             radar_utils.DIFFERENTIAL_REFL_NAME,
             data_source=radar_utils.GRIDRAD_SOURCE_ID)
 
-        print this_field_name_gridrad
         self.assertTrue(this_field_name_gridrad ==
                         radar_utils.DIFFERENTIAL_REFL_NAME_GRIDRAD)
 

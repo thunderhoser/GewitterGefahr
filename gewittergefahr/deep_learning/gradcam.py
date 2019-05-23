@@ -30,8 +30,8 @@ INPUT_MATRICES_KEY = 'list_of_input_matrices'
 CLASS_ACTIVATIONS_KEY = 'class_activation_matrix'
 GUIDED_GRADCAM_KEY = 'ggradcam_output_matrix'
 
-STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
-STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
+FULL_IDS_KEY = tracking_io.FULL_IDS_KEY
+STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
 MODEL_FILE_NAME_KEY = 'model_file_name'
 TARGET_CLASS_KEY = 'target_class'
 TARGET_LAYER_KEY = 'target_layer_name'
@@ -39,7 +39,7 @@ SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
 STANDARD_FILE_KEYS = [
     INPUT_MATRICES_KEY, CLASS_ACTIVATIONS_KEY, GUIDED_GRADCAM_KEY,
-    STORM_IDS_KEY, STORM_TIMES_KEY, MODEL_FILE_NAME_KEY,
+    FULL_IDS_KEY, STORM_TIMES_KEY, MODEL_FILE_NAME_KEY,
     TARGET_CLASS_KEY, TARGET_LAYER_KEY, SOUNDING_PRESSURES_KEY
 ]
 
@@ -564,7 +564,7 @@ def read_pmm_file(pickle_file_name):
 
 def write_standard_file(
         pickle_file_name, list_of_input_matrices, class_activation_matrix,
-        ggradcam_output_matrix, model_file_name, storm_ids,
+        ggradcam_output_matrix, model_file_name, full_id_strings,
         storm_times_unix_sec, target_class, target_layer_name,
         sounding_pressure_matrix_pascals=None):
     """Writes class-activation maps (one for each example) to Pickle file.
@@ -585,7 +585,7 @@ def write_standard_file(
         the [i]th example, created by `run_guided_gradcam`.
     :param model_file_name: Path to file with trained CNN (readable by
         `cnn.read_model`).
-    :param storm_ids: length-E list of storm IDs (strings).
+    :param full_id_strings: length-E list of full storm IDs.
     :param storm_times_unix_sec: length-E numpy array of storm times.
     :param target_class: See doc for `run_gradcam`.
     :param target_layer_name: Same.
@@ -601,11 +601,11 @@ def write_standard_file(
     error_checking.assert_is_geq(target_class, 0)
     error_checking.assert_is_string(target_layer_name)
 
-    error_checking.assert_is_string_list(storm_ids)
+    error_checking.assert_is_string_list(full_id_strings)
     error_checking.assert_is_numpy_array(
-        numpy.array(storm_ids), num_dimensions=1)
+        numpy.array(full_id_strings), num_dimensions=1)
 
-    num_storm_objects = len(storm_ids)
+    num_storm_objects = len(full_id_strings)
     error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
         storm_times_unix_sec, exact_dimensions=numpy.array([num_storm_objects])
@@ -653,7 +653,7 @@ def write_standard_file(
         CLASS_ACTIVATIONS_KEY: class_activation_matrix,
         GUIDED_GRADCAM_KEY: ggradcam_output_matrix,
         MODEL_FILE_NAME_KEY: model_file_name,
-        STORM_IDS_KEY: storm_ids,
+        FULL_IDS_KEY: full_id_strings,
         STORM_TIMES_KEY: storm_times_unix_sec,
         TARGET_CLASS_KEY: target_class,
         TARGET_LAYER_KEY: target_layer_name,
@@ -675,7 +675,7 @@ def read_standard_file(pickle_file_name):
     gradcam_dict['class_activation_matrix']: Same.
     gradcam_dict['ggradcam_output_matrix']: Same.
     gradcam_dict['model_file_name']: Same.
-    gradcam_dict['storm_ids']: Same.
+    gradcam_dict['full_id_strings']: Same.
     gradcam_dict['storm_times_unix_sec']: Same.
     gradcam_dict['target_class']: Same.
     gradcam_dict['target_layer_name']: Same.

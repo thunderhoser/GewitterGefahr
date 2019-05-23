@@ -127,48 +127,60 @@ def _interp_soundings(
 
     lead_times_seconds = numpy.array(lead_times_seconds, dtype=int)
 
-    tracking_file_names, _ = tracking_io.find_processed_files_one_spc_date(
+    tracking_file_names = tracking_io.find_files_one_spc_date(
         spc_date_string=spc_date_string,
-        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-        top_processed_dir_name=top_tracking_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2)
+        source_name=tracking_utils.SEGMOTION_NAME,
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2
+    )[0]
 
-    storm_object_table = tracking_io.read_many_processed_files(
-        tracking_file_names)
+    storm_object_table = tracking_io.read_many_files(tracking_file_names)
     print SEPARATOR_STRING
 
     first_storm_time_unix_sec = numpy.min(
-        storm_object_table[tracking_utils.TIME_COLUMN].values)
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
     last_storm_time_unix_sec = numpy.max(
-        storm_object_table[tracking_utils.TIME_COLUMN].values)
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
 
     first_init_time_unix_sec = number_rounding.floor_to_nearest(
         (first_storm_time_unix_sec + numpy.min(lead_times_seconds) -
          lag_time_for_convective_contamination_sec),
-        HOURS_TO_SECONDS)
+        HOURS_TO_SECONDS
+    )
+
     last_init_time_unix_sec = number_rounding.floor_to_nearest(
         (last_storm_time_unix_sec + numpy.max(lead_times_seconds) -
          lag_time_for_convective_contamination_sec),
-        HOURS_TO_SECONDS)
+        HOURS_TO_SECONDS
+    )
 
     extreme_init_times_unix_sec = numpy.array(
-        [first_init_time_unix_sec, last_init_time_unix_sec], dtype=int)
+        [first_init_time_unix_sec, last_init_time_unix_sec], dtype=int
+    )
 
     if numpy.all(extreme_init_times_unix_sec < FIRST_RAP_TIME_UNIX_SEC):
         top_grib_directory_name = top_ruc_directory_name
         model_name = nwp_model_utils.RUC_MODEL_NAME
+
     elif numpy.all(extreme_init_times_unix_sec >= FIRST_RAP_TIME_UNIX_SEC):
         top_grib_directory_name = top_rap_directory_name
         model_name = nwp_model_utils.RAP_MODEL_NAME
+
     else:
         first_storm_time_string = time_conversion.unix_sec_to_string(
-            first_storm_time_unix_sec, STORM_TIME_FORMAT)
+            first_storm_time_unix_sec, STORM_TIME_FORMAT
+        )
         last_storm_time_string = time_conversion.unix_sec_to_string(
-            last_storm_time_unix_sec, STORM_TIME_FORMAT)
+            last_storm_time_unix_sec, STORM_TIME_FORMAT
+        )
         first_init_time_string = time_conversion.unix_sec_to_string(
-            first_init_time_unix_sec, MODEL_INIT_TIME_FORMAT)
+            first_init_time_unix_sec, MODEL_INIT_TIME_FORMAT
+        )
         last_init_time_string = time_conversion.unix_sec_to_string(
-            last_init_time_unix_sec, MODEL_INIT_TIME_FORMAT)
+            last_init_time_unix_sec, MODEL_INIT_TIME_FORMAT
+        )
 
         error_string = (
             'First and last storm times are {0:s} and {1:s}.  Thus, first and '
@@ -179,6 +191,7 @@ def _interp_soundings(
         ).format(first_storm_time_string, last_storm_time_string,
                  first_init_time_string, last_init_time_string,
                  FIRST_RAP_TIME_STRING)
+
         raise ValueError(error_string)
 
     sounding_dict_by_lead_time = soundings.interp_soundings_to_storm_objects(
@@ -191,9 +204,10 @@ def _interp_soundings(
         lag_time_for_convective_contamination_sec,
         wgrib_exe_name=WGRIB_EXE_NAME, wgrib2_exe_name=WGRIB2_EXE_NAME,
         raise_error_if_missing=False)
-    print SEPARATOR_STRING
 
+    print SEPARATOR_STRING
     num_lead_times = len(lead_times_seconds)
+
     for k in range(num_lead_times):
         this_sounding_file_name = soundings.find_sounding_file(
             top_directory_name=top_output_dir_name,
@@ -227,4 +241,5 @@ if __name__ == '__main__':
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
         tracking_scale_metres2=getattr(
             INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME),
-        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+    )

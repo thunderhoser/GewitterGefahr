@@ -142,28 +142,31 @@ def _run(
 
             if storm_image_dict is None:
                 storm_image_dict = storm_images.read_storm_images(
-                    netcdf_file_name=image_file_name_matrix[i, j])
+                    netcdf_file_name=image_file_name_matrix[i, j]
+                )
             else:
                 this_storm_image_dict = storm_images.read_storm_images(
-                    netcdf_file_name=image_file_name_matrix[i, j])
-
-                storm_image_dict[
-                    storm_images.STORM_IDS_KEY
-                ] += this_storm_image_dict[storm_images.STORM_IDS_KEY]
-
-                storm_image_dict[
-                    storm_images.VALID_TIMES_KEY
-                ] = numpy.concatenate(
-                    (storm_image_dict[storm_images.VALID_TIMES_KEY],
-                     this_storm_image_dict[storm_images.VALID_TIMES_KEY])
+                    netcdf_file_name=image_file_name_matrix[i, j]
                 )
 
-                storm_image_dict[
-                    storm_images.STORM_IMAGE_MATRIX_KEY
-                ] = numpy.concatenate((
-                    storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
-                    this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY]
-                ), axis=0)
+                storm_image_dict[storm_images.FULL_IDS_KEY] += (
+                    this_storm_image_dict[storm_images.FULL_IDS_KEY]
+                )
+
+                storm_image_dict[storm_images.VALID_TIMES_KEY] = (
+                    numpy.concatenate((
+                        storm_image_dict[storm_images.VALID_TIMES_KEY],
+                        this_storm_image_dict[storm_images.VALID_TIMES_KEY]
+                    ))
+                )
+
+                storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY] = (
+                    numpy.concatenate((
+                        storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
+                        this_storm_image_dict[
+                            storm_images.STORM_IMAGE_MATRIX_KEY]
+                    ), axis=0)
+                )
 
         this_file_name = storm_images.find_storm_image_file(
             top_directory_name=top_storm_image_dir_name,
@@ -172,20 +175,22 @@ def _run(
                 storm_images.RADAR_FIELD_NAME_KEY],
             radar_height_m_agl=storm_image_dict[storm_images.RADAR_HEIGHT_KEY],
             raise_error_if_missing=False)
+
         print 'Writing data to: "{0:s}"...'.format(this_file_name)
 
         storm_images.write_storm_images(
             netcdf_file_name=this_file_name,
             storm_image_matrix=storm_image_dict[
                 storm_images.STORM_IMAGE_MATRIX_KEY],
-            storm_ids=storm_image_dict[storm_images.STORM_IDS_KEY],
+            full_id_strings=storm_image_dict[storm_images.FULL_IDS_KEY],
             valid_times_unix_sec=storm_image_dict[storm_images.VALID_TIMES_KEY],
             radar_field_name=storm_image_dict[
                 storm_images.RADAR_FIELD_NAME_KEY],
             radar_height_m_agl=storm_image_dict[storm_images.RADAR_HEIGHT_KEY],
             rotated_grids=storm_image_dict[storm_images.ROTATED_GRIDS_KEY],
             rotated_grid_spacing_metres=storm_image_dict[
-                storm_images.ROTATED_GRID_SPACING_KEY])
+                storm_images.ROTATED_GRID_SPACING_KEY]
+        )
 
         print SEPARATOR_STRING
 

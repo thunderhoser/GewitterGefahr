@@ -1,7 +1,6 @@
 """Evaluates a set of storm tracks."""
 
 import argparse
-import numpy
 import pandas
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
@@ -12,11 +11,12 @@ from gewittergefahr.gg_utils import time_conversion
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-REQUIRED_COLUMNS = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
-    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
-    tracking_utils.GRID_POINT_ROW_COLUMN,
-    tracking_utils.GRID_POINT_COLUMN_COLUMN
+STORM_OBJECT_COLUMNS = [
+    tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.FULL_ID_COLUMN,
+    tracking_utils.VALID_TIME_COLUMN, tracking_utils.SPC_DATE_COLUMN,
+    tracking_utils.CENTROID_LATITUDE_COLUMN,
+    tracking_utils.CENTROID_LONGITUDE_COLUMN,
+    tracking_utils.ROWS_IN_STORM_COLUMN, tracking_utils.COLUMNS_IN_STORM_COLUMN
 ]
 
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
@@ -97,20 +97,20 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     list_of_storm_object_tables = []
 
     for this_spc_date_string in spc_date_strings:
-        these_file_names = tracking_io.find_processed_files_one_spc_date(
-            top_processed_dir_name=top_tracking_dir_name,
+        these_file_names = tracking_io.find_files_one_spc_date(
+            top_tracking_dir_name=top_tracking_dir_name,
             tracking_scale_metres2=
             echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2,
-            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+            source_name=tracking_utils.SEGMOTION_NAME,
             spc_date_string=this_spc_date_string, raise_error_if_missing=False
         )[0]
 
         if len(these_file_names) == 0:
             continue
 
-        this_storm_object_table = tracking_io.read_many_processed_files(
+        this_storm_object_table = tracking_io.read_many_files(
             these_file_names
-        )[REQUIRED_COLUMNS]
+        )[STORM_OBJECT_COLUMNS]
 
         list_of_storm_object_tables.append(this_storm_object_table)
 
@@ -125,25 +125,16 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         )[0]
 
     print SEPARATOR_STRING
+
     storm_object_table = pandas.concat(
         list_of_storm_object_tables, axis=0, ignore_index=True)
-
-    valid_times_unix_sec = storm_object_table[tracking_utils.TIME_COLUMN].values
-
-    spc_dates_unix_sec = numpy.array([
-        time_conversion.time_to_spc_date_unix_sec(t)
-        for t in valid_times_unix_sec
-    ], dtype=int)
-
-    argument_dict = {tracking_utils.SPC_DATE_COLUMN: spc_dates_unix_sec}
-    storm_object_table = storm_object_table.assign(**argument_dict)
 
     evaluation_dict = tracking_eval.evaluate_tracks(
         storm_object_table=storm_object_table,
         top_myrorss_dir_name=top_myrorss_dir_name,
         radar_field_name=radar_field_name)
 
-    print 'Writing evaluation results to: "{0:s}"...'.format(output_file_name)
+    print 'Writing results to: "{0:s}"...'.format(output_file_name)
     tracking_eval.write_file(evaluation_dict=evaluation_dict,
                              pickle_file_name=output_file_name)
 

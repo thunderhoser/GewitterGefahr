@@ -113,20 +113,24 @@ def _update_z_score_params(z_score_param_dict, new_data_matrix):
     :return: z_score_param_dict: Same as input, but with new estimates.
     """
 
-    mean_values = numpy.array(
-        [z_score_param_dict[MEAN_VALUE_KEY], numpy.mean(new_data_matrix)])
-    weights = numpy.array(
-        [z_score_param_dict[NUM_VALUES_KEY], new_data_matrix.size])
+    these_means = numpy.array([
+        z_score_param_dict[MEAN_VALUE_KEY], numpy.mean(new_data_matrix)
+    ])
+    these_weights = numpy.array([
+        z_score_param_dict[NUM_VALUES_KEY], new_data_matrix.size
+    ])
     z_score_param_dict[MEAN_VALUE_KEY] = numpy.average(
-        mean_values, weights=weights)
+        these_means, weights=these_weights)
 
-    mean_values = numpy.array([
+    these_means = numpy.array([
         z_score_param_dict[MEAN_OF_SQUARES_KEY],
-        numpy.mean(new_data_matrix ** 2)])
-    weights = numpy.array(
-        [z_score_param_dict[NUM_VALUES_KEY], new_data_matrix.size])
+        numpy.mean(new_data_matrix ** 2)
+    ])
+    these_weights = numpy.array([
+        z_score_param_dict[NUM_VALUES_KEY], new_data_matrix.size
+    ])
     z_score_param_dict[MEAN_OF_SQUARES_KEY] = numpy.average(
-        mean_values, weights=weights)
+        these_means, weights=these_weights)
 
     z_score_param_dict[NUM_VALUES_KEY] += new_data_matrix.size
     return z_score_param_dict
@@ -170,7 +174,8 @@ def _get_standard_deviation(z_score_param_dict):
 
     return numpy.sqrt(multiplier * (
         z_score_param_dict[MEAN_OF_SQUARES_KEY] -
-        z_score_param_dict[MEAN_VALUE_KEY] ** 2))
+        z_score_param_dict[MEAN_VALUE_KEY] ** 2
+    ))
 
 
 def _get_percentile(frequency_dict, percentile_level):
@@ -243,7 +248,8 @@ def _convert_normalization_params(
         this_inner_dict = z_score_dict_dict[this_key]
         this_standard_deviation = _get_standard_deviation(this_inner_dict)
         normalization_dict[this_key] = [
-            this_inner_dict[MEAN_VALUE_KEY], this_standard_deviation]
+            this_inner_dict[MEAN_VALUE_KEY], this_standard_deviation
+        ]
 
         if frequency_dict_dict is not None:
             this_inner_dict = frequency_dict_dict[this_key]
@@ -266,6 +272,7 @@ def _convert_normalization_params(
         0: dl_utils.MEAN_VALUE_COLUMN,
         1: dl_utils.STANDARD_DEVIATION_COLUMN
     }
+
     if frequency_dict_dict is not None:
         column_dict_old_to_new.update({
             2: dl_utils.MIN_VALUE_COLUMN,
@@ -320,7 +327,8 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
                 [this_field_name] * len(radar_heights_m_agl)
             )
             radar_height_by_pair_m_agl = numpy.concatenate((
-                radar_height_by_pair_m_agl, radar_heights_m_agl))
+                radar_height_by_pair_m_agl, radar_heights_m_agl
+            ))
 
     elif num_radar_dimensions == 2:
         radar_field_name_by_pair = this_example_dict[
@@ -514,7 +522,8 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
             ].index(sounding_field_names[j])
 
             this_sounding_matrix = this_example_dict[
-                input_examples.SOUNDING_MATRIX_KEY][..., this_field_index]
+                input_examples.SOUNDING_MATRIX_KEY
+            ][..., this_field_index]
 
             sounding_z_score_dict_no_height[sounding_field_names[j]] = (
                 _update_z_score_params(

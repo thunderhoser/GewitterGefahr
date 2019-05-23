@@ -14,13 +14,15 @@ TOLERANCE = 1e-6
 MAX_LEAD_TIME_SEC = 3600
 
 THESE_END_TIMES_UNIX_SEC = numpy.array(
-    [10000, 10000, 10000, 10000, 20000, 20000, 20000, 20000], dtype=int)
+    [10000, 10000, 10000, 10000, 20000, 20000, 20000, 20000], dtype=int
+)
 THESE_VALID_TIMES_UNIX_SEC = numpy.array(
-    [2500, 5000, 7500, 10000, 12500, 15000, 16400, 17500], dtype=int)
+    [2500, 5000, 7500, 10000, 12500, 15000, 16400, 17500], dtype=int
+)
 
 THIS_DICT = {
     tracking_utils.TRACKING_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
-    tracking_utils.TIME_COLUMN: THESE_VALID_TIMES_UNIX_SEC
+    tracking_utils.VALID_TIME_COLUMN: THESE_VALID_TIMES_UNIX_SEC
 }
 STORM_TO_EVENTS_TABLE_END_OF_PERIOD = pandas.DataFrame.from_dict(THIS_DICT)
 
@@ -31,7 +33,7 @@ MIN_LEAD_TIME_FOR_DEAD_SEC = 3600
 
 THIS_DICT = {
     tracking_utils.CELL_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
-    tracking_utils.TIME_COLUMN: THESE_VALID_TIMES_UNIX_SEC
+    tracking_utils.VALID_TIME_COLUMN: THESE_VALID_TIMES_UNIX_SEC
 }
 STORM_TO_EVENTS_TABLE_WITH_DEAD = pandas.DataFrame.from_dict(THIS_DICT)
 
@@ -46,16 +48,19 @@ WIND_SPEED_CUTOFFS_KT = numpy.array([10, 20, 30, 40, 50], dtype=float)
 
 WIND_REGRESSION_NAME = (
     'wind-speed-m-s01_percentile=097.5_lead-time=0900-3600sec_'
-    'distance=00001-05000m')
+    'distance=00001-05000m'
+)
 WIND_CLASSIFICATION_NAME = (
     'wind-speed_percentile=097.5_lead-time=0900-3600sec_distance=00001-05000m'
-    '_cutoffs=10-20-30-40-50kt')
+    '_cutoffs=10-20-30-40-50kt'
+)
 TORNADO_TARGET_NAME = (
-    'tornado_lead-time=0900-3600sec_distance=00001-05000m')
-
+    'tornado_lead-time=0900-3600sec_distance=00001-05000m'
+)
 WIND_CLASSIFICATION_NAME_0LEAD = (
     'wind-speed_percentile=097.5_lead-time=0000-3600sec_distance=00001-05000m'
-    '_cutoffs=10-20-30-40-50kt')
+    '_cutoffs=10-20-30-40-50kt'
+)
 
 # The following constants are used to test target_name_to_params.
 WIND_REGRESSION_PARAM_DICT = {
@@ -99,14 +104,15 @@ WIND_CLASSIFICATION_PARAM_DICT_0LEAD = {
 }
 
 # The following constants are used to test create_tornado_targets.
-THESE_STORM_IDS = ['a', 'c', 'a', 'b', 'c']
+THESE_FULL_ID_STRINGS = ['a', 'c', 'a', 'b', 'c']
 THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 1, 1, 1], dtype=int)
 THESE_END_TIMES_UNIX_SEC = numpy.array(
-    [3600, 3600, 3600, 3600, 3600], dtype=int)
+    [3600, 3600, 3600, 3600, 3600], dtype=int
+)
 
-THESE_EVENT_LATITUDES_DEG = [numpy.full(2, 53.5)] * len(THESE_STORM_IDS)
-THESE_EVENT_LONGITUDES_DEG = [numpy.full(2, 246.5)] * len(THESE_STORM_IDS)
-THESE_FUJITA_RATINGS = [['F5', 'EF5']] * len(THESE_STORM_IDS)
+THESE_EVENT_LATITUDES_DEG = [numpy.full(2, 53.5)] * len(THESE_FULL_ID_STRINGS)
+THESE_EVENT_LONGITUDES_DEG = [numpy.full(2, 246.5)] * len(THESE_FULL_ID_STRINGS)
+THESE_FUJITA_RATINGS = [['F5', 'EF5']] * len(THESE_FULL_ID_STRINGS)
 
 THESE_LINK_DIST_METRES = [
     numpy.array([1000, 2000]), numpy.array([0, 0]),
@@ -117,14 +123,14 @@ THESE_RELATIVE_TIMES_UNIX_SEC = [
     numpy.array([0, 300]), numpy.array([1200, 1500]), numpy.array([2400, 3000])
 ]
 
-for k in range(len(THESE_STORM_IDS)):
+for k in range(len(THESE_FULL_ID_STRINGS)):
     THESE_LINK_DIST_METRES[k] = THESE_LINK_DIST_METRES[k].astype(float)
     THESE_RELATIVE_TIMES_UNIX_SEC[k] = THESE_RELATIVE_TIMES_UNIX_SEC[k].astype(
         int)
 
 THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.FULL_ID_COLUMN: THESE_FULL_ID_STRINGS,
+    tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     tracking_utils.TRACKING_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
     linkage.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
     linkage.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
@@ -142,7 +148,8 @@ TARGET_NAME = target_val_utils.target_params_to_name(
 
 INVALID_STORM_INTEGER = target_val_utils.INVALID_STORM_INTEGER
 TARGET_VALUES = numpy.array(
-    [1, 0, INVALID_STORM_INTEGER, 1, INVALID_STORM_INTEGER], dtype=int)
+    [1, 0, INVALID_STORM_INTEGER, 1, INVALID_STORM_INTEGER], dtype=int
+)
 
 # The following constants are used to test find_target_file.
 TOP_DIRECTORY_NAME = 'target_values'
@@ -150,10 +157,12 @@ FILE_TIME_UNIX_SEC = 1517523991  # 222631 1 Feb 2018
 FILE_SPC_DATE_STRING = '20180201'
 
 WIND_FILE_NAME_ONE_TIME = (
-    'target_values/2018/20180201/wind_labels_2018-02-01-222631.nc')
+    'target_values/2018/20180201/wind_labels_2018-02-01-222631.nc'
+)
 WIND_FILE_NAME_ONE_DAY = 'target_values/2018/wind_labels_20180201.nc'
 TORNADO_FILE_NAME_ONE_TIME = (
-    'target_values/2018/20180201/tornado_labels_2018-02-01-222631.nc')
+    'target_values/2018/20180201/tornado_labels_2018-02-01-222631.nc'
+)
 TORNADO_FILE_NAME_ONE_DAY = 'target_values/2018/tornado_labels_20180201.nc'
 
 
@@ -291,8 +300,10 @@ class TargetValUtilsTests(unittest.TestCase):
         """
 
         this_dict = target_val_utils.target_name_to_params(WIND_REGRESSION_NAME)
+
         self.assertTrue(_compare_target_param_dicts(
-            this_dict, WIND_REGRESSION_PARAM_DICT))
+            this_dict, WIND_REGRESSION_PARAM_DICT
+        ))
 
     def test_target_name_to_params_wind_classifn(self):
         """Ensures correct output from target_name_to_params.
@@ -302,8 +313,10 @@ class TargetValUtilsTests(unittest.TestCase):
 
         this_dict = target_val_utils.target_name_to_params(
             WIND_CLASSIFICATION_NAME)
+
         self.assertTrue(_compare_target_param_dicts(
-            this_dict, WIND_CLASSIFICATION_PARAM_DICT))
+            this_dict, WIND_CLASSIFICATION_PARAM_DICT
+        ))
 
     def test_target_name_to_params_wind_classifn_0lead(self):
         """Ensures correct output from target_name_to_params.
@@ -314,8 +327,10 @@ class TargetValUtilsTests(unittest.TestCase):
 
         this_dict = target_val_utils.target_name_to_params(
             WIND_CLASSIFICATION_NAME_0LEAD)
+
         self.assertTrue(_compare_target_param_dicts(
-            this_dict, WIND_CLASSIFICATION_PARAM_DICT_0LEAD))
+            this_dict, WIND_CLASSIFICATION_PARAM_DICT_0LEAD
+        ))
 
     def test_target_name_to_params_tornado(self):
         """Ensures correct output from target_name_to_params.
@@ -324,8 +339,10 @@ class TargetValUtilsTests(unittest.TestCase):
         """
 
         this_dict = target_val_utils.target_name_to_params(TORNADO_TARGET_NAME)
+
         self.assertTrue(_compare_target_param_dicts(
-            this_dict, TORNADO_PARAM_DICT))
+            this_dict, TORNADO_PARAM_DICT
+        ))
 
     def test_create_tornado_targets(self):
         """Ensures correct output from create_tornado_targets."""

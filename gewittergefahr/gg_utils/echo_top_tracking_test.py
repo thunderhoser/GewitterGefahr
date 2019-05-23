@@ -3,13 +3,10 @@
 import copy
 import unittest
 import numpy
-import pandas
-from geopy.distance import vincenty
 from gewittergefahr.gg_utils import echo_top_tracking
+from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import projections
-from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
-from gewittergefahr.gg_utils import time_conversion
 
 TOLERANCE = 1e-6
 RELATIVE_DISTANCE_TOLERANCE = 0.015
@@ -39,8 +36,8 @@ LOCAL_MAX_LONGITUDES_DEG = numpy.array([95.1, 95.1])
 LOCAL_MAX_VALUES = numpy.array([30, 6], dtype=float)
 
 LOCAL_MAX_DICT_LATLNG = {
-    echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
-    echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
+    temporal_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
+    temporal_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
     echo_top_tracking.MAX_VALUES_KEY: LOCAL_MAX_VALUES
 }
 
@@ -59,290 +56,94 @@ LOCAL_MAX_X_COORDS_METRES, LOCAL_MAX_Y_COORDS_METRES = (
 )
 
 LOCAL_MAX_DICT_SMALL_DISTANCE = {
-    echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
-    echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
+    temporal_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
+    temporal_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
     echo_top_tracking.MAX_VALUES_KEY: LOCAL_MAX_VALUES,
-    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
-    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES
+    temporal_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
+    temporal_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES
 }
 
 LOCAL_MAX_DICT_LARGE_DISTANCE = {
-    echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG[:-1],
-    echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG[:-1],
+    temporal_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG[:-1],
+    temporal_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG[:-1],
     echo_top_tracking.MAX_VALUES_KEY: LOCAL_MAX_VALUES[:-1],
-    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES[:-1],
-    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES[:-1]
+    temporal_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES[:-1],
+    temporal_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES[:-1]
 }
 
-# The following constants are used to test _estimate_velocity_by_neigh.
-X_COORDS_FOR_NEIGH_METRES = numpy.array([
-    0, 1.5, 3, 4.5,
-    0, 1.5, 3, 4.5,
-    0, 1.5, 3, 4.5
+# The following constants are used to test _get_grid_points_in_storm.
+MIN_ECHO_TOP_KM = 5.
+
+ECHO_TOP_MATRIX_KM = numpy.array([
+    [0.7, 1.0, 0.4, 0.4, 2.1, 2.2, 4.2, 1.5, 3.5, 4.2, 0.5],
+    [3.9, 1.8, 8.1, 4.2, 2.3, 6.6, 6.9, 1.6, 2.8, 0.3, 3.0],
+    [1.7, 2.6, 4.6, 4.5, 5.7, 9.1, 7.5, 6.3, 3.1, 3.5, 4.0],
+    [2.8, 4.2, 5.0, 11.1, 9.6, 10.4, 7.3, 7.1, 4.8, 4.5, 2.3],
+    [3.1, 3.1, 8.2, 8.0, 8.6, 10.2, 6.2, 7.2, 9.7, 5.4, 1.5],
+    [4.2, 5.9, 7.5, 9.0, 9.3, 7.8, 10.7, 6.2, 5.1, 1.7, 4.5],
+    [0.5, 1.4, 2.0, 8.2, 11.5, 10.2, 8.1, 6.3, 7.2, 4.6, 2.0],
+    [3.1, 1.9, 5.4, 4.5, 0.1, 3.4, 2.7, 3.5, 2.9, 2.4, 3.2],
+    [0.0, 1.1, 3.4, 1.4, 4.3, 2.8, 0.1, 1.5, 1.3, 2.7, 3.3]
 ])
-Y_COORDS_FOR_NEIGH_METRES = numpy.array([
-    0, 0, 0, 0,
+
+GRID_POINT_LATITUDES_DEG = numpy.array([
+    53.58, 53.56, 53.54, 53.52, 53.5, 53.48, 53.46, 53.44, 53.42
+])
+GRID_POINT_LONGITUDES_DEG = numpy.array([
+    246.4, 246.42, 246.44, 246.46, 246.48, 246.5, 246.52, 246.54, 246.56,
+    246.58, 246.6
+])
+
+FIRST_CENTROID_LATITUDE_DEG = 53.5
+FIRST_CENTROID_LONGITUDE_DEG = 246.5
+FIRST_MIN_INTERMAX_DIST_METRES = 20000.
+
+FIRST_GRID_POINT_ROWS = numpy.array([
+    1, 1,
     2, 2, 2, 2,
-    4, 4, 4, 4
-], dtype=float)
+    3, 3, 3, 3, 3, 3,
+    4, 4, 4, 4, 4, 4, 4, 4,
+    5, 5, 5, 5, 5, 5, 5, 5,
+    6, 6, 6, 6, 6, 6,
+    7
+], dtype=int)
 
-X_VELOCITIES_WITH_NAN_M_S01 = numpy.array([
-    numpy.nan, 5, 8, 3,
-    14, numpy.nan, 1, 5,
-    5, 7, numpy.nan, 7
-])
-Y_VELOCITIES_WITH_NAN_M_S01 = numpy.array([
-    numpy.nan, -4, 0, 0,
-    3, numpy.nan, 2, 6,
-    6, -2, numpy.nan, 3
-])
+FIRST_GRID_POINT_COLUMNS = numpy.array([
+    5, 6,
+    4, 5, 6, 7,
+    2, 3, 4, 5, 6, 7,
+    2, 3, 4, 5, 6, 7, 8, 9,
+    1, 2, 3, 4, 5, 6, 7, 8,
+    3, 4, 5, 6, 7, 8,
+    2
+], dtype=int)
 
-VELOCITY_EFOLD_RADIUS_METRES = 1.
+SECOND_CENTROID_LATITUDE_DEG = 53.5
+SECOND_CENTROID_LONGITUDE_DEG = 246.5
+SECOND_MIN_INTERMAX_DIST_METRES = 5000.
 
-THESE_WEIGHTS = numpy.array([
-    numpy.nan, 1.5, 3, numpy.nan,
-    2, numpy.nan, numpy.nan, numpy.nan,
-    numpy.nan, numpy.nan, numpy.nan, numpy.nan
-])
+SECOND_GRID_POINT_ROWS = numpy.array([
+    2, 2, 2,
+    3, 3, 3, 3, 3, 3,
+    4, 4, 4, 4, 4, 4, 4,
+    5, 5, 5, 5, 5, 5, 5,
+    6, 6, 6
+], dtype=int)
 
-THESE_WEIGHTS = numpy.exp(-1 * THESE_WEIGHTS)
-THESE_WEIGHTS[numpy.isnan(THESE_WEIGHTS)] = 0.
-THESE_WEIGHTS = THESE_WEIGHTS / numpy.sum(THESE_WEIGHTS)
+SECOND_GRID_POINT_COLUMNS = numpy.array([
+    4, 5, 6,
+    2, 3, 4, 5, 6, 7,
+    2, 3, 4, 5, 6, 7, 8,
+    2, 3, 4, 5, 6, 7, 8,
+    4, 5, 6
+], dtype=int)
 
-FIRST_X_VELOCITY_M_S01 = numpy.nansum(
-    THESE_WEIGHTS * X_VELOCITIES_WITH_NAN_M_S01)
-FIRST_Y_VELOCITY_M_S01 = numpy.nansum(
-    THESE_WEIGHTS * Y_VELOCITIES_WITH_NAN_M_S01)
+THIRD_CENTROID_LATITUDE_DEG = 53.542
+THIRD_CENTROID_LONGITUDE_DEG = 246.438
+THIRD_MIN_INTERMAX_DIST_METRES = 20000.
 
-THESE_WEIGHTS = numpy.array([
-    numpy.nan, 2, numpy.sqrt(6.25), numpy.nan,
-    1.5, numpy.nan, 1.5, 3,
-    numpy.sqrt(6.25), 2, numpy.nan, numpy.nan
-])
-
-THESE_WEIGHTS = numpy.exp(-1 * THESE_WEIGHTS)
-THESE_WEIGHTS[numpy.isnan(THESE_WEIGHTS)] = 0.
-THESE_WEIGHTS = THESE_WEIGHTS / numpy.sum(THESE_WEIGHTS)
-
-SECOND_X_VELOCITY_M_S01 = numpy.nansum(
-    THESE_WEIGHTS * X_VELOCITIES_WITH_NAN_M_S01)
-SECOND_Y_VELOCITY_M_S01 = numpy.nansum(
-    THESE_WEIGHTS * Y_VELOCITIES_WITH_NAN_M_S01)
-
-THESE_WEIGHTS = numpy.array([
-    numpy.nan, numpy.nan, numpy.nan, numpy.nan,
-    numpy.nan, numpy.nan, 2, numpy.sqrt(6.25),
-    3, 1.5, numpy.nan, 1.5
-])
-
-THESE_WEIGHTS = numpy.exp(-1 * THESE_WEIGHTS)
-THESE_WEIGHTS[numpy.isnan(THESE_WEIGHTS)] = 0.
-THESE_WEIGHTS = THESE_WEIGHTS / numpy.sum(THESE_WEIGHTS)
-
-THIRD_X_VELOCITY_M_S01 = numpy.nansum(
-    THESE_WEIGHTS * X_VELOCITIES_WITH_NAN_M_S01)
-THIRD_Y_VELOCITY_M_S01 = numpy.nansum(
-    THESE_WEIGHTS * Y_VELOCITIES_WITH_NAN_M_S01)
-
-X_VELOCITIES_NO_NAN_M_S01 = numpy.array([
-    FIRST_X_VELOCITY_M_S01, 5, 8, 3,
-    14, SECOND_X_VELOCITY_M_S01, 1, 5,
-    5, 7, THIRD_X_VELOCITY_M_S01, 7
-])
-Y_VELOCITIES_NO_NAN_M_S01 = numpy.array([
-    FIRST_Y_VELOCITY_M_S01, -4, 0, 0,
-    3, SECOND_Y_VELOCITY_M_S01, 2, 6,
-    6, -2, THIRD_Y_VELOCITY_M_S01, 3
-])
-
-# The following constants are used to test _get_intermediate_velocities.
-THESE_X_COORDS_METRES = numpy.array([2, -7, 1, 6, 5, -4], dtype=float)
-THESE_Y_COORDS_METRES = numpy.array([4, -1, 5, -1, -3, 9], dtype=float)
-
-FIRST_LMAX_DICT_NO_VELOCITY = {
-    echo_top_tracking.VALID_TIME_KEY: 0,
-    echo_top_tracking.X_COORDS_KEY: THESE_X_COORDS_METRES + 0.,
-    echo_top_tracking.Y_COORDS_KEY: THESE_Y_COORDS_METRES + 0.
-}
-
-THESE_X_COORDS_METRES = numpy.array(
-    [13, -1, 20, 20, -8, 5, -23, 19], dtype=float)
-THESE_Y_COORDS_METRES = numpy.array(
-    [-14, 25, -12, 1, -14, 4, -5, 18], dtype=float)
-THESE_CURRENT_TO_PREV_INDICES = numpy.array(
-    [-1, 1, 2, -1, -1, 4, -1, 5], dtype=int)
-
-SECOND_LMAX_DICT_NO_VELOCITY = {
-    echo_top_tracking.VALID_TIME_KEY: 10,
-    echo_top_tracking.X_COORDS_KEY: THESE_X_COORDS_METRES + 0.,
-    echo_top_tracking.Y_COORDS_KEY: THESE_Y_COORDS_METRES + 0.,
-    echo_top_tracking.CURRENT_TO_PREV_INDICES_KEY:
-        THESE_CURRENT_TO_PREV_INDICES + 0
-}
-
-FIRST_LMAX_DICT_WITH_VELOCITY = copy.deepcopy(FIRST_LMAX_DICT_NO_VELOCITY)
-FIRST_LMAX_DICT_WITH_VELOCITY.update({
-    echo_top_tracking.X_VELOCITIES_KEY: numpy.full(6, numpy.nan),
-    echo_top_tracking.Y_VELOCITIES_KEY: numpy.full(6, numpy.nan)
-})
-
-SECOND_LMAX_DICT_WITH_VELOCITY = copy.deepcopy(SECOND_LMAX_DICT_NO_VELOCITY)
-
-THESE_X_VELOCITIES_M_S01 = numpy.array(
-    [numpy.nan, 0.6, 1.9, numpy.nan, numpy.nan, 0, numpy.nan, 2.3])
-THESE_Y_VELOCITIES_M_S01 = numpy.array(
-    [numpy.nan, 2.6, -1.7, numpy.nan, numpy.nan, 0.7, numpy.nan, 0.9])
-
-SECOND_LMAX_DICT_WITH_VELOCITY.update({
-    echo_top_tracking.X_VELOCITIES_KEY: THESE_X_VELOCITIES_M_S01,
-    echo_top_tracking.Y_VELOCITIES_KEY: THESE_Y_VELOCITIES_M_S01
-})
-
-# The following constants are used to test _link_local_maxima_in_time.
-FIRST_LOCAL_MAX_DICT_UNLINKED = copy.deepcopy(FIRST_LMAX_DICT_WITH_VELOCITY)
-SECOND_LOCAL_MAX_DICT_UNLINKED = copy.deepcopy(SECOND_LMAX_DICT_WITH_VELOCITY)
-SECOND_LOCAL_MAX_DICT_UNLINKED.pop(
-    echo_top_tracking.CURRENT_TO_PREV_INDICES_KEY)
-
-MAX_LINK_TIME_SECONDS = 100
-MAX_VELOCITY_DIFF_M_S01 = 3.
-MAX_LINK_DISTANCE_M_S01 = 2.
-
-SECOND_TO_FIRST_INDICES = numpy.array([4, 5, -1, 3, 1, 0, -1, -1], dtype=int)
-
-THESE_X_COORDS_METRES = numpy.array(
-    [12, 1, 21, 13, -3, 6, -15, 20], dtype=float)
-THESE_Y_COORDS_METRES = numpy.array(
-    [-21, 27, -13, 10, -15, -9, -7, 18], dtype=float)
-
-THIRD_LOCAL_MAX_DICT_UNLINKED = {
-    echo_top_tracking.VALID_TIME_KEY: 13,
-    echo_top_tracking.X_COORDS_KEY: THESE_X_COORDS_METRES + 0.,
-    echo_top_tracking.Y_COORDS_KEY: THESE_Y_COORDS_METRES + 0.,
-}
-
-THIRD_TO_SECOND_INDICES = numpy.array([-1, 1, 2, 5, 4, -1, -1, 7], dtype=int)
-
-SECOND_LOCAL_MAX_DICT_EMPTY = {
-    echo_top_tracking.VALID_TIME_KEY: 10,
-    echo_top_tracking.X_COORDS_KEY: numpy.array([]),
-    echo_top_tracking.Y_COORDS_KEY: numpy.array([])
-}
-
-THIRD_LOCAL_MAX_DICT_EMPTY = {
-    echo_top_tracking.VALID_TIME_KEY: 13,
-    echo_top_tracking.X_COORDS_KEY: numpy.array([]),
-    echo_top_tracking.Y_COORDS_KEY: numpy.array([])
-}
-
-# The following constants are used to test _create_storm_id.
-STORM_TIME_UNIX_SEC = 1516860900  # 0615 UTC 25 Jan 2018
-STORM_SPC_DATE_STRING = '20180124'
-PREV_SPC_DATE_STRING = '20180123'
-PREV_NUMERIC_ID_USED = 0
-
-STORM_ID_FIRST_IN_DAY = '000000_20180124'
-STORM_ID_SECOND_IN_DAY = '000001_20180124'
-
-PREVIOUS_TIME_UNIX_SEC = 1516860600  # 0610 UTC 25 Jan 2018
-CURRENT_TIME_UNIX_SEC = 1516860900  # 0615 UTC 25 Jan 2018
-CURRENT_TO_PREV_INDICES_NO_LINKS = numpy.array([-1, -1], dtype=int)
-CURRENT_TO_PREV_INDICES_BOTH_NEAR = numpy.array([0, 1], dtype=int)
-
-# The following constants are used to test _local_maxima_to_storm_tracks.
-FIRST_LOCAL_MAX_DICT_LINKED = {
-    echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
-    echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
-    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
-    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES,
-    echo_top_tracking.VALID_TIME_KEY: PREVIOUS_TIME_UNIX_SEC,
-    echo_top_tracking.CURRENT_TO_PREV_INDICES_KEY:
-        CURRENT_TO_PREV_INDICES_NO_LINKS
-}
-
-SECOND_LOCAL_MAX_DICT_LINKED = {
-    echo_top_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
-    echo_top_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
-    echo_top_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
-    echo_top_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES,
-    echo_top_tracking.VALID_TIME_KEY: CURRENT_TIME_UNIX_SEC,
-    echo_top_tracking.CURRENT_TO_PREV_INDICES_KEY:
-        CURRENT_TO_PREV_INDICES_BOTH_NEAR
-}
-
-LOCAL_MAX_DICT_BY_TIME = [
-    FIRST_LOCAL_MAX_DICT_LINKED, SECOND_LOCAL_MAX_DICT_LINKED
-]
-
-THESE_STORM_IDS = [
-    STORM_ID_FIRST_IN_DAY, STORM_ID_SECOND_IN_DAY, STORM_ID_FIRST_IN_DAY,
-    STORM_ID_SECOND_IN_DAY
-]
-THESE_TIMES_UNIX_SEC = numpy.array([
-    PREVIOUS_TIME_UNIX_SEC, PREVIOUS_TIME_UNIX_SEC, CURRENT_TIME_UNIX_SEC,
-    CURRENT_TIME_UNIX_SEC
-])
-THESE_SPC_DATES_UNIX_SEC = numpy.full(
-    4, time_conversion.time_to_spc_date_unix_sec(PREVIOUS_TIME_UNIX_SEC),
-    dtype=int)
-
-THESE_CENTROID_LATITUDES_DEG = numpy.concatenate((
-    LOCAL_MAX_LATITUDES_DEG, LOCAL_MAX_LATITUDES_DEG
-))
-THESE_CENTROID_LONGITUDES_DEG = numpy.concatenate((
-    LOCAL_MAX_LONGITUDES_DEG, LOCAL_MAX_LONGITUDES_DEG
-))
-THESE_CENTROID_X_METRES = numpy.concatenate((
-    LOCAL_MAX_X_COORDS_METRES, LOCAL_MAX_X_COORDS_METRES
-))
-THESE_CENTROID_Y_METRES = numpy.concatenate((
-    LOCAL_MAX_Y_COORDS_METRES, LOCAL_MAX_Y_COORDS_METRES
-))
-
-STORM_OBJECT_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.SPC_DATE_COLUMN: THESE_SPC_DATES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_CENTROID_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_CENTROID_LONGITUDES_DEG,
-    echo_top_tracking.CENTROID_X_COLUMN: THESE_CENTROID_X_METRES,
-    echo_top_tracking.CENTROID_Y_COLUMN: THESE_CENTROID_Y_METRES
-}
-
-STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(STORM_OBJECT_DICT)
-
-# The following constants are used to test remove_short_lived_tracks.
-SHORT_MIN_LIFETIME_SEC = 100
-LONG_MIN_LIFETIME_SEC = 1000
-
-# The following constants are used to test _get_final_velocities_one_track.
-ONE_TRACK_LATITUDES_DEG = numpy.array([40, 40, 41, 41, 40, 40], dtype=float)
-ONE_TRACK_LONGITUDES_DEG = numpy.array(
-    [265, 266, 266, 267, 267, 266], dtype=float)
-ONE_TRACK_TIMES_UNIX_SEC = numpy.array([0, 1, 2, 3, 4, 5], dtype=int)
-
-DEGREES_LAT_TO_METRES = 60. * 1852
-DEGREES_TO_RADIANS = numpy.pi / 180
-
-V_VELOCITIES_1POINT_M_S01 = DEGREES_LAT_TO_METRES * numpy.array([
-    numpy.nan, 0, 1, 0, -1, 0])
-
-U_VELOCITIES_1POINT_M_S01 = DEGREES_LAT_TO_METRES * numpy.array([
-    numpy.nan, numpy.cos(40 * DEGREES_TO_RADIANS), 0,
-    numpy.cos(41 * DEGREES_TO_RADIANS), 0, -numpy.cos(40 * DEGREES_TO_RADIANS)
-])
-
-V_VELOCITIES_2POINTS_M_S01 = DEGREES_LAT_TO_METRES * numpy.array(
-    [numpy.nan, 0, 0.5, 0.5, -0.5, -0.5])
-
-U_VELOCITIES_2POINTS_M_S01 = DEGREES_LAT_TO_METRES * numpy.array([
-    numpy.nan,
-    numpy.cos(40. * DEGREES_TO_RADIANS),
-    0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS),
-    0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS),
-    0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS),
-    -0.5 * numpy.cos(40.5 * DEGREES_TO_RADIANS)
-])
+THIRD_GRID_POINT_ROWS = numpy.array([2], dtype=int)
+THIRD_GRID_POINT_COLUMNS = numpy.array([2], dtype=int)
 
 # The following constants are used to test _remove_small_polygons.
 THIS_LIST_OF_ROW_ARRAYS = [
@@ -352,9 +153,9 @@ THIS_LIST_OF_ROW_ARRAYS = [
 ]
 
 LOCAL_MAX_DICT_WITH_SMALL = {
-    echo_top_tracking.GRID_POINT_ROWS_KEY: THIS_LIST_OF_ROW_ARRAYS,
-    echo_top_tracking.LATITUDES_KEY: numpy.array([51.1, 53.5, 60]),
-    echo_top_tracking.LONGITUDES_KEY: numpy.array([246, 246.5, 250])
+    temporal_tracking.GRID_POINT_ROWS_KEY: THIS_LIST_OF_ROW_ARRAYS,
+    temporal_tracking.LATITUDES_KEY: numpy.array([51.1, 53.5, 60]),
+    temporal_tracking.LONGITUDES_KEY: numpy.array([246, 246.5, 250])
 }
 
 MIN_POLYGON_SIZE_PIXELS = 5
@@ -364,159 +165,60 @@ THIS_LIST_OF_ROW_ARRAYS = [
 ]
 
 LOCAL_MAX_DICT_WITHOUT_SMALL = {
-    echo_top_tracking.GRID_POINT_ROWS_KEY: THIS_LIST_OF_ROW_ARRAYS,
-    echo_top_tracking.LATITUDES_KEY: numpy.array([51.1, 60]),
-    echo_top_tracking.LONGITUDES_KEY: numpy.array([246, 250])
+    temporal_tracking.GRID_POINT_ROWS_KEY: THIS_LIST_OF_ROW_ARRAYS,
+    temporal_tracking.LATITUDES_KEY: numpy.array([51.1, 60]),
+    temporal_tracking.LONGITUDES_KEY: numpy.array([246, 250])
 }
 
-# The following constants are used to test _join_tracks.
-LONG_MAX_JOIN_TIME_SEC = 300
-
-THESE_STORM_IDS = ['a', 'b', 'a', 'b']
-THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 300, 300], dtype=int)
-THESE_LATITUDES_DEG = numpy.array([30, 40, 30, 40], dtype=float)
-THESE_LONGITUDES_DEG = numpy.array([290, 300, 290, 300], dtype=float)
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG,
-    tracking_utils.EAST_VELOCITY_COLUMN: numpy.full(4, 0.),
-    tracking_utils.NORTH_VELOCITY_COLUMN: numpy.full(4, 0.)
-}
-
-EARLY_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
-
-THESE_STORM_IDS = ['c', 'd', 'c', 'd']
-THESE_TIMES_UNIX_SEC = numpy.array([600, 600, 900, 900], dtype=int)
-THESE_LATITUDES_DEG = numpy.array([40, 50, 40, 50], dtype=float)
-THESE_LONGITUDES_DEG = numpy.array([300, 250, 300, 250], dtype=float)
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
-}
-
-LATE_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: ['b', 'd', 'b', 'd'],
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
-}
-
-JOINED_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
-
-# The following constants are used to test _storm_objects_to_tracks.
-THESE_STORM_IDS = ['A', 'A', 'B', 'B', 'C', 'C', 'D', 'D', 'E', 'E']
-THESE_TIMES_UNIX_SEC = numpy.array([6, 7, 3, 4, 0, 1, 0, 1, 4, 5], dtype=int)
-THESE_LATITUDES_DEG = numpy.array(
-    [53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 47.6, 47.6])
-THESE_LONGITUDES_DEG = numpy.array(
-    [113.5, 113.6, 113.2, 113.3, 112.9, 113, 113.2, 113.3, 307.3, 307.3])
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
-}
-
-STORM_OBJECT_TABLE_BEFORE_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
-
-THESE_STORM_IDS = ['A', 'B', 'C', 'D', 'E']
-THESE_START_TIMES_UNIX_SEC = numpy.array([6, 3, 0, 0, 4], dtype=int)
-THESE_END_TIMES_UNIX_SEC = numpy.array([7, 4, 1, 1, 5], dtype=int)
-THESE_START_LATITUDES_DEG = numpy.array([53.5, 53.5, 53.5, 53.5, 47.6])
-THESE_END_LATITUDES_DEG = numpy.array([53.5, 53.5, 53.5, 53.5, 47.6])
-THESE_START_LONGITUDES_DEG = numpy.array([113.5, 113.2, 112.9, 113.2, 307.3])
-THESE_END_LONGITUDES_DEG = numpy.array([113.6, 113.3, 113, 113.3, 307.3])
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    echo_top_tracking.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    echo_top_tracking.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
-    echo_top_tracking.START_LATITUDE_COLUMN: THESE_START_LATITUDES_DEG,
-    echo_top_tracking.END_LATITUDE_COLUMN: THESE_END_LATITUDES_DEG,
-    echo_top_tracking.START_LONGITUDE_COLUMN: THESE_START_LONGITUDES_DEG,
-    echo_top_tracking.END_LONGITUDE_COLUMN: THESE_END_LONGITUDES_DEG
-}
-
-STORM_TRACK_TABLE_BEFORE_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
-
-STORM_TRACK_TABLE_TAMPERED = copy.deepcopy(STORM_TRACK_TABLE_BEFORE_REANALYSIS)
-STORM_TRACK_TABLE_TAMPERED[echo_top_tracking.START_TIME_COLUMN].values[2] = -1
-STORM_ID_TAMPERED = 'C'
-
-# The following constants are used to test _get_join_error.
-DIST_TOLERANCE_METRES = 1.
-JOIN_ERROR_B_TO_A_METRES = 0.
-JOIN_ERROR_C_TO_A_METRES = 0.
-JOIN_ERROR_D_TO_A_METRES = vincenty((53.5, 113.8), (53.5, 113.5)).meters
-JOIN_ERROR_E_TO_A_METRES = vincenty((47.6, 307.3), (53.5, 113.5)).meters
-
-# The following constants are used to test _find_nearby_tracks and
-# _reanalyze_tracks.
-SHORT_MAX_JOIN_TIME_SEC = 2
-MAX_JOIN_ERROR_M_S01 = 1000.
-
-NEARBY_IDS_FOR_A = ['B']
-NEARBY_IDS_FOR_B = ['C']
-NEARBY_IDS_FOR_C = []
-NEARBY_IDS_FOR_D = []
-NEARBY_IDS_FOR_E = []
-
-THESE_STORM_IDS = ['A', 'A', 'A', 'A', 'A', 'A', 'D', 'D', 'E', 'E']
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
-}
-
-STORM_OBJECT_TABLE_AFTER_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
-
-THESE_STORM_IDS = ['A', 'D', 'E']
-THESE_START_TIMES_UNIX_SEC = numpy.array([0, 0, 4], dtype=int)
-THESE_END_TIMES_UNIX_SEC = numpy.array([7, 1, 5], dtype=int)
-THESE_START_LATITUDES_DEG = numpy.array([53.5, 53.5, 47.6])
-THESE_END_LATITUDES_DEG = numpy.array([53.5, 53.5, 47.6])
-THESE_START_LONGITUDES_DEG = numpy.array([112.9, 113.2, 307.3])
-THESE_END_LONGITUDES_DEG = numpy.array([113.6, 113.3, 307.3])
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    echo_top_tracking.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    echo_top_tracking.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
-    echo_top_tracking.START_LATITUDE_COLUMN: THESE_START_LATITUDES_DEG,
-    echo_top_tracking.END_LATITUDE_COLUMN: THESE_END_LATITUDES_DEG,
-    echo_top_tracking.START_LONGITUDE_COLUMN: THESE_START_LONGITUDES_DEG,
-    echo_top_tracking.END_LONGITUDE_COLUMN: THESE_END_LONGITUDES_DEG
-}
-
-STORM_TRACK_TABLE_AFTER_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
-
-# The following constants are used to test _latlng_velocities_to_xy.
-START_LATITUDES_DEG = numpy.array(
-    [49.5, 58.3, 42.4, 58.5, 39.3, 46.4, 44.9, 58, 47.4, 32.5, 54.7, 53.1])
+# The following constants are used to test _velocities_latlng_to_xy.
+START_LATITUDES_DEG = numpy.array([
+    49.5, 58.3, 42.4, 58.5, 39.3, 46.4, 44.9, 58, 47.4, 32.5, 54.7, 53.1
+])
 START_LONGITUDES_DEG = numpy.array([
     259.6, 258.7, 249.8, 241.1, 241, 250.3, 248.2, 239.7, 236.7, 249.2, 234.1,
     235.5
 ])
-EAST_VELOCITIES_M_S01 = numpy.array(
-    [-7.9, -7.9, -10.4, -11.6, -5.1, -1.3, -9.6, -6.6, 13.4, -7.7, -4.7, 1])
-NORTH_VELOCITIES_M_S01 = numpy.array(
-    [-11.3, 12.8, -1, 2.7, -13.7, 8.5, -8.3, 2.2, -8.1, -2.6, 13.5, -12.1])
+EAST_VELOCITIES_M_S01 = numpy.array([
+    -7.9, -7.9, -10.4, -11.6, -5.1, -1.3, -9.6, -6.6, 13.4, -7.7, -4.7, 1
+])
+NORTH_VELOCITIES_M_S01 = numpy.array([
+    -11.3, 12.8, -1, 2.7, -13.7, 8.5, -8.3, 2.2, -8.1, -2.6, 13.5, -12.1
+])
+
+# The following constants are used to test _radar_times_to_tracking_periods.
+FIRST_MAX_TIME_INTERVAL_SEC = 10
+SECOND_MAX_TIME_INTERVAL_SEC = 5
+RADAR_TIMES_UNIX_SEC = numpy.array([0, 10, 15], dtype=int)
+
+FIRST_TRACKING_START_TIMES_UNIX_SEC = numpy.array([0], dtype=int)
+FIRST_TRACKING_END_TIMES_UNIX_SEC = numpy.array([15], dtype=int)
+SECOND_TRACKING_START_TIMES_UNIX_SEC = numpy.array([0, 10], dtype=int)
+SECOND_TRACKING_END_TIMES_UNIX_SEC = numpy.array([0, 15], dtype=int)
+
+# The following constants are used to test _old_to_new_tracking_periods.
+OLD_TRACKING_START_TIMES_UNIX_SEC = numpy.array(
+    [-10, 0, 20, 50, 100], dtype=int
+)
+OLD_TRACKING_END_TIMES_UNIX_SEC = numpy.array([-5, 10, 35, 80, 200], dtype=int)
+
+THIRD_MAX_TIME_INTERVAL_SEC = 15
+FOURTH_MAX_TIME_INTERVAL_SEC = 20
+
+FIRST_NEW_START_TIMES_UNIX_SEC = numpy.array([-10, 50, 100], dtype=int)
+FIRST_NEW_END_TIMES_UNIX_SEC = numpy.array([35, 80, 200], dtype=int)
+
+SECOND_NEW_START_TIMES_UNIX_SEC = numpy.array([-10, 20, 50, 100], dtype=int)
+SECOND_NEW_END_TIMES_UNIX_SEC = numpy.array([10, 35, 80, 200], dtype=int)
+
+THIRD_NEW_START_TIMES_UNIX_SEC = numpy.array([-10, 100], dtype=int)
+THIRD_NEW_END_TIMES_UNIX_SEC = numpy.array([80, 200], dtype=int)
+
+FOURTH_NEW_START_TIMES_UNIX_SEC = numpy.array([-10], dtype=int)
+FOURTH_NEW_END_TIMES_UNIX_SEC = numpy.array([200], dtype=int)
 
 
-def _compare_maxima_with_sans_small_polygons(
-        first_local_max_dict, second_local_max_dict):
-    """Compares local maxima before and after removing small polygons.
+def _compare_local_max_dicts(first_local_max_dict, second_local_max_dict):
+    """Compares two dictionaries with local maxima.
 
     :param first_local_max_dict: First dictionary.
     :param second_local_max_dict: Second dictionary.
@@ -529,7 +231,7 @@ def _compare_maxima_with_sans_small_polygons(
         return False
 
     for this_key in first_keys:
-        if this_key == echo_top_tracking.GRID_POINT_ROWS_KEY:
+        if this_key == temporal_tracking.GRID_POINT_ROWS_KEY:
             first_length = len(first_local_max_dict[this_key])
             second_length = len(second_local_max_dict[this_key])
             if first_length != second_length:
@@ -611,287 +313,64 @@ class EchoTopTrackingTests(unittest.TestCase):
                 LOCAL_MAX_DICT_LARGE_DISTANCE[this_key], atol=TOLERANCE
             ))
 
-    def test_estimate_velocity_by_neigh(self):
-        """Ensures correct output from _estimate_velocity_by_neigh."""
+    def test_get_grid_points_in_storm_first(self):
+        """Ensures correct output from _get_grid_points_in_storm.
 
-        these_x_velocities_m_s01, these_y_velocities_m_s01 = (
-            echo_top_tracking._estimate_velocity_by_neigh(
-                x_coords_metres=X_COORDS_FOR_NEIGH_METRES,
-                y_coords_metres=Y_COORDS_FOR_NEIGH_METRES,
-                x_velocities_m_s01=X_VELOCITIES_WITH_NAN_M_S01 + 0.,
-                y_velocities_m_s01=Y_VELOCITIES_WITH_NAN_M_S01 + 0.,
-                e_folding_radius_metres=VELOCITY_EFOLD_RADIUS_METRES)
-        )
-
-        self.assertTrue(numpy.allclose(
-            these_x_velocities_m_s01, X_VELOCITIES_NO_NAN_M_S01, atol=TOLERANCE
-        ))
-        self.assertTrue(numpy.allclose(
-            these_y_velocities_m_s01, Y_VELOCITIES_NO_NAN_M_S01, atol=TOLERANCE
-        ))
-
-    def test_get_intermediate_velocities_time1(self):
-        """Ensures correct output from _get_intermediate_velocities.
-
-        In this case, "current time" = first time.
+        In this case, with first set of inputs.
         """
 
-        this_local_max_dict = echo_top_tracking._get_intermediate_velocities(
-            current_local_max_dict=copy.deepcopy(FIRST_LMAX_DICT_NO_VELOCITY),
-            previous_local_max_dict=None,
-            e_folding_radius_metres=VELOCITY_EFOLD_RADIUS_METRES)
+        these_rows, these_columns = echo_top_tracking._get_grid_points_in_storm(
+            centroid_latitude_deg=FIRST_CENTROID_LATITUDE_DEG,
+            centroid_longitude_deg=FIRST_CENTROID_LONGITUDE_DEG,
+            grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
+            grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
+            echo_top_matrix_km=ECHO_TOP_MATRIX_KM,
+            min_echo_top_km=MIN_ECHO_TOP_KM,
+            min_intermax_distance_metres=FIRST_MIN_INTERMAX_DIST_METRES)
 
-        self.assertTrue(numpy.allclose(
-            this_local_max_dict[echo_top_tracking.X_VELOCITIES_KEY],
-            FIRST_LMAX_DICT_WITH_VELOCITY[echo_top_tracking.X_VELOCITIES_KEY],
-            atol=TOLERANCE, equal_nan=True
-        ))
-
-        self.assertTrue(numpy.allclose(
-            this_local_max_dict[echo_top_tracking.Y_VELOCITIES_KEY],
-            FIRST_LMAX_DICT_WITH_VELOCITY[echo_top_tracking.Y_VELOCITIES_KEY],
-            atol=TOLERANCE, equal_nan=True
-        ))
-
-    def test_get_intermediate_velocities_time2(self):
-        """Ensures correct output from _get_intermediate_velocities.
-
-        In this case, "current time" = second time.
-        """
-
-        this_local_max_dict = echo_top_tracking._get_intermediate_velocities(
-            current_local_max_dict=copy.deepcopy(SECOND_LMAX_DICT_NO_VELOCITY),
-            previous_local_max_dict=copy.deepcopy(FIRST_LMAX_DICT_NO_VELOCITY),
-            e_folding_radius_metres=VELOCITY_EFOLD_RADIUS_METRES)
-
-        self.assertTrue(numpy.allclose(
-            this_local_max_dict[echo_top_tracking.X_VELOCITIES_KEY],
-            SECOND_LMAX_DICT_WITH_VELOCITY[echo_top_tracking.X_VELOCITIES_KEY],
-            atol=TOLERANCE, equal_nan=True
-        ))
-
-        self.assertTrue(numpy.allclose(
-            this_local_max_dict[echo_top_tracking.Y_VELOCITIES_KEY],
-            SECOND_LMAX_DICT_WITH_VELOCITY[echo_top_tracking.Y_VELOCITIES_KEY],
-            atol=TOLERANCE, equal_nan=True
-        ))
-
-    def test_link_local_maxima_in_time_1to2(self):
-        """Ensures correct output from _link_local_maxima_in_time.
-
-        In this case, linking maxima from the first and second times.
-        """
-
-        these_indices = echo_top_tracking._link_local_maxima_in_time(
-            current_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
-            previous_local_max_dict=FIRST_LOCAL_MAX_DICT_UNLINKED,
-            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
-            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-
+        self.assertTrue(numpy.array_equal(these_rows, FIRST_GRID_POINT_ROWS))
         self.assertTrue(numpy.array_equal(
-            these_indices, SECOND_TO_FIRST_INDICES
+            these_columns, FIRST_GRID_POINT_COLUMNS
         ))
 
-    def test_link_local_maxima_in_time_2to3(self):
-        """Ensures correct output from _link_local_maxima_in_time.
+    def test_get_grid_points_in_storm_second(self):
+        """Ensures correct output from _get_grid_points_in_storm.
 
-        In this case, linking maxima from the second and third times.
+        In this case, with second set of inputs.
         """
 
-        these_indices = echo_top_tracking._link_local_maxima_in_time(
-            current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
-            previous_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
-            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
-            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        these_rows, these_columns = echo_top_tracking._get_grid_points_in_storm(
+            centroid_latitude_deg=SECOND_CENTROID_LATITUDE_DEG,
+            centroid_longitude_deg=SECOND_CENTROID_LONGITUDE_DEG,
+            grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
+            grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
+            echo_top_matrix_km=ECHO_TOP_MATRIX_KM,
+            min_echo_top_km=MIN_ECHO_TOP_KM,
+            min_intermax_distance_metres=SECOND_MIN_INTERMAX_DIST_METRES)
 
+        self.assertTrue(numpy.array_equal(these_rows, SECOND_GRID_POINT_ROWS))
         self.assertTrue(numpy.array_equal(
-            these_indices, THIRD_TO_SECOND_INDICES
+            these_columns, SECOND_GRID_POINT_COLUMNS
         ))
 
-    def test_link_local_maxima_in_time_too_late(self):
-        """Ensures correct output from _link_local_maxima_in_time.
+    def test_get_grid_points_in_storm_third(self):
+        """Ensures correct output from _get_grid_points_in_storm.
 
-        In this case, current time is too much later than previous time.
+        In this case, with third set of inputs.
         """
 
-        these_indices = echo_top_tracking._link_local_maxima_in_time(
-            current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
-            previous_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
-            max_link_time_seconds=1,
-            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
-            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
+        these_rows, these_columns = echo_top_tracking._get_grid_points_in_storm(
+            centroid_latitude_deg=THIRD_CENTROID_LATITUDE_DEG,
+            centroid_longitude_deg=THIRD_CENTROID_LONGITUDE_DEG,
+            grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
+            grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
+            echo_top_matrix_km=ECHO_TOP_MATRIX_KM,
+            min_echo_top_km=MIN_ECHO_TOP_KM,
+            min_intermax_distance_metres=THIRD_MIN_INTERMAX_DIST_METRES)
 
-        expected_indices = numpy.full(len(these_indices), -1, dtype=int)
-        self.assertTrue(numpy.array_equal(these_indices, expected_indices))
-
-    def test_link_local_maxima_in_time_no_prev_dict(self):
-        """Ensures correct output from _link_local_maxima_in_time.
-
-        In this case there is no dictionary with previous maxima.
-        """
-
-        these_indices = echo_top_tracking._link_local_maxima_in_time(
-            current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
-            previous_local_max_dict=None,
-            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
-            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-
-        expected_indices = numpy.full(len(these_indices), -1, dtype=int)
-        self.assertTrue(numpy.array_equal(these_indices, expected_indices))
-
-    def test_link_local_maxima_in_time_no_prev_maxima(self):
-        """Ensures correct output from _link_local_maxima_in_time.
-
-        In this case there are no previous maxima.
-        """
-
-        these_indices = echo_top_tracking._link_local_maxima_in_time(
-            current_local_max_dict=THIRD_LOCAL_MAX_DICT_UNLINKED,
-            previous_local_max_dict=SECOND_LOCAL_MAX_DICT_EMPTY,
-            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
-            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-
-        expected_indices = numpy.full(len(these_indices), -1, dtype=int)
-        self.assertTrue(numpy.array_equal(these_indices, expected_indices))
-
-    def test_link_local_maxima_in_time_no_current_maxima(self):
-        """Ensures correct output from _link_local_maxima_in_time.
-
-        In this case there are no current maxima.
-        """
-
-        these_indices = echo_top_tracking._link_local_maxima_in_time(
-            current_local_max_dict=THIRD_LOCAL_MAX_DICT_EMPTY,
-            previous_local_max_dict=SECOND_LOCAL_MAX_DICT_UNLINKED,
-            max_link_time_seconds=MAX_LINK_TIME_SECONDS,
-            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
-            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-
-        expected_indices = numpy.full(len(these_indices), -1, dtype=int)
-        self.assertTrue(numpy.array_equal(these_indices, expected_indices))
-
-    def test_create_storm_id_first_in_day(self):
-        """Ensures correct output from _create_storm_id.
-
-        In this case, storm to be labeled is the first storm in the SPC date.
-        """
-
-        this_storm_id, this_numeric_id, this_spc_date_string = (
-            echo_top_tracking._create_storm_id(
-                storm_start_time_unix_sec=STORM_TIME_UNIX_SEC,
-                prev_numeric_id_used=PREV_NUMERIC_ID_USED,
-                prev_spc_date_string=PREV_SPC_DATE_STRING)
-        )
-
-        self.assertTrue(this_storm_id == STORM_ID_FIRST_IN_DAY)
-        self.assertTrue(this_numeric_id == 0)
-        self.assertTrue(this_spc_date_string == STORM_SPC_DATE_STRING)
-
-    def test_create_storm_id_second_in_day(self):
-        """Ensures correct output from _create_storm_id.
-
-        In this case, storm to be labeled is the second storm in the SPC date.
-        """
-
-        this_storm_id, this_numeric_id, this_spc_date_string = (
-            echo_top_tracking._create_storm_id(
-                storm_start_time_unix_sec=STORM_TIME_UNIX_SEC,
-                prev_numeric_id_used=PREV_NUMERIC_ID_USED,
-                prev_spc_date_string=STORM_SPC_DATE_STRING)
-        )
-
-        self.assertTrue(this_storm_id == STORM_ID_SECOND_IN_DAY)
-        self.assertTrue(this_numeric_id == PREV_NUMERIC_ID_USED + 1)
-        self.assertTrue(this_spc_date_string == STORM_SPC_DATE_STRING)
-
-    def test_local_maxima_to_storm_tracks(self):
-        """Ensures correct output from _local_maxima_to_storm_tracks."""
-
-        this_storm_object_table = (
-            echo_top_tracking._local_maxima_to_storm_tracks(
-                LOCAL_MAX_DICT_BY_TIME)
-        )
-
-        self.assertTrue(this_storm_object_table.equals(STORM_OBJECT_TABLE))
-
-    def test_remove_short_lived_tracks_short_threshold(self):
-        """Ensures correct output from remove_short_lived_tracks.
-
-        In this case, minimum track duration is short, so all tracks should be
-        kept.
-        """
-
-        this_storm_object_table = echo_top_tracking.remove_short_lived_tracks(
-            storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE),
-            min_duration_seconds=SHORT_MIN_LIFETIME_SEC)
-
-        self.assertTrue(this_storm_object_table.equals(STORM_OBJECT_TABLE))
-
-    def test_remove_short_lived_tracks_long_threshold(self):
-        """Ensures correct output from remove_short_lived_tracks.
-
-        In this case, minimum track duration is long, so all tracks should be
-        removed.
-        """
-
-        this_storm_object_table = echo_top_tracking.remove_short_lived_tracks(
-            storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE),
-            min_duration_seconds=LONG_MIN_LIFETIME_SEC)
-
-        self.assertTrue(this_storm_object_table.empty)
-
-    def test_get_final_velocities_one_track_1point(self):
-        """Ensures correct output from _get_final_velocities_one_track.
-
-        In this case, each velocity is based on the displacement from 1 point
-        back in the storm track.
-        """
-
-        these_u_velocities_m_s01, these_v_velocities_m_s01 = (
-            echo_top_tracking._get_final_velocities_one_track(
-                centroid_latitudes_deg=ONE_TRACK_LATITUDES_DEG,
-                centroid_longitudes_deg=ONE_TRACK_LONGITUDES_DEG,
-                valid_times_unix_sec=ONE_TRACK_TIMES_UNIX_SEC,
-                num_points_back=1)
-        )
-
-        self.assertTrue(numpy.allclose(
-            these_u_velocities_m_s01, U_VELOCITIES_1POINT_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
-        ))
-
-        self.assertTrue(numpy.allclose(
-            these_v_velocities_m_s01, V_VELOCITIES_1POINT_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
-        ))
-
-    def test_get_final_velocities_one_track_2points(self):
-        """Ensures correct output from _get_final_velocities_one_track.
-
-        In this case, each velocity is based on the displacement from 2 points
-        back in the storm track.
-        """
-
-        these_u_velocities_m_s01, these_v_velocities_m_s01 = (
-            echo_top_tracking._get_final_velocities_one_track(
-                centroid_latitudes_deg=ONE_TRACK_LATITUDES_DEG,
-                centroid_longitudes_deg=ONE_TRACK_LONGITUDES_DEG,
-                valid_times_unix_sec=ONE_TRACK_TIMES_UNIX_SEC,
-                num_points_back=2)
-        )
-
-        self.assertTrue(numpy.allclose(
-            these_u_velocities_m_s01, U_VELOCITIES_2POINTS_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
-        ))
-
-        self.assertTrue(numpy.allclose(
-            these_v_velocities_m_s01, V_VELOCITIES_2POINTS_M_S01,
-            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True
+        self.assertTrue(numpy.array_equal(these_rows, THIRD_GRID_POINT_ROWS))
+        self.assertTrue(numpy.array_equal(
+            these_columns, THIRD_GRID_POINT_COLUMNS
         ))
 
     def test_remove_small_polygons_min0(self):
@@ -904,7 +383,7 @@ class EchoTopTrackingTests(unittest.TestCase):
             local_max_dict=copy.deepcopy(LOCAL_MAX_DICT_WITH_SMALL),
             min_size_pixels=0)
 
-        self.assertTrue(_compare_maxima_with_sans_small_polygons(
+        self.assertTrue(_compare_local_max_dicts(
             this_local_max_dict, LOCAL_MAX_DICT_WITH_SMALL
         ))
 
@@ -918,216 +397,15 @@ class EchoTopTrackingTests(unittest.TestCase):
             local_max_dict=copy.deepcopy(LOCAL_MAX_DICT_WITH_SMALL),
             min_size_pixels=MIN_POLYGON_SIZE_PIXELS)
 
-        self.assertTrue(_compare_maxima_with_sans_small_polygons(
+        self.assertTrue(_compare_local_max_dicts(
             this_local_max_dict, LOCAL_MAX_DICT_WITHOUT_SMALL
         ))
 
-    def test_join_tracks(self):
-        """Ensures correct output from _join_tracks."""
-
-        this_storm_object_table = echo_top_tracking._join_tracks(
-            early_storm_object_table=EARLY_STORM_OBJECT_TABLE,
-            late_storm_object_table=copy.deepcopy(LATE_STORM_OBJECT_TABLE),
-            projection_object=PROJECTION_OBJECT,
-            max_link_time_seconds=LONG_MAX_JOIN_TIME_SEC,
-            max_velocity_diff_m_s01=MAX_VELOCITY_DIFF_M_S01,
-            max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01)
-
-        self.assertTrue(this_storm_object_table.equals(
-            JOINED_STORM_OBJECT_TABLE
-        ))
-
-    def test_storm_objects_to_tracks_from_scratch(self):
-        """Ensures correct output from _storm_objects_to_tracks.
-
-        In this case, the table of storm tracks is created from scratch.
-        """
-
-        this_storm_track_table = echo_top_tracking._storm_objects_to_tracks(
-            storm_object_table=STORM_OBJECT_TABLE_BEFORE_REANALYSIS)
-
-        self.assertTrue(this_storm_track_table.equals(
-            STORM_TRACK_TABLE_BEFORE_REANALYSIS
-        ))
-
-    def test_storm_objects_to_tracks_recompute_row(self):
-        """Ensures correct output from _storm_objects_to_tracks.
-
-        In this case, only one row of storm_track_table is recomputed.
-        """
-
-        this_storm_track_table = echo_top_tracking._storm_objects_to_tracks(
-            storm_object_table=STORM_OBJECT_TABLE_BEFORE_REANALYSIS,
-            storm_track_table=copy.deepcopy(STORM_TRACK_TABLE_TAMPERED),
-            recompute_for_id=STORM_ID_TAMPERED)
-
-        self.assertTrue(this_storm_track_table.equals(
-            STORM_TRACK_TABLE_BEFORE_REANALYSIS
-        ))
-
-    def test_get_join_error_b_to_a(self):
-        """Ensures correct output from _get_join_error.
-
-        In this case, extrapolating track B to start of track A.
-        """
-
-        this_join_error_metres = echo_top_tracking._get_join_error(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            early_track_id='B', late_track_id='A')
-
-        self.assertTrue(numpy.isclose(
-            this_join_error_metres, JOIN_ERROR_B_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES
-        ))
-
-    def test_get_join_error_c_to_a(self):
-        """Ensures correct output from _get_join_error.
-
-        In this case, extrapolating track C to start of track A.
-        """
-
-        this_join_error_metres = echo_top_tracking._get_join_error(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            early_track_id='C', late_track_id='A')
-
-        self.assertTrue(numpy.isclose(
-            this_join_error_metres, JOIN_ERROR_C_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES
-        ))
-
-    def test_get_join_error_d_to_a(self):
-        """Ensures correct output from _get_join_error.
-
-        In this case, extrapolating track D to start of track A.
-        """
-
-        this_join_error_metres = echo_top_tracking._get_join_error(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            early_track_id='D', late_track_id='A')
-
-        self.assertTrue(numpy.isclose(
-            this_join_error_metres, JOIN_ERROR_D_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES
-        ))
-
-    def test_get_join_error_e_to_a(self):
-        """Ensures correct output from _get_join_error.
-
-        In this case, extrapolating track E to start of track A.
-        """
-
-        this_join_error_metres = echo_top_tracking._get_join_error(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            early_track_id='E', late_track_id='A')
-
-        self.assertTrue(numpy.isclose(
-            this_join_error_metres, JOIN_ERROR_E_TO_A_METRES,
-            atol=DIST_TOLERANCE_METRES
-        ))
-
-    def test_find_nearby_tracks_for_a(self):
-        """Ensures correct output from _find_nearby_tracks; late track is A."""
-
-        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='A', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        if these_nearby_indices is None:
-            these_nearby_ids = []
-        else:
-            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
-                tracking_utils.STORM_ID_COLUMN
-            ].values[these_nearby_indices].tolist()
-
-        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_A)
-
-    def test_find_nearby_tracks_for_b(self):
-        """Ensures correct output from _find_nearby_tracks; late track is B."""
-
-        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='B', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        if these_nearby_indices is None:
-            these_nearby_ids = []
-        else:
-            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
-                tracking_utils.STORM_ID_COLUMN
-            ].values[these_nearby_indices].tolist()
-
-        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_B)
-
-    def test_find_nearby_tracks_for_c(self):
-        """Ensures correct output from _find_nearby_tracks; late track is C."""
-
-        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='C', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        if these_nearby_indices is None:
-            these_nearby_ids = []
-        else:
-            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
-                tracking_utils.STORM_ID_COLUMN
-            ].values[these_nearby_indices].tolist()
-
-        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_C)
-
-    def test_find_nearby_tracks_for_d(self):
-        """Ensures correct output from _find_nearby_tracks; late track is D."""
-
-        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='D', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        if these_nearby_indices is None:
-            these_nearby_ids = []
-        else:
-            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
-                tracking_utils.STORM_ID_COLUMN
-            ].values[these_nearby_indices].tolist()
-
-        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_D)
-
-    def test_find_nearby_tracks_for_e(self):
-        """Ensures correct output from _find_nearby_tracks; late track is E."""
-
-        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
-            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
-            late_track_id='E', max_time_diff_seconds=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        if these_nearby_indices is None:
-            these_nearby_ids = []
-        else:
-            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
-                tracking_utils.STORM_ID_COLUMN
-            ].values[these_nearby_indices].tolist()
-
-        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_E)
-
-    def test_reanalyze_tracks(self):
-        """Ensures correct output from _reanalyze_tracks."""
-
-        this_storm_object_table = echo_top_tracking._reanalyze_tracks(
-            storm_object_table=copy.deepcopy(
-                STORM_OBJECT_TABLE_BEFORE_REANALYSIS),
-            max_join_time_sec=SHORT_MAX_JOIN_TIME_SEC,
-            max_join_error_m_s01=MAX_JOIN_ERROR_M_S01)
-
-        self.assertTrue(this_storm_object_table.equals(
-            STORM_OBJECT_TABLE_AFTER_REANALYSIS
-        ))
-
-    def test_latlng_velocities_to_xy(self):
-        """Ensures correct output from _latlng_velocities_to_xy."""
+    def test_velocities_latlng_to_xy(self):
+        """Ensures correct output from _velocities_latlng_to_xy."""
 
         these_x_velocities_m_s01, these_y_velocities_m_s01 = (
-            echo_top_tracking._latlng_velocities_to_xy(
+            echo_top_tracking._velocities_latlng_to_xy(
                 east_velocities_m_s01=EAST_VELOCITIES_M_S01,
                 north_velocities_m_s01=NORTH_VELOCITIES_M_S01,
                 latitudes_deg=START_LATITUDES_DEG,
@@ -1148,6 +426,128 @@ class EchoTopTrackingTests(unittest.TestCase):
                 these_y_velocities_m_s01[i], NORTH_VELOCITIES_M_S01[i],
                 atol=0.5 * speeds_m_s01[i]
             ))
+
+    def test_radar_times_to_tracking_periods_first(self):
+        """Ensures correct output from _radar_times_to_tracking_periods.
+
+        In this case, using first max time interval.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._radar_times_to_tracking_periods(
+                radar_times_unix_sec=RADAR_TIMES_UNIX_SEC,
+                max_time_interval_sec=FIRST_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, FIRST_TRACKING_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, FIRST_TRACKING_END_TIMES_UNIX_SEC
+        ))
+
+    def test_radar_times_to_tracking_periods_second(self):
+        """Ensures correct output from _radar_times_to_tracking_periods.
+
+        In this case, using second max time interval.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._radar_times_to_tracking_periods(
+                radar_times_unix_sec=RADAR_TIMES_UNIX_SEC,
+                max_time_interval_sec=SECOND_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, SECOND_TRACKING_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, SECOND_TRACKING_END_TIMES_UNIX_SEC
+        ))
+    
+    def test_old_to_new_tracking_periods_first(self):
+        """Ensures correct output from _old_to_new_tracking_periods.
+        
+        In this case, using first max time interval.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._old_to_new_tracking_periods(
+                tracking_start_times_unix_sec=
+                OLD_TRACKING_START_TIMES_UNIX_SEC + 0,
+                tracking_end_times_unix_sec=OLD_TRACKING_END_TIMES_UNIX_SEC + 0,
+                max_time_interval_sec=FIRST_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, FIRST_NEW_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, FIRST_NEW_END_TIMES_UNIX_SEC
+        ))
+
+    def test_old_to_new_tracking_periods_second(self):
+        """Ensures correct output from _old_to_new_tracking_periods.
+
+        In this case, using second max time interval.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._old_to_new_tracking_periods(
+                tracking_start_times_unix_sec=
+                OLD_TRACKING_START_TIMES_UNIX_SEC + 0,
+                tracking_end_times_unix_sec=OLD_TRACKING_END_TIMES_UNIX_SEC + 0,
+                max_time_interval_sec=SECOND_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, SECOND_NEW_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, SECOND_NEW_END_TIMES_UNIX_SEC
+        ))
+
+    def test_old_to_new_tracking_periods_third(self):
+        """Ensures correct output from _old_to_new_tracking_periods.
+
+        In this case, using third max time interval.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._old_to_new_tracking_periods(
+                tracking_start_times_unix_sec=
+                OLD_TRACKING_START_TIMES_UNIX_SEC + 0,
+                tracking_end_times_unix_sec=OLD_TRACKING_END_TIMES_UNIX_SEC + 0,
+                max_time_interval_sec=THIRD_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, THIRD_NEW_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, THIRD_NEW_END_TIMES_UNIX_SEC
+        ))
+
+    def test_old_to_new_tracking_periods_fourth(self):
+        """Ensures correct output from _old_to_new_tracking_periods.
+
+        In this case, using fourth max time interval.
+        """
+
+        these_start_times_unix_sec, these_end_times_unix_sec = (
+            echo_top_tracking._old_to_new_tracking_periods(
+                tracking_start_times_unix_sec=
+                OLD_TRACKING_START_TIMES_UNIX_SEC + 0,
+                tracking_end_times_unix_sec=OLD_TRACKING_END_TIMES_UNIX_SEC + 0,
+                max_time_interval_sec=FOURTH_MAX_TIME_INTERVAL_SEC)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_start_times_unix_sec, FOURTH_NEW_START_TIMES_UNIX_SEC
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_end_times_unix_sec, FOURTH_NEW_END_TIMES_UNIX_SEC
+        ))
 
 
 if __name__ == '__main__':

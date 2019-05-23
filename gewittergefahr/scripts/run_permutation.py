@@ -413,7 +413,7 @@ def _run(model_file_name, top_example_dir_name,
         generator_object = testing_io.generator_2d_or_3d(
             option_dict=training_option_dict, num_examples_total=num_examples)
 
-    storm_ids = []
+    full_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)
     target_values = numpy.array([], dtype=int)
     list_of_predictor_matrices = None
@@ -427,7 +427,7 @@ def _run(model_file_name, top_example_dir_name,
         except StopIteration:
             break
 
-        storm_ids += this_storm_object_dict[testing_io.STORM_IDS_KEY]
+        full_id_strings += this_storm_object_dict[testing_io.FULL_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
             storm_times_unix_sec,
             this_storm_object_dict[testing_io.STORM_TIMES_KEY]
@@ -508,7 +508,7 @@ def _run(model_file_name, top_example_dir_name,
 
     result_dict[permutation.MODEL_FILE_KEY] = model_file_name
     result_dict[permutation.TARGET_VALUES_KEY] = target_values
-    result_dict[permutation.STORM_IDS_KEY] = storm_ids
+    result_dict[permutation.FULL_IDS_KEY] = full_id_strings
     result_dict[permutation.STORM_TIMES_KEY] = storm_times_unix_sec
 
     print 'Writing results to: "{0:s}"...'.format(output_file_name)

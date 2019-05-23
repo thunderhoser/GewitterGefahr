@@ -74,7 +74,7 @@ def _plot_3d_radar_cams(
         radar_matrix, model_metadata_dict, cam_colour_map_object,
         max_colour_prctile_for_cam, output_dir_name,
         class_activation_matrix=None, ggradcam_output_matrix=None,
-        storm_ids=None, storm_times_unix_sec=None):
+        full_id_strings=None, storm_times_unix_sec=None):
     """Plots class-activation maps for 3-D radar data.
 
     E = number of examples
@@ -86,8 +86,8 @@ def _plot_3d_radar_cams(
     This method will plot either `class_activation_matrix` or
     `ggradcam_output_matrix`, not both.
 
-    If `storm_ids is None` and `storm_times_unix_sec is None`, will assume that
-    the input matrices contain probability-matched means.
+    If `full_id_strings is None` and `storm_times_unix_sec is None`, will assume
+    that the input matrices contain probability-matched means.
 
     :param radar_matrix: E-by-M-by-N-by-H-by-F numpy array of radar values.
     :param model_metadata_dict: Dictionary with CNN metadata (see doc for
@@ -99,11 +99,11 @@ def _plot_3d_radar_cams(
         activations.
     :param ggradcam_output_matrix: E-by-M-by-N-by-H-by-F numpy array of output
         values from guided Grad-CAM.
-    :param storm_ids: length-E list of storm IDs (strings).
+    :param full_id_strings: length-E list of full storm IDs.
     :param storm_times_unix_sec: length-E numpy array of storm times.
     """
 
-    pmm_flag = storm_ids is None and storm_times_unix_sec is None
+    pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     num_examples = radar_matrix.shape[0]
     num_heights = radar_matrix.shape[-2]
@@ -185,14 +185,14 @@ def _plot_3d_radar_cams(
                     storm_times_unix_sec[i], TIME_FORMAT)
 
                 this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                    storm_ids[i], this_storm_time_string)
+                    full_id_strings[i], this_storm_time_string)
 
                 this_figure_file_name = (
                     '{0:s}/{1:s}_{2:s}_{3:s}_{4:s}.jpg'
                 ).format(
                     output_dir_name, pathless_file_name_prefix,
-                    storm_ids[i].replace('_', '-'), this_storm_time_string,
-                    this_field_name.replace('_', '-')
+                    full_id_strings[i].replace('_', '-'),
+                    this_storm_time_string, this_field_name.replace('_', '-')
                 )
 
             this_title_string += ' ({0:s} = {1:.3f})'.format(
@@ -209,7 +209,7 @@ def _plot_2d_radar_cams(
         radar_matrix, model_metadata_dict, cam_colour_map_object,
         max_colour_prctile_for_cam, output_dir_name,
         class_activation_matrix=None, ggradcam_output_matrix=None,
-        storm_ids=None, storm_times_unix_sec=None):
+        full_id_strings=None, storm_times_unix_sec=None):
     """Plots class-activation maps for 2-D radar data.
 
     E = number of examples
@@ -220,8 +220,8 @@ def _plot_2d_radar_cams(
     This method will plot either `class_activation_matrix` or
     `ggradcam_output_matrix`, not both.
 
-    If `storm_ids is None` and `storm_times_unix_sec is None`, will assume that
-    the input matrices contain probability-matched means.
+    If `full_id_strings is None` and `storm_times_unix_sec is None`, will assume
+    that the input matrices contain probability-matched means.
 
     :param radar_matrix: E-by-M-by-N-by-C numpy array of radar values.
     :param model_metadata_dict: See doc for `_plot_3d_radar_cams`.
@@ -232,11 +232,11 @@ def _plot_2d_radar_cams(
         activations.
     :param ggradcam_output_matrix: E-by-M-by-N-by-C numpy array of output values
         from guided Grad-CAM.
-    :param storm_ids: length-E list of storm IDs (strings).
+    :param full_id_strings: length-E list of full storm IDs.
     :param storm_times_unix_sec: length-E numpy array of storm times.
     """
 
-    pmm_flag = storm_ids is None and storm_times_unix_sec is None
+    pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     list_of_layer_operation_dicts = model_metadata_dict[
@@ -332,11 +332,11 @@ def _plot_2d_radar_cams(
                 storm_times_unix_sec[i], TIME_FORMAT)
 
             this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                storm_ids[i], this_storm_time_string)
+                full_id_strings[i], this_storm_time_string)
 
             this_figure_file_name = '{0:s}/{1:s}_{2:s}_{3:s}_radar.jpg'.format(
                 output_dir_name, pathless_file_name_prefix,
-                storm_ids[i].replace('_', '-'), this_storm_time_string)
+                full_id_strings[i].replace('_', '-'), this_storm_time_string)
 
         this_title_string += ' ({0:s} = {1:.3f})'.format(
             quantity_string, this_max_contour_level)
@@ -384,7 +384,7 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
         ggradcam_output_matrix = gradcam_dict.pop(gradcam.GUIDED_GRADCAM_KEY)
 
         gradcam_metadata_dict = gradcam_dict
-        storm_ids = gradcam_metadata_dict[gradcam.STORM_IDS_KEY]
+        full_id_strings = gradcam_metadata_dict[gradcam.FULL_IDS_KEY]
         storm_times_unix_sec = gradcam_metadata_dict[gradcam.STORM_TIMES_KEY]
 
     except ValueError:
@@ -413,7 +413,7 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
         orig_gradcam_dict.pop(gradcam.GUIDED_GRADCAM_KEY)
         gradcam_metadata_dict = orig_gradcam_dict
 
-        storm_ids = None
+        full_id_strings = None
         storm_times_unix_sec = None
 
     num_spatial_dimensions = len(class_activation_matrix.shape) - 1
@@ -440,7 +440,8 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
             cam_colour_map_object=cam_colour_map_object,
             max_colour_prctile_for_cam=max_colour_prctile_for_cam,
             output_dir_name=main_gradcam_dir_name,
-            storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
+            full_id_strings=full_id_strings,
+            storm_times_unix_sec=storm_times_unix_sec)
         print SEPARATOR_STRING
 
         _plot_3d_radar_cams(
@@ -450,7 +451,8 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
             cam_colour_map_object=cam_colour_map_object,
             max_colour_prctile_for_cam=max_colour_prctile_for_cam,
             output_dir_name=guided_gradcam_dir_name,
-            storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
+            full_id_strings=full_id_strings,
+            storm_times_unix_sec=storm_times_unix_sec)
 
     else:
         if len(list_of_input_matrices) == 3:
@@ -465,7 +467,8 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
             cam_colour_map_object=cam_colour_map_object,
             max_colour_prctile_for_cam=max_colour_prctile_for_cam,
             output_dir_name=main_gradcam_dir_name,
-            storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
+            full_id_strings=full_id_strings,
+            storm_times_unix_sec=storm_times_unix_sec)
         print SEPARATOR_STRING
 
         _plot_2d_radar_cams(
@@ -475,7 +478,8 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
             cam_colour_map_object=cam_colour_map_object,
             max_colour_prctile_for_cam=max_colour_prctile_for_cam,
             output_dir_name=guided_gradcam_dir_name,
-            storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
+            full_id_strings=full_id_strings,
+            storm_times_unix_sec=storm_times_unix_sec)
 
 
 if __name__ == '__main__':

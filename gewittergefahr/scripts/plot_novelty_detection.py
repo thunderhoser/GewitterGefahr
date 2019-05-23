@@ -73,7 +73,7 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_3d_radar(
         training_option_dict, output_dir_name, pmm_flag,
         diff_colour_map_object=None, max_colour_percentile_for_diff=None,
-        storm_ids=None, storm_time_strings=None, novel_radar_matrix=None,
+        full_id_strings=None, storm_time_strings=None, novel_radar_matrix=None,
         novel_radar_matrix_upconv=None, novel_radar_matrix_upconv_svd=None):
     """Plots results of novelty detection for 3-D radar fields.
 
@@ -108,8 +108,8 @@ def _plot_3d_radar(
         See documentation at top of file.
 
     :param max_colour_percentile_for_diff: Same.
-    :param storm_ids: [optional and used only if `pmm_flag = False`]
-        length-E list of storm IDs (strings).
+    :param full_id_strings: [optional and used only if `pmm_flag = False`]
+        length-E list of full storm IDs.
     :param storm_time_strings: [optional and used only if `pmm_flag = False`]
         length-E list of storm times.
     :param novel_radar_matrix: E-by-M-by-N-by-H-by-F numpy array of original
@@ -123,7 +123,9 @@ def _plot_3d_radar(
     if pmm_flag:
         have_storm_ids = False
     else:
-        have_storm_ids = not (storm_ids is None or storm_time_strings is None)
+        have_storm_ids = not (
+            full_id_strings is None or storm_time_strings is None
+        )
 
     plot_difference = False
 
@@ -168,10 +170,12 @@ def _plot_3d_radar(
         else:
             if have_storm_ids:
                 this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                    storm_ids[i], storm_time_strings[i])
+                    full_id_strings[i], storm_time_strings[i]
+                )
 
                 this_base_file_name = '{0:s}_{1:s}'.format(
-                    storm_ids[i].replace('_', '-'), storm_time_strings[i])
+                    full_id_strings[i].replace('_', '-'), storm_time_strings[i]
+                )
             else:
                 this_title_string = 'Example {0:d}'.format(i + 1)
                 this_base_file_name = 'example{0:06d}'.format(i)
@@ -225,7 +229,7 @@ def _plot_3d_radar(
 def _plot_2d_radar(
         model_metadata_dict, output_dir_name, pmm_flag,
         diff_colour_map_object=None, max_colour_percentile_for_diff=None,
-        storm_ids=None, storm_time_strings=None, novel_radar_matrix=None,
+        full_id_strings=None, storm_time_strings=None, novel_radar_matrix=None,
         novel_radar_matrix_upconv=None, novel_radar_matrix_upconv_svd=None):
     """Plots results of novelty detection for 2-D radar fields.
 
@@ -243,7 +247,7 @@ def _plot_2d_radar(
     :param pmm_flag: Same.
     :param diff_colour_map_object: Same.
     :param max_colour_percentile_for_diff: Same.
-    :param storm_ids: Same.
+    :param full_id_strings: Same.
     :param storm_time_strings: Same.
     :param novel_radar_matrix: E-by-M-by-N-by-C numpy array of original
         (not reconstructed) radar fields.
@@ -260,7 +264,9 @@ def _plot_2d_radar(
     if pmm_flag:
         have_storm_ids = False
     else:
-        have_storm_ids = not (storm_ids is None or storm_time_strings is None)
+        have_storm_ids = not (
+            full_id_strings is None or storm_time_strings is None
+        )
 
     plot_difference = False
 
@@ -328,10 +334,12 @@ def _plot_2d_radar(
         else:
             if have_storm_ids:
                 this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                    storm_ids[i], storm_time_strings[i])
+                    full_id_strings[i], storm_time_strings[i]
+                )
 
                 this_file_name = '{0:s}_{1:s}'.format(
-                    storm_ids[i].replace('_', '-'), storm_time_strings[i])
+                    full_id_strings[i].replace('_', '-'), storm_time_strings[i]
+                )
             else:
                 this_title_string = 'Example {0:d}'.format(i + 1)
                 this_file_name = 'example{0:06d}'.format(i)
@@ -445,7 +453,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             novelty_detection.NOVEL_IMAGES_UPCONV_SVD_KEY)
 
         novelty_metadata_dict = novelty_dict
-        storm_ids = novelty_metadata_dict[novelty_detection.TRIAL_STORM_IDS_KEY]
+        full_id_strings = novelty_metadata_dict[novelty_detection.TRIAL_IDS_KEY]
 
         storm_time_strings = [
             time_conversion.unix_sec_to_string(t, TIME_FORMAT) for t in
@@ -477,7 +485,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         novelty_metadata_dict.pop(novelty_detection.NOVEL_IMAGES_UPCONV_KEY)
         novelty_metadata_dict.pop(novelty_detection.NOVEL_IMAGES_UPCONV_SVD_KEY)
 
-        storm_ids = None
+        full_id_strings = None
         storm_time_strings = None
 
     novelty_metadata_dict.pop(novelty_detection.BASELINE_INPUTS_KEY)
@@ -498,21 +506,24 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         _plot_3d_radar(
             training_option_dict=training_option_dict,
             output_dir_name=actual_dir_name, pmm_flag=pmm_flag,
-            storm_ids=storm_ids, storm_time_strings=storm_time_strings,
+            full_id_strings=full_id_strings,
+            storm_time_strings=storm_time_strings,
             novel_radar_matrix=novel_radar_matrix)
         print SEPARATOR_STRING
 
         _plot_3d_radar(
             training_option_dict=training_option_dict,
             output_dir_name=upconv_dir_name, pmm_flag=pmm_flag,
-            storm_ids=storm_ids, storm_time_strings=storm_time_strings,
+            full_id_strings=full_id_strings,
+            storm_time_strings=storm_time_strings,
             novel_radar_matrix_upconv=novel_radar_matrix_upconv)
         print SEPARATOR_STRING
 
         _plot_3d_radar(
             training_option_dict=training_option_dict,
             output_dir_name=upconv_svd_dir_name, pmm_flag=pmm_flag,
-            storm_ids=storm_ids, storm_time_strings=storm_time_strings,
+            full_id_strings=full_id_strings,
+            storm_time_strings=storm_time_strings,
             novel_radar_matrix_upconv_svd=novel_radar_matrix_upconv_svd)
         print SEPARATOR_STRING
 
@@ -521,7 +532,8 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             diff_colour_map_object=diff_colour_map_object,
             max_colour_percentile_for_diff=max_colour_percentile_for_diff,
             output_dir_name=difference_dir_name, pmm_flag=pmm_flag,
-            storm_ids=storm_ids, storm_time_strings=storm_time_strings,
+            full_id_strings=full_id_strings,
+            storm_time_strings=storm_time_strings,
             novel_radar_matrix_upconv=novel_radar_matrix_upconv,
             novel_radar_matrix_upconv_svd=novel_radar_matrix_upconv_svd)
 
@@ -530,21 +542,21 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
     _plot_2d_radar(
         model_metadata_dict=model_metadata_dict,
         output_dir_name=actual_dir_name, pmm_flag=pmm_flag,
-        storm_ids=storm_ids, storm_time_strings=storm_time_strings,
+        full_id_strings=full_id_strings, storm_time_strings=storm_time_strings,
         novel_radar_matrix=novel_radar_matrix)
     print SEPARATOR_STRING
 
     _plot_2d_radar(
         model_metadata_dict=model_metadata_dict,
         output_dir_name=upconv_dir_name, pmm_flag=pmm_flag,
-        storm_ids=storm_ids, storm_time_strings=storm_time_strings,
+        full_id_strings=full_id_strings, storm_time_strings=storm_time_strings,
         novel_radar_matrix_upconv=novel_radar_matrix_upconv)
     print SEPARATOR_STRING
 
     _plot_2d_radar(
         model_metadata_dict=model_metadata_dict,
         output_dir_name=upconv_svd_dir_name, pmm_flag=pmm_flag,
-        storm_ids=storm_ids, storm_time_strings=storm_time_strings,
+        full_id_strings=full_id_strings, storm_time_strings=storm_time_strings,
         novel_radar_matrix_upconv_svd=novel_radar_matrix_upconv_svd)
     print SEPARATOR_STRING
 
@@ -553,7 +565,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         diff_colour_map_object=diff_colour_map_object,
         max_colour_percentile_for_diff=max_colour_percentile_for_diff,
         output_dir_name=difference_dir_name, pmm_flag=pmm_flag,
-        storm_ids=storm_ids, storm_time_strings=storm_time_strings,
+        full_id_strings=full_id_strings, storm_time_strings=storm_time_strings,
         novel_radar_matrix_upconv=novel_radar_matrix_upconv,
         novel_radar_matrix_upconv_svd=novel_radar_matrix_upconv_svd)
 

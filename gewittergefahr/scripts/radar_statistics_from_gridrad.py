@@ -84,24 +84,27 @@ def _compute_radar_stats_from_gridrad(
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    tracking_file_names, _ = tracking_io.find_processed_files_one_spc_date(
+    tracking_file_names = tracking_io.find_files_one_spc_date(
         spc_date_string=spc_date_string,
-        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-        top_processed_dir_name=top_tracking_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2)
+        source_name=tracking_utils.SEGMOTION_NAME,
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2
+    )[0]
 
-    storm_object_table = tracking_io.read_many_processed_files(
+    storm_object_table = tracking_io.read_many_files(
         tracking_file_names)
     print SEPARATOR_STRING
 
     storm_object_statistic_table = (
         radar_statistics.get_storm_based_radar_stats_gridrad(
             storm_object_table=storm_object_table,
-            top_radar_dir_name=top_gridrad_dir_name))
+            top_radar_dir_name=top_gridrad_dir_name)
+    )
     print SEPARATOR_STRING
 
     output_file_name = '{0:s}/radar_stats_for_storm_objects_{1:s}.p'.format(
         output_dir_name, spc_date_string)
+
     print 'Writing radar statistics to file: "{0:s}"...'.format(
         output_file_name)
     radar_statistics.write_stats_for_storm_objects(

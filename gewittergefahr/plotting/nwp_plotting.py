@@ -118,7 +118,7 @@ def _get_grid_point_coords(
             nwp_model_utils.get_projection_params(model_name)
         )
 
-        projection_object = projections.init_lambert_conformal_projection(
+        projection_object = projections.init_lcc_projection(
             standard_latitudes_deg=standard_latitudes_deg,
             central_longitude_deg=central_longitude_deg)
 

@@ -196,7 +196,7 @@ def _run(top_storm_image_dir_name, radar_source, num_radar_dimensions,
          last_spc_date_string, top_target_dir_name, target_name,
          top_sounding_dir_name, sounding_lag_time_sec, num_examples_per_in_file,
          top_output_dir_name, class_fraction_keys, class_fraction_values):
-    """Runs `input_examples.shuffle_and_write_examples`.
+    """Creates input examples and writes them to unshuffled files.
 
     This is effectively the main method.
 

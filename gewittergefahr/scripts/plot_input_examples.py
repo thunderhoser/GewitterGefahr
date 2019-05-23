@@ -143,7 +143,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def plot_examples(
-        list_of_predictor_matrices, storm_ids, storm_times_unix_sec,
+        list_of_predictor_matrices, full_id_strings, storm_times_unix_sec,
         model_metadata_dict, output_dir_name, storm_activations=None):
     """Plots one or more learning examples.
 
@@ -151,7 +151,7 @@ def plot_examples(
 
     :param list_of_predictor_matrices: List created by
         `testing_io.read_specific_examples`.  Contains data to be plotted.
-    :param storm_ids: length-E list of storm IDs.
+    :param full_id_strings: length-E list of full storm IDs.
     :param storm_times_unix_sec: length-E numpy array of storm times.
     :param model_metadata_dict: See doc for `cnn.read_model_metadata`.
     :param output_dir_name: Name of output directory (figures will be saved
@@ -208,21 +208,24 @@ def plot_examples(
     az_shear_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     num_az_shear_fields = len(az_shear_field_names)
 
-    num_storms = len(storm_ids)
+    num_storms = len(full_id_strings)
     myrorss_2d3d = len(list_of_predictor_matrices) == 3
 
     for i in range(num_storms):
         this_time_string = time_conversion.unix_sec_to_string(
             storm_times_unix_sec[i], TIME_FORMAT)
         this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
-            storm_ids[i], this_time_string)
+            full_id_strings[i], this_time_string)
 
         if storm_activations is not None:
             this_base_title_string += ' (activation = {0:.3f})'.format(
-                storm_activations[i])
+                storm_activations[i]
+            )
 
         this_base_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
-            output_dir_name, storm_ids[i].replace('_', '-'), this_time_string)
+            output_dir_name, full_id_strings[i].replace('_', '-'),
+            this_time_string
+        )
 
         if plot_soundings:
             sounding_plotting.plot_sounding(
@@ -236,7 +239,8 @@ def plot_examples(
 
         if myrorss_2d3d:
             this_reflectivity_matrix_dbz = numpy.flip(
-                list_of_predictor_matrices[0][i, ..., 0], axis=0)
+                list_of_predictor_matrices[0][i, ..., 0], axis=0
+            )
 
             this_num_heights = this_reflectivity_matrix_dbz.shape[-1]
             this_num_panel_rows = int(numpy.floor(numpy.sqrt(this_num_heights)))
@@ -271,7 +275,8 @@ def plot_examples(
             pyplot.close()
 
             this_az_shear_matrix_s01 = numpy.flip(
-                list_of_predictor_matrices[1][i, ..., 0], axis=0)
+                list_of_predictor_matrices[1][i, ..., 0], axis=0
+            )
 
             _, these_axes_objects = (
                 radar_plotting.plot_many_2d_grids_without_coords(
@@ -295,8 +300,9 @@ def plot_examples(
                 colour_norm_object=this_colour_norm_object,
                 orientation='horizontal', extend_min=True, extend_max=True)
 
-            this_file_name = '{0:s}_shear.jpg'.format(this_base_file_name)
             pyplot.suptitle(this_base_title_string, fontsize=TITLE_FONT_SIZE)
+
+            this_file_name = '{0:s}_shear.jpg'.format(this_base_file_name)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -359,7 +365,8 @@ def plot_examples(
                 orientation='horizontal', extend_min=True, extend_max=True)
 
             this_title_string = '{0:s}; {1:s}'.format(
-                this_base_title_string, radar_field_names[j])
+                this_base_title_string, radar_field_names[j]
+            )
             this_file_name = '{0:s}_{1:s}.jpg'.format(
                 this_base_file_name, radar_field_names[j].replace('_', '-')
             )
@@ -400,7 +407,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
     if activation_file_name is None:
         print 'Reading data from: "{0:s}"...'.format(storm_metafile_name)
-        storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
+        full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
             storm_metafile_name)
 
         training_option_dict = dict()
@@ -443,7 +450,8 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
             raise TypeError(error_string)
 
-        storm_ids = activation_metadata_dict[model_activation.STORM_IDS_KEY]
+        full_id_strings = activation_metadata_dict[
+            model_activation.FULL_IDS_KEY]
         storm_times_unix_sec = activation_metadata_dict[
             model_activation.STORM_TIMES_KEY]
         storm_activations = activation_matrix[:, 0]
@@ -451,7 +459,8 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         model_file_name = activation_metadata_dict[
             model_activation.MODEL_FILE_NAME_KEY]
         model_metafile_name = '{0:s}/model_metadata.p'.format(
-            os.path.split(model_file_name)[0])
+            os.path.split(model_file_name)[0]
+        )
 
         print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
         model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
@@ -469,15 +478,16 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
         model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
 
-    if 0 < num_examples < len(storm_ids):
-        storm_ids = storm_ids[:num_examples]
+    if 0 < num_examples < len(full_id_strings):
+        full_id_strings = full_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
+
         if storm_activations is not None:
             storm_activations = storm_activations[:num_examples]
 
     print SEPARATOR_STRING
     list_of_predictor_matrices = testing_io.read_specific_examples(
-        desired_storm_ids=storm_ids,
+        desired_full_id_strings=full_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
         top_example_dir_name=top_example_dir_name,
@@ -488,7 +498,8 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
     plot_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
-        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+        full_id_strings=full_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec,
         storm_activations=storm_activations,
         model_metadata_dict=model_metadata_dict,
         output_dir_name=output_dir_name)

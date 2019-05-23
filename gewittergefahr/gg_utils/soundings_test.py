@@ -129,7 +129,7 @@ THIS_DICT = {
 FIELD_NAME_TABLE_NO_SURFACE = pandas.DataFrame.from_dict(THIS_DICT)
 
 # The following constants are used to test _create_target_points_for_interp.
-THESE_STORM_IDS = ['A', 'B', 'C', 'A', 'B', 'C']
+THESE_FULL_ID_STRINGS = ['A', 'B', 'C', 'A', 'B', 'C']
 THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 1, 1, 1], dtype=int)
 THESE_LATITUDES_DEG = numpy.array([50, 55, 60, 51, 56, 61], dtype=float)
 THESE_LONGITUDES_DEG = numpy.array([250, 260, 270, 251, 261, 271], dtype=float)
@@ -137,10 +137,10 @@ THESE_EAST_VELOCITIES_M_S01 = numpy.full(6, 10000, dtype=float)
 THESE_NORTH_VELOCITIES_M_S01 = numpy.full(6, 10000, dtype=float)
 
 THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG,
+    tracking_utils.FULL_ID_COLUMN: THESE_FULL_ID_STRINGS,
+    tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.CENTROID_LATITUDE_COLUMN: THESE_LATITUDES_DEG,
+    tracking_utils.CENTROID_LONGITUDE_COLUMN: THESE_LONGITUDES_DEG,
     tracking_utils.EAST_VELOCITY_COLUMN: THESE_EAST_VELOCITIES_M_S01,
     tracking_utils.NORTH_VELOCITY_COLUMN: THESE_NORTH_VELOCITIES_M_S01
 }
@@ -148,28 +148,35 @@ DUMMY_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
 UNIQUE_LEAD_TIMES_SECONDS = numpy.array([0, 1], dtype=int)
 
-THESE_STORM_IDS = ['A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C']
+THESE_FULL_ID_STRINGS = [
+    'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C'
+]
 THESE_INIT_TIMES_UNIX_SEC = numpy.array(
-    [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1], dtype=int)
-THESE_LATITUDES_DEG = numpy.array(
-    [50, 55, 60, 51, 56, 61, 50.08981978, 55.08972691, 60.08963404, 51.08980123,
-     56.08970834, 61.08961544], dtype=float)
-THESE_LONGITUDES_DEG = numpy.array(
-    [250, 260, 270, 251, 261, 271, 250.13973873, 260.15661394, 270.17969769,
-     251.14273048, 261.16064721, 271.18533962], dtype=float)
+    [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1], dtype=int
+)
+THESE_LATITUDES_DEG = numpy.array([
+    50, 55, 60, 51, 56, 61, 50.08981978, 55.08972691, 60.08963404, 51.08980123,
+    56.08970834, 61.08961544
+], dtype=float)
+THESE_LONGITUDES_DEG = numpy.array([
+    250, 260, 270, 251, 261, 271, 250.13973873, 260.15661394, 270.17969769,
+    251.14273048, 261.16064721, 271.18533962
+], dtype=float)
 THESE_VALID_TIMES_UNIX_SEC = numpy.array(
-    [0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2], dtype=int)
+    [0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2], dtype=int
+)
 THESE_LEAD_TIMES_SECONDS = numpy.array(
-    [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1], dtype=int)
+    [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1], dtype=int
+)
 THESE_EAST_VELOCITIES_M_S01 = numpy.full(12, 10000, dtype=float)
 THESE_NORTH_VELOCITIES_M_S01 = numpy.full(12, 10000, dtype=float)
 
 THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.FULL_ID_COLUMN: THESE_FULL_ID_STRINGS,
     soundings.INITIAL_TIME_COLUMN: THESE_INIT_TIMES_UNIX_SEC,
-    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG,
-    soundings.VALID_TIME_COLUMN: THESE_VALID_TIMES_UNIX_SEC,
+    tracking_utils.CENTROID_LATITUDE_COLUMN: THESE_LATITUDES_DEG,
+    tracking_utils.CENTROID_LONGITUDE_COLUMN: THESE_LONGITUDES_DEG,
+    soundings.FORECAST_TIME_COLUMN: THESE_VALID_TIMES_UNIX_SEC,
     soundings.LEAD_TIME_KEY: THESE_LEAD_TIMES_SECONDS,
     tracking_utils.EAST_VELOCITY_COLUMN: THESE_EAST_VELOCITIES_M_S01,
     tracking_utils.NORTH_VELOCITY_COLUMN: THESE_NORTH_VELOCITIES_M_S01
@@ -177,16 +184,19 @@ THIS_DICT = {
 DUMMY_TARGET_POINT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
 # The following constants are used to test _convert_interp_table_to_soundings.
-THIS_MATRIX = numpy.array(
-    [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
-     [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]], dtype=float)
+THIS_MATRIX = numpy.array([
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+    [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
+], dtype=float)
+
 INTERP_TABLE_NO_SURFACE = pandas.DataFrame(THIS_MATRIX)
 
-THESE_STORM_IDS = ['a', 'b']
+THESE_FULL_ID_STRINGS = ['a', 'b']
 THESE_INIT_TIMES_UNIX_SEC = numpy.array([10, 10], dtype=int)
 THESE_LEAD_TIMES_SECONDS = numpy.array([5, 5], dtype=int)
+
 THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.FULL_ID_COLUMN: THESE_FULL_ID_STRINGS,
     soundings.INITIAL_TIME_COLUMN: THESE_INIT_TIMES_UNIX_SEC,
     soundings.LEAD_TIME_KEY: THESE_LEAD_TIMES_SECONDS
 }
@@ -194,16 +204,24 @@ TARGET_POINT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
 for k in range(len(FIELD_NAMES_NO_SURFACE)):
     INTERP_TABLE_NO_SURFACE.rename(
-        columns={k: FIELD_NAMES_NO_SURFACE[k]}, inplace=True)
+        columns={k: FIELD_NAMES_NO_SURFACE[k]}, inplace=True
+    )
 
-THIS_FIRST_MATRIX = numpy.array([[0, 6, 3, 9, 12],
-                                 [1, 7, 4, 10, 13],
-                                 [2, 8, 5, 11, 14]], dtype=int)
-THIS_SECOND_MATRIX = numpy.array([[2, 14, 8, 20, 26],
-                                  [4, 16, 10, 22, 28],
-                                  [6, 18, 12, 24, 30]], dtype=int)
+THIS_FIRST_MATRIX = numpy.array([
+    [0, 6, 3, 9, 12],
+    [1, 7, 4, 10, 13],
+    [2, 8, 5, 11, 14]
+], dtype=int)
+
+THIS_SECOND_MATRIX = numpy.array([
+    [2, 14, 8, 20, 26],
+    [4, 16, 10, 22, 28],
+    [6, 18, 12, 24, 30]
+], dtype=int)
+
 THIS_SOUNDING_MATRIX = numpy.stack(
-    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0
+)
 
 THESE_PRESSURE_LEVELS_MB = numpy.array([950, 975, 1000])
 THESE_FIELD_NAMES = [
@@ -215,7 +233,7 @@ THESE_FIELD_NAMES = [
 ]
 
 SOUNDING_DICT_P_COORDS_NO_SURFACE = {
-    soundings.STORM_IDS_KEY: THESE_STORM_IDS,
+    soundings.FULL_IDS_KEY: THESE_FULL_ID_STRINGS,
     soundings.INITIAL_TIMES_KEY: THESE_INIT_TIMES_UNIX_SEC,
     soundings.LEAD_TIMES_KEY: THESE_LEAD_TIMES_SECONDS,
     soundings.SOUNDING_MATRIX_KEY: THIS_SOUNDING_MATRIX,
@@ -224,33 +242,43 @@ SOUNDING_DICT_P_COORDS_NO_SURFACE = {
     soundings.FIELD_NAMES_KEY: THESE_FIELD_NAMES
 }
 
-THIS_MATRIX = numpy.array(
-    [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-      2000],
-     [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38,
-      40, 4200]], dtype=float)
+THIS_MATRIX = numpy.array([
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+     2000],
+    [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40,
+     4200]
+], dtype=float)
+
 INTERP_TABLE_WITH_SURFACE = pandas.DataFrame(THIS_MATRIX)
 
 for k in range(len(FIELD_NAMES_WITH_SURFACE)):
     INTERP_TABLE_WITH_SURFACE.rename(
-        columns={k: FIELD_NAMES_WITH_SURFACE[k]}, inplace=True)
+        columns={k: FIELD_NAMES_WITH_SURFACE[k]}, inplace=True
+    )
 
-THIS_FIRST_MATRIX = numpy.array([[0, 8, 4, 12, 16],
-                                 [1, 9, 5, 13, 17],
-                                 [2, 10, 6, 14, 18],
-                                 [3, 11, 7, 15, 19]], dtype=int)
-THIS_SECOND_MATRIX = numpy.array([[2, 18, 10, 26, 34],
-                                  [4, 20, 12, 28, 36],
-                                  [6, 22, 14, 30, 38],
-                                  [8, 24, 16, 32, 40]], dtype=int)
+THIS_FIRST_MATRIX = numpy.array([
+    [0, 8, 4, 12, 16],
+    [1, 9, 5, 13, 17],
+    [2, 10, 6, 14, 18],
+    [3, 11, 7, 15, 19]
+], dtype=int)
+
+THIS_SECOND_MATRIX = numpy.array([
+    [2, 18, 10, 26, 34],
+    [4, 20, 12, 28, 36],
+    [6, 22, 14, 30, 38],
+    [8, 24, 16, 32, 40]
+], dtype=int)
+
 THIS_SOUNDING_MATRIX = numpy.stack(
-    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0
+)
 
 THESE_PRESSURE_LEVELS_MB = numpy.array([950, 975, 1000, numpy.nan])
 THESE_SURFACE_PRESSURES_MB = numpy.array([20, 42])
 
 SOUNDING_DICT_P_COORDS_WITH_SURFACE = {
-    soundings.STORM_IDS_KEY: THESE_STORM_IDS,
+    soundings.FULL_IDS_KEY: THESE_FULL_ID_STRINGS,
     soundings.INITIAL_TIMES_KEY: THESE_INIT_TIMES_UNIX_SEC,
     soundings.LEAD_TIMES_KEY: THESE_LEAD_TIMES_SECONDS,
     soundings.SOUNDING_MATRIX_KEY: THIS_SOUNDING_MATRIX,
@@ -260,19 +288,24 @@ SOUNDING_DICT_P_COORDS_WITH_SURFACE = {
 }
 
 # The following constants are used to test _get_pressures.
-PRESSURE_MATRIX_NO_SURFACE_PASCALS = numpy.array([[95000, 97500, 100000],
-                                                  [95000, 97500, 100000]])
-PRESSURE_MATRIX_WITH_SURFACE_PASCALS = numpy.array(
-    [[95000, 97500, 100000, 2000],
-     [95000, 97500, 100000, 4200]])
+PRESSURE_MATRIX_NO_SURFACE_PASCALS = numpy.array([
+    [95000, 97500, 100000],
+    [95000, 97500, 100000]
+])
+
+PRESSURE_MATRIX_WITH_SURFACE_PASCALS = numpy.array([
+    [95000, 97500, 100000, 2000],
+    [95000, 97500, 100000, 4200]
+])
 
 # The following constants are used to test _relative_to_specific_humidity.
 THESE_HEIGHTS_METRES = numpy.array([400, 300, 200, 100, 0])
-THESE_TEMPERATURES_KELVINS = numpy.array(
-    [273.15, 278.15, 283.15, 288.15, 298.15])
+THESE_TEMPERATURES_KELVINS = numpy.array([
+    273.15, 278.15, 283.15, 288.15, 298.15
+])
 THESE_U_WINDS_M_S01 = numpy.array([-10, -5, 0, 5, 10])
 THESE_V_WINDS_M_S01 = numpy.array([20, 30, -40, 15, 7.2])
-THESE_SPEC_HUMIDITIES_KG_KG01 = numpy.array([0.1, 1., 5., 10., 20.]) * 1e-3
+THESE_SPEC_HUMIDITIES_KG_KG01 = 0.001 * numpy.array([0.1, 1., 5., 10., 20.])
 
 THESE_PRESSURES_PASCALS = numpy.array([99000, 100000, 101000, 102000, 103000])
 PRESSURE_MATRIX_PASCALS = numpy.reshape(THESE_PRESSURES_PASCALS, (1, 5))
@@ -310,7 +343,8 @@ SOUNDING_DICT_P_COORDS_NO_SPFH = {
 
 THIS_NEW_MATRIX = numpy.reshape(THESE_SPEC_HUMIDITIES_KG_KG01, (1, 5, 1))
 THIS_SOUNDING_MATRIX = numpy.concatenate(
-    (THIS_SOUNDING_MATRIX, THIS_NEW_MATRIX), axis=-1)
+    (THIS_SOUNDING_MATRIX, THIS_NEW_MATRIX), axis=-1
+)
 THIS_SOUNDING_MATRIX[..., 1] = THIS_SOUNDING_MATRIX[..., 1] / 100
 
 THESE_FIELD_NAMES = [
@@ -350,13 +384,15 @@ SOUNDING_DICT_P_COORDS_NO_RH = {
 
 THIS_NEW_MATRIX = numpy.reshape(THESE_RELATIVE_HUMIDITIES, (1, 5, 1))
 THIS_SOUNDING_MATRIX = numpy.concatenate(
-    (THIS_SOUNDING_MATRIX, THIS_NEW_MATRIX), axis=-1)
+    (THIS_SOUNDING_MATRIX, THIS_NEW_MATRIX), axis=-1
+)
 NEW_FIELD_NAMES = THESE_FIELD_NAMES + [soundings.RELATIVE_HUMIDITY_NAME]
 
 SOUNDING_DICT_P_COORDS_WITH_RH = {
     soundings.SOUNDING_MATRIX_KEY: THIS_SOUNDING_MATRIX,
     soundings.FIELD_NAMES_KEY: NEW_FIELD_NAMES
 }
+
 SOUNDING_DICT_P_COORDS_NO_THETA_V = {
     soundings.SOUNDING_MATRIX_KEY: THIS_SOUNDING_MATRIX,
     soundings.FIELD_NAMES_KEY: NEW_FIELD_NAMES
@@ -366,12 +402,14 @@ SOUNDING_DICT_P_COORDS_NO_THETA_V = {
 THESE_VAPOUR_PRESSURES_PASCALS = (
     moisture_conversions.dewpoint_to_vapour_pressure(THESE_DEWPOINTS_KELVINS)
 )
+
 THESE_VIRTUAL_TEMPS_KELVINS = (
     moisture_conversions.temperature_to_virtual_temperature(
         temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
         total_pressures_pascals=THESE_PRESSURES_PASCALS,
         vapour_pressures_pascals=THESE_VAPOUR_PRESSURES_PASCALS)
 )
+
 THESE_THETA_V_KELVINS = (
     temperature_conversions.temperatures_to_potential_temperatures(
         temperatures_kelvins=THESE_VIRTUAL_TEMPS_KELVINS,
@@ -380,7 +418,8 @@ THESE_THETA_V_KELVINS = (
 
 THIS_NEW_MATRIX = numpy.reshape(THESE_THETA_V_KELVINS, (1, 5, 1))
 THIS_SOUNDING_MATRIX = numpy.concatenate(
-    (THIS_SOUNDING_MATRIX, THIS_NEW_MATRIX), axis=-1)
+    (THIS_SOUNDING_MATRIX, THIS_NEW_MATRIX), axis=-1
+)
 
 NEW_FIELD_NAMES = THESE_FIELD_NAMES + [
     soundings.RELATIVE_HUMIDITY_NAME,
@@ -393,47 +432,54 @@ SOUNDING_DICT_P_COORDS_WITH_THETA_V = {
 }
 
 # The following constants are used to test _fill_nans_in_soundings.
-THESE_PRESSURE_LEVELS_MB = numpy.array(
-    [500, 600, 700, 850, 925, 1000, numpy.nan])
+THESE_PRESSURE_LEVELS_MB = numpy.array([
+    500, 600, 700, 850, 925, 1000, numpy.nan
+])
 THESE_SURFACE_PRESSURES_MB = numpy.array([965, 1000])
-PRESSURE_MATRIX_FOR_NAN_FILL_PASCALS = numpy.array(
-    [[50000, 60000, 70000, 85000, 92500, 100000, 96500],
-     [50000, 60000, 70000, 85000, 92500, 100000, 100000]])
+PRESSURE_MATRIX_FOR_NAN_FILL_PASCALS = numpy.array([
+    [50000, 60000, 70000, 85000, 92500, 100000, 96500],
+    [50000, 60000, 70000, 85000, 92500, 100000, 100000]
+])
 
 THESE_HEIGHTS_METRES = numpy.array([5700, numpy.nan, 3090, 1500, 770, 0, 385])
 THESE_U_WINDS_M_S01 = numpy.array([numpy.nan, 30, 20, 10, 0, -10, numpy.nan])
 THESE_V_WINDS_M_S01 = numpy.array([30, 25, 20, numpy.nan, 10, 5, 0])
-THESE_TEMPERATURES_KELVINS = numpy.array(
-    [numpy.nan, numpy.nan, 275, numpy.nan, 290, 300, 301])
-THESE_SPEC_HUMIDITIES_KG_KG01 = numpy.array(
-    [0.001, 0.002, numpy.nan, numpy.nan, 0.005, numpy.nan, numpy.nan])
+THESE_TEMPERATURES_KELVINS = numpy.array([
+    numpy.nan, numpy.nan, 275, numpy.nan, 290, 300, 301
+])
+THESE_SPEC_HUMIDITIES_KG_KG01 = numpy.array([
+    0.001, 0.002, numpy.nan, numpy.nan, 0.005, numpy.nan, numpy.nan
+])
 
 THESE_FIELD_NAMES = [
     soundings.GEOPOTENTIAL_HEIGHT_NAME, soundings.U_WIND_NAME,
     soundings.V_WIND_NAME, soundings.TEMPERATURE_NAME,
     soundings.SPECIFIC_HUMIDITY_NAME
 ]
+
 THIS_FIRST_MATRIX = numpy.transpose(numpy.vstack(
     (THESE_HEIGHTS_METRES, THESE_U_WINDS_M_S01, THESE_V_WINDS_M_S01,
      THESE_TEMPERATURES_KELVINS, THESE_SPEC_HUMIDITIES_KG_KG01)
 ))
 
-THESE_HEIGHTS_METRES = numpy.array(
-    [numpy.nan, numpy.nan, numpy.nan, 1600, numpy.nan, numpy.nan, numpy.nan])
+THESE_HEIGHTS_METRES = numpy.array([
+    numpy.nan, numpy.nan, numpy.nan, 1600, numpy.nan, numpy.nan, numpy.nan
+])
 THIS_SECOND_MATRIX = numpy.transpose(numpy.vstack(
     (THESE_HEIGHTS_METRES, THESE_U_WINDS_M_S01, THESE_V_WINDS_M_S01,
      THESE_TEMPERATURES_KELVINS, THESE_SPEC_HUMIDITIES_KG_KG01)
 ))
 
 THIS_SOUNDING_MATRIX = numpy.stack(
-    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0
+)
 
-THESE_STORM_IDS = ['c', 'd']
+THESE_FULL_ID_STRINGS = ['c', 'd']
 THESE_INIT_TIMES_UNIX_SEC = numpy.array([6, 6], dtype=int)
 THESE_LEAD_TIMES_SECONDS = numpy.array([1, 1], dtype=int)
 
 SOUNDING_DICT_P_COORDS_WITH_NANS = {
-    soundings.STORM_IDS_KEY: THESE_STORM_IDS,
+    soundings.FULL_IDS_KEY: THESE_FULL_ID_STRINGS,
     soundings.INITIAL_TIMES_KEY: THESE_INIT_TIMES_UNIX_SEC,
     soundings.LEAD_TIMES_KEY: THESE_LEAD_TIMES_SECONDS,
     soundings.SOUNDING_MATRIX_KEY: THIS_SOUNDING_MATRIX,
@@ -442,14 +488,17 @@ SOUNDING_DICT_P_COORDS_WITH_NANS = {
     soundings.SURFACE_PRESSURES_KEY: THESE_SURFACE_PRESSURES_MB
 }
 
-THESE_HEIGHTS_METRES = numpy.array(
-    [5700, 4285.73988745, 3090, 1500, 770, 0, 385])
+THESE_HEIGHTS_METRES = numpy.array([
+    5700, 4285.73988745, 3090, 1500, 770, 0, 385
+])
 THESE_U_WINDS_M_S01 = numpy.array([41.82748964, 30, 20, 10, 0, -10, -5])
 THESE_V_WINDS_M_S01 = numpy.array([30, 25, 20, 13.14655172, 10, 5, 0])
-THESE_TEMPERATURES_KELVINS = numpy.array(
-    [258.125, 267.26892314, 275, 285.28017241, 290, 300, 301])
-THESE_SPEC_HUMIDITIES_KG_KG01 = numpy.array(
-    [0.001, 0.002, 0.00302033, 0.00437709, 0.005, 0.00565705, 0.00532852])
+THESE_TEMPERATURES_KELVINS = numpy.array([
+    258.125, 267.26892314, 275, 285.28017241, 290, 300, 301
+])
+THESE_SPEC_HUMIDITIES_KG_KG01 = numpy.array([
+    0.001, 0.002, 0.00302033, 0.00437709, 0.005, 0.00565705, 0.00532852
+])
 
 THIS_SOUNDING_MATRIX = numpy.transpose(numpy.vstack(
     (THESE_HEIGHTS_METRES, THESE_U_WINDS_M_S01, THESE_V_WINDS_M_S01,
@@ -457,13 +506,13 @@ THIS_SOUNDING_MATRIX = numpy.transpose(numpy.vstack(
 ))
 THIS_SOUNDING_MATRIX = numpy.expand_dims(THIS_SOUNDING_MATRIX, 0)
 
-THESE_STORM_IDS = ['c']
+THESE_FULL_ID_STRINGS = ['c']
 THESE_INIT_TIMES_UNIX_SEC = numpy.array([6], dtype=int)
 THESE_LEAD_TIMES_SECONDS = numpy.array([1], dtype=int)
 THESE_SURFACE_PRESSURES_MB = numpy.array([965])
 
 SOUNDING_DICT_P_COORDS_NO_NANS = {
-    soundings.STORM_IDS_KEY: THESE_STORM_IDS,
+    soundings.FULL_IDS_KEY: THESE_FULL_ID_STRINGS,
     soundings.INITIAL_TIMES_KEY: THESE_INIT_TIMES_UNIX_SEC,
     soundings.LEAD_TIMES_KEY: THESE_LEAD_TIMES_SECONDS,
     soundings.SOUNDING_MATRIX_KEY: THIS_SOUNDING_MATRIX,
@@ -475,39 +524,46 @@ SOUNDING_DICT_P_COORDS_NO_NANS = {
 # The following constants are used to test _pressure_to_height_coords.
 THESE_STORM_ELEVATIONS_M_ASL = numpy.array([385])
 SOUNDING_DICT_PRESSURE_COORDS = copy.deepcopy(SOUNDING_DICT_P_COORDS_NO_NANS)
-SOUNDING_DICT_PRESSURE_COORDS.update(
-    {soundings.STORM_ELEVATIONS_KEY: THESE_STORM_ELEVATIONS_M_ASL})
+SOUNDING_DICT_PRESSURE_COORDS.update({
+    soundings.STORM_ELEVATIONS_KEY: THESE_STORM_ELEVATIONS_M_ASL
+})
 
 HEIGHT_LEVELS_M_AGL = numpy.array([0, 385, 1115, 1910, 2705])
 THESE_PRESSURES_PASCALS = numpy.array([96500, 92500, 85000, 77136.2431, 70000])
 THESE_U_WINDS_M_S01 = numpy.array([-5, 0, 10, 15.2425046, 20])
 THESE_V_WINDS_M_S01 = numpy.array([0, 10, 13.14655172, 16.7394751, 20])
-THESE_TEMPERATURES_KELVINS = numpy.array(
-    [301, 290, 285.28017241, 279.890787, 275])
-THESE_SPEC_HUMIDITIES_KG_KG01 = numpy.array(
-    [0.00532852, 0.005, 0.00437709, 0.00366580795, 0.00302033])
+THESE_TEMPERATURES_KELVINS = numpy.array([
+    301, 290, 285.28017241, 279.890787, 275
+])
+THESE_SPEC_HUMIDITIES_KG_KG01 = numpy.array([
+    0.00532852, 0.005, 0.00437709, 0.00366580795, 0.00302033
+])
 
 THESE_DEWPOINTS_KELVINS = (
     moisture_conversions.specific_humidity_to_dewpoint(
         specific_humidities_kg_kg01=THESE_SPEC_HUMIDITIES_KG_KG01,
         total_pressures_pascals=THESE_PRESSURES_PASCALS)
 )
+
 THESE_RELATIVE_HUMIDITIES = (
     moisture_conversions.dewpoint_to_relative_humidity(
         dewpoints_kelvins=THESE_DEWPOINTS_KELVINS,
         temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
         total_pressures_pascals=THESE_PRESSURES_PASCALS)
 )
+
 THESE_VAPOUR_PRESSURES_PASCALS = (
     moisture_conversions.dewpoint_to_vapour_pressure(
         THESE_DEWPOINTS_KELVINS)
 )
+
 THESE_VIRTUAL_TEMPS_KELVINS = (
     moisture_conversions.temperature_to_virtual_temperature(
         temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
         total_pressures_pascals=THESE_PRESSURES_PASCALS,
         vapour_pressures_pascals=THESE_VAPOUR_PRESSURES_PASCALS)
 )
+
 THESE_THETA_V_KELVINS = (
     temperature_conversions.temperatures_to_potential_temperatures(
         temperatures_kelvins=THESE_VIRTUAL_TEMPS_KELVINS,
@@ -520,15 +576,17 @@ THESE_FIELD_NAMES = [
     soundings.RELATIVE_HUMIDITY_NAME,
     soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
+
 THIS_SOUNDING_MATRIX = numpy.transpose(numpy.vstack(
     (THESE_PRESSURES_PASCALS, THESE_U_WINDS_M_S01, THESE_V_WINDS_M_S01,
      THESE_TEMPERATURES_KELVINS, THESE_SPEC_HUMIDITIES_KG_KG01,
      THESE_RELATIVE_HUMIDITIES, THESE_THETA_V_KELVINS)
 ))
+
 THIS_SOUNDING_MATRIX = numpy.expand_dims(THIS_SOUNDING_MATRIX, 0)
 
 SOUNDING_DICT_HEIGHT_COORDS = {
-    soundings.STORM_IDS_KEY: THESE_STORM_IDS,
+    soundings.FULL_IDS_KEY: THESE_FULL_ID_STRINGS,
     soundings.INITIAL_TIMES_KEY: THESE_INIT_TIMES_UNIX_SEC,
     soundings.LEAD_TIMES_KEY: THESE_LEAD_TIMES_SECONDS,
     soundings.STORM_ELEVATIONS_KEY: THESE_STORM_ELEVATIONS_M_ASL,
@@ -568,10 +626,12 @@ FILE_TIME_UNIX_SEC = 1529374673
 
 SOUNDING_FILE_NAME_ONE_TIME = (
     'storm_soundings/2018/20180618/'
-    'storm_soundings_2018-06-19-021753_lead-time-03600sec_lag-time-1800sec.nc')
+    'storm_soundings_2018-06-19-021753_lead-time-03600sec_lag-time-1800sec.nc'
+)
 SOUNDING_FILE_NAME_ONE_SPC_DATE = (
     'storm_soundings/2018/storm_soundings_20180618_lead-time-03600sec'
-    '_lag-time-1800sec.nc')
+    '_lag-time-1800sec.nc'
+)
 
 
 def _compare_target_point_tables(
@@ -589,7 +649,7 @@ def _compare_target_point_tables(
         return False
 
     for this_column_name in first_column_names:
-        if this_column_name == tracking_utils.STORM_ID_COLUMN:
+        if this_column_name == tracking_utils.FULL_ID_COLUMN:
             are_columns_equal = numpy.array_equal(
                 first_target_point_table[this_column_name].values,
                 second_target_point_table[this_column_name].values)
@@ -623,7 +683,7 @@ def _compare_sounding_dictionaries(first_sounding_dict, second_sounding_dict):
         return False
 
     for this_key in first_sounding_dict.keys():
-        if this_key in [soundings.FIELD_NAMES_KEY, soundings.STORM_IDS_KEY]:
+        if this_key in [soundings.FIELD_NAMES_KEY, soundings.FULL_IDS_KEY]:
             if first_sounding_dict[this_key] != second_sounding_dict[this_key]:
                 return False
 
@@ -651,15 +711,19 @@ class SoundingsTests(unittest.TestCase):
         In this case, return_table = False and include_surface = False.
         """
 
-        (these_field_names, these_field_names_grib1, _
-        ) = soundings._get_nwp_fields_for_sounding(
-            model_name=MODEL_NAME, return_table=False,
-            minimum_pressure_mb=MINIMUM_PRESSURE_MB, include_surface=False)
+        these_field_names, these_field_names_grib1 = (
+            soundings._get_nwp_fields_for_sounding(
+                model_name=MODEL_NAME, return_table=False,
+                minimum_pressure_mb=MINIMUM_PRESSURE_MB, include_surface=False
+            )[:2]
+        )
 
-        self.assertTrue(set(these_field_names) ==
-                        set(FIELD_NAMES_NO_SURFACE))
-        self.assertTrue(set(these_field_names_grib1) ==
-                        set(FIELD_NAMES_NO_SURFACE_GRIB1))
+        self.assertTrue(
+            set(these_field_names) == set(FIELD_NAMES_NO_SURFACE)
+        )
+        self.assertTrue(
+            set(these_field_names_grib1) == set(FIELD_NAMES_NO_SURFACE_GRIB1)
+        )
 
     def test_get_nwp_fields_for_sounding_no_table_yes_surface(self):
         """Ensures correct output from _get_nwp_fields_for_sounding.
@@ -667,15 +731,19 @@ class SoundingsTests(unittest.TestCase):
         In this case, return_table = False and include_surface = True.
         """
 
-        (these_field_names, these_field_names_grib1, _
-        ) = soundings._get_nwp_fields_for_sounding(
-            model_name=MODEL_NAME, return_table=False,
-            minimum_pressure_mb=MINIMUM_PRESSURE_MB, include_surface=True)
+        these_field_names, these_field_names_grib1 = (
+            soundings._get_nwp_fields_for_sounding(
+                model_name=MODEL_NAME, return_table=False,
+                minimum_pressure_mb=MINIMUM_PRESSURE_MB, include_surface=True
+            )[:2]
+        )
 
-        self.assertTrue(set(these_field_names) ==
-                        set(FIELD_NAMES_WITH_SURFACE))
-        self.assertTrue(set(these_field_names_grib1) ==
-                        set(FIELD_NAMES_WITH_SURFACE_GRIB1))
+        self.assertTrue(
+            set(these_field_names) == set(FIELD_NAMES_WITH_SURFACE)
+        )
+        self.assertTrue(
+            set(these_field_names_grib1) == set(FIELD_NAMES_WITH_SURFACE_GRIB1)
+        )
 
     def test_get_nwp_fields_for_sounding_yes_table_no_surface(self):
         """Ensures correct output from _get_nwp_fields_for_sounding.
@@ -685,10 +753,12 @@ class SoundingsTests(unittest.TestCase):
 
         this_field_name_table = soundings._get_nwp_fields_for_sounding(
             model_name=MODEL_NAME, return_table=True,
-            minimum_pressure_mb=MINIMUM_PRESSURE_MB, include_surface=False)[-1]
+            minimum_pressure_mb=MINIMUM_PRESSURE_MB, include_surface=False
+        )[-1]
 
         self.assertTrue(this_field_name_table.equals(
-            FIELD_NAME_TABLE_NO_SURFACE))
+            FIELD_NAME_TABLE_NO_SURFACE
+        ))
 
     def test_get_nwp_fields_for_sounding_yes_table_yes_surface(self):
         """Ensures correct output from _get_nwp_fields_for_sounding.
@@ -698,10 +768,12 @@ class SoundingsTests(unittest.TestCase):
 
         this_field_name_table = soundings._get_nwp_fields_for_sounding(
             model_name=MODEL_NAME, return_table=True,
-            minimum_pressure_mb=MINIMUM_PRESSURE_MB, include_surface=True)[-1]
+            minimum_pressure_mb=MINIMUM_PRESSURE_MB, include_surface=True
+        )[-1]
 
         self.assertTrue(this_field_name_table.equals(
-            FIELD_NAME_TABLE_WITH_SURFACE))
+            FIELD_NAME_TABLE_WITH_SURFACE
+        ))
 
     def test_create_target_points_for_interp(self):
         """Ensures correct output from _create_target_points_for_interp."""
@@ -711,7 +783,8 @@ class SoundingsTests(unittest.TestCase):
             lead_times_seconds=UNIQUE_LEAD_TIMES_SECONDS)
 
         self.assertTrue(_compare_target_point_tables(
-            this_target_point_table, DUMMY_TARGET_POINT_TABLE))
+            this_target_point_table, DUMMY_TARGET_POINT_TABLE
+        ))
 
     def test_convert_interp_table_to_soundings_no_surface(self):
         """Ensures correct output from _convert_interp_table_to_soundings.
@@ -725,7 +798,8 @@ class SoundingsTests(unittest.TestCase):
             include_surface=False, minimum_pressure_mb=MINIMUM_PRESSURE_MB)
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_NO_SURFACE))
+            this_sounding_dict, SOUNDING_DICT_P_COORDS_NO_SURFACE
+        ))
 
     def test_convert_interp_table_to_soundings_with_surface(self):
         """Ensures correct output from _convert_interp_table_to_soundings.
@@ -739,7 +813,8 @@ class SoundingsTests(unittest.TestCase):
             include_surface=True, minimum_pressure_mb=MINIMUM_PRESSURE_MB)
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_SURFACE))
+            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_SURFACE
+        ))
 
     def test_get_pressures_no_surface(self):
         """Ensures correct output from _get_pressures.
@@ -749,9 +824,11 @@ class SoundingsTests(unittest.TestCase):
 
         this_pressure_matrix_pascals = soundings._get_pressures(
             SOUNDING_DICT_P_COORDS_NO_SURFACE)
+
         self.assertTrue(numpy.allclose(
             this_pressure_matrix_pascals, PRESSURE_MATRIX_NO_SURFACE_PASCALS,
-            atol=TOLERANCE))
+            atol=TOLERANCE
+        ))
 
     def test_get_pressures_with_surface(self):
         """Ensures correct output from _get_pressures.
@@ -761,39 +838,47 @@ class SoundingsTests(unittest.TestCase):
 
         this_pressure_matrix_pascals = soundings._get_pressures(
             SOUNDING_DICT_P_COORDS_WITH_SURFACE)
+
         self.assertTrue(numpy.allclose(
             this_pressure_matrix_pascals, PRESSURE_MATRIX_WITH_SURFACE_PASCALS,
-            atol=TOLERANCE))
+            atol=TOLERANCE
+        ))
 
     def test_relative_to_specific_humidity(self):
         """Ensures correct output from _relative_to_specific_humidity."""
 
-        (this_sounding_dict, this_dewpoint_matrix_kelvins
-        ) = soundings._relative_to_specific_humidity(
-            sounding_dict=copy.deepcopy(SOUNDING_DICT_P_COORDS_NO_SPFH),
-            pressure_matrix_pascals=PRESSURE_MATRIX_PASCALS)
+        this_sounding_dict, this_dewpoint_matrix_kelvins = (
+            soundings._relative_to_specific_humidity(
+                sounding_dict=copy.deepcopy(SOUNDING_DICT_P_COORDS_NO_SPFH),
+                pressure_matrix_pascals=PRESSURE_MATRIX_PASCALS)
+        )
 
         self.assertTrue(numpy.allclose(
             this_dewpoint_matrix_kelvins, DEWPOINT_MATRIX_KELVINS,
-            atol=TOLERANCE_FOR_CONVERTED_VALUES))
+            atol=TOLERANCE_FOR_CONVERTED_VALUES
+        ))
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_SPFH))
+            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_SPFH
+        ))
 
     def test_specific_to_relative_humidity(self):
         """Ensures correct output from _specific_to_relative_humidity."""
 
-        (this_sounding_dict, this_dewpoint_matrix_kelvins
-        ) = soundings._specific_to_relative_humidity(
-            sounding_dict=copy.deepcopy(SOUNDING_DICT_P_COORDS_NO_RH),
-            pressure_matrix_pascals=PRESSURE_MATRIX_PASCALS)
+        this_sounding_dict, this_dewpoint_matrix_kelvins = (
+            soundings._specific_to_relative_humidity(
+                sounding_dict=copy.deepcopy(SOUNDING_DICT_P_COORDS_NO_RH),
+                pressure_matrix_pascals=PRESSURE_MATRIX_PASCALS)
+        )
 
         self.assertTrue(numpy.allclose(
             this_dewpoint_matrix_kelvins, DEWPOINT_MATRIX_KELVINS,
-            atol=TOLERANCE_FOR_CONVERTED_VALUES))
+            atol=TOLERANCE_FOR_CONVERTED_VALUES
+        ))
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_RH))
+            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_RH
+        ))
 
     def test_get_virtual_potential_temperatures(self):
         """Ensures correct output from _get_virtual_potential_temperatures."""
@@ -804,7 +889,8 @@ class SoundingsTests(unittest.TestCase):
             dewpoint_matrix_kelvins=DEWPOINT_MATRIX_KELVINS)
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_THETA_V))
+            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_THETA_V
+        ))
 
     def test_fill_nans_in_soundings(self):
         """Ensures correct output from _fill_nans_in_soundings."""
@@ -816,7 +902,8 @@ class SoundingsTests(unittest.TestCase):
             min_num_pressure_levels_without_nan=2)
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_NO_NANS))
+            this_sounding_dict, SOUNDING_DICT_P_COORDS_NO_NANS
+        ))
 
     def test_pressure_to_height_coords(self):
         """Ensures correct output from _pressure_to_height_coords."""
@@ -827,7 +914,8 @@ class SoundingsTests(unittest.TestCase):
             height_levels_m_agl=HEIGHT_LEVELS_M_AGL)
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_HEIGHT_COORDS))
+            this_sounding_dict, SOUNDING_DICT_HEIGHT_COORDS
+        ))
 
     def test_check_field_name_valid(self):
         """Ensures correct output from check_field_name.
@@ -888,6 +976,7 @@ class SoundingsTests(unittest.TestCase):
             lead_time_seconds=LEAD_TIME_IN_FILES_SEC,
             lag_time_for_convective_contamination_sec=LAG_TIME_IN_FILES_SEC,
             init_time_unix_sec=FILE_TIME_UNIX_SEC, raise_error_if_missing=False)
+
         self.assertTrue(this_file_name == SOUNDING_FILE_NAME_ONE_TIME)
 
     def test_find_sounding_file_one_spc_date(self):
@@ -902,6 +991,7 @@ class SoundingsTests(unittest.TestCase):
             lead_time_seconds=LEAD_TIME_IN_FILES_SEC,
             lag_time_for_convective_contamination_sec=LAG_TIME_IN_FILES_SEC,
             init_time_unix_sec=None, raise_error_if_missing=False)
+
         self.assertTrue(this_file_name == SOUNDING_FILE_NAME_ONE_SPC_DATE)
 
 

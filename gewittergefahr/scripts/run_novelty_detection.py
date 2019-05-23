@@ -192,25 +192,27 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
 
     print 'Reading metadata for baseline examples from: "{0:s}"...'.format(
         baseline_storm_metafile_name)
-    baseline_storm_ids, baseline_times_unix_sec = (
+    baseline_full_id_strings, baseline_times_unix_sec = (
         tracking_io.read_ids_and_times(baseline_storm_metafile_name)
     )
 
     print 'Reading metadata for trial examples from: "{0:s}"...'.format(
         trial_storm_metafile_name)
-    trial_storm_ids, trial_times_unix_sec = tracking_io.read_ids_and_times(
-        trial_storm_metafile_name)
+    trial_full_id_strings, trial_times_unix_sec = (
+        tracking_io.read_ids_and_times(trial_storm_metafile_name)
+    )
 
-    if 0 < num_baseline_examples < len(baseline_storm_ids):
-        baseline_storm_ids = baseline_storm_ids[:num_baseline_examples]
+    if 0 < num_baseline_examples < len(baseline_full_id_strings):
+        baseline_full_id_strings = baseline_full_id_strings[
+            :num_baseline_examples]
         baseline_times_unix_sec = baseline_times_unix_sec[
             :num_baseline_examples]
 
-    if 0 < num_trial_examples < len(trial_storm_ids):
-        trial_storm_ids = trial_storm_ids[:num_trial_examples]
+    if 0 < num_trial_examples < len(trial_full_id_strings):
+        trial_full_id_strings = trial_full_id_strings[:num_trial_examples]
         trial_times_unix_sec = trial_times_unix_sec[:num_trial_examples]
 
-    num_trial_examples = len(trial_storm_ids)
+    num_trial_examples = len(trial_full_id_strings)
 
     if num_novel_examples <= 0:
         num_novel_examples = num_trial_examples + 0
@@ -219,28 +221,30 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
     print 'Number of novel examples to find: {0:d}'.format(num_novel_examples)
 
     bad_baseline_indices = tracking_utils.find_storm_objects(
-        all_storm_ids=baseline_storm_ids,
+        all_id_strings=baseline_full_id_strings,
         all_times_unix_sec=baseline_times_unix_sec,
-        storm_ids_to_keep=trial_storm_ids,
+        id_strings_to_keep=trial_full_id_strings,
         times_to_keep_unix_sec=trial_times_unix_sec, allow_missing=True)
 
     print 'Removing {0:d} trial examples from baseline set...'.format(
         len(bad_baseline_indices)
     )
 
-    baseline_storm_ids = numpy.delete(
-        numpy.array(baseline_storm_ids), bad_baseline_indices)
-    baseline_storm_ids = baseline_storm_ids.tolist()
     baseline_times_unix_sec = numpy.delete(
-        baseline_times_unix_sec, bad_baseline_indices)
+        baseline_times_unix_sec, bad_baseline_indices
+    )
+    baseline_full_id_strings = numpy.delete(
+        numpy.array(baseline_full_id_strings), bad_baseline_indices
+    )
+    baseline_full_id_strings = baseline_full_id_strings.tolist()
 
-    # num_baseline_examples = len(baseline_storm_ids)
+    # num_baseline_examples = len(baseline_full_id_strings)
 
     print SEPARATOR_STRING
 
     list_of_baseline_input_matrices, _ = testing_io.read_specific_examples(
         top_example_dir_name=top_example_dir_name,
-        desired_storm_ids=baseline_storm_ids,
+        desired_full_id_strings=baseline_full_id_strings,
         desired_times_unix_sec=baseline_times_unix_sec,
         option_dict=cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
         list_of_layer_operation_dicts=cnn_metadata_dict[
@@ -251,7 +255,7 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
 
     list_of_trial_input_matrices, _ = testing_io.read_specific_examples(
         top_example_dir_name=top_example_dir_name,
-        desired_storm_ids=trial_storm_ids,
+        desired_full_id_strings=trial_full_id_strings,
         desired_times_unix_sec=trial_times_unix_sec,
         option_dict=cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
         list_of_layer_operation_dicts=cnn_metadata_dict[
@@ -273,9 +277,10 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
 
     print 'Adding metadata to novelty-detection results...'
     novelty_dict = novelty_detection.add_metadata(
-        novelty_dict=novelty_dict, baseline_storm_ids=baseline_storm_ids,
+        novelty_dict=novelty_dict,
+        baseline_full_id_strings=baseline_full_id_strings,
         baseline_storm_times_unix_sec=baseline_times_unix_sec,
-        trial_storm_ids=trial_storm_ids,
+        trial_full_id_strings=trial_full_id_strings,
         trial_storm_times_unix_sec=trial_times_unix_sec,
         cnn_file_name=cnn_file_name, upconvnet_file_name=upconvnet_file_name)
 

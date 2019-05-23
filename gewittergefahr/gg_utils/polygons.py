@@ -781,15 +781,18 @@ def grid_points_in_poly_to_vertices(
 
     binary_matrix, first_row_index, first_column_index = (
         grid_points_in_poly_to_binary_matrix(
-            grid_point_row_indices, grid_point_column_indices))
+            grid_point_row_indices, grid_point_column_indices)
+    )
+
     binary_matrix = _patch_diag_connections_in_binary_matrix(binary_matrix)
 
     if numpy.sum(binary_matrix) == 1:
         vertex_row_indices, vertex_column_indices = numpy.where(binary_matrix)
     else:
-        _, contour_list, _ = cv2.findContours(
+        contour_list = cv2.findContours(
             binary_matrix.astype(numpy.uint8), cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE)
+            cv2.CHAIN_APPROX_SIMPLE
+        )[-2]
 
         contour_matrix = _get_longest_inner_list(contour_list)
         contour_matrix = numpy.array(contour_matrix)[:, 0, :]

@@ -19,6 +19,7 @@ FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 ECHO_TOP_FIELD_ARG_NAME = 'echo_top_field_name'
 MIN_ECHO_TOP_ARG_NAME = 'min_echo_top_km'
+MIN_SIZE_ARG_NAME = 'min_size_pixels'
 MIN_INTERMAX_DISTANCE_ARG_NAME = 'min_intermax_distance_metres'
 MAX_VELOCITY_DIFF_ARG_NAME = 'max_velocity_diff_m_s01'
 MAX_LINK_DISTANCE_ARG_NAME = 'max_link_distance_m_s01'
@@ -55,6 +56,8 @@ ECHO_TOP_FIELD_HELP_STRING = (
 
 MIN_ECHO_TOP_HELP_STRING = (
     'Minimum echo top.  Smaller values are not considered storms.')
+
+MIN_SIZE_HELP_STRING = 'Minimum storm-object size.'
 
 MIN_INTERMAX_DISTANCE_HELP_STRING = (
     'Minimum distance between any pair of local maxima at the same time.  See '
@@ -105,6 +108,11 @@ INPUT_ARG_PARSER.add_argument(
     help=MIN_ECHO_TOP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_SIZE_ARG_NAME, type=int, required=False,
+    default=echo_top_tracking.DEFAULT_MIN_SIZE_PIXELS,
+    help=MIN_SIZE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + MIN_INTERMAX_DISTANCE_ARG_NAME, type=float, required=False,
     default=echo_top_tracking.DEFAULT_MIN_INTERMAX_DISTANCE_METRES,
     help=MIN_INTERMAX_DISTANCE_HELP_STRING)
@@ -127,7 +135,7 @@ INPUT_ARG_PARSER.add_argument(
 def _run(top_radar_dir_name, top_radar_dir_name_tarred,
          top_echo_classifn_dir_name, first_spc_date_string,
          last_spc_date_string, echo_top_field_name, min_echo_top_km,
-         min_intermax_distance_metres, max_velocity_diff_m_s01,
+         min_size_pixels, min_intermax_distance_metres, max_velocity_diff_m_s01,
          max_link_distance_m_s01, top_output_dir_name):
     """Tracks storms based on echo top.
 
@@ -140,6 +148,7 @@ def _run(top_radar_dir_name, top_radar_dir_name_tarred,
     :param last_spc_date_string: Same.
     :param echo_top_field_name: Same.
     :param min_echo_top_km: Same.
+    :param min_size_pixels: Same.
     :param min_intermax_distance_metres: Same.
     :param max_velocity_diff_m_s01: Same.
     :param max_link_distance_m_s01: Same.
@@ -176,6 +185,7 @@ def _run(top_radar_dir_name, top_radar_dir_name_tarred,
         top_echo_classifn_dir_name=top_echo_classifn_dir_name,
         min_echo_top_km=min_echo_top_km,
         min_intermax_distance_metres=min_intermax_distance_metres,
+        min_polygon_size_pixels=min_size_pixels,
         max_velocity_diff_m_s01=max_velocity_diff_m_s01,
         max_link_distance_m_s01=max_link_distance_m_s01,
         min_track_duration_seconds=0)
@@ -187,7 +197,8 @@ def _run(top_radar_dir_name, top_radar_dir_name_tarred,
             myrorss_io.remove_unzipped_data_1day(
                 spc_date_string=this_spc_date_string,
                 top_directory_name=top_radar_dir_name,
-                field_names=[echo_top_field_name])
+                field_names=[echo_top_field_name]
+            )
 
 
 if __name__ == '__main__':
@@ -204,6 +215,7 @@ if __name__ == '__main__':
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME),
         echo_top_field_name=getattr(INPUT_ARG_OBJECT, ECHO_TOP_FIELD_ARG_NAME),
         min_echo_top_km=getattr(INPUT_ARG_OBJECT, MIN_ECHO_TOP_ARG_NAME),
+        min_size_pixels=getattr(INPUT_ARG_OBJECT, MIN_SIZE_ARG_NAME),
         min_intermax_distance_metres=getattr(
             INPUT_ARG_OBJECT, MIN_INTERMAX_DISTANCE_ARG_NAME),
         max_velocity_diff_m_s01=getattr(

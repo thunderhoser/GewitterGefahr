@@ -12,6 +12,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_io import myrorss_and_mrms_io
+from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import storm_plotting
@@ -21,17 +22,17 @@ from gewittergefahr.plotting import imagemagick_utils
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))
-DUMMY_TRACK_SOURCE_STRING = tracking_utils.SEGMOTION_SOURCE_ID
+DUMMY_SOURCE_NAME = tracking_utils.SEGMOTION_NAME
 SENTINEL_VALUE = -9999
 
-TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
+FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+NICE_TIME_FORMAT = '%H%M UTC %-d %b %Y'
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = 0.5
 BORDER_COLOUR = numpy.full(3, 0.)
-ALT_STORM_ID_COLOUR = numpy.full(3, 0.)
-
+TRACK_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
@@ -39,6 +40,7 @@ FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 STORM_COLOUR_ARG_NAME = 'storm_colour'
 STORM_OPACITY_ARG_NAME = 'storm_opacity'
+INCLUDE_SECONDARY_ARG_NAME = 'include_secondary_ids'
 MIN_LATITUDE_ARG_NAME = 'min_plot_latitude_deg'
 MAX_LATITUDE_ARG_NAME = 'max_plot_latitude_deg'
 MIN_LONGITUDE_ARG_NAME = 'min_plot_longitude_deg'
@@ -63,6 +65,10 @@ STORM_COLOUR_HELP_STRING = (
     'range 0...255).')
 
 STORM_OPACITY_HELP_STRING = 'Opacity of storm outlines (in range 0...1).'
+
+INCLUDE_SECONDARY_HELP_STRING = (
+    'Boolean flag.  If 1, primary_secondary ID will be plotted next to each '
+    'storm object.  If 0, only primary ID will be plotted.')
 
 LATITUDE_HELP_STRING = (
     'Latitude (deg N, in range -90...90).  Plotting area will be '
@@ -120,6 +126,10 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_STORM_OPACITY, help=STORM_OPACITY_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + INCLUDE_SECONDARY_ARG_NAME, type=int, required=False,
+    default=0, help=INCLUDE_SECONDARY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + MIN_LATITUDE_ARG_NAME, type=float, required=False,
     default=SENTINEL_VALUE, help=LATITUDE_HELP_STRING)
 
@@ -152,23 +162,142 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _get_plotting_limits(
+        min_plot_latitude_deg, max_plot_latitude_deg, min_plot_longitude_deg,
+        max_plot_longitude_deg, storm_object_table):
+    """Returns lat-long limits for plotting.
+
+    :param min_plot_latitude_deg: See documentation at top of file.  If
+        `min_plot_latitude_deg == SENTINEL_VALUE`, it will be replaced.
+        Otherwise, it will be unaltered.
+    :param max_plot_latitude_deg: Same.
+    :param min_plot_longitude_deg: Same.
+    :param max_plot_longitude_deg: Same.
+    :param storm_object_table: See doc for `storm_tracking_io.write_file`.
+    :return: latitude_limits_deg: length-2 numpy array with [min, max] latitudes
+        in deg N.
+    :return: longitude_limits_deg: length-2 numpy array with [min, max]
+        longitudes in deg E.
+    """
+
+    if min_plot_latitude_deg <= SENTINEL_VALUE:
+        min_plot_latitude_deg = -LATLNG_BUFFER_DEG + numpy.min(
+            storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
+        )
+
+    if max_plot_latitude_deg <= SENTINEL_VALUE:
+        max_plot_latitude_deg = LATLNG_BUFFER_DEG + numpy.max(
+            storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
+        )
+
+    if min_plot_longitude_deg <= SENTINEL_VALUE:
+        min_plot_longitude_deg = -LATLNG_BUFFER_DEG + numpy.min(
+            storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
+        )
+
+    if max_plot_longitude_deg <= SENTINEL_VALUE:
+        max_plot_longitude_deg = LATLNG_BUFFER_DEG + numpy.max(
+            storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
+        )
+
+    latitude_limits_deg = numpy.array([
+        min_plot_latitude_deg, max_plot_latitude_deg
+    ])
+    longitude_limits_deg = numpy.array([
+        min_plot_longitude_deg, max_plot_longitude_deg
+    ])
+
+    return latitude_limits_deg, longitude_limits_deg
+
+
+def _find_relevant_storm_objects(storm_object_table, current_rows):
+    """Finds relevant storm objects.
+    
+    "Relevant" storm objects include:
+    
+    - Current objects (those at `current_rows` in `storm_object_table`)
+    - Those sharing an ID with a current object and occurring at an earlier time
+    
+    :param storm_object_table: See doc for `storm_tracking_io.write_file`.
+    :param current_rows: 1-D numpy array with rows of current storm objects.
+    :return: relevant_storm_object_table: Same as input but with fewer rows.
+    """
+
+    current_time_unix_sec = storm_object_table[
+        tracking_utils.VALID_TIME_COLUMN].values[
+        current_rows[0]]
+
+    current_primary_id_strings = storm_object_table[
+        tracking_utils.PRIMARY_ID_COLUMN
+    ].values[current_rows]
+
+    relevant_id_flags = numpy.array([
+        p in current_primary_id_strings for p in
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values
+    ], dtype=bool)
+
+    relevant_rows = numpy.where(numpy.logical_and(
+        relevant_id_flags,
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values <=
+        current_time_unix_sec
+    ))[0]
+
+    return storm_object_table.iloc[relevant_rows]
+
+
+def _filter_storm_objects_latlng(
+        storm_object_table, min_latitude_deg, max_latitude_deg,
+        min_longitude_deg, max_longitude_deg):
+    """Filters storm objects by lat-long rectangle.
+
+    :param storm_object_table: See doc for `storm_tracking_io.write_file`.
+    :param min_latitude_deg: Minimum latitude (deg N).
+    :param max_latitude_deg: Max latitude (deg N).
+    :param min_longitude_deg: Minimum longitude (deg E).
+    :param max_longitude_deg: Max longitude (deg E).
+    :return: relevant_rows: 1-D numpy array with rows of storm objects in the
+        lat-long box.  These are rows in `storm_object_table`.
+    """
+
+    latitude_flags = numpy.logical_and(
+        storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values >=
+        min_latitude_deg,
+        storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values <=
+        max_latitude_deg
+    )
+
+    longitude_flags = numpy.logical_and(
+        storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values >=
+        min_longitude_deg,
+        storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values <=
+        max_longitude_deg
+    )
+
+    return numpy.where(numpy.logical_and(
+        latitude_flags, longitude_flags
+    ))[0]
+
+
 def _plot_storm_outlines_one_time(
-        storm_object_table, axes_object, basemap_object, alt_id_colour_flags,
-        storm_colour, storm_opacity, output_dir_name, radar_matrix=None,
-        radar_field_name=None, radar_latitudes_deg=None,
-        radar_longitudes_deg=None):
+        storm_object_table, valid_time_unix_sec, axes_object, basemap_object,
+        storm_colour, storm_opacity, include_secondary_ids,
+        output_dir_name, radar_matrix=None, radar_field_name=None,
+        radar_latitudes_deg=None, radar_longitudes_deg=None):
     """Plots storm outlines (and may underlay radar data) at one time step.
 
     M = number of rows in radar grid
     N = number of columns in radar grid
+    K = number of storm objects
 
-    :param storm_object_table: See doc for `storm_plotting.plot_storm_objects`.
+    :param storm_object_table: See doc for `storm_plotting.plot_storm_outlines`.
+    :param valid_time_unix_sec: Will plot storm outlines only at this time.
+        Will plot tracks up to and including this time.
     :param axes_object: Same.
     :param basemap_object: Same.
-    :param alt_id_colour_flags: Same.
-    :param storm_colour: See documentation at top of file.
+    :param storm_colour: Same.
     :param storm_opacity: Same.
-    :param output_dir_name: Same.
+    :param include_secondary_ids: Same.
+    :param output_dir_name: See documentation at top of file.
     :param radar_matrix: M-by-N numpy array of radar values.  If
         `radar_matrix is None`, radar data will simply not be plotted.
     :param radar_field_name: [used only if `radar_matrix is not None`]
@@ -184,26 +313,42 @@ def _plot_storm_outlines_one_time(
     min_plot_longitude_deg = basemap_object.llcrnrlon
     max_plot_longitude_deg = basemap_object.urcrnrlon
 
-    parallel_spacing_deg = numpy.round(
+    parallel_spacing_deg = (
         (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
     )
-    meridian_spacing_deg = numpy.round(
+    meridian_spacing_deg = (
         (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
     )
+
+    if parallel_spacing_deg < 1.:
+        parallel_spacing_deg = number_rounding.round_to_nearest(
+            parallel_spacing_deg, 0.1)
+    else:
+        parallel_spacing_deg = numpy.round(parallel_spacing_deg)
+
+    if meridian_spacing_deg < 1.:
+        meridian_spacing_deg = number_rounding.round_to_nearest(
+            meridian_spacing_deg, 0.1)
+    else:
+        meridian_spacing_deg = numpy.round(meridian_spacing_deg)
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
         bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
         parallel_spacing_deg=parallel_spacing_deg)
+
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
         bottom_left_lng_deg=0., upper_right_lng_deg=360.,
@@ -251,29 +396,49 @@ def _plot_storm_outlines_one_time(
         else:
             orientation_string = 'horizontal'
 
-        plotting_utils.add_colour_bar(
+        colour_bar_object = plotting_utils.add_colour_bar(
             axes_object_or_list=axes_object, values_to_colour=radar_matrix,
             colour_map=colour_map_object, colour_norm_object=colour_norm_object,
             orientation=orientation_string,
             extend_min=radar_field_name in radar_plotting.SHEAR_VORT_DIV_NAMES,
             extend_max=True, fraction_of_axis_length=0.9)
 
+        colour_bar_object.set_label(
+            radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[radar_field_name]
+        )
+
+    valid_time_rows = numpy.where(
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values ==
+        valid_time_unix_sec
+    )[0]
+
     line_colour = matplotlib.colors.to_rgba(storm_colour, storm_opacity)
 
-    storm_plotting.plot_storm_objects(
+    storm_plotting.plot_storm_outlines(
+        storm_object_table=storm_object_table.iloc[valid_time_rows],
+        axes_object=axes_object, basemap_object=basemap_object,
+        line_colour=line_colour)
+
+    storm_plotting.plot_storm_ids(
+        storm_object_table=storm_object_table.iloc[valid_time_rows],
+        axes_object=axes_object, basemap_object=basemap_object,
+        plot_near_centroids=False, include_secondary_ids=include_secondary_ids,
+        font_colour=storm_plotting.DEFAULT_FONT_COLOUR)
+
+    storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, line_colour=line_colour,
-        plot_storm_ids=True, storm_id_colour=storm_colour,
-        alt_id_colour_flags=alt_id_colour_flags,
-        alt_storm_id_colour=ALT_STORM_ID_COLOUR)
+        basemap_object=basemap_object, colour_map_object=None,
+        line_colour=TRACK_COLOUR)
 
-    valid_time_string = time_conversion.unix_sec_to_string(
-        storm_object_table[tracking_utils.TIME_COLUMN].values[0],
-        TIME_FORMAT_IN_FILE_NAMES
-    )
+    nice_time_string = time_conversion.unix_sec_to_string(
+        valid_time_unix_sec, NICE_TIME_FORMAT)
 
+    abbrev_time_string = time_conversion.unix_sec_to_string(
+        valid_time_unix_sec, FILE_NAME_TIME_FORMAT)
+
+    pyplot.title('Storm objects at {0:s}'.format(nice_time_string))
     output_file_name = '{0:s}/storm_outlines_{1:s}.jpg'.format(
-        output_dir_name, valid_time_string)
+        output_dir_name, abbrev_time_string)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -284,10 +449,10 @@ def _plot_storm_outlines_one_time(
 
 
 def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
-         storm_colour, storm_opacity, min_plot_latitude_deg,
-         max_plot_latitude_deg, min_plot_longitude_deg, max_plot_longitude_deg,
-         top_myrorss_dir_name, radar_field_name, radar_height_m_asl,
-         output_dir_name):
+         storm_colour, storm_opacity, include_secondary_ids,
+         min_plot_latitude_deg, max_plot_latitude_deg, min_plot_longitude_deg,
+         max_plot_longitude_deg, top_myrorss_dir_name, radar_field_name,
+         radar_height_m_asl, output_dir_name):
     """Plots storm outlines (along with IDs) at each time step.
 
     This is effectively the main method.
@@ -297,6 +462,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     :param last_spc_date_string: Same.
     :param storm_colour: Same.
     :param storm_opacity: Same.
+    :param include_secondary_ids: Same.
     :param min_plot_latitude_deg: Same.
     :param max_plot_latitude_deg: Same.
     :param min_plot_longitude_deg: Same.
@@ -313,15 +479,6 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     if radar_field_name != radar_utils.REFL_NAME:
         radar_height_m_asl = None
 
-    if min_plot_latitude_deg <= SENTINEL_VALUE:
-        min_plot_latitude_deg = None
-    if max_plot_latitude_deg <= SENTINEL_VALUE:
-        max_plot_latitude_deg = None
-    if min_plot_longitude_deg <= SENTINEL_VALUE:
-        min_plot_longitude_deg = None
-    if max_plot_longitude_deg <= SENTINEL_VALUE:
-        max_plot_longitude_deg = None
-
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
@@ -333,44 +490,64 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
     for this_spc_date_string in spc_date_strings:
         tracking_file_names += (
-            tracking_io.find_processed_files_one_spc_date(
-                top_processed_dir_name=top_tracking_dir_name,
+            tracking_io.find_files_one_spc_date(
+                top_tracking_dir_name=top_tracking_dir_name,
                 tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
-                data_source=DUMMY_TRACK_SOURCE_STRING,
+                source_name=DUMMY_SOURCE_NAME,
                 spc_date_string=this_spc_date_string,
                 raise_error_if_missing=False
             )[0]
         )
 
-    storm_object_table = tracking_io.read_many_processed_files(
-        tracking_file_names)
+    storm_object_table = tracking_io.read_many_files(tracking_file_names)
     print SEPARATOR_STRING
 
-    if min_plot_latitude_deg is None:
-        min_plot_latitude_deg = numpy.min(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
-        ) - LATLNG_BUFFER_DEG
+    latitude_limits_deg, longitude_limits_deg = _get_plotting_limits(
+        min_plot_latitude_deg=min_plot_latitude_deg,
+        max_plot_latitude_deg=max_plot_latitude_deg,
+        min_plot_longitude_deg=min_plot_longitude_deg,
+        max_plot_longitude_deg=max_plot_longitude_deg,
+        storm_object_table=storm_object_table)
 
-    if max_plot_latitude_deg is None:
-        max_plot_latitude_deg = numpy.max(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values
-        ) + LATLNG_BUFFER_DEG
-
-    if min_plot_longitude_deg is None:
-        min_plot_longitude_deg = numpy.min(
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
-        ) - LATLNG_BUFFER_DEG
-
-    if max_plot_longitude_deg is None:
-        max_plot_longitude_deg = numpy.max(
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values
-        ) + LATLNG_BUFFER_DEG
+    min_plot_latitude_deg = latitude_limits_deg[0]
+    max_plot_latitude_deg = latitude_limits_deg[1]
+    min_plot_longitude_deg = longitude_limits_deg[0]
+    max_plot_longitude_deg = longitude_limits_deg[1]
 
     valid_times_unix_sec = numpy.unique(
-        storm_object_table[tracking_utils.TIME_COLUMN].values)
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):
+        these_current_rows = numpy.where(
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values ==
+            valid_times_unix_sec[i]
+        )[0]
+
+        these_current_subrows = _filter_storm_objects_latlng(
+            storm_object_table=storm_object_table.iloc[these_current_rows],
+            min_latitude_deg=min_plot_latitude_deg,
+            max_latitude_deg=max_plot_latitude_deg,
+            min_longitude_deg=min_plot_longitude_deg,
+            max_longitude_deg=max_plot_longitude_deg)
+
+        if len(these_current_subrows) == 0:
+            continue
+
+        these_current_rows = these_current_rows[these_current_subrows]
+        
+        this_storm_object_table = _find_relevant_storm_objects(
+            storm_object_table=storm_object_table,
+            current_rows=these_current_rows)
+
+        these_latlng_rows = _filter_storm_objects_latlng(
+            storm_object_table=this_storm_object_table,
+            min_latitude_deg=min_plot_latitude_deg,
+            max_latitude_deg=max_plot_latitude_deg,
+            min_longitude_deg=min_plot_longitude_deg,
+            max_longitude_deg=max_plot_longitude_deg)
+
         if top_myrorss_dir_name is None:
             this_radar_matrix = None
             these_radar_latitudes_deg = None
@@ -423,51 +600,12 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 max_longitude_deg=max_plot_longitude_deg, resolution_string='i')
         )
 
-        this_storm_object_table = storm_object_table.loc[
-            storm_object_table[tracking_utils.TIME_COLUMN] ==
-            valid_times_unix_sec[i]
-        ]
-
-        these_storm_ids = this_storm_object_table[
-            tracking_utils.STORM_ID_COLUMN].values
-
-        this_num_storm_objects = len(these_storm_ids)
-        these_alt_colour_flags = numpy.full(
-            this_num_storm_objects, True, dtype=bool)
-
-        if i != 0:
-            prev_storm_object_table = storm_object_table.loc[
-                storm_object_table[tracking_utils.TIME_COLUMN] ==
-                valid_times_unix_sec[i - 1]
-            ]
-
-            prev_storm_ids = prev_storm_object_table[
-                tracking_utils.STORM_ID_COLUMN].values
-
-            these_new_flags = numpy.array(
-                [s in prev_storm_ids for s in these_storm_ids], dtype=bool)
-            these_alt_colour_flags = numpy.logical_and(
-                these_alt_colour_flags, these_new_flags)
-
-        if i != num_times - 1:
-            next_storm_object_table = storm_object_table.loc[
-                storm_object_table[tracking_utils.TIME_COLUMN] ==
-                valid_times_unix_sec[i + 1]
-            ]
-
-            next_storm_ids = next_storm_object_table[
-                tracking_utils.STORM_ID_COLUMN].values
-
-            these_new_flags = numpy.array(
-                [s in next_storm_ids for s in these_storm_ids], dtype=bool)
-            these_alt_colour_flags = numpy.logical_and(
-                these_alt_colour_flags, these_new_flags)
-
         _plot_storm_outlines_one_time(
-            storm_object_table=this_storm_object_table,
+            storm_object_table=this_storm_object_table.iloc[these_latlng_rows],
+            valid_time_unix_sec=valid_times_unix_sec[i],
             axes_object=this_axes_object, basemap_object=this_basemap_object,
-            alt_id_colour_flags=these_alt_colour_flags,
             storm_colour=storm_colour, storm_opacity=storm_opacity,
+            include_secondary_ids=include_secondary_ids,
             output_dir_name=output_dir_name, radar_matrix=this_radar_matrix,
             radar_field_name=radar_field_name,
             radar_latitudes_deg=these_radar_latitudes_deg,
@@ -485,6 +623,8 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, STORM_COLOUR_ARG_NAME), dtype=float
         ) / 255,
         storm_opacity=getattr(INPUT_ARG_OBJECT, STORM_OPACITY_ARG_NAME),
+        include_secondary_ids=bool(getattr(
+            INPUT_ARG_OBJECT, INCLUDE_SECONDARY_ARG_NAME)),
         min_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MIN_LATITUDE_ARG_NAME),
         max_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MAX_LATITUDE_ARG_NAME),
         min_plot_longitude_deg=getattr(

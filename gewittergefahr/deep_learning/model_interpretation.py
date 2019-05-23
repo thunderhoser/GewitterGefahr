@@ -19,7 +19,7 @@ VALID_COMPONENT_TYPE_STRINGS = [
 ]
 
 INPUT_MATRICES_KEY = 'list_of_input_matrices'
-STORM_IDS_KEY = 'storm_ids'
+FULL_IDS_KEY = 'full_storm_id_strings'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
 SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 

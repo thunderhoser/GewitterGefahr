@@ -62,14 +62,14 @@ def _compute_shape_stats(
         with shape statistics for each storm object, will be written here.
     """
 
-    tracking_file_names, _ = tracking_io.find_processed_files_one_spc_date(
+    tracking_file_names = tracking_io.find_files_one_spc_date(
         spc_date_string=spc_date_string,
-        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-        top_processed_dir_name=top_tracking_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2)
+        source_name=tracking_utils.SEGMOTION_NAME,
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2
+    )[0]
 
-    storm_object_table = tracking_io.read_many_processed_files(
-        tracking_file_names)
+    storm_object_table = tracking_io.read_many_files(tracking_file_names)
     print SEPARATOR_STRING
 
     shape_statistic_table = shape_stats.get_stats_for_storm_objects(
@@ -78,6 +78,7 @@ def _compute_shape_stats(
 
     shape_statistic_file_name = '{0:s}/shape_statistics_{1:s}.p'.format(
         output_dir_name, spc_date_string)
+
     print 'Writing shape statistics to: "{0:s}"...'.format(
         shape_statistic_file_name)
     shape_stats.write_stats_for_storm_objects(
@@ -112,13 +113,10 @@ def add_input_arguments(argument_parser_object):
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
-    SPC_DATE_STRING = getattr(INPUT_ARG_OBJECT, SPC_DATE_INPUT_ARG)
-    TOP_TRACKING_DIR_NAME = getattr(INPUT_ARG_OBJECT, TRACKING_DIR_INPUT_ARG)
-    TRACKING_SCALE_METRES2 = getattr(INPUT_ARG_OBJECT, TRACKING_SCALE_INPUT_ARG)
-    OUTPUT_DIR_NAME = getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_INPUT_ARG)
-
     _compute_shape_stats(
-        spc_date_string=SPC_DATE_STRING,
-        top_tracking_dir_name=TOP_TRACKING_DIR_NAME,
-        tracking_scale_metres2=TRACKING_SCALE_METRES2,
-        output_dir_name=OUTPUT_DIR_NAME)
+        spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_INPUT_ARG),
+        top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_INPUT_ARG),
+        tracking_scale_metres2=getattr(
+            INPUT_ARG_OBJECT, TRACKING_SCALE_INPUT_ARG),
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_INPUT_ARG)
+    )

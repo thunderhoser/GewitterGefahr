@@ -13,8 +13,8 @@ DEFAULT_IDEAL_ACTIVATION = 2.
 INPUT_MATRICES_KEY = 'list_of_input_matrices'
 SALIENCY_MATRICES_KEY = 'list_of_saliency_matrices'
 
-STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
-STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
+FULL_IDS_KEY = tracking_io.FULL_IDS_KEY
+STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
 MODEL_FILE_NAME_KEY = 'model_file_name'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
@@ -25,7 +25,7 @@ CHANNEL_INDEX_KEY = 'channel_index'
 SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
 STANDARD_FILE_KEYS = [
-    INPUT_MATRICES_KEY, SALIENCY_MATRICES_KEY, STORM_IDS_KEY, STORM_TIMES_KEY,
+    INPUT_MATRICES_KEY, SALIENCY_MATRICES_KEY, FULL_IDS_KEY, STORM_TIMES_KEY,
     MODEL_FILE_NAME_KEY, COMPONENT_TYPE_KEY, TARGET_CLASS_KEY, LAYER_NAME_KEY,
     IDEAL_ACTIVATION_KEY, NEURON_INDICES_KEY, CHANNEL_INDEX_KEY,
     SOUNDING_PRESSURES_KEY
@@ -126,6 +126,7 @@ def check_metadata(
     """
 
     model_interpretation.check_component_type(component_type_string)
+
     if (component_type_string ==
             model_interpretation.CLASS_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer(target_class)
@@ -268,7 +269,8 @@ def get_saliency_maps_for_channel_activation(
         component_type_string=
         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
         layer_name=layer_name, ideal_activation=ideal_activation,
-        channel_index=channel_index)
+        channel_index=channel_index
+    )
 
     if ideal_activation is None:
         loss_tensor = -K.abs(stat_function_for_neuron_activations(
@@ -399,7 +401,7 @@ def read_pmm_file(pickle_file_name):
 
 def write_standard_file(
         pickle_file_name, list_of_input_matrices, list_of_saliency_matrices,
-        storm_ids, storm_times_unix_sec, model_file_name,
+        full_id_strings, storm_times_unix_sec, model_file_name,
         saliency_metadata_dict, sounding_pressure_matrix_pascals=None):
     """Writes saliency maps (one per example) to Pickle file.
 
@@ -414,7 +416,7 @@ def write_standard_file(
     :param list_of_saliency_matrices: length-T list of numpy arrays, containing
         saliency values.  list_of_saliency_matrices[i] must have the same
         dimensions as list_of_input_matrices[i].
-    :param storm_ids: length-E list of storm IDs (strings).
+    :param full_id_strings: length-E list of full storm IDs.
     :param storm_times_unix_sec: length-E numpy array of storm times.
     :param model_file_name: Path to file with trained model (readable by
         `cnn.read_model`).
@@ -427,11 +429,11 @@ def write_standard_file(
     """
 
     error_checking.assert_is_string(model_file_name)
-    error_checking.assert_is_string_list(storm_ids)
+    error_checking.assert_is_string_list(full_id_strings)
     error_checking.assert_is_numpy_array(
-        numpy.array(storm_ids), num_dimensions=1)
+        numpy.array(full_id_strings), num_dimensions=1)
 
-    num_storm_objects = len(storm_ids)
+    num_storm_objects = len(full_id_strings)
     these_expected_dim = numpy.array([num_storm_objects], dtype=int)
 
     error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
@@ -486,7 +488,7 @@ def write_standard_file(
     saliency_dict = {
         INPUT_MATRICES_KEY: list_of_input_matrices,
         SALIENCY_MATRICES_KEY: list_of_saliency_matrices,
-        STORM_IDS_KEY: storm_ids,
+        FULL_IDS_KEY: full_id_strings,
         STORM_TIMES_KEY: storm_times_unix_sec,
         MODEL_FILE_NAME_KEY: model_file_name,
         COMPONENT_TYPE_KEY: saliency_metadata_dict[COMPONENT_TYPE_KEY],
@@ -511,7 +513,7 @@ def read_standard_file(pickle_file_name):
     :return: saliency_dict: Dictionary with the following keys.
     saliency_dict['list_of_input_matrices']: See doc for `write_standard_file`.
     saliency_dict['list_of_saliency_matrices']: Same.
-    saliency_dict['storm_ids']: Same.
+    saliency_dict['full_id_strings']: Same.
     saliency_dict['storm_times_unix_sec']: Same.
     saliency_dict['model_file_name']: Same.
     saliency_dict['component_type_string']: Same.
