@@ -21,7 +21,8 @@ TEMPERATURE_NAME_GRIB1 = 'TMP'
 NEAREST_NEIGHBOUR_METHOD_STRING = 'nearest'
 SPLINE_METHOD_STRING = 'spline'
 SPATIAL_INTERP_METHOD_STRINGS = [
-    NEAREST_NEIGHBOUR_METHOD_STRING, SPLINE_METHOD_STRING]
+    NEAREST_NEIGHBOUR_METHOD_STRING, SPLINE_METHOD_STRING
+]
 
 DEFAULT_SPLINE_DEGREE = 3
 SMOOTHING_FACTOR_FOR_SPATIAL_INTERP = 0
@@ -33,11 +34,13 @@ SPLINE0_METHOD_STRING = 'zero'
 SPLINE1_METHOD_STRING = 'slinear'
 SPLINE2_METHOD_STRING = 'quadratic'
 SPLINE3_METHOD_STRING = 'cubic'
+
 TEMPORAL_INTERP_METHOD_STRINGS = [
     PREV_NEIGHBOUR_METHOD_STRING, NEXT_NEIGHBOUR_METHOD_STRING,
     NEAREST_NEIGHBOUR_METHOD_STRING, LINEAR_METHOD_STRING,
     SPLINE0_METHOD_STRING, SPLINE1_METHOD_STRING, SPLINE2_METHOD_STRING,
-    SPLINE3_METHOD_STRING]
+    SPLINE3_METHOD_STRING
+]
 
 QUERY_TIME_COLUMN = 'unix_time_sec'
 QUERY_LAT_COLUMN = 'latitude_deg'
@@ -234,7 +237,7 @@ def _read_nwp_for_interp(
     :param top_grib_directory_name: Name of top-level directory with grib files
         containing NWP data.
     :param grid_id: ID for model grid (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :param wgrib_exe_name: Path to wgrib executable.
     :param wgrib2_exe_name: Path to wgrib2 executable.
     :param raise_error_if_missing: Boolean flag.  If any grib file cannot be
@@ -254,7 +257,9 @@ def _read_nwp_for_interp(
     rotate_wind = field_name_other_wind_component_grib1 != ''
 
     init_time_needed_flags = query_to_model_times_row[
-        nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[0]
+        nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN
+    ].values[0]
+
     num_init_times = len(init_times_unix_sec)
 
     for i in range(num_init_times):
@@ -325,8 +330,9 @@ def _get_grids_for_model(model_name):
     """
 
     if model_name == nwp_model_utils.NARR_MODEL_NAME:
-        return [nwp_model_utils.ID_FOR_221GRID]
-    return [nwp_model_utils.ID_FOR_130GRID, nwp_model_utils.ID_FOR_252GRID]
+        return [nwp_model_utils.NAME_OF_221GRID]
+
+    return [nwp_model_utils.NAME_OF_130GRID, nwp_model_utils.NAME_OF_252GRID]
 
 
 def _read_nwp_for_interp_any_grid(
@@ -409,7 +415,7 @@ def _prep_to_interp_nwp_from_xy_grid(
     :param model_name: Model name (must be accepted by
         `nwp_model_utils.check_model_name`).
     :param grid_id: ID for model grid (must be accepted by
-        `nwp_model_utils.check_grid_id`).
+        `nwp_model_utils.check_grid_name`).
     :param field_names: length-F list of field names in GewitterGefahr format.
     :param field_names_grib1: length-F list of field names in grib1 format.
     :return: query_point_table: Same as input, except that columns
@@ -446,14 +452,15 @@ def _prep_to_interp_nwp_from_xy_grid(
     # Find grid points for model.
     grid_point_x_metres, grid_point_y_metres = (
         nwp_model_utils.get_xy_grid_points(
-            model_name=model_name, grid_id=grid_id))
+            model_name=model_name, grid_name=grid_id)
+    )
 
     # Project query points to model coords.
-    query_x_metres, query_y_metres = (
-        nwp_model_utils.project_latlng_to_xy(
-            latitudes_deg=query_point_table[QUERY_LAT_COLUMN].values,
-            longitudes_deg=query_point_table[QUERY_LNG_COLUMN].values,
-            model_name=model_name, grid_id=grid_id))
+    query_x_metres, query_y_metres = nwp_model_utils.project_latlng_to_xy(
+        latitudes_deg=query_point_table[QUERY_LAT_COLUMN].values,
+        longitudes_deg=query_point_table[QUERY_LNG_COLUMN].values,
+        model_name=model_name, grid_name=grid_id)
+
     argument_dict = {
         QUERY_X_COLUMN: query_x_metres,
         QUERY_Y_COLUMN: query_y_metres
@@ -481,7 +488,8 @@ def _prep_to_interp_nwp_from_xy_grid(
             nwp_model_utils.get_wind_rotation_angles(
                 latitudes_deg=query_point_table[QUERY_LAT_COLUMN].values,
                 longitudes_deg=query_point_table[QUERY_LNG_COLUMN].values,
-                model_name=model_name))
+                model_name=model_name)
+        )
     else:
         rotation_cosine_by_query_point = None
         rotation_sine_by_query_point = None
@@ -762,7 +770,7 @@ def interp_nwp_from_xy_grid(
         the highest-resolution grid available at each model-initialization time.
         If False, will interpolate from only one grid.
     :param grid_id: [used only if use_all_grids = False]
-        Model grid (must be accepted by `nwp_model_utils.check_grid_id`).
+        Model grid (must be accepted by `nwp_model_utils.check_grid_name`).
     :param temporal_interp_method_string: Temporal interp method (must be
         accepted by `check_temporal_interp_method`).
     :param spatial_interp_method_string: Spatial interp method (must be
@@ -808,11 +816,13 @@ def interp_nwp_from_xy_grid(
     rotation_cosine_by_query_point = metadata_dict[ROTATION_COSINES_KEY]
 
     _, init_time_step_hours = nwp_model_utils.get_time_steps(model_name)
+
     init_times_unix_sec, query_to_model_times_table = (
         nwp_model_utils.get_times_needed_for_interp(
             query_times_unix_sec=query_point_table[QUERY_TIME_COLUMN].values,
             model_time_step_hours=init_time_step_hours,
-            method_string=temporal_interp_method_string))
+            method_string=temporal_interp_method_string)
+    )
 
     num_init_times = len(init_times_unix_sec)
     num_query_time_ranges = len(query_to_model_times_table.index)
@@ -872,8 +882,11 @@ def interp_nwp_from_xy_grid(
                 ].values[i])[0]
 
             for t in init_time_needed_indices:
-                this_grid_id = nwp_model_utils.dimensions_to_grid_id(
-                    numpy.array(list_of_2d_grids[t].shape))
+                this_grid_id = nwp_model_utils.dimensions_to_grid(
+                    num_rows=list_of_2d_grids[t].shape[0],
+                    num_columns=list_of_2d_grids[t].shape[1]
+                )
+
                 this_grid_index = grid_ids.index(this_grid_id)
 
                 list_of_spatial_interp_arrays[
@@ -923,7 +936,8 @@ def interp_nwp_from_xy_grid(
                             rotation_cosine_by_query_point[
                                 query_indices_in_this_range],
                             rotation_angle_sines=rotation_sine_by_query_point[
-                                query_indices_in_this_range])
+                                query_indices_in_this_range]
+                        )
 
                     if grib_io.is_v_wind_field(field_names_grib1[j]):
                         (list_of_sinterp_arrays_other_wind_component[t],
@@ -937,7 +951,8 @@ def interp_nwp_from_xy_grid(
                             rotation_cosine_by_query_point[
                                 query_indices_in_this_range],
                             rotation_angle_sines=rotation_sine_by_query_point[
-                                query_indices_in_this_range])
+                                query_indices_in_this_range]
+                        )
 
             spatial_interp_matrix_2d = _stack_1d_arrays_horizontally(
                 [list_of_spatial_interp_arrays[t] for
@@ -1043,14 +1058,16 @@ def interp_temperature_surface_from_nwp(
     query_point_table_by_grid = [pandas.DataFrame()] * num_grids
 
     for g in range(num_grids):
-        (x_points_by_grid_metres[g], y_points_by_grid_metres[g]
-        ) = nwp_model_utils.get_xy_grid_points(
-            model_name=model_name, grid_id=grid_ids[g])
+        x_points_by_grid_metres[g], y_points_by_grid_metres[g] = (
+            nwp_model_utils.get_xy_grid_points(
+                model_name=model_name, grid_name=grid_ids[g])
+        )
 
         these_x_metres, these_y_metres = nwp_model_utils.project_latlng_to_xy(
             latitudes_deg=query_point_table[QUERY_LAT_COLUMN].values,
             longitudes_deg=query_point_table[QUERY_LNG_COLUMN].values,
-            model_name=model_name, grid_id=grid_ids[g])
+            model_name=model_name, grid_name=grid_ids[g]
+        )
 
         query_point_table_by_grid[g] = copy.deepcopy(query_point_table)
         argument_dict = {
@@ -1061,7 +1078,8 @@ def interp_temperature_surface_from_nwp(
             **argument_dict)
 
     pressure_levels_mb = nwp_model_utils.get_pressure_levels(
-        model_name=model_name, grid_id=grid_ids[0])
+        model_name=model_name, grid_name=grid_ids[0]
+    )
     pressure_levels_mb = numpy.sort(pressure_levels_mb)[::-1]
 
     height_field_names = []
@@ -1081,6 +1099,7 @@ def interp_temperature_surface_from_nwp(
             TEMPERATURE_NAME_GRIB1, int(this_pressure_mb)))
 
     _, init_time_step_hours = nwp_model_utils.get_time_steps(model_name)
+
     init_times_unix_sec, query_to_model_times_table = (
         nwp_model_utils.get_times_needed_for_interp(
             query_times_unix_sec=numpy.array([query_time_unix_sec], dtype=int),
@@ -1136,8 +1155,11 @@ def interp_temperature_surface_from_nwp(
 
         list_of_sinterp_temp_arrays_kelvins = [numpy.array([])] * num_init_times
         for i in range(num_init_times):
-            this_grid_id = nwp_model_utils.dimensions_to_grid_id(
-                numpy.array(list_of_2d_temp_grids_kelvins[i].shape))
+            this_grid_id = nwp_model_utils.dimensions_to_grid(
+                num_rows=list_of_2d_temp_grids_kelvins[i].shape[0],
+                num_columns=list_of_2d_temp_grids_kelvins[i].shape[1]
+            )
+
             this_grid_index = grid_ids.index(this_grid_id)
 
             list_of_sinterp_temp_arrays_kelvins[
@@ -1181,8 +1203,11 @@ def interp_temperature_surface_from_nwp(
 
         list_of_sinterp_height_arrays_m_asl = [numpy.array([])] * num_init_times
         for i in range(num_init_times):
-            this_grid_id = nwp_model_utils.dimensions_to_grid_id(
-                numpy.array(list_of_2d_temp_grids_kelvins[i].shape))
+            this_grid_id = nwp_model_utils.dimensions_to_grid(
+                num_rows=list_of_2d_temp_grids_kelvins[i].shape[0],
+                num_columns=list_of_2d_temp_grids_kelvins[i].shape[1]
+            )
+
             this_grid_index = grid_ids.index(this_grid_id)
 
             list_of_sinterp_height_arrays_m_asl[
