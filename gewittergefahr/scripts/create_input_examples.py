@@ -12,8 +12,6 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import input_examples
 
-# TODO(thunderhoser): Allow downsampling based on multiple target variables.
-
 STORM_IMAGE_DIR_ARG_NAME = 'input_storm_image_dir_name'
 RADAR_SOURCE_ARG_NAME = 'radar_source'
 NUM_RADAR_DIM_ARG_NAME = 'num_radar_dimensions'
@@ -218,8 +216,8 @@ def _run(top_storm_image_dir_name, radar_source, num_radar_dimensions,
     """
 
     if len(class_fraction_keys) > 1:
-        class_to_sampling_fraction_dict = dict(zip(
-            class_fraction_keys, class_fraction_values))
+        class_to_sampling_fraction_dict = dict(list(zip(
+            class_fraction_keys, class_fraction_values)))
     else:
         class_to_sampling_fraction_dict = None
 

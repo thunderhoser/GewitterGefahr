@@ -60,7 +60,7 @@ def _convert_files(top_probsevere_dir_name, date_string, top_output_dir_name):
         raise_error_if_all_missing=True)
 
     for this_raw_file_name in raw_file_names:
-        print 'Reading data from "{0:s}"...'.format(this_raw_file_name)
+        print('Reading data from "{0:s}"...'.format(this_raw_file_name))
         this_storm_object_table = probsevere_io.read_raw_file(
             this_raw_file_name)
 
@@ -77,7 +77,7 @@ def _convert_files(top_probsevere_dir_name, date_string, top_output_dir_name):
             tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
             raise_error_if_missing=False)
 
-        print 'Writing data to "{0:s}"...'.format(this_new_file_name)
+        print('Writing data to "{0:s}"...'.format(this_new_file_name))
         tracking_io.write_file(
             storm_object_table=this_storm_object_table,
             pickle_file_name=this_new_file_name)

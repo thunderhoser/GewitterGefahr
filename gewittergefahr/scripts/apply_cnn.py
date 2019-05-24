@@ -91,13 +91,13 @@ def _run(model_file_name, example_file_name, first_time_string,
     :param top_output_dir_name: Same.
     """
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
 
     model_directory_name, _ = os.path.split(model_file_name)
     model_metafile_name = '{0:s}/model_metadata.p'.format(model_directory_name)
 
-    print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
@@ -131,7 +131,7 @@ def _run(model_file_name, example_file_name, first_time_string,
     except StopIteration:
         storm_object_dict = None
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     if storm_object_dict is not None:
         observed_labels = storm_object_dict[testing_io.TARGET_ARRAY_KEY]
@@ -161,16 +161,16 @@ def _run(model_file_name, example_file_name, first_time_string,
                 radar_image_matrix=list_of_predictor_matrices[0],
                 sounding_matrix=this_sounding_matrix, verbose=True)
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
         num_examples = class_probability_matrix.shape[0]
 
         for k in [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:
-            print '{0:d}th percentile of {1:d} forecast probs = {2:.4f}'.format(
+            print('{0:d}th percentile of {1:d} forecast probs = {2:.4f}'.format(
                 k, num_examples,
                 numpy.percentile(class_probability_matrix[:, 1], k)
-            )
+            ))
 
-        print '\n'
+        print('\n')
 
     target_param_dict = target_val_utils.target_name_to_params(
         model_metadata_dict[cnn.TARGET_NAME_KEY]
@@ -191,8 +191,8 @@ def _run(model_file_name, example_file_name, first_time_string,
         gridded=False, raise_error_if_missing=False
     )
 
-    print 'Writing "{0:s}" predictions to: "{1:s}"...'.format(
-        target_name, output_file_name)
+    print('Writing "{0:s}" predictions to: "{1:s}"...'.format(
+        target_name, output_file_name))
 
     if storm_object_dict is None:
         num_output_neurons = (
@@ -214,7 +214,7 @@ def _run(model_file_name, example_file_name, first_time_string,
     prediction_io.write_ungridded_predictions(
         netcdf_file_name=output_file_name,
         class_probability_matrix=class_probability_matrix,
-        storm_ids=storm_object_dict[testing_io.STORM_IDS_KEY],
+        storm_ids=storm_object_dict[testing_io.FULL_IDS_KEY],
         storm_times_unix_sec=storm_object_dict[testing_io.STORM_TIMES_KEY],
         target_name=target_name, observed_labels=observed_labels)
 

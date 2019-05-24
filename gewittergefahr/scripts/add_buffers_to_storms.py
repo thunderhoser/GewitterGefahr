@@ -96,10 +96,10 @@ def _run(top_input_dir_name, tracking_scale_metres2, first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
     for this_spc_date_string in spc_date_strings:
-        these_input_file_names = tracking_io.find_processed_files_one_spc_date(
-            top_processed_dir_name=top_input_dir_name,
+        these_input_file_names = tracking_io.find_files_one_spc_date(
+            top_tracking_dir_name=top_input_dir_name,
             tracking_scale_metres2=tracking_scale_metres2,
-            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+            source_name=tracking_utils.SEGMOTION_NAME,
             spc_date_string=this_spc_date_string,
             raise_error_if_missing=False
         )[0]
@@ -108,36 +108,36 @@ def _run(top_input_dir_name, tracking_scale_metres2, first_spc_date_string,
             continue
 
         for this_input_file_name in these_input_file_names:
-            print 'Reading input tracks from: "{0:s}"...'.format(
-                this_input_file_name)
+            print('Reading input tracks from: "{0:s}"...'.format(
+                this_input_file_name))
 
-            this_storm_object_table = tracking_io.read_processed_file(
+            this_storm_object_table = tracking_io.read_file(
                 this_input_file_name)
 
             this_storm_object_table = (
-                tracking_utils.make_buffers_around_storm_objects(
+                tracking_utils.create_distance_buffers(
                     storm_object_table=this_storm_object_table,
                     min_distances_metres=min_distances_metres,
                     max_distances_metres=max_distances_metres)
             )
 
-            this_output_file_name = tracking_io.find_processed_file(
-                top_processed_dir_name=top_output_dir_name,
+            this_output_file_name = tracking_io.find_file(
+                top_tracking_dir_name=top_output_dir_name,
                 tracking_scale_metres2=tracking_scale_metres2,
-                data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-                unix_time_sec=tracking_io.processed_file_name_to_time(
+                source_name=tracking_utils.SEGMOTION_NAME,
+                valid_time_unix_sec=tracking_io.file_name_to_time(
                     this_input_file_name),
                 spc_date_string=this_spc_date_string,
                 raise_error_if_missing=False)
 
-            print 'Writing input tracks + buffers to: "{0:s}"...\n'.format(
-                this_output_file_name)
+            print('Writing input tracks + buffers to: "{0:s}"...\n'.format(
+                this_output_file_name))
 
-            tracking_io.write_processed_file(
+            tracking_io.write_file(
                 storm_object_table=this_storm_object_table,
                 pickle_file_name=this_output_file_name)
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':

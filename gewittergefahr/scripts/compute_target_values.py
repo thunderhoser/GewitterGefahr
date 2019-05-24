@@ -208,9 +208,10 @@ def _compute_targets_one_day(
                         wind_speed_cutoffs_kt=list_of_cutoff_arrays_kt[k])
 
                     target_names.append(this_target_name)
-                    print (
+
+                    print((
                         'Computing labels for "{0:s}" on SPC date {1:s}...'
-                    ).format(this_target_name, spc_date_string)
+                    ).format(this_target_name, spc_date_string))
 
                     storm_to_events_table = (
                         target_val_utils.create_wind_classification_targets(
@@ -232,9 +233,10 @@ def _compute_targets_one_day(
                         max_link_distance_metres=max_link_distances_metres[j])
 
                     target_names.append(this_target_name)
-                    print (
+
+                    print((
                         'Computing labels for "{0:s}" on SPC date {1:s}...'
-                    ).format(this_target_name, spc_date_string)
+                    ).format(this_target_name, spc_date_string))
 
                     storm_to_events_table = (
                         target_val_utils.create_tornado_targets(
@@ -253,7 +255,7 @@ def _compute_targets_one_day(
         event_type_string=event_type_string, spc_date_string=spc_date_string,
         raise_error_if_missing=False)
 
-    print 'Writing target values to: "{0:s}"...'.format(target_file_name)
+    print('Writing target values to: "{0:s}"...'.format(target_file_name))
     target_val_utils.write_target_values(
         storm_to_events_table=storm_to_events_table, target_names=target_names,
         netcdf_file_name=target_file_name)
@@ -304,7 +306,7 @@ def _run(top_linkage_dir_name, first_spc_date_string, last_spc_date_string,
         if not os.path.isfile(this_linkage_file_name):
             continue
 
-        print 'Reading data from: "{0:s}"...'.format(this_linkage_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_linkage_file_name))
         this_storm_to_events_table = linkage.read_linkage_file(
             this_linkage_file_name)
 

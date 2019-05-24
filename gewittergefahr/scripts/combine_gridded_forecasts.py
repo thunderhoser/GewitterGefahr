@@ -85,7 +85,7 @@ def _run(top_input_dir_name, first_init_time_string, last_init_time_string,
             last_init_time_unix_sec=this_time_unix_sec, gridded=True,
             raise_error_if_missing=True)
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         gridded_forecast_dict = prediction_io.read_gridded_predictions(
             this_file_name)
 
@@ -113,9 +113,9 @@ def _run(top_input_dir_name, first_init_time_string, last_init_time_string,
             )
             probability_matrix = numpy.nanmax(probability_matrix, axis=-1)
 
-        print probability_matrix.shape
+        print(probability_matrix.shape)
 
-    print '\n'
+    print('\n')
 
     for this_key in prediction_io.LATLNG_KEYS:
         if this_key in gridded_forecast_dict:
@@ -137,7 +137,7 @@ def _run(top_input_dir_name, first_init_time_string, last_init_time_string,
         last_init_time_unix_sec=init_times_unix_sec[-1], gridded=True,
         raise_error_if_missing=False)
 
-    print 'Writing final grid to: "{0:s}"...'.format(output_file_name)
+    print('Writing final grid to: "{0:s}"...'.format(output_file_name))
 
     prediction_io.write_gridded_predictions(
         gridded_forecast_dict=gridded_forecast_dict,

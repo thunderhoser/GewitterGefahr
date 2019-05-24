@@ -128,7 +128,7 @@ def _run(
         num_times = image_file_name_matrix.shape[0]
         num_field_height_pairs = image_file_name_matrix.shape[1]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     for j in range(num_field_height_pairs):
         storm_image_dict = None
@@ -137,8 +137,8 @@ def _run(
             if image_file_name_matrix[i, j] == '':
                 continue
 
-            print 'Reading data from: "{0:s}"...'.format(
-                image_file_name_matrix[i, j])
+            print('Reading data from: "{0:s}"...'.format(
+                image_file_name_matrix[i, j]))
 
             if storm_image_dict is None:
                 storm_image_dict = storm_images.read_storm_images(
@@ -176,7 +176,7 @@ def _run(
             radar_height_m_agl=storm_image_dict[storm_images.RADAR_HEIGHT_KEY],
             raise_error_if_missing=False)
 
-        print 'Writing data to: "{0:s}"...'.format(this_file_name)
+        print('Writing data to: "{0:s}"...'.format(this_file_name))
 
         storm_images.write_storm_images(
             netcdf_file_name=this_file_name,
@@ -192,7 +192,7 @@ def _run(
                 storm_images.ROTATED_GRID_SPACING_KEY]
         )
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':
