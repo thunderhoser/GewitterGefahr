@@ -105,13 +105,13 @@ def check_class_fractions(sampling_fraction_by_class_dict, target_name):
             ' keys listed above.  Instead, contains the keys listed below.'
             '\n{1:s}'
         ).format(
-            str(expected_keys), str(sampling_fraction_by_class_dict.keys())
+            str(expected_keys), str(list(sampling_fraction_by_class_dict.keys()))
         )
 
         raise KeyError(error_string)
 
     sum_of_class_fractions = numpy.sum(numpy.array(
-        sampling_fraction_by_class_dict.values()
+        list(sampling_fraction_by_class_dict.values())
     ))
     absolute_diff = numpy.absolute(sum_of_class_fractions - 1.)
 
@@ -120,7 +120,7 @@ def check_class_fractions(sampling_fraction_by_class_dict, target_name):
             '\n{0:s}\nSum of sampling fractions (listed above) should be 1.  '
             'Instead, got sum = {1:.4f}.'
         ).format(
-            str(sampling_fraction_by_class_dict.values()),
+            str(list(sampling_fraction_by_class_dict.values())),
             sum_of_class_fractions
         )
 
@@ -143,7 +143,7 @@ def class_fractions_to_num_examples(
         sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
         target_name=target_name)
 
-    num_extended_classes = len(sampling_fraction_by_class_dict.keys())
+    num_extended_classes = len(list(sampling_fraction_by_class_dict.keys()))
     error_checking.assert_is_integer(num_examples_total)
     error_checking.assert_is_geq(num_examples_total, num_extended_classes)
 
@@ -151,7 +151,7 @@ def class_fractions_to_num_examples(
     num_examples_used = 0
     num_classes_used = 0
 
-    for this_key in sampling_fraction_by_class_dict.keys()[:-1]:
+    for this_key in list(sampling_fraction_by_class_dict.keys())[:-1]:
         this_num_examples = int(numpy.round(
             sampling_fraction_by_class_dict[this_key] * num_examples_total))
         this_num_examples = max([this_num_examples, 1])
@@ -165,7 +165,7 @@ def class_fractions_to_num_examples(
         num_examples_by_class_dict.update({this_key: this_num_examples})
         num_examples_used += this_num_examples
 
-    this_key = sampling_fraction_by_class_dict.keys()[-1]
+    this_key = list(sampling_fraction_by_class_dict.keys())[-1]
     this_num_examples = num_examples_total - num_examples_used
     num_examples_by_class_dict.update({this_key: this_num_examples})
     return num_examples_by_class_dict
@@ -192,7 +192,7 @@ def class_fractions_to_weights(
     error_checking.assert_is_boolean(binarize_target)
 
     if binarize_target:
-        max_key = numpy.max(numpy.array(sampling_fraction_by_class_dict.keys()))
+        max_key = numpy.max(numpy.array(list(sampling_fraction_by_class_dict.keys())))
         positive_fraction = sampling_fraction_by_class_dict[max_key]
         negative_fraction = 1. - positive_fraction
         new_sampling_fraction_dict = {
@@ -203,7 +203,7 @@ def class_fractions_to_weights(
             sampling_fraction_by_class_dict)
 
         if (target_val_utils.DEAD_STORM_INTEGER in
-                sampling_fraction_by_class_dict.keys()):
+                list(sampling_fraction_by_class_dict.keys())):
 
             new_sampling_fraction_dict[0] = (
                 new_sampling_fraction_dict[0] +
@@ -213,13 +213,13 @@ def class_fractions_to_weights(
             del new_sampling_fraction_dict[target_val_utils.DEAD_STORM_INTEGER]
 
     loss_function_weights = (
-        1. / numpy.array(new_sampling_fraction_dict.values())
+        1. / numpy.array(list(new_sampling_fraction_dict.values()))
     )
     loss_function_weights = (
         loss_function_weights / numpy.sum(loss_function_weights)
     )
 
-    return dict(zip(new_sampling_fraction_dict.keys(), loss_function_weights))
+    return dict(list(zip(list(new_sampling_fraction_dict.keys()), loss_function_weights)))
 
 
 def check_radar_images(
@@ -884,7 +884,7 @@ def sample_by_class(
     num_desired_examples_by_extended_class = []
     num_avail_examples_by_extended_class = []
 
-    for this_key in num_desired_examples_by_class_dict.keys():
+    for this_key in list(num_desired_examples_by_class_dict.keys()):
         these_indices = numpy.where(target_values == this_key)[0]
         num_desired_examples_by_extended_class.append(
             num_desired_examples_by_class_dict[this_key])
@@ -916,7 +916,7 @@ def sample_by_class(
             target_name=target_name, num_examples_total=num_examples_total)
 
     indices_to_keep = numpy.array([], dtype=int)
-    for this_key in indices_to_keep_by_class_dict.keys():
+    for this_key in list(indices_to_keep_by_class_dict.keys()):
         if not test_mode:
             numpy.random.shuffle(indices_to_keep_by_class_dict[this_key])
 

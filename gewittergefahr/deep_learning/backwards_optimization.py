@@ -156,16 +156,19 @@ def _do_gradient_descent(
             list_of_optimized_matrices + [0])
 
         if numpy.mod(j, 100) == 0:
-            print 'Loss after {0:d} of {1:d} iterations: {2:.2e}'.format(
-                j, num_iterations, these_outputs[0])
+            print('Loss after {0:d} of {1:d} iterations: {2:.2e}'.format(
+                j, num_iterations, these_outputs[0]
+            ))
 
         for i in range(num_input_tensors):
             list_of_optimized_matrices[i] -= (
                 these_outputs[i + 1] * learning_rate
             )
 
-    print 'Loss after {0:d} iterations: {1:.2e}'.format(
-        num_iterations, these_outputs[0])
+    print('Loss after {0:d} iterations: {1:.2e}'.format(
+        num_iterations, these_outputs[0]
+    ))
+
     return list_of_optimized_matrices
 
 

@@ -110,7 +110,7 @@ def _get_batch_size_by_class(
 
         values = numpy.full(
             num_extended_classes, num_examples_per_batch, dtype=int)
-        return dict(zip(keys, values))
+        return dict(list(zip(keys, values)))
 
     return dl_utils.class_fractions_to_num_examples(
         sampling_fraction_by_class_dict=class_to_sampling_fraction_dict,
@@ -134,7 +134,7 @@ def _get_remaining_batch_size_by_class(
 
     class_to_rem_batch_size_dict = {}
 
-    for this_class in class_to_batch_size_dict.keys():
+    for this_class in list(class_to_batch_size_dict.keys()):
         this_num_examples = (
             class_to_batch_size_dict[this_class] -
             numpy.sum(target_values_in_memory == this_class)
@@ -167,14 +167,15 @@ def _check_stopping_criterion(
         this_value = numpy.sum(target_values_in_memory == this_key)
         class_to_num_read_dict.update({this_key: this_value})
 
-    print 'Number of examples in memory for each class:\n{0:s}\n'.format(
-        str(class_to_num_read_dict))
+    print('Number of examples in memory for each class:\n{0:s}\n'.format(
+        str(class_to_num_read_dict)
+    ))
 
     num_examples_in_memory = len(target_values_in_memory)
     stop_generator = num_examples_in_memory >= num_examples_per_batch
 
     if stop_generator and class_to_sampling_fraction_dict is not None:
-        for this_key in class_to_batch_size_dict.keys():
+        for this_key in list(class_to_batch_size_dict.keys()):
             stop_generator = (
                 stop_generator and
                 class_to_num_read_dict[this_key] >=
@@ -233,16 +234,18 @@ def _select_batch(
         num_classes_to_predict = num_classes + 0
 
     if num_classes_to_predict == 2:
-        print 'Fraction of examples in positive class: {0:.3f}'.format(
-            numpy.mean(target_values))
+        print('Fraction of examples in positive class: {0:.3f}'.format(
+            numpy.mean(target_values)
+        ))
         return list_of_predictor_matrices, target_values
 
     target_matrix = keras.utils.to_categorical(
         target_values[batch_indices], num_classes_to_predict)
 
     class_fractions = numpy.mean(target_matrix, axis=0)
-    print 'Fraction of examples in each class: {0:s}\n'.format(
-        str(class_fractions))
+    print('Fraction of examples in each class: {0:s}\n'.format(
+        str(class_fractions)
+    ))
 
     return list_of_predictor_matrices, target_matrix
 
@@ -327,13 +330,13 @@ def _augment_radar_images(
         len(list_of_predictor_matrices) - int(soundings_included)
     )
 
-    print (
+    print((
         'Augmenting radar images ({0:d} translations, {1:d} rotations, {2:d} '
         'noisings, {3:d} x-flips, and {4:d} y-flips each)...'
     ).format(
         num_translations, num_rotations, num_noisings, int(flip_in_x),
         int(flip_in_y)
-    )
+    ))
 
     orig_num_examples = list_of_predictor_matrices[0].shape[0]
 
@@ -612,8 +615,10 @@ def generator_2d_or_3d(option_dict):
                 class_to_batch_size_dict=class_to_batch_size_dict,
                 target_values_in_memory=target_values)
 
-            print 'Reading data from: "{0:s}"...'.format(
-                example_file_names[file_index])
+            print('Reading data from: "{0:s}"...'.format(
+                example_file_names[file_index]
+            ))
+
             this_example_dict = input_examples.read_example_file(
                 netcdf_file_name=example_file_names[file_index],
                 include_soundings=sounding_field_names is not None,
@@ -856,8 +861,10 @@ def myrorss_generator_2d3d(option_dict):
                 class_to_batch_size_dict=class_to_batch_size_dict,
                 target_values_in_memory=target_values)
 
-            print 'Reading data from: "{0:s}"...'.format(
-                example_file_names[file_index])
+            print('Reading data from: "{0:s}"...'.format(
+                example_file_names[file_index]
+            ))
+
             this_example_dict = input_examples.read_example_file(
                 netcdf_file_name=example_file_names[file_index],
                 include_soundings=sounding_field_names is not None,
@@ -1148,8 +1155,10 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                 class_to_batch_size_dict=class_to_batch_size_dict,
                 target_values_in_memory=target_values)
 
-            print 'Reading data from: "{0:s}"...'.format(
-                example_file_names[file_index])
+            print('Reading data from: "{0:s}"...'.format(
+                example_file_names[file_index]
+            ))
+
             this_example_dict = input_examples.read_example_file(
                 netcdf_file_name=example_file_names[file_index],
                 include_soundings=sounding_field_names is not None,

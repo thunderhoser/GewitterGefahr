@@ -220,11 +220,13 @@ def _eval_sfs_stopping_criterion(
 
     max_new_loss = previous_loss - min_loss_decrease
 
-    print (
+    print((
         'Previous loss ({0:d} steps ago) = {1:.4e} ... minimum loss decrease = '
         '{2:.4e} ... thus, max new loss = {3:.4e} ... actual new loss = {4:.4e}'
-    ).format(num_steps_for_loss_decrease, previous_loss, min_loss_decrease,
-             max_new_loss, lowest_cost_by_step[-1])
+    ).format(
+        num_steps_for_loss_decrease, previous_loss, min_loss_decrease,
+        max_new_loss, lowest_cost_by_step[-1]
+    ))
 
     return lowest_cost_by_step[-1] > max_new_loss
 
@@ -357,7 +359,7 @@ def run_sfs(
     num_input_matrices = len(list_of_training_matrices)
 
     while True:
-        print '\n'
+        print('\n')
         step_num += 1
 
         lowest_cost = numpy.inf
@@ -373,10 +375,10 @@ def run_sfs(
             for this_predictor_name in remaining_predictor_names_by_matrix[q]:
                 any_predictors_left = True
 
-                print (
+                print((
                     'Trying predictor "{0:s}" at step {1:d} of SFS... '
-                ).format(this_predictor_name, step_num)
-                print SEPARATOR_STRING
+                ).format(this_predictor_name, step_num))
+                print(SEPARATOR_STRING)
 
                 these_training_matrices, these_validation_matrices = (
                     _subset_input_matrices(
@@ -396,13 +398,15 @@ def run_sfs(
                     training_target_values=training_target_values,
                     list_of_validation_matrices=these_validation_matrices,
                     validation_target_values=validation_target_values)
-                print SEPARATOR_STRING
+                print(SEPARATOR_STRING)
 
                 this_cost = numpy.nanmin(
-                    this_history_object.history['val_loss'])
-                print 'Validation loss after adding "{0:s}" = {1:.4e}'.format(
-                    this_predictor_name, this_cost)
-                print SEPARATOR_STRING
+                    this_history_object.history['val_loss']
+                )
+
+                print('Validation loss after adding "{0:s}" = {1:.4e}'.format(
+                    this_predictor_name, this_cost))
+                print(SEPARATOR_STRING)
 
                 if this_cost > lowest_cost:
                     continue
@@ -428,8 +432,8 @@ def run_sfs(
         remaining_predictor_names_by_matrix[best_matrix_index].remove(
             best_predictor_name)
 
-        print 'Best predictor = "{0:s}" ... new cost = {1:.4e}'.format(
-            best_predictor_name, lowest_cost)
+        print('Best predictor = "{0:s}" ... new cost = {1:.4e}'.format(
+            best_predictor_name, lowest_cost))
 
     return {
         MIN_DECREASE_KEY: min_loss_decrease,
@@ -538,7 +542,7 @@ def run_sfs_on_sklearn_model(
     climo_cost = cost_function(validation_target_values,
                                climo_validation_prob_matrix)
 
-    print 'Cost of climatological model: {0:.4e}\n'.format(climo_cost)
+    print('Cost of climatological model: {0:.4e}\n'.format(climo_cost))
 
     # Do dirty work.
     remaining_predictor_names = predictor_names + []
@@ -548,16 +552,16 @@ def run_sfs_on_sklearn_model(
     step_num = 0
 
     while len(remaining_predictor_names) > 0:
-        print '\n'
+        print('\n')
         step_num += 1
 
         lowest_cost = numpy.inf
         best_predictor_name = None
 
         for this_predictor_name in remaining_predictor_names:
-            print (
+            print((
                 'Trying predictor "{0:s}" at step {1:d} of SFS... '
-            ).format(this_predictor_name, step_num)
+            ).format(this_predictor_name, step_num))
 
             these_indices = [
                 predictor_names.index(s)
@@ -578,8 +582,8 @@ def run_sfs_on_sklearn_model(
             this_cost = cost_function(validation_target_values,
                                       this_validation_prob_matrix)
 
-            print 'Validation loss after adding "{0:s}" = {1:.4e}\n'.format(
-                this_predictor_name, this_cost)
+            print('Validation loss after adding "{0:s}" = {1:.4e}\n'.format(
+                this_predictor_name, this_cost))
 
             if this_cost > lowest_cost:
                 continue
@@ -600,9 +604,9 @@ def run_sfs_on_sklearn_model(
         lowest_cost_by_step.append(lowest_cost)
         remaining_predictor_names.remove(best_predictor_name)
 
-        print 'Best predictor = "{0:s}" ... new cost = {1:.4e}'.format(
-            best_predictor_name, lowest_cost)
-        print SEPARATOR_STRING
+        print('Best predictor = "{0:s}" ... new cost = {1:.4e}'.format(
+            best_predictor_name, lowest_cost))
+        print(SEPARATOR_STRING)
 
     return {
         MIN_DECREASE_KEY: min_loss_decrease,

@@ -125,7 +125,7 @@ def _read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
         no sounding.
     """
 
-    print 'Reading data from: "{0:s}"...'.format(sounding_file_name)
+    print('Reading data from: "{0:s}"...'.format(sounding_file_name))
     sounding_dict, _ = soundings.read_soundings(
         netcdf_file_name=sounding_file_name,
         field_names_to_keep=sounding_field_names,
@@ -197,7 +197,7 @@ def _create_2d_examples(
         key "target_name".
     """
 
-    print 'Reading data from: "{0:s}"...'.format(radar_file_names[0])
+    print('Reading data from: "{0:s}"...'.format(radar_file_names[0]))
     this_radar_image_dict = storm_images.read_storm_images(
         netcdf_file_name=radar_file_names[0],
         full_id_strings_to_keep=full_id_strings,
@@ -236,7 +236,7 @@ def _create_2d_examples(
 
     for j in range(num_channels):
         if j != 0:
-            print 'Reading data from: "{0:s}"...'.format(radar_file_names[j])
+            print('Reading data from: "{0:s}"...'.format(radar_file_names[j]))
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=radar_file_names[j],
                 full_id_strings_to_keep=full_id_strings,
@@ -297,7 +297,7 @@ def _create_3d_examples(
     :return: example_dict: Same.
     """
 
-    print 'Reading data from: "{0:s}"...'.format(radar_file_name_matrix[0, 0])
+    print('Reading data from: "{0:s}"...'.format(radar_file_name_matrix[0, 0]))
     this_radar_image_dict = storm_images.read_storm_images(
         netcdf_file_name=radar_file_name_matrix[0, 0],
         full_id_strings_to_keep=full_id_strings,
@@ -340,8 +340,10 @@ def _create_3d_examples(
 
         for j in range(num_radar_fields):
             if not j == k == 0:
-                print 'Reading data from: "{0:s}"...'.format(
-                    radar_file_name_matrix[j, k])
+                print('Reading data from: "{0:s}"...'.format(
+                    radar_file_name_matrix[j, k]
+                ))
+
                 this_radar_image_dict = storm_images.read_storm_images(
                     netcdf_file_name=radar_file_name_matrix[j, k],
                     full_id_strings_to_keep=full_id_strings,
@@ -415,7 +417,7 @@ def _create_2d3d_examples_myrorss(
     :return: example_dict: Same.
     """
 
-    print 'Reading data from: "{0:s}"...'.format(reflectivity_file_names[0])
+    print('Reading data from: "{0:s}"...'.format(reflectivity_file_names[0]))
     this_radar_image_dict = storm_images.read_storm_images(
         netcdf_file_name=reflectivity_file_names[0],
         full_id_strings_to_keep=full_id_strings,
@@ -463,8 +465,10 @@ def _create_2d3d_examples_myrorss(
 
     for j in range(num_reflectivity_heights):
         if j != 0:
-            print 'Reading data from: "{0:s}"...'.format(
-                reflectivity_file_names[j])
+            print('Reading data from: "{0:s}"...'.format(
+                reflectivity_file_names[j]
+            ))
+
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=reflectivity_file_names[j],
                 full_id_strings_to_keep=full_id_strings,
@@ -500,8 +504,10 @@ def _create_2d3d_examples_myrorss(
     tuple_of_image_matrices = ()
 
     for j in range(num_az_shear_fields):
-        print 'Reading data from: "{0:s}"...'.format(
-            azimuthal_shear_file_names[j])
+        print('Reading data from: "{0:s}"...'.format(
+            azimuthal_shear_file_names[j]
+        ))
+
         this_radar_image_dict = storm_images.read_storm_images(
             netcdf_file_name=azimuthal_shear_file_names[j],
             full_id_strings_to_keep=full_id_strings,
@@ -671,7 +677,7 @@ def _filter_examples_by_class(
 
     indices_to_keep = numpy.array([], dtype=int)
 
-    for this_class in class_to_num_examples_dict.keys():
+    for this_class in list(class_to_num_examples_dict.keys()):
         this_num_storm_objects = class_to_num_examples_dict[this_class]
         these_indices = numpy.where(target_values == this_class)[0]
 
@@ -2085,9 +2091,9 @@ def create_examples(
     target_values = numpy.array([], dtype=int)
 
     for i in range(num_file_times):
-        print 'Reading "{0:s}" from: "{1:s}"...'.format(
+        print('Reading "{0:s}" from: "{1:s}"...'.format(
             target_name, target_file_names[i]
-        )
+        ))
 
         this_target_dict = target_val_utils.read_target_values(
             netcdf_file_name=target_file_names[i], target_name=target_name)
@@ -2109,7 +2115,7 @@ def create_examples(
     storm_times_unix_sec = storm_times_unix_sec[good_indices]
     target_values = target_values[good_indices]
 
-    print '\n'
+    print('\n')
     num_examples_found = len(full_id_strings)
     num_examples_to_use = num_examples_per_in_file * num_file_times
 
@@ -2134,9 +2140,11 @@ def create_examples(
         target_values, return_counts=True)
 
     for k in range(len(unique_target_values)):
-        print '{0:d} examples with target class = {1:d}'.format(
-            unique_counts[k], unique_target_values[k])
-    print '\n'
+        print('{0:d} examples with target class = {1:d}'.format(
+            unique_counts[k], unique_target_values[k]
+        ))
+
+    print('\n')
 
     first_spc_date_string = time_conversion.time_to_spc_date_string(
         numpy.min(storm_times_unix_sec))
@@ -2226,14 +2234,14 @@ def create_examples(
                 sounding_file_name=this_sounding_file_name,
                 sounding_field_names=None)
 
-        print '\n'
+        print('\n')
         if this_example_dict is None:
             continue
 
         this_example_dict.update({TARGET_NAME_KEY: target_name})
         this_output_file_name = spc_date_to_out_file_dict[this_spc_date_string]
 
-        print 'Writing examples to: "{0:s}"...'.format(this_output_file_name)
+        print('Writing examples to: "{0:s}"...'.format(this_output_file_name))
         write_example_file(
             netcdf_file_name=this_output_file_name,
             example_dict=this_example_dict,

@@ -151,9 +151,9 @@ def _fit_svd(baseline_feature_matrix, test_feature_matrix,
         these_indices = numpy.array([num_features - 1], dtype=int)
     num_modes_to_keep = 1 + these_indices[0]
 
-    print (
+    print((
         'Number of modes required to explain {0:f}% of variance: {1:d}'
-    ).format(percent_variance_to_keep, num_modes_to_keep)
+    ).format(percent_variance_to_keep, num_modes_to_keep))
 
     return {
         EOF_MATRIX_KEY: numpy.transpose(eof_matrix)[..., :num_modes_to_keep],
@@ -306,13 +306,13 @@ def do_novelty_detection(
         cnn_model_object=cnn_model_object,
         list_of_predictor_matrices=list_of_baseline_input_matrices,
         output_layer_name=cnn_feature_layer_name, verbose=True)
-    print '\n'
+    print('\n')
 
     trial_feature_matrix = _apply_cnn(
         cnn_model_object=cnn_model_object,
         list_of_predictor_matrices=list_of_trial_input_matrices,
         output_layer_name=cnn_feature_layer_name, verbose=True)
-    print '\n'
+    print('\n')
 
     num_trial_examples = trial_feature_matrix.shape[0]
 
@@ -327,8 +327,8 @@ def do_novelty_detection(
     novel_image_matrix_upconv_svd = None
 
     for k in range(num_novel_examples):
-        print 'Finding {0:d}th-most novel trial example...'.format(
-            k + 1, num_novel_examples)
+        print('Finding {0:d}th-most novel trial example...'.format(
+            k + 1, num_novel_examples))
 
         fit_new_svd = multipass or k == 0
 

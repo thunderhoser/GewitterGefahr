@@ -658,9 +658,9 @@ def apply_upconvnet(model_object, feature_matrix, num_examples_per_batch=100,
             num=this_last_index - this_first_index + 1, dtype=int)
 
         if verbose:
-            print (
+            print((
                 'Applying model to examples {0:d}-{1:d} of {2:d}...'
-            ).format(this_first_index + 1, this_last_index + 1, num_examples)
+            ).format(this_first_index + 1, this_last_index + 1, num_examples))
 
         this_image_matrix = model_object.predict(
             feature_matrix[these_indices, ...], batch_size=len(these_indices)
@@ -673,6 +673,6 @@ def apply_upconvnet(model_object, feature_matrix, num_examples_per_batch=100,
                 (reconstructed_image_matrix, this_image_matrix), axis=0)
 
     if verbose:
-        print 'Have applied model to all {0:d} examples!'.format(num_examples)
+        print('Have applied model to all {0:d} examples!'.format(num_examples))
 
     return reconstructed_image_matrix

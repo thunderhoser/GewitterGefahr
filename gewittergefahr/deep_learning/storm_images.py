@@ -1205,9 +1205,9 @@ def extract_storm_images_myrorss_or_mrms(
 
         this_storm_object_table = storm_object_table.iloc[these_storm_indices]
 
-        print 'Finding storm elevations at {0:s}...'.format(
+        print('Finding storm elevations at {0:s}...'.format(
             valid_time_strings[i]
-        )
+        ))
 
         these_elevations_m_asl = geodetic_utils.get_elevations(
             latitudes_deg=this_storm_object_table[
@@ -1222,10 +1222,10 @@ def extract_storm_images_myrorss_or_mrms(
 
         if rotate_grids:
             if any_azimuthal_shear:
-                print (
+                print((
                     'Creating rotated {0:.1f}-metre grids for storms at '
                     '{1:s}...'
-                ).format(rotated_grid_spacing_metres / 2, valid_time_strings[i])
+                ).format(rotated_grid_spacing_metres / 2, valid_time_strings[i]))
 
                 this_storm_object_table = _rotate_grids_many_storm_objects(
                     storm_object_table=this_storm_object_table,
@@ -1235,10 +1235,10 @@ def extract_storm_images_myrorss_or_mrms(
                     for_azimuthal_shear=True)
 
             if any_non_azimuthal_shear:
-                print (
+                print((
                     'Creating rotated {0:.1f}-metre grids for storms at '
                     '{1:s}...'
-                ).format(rotated_grid_spacing_metres, valid_time_strings[i])
+                ).format(rotated_grid_spacing_metres, valid_time_strings[i]))
 
                 this_storm_object_table = _rotate_grids_many_storm_objects(
                     storm_object_table=this_storm_object_table,
@@ -1258,14 +1258,14 @@ def extract_storm_images_myrorss_or_mrms(
             if radar_file_name_matrix[i, j] is None:
                 continue
 
-            print (
+            print((
                 'Extracting storm-centered images for "{0:s}" at {1:d} '
                 'metres ASL and {2:s}...'
             ).format(
                 field_name_by_pair[j],
                 int(numpy.round(height_by_pair_m_asl[j])),
                 valid_time_strings[i]
-            )
+            ))
 
             this_metadata_dict = (
                 myrorss_and_mrms_io.read_metadata_from_raw_file(
@@ -1390,9 +1390,9 @@ def extract_storm_images_myrorss_or_mrms(
                 radar_height_m_agl=height_by_pair_m_asl[j],
                 raise_error_if_missing=False)
 
-            print (
+            print((
                 'Writing storm-centered images to: "{0:s}"...'
-            ).format(this_image_file_name)
+            ).format(this_image_file_name))
 
             write_storm_images(
                 netcdf_file_name=this_image_file_name,
@@ -1441,9 +1441,9 @@ def extract_storm_images_myrorss_or_mrms(
                 radar_height_m_agl=reflectivity_heights_m_agl[j],
                 raise_error_if_missing=False)
 
-            print (
+            print((
                 'Writing storm-centered images to: "{0:s}"...'
-            ).format(this_image_file_name)
+            ).format(this_image_file_name))
 
             write_storm_images(
                 netcdf_file_name=this_image_file_name,
@@ -1457,7 +1457,7 @@ def extract_storm_images_myrorss_or_mrms(
                 rotated_grids=rotate_grids,
                 rotated_grid_spacing_metres=rotated_grid_spacing_metres)
 
-        print '\n'
+        print('\n')
 
 
 def extract_storm_images_gridrad(
@@ -1553,9 +1553,9 @@ def extract_storm_images_gridrad(
 
         this_storm_object_table = storm_object_table.iloc[these_storm_indices]
 
-        print 'Finding storm elevations at {0:s}...'.format(
+        print('Finding storm elevations at {0:s}...'.format(
             valid_time_strings[i]
-        )
+        ))
 
         these_elevations_m_asl = geodetic_utils.get_elevations(
             latitudes_deg=this_storm_object_table[
@@ -1569,10 +1569,10 @@ def extract_storm_images_gridrad(
         })
 
         if rotate_grids:
-            print (
+            print((
                 'Creating rotated {0:.1f}-metre grids for storms at '
                 '{1:s}...'
-            ).format(rotated_grid_spacing_metres, valid_time_strings[i])
+            ).format(rotated_grid_spacing_metres, valid_time_strings[i]))
 
             this_storm_object_table = _rotate_grids_many_storm_objects(
                 storm_object_table=this_storm_object_table,
@@ -1584,8 +1584,9 @@ def extract_storm_images_gridrad(
         this_num_storms = len(this_storm_object_table.index)
 
         for j in range(num_fields):
-            print 'Reading "{0:s}" from file: "{1:s}"...'.format(
-                radar_field_names[j], radar_file_names[i])
+            print('Reading "{0:s}" from file: "{1:s}"...'.format(
+                radar_field_names[j], radar_file_names[i]
+            ))
 
             (this_full_radar_matrix_3d, these_full_heights_m_asl,
              these_full_latitudes_deg, these_full_longitudes_deg
@@ -1617,14 +1618,14 @@ def extract_storm_images_gridrad(
                 this_full_radar_matrix_2d = this_full_radar_matrix_3d[
                     this_height_index, ...]
 
-                print (
+                print((
                     'Extracting storm-centered images for "{0:s}" at {1:d} '
                     'metres ASL and {2:s}...'
                 ).format(
                     radar_field_names[j],
                     int(numpy.round(radar_heights_m_asl[k])),
                     valid_time_strings[i]
-                )
+                ))
 
                 if rotate_grids:
                     for m in range(this_num_storms):
@@ -1670,9 +1671,9 @@ def extract_storm_images_gridrad(
                                 num_storm_image_columns=num_storm_image_columns)
                         )
 
-            print (
+            print((
                 'Interpolating "{0:s}" to desired heights above ground level...'
-            ).format(radar_field_names[j])
+            ).format(radar_field_names[j]))
 
             this_storm_image_matrix_ground_relative = numpy.full(
                 (this_num_storms, num_storm_image_rows, num_storm_image_columns,
@@ -1704,9 +1705,9 @@ def extract_storm_images_gridrad(
                     radar_height_m_agl=radar_heights_m_agl[k],
                     raise_error_if_missing=False)
 
-                print (
+                print((
                     'Writing storm-centered images to: "{0:s}"...'
-                ).format(this_image_file_name)
+                ).format(this_image_file_name))
 
                 write_storm_images(
                     netcdf_file_name=this_image_file_name,
@@ -1721,7 +1722,7 @@ def extract_storm_images_gridrad(
                     rotated_grids=rotate_grids,
                     rotated_grid_spacing_metres=rotated_grid_spacing_metres)
 
-            print '\n'
+            print('\n')
 
 
 def write_storm_images(
@@ -2110,7 +2111,7 @@ def find_storm_label_file(
             'POTENTIAL PROBLEM.  Cannot find file.  Expected at: "{0:s}"'
         ).format(storm_label_file_name)
 
-        print warning_string
+        print(warning_string)
 
     return storm_label_file_name
 
@@ -2187,9 +2188,9 @@ def find_many_files_myrorss_or_mrms(
         valid_times_unix_sec = None
 
         for i in range(len(spc_date_strings)):
-            print 'Finding storm-image files for SPC date "{0:s}"...'.format(
+            print('Finding storm-image files for SPC date "{0:s}"...'.format(
                 spc_date_strings[i]
-            )
+            ))
 
             this_file_name_matrix, these_times_unix_sec = (
                 _find_many_files_one_spc_date(
@@ -2241,9 +2242,9 @@ def find_many_files_myrorss_or_mrms(
     num_field_height_pairs = len(field_name_by_pair)
 
     for j in range(num_field_height_pairs):
-        print (
+        print((
             'Finding storm-image files for "{0:s}" at {1:d} metres AGL...'
-        ).format(field_name_by_pair[j], height_by_pair_m_agl[j])
+        ).format(field_name_by_pair[j], height_by_pair_m_agl[j]))
 
         if j == 0:
             image_file_names = []
@@ -2404,9 +2405,9 @@ def find_many_files_gridrad(
 
     for j in range(num_fields):
         for k in range(num_heights):
-            print (
+            print((
                 'Finding storm-image files for "{0:s}" at {1:d} metres AGL...'
-            ).format(radar_field_names[j], radar_heights_m_agl[k])
+            ).format(radar_field_names[j], radar_heights_m_agl[k]))
 
             if j == 0 and k == 0:
                 image_file_names = []

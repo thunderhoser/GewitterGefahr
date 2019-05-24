@@ -232,12 +232,13 @@ def _change_backprop_function(model_object):
         new_model_object = keras.models.Model.from_config(model_dict)
         new_model_object.set_weights(model_object.get_weights())
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
+
     new_model_dict = new_model_object.get_config()
     for this_layer_dict in new_model_dict['layers']:
-        print this_layer_dict
+        print(this_layer_dict)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     return new_model_object
 
 
@@ -332,7 +333,7 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
 
     if num_output_neurons == 1:
         error_checking.assert_is_leq(target_class, 1)
-        print model_object.layers[-1].input
+        print(model_object.layers[-1].input)
 
         if target_class == 1:
             # loss_tensor = model_object.layers[-1].output[..., 0]
@@ -447,9 +448,9 @@ def run_guided_gradcam(
         input_index=input_index)
 
     saliency_matrix = saliency_function(list_of_input_matrices + [0])[0]
-    print 'Minimum saliency = {0:.4e} ... max saliency = {1:.4e}'.format(
+    print('Minimum saliency = {0:.4e} ... max saliency = {1:.4e}'.format(
         numpy.min(saliency_matrix), numpy.max(saliency_matrix)
-    )
+    ))
 
     ggradcam_output_matrix = saliency_matrix * class_activation_matrix[
         ..., numpy.newaxis]

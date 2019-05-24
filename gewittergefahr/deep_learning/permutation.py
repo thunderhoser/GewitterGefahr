@@ -332,9 +332,9 @@ def run_permutation_test(
         min_original_cost, numpy.mean(all_original_costs), max_original_cost
     ])
 
-    print 'Original cost (no permutation): {0:s}'.format(
+    print('Original cost (no permutation): {0:s}'.format(
         str(original_cost_bs_array)
-    )
+    ))
 
     # Initialize output variables.
     remaining_predictor_names_by_matrix = copy.deepcopy(
@@ -349,7 +349,7 @@ def run_permutation_test(
     highest_cost_by_step_bs_matrix = None
 
     while True:
-        print '\n'
+        print('\n')
         step_num += 1
 
         highest_cost_bs_matrix = numpy.full((1, 3), -numpy.inf)
@@ -366,10 +366,10 @@ def run_permutation_test(
             for this_predictor_name in remaining_predictor_names_by_matrix[j]:
                 stopping_criterion = False
 
-                print (
+                print((
                     'Trying predictor "{0:s}" at step {1:d} of permutation '
                     'test...'
-                ).format(this_predictor_name, step_num)
+                ).format(this_predictor_name, step_num))
 
                 these_input_matrices = copy.deepcopy(list_of_input_matrices)
                 this_predictor_index = predictor_names_by_matrix[j].index(
@@ -409,9 +409,9 @@ def run_permutation_test(
                     this_cost_bs_array, (1, this_cost_bs_array.size)
                 )
 
-                print 'Resulting cost = {0:s}\n'.format(
+                print('Resulting cost = {0:s}\n'.format(
                     str(this_cost_bs_matrix)
-                )
+                ))
 
                 if step_num == 1:
                     step1_predictor_names.append(this_predictor_name)
@@ -456,8 +456,9 @@ def run_permutation_test(
             ..., this_best_predictor_index
         ] = best_predictor_permuted_values + 0.
 
-        print 'Best predictor = "{0:s}" ... new cost = {1:s}'.format(
-            best_predictor_name, str(highest_cost_bs_matrix))
+        print('Best predictor = "{0:s}" ... new cost = {1:s}'.format(
+            best_predictor_name, str(highest_cost_bs_matrix)
+        ))
 
     return {
         NUM_BOOTSTRAP_ITERS_KEY: num_bootstrap_iters,

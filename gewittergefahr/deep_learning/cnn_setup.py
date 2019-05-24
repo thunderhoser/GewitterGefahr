@@ -873,7 +873,6 @@ def create_3d_cnn(
         use_batch_normalization=use_batch_normalization,
         num_heights=num_radar_heights, num_fields=num_radar_fields,
         do_separable_conv=False, first_num_filters=first_num_radar_filters)
-    print first_num_radar_filters
 
     radar_input_layer_object = keras.layers.Input(
         shape=(num_radar_rows, num_radar_columns, num_radar_heights,

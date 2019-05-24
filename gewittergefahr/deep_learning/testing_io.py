@@ -71,18 +71,18 @@ def _finalize_targets(target_values, binarize_target, num_classes):
         num_classes_to_predict = num_classes + 0
 
     if num_classes_to_predict == 2:
-        print 'Fraction of {0:d} examples in positive class: {1:.3f}'.format(
+        print('Fraction of {0:d} examples in positive class: {1:.3f}'.format(
             len(target_values), numpy.mean(target_values)
-        )
+        ))
         return target_values
 
     target_matrix = keras.utils.to_categorical(
         target_values, num_classes_to_predict)
 
     class_fractions = numpy.mean(target_matrix, axis=0)
-    print 'Fraction of {0:d} examples in each class: {1:s}\n'.format(
+    print('Fraction of {0:d} examples in each class: {1:s}\n'.format(
         len(target_values), str(class_fractions)
-    )
+    ))
 
     return target_matrix
 
@@ -121,8 +121,9 @@ def _find_examples_to_read(option_dict, num_examples_total):
     num_files = len(example_file_names)
 
     for i in range(num_files):
-        print 'Reading target values from: "{0:s}"...'.format(
-            example_file_names[i])
+        print('Reading target values from: "{0:s}"...'.format(
+            example_file_names[i]
+        ))
 
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=example_file_names[i], include_soundings=False,
@@ -221,7 +222,7 @@ def generator_2d_or_3d(option_dict, num_examples_total):
 
     full_id_strings, storm_times_unix_sec = _find_examples_to_read(
         option_dict=option_dict, num_examples_total=num_examples_total)
-    print '\n'
+    print('\n')
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
 
@@ -273,8 +274,9 @@ def generator_2d_or_3d(option_dict, num_examples_total):
         if file_index >= len(example_file_names):
             raise StopIteration
 
-        print 'Reading data from: "{0:s}"...'.format(
-            example_file_names[file_index])
+        print('Reading data from: "{0:s}"...'.format(
+            example_file_names[file_index]
+        ))
 
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=example_file_names[file_index],
@@ -449,7 +451,7 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
 
     full_id_strings, storm_times_unix_sec = _find_examples_to_read(
         option_dict=option_dict, num_examples_total=num_examples_total)
-    print '\n'
+    print('\n')
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
 
@@ -501,8 +503,9 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
         if file_index >= len(example_file_names):
             raise StopIteration
 
-        print 'Reading data from: "{0:s}"...'.format(
-            example_file_names[file_index])
+        print('Reading data from: "{0:s}"...'.format(
+            example_file_names[file_index]
+        ))
 
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=example_file_names[file_index],
@@ -704,7 +707,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
 
     full_id_strings, storm_times_unix_sec = _find_examples_to_read(
         option_dict=option_dict, num_examples_total=num_examples_total)
-    print '\n'
+    print('\n')
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
 
@@ -755,8 +758,9 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
         if file_index >= len(example_file_names):
             raise StopIteration
 
-        print 'Reading data from: "{0:s}"...'.format(
-            example_file_names[file_index])
+        print('Reading data from: "{0:s}"...'.format(
+            example_file_names[file_index]
+        ))
 
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=example_file_names[file_index],

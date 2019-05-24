@@ -684,9 +684,9 @@ def apply_2d_or_3d_cnn(
             num=this_last_index - this_first_index + 1, dtype=int)
 
         if verbose:
-            print (
+            print((
                 'Applying model to examples {0:d}-{1:d} of {2:d}...'
-            ).format(this_first_index + 1, this_last_index + 1, num_examples)
+            ).format(this_first_index + 1, this_last_index + 1, num_examples))
 
         if sounding_matrix is None:
             these_outputs = model_object_to_use.predict(
@@ -707,7 +707,7 @@ def apply_2d_or_3d_cnn(
                 (output_matrix, these_outputs), axis=0)
 
     if verbose:
-        print 'Have applied model to all {0:d} examples!'.format(num_examples)
+        print('Have applied model to all {0:d} examples!'.format(num_examples))
 
     if return_features:
         return output_matrix
@@ -794,9 +794,9 @@ def apply_2d3d_cnn(
             num=this_last_index - this_first_index + 1, dtype=int)
 
         if verbose:
-            print (
+            print((
                 'Applying model to examples {0:d}-{1:d} of {2:d}...'
-            ).format(this_first_index + 1, this_last_index + 1, num_examples)
+            ).format(this_first_index + 1, this_last_index + 1, num_examples))
 
         if sounding_matrix is None:
             these_outputs = model_object_to_use.predict(
@@ -819,7 +819,7 @@ def apply_2d3d_cnn(
                 (output_matrix, these_outputs), axis=0)
 
     if verbose:
-        print 'Have applied model to all {0:d} examples!'.format(num_examples)
+        print('Have applied model to all {0:d} examples!'.format(num_examples))
 
     if return_features:
         return output_matrix

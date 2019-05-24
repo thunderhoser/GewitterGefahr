@@ -310,8 +310,8 @@ def _compare_radar_image_dicts(first_radar_image_dict, second_radar_image_dict):
     :return: are_dicts_equal: Boolean flag.
     """
 
-    first_keys = first_radar_image_dict.keys()
-    second_keys = second_radar_image_dict.keys()
+    first_keys = list(first_radar_image_dict.keys())
+    second_keys = list(second_radar_image_dict.keys())
     if set(first_keys) != set(second_keys):
         return False
 
@@ -344,8 +344,8 @@ def _compare_example_dicts(first_example_dict, second_example_dict):
     :return: are_dicts_equal: Boolean flag.
     """
 
-    first_keys = first_example_dict.keys()
-    second_keys = second_example_dict.keys()
+    first_keys = list(first_example_dict.keys())
+    second_keys = list(second_example_dict.keys())
     if set(first_keys) != set(second_keys):
         return False
 

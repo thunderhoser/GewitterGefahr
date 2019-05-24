@@ -486,8 +486,8 @@ def _compare_lists_of_metpy_dicts(first_list_of_dicts, second_list_of_dicts):
         return False
 
     for i in range(num_first_dicts):
-        these_first_keys = first_list_of_dicts[i].keys()
-        these_second_keys = second_list_of_dicts[i].keys()
+        these_first_keys = list(first_list_of_dicts[i].keys())
+        these_second_keys = list(second_list_of_dicts[i].keys())
         if set(these_first_keys) != set(these_second_keys):
             return False
 
@@ -650,8 +650,8 @@ class DeepLearningUtilsTests(unittest.TestCase):
             SAMPLING_FRACTION_BY_TORNADO_CLASS_DICT,
             target_name=TORNADO_TARGET_NAME, binarize_target=True)
 
-        expected_keys = LF_WEIGHT_BY_TORNADO_CLASS_DICT.keys()
-        actual_keys = this_dict.keys()
+        expected_keys = list(LF_WEIGHT_BY_TORNADO_CLASS_DICT.keys())
+        actual_keys = list(this_dict.keys())
         self.assertTrue(set(expected_keys) == set(actual_keys))
 
         for this_key in expected_keys:
