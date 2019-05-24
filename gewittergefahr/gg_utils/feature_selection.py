@@ -492,10 +492,14 @@ def sequential_forward_selection(
     while len(remaining_feature_names) >= num_features_to_add_per_step:
         num_selected_features = len(selected_feature_names)
         num_remaining_features = len(remaining_feature_names)
-        print ('Step {0:d} of sequential forward selection: {1:d} features '
-               'selected, {2:d} remaining...').format(
-                   num_selected_features + 1, num_selected_features,
-                   num_remaining_features)
+
+        print((
+            'Step {0:d} of sequential forward selection: {1:d} features '
+            'selected, {2:d} remaining...'
+        ).format(
+            num_selected_features + 1, num_selected_features,
+            num_remaining_features
+        ))
 
         min_new_cost, these_best_feature_names = _forward_selection_step(
             training_table=training_table, validation_table=validation_table,
@@ -505,21 +509,26 @@ def sequential_forward_selection(
             cost_function=cost_function,
             num_features_to_add=num_features_to_add_per_step)
 
-        print ('Minimum cost ({0:.4f}) given by adding features shown below '
-               '(previous minimum = {1:.4f}).\n{2:s}\n').format(
-                   min_new_cost,
-                   min_cost_by_num_selected[num_selected_features],
-                   these_best_feature_names)
+        print((
+            'Minimum cost ({0:.4f}) given by adding features shown below '
+            '(previous minimum = {1:.4f}).\n{2:s}\n'
+        ).format(
+            min_new_cost, min_cost_by_num_selected[num_selected_features],
+            these_best_feature_names
+        ))
 
         stopping_criterion = min_cost_by_num_selected[num_selected_features] * (
-            1. - min_fractional_cost_decrease)
+            1. - min_fractional_cost_decrease
+        )
+
         if min_new_cost > stopping_criterion:
             break
 
         selected_feature_names += these_best_feature_names
         remaining_feature_names = [
             s for s in remaining_feature_names
-            if s not in these_best_feature_names]
+            if s not in these_best_feature_names
+        ]
 
         min_cost_by_num_selected[
             (num_selected_features + 1):(len(selected_feature_names) + 1)
@@ -531,9 +540,12 @@ def sequential_forward_selection(
         selected_feature_names=selected_feature_names, target_name=target_name)
 
     num_selected_features = len(selected_feature_names)
-    sfs_dictionary.update(
-        {VALIDATION_COST_BY_STEP_KEY:
-             min_cost_by_num_selected[1:(num_selected_features + 1)]})
+
+    sfs_dictionary.update({
+        VALIDATION_COST_BY_STEP_KEY:
+            min_cost_by_num_selected[1:(num_selected_features + 1)]
+    })
+
     return sfs_dictionary
 
 
@@ -593,9 +605,11 @@ def sfs_with_backward_steps(
     error_checking.assert_is_geq(num_backward_steps, 1)
 
     num_features_to_add_per_major_step = (
-        num_forward_steps * num_features_to_add_per_forward_step)
+        num_forward_steps * num_features_to_add_per_forward_step
+    )
     num_features_to_remove_per_major_step = (
-        num_backward_steps * num_features_to_remove_per_backward_step)
+        num_backward_steps * num_features_to_remove_per_backward_step
+    )
 
     num_features = len(feature_names)
     error_checking.assert_is_less_than(
@@ -617,19 +631,25 @@ def sfs_with_backward_steps(
 
     while (len(selected_feature_names) + num_features_to_add_per_major_step <=
            num_features):
+
         major_step_num += 1
         min_cost_last_major_step = min_cost_by_num_selected[
-            len(selected_feature_names)]
+            len(selected_feature_names)
+        ]
         selected_feature_names_last_major_step = copy.deepcopy(
             selected_feature_names)
 
         for i in range(num_forward_steps):
             num_selected_features = len(selected_feature_names)
             num_remaining_features = len(remaining_feature_names)
-            print ('Major step {0:d}, forward step {1:d}: {2:d} features '
-                   'selected, {3:d} remaining...').format(
-                       major_step_num, i + 1, num_selected_features,
-                       num_remaining_features)
+
+            print((
+                'Major step {0:d}, forward step {1:d}: {2:d} features selected,'
+                ' {3:d} remaining...'
+            ).format(
+                major_step_num, i + 1, num_selected_features,
+                num_remaining_features
+            ))
 
             min_new_cost, these_best_feature_names = _forward_selection_step(
                 training_table=training_table,
@@ -640,11 +660,13 @@ def sfs_with_backward_steps(
                 cost_function=cost_function,
                 num_features_to_add=num_features_to_add_per_forward_step)
 
-            print ('Minimum cost ({0:.4f}) given by adding features shown below'
-                   ' (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                       min_new_cost,
-                       min_cost_by_num_selected[num_selected_features],
-                       these_best_feature_names)
+            print((
+                'Minimum cost ({0:.4f}) given by adding features shown below '
+                '(previous minimum = {1:.4f}).\n{2:s}\n'
+            ).format(
+                min_new_cost, min_cost_by_num_selected[num_selected_features],
+                these_best_feature_names
+            ))
 
             selected_feature_names += these_best_feature_names
             remaining_feature_names = [
@@ -652,15 +674,18 @@ def sfs_with_backward_steps(
                 if s not in these_best_feature_names]
 
             min_cost_by_num_selected[
-                (num_selected_features + 1):(len(selected_feature_names) + 1)
+            (num_selected_features + 1):(len(selected_feature_names) + 1)
             ] = min_new_cost
 
         for i in range(num_backward_steps):
             num_selected_features = len(selected_feature_names)
-            print ('Major step {0:d}, backward step {1:d}: {2:d}/{3:d} '
-                   'features selected...').format(
-                       major_step_num, i + 1, num_selected_features,
-                       num_features)
+
+            print((
+                'Major step {0:d}, backward step {1:d}: {2:d}/{3:d} features '
+                'selected...'
+            ).format(
+                major_step_num, i + 1, num_selected_features, num_features
+            ))
 
             min_new_cost, these_worst_feature_names = _backward_selection_step(
                 training_table=training_table,
@@ -670,25 +695,31 @@ def sfs_with_backward_steps(
                 cost_function=cost_function,
                 num_features_to_remove=num_features_to_remove_per_backward_step)
 
-            print ('Minimum cost ({0:.4f}) given by removing features shown '
-                   'below (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                       min_new_cost,
-                       min_cost_by_num_selected[num_selected_features],
-                       these_worst_feature_names)
+            print((
+                'Minimum cost ({0:.4f}) given by removing features shown below '
+                '(previous minimum = {1:.4f}).\n{2:s}\n'
+            ).format(
+                min_new_cost, min_cost_by_num_selected[num_selected_features],
+                these_worst_feature_names
+            ))
 
             remaining_feature_names += these_worst_feature_names
             selected_feature_names = [
                 s for s in selected_feature_names
-                if s not in these_worst_feature_names]
+                if s not in these_worst_feature_names
+            ]
 
             min_cost_by_num_selected[
-                (len(selected_feature_names) + 1):] = numpy.nan
+                (len(selected_feature_names) + 1):
+            ] = numpy.nan
             min_cost_by_num_selected[
-                len(selected_feature_names)] = min_new_cost
+                len(selected_feature_names)
+            ] = min_new_cost
 
-        print '\n'
+        print('\n')
         stopping_criterion = min_cost_last_major_step * (
-            1. - min_fractional_cost_decrease)
+            1. - min_fractional_cost_decrease
+        )
 
         if (min_cost_by_num_selected[len(selected_feature_names)] >
                 stopping_criterion):
@@ -702,9 +733,12 @@ def sfs_with_backward_steps(
         selected_feature_names=selected_feature_names, target_name=target_name)
 
     num_selected_features = len(selected_feature_names)
-    sfs_dictionary.update(
-        {VALIDATION_COST_BY_STEP_KEY:
-             min_cost_by_num_selected[1:(num_selected_features + 1)]})
+
+    sfs_dictionary.update({
+        VALIDATION_COST_BY_STEP_KEY:
+            min_cost_by_num_selected[1:(num_selected_features + 1)]
+    })
+
     return sfs_dictionary
 
 
@@ -754,9 +788,12 @@ def floating_sfs(
         num_selected_features = len(selected_feature_names)
         num_remaining_features = len(remaining_feature_names)
 
-        print ('Major step {0:d} of SFFS: {1:d} features selected, {2:d} '
-               'remaining...').format(major_step_num, num_selected_features,
-                                      num_remaining_features)
+        print((
+            'Major step {0:d} of SFFS: {1:d} features selected, {2:d} '
+            'remaining...'
+        ).format(
+            major_step_num, num_selected_features, num_remaining_features
+        ))
 
         min_new_cost, these_best_feature_names = _forward_selection_step(
             training_table=training_table, validation_table=validation_table,
@@ -766,21 +803,26 @@ def floating_sfs(
             cost_function=cost_function,
             num_features_to_add=num_features_to_add_per_step)
 
-        print ('Minimum cost ({0:.4f}) given by adding features shown below '
-               '(previous minimum = {1:.4f}).\n{2:s}\n').format(
-                   min_new_cost,
-                   min_cost_by_num_selected[num_selected_features],
-                   these_best_feature_names)
+        print((
+            'Minimum cost ({0:.4f}) given by adding features shown below '
+            '(previous minimum = {1:.4f}).\n{2:s}\n'
+        ).format(
+            min_new_cost, min_cost_by_num_selected[num_selected_features],
+            these_best_feature_names
+        ))
 
         stopping_criterion = min_cost_by_num_selected[num_selected_features] * (
-            1. - min_fractional_cost_decrease)
+            1. - min_fractional_cost_decrease
+        )
+
         if min_new_cost > stopping_criterion:
             break
 
         selected_feature_names += these_best_feature_names
         remaining_feature_names = [
             s for s in remaining_feature_names
-            if s not in these_best_feature_names]
+            if s not in these_best_feature_names
+        ]
 
         min_cost_by_num_selected[
             (num_selected_features + 1):(len(selected_feature_names) + 1)
@@ -790,13 +832,18 @@ def floating_sfs(
             continue
 
         backward_step_num = 0
+
         while len(selected_feature_names) >= 2:
             backward_step_num += 1
             num_selected_features = len(selected_feature_names)
-            print ('Major step {0:d}, backward step {1:d}: {2:d}/{3:d} '
-                   'features selected...').format(
-                       major_step_num, backward_step_num, num_selected_features,
-                       num_features)
+
+            print((
+                'Major step {0:d}, backward step {1:d}: {2:d}/{3:d} features '
+                'selected...'
+            ).format(
+                major_step_num, backward_step_num, num_selected_features,
+                num_features
+            ))
 
             min_new_cost, this_worst_feature_name_as_list = (
                 _backward_selection_step(
@@ -804,13 +851,17 @@ def floating_sfs(
                     validation_table=validation_table,
                     selected_feature_names=selected_feature_names,
                     target_name=target_name, estimator_object=estimator_object,
-                    cost_function=cost_function, num_features_to_remove=1))
+                    cost_function=cost_function, num_features_to_remove=1)
+            )
+
             this_worst_feature_name = this_worst_feature_name_as_list[0]
 
             # Cannot remove feature that was just added in the forward step.
             if backward_step_num == 1:
                 this_worst_feature_index = selected_feature_names.index(
-                    this_worst_feature_name)
+                    this_worst_feature_name
+                )
+
                 if this_worst_feature_index == num_selected_features - 1:
                     break
 
@@ -819,17 +870,20 @@ def floating_sfs(
                     num_selected_features - 1]):
                 break
 
-            print ('Minimum cost ({0:.4f}) given by removing feature "{1:s}" '
-                   '(previous minimum = {2:.4f}).').format(
-                       min_new_cost, this_worst_feature_name,
-                       min_cost_by_num_selected[num_selected_features - 1])
+            print((
+                'Minimum cost ({0:.4f}) given by removing feature "{1:s}" '
+                '(previous minimum = {2:.4f}).'
+            ).format(
+                min_new_cost, this_worst_feature_name,
+                min_cost_by_num_selected[num_selected_features - 1]
+            ))
 
             remaining_feature_names.append(this_worst_feature_name)
             selected_feature_names.remove(this_worst_feature_name)
             min_cost_by_num_selected[num_selected_features] = numpy.nan
             min_cost_by_num_selected[num_selected_features - 1] = min_new_cost
 
-        print '\n'
+        print('\n')
 
     sfs_dictionary = _evaluate_feature_selection(
         training_table=training_table, validation_table=validation_table,
@@ -837,9 +891,12 @@ def floating_sfs(
         selected_feature_names=selected_feature_names, target_name=target_name)
 
     num_selected_features = len(selected_feature_names)
-    sfs_dictionary.update(
-        {VALIDATION_COST_BY_STEP_KEY:
-             min_cost_by_num_selected[1:(num_selected_features + 1)]})
+
+    sfs_dictionary.update({
+        VALIDATION_COST_BY_STEP_KEY:
+            min_cost_by_num_selected[1:(num_selected_features + 1)]
+    })
+
     return sfs_dictionary
 
 
@@ -899,10 +956,14 @@ def sequential_backward_selection(
     while len(selected_feature_names) >= num_features_to_remove_per_step:
         num_removed_features = len(removed_feature_names)
         num_selected_features = len(selected_feature_names)
-        print ('Step {0:d} of sequential backward selection: {1:d} features '
-               'removed, {2:d} remaining...').format(
-                   num_removed_features + 1, num_removed_features,
-                   num_selected_features)
+
+        print((
+            'Step {0:d} of sequential backward selection: {1:d} features '
+            'removed, {2:d} remaining...'
+        ).format(
+            num_removed_features + 1, num_removed_features,
+            num_selected_features
+        ))
 
         min_new_cost, these_worst_feature_names = _backward_selection_step(
             training_table=training_table, validation_table=validation_table,
@@ -911,21 +972,26 @@ def sequential_backward_selection(
             cost_function=cost_function,
             num_features_to_remove=num_features_to_remove_per_step)
 
-        print ('Minimum cost ({0:.4f}) given by removing features shown below '
-               '(previous minimum = {1:.4f}).\n{2:s}\n').format(
-                   min_new_cost,
-                   min_cost_by_num_removed[num_removed_features],
-                   these_worst_feature_names)
+        print((
+            'Minimum cost ({0:.4f}) given by removing features shown below '
+            '(previous minimum = {1:.4f}).\n{2:s}\n'
+        ).format(
+            min_new_cost, min_cost_by_num_removed[num_removed_features],
+            these_worst_feature_names
+        ))
 
         stopping_criterion = min_cost_by_num_removed[num_removed_features] * (
-            1. - min_fractional_cost_decrease)
+            1. - min_fractional_cost_decrease
+        )
+
         if min_new_cost > stopping_criterion:
             break
 
         removed_feature_names += these_worst_feature_names
         selected_feature_names = [
             s for s in selected_feature_names
-            if s not in these_worst_feature_names]
+            if s not in these_worst_feature_names
+        ]
 
         min_cost_by_num_removed[
             (num_removed_features + 1):(len(removed_feature_names) + 1)
@@ -937,10 +1003,13 @@ def sequential_backward_selection(
         selected_feature_names=selected_feature_names, target_name=target_name)
 
     num_removed_features = len(removed_feature_names)
-    sbs_dictionary.update({REMOVED_FEATURES_KEY: removed_feature_names})
-    sbs_dictionary.update(
-        {VALIDATION_COST_BY_STEP_KEY:
-             min_cost_by_num_removed[1:(num_removed_features + 1)]})
+
+    sbs_dictionary.update({
+        REMOVED_FEATURES_KEY: removed_feature_names,
+        VALIDATION_COST_BY_STEP_KEY:
+            min_cost_by_num_removed[1:(num_removed_features + 1)]
+    })
+
     return sbs_dictionary
 
 
@@ -1002,9 +1071,11 @@ def sbs_with_forward_steps(
     error_checking.assert_is_geq(num_backward_steps, 1)
 
     num_features_to_add_per_major_step = (
-        num_forward_steps * num_features_to_add_per_forward_step)
+        num_forward_steps * num_features_to_add_per_forward_step
+    )
     num_features_to_remove_per_major_step = (
-        num_backward_steps * num_features_to_remove_per_backward_step)
+        num_backward_steps * num_features_to_remove_per_backward_step
+    )
 
     num_features = len(feature_names)
     error_checking.assert_is_less_than(
@@ -1029,7 +1100,8 @@ def sbs_with_forward_steps(
         major_step_num += 1
 
         min_cost_last_major_step = min_cost_by_num_removed[
-            len(removed_feature_names)]
+            len(removed_feature_names)
+        ]
         removed_feature_names_last_major_step = copy.deepcopy(
             removed_feature_names)
         selected_feature_names_last_major_step = copy.deepcopy(
@@ -1038,10 +1110,14 @@ def sbs_with_forward_steps(
         for i in range(num_backward_steps):
             num_removed_features = len(removed_feature_names)
             num_selected_features = len(selected_feature_names)
-            print ('Major step {0:d}, backward step {1:d}: {2:d} features '
-                   'removed, {3:d} remaining...').format(
-                       major_step_num, i + 1, num_removed_features,
-                       num_selected_features)
+
+            print((
+                'Major step {0:d}, backward step {1:d}: {2:d} features removed,'
+                ' {3:d} remaining...'
+            ).format(
+                major_step_num, i + 1, num_removed_features,
+                num_selected_features
+            ))
 
             min_new_cost, these_worst_feature_names = _backward_selection_step(
                 training_table=training_table,
@@ -1051,16 +1127,19 @@ def sbs_with_forward_steps(
                 cost_function=cost_function,
                 num_features_to_remove=num_features_to_remove_per_backward_step)
 
-            print ('Minimum cost ({0:.4f}) given by removing features shown '
-                   'below (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                       min_new_cost,
-                       min_cost_by_num_removed[num_removed_features],
-                       these_worst_feature_names)
+            print((
+                'Minimum cost ({0:.4f}) given by removing features shown below '
+                '(previous minimum = {1:.4f}).\n{2:s}\n'
+            ).format(
+                min_new_cost, min_cost_by_num_removed[num_removed_features],
+                these_worst_feature_names
+            ))
 
             removed_feature_names += these_worst_feature_names
             selected_feature_names = [
                 s for s in selected_feature_names
-                if s not in these_worst_feature_names]
+                if s not in these_worst_feature_names
+            ]
 
             min_cost_by_num_removed[
                 (num_removed_features + 1):(len(removed_feature_names) + 1)
@@ -1068,10 +1147,13 @@ def sbs_with_forward_steps(
 
         for i in range(num_forward_steps):
             num_removed_features = len(removed_feature_names)
-            print ('Major step {0:d}, forward step {1:d}: {2:d}/{3:d} '
-                   'features removed...').format(
-                       major_step_num, i + 1, num_removed_features,
-                       num_features)
+
+            print((
+                'Major step {0:d}, forward step {1:d}: {2:d}/{3:d} features '
+                'removed...'
+            ).format(
+                major_step_num, i + 1, num_removed_features, num_features
+            ))
 
             min_new_cost, these_best_feature_names = _forward_selection_step(
                 training_table=training_table,
@@ -1082,25 +1164,31 @@ def sbs_with_forward_steps(
                 cost_function=cost_function,
                 num_features_to_add=num_features_to_add_per_forward_step)
 
-            print ('Minimum cost ({0:.4f}) given by adding features shown below'
-                   ' (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                       min_new_cost,
-                       min_cost_by_num_removed[num_removed_features],
-                       these_best_feature_names)
+            print((
+                'Minimum cost ({0:.4f}) given by adding features shown below '
+                '(previous minimum = {1:.4f}).\n{2:s}\n'
+            ).format(
+                min_new_cost, min_cost_by_num_removed[num_removed_features],
+                these_best_feature_names
+            ))
 
             selected_feature_names += these_best_feature_names
             removed_feature_names = [
                 s for s in removed_feature_names
-                if s not in these_best_feature_names]
+                if s not in these_best_feature_names
+            ]
 
             min_cost_by_num_removed[
-                (len(removed_feature_names) + 1):] = numpy.nan
+                (len(removed_feature_names) + 1):
+            ] = numpy.nan
             min_cost_by_num_removed[
-                len(removed_feature_names)] = min_new_cost
+                len(removed_feature_names)
+            ] = min_new_cost
 
-        print '\n'
+        print('\n')
         stopping_criterion = min_cost_last_major_step * (
-            1. - min_fractional_cost_decrease)
+            1. - min_fractional_cost_decrease
+        )
 
         if (min_cost_by_num_removed[len(removed_feature_names)] >
                 stopping_criterion):
@@ -1116,10 +1204,13 @@ def sbs_with_forward_steps(
         selected_feature_names=selected_feature_names, target_name=target_name)
 
     num_removed_features = len(removed_feature_names)
-    sbs_dictionary.update({REMOVED_FEATURES_KEY: removed_feature_names})
-    sbs_dictionary.update(
-        {VALIDATION_COST_BY_STEP_KEY:
-             min_cost_by_num_removed[1:(num_removed_features + 1)]})
+
+    sbs_dictionary.update({
+        REMOVED_FEATURES_KEY: removed_feature_names,
+        VALIDATION_COST_BY_STEP_KEY:
+            min_cost_by_num_removed[1:(num_removed_features + 1)]
+    })
+
     return sbs_dictionary
 
 
@@ -1170,9 +1261,12 @@ def floating_sbs(
         num_removed_features = len(removed_feature_names)
         num_selected_features = len(selected_feature_names)
 
-        print ('Major step {0:d} of SBFS: {1:d} features removed, {2:d} '
-               'remaining...').format(
-                   major_step_num, num_removed_features, num_selected_features)
+        print((
+            'Major step {0:d} of SBFS: {1:d} features removed, {2:d} '
+            'remaining...'
+        ).format(
+            major_step_num, num_removed_features, num_selected_features
+        ))
 
         min_new_cost, these_worst_feature_names = _backward_selection_step(
             training_table=training_table, validation_table=validation_table,
@@ -1181,21 +1275,26 @@ def floating_sbs(
             cost_function=cost_function,
             num_features_to_remove=num_features_to_remove_per_step)
 
-        print ('Minimum cost ({0:.4f}) given by removing features shown below '
-               '(previous minimum = {1:.4f}).\n{2:s}\n').format(
-                   min_new_cost,
-                   min_cost_by_num_removed[num_removed_features],
-                   these_worst_feature_names)
+        print((
+            'Minimum cost ({0:.4f}) given by removing features shown below '
+            '(previous minimum = {1:.4f}).\n{2:s}\n'
+        ).format(
+            min_new_cost, min_cost_by_num_removed[num_removed_features],
+            these_worst_feature_names
+        ))
 
         stopping_criterion = min_cost_by_num_removed[num_removed_features] * (
-            1. - min_fractional_cost_decrease)
+            1. - min_fractional_cost_decrease
+        )
+
         if min_new_cost > stopping_criterion:
             break
 
         removed_feature_names += these_worst_feature_names
         selected_feature_names = [
             s for s in selected_feature_names
-            if s not in these_worst_feature_names]
+            if s not in these_worst_feature_names
+        ]
 
         min_cost_by_num_removed[
             (num_removed_features + 1):(len(removed_feature_names) + 1)
@@ -1208,10 +1307,14 @@ def floating_sbs(
         while len(removed_feature_names) >= 2:
             forward_step_num += 1
             num_removed_features = len(removed_feature_names)
-            print ('Major step {0:d}, forward step {1:d}: {2:d}/{3:d} '
-                   'features removed...').format(
-                       major_step_num, forward_step_num, num_removed_features,
-                       num_features)
+
+            print((
+                'Major step {0:d}, forward step {1:d}: {2:d}/{3:d} features '
+                'removed...'
+            ).format(
+                major_step_num, forward_step_num, num_removed_features,
+                num_features
+            ))
 
             min_new_cost, this_best_feature_name_as_list = (
                 _forward_selection_step(
@@ -1220,13 +1323,17 @@ def floating_sbs(
                     selected_feature_names=selected_feature_names,
                     remaining_feature_names=removed_feature_names,
                     target_name=target_name, estimator_object=estimator_object,
-                    cost_function=cost_function, num_features_to_add=1))
+                    cost_function=cost_function, num_features_to_add=1)
+            )
+
             this_best_feature_name = this_best_feature_name_as_list[0]
 
             # Cannot add feature that was just removed in the backward step.
             if forward_step_num == 1:
                 this_best_feature_index = removed_feature_names.index(
-                    this_best_feature_name)
+                    this_best_feature_name
+                )
+
                 if this_best_feature_index == num_removed_features - 1:
                     break
 
@@ -1235,17 +1342,20 @@ def floating_sbs(
                     num_removed_features - 1]):
                 break
 
-            print ('Minimum cost ({0:.4f}) given by adding feature "{1:s}" '
-                   '(previous minimum = {2:.4f}).').format(
-                       min_new_cost, this_best_feature_name,
-                       min_cost_by_num_removed[num_removed_features - 1])
+            print((
+                'Minimum cost ({0:.4f}) given by adding feature "{1:s}" '
+                '(previous minimum = {2:.4f}).'
+            ).format(
+                min_new_cost, this_best_feature_name,
+                min_cost_by_num_removed[num_removed_features - 1]
+            ))
 
             selected_feature_names.append(this_best_feature_name)
             removed_feature_names.remove(this_best_feature_name)
             min_cost_by_num_removed[num_removed_features] = numpy.nan
             min_cost_by_num_removed[num_removed_features - 1] = min_new_cost
 
-        print '\n'
+        print('\n')
 
     sbs_dictionary = _evaluate_feature_selection(
         training_table=training_table, validation_table=validation_table,
@@ -1253,10 +1363,13 @@ def floating_sbs(
         selected_feature_names=selected_feature_names, target_name=target_name)
 
     num_removed_features = len(removed_feature_names)
-    sbs_dictionary.update({REMOVED_FEATURES_KEY: removed_feature_names})
-    sbs_dictionary.update(
-        {VALIDATION_COST_BY_STEP_KEY:
-             min_cost_by_num_removed[1:(num_removed_features + 1)]})
+
+    sbs_dictionary.update({
+        REMOVED_FEATURES_KEY: removed_feature_names,
+        VALIDATION_COST_BY_STEP_KEY:
+            min_cost_by_num_removed[1:(num_removed_features + 1)]
+    })
+
     return sbs_dictionary
 
 
@@ -1295,17 +1408,23 @@ def permutation_selection(
     new_estimator_object = sklearn.base.clone(estimator_object)
     new_estimator_object.fit(
         training_table.as_matrix(columns=feature_names),
-        training_table[target_name].values)
+        training_table[target_name].values
+    )
 
     forecast_probs_for_validation = new_estimator_object.predict_proba(
-        validation_table.as_matrix(columns=feature_names))[:, 1]
+        validation_table.as_matrix(columns=feature_names)
+    )[:, 1]
+
     orig_validation_cost = cost_function(
-        forecast_probs_for_validation, validation_table[target_name].values)
+        forecast_probs_for_validation, validation_table[target_name].values
+    )
     orig_validation_cross_entropy = model_eval.get_cross_entropy(
         forecast_probs_for_validation,
-        validation_table[target_name].values)
+        validation_table[target_name].values
+    )
     orig_validation_auc = sklearn.metrics.roc_auc_score(
-        validation_table[target_name].values, forecast_probs_for_validation)
+        validation_table[target_name].values, forecast_probs_for_validation
+    )
 
     # Initialize values.
     remaining_feature_names = copy.deepcopy(feature_names)
@@ -1318,10 +1437,13 @@ def permutation_selection(
         num_permuted_features = len(permutation_dict[FEATURE_NAME_KEY])
         num_remaining_features = len(remaining_feature_names)
 
-        print ('Step {0:d} of permutation selection: {1:d} features permuted, '
-               '{2:d} remaining...').format(
-                   num_permuted_features + 1, num_permuted_features,
-                   num_remaining_features)
+        print((
+            'Step {0:d} of permutation selection: {1:d} features permuted, '
+            '{2:d} remaining...'
+        ).format(
+            num_permuted_features + 1, num_permuted_features,
+            num_remaining_features
+        ))
 
         new_cost_by_feature = numpy.full(num_remaining_features, numpy.nan)
         new_xentropy_by_feature = numpy.full(num_remaining_features, numpy.nan)
@@ -1331,52 +1453,68 @@ def permutation_selection(
         for j in range(num_remaining_features):
             this_validation_matrix = validation_table.as_matrix(
                 columns=feature_names)
+
             column_to_permute = feature_names.index(remaining_feature_names[j])
             this_validation_matrix[:, column_to_permute] = (
                 numpy.random.permutation(
-                    this_validation_matrix[:, column_to_permute]))
+                    this_validation_matrix[:, column_to_permute])
+            )
 
             these_forecast_probabilities = new_estimator_object.predict_proba(
-                this_validation_matrix)[:, 1]
+                this_validation_matrix
+            )[:, 1]
+
             new_cost_by_feature[j] = cost_function(
                 these_forecast_probabilities,
-                validation_table[target_name].values)
+                validation_table[target_name].values
+            )
             new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
                 these_forecast_probabilities,
-                validation_table[target_name].values)
+                validation_table[target_name].values
+            )
             new_auc_by_feature[j] = sklearn.metrics.roc_auc_score(
                 validation_table[target_name].values,
-                these_forecast_probabilities)
+                these_forecast_probabilities
+            )
 
             if numpy.nanargmax(new_cost_by_feature) == j:
                 permuted_values_for_best_feature = (
-                    this_validation_matrix[:, column_to_permute])
+                    this_validation_matrix[:, column_to_permute]
+                )
 
         max_new_cost = numpy.max(new_cost_by_feature)
         this_best_feature_index = numpy.argmax(new_cost_by_feature)
         this_best_feature_name = remaining_feature_names[
-            this_best_feature_index]
+            this_best_feature_index
+        ]
 
         if len(permutation_dict[VALIDATION_COST_KEY]):
             max_previous_cost = permutation_dict[VALIDATION_COST_KEY][-1]
         else:
             max_previous_cost = copy.deepcopy(orig_validation_cost)
 
-        print ('Maximum cost ({0:.4f}) given by permuting feature "{1:s}" '
-               '(previous max = {2:.4f}).').format(
-                   max_new_cost, this_best_feature_name, max_previous_cost)
+        print((
+            'Maximum cost ({0:.4f}) given by permuting feature "{1:s}" '
+            '(previous max = {2:.4f}).'
+        ).format(
+            max_new_cost, this_best_feature_name, max_previous_cost
+        ))
 
         remaining_feature_names.remove(this_best_feature_name)
-        validation_table = validation_table.assign(
-            **{this_best_feature_name: permuted_values_for_best_feature})
+        validation_table = validation_table.assign(**{
+            this_best_feature_name: permuted_values_for_best_feature
+        })
 
         permutation_dict[FEATURE_NAME_KEY].append(this_best_feature_name)
         permutation_dict[VALIDATION_COST_KEY].append(
-            new_cost_by_feature[this_best_feature_index])
+            new_cost_by_feature[this_best_feature_index]
+        )
         permutation_dict[VALIDATION_XENTROPY_KEY].append(
-            new_xentropy_by_feature[this_best_feature_index])
+            new_xentropy_by_feature[this_best_feature_index]
+        )
         permutation_dict[VALIDATION_AUC_KEY].append(
-            new_auc_by_feature[this_best_feature_index])
+            new_auc_by_feature[this_best_feature_index]
+        )
 
     permutation_table = pandas.DataFrame.from_dict(permutation_dict)
     return (permutation_table, orig_validation_cost,

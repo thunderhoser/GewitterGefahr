@@ -411,8 +411,12 @@ def get_stats_for_storm_objects(
 
     for i in range(num_storm_objects):
         if numpy.mod(i, REPORT_EVERY_N_STORM_OBJECTS) == 0 and i > 0:
-            print ('Have computed shape statistics for {0:d} of {1:d} storm '
-                   'objects...').format(i, num_storm_objects)
+            print((
+                'Have computed shape statistics for {0:d} of {1:d} storm '
+                'objects...'
+            ).format(
+                i, num_storm_objects
+            ))
 
         this_polygon_object_xy = _project_polygon_latlng_to_xy(
             polygon_object_latlng=storm_object_table[
@@ -463,8 +467,8 @@ def get_stats_for_storm_objects(
                 storm_object_table[this_name].values[i] = (
                     this_curvature_based_stat_dict[this_name])
 
-    print 'Have computed shape statistics for all {0:d} storm objects!'.format(
-        num_storm_objects)
+    print('Have computed shape statistics for all {0:d} storm objects!'.format(
+        num_storm_objects))
 
     return storm_object_table[STORM_COLUMNS_TO_KEEP + statistic_names]
 

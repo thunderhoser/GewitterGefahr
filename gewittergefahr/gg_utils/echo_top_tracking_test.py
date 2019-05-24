@@ -225,8 +225,8 @@ def _compare_local_max_dicts(first_local_max_dict, second_local_max_dict):
     :return: are_dicts_equal: Boolean flag.
     """
 
-    first_keys = first_local_max_dict.keys()
-    second_keys = second_local_max_dict.keys()
+    first_keys = list(first_local_max_dict.keys())
+    second_keys = list(second_local_max_dict.keys())
     if set(first_keys) != set(second_keys):
         return False
 

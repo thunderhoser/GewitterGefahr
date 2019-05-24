@@ -34,15 +34,18 @@ def get_uniform_colours_in_lab_space(num_colours):
     num_lab_values = num_l_values * num_a_values * num_b_values
 
     linear_indices = numpy.linspace(
-        0., float(num_lab_values - 1), num=num_colours)
+        0., float(num_lab_values - 1), num=num_colours
+    )
     linear_indices = numpy.round(linear_indices).astype(int)
 
     lab_matrix = numpy.full((num_colours, 3), numpy.nan)
     lab_matrix[:, 0], lab_matrix[:, 1], lab_matrix[:, 2] = numpy.unravel_index(
-        linear_indices, dims=(num_l_values, num_a_values, num_b_values))
+        linear_indices, dims=(num_l_values, num_a_values, num_b_values)
+    )
 
     rgb_matrix = skimage.color.lab2rgb(
-        numpy.reshape(lab_matrix, (1, num_colours, 3)))
+        numpy.reshape(lab_matrix, (1, num_colours, 3))
+    )
     return numpy.reshape(rgb_matrix, (num_colours, 3))
 
 
@@ -64,7 +67,9 @@ def get_uniform_colours_in_hsv_space(
 
     if colour_to_exclude_rgb is not None:
         error_checking.assert_is_numpy_array(
-            colour_to_exclude_rgb, exact_dimensions=numpy.array([3]))
+            colour_to_exclude_rgb, exact_dimensions=numpy.array([3], dtype=int)
+        )
+
         error_checking.assert_is_geq_numpy_array(colour_to_exclude_rgb, 0.)
         error_checking.assert_is_leq_numpy_array(colour_to_exclude_rgb, 1.)
         error_checking.assert_is_greater(min_rgb_distance_from_colour, 0.)
@@ -74,29 +79,36 @@ def get_uniform_colours_in_hsv_space(
         num_colours = 10 * num_colours
 
     num_hsv_values = (
-        NUM_H_FOR_HSV_SPACE * NUM_S_FOR_HSV_SPACE * NUM_V_FOR_HSV_SPACE)
+        NUM_H_FOR_HSV_SPACE * NUM_S_FOR_HSV_SPACE * NUM_V_FOR_HSV_SPACE
+    )
+
     linear_indices = numpy.linspace(
-        0., float(num_hsv_values - 1), num=num_colours)
+        0., float(num_hsv_values - 1), num=num_colours
+    )
     linear_indices = numpy.round(linear_indices).astype(int)
 
     hsv_matrix = numpy.full((num_colours, 3), numpy.nan)
     hsv_matrix[:, 0], hsv_matrix[:, 1], hsv_matrix[:, 2] = numpy.unravel_index(
         linear_indices,
-        dims=(NUM_H_FOR_HSV_SPACE, NUM_S_FOR_HSV_SPACE, NUM_V_FOR_HSV_SPACE))
+        dims=(NUM_H_FOR_HSV_SPACE, NUM_S_FOR_HSV_SPACE, NUM_V_FOR_HSV_SPACE)
+    )
+
     hsv_matrix = hsv_matrix / 255
 
     rgb_matrix = skimage.color.hsv2rgb(
-        numpy.reshape(hsv_matrix, (1, num_colours, 3)))
+        numpy.reshape(hsv_matrix, (1, num_colours, 3))
+    )
     rgb_matrix = numpy.reshape(rgb_matrix, (num_colours, 3))
 
     if colour_to_exclude_rgb is not None:
         good_indices = []
-        all_indices = range(num_colours)
+        all_indices = list(range(num_colours))
         numpy.random.shuffle(all_indices)
 
         for i in all_indices:
             this_distance = numpy.linalg.norm(
-                rgb_matrix[i, :] - colour_to_exclude_rgb)
+                rgb_matrix[i, :] - colour_to_exclude_rgb
+            )
             if not this_distance >= min_rgb_distance_from_colour:
                 continue
 

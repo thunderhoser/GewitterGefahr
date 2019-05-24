@@ -24,7 +24,8 @@ EOF_MATRIX_KEY = 'eof_matrix'
 MEAN_VALUE_REPLACEMENT_METHOD = 'mean'
 MEDIAN_VALUE_REPLACEMENT_METHOD = 'median'
 VALID_REPLACEMENT_METHODS = [
-    MEAN_VALUE_REPLACEMENT_METHOD, MEDIAN_VALUE_REPLACEMENT_METHOD]
+    MEAN_VALUE_REPLACEMENT_METHOD, MEDIAN_VALUE_REPLACEMENT_METHOD
+]
 
 
 def _reorder_standardization_or_replacement_dict(
@@ -42,23 +43,28 @@ def _reorder_standardization_or_replacement_dict(
     """
 
     try:
-        sort_indices = numpy.array(
-            [standardization_or_replacement_dict[FEATURE_NAMES_KEY].index(f)
-             for f in new_feature_names])
+        sort_indices = numpy.array([
+            standardization_or_replacement_dict[FEATURE_NAMES_KEY].index(f)
+            for f in new_feature_names
+        ])
     except ValueError:
         error_string = (
             '\n\n{0:s}\n\nFeature names in standardization_or_replacement_dict '
             '(shown above) do not span those in new_feature_names (shown below)'
-            '.\n\n{1:s}').format(
-                standardization_or_replacement_dict[FEATURE_NAMES_KEY],
-                new_feature_names)
+            '.\n\n{1:s}'
+        ).format(
+            standardization_or_replacement_dict[FEATURE_NAMES_KEY],
+            new_feature_names
+        )
+
         raise ValueError(error_string)
 
-    for this_key in standardization_or_replacement_dict.keys():
+    for this_key in list(standardization_or_replacement_dict.keys()):
         if isinstance(standardization_or_replacement_dict[this_key],
                       numpy.ndarray):
             standardization_or_replacement_dict[this_key] = (
-                standardization_or_replacement_dict[this_key][sort_indices])
+                standardization_or_replacement_dict[this_key][sort_indices]
+            )
         else:
             standardization_or_replacement_dict[this_key] = numpy.array(
                 standardization_or_replacement_dict[this_key]
@@ -101,18 +107,22 @@ def replace_missing_values(feature_table, replacement_dict=None,
     """
 
     num_real_values_by_feature = numpy.sum(
-        numpy.invert(numpy.isnan(feature_table.as_matrix())), axis=0)
+        numpy.invert(numpy.isnan(feature_table.as_matrix())), axis=0
+    )
+
     if numpy.any(num_real_values_by_feature < 2):
         raise ValueError('Each column of feature_table must have >= 2 real '
                          'values (not NaN).')
 
     if replacement_dict is None:
         error_checking.assert_is_string(replacement_method)
+
         if replacement_method not in VALID_REPLACEMENT_METHODS:
             error_string = (
                 '\n\n{0:s}\n\nValid replacement methods (listed above) do not '
-                'include "{1:s}".').format(VALID_REPLACEMENT_METHODS,
-                                           replacement_method)
+                'include "{1:s}".'
+            ).format(VALID_REPLACEMENT_METHODS, replacement_method)
+
             raise ValueError(error_string)
 
         if replacement_method == MEAN_VALUE_REPLACEMENT_METHOD:
@@ -131,7 +141,8 @@ def replace_missing_values(feature_table, replacement_dict=None,
 
     else:
         replacement_dict = _reorder_standardization_or_replacement_dict(
-            replacement_dict, list(feature_table))
+            replacement_dict, list(feature_table)
+        )
 
     feature_names = list(feature_table)
     num_features = len(feature_names)
@@ -145,15 +156,19 @@ def replace_missing_values(feature_table, replacement_dict=None,
             these_values[nan_indices] = replacement_dict[ORIGINAL_MEANS_KEY][j]
         else:
             these_values[nan_indices] = replacement_dict[
-                ORIGINAL_MEDIANS_KEY][j]
+                ORIGINAL_MEDIANS_KEY
+            ][j]
 
         if feature_table_no_missing_values is None:
-            feature_table_no_missing_values = pandas.DataFrame.from_dict(
-                {feature_names[j]: these_values})
+            feature_table_no_missing_values = pandas.DataFrame.from_dict({
+                feature_names[j]: these_values
+            })
         else:
             feature_table_no_missing_values = (
-                feature_table_no_missing_values.assign(
-                    **{feature_names[j]: these_values}))
+                feature_table_no_missing_values.assign(**{
+                    feature_names[j]: these_values
+                })
+            )
 
     return feature_table_no_missing_values, replacement_dict
 
@@ -187,7 +202,9 @@ def standardize_features(feature_table, standardization_dict=None):
     """
 
     num_real_values_by_feature = numpy.sum(
-        numpy.invert(numpy.isnan(feature_table.as_matrix())), axis=0)
+        numpy.invert(numpy.isnan(feature_table.as_matrix())), axis=0
+    )
+
     if numpy.any(num_real_values_by_feature < 2):
         raise ValueError('Each column of feature_table must have >= 2 real '
                          'values (not NaN).')
@@ -195,16 +212,18 @@ def standardize_features(feature_table, standardization_dict=None):
     if standardization_dict is None:
         feature_means = numpy.nanmean(feature_table.as_matrix(), axis=0)
         feature_standard_deviations = numpy.nanstd(
-            feature_table.as_matrix(), axis=0, ddof=1)
+            feature_table.as_matrix(), axis=0, ddof=1
+        )
 
         standardization_dict = {
             FEATURE_NAMES_KEY: list(feature_table),
             ORIGINAL_MEANS_KEY: feature_means,
-            ORIGINAL_STDEVS_KEY: feature_standard_deviations}
-
+            ORIGINAL_STDEVS_KEY: feature_standard_deviations
+        }
     else:
         standardization_dict = _reorder_standardization_or_replacement_dict(
-            standardization_dict, list(feature_table))
+            standardization_dict, list(feature_table)
+        )
 
     feature_names = list(feature_table)
     num_features = len(feature_names)
@@ -214,7 +233,8 @@ def standardize_features(feature_table, standardization_dict=None):
         these_standardized_values = (
             (feature_table[feature_names[j]].values -
              standardization_dict[ORIGINAL_MEANS_KEY][j]) /
-            standardization_dict[ORIGINAL_STDEVS_KEY][j])
+            standardization_dict[ORIGINAL_STDEVS_KEY][j]
+        )
 
         these_standardized_values[numpy.isnan(these_standardized_values)] = 0.
         these_standardized_values[
@@ -225,11 +245,13 @@ def standardize_features(feature_table, standardization_dict=None):
         ] = -MAX_NUM_STANDARD_DEVIATIONS
 
         if standardized_feature_table is None:
-            standardized_feature_table = pandas.DataFrame.from_dict(
-                {feature_names[j]: these_standardized_values})
+            standardized_feature_table = pandas.DataFrame.from_dict({
+                feature_names[j]: these_standardized_values
+            })
         else:
-            standardized_feature_table = standardized_feature_table.assign(
-                **{feature_names[j]: these_standardized_values})
+            standardized_feature_table = standardized_feature_table.assign(**{
+                feature_names[j]: these_standardized_values
+            })
 
     return standardized_feature_table, standardization_dict
 
@@ -256,13 +278,15 @@ def perform_svd(feature_table):
     standardized_feature_table, standardization_dict = standardize_features(
         feature_table)
     principal_component_matrix, amplitude_vector, eof_matrix = numpy.linalg.svd(
-        standardized_feature_table.as_matrix())
+        standardized_feature_table.as_matrix()
+    )
 
     svd_dictionary = {
         PC_MATRIX_KEY: principal_component_matrix,
         EIGENVALUE_MATRIX_KEY: numpy.diag(amplitude_vector ** 2),
         EOF_MATRIX_KEY: numpy.transpose(eof_matrix)
     }
+
     return standardization_dict, svd_dictionary
 
 
@@ -283,19 +307,25 @@ def filter_svd_by_explained_variance(
 
     eigenvalue_by_mode = numpy.diag(svd_dictionary[EIGENVALUE_MATRIX_KEY])
     explained_variance_by_mode = (
-        eigenvalue_by_mode / numpy.sum(eigenvalue_by_mode))
+        eigenvalue_by_mode / numpy.sum(eigenvalue_by_mode)
+    )
     cumul_explained_variance_by_mode = numpy.cumsum(explained_variance_by_mode)
 
     num_modes_to_keep = 1 + numpy.where(
-        cumul_explained_variance_by_mode >= fraction_of_variance_to_keep)[0][0]
+        cumul_explained_variance_by_mode >= fraction_of_variance_to_keep
+    )[0][0]
 
     svd_dictionary[PC_MATRIX_KEY] = (
-        svd_dictionary[PC_MATRIX_KEY][:, :num_modes_to_keep])
+        svd_dictionary[PC_MATRIX_KEY][:, :num_modes_to_keep]
+    )
     svd_dictionary[EIGENVALUE_MATRIX_KEY] = (
-        svd_dictionary[EIGENVALUE_MATRIX_KEY][:num_modes_to_keep,
-                                              :num_modes_to_keep])
+        svd_dictionary[EIGENVALUE_MATRIX_KEY][
+            :num_modes_to_keep, :num_modes_to_keep
+        ]
+    )
     svd_dictionary[EOF_MATRIX_KEY] = (
-        svd_dictionary[EOF_MATRIX_KEY][:, :num_modes_to_keep])
+        svd_dictionary[EOF_MATRIX_KEY][:, :num_modes_to_keep]
+    )
 
     return svd_dictionary
 
@@ -324,5 +354,7 @@ def transform_features_via_svd(
 
     standardized_feature_table, _ = standardize_features(
         feature_table, standardization_dict=standardization_dict)
-    return numpy.dot(standardized_feature_table.as_matrix(),
-                     svd_dictionary[EOF_MATRIX_KEY])
+
+    return numpy.dot(
+        standardized_feature_table.as_matrix(), svd_dictionary[EOF_MATRIX_KEY]
+    )

@@ -323,7 +323,7 @@ def assert_is_real_number(input_variable):
 
     if (isinstance(input_variable, BOOLEAN_TYPES) or not isinstance(
             input_variable, REAL_NUMBER_TYPES)):
-        print type(input_variable)
+        print(type(input_variable))
         error_string = ('\n' + str(input_variable) +
                         '\nInput variable (shown above) is not real number.')
         raise TypeError(error_string)

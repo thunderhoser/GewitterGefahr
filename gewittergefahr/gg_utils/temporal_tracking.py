@@ -1556,14 +1556,14 @@ def check_tracking_periods(tracking_start_times_unix_sec,
             for t in tracking_end_times_unix_sec
         ]
 
-        print '\n'
+        print('\n')
         for k in range(len(tracking_start_time_strings)):
-            print '{0:d}th tracking period = {1:s} to {2:s}'.format(
+            print('{0:d}th tracking period = {1:s} to {2:s}'.format(
                 k + 1, tracking_start_time_strings[k],
                 tracking_end_time_strings[k]
-            )
+            ))
 
-        print '\n'
+        print('\n')
         raise ValueError(
             'As shown above, start/end times of tracking periods are not sorted'
             ' in the same order.'
@@ -1883,8 +1883,8 @@ def get_storm_velocities(
 
     for i in range(num_storm_objects):
         if numpy.mod(i, 100) == 0:
-            print 'Found velocity for {0:d} of {1:d} storm objects...'.format(
-                i, num_storm_objects)
+            print('Found velocity for {0:d} of {1:d} storm objects...'.format(
+                i, num_storm_objects))
 
         these_predecessor_rows = find_predecessors(
             storm_object_table=storm_object_table, target_row=i,

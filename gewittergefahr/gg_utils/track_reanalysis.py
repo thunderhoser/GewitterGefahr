@@ -522,18 +522,18 @@ def join_collinear_tracks(
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
         return_index=True)
 
-    primary_id_to_first_row_dict = dict(zip(
+    primary_id_to_first_row_dict = dict(list(zip(
         unique_primary_id_strings, these_first_rows
-    ))
+    )))
 
     _, these_last_rows = numpy.unique(
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values[::-1],
         return_index=True)
 
     these_last_rows = len(storm_object_table.index) - 1 - these_last_rows
-    primary_id_to_last_row_dict = dict(zip(
+    primary_id_to_last_row_dict = dict(list(zip(
         unique_primary_id_strings, these_last_rows
-    ))
+    )))
 
     first_late_time_index = numpy.where(
         unique_times_unix_sec >= first_late_time_unix_sec
@@ -548,7 +548,7 @@ def join_collinear_tracks(
         these_late_rows = numpy.where(orig_to_unique_time_indices == j)[0]
         these_late_rows = numpy.array([
             k for k in these_late_rows
-            if k in primary_id_to_first_row_dict.values()
+            if k in list(primary_id_to_first_row_dict.values())
         ], dtype=int)
 
         if len(these_late_rows) == 0:
@@ -571,7 +571,7 @@ def join_collinear_tracks(
             these_early_rows = numpy.where(orig_to_unique_time_indices == i)[0]
             these_early_rows = numpy.array([
                 k for k in these_early_rows
-                if k in primary_id_to_last_row_dict.values()
+                if k in list(primary_id_to_last_row_dict.values())
             ], dtype=int)
 
             if len(these_early_rows) == 0:
@@ -585,7 +585,7 @@ def join_collinear_tracks(
 
                 these_late_rows = numpy.array([
                     k for k in these_late_rows
-                    if k in primary_id_to_first_row_dict.values()
+                    if k in list(primary_id_to_first_row_dict.values())
                 ], dtype=int)
 
                 # If no more storms beginning at late time:
@@ -600,13 +600,13 @@ def join_collinear_tracks(
                 storm_object_table=storm_object_table,
                 row_indices=these_early_rows, include_velocity=True)
 
-            print (
+            print((
                 'Attempting to join collinear tracks ({0:d} early tracks at '
                 '{1:s}, {2:d} late tracks at {3:s})...'
             ).format(
                 len(these_early_rows), unique_time_strings[i],
                 len(these_late_rows), unique_time_strings[j]
-            )
+            ))
 
             this_late_to_early_matrix = (
                 temporal_tracking.link_local_maxima_in_time(
@@ -619,9 +619,9 @@ def join_collinear_tracks(
 
             # orig_late_to_early_matrix = copy.deepcopy(this_late_to_early_matrix)
 
-            print (
+            print((
                 'Found {0:d} connections between early and late tracks.\n'
-            ).format(numpy.sum(this_late_to_early_matrix))
+            ).format(numpy.sum(this_late_to_early_matrix)))
 
             if not numpy.any(this_late_to_early_matrix):
                 continue

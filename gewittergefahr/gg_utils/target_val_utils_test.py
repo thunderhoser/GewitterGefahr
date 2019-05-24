@@ -183,8 +183,8 @@ def _compare_target_param_dicts(first_dict, second_dict):
         target_val_utils.MAX_LINKAGE_DISTANCE_KEY
     ]
 
-    first_keys = first_dict.keys()
-    second_keys = second_dict.keys()
+    first_keys = list(first_dict.keys())
+    second_keys = list(second_dict.keys())
     if set(first_keys) != set(second_keys):
         return False
 

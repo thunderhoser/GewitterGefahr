@@ -37,10 +37,12 @@ HEIGHTS_KEY = 'grid_point_heights_m_asl'
 
 MELT_LEVEL_INTERCEPT_BY_MONTH_M_ASL = numpy.array(
     [7072, 7896, 8558, 7988, 7464, 6728, 6080, 6270, 6786, 8670, 8892, 7936],
-    dtype=float)
+    dtype=float
+)
 MELT_LEVEL_SLOPE_BY_MONTH_M_DEG01 = numpy.array(
     [-124, -152, -160, -128, -100, -65, -39, -44, -67, -137, -160, -147],
-    dtype=float)
+    dtype=float
+)
 
 PEAKEDNESS_NEIGH_KEY = 'peakedness_neigh_metres'
 MAX_PEAKEDNESS_HEIGHT_KEY = 'max_peakedness_height_m_asl'
@@ -181,14 +183,15 @@ def _get_peakedness(
     peakedness_matrix_dbz = numpy.full(reflectivity_matrix_dbz.shape, numpy.nan)
 
     for k in range(num_heights):
-        print k
+        print(k)
         this_filtered_matrix_dbz = median_filter(
             reflectivity_matrix_dbz[..., k],
             size=(num_rows_in_neigh, num_columns_in_neigh),
             mode='constant', cval=0.)
 
         peakedness_matrix_dbz[..., k] = (
-            reflectivity_matrix_dbz[..., k] - this_filtered_matrix_dbz)
+            reflectivity_matrix_dbz[..., k] - this_filtered_matrix_dbz
+        )
 
     return peakedness_matrix_dbz
 
@@ -592,7 +595,7 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
     grid_metadata_dict[LONGITUDES_KEY] = grid_point_longitudes_deg
     reflectivity_matrix_dbz[numpy.isnan(reflectivity_matrix_dbz)] = 0.
 
-    print 'Applying criterion 1 for convective classification...'
+    print('Applying criterion 1 for convective classification...')
     convective_flag_matrix = _apply_convective_criterion1(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         peakedness_neigh_metres=peakedness_neigh_metres,
@@ -601,10 +604,11 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
         min_composite_refl_dbz=min_composite_refl_criterion1_dbz,
         grid_metadata_dict=grid_metadata_dict)
 
-    print 'Number of convective pixels = {0:d}'.format(
-        numpy.sum(convective_flag_matrix))
+    print('Number of convective pixels = {0:d}'.format(
+        numpy.sum(convective_flag_matrix)
+    ))
 
-    print 'Applying criterion 2 for convective classification...'
+    print('Applying criterion 2 for convective classification...')
     convective_flag_matrix = _apply_convective_criterion2(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         convective_flag_matrix=convective_flag_matrix,
@@ -613,10 +617,11 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
         min_composite_refl_aml_dbz=
         min_composite_refl_aml_dbz)
 
-    print 'Number of convective pixels = {0:d}'.format(
-        numpy.sum(convective_flag_matrix))
+    print('Number of convective pixels = {0:d}'.format(
+        numpy.sum(convective_flag_matrix)
+    ))
 
-    print 'Applying criterion 3 for convective classification...'
+    print('Applying criterion 3 for convective classification...')
     convective_flag_matrix = _apply_convective_criterion3(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         convective_flag_matrix=convective_flag_matrix,
@@ -624,17 +629,19 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
         min_echo_top_m_asl=min_echo_top_m_asl,
         echo_top_level_dbz=echo_top_level_dbz)
 
-    print 'Number of convective pixels = {0:d}'.format(
-        numpy.sum(convective_flag_matrix))
+    print('Number of convective pixels = {0:d}'.format(
+        numpy.sum(convective_flag_matrix)
+    ))
 
-    print 'Applying criterion 4 for convective classification...'
+    print('Applying criterion 4 for convective classification...')
     convective_flag_matrix = _apply_convective_criterion4(
         convective_flag_matrix)
 
-    print 'Number of convective pixels = {0:d}'.format(
-        numpy.sum(convective_flag_matrix))
+    print('Number of convective pixels = {0:d}'.format(
+        numpy.sum(convective_flag_matrix)
+    ))
 
-    print 'Applying criterion 5 for convective classification...'
+    print('Applying criterion 5 for convective classification...')
     return _apply_convective_criterion5(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         convective_flag_matrix=convective_flag_matrix,

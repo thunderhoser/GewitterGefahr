@@ -526,8 +526,8 @@ def count_events_on_equidistant_grid(
     num_events = len(event_x_coords_metres)
     for k in range(num_events):
         if numpy.mod(k, 1000) == 0:
-            print 'Have assigned {0:d} of {1:d} events to grid cells...'.format(
-                k, num_events)
+            print('Have assigned {0:d} of {1:d} events to grid cells...'.format(
+                k, num_events))
 
         if effective_radius_metres is None:
             _, this_row = general_utils.find_nearest_value(
@@ -571,7 +571,7 @@ def count_events_on_equidistant_grid(
                     these_rows[m], these_columns[m]
                 ].append(integer_event_ids[k])
 
-    print 'Have assigned all {0:d} events to grid cells!'.format(num_events)
+    print('Have assigned all {0:d} events to grid cells!'.format(num_events))
 
     if integer_event_ids is not None:
         for i in range(num_grid_rows):

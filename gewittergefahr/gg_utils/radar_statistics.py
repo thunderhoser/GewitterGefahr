@@ -557,13 +557,13 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
             if radar_file_name_matrix[i, j] is None:
                 continue
 
-            print (
+            print((
                 'Computing stats for "{0:s}" at {1:d} metres ASL and {2:s}...'
             ).format(
                 radar_field_name_by_pair[j],
                 int(numpy.round(radar_height_by_pair_m_asl[j])),
                 valid_time_strings[i]
-            )
+            ))
 
             this_metadata_dict = (
                 myrorss_and_mrms_io.read_metadata_from_raw_file(
@@ -600,7 +600,7 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
 
             if (dilate_azimuthal_shear and radar_field_name_by_pair[j] in
                     AZIMUTHAL_SHEAR_FIELD_NAMES):
-                print 'Dilating azimuthal-shear field...'
+                print('Dilating azimuthal-shear field...')
 
                 radar_matrix_this_field_height = dilation.dilate_2d_matrix(
                     radar_matrix_this_field_height,
@@ -762,8 +762,9 @@ def get_storm_based_radar_stats_gridrad(
         for j in range(num_radar_fields):
 
             # Read data for [j]th field at [i]th valid time.
-            print 'Reading "{0:s}" from file "{1:s}"...'.format(
-                radar_field_names[j], radar_time_strings[i])
+            print('Reading "{0:s}" from file "{1:s}"...'.format(
+                radar_field_names[j], radar_time_strings[i]
+            ))
 
             radar_matrix_this_field, these_grid_point_heights_m_asl, _, _ = (
                 gridrad_io.read_field_from_full_grid_file(
@@ -785,16 +786,18 @@ def get_storm_based_radar_stats_gridrad(
 
                 # Compute radar stats for [j]th field at [k]th height and [i]th
                 # valid time.
-                print (
+                print((
                     'Computing stats for "{0:s}" at {1:d} metres ASL and '
-                    '{2:s}...').format(
-                        radar_field_names[j], radar_heights_m_asl[k],
-                        radar_time_strings[i])
+                    '{2:s}...'
+                ).format(
+                    radar_field_names[j], radar_heights_m_asl[k],
+                    radar_time_strings[i]
+                ))
 
                 for this_storm_index in these_storm_indices:
                     these_grid_point_rows = storm_object_table[
                         tracking_utils.ROWS_IN_STORM_COLUMN].values[
-                            this_storm_index].astype(int)
+                        this_storm_index].astype(int)
                     these_grid_point_columns = storm_object_table[
                         tracking_utils.COLUMNS_IN_STORM_COLUMN].values[
                             this_storm_index].astype(int)
@@ -812,7 +815,7 @@ def get_storm_based_radar_stats_gridrad(
                              statistic_names=statistic_names,
                              percentile_levels=percentile_levels))
 
-            print '\n'
+            print('\n')
 
     # Create pandas DataFrame.
     storm_object_statistic_dict = {}

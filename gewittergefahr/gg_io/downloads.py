@@ -119,7 +119,9 @@ def download_files_via_http(
         manager_object = urllib.request.HTTPPasswordMgrWithDefaultRealm()
         manager_object.add_password(
             realm=None, uri=host_name, user=user_name, passwd=password)
-        authentication_handler = urllib.request.HTTPBasicAuthHandler(manager_object)
+
+        authentication_handler = urllib.request.HTTPBasicAuthHandler(
+            manager_object)
         opener_object = urllib.request.build_opener(authentication_handler)
         urllib.request.install_opener(opener_object)
 

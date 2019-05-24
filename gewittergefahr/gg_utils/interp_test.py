@@ -16,9 +16,11 @@ FIELD_NAMES_GRIB1 = [
 ]
 
 ROTATE_WIND_FLAGS_FOR_NARR = numpy.full(
-    len(FIELD_NAMES_GRIB1), False, dtype=bool)
+    len(FIELD_NAMES_GRIB1), False, dtype=bool
+)
 ROTATE_WIND_FLAGS_FOR_RAPRUC = numpy.array(
-    [0, 1, 1, 0, 1, 0, 1, 0, 1, 1], dtype=bool)
+    [0, 1, 1, 0, 1, 0, 1, 0, 1, 1], dtype=bool
+)
 
 FIELD_NAMES_OTHER_COMPONENT_NARR = [''] * len(FIELD_NAMES_GRIB1)
 FIELD_NAMES_OTHER_COMPONENT_RAPRUC = [
@@ -27,9 +29,11 @@ FIELD_NAMES_OTHER_COMPONENT_RAPRUC = [
 ]
 
 OTHER_WIND_COMPONENT_INDICES_NARR = numpy.full(
-    len(FIELD_NAMES_GRIB1), -1, dtype=int)
+    len(FIELD_NAMES_GRIB1), -1, dtype=int
+)
 OTHER_WIND_COMPONENT_INDICES_RAPRUC = numpy.array(
-    [-1, 2, 1, -1, -1, -1, -1, -1, 9, 8], dtype=int)
+    [-1, 2, 1, -1, -1, -1, -1, -1, 9, 8], dtype=int
+)
 
 WIND_ROTATION_METADATA_DICT_NARR = {
     interp.FIELD_NAMES_GRIB1_KEY: FIELD_NAMES_GRIB1,
@@ -45,60 +49,83 @@ WIND_ROTATION_METADATA_DICT_RAPRUC = {
     interp.OTHER_WIND_COMPONENT_INDICES_KEY: OTHER_WIND_COMPONENT_INDICES_RAPRUC
 }
 
-
 # The following constants are used to test _stack_1d_arrays_horizontally.
-LIST_OF_1D_ARRAYS = [numpy.array([1., 2., 3]),
-                     numpy.array([0., 5., 10.]),
-                     numpy.array([6., 6., 6.])]
+LIST_OF_1D_ARRAYS = [
+    numpy.array([1., 2., 3]),
+    numpy.array([0., 5., 10.]),
+    numpy.array([6., 6., 6.])
+]
+
 MATRIX_FIRST_ARRAY = numpy.reshape(LIST_OF_1D_ARRAYS[0], (3, 1))
 MATRIX_FIRST_2ARRAYS = numpy.transpose(
-    numpy.array([[1., 2., 3.], [0., 5., 10.]]))
+    numpy.array([[1., 2., 3.], [0., 5., 10.]])
+)
 MATRIX_FIRST_3ARRAYS = numpy.transpose(
-    numpy.array([[1., 2., 3.], [0., 5., 10.], [6., 6., 6.]]))
+    numpy.array([[1., 2., 3.], [0., 5., 10.], [6., 6., 6.]])
+)
 
 # The following constants are used to test _find_heights_with_temperature.
 TARGET_TEMPERATURE_KELVINS = 10.
 WARM_TEMPERATURES_KELVINS = numpy.array(
-    [10., 10., 10., 11., 11., 11., 12., 12., 12., numpy.nan, numpy.nan, 12.])
+    [10., 10., 10., 11., 11., 11., 12., 12., 12., numpy.nan, numpy.nan, 12.]
+)
 COLD_TEMPERATURES_KELVINS = numpy.array(
-    [8., 9., 10., 8., 9., 10., 8., 9., 10., numpy.nan, 8., numpy.nan])
+    [8., 9., 10., 8., 9., 10., 8., 9., 10., numpy.nan, 8., numpy.nan]
+)
+
 WARM_HEIGHTS_M_ASL = numpy.full(9, 2000.)
 COLD_HEIGHTS_M_ASL = numpy.full(9, 2500.)
 
-TARGET_HEIGHTS_M_ASL = numpy.array(
-    [2000., 2000., numpy.nan, 2166.666667, 2250., 2500., 2250., 2333.333333,
-     2500., numpy.nan, numpy.nan, numpy.nan])
+TARGET_HEIGHTS_M_ASL = numpy.array([
+    2000., 2000., numpy.nan, 2166.666667, 2250., 2500., 2250., 2333.333333,
+    2500., numpy.nan, numpy.nan, numpy.nan
+])
 
 # The following constants are used to test interp_in_time.
-INPUT_MATRIX_TIME0 = numpy.array([[0., 2., 5., 10.],
-                                  [-2., 1., 3., 6.],
-                                  [-3.5, -2.5, 3., 8.]])
-INPUT_MATRIX_TIME4 = numpy.array([[2., 5., 7., 15.],
-                                  [0., 2., 5., 8.],
-                                  [-1.5, -2.5, 0., 4.]])
+INPUT_MATRIX_TIME0 = numpy.array([
+    [0., 2., 5., 10.],
+    [-2., 1., 3., 6.],
+    [-3.5, -2.5, 3., 8.]
+])
+INPUT_MATRIX_TIME4 = numpy.array([
+    [2., 5., 7., 15.],
+    [0., 2., 5., 8.],
+    [-1.5, -2.5, 0., 4.]
+])
 
 INPUT_TIMES_UNIX_SEC = numpy.array([0, 4])
 QUERY_TIMES_FOR_LINEAR_UNIX_SEC = numpy.array([1, 2, 3])
 QUERY_TIMES_FOR_EXTRAP_UNIX_SEC = numpy.array([8])
 INPUT_MATRIX_FOR_TEMPORAL_INTERP = numpy.stack(
-    (INPUT_MATRIX_TIME0, INPUT_MATRIX_TIME4), axis=-1)
+    (INPUT_MATRIX_TIME0, INPUT_MATRIX_TIME4), axis=-1
+)
 
-THIS_INTERP_MATRIX_TIME1 = numpy.array([[0.5, 2.75, 5.5, 11.25],
-                                        [-1.5, 1.25, 3.5, 6.5],
-                                        [-3., -2.5, 2.25, 7.]])
-THIS_INTERP_MATRIX_TIME2 = numpy.array([[1., 3.5, 6., 12.5],
-                                        [-1., 1.5, 4., 7.],
-                                        [-2.5, -2.5, 1.5, 6.]])
-THIS_INTERP_MATRIX_TIME3 = numpy.array([[1.5, 4.25, 6.5, 13.75],
-                                        [-0.5, 1.75, 4.5, 7.5],
-                                        [-2., -2.5, 0.75, 5.]])
-THIS_INTERP_MATRIX_TIME8 = numpy.array([[4., 8., 9., 20.],
-                                        [2., 3., 7., 10.],
-                                        [0.5, -2.5, -3., 0.]])
+THIS_INTERP_MATRIX_TIME1 = numpy.array([
+    [0.5, 2.75, 5.5, 11.25],
+    [-1.5, 1.25, 3.5, 6.5],
+    [-3., -2.5, 2.25, 7.]
+])
+THIS_INTERP_MATRIX_TIME2 = numpy.array([
+    [1., 3.5, 6., 12.5],
+    [-1., 1.5, 4., 7.],
+    [-2.5, -2.5, 1.5, 6.]
+])
+THIS_INTERP_MATRIX_TIME3 = numpy.array([
+    [1.5, 4.25, 6.5, 13.75],
+    [-0.5, 1.75, 4.5, 7.5],
+    [-2., -2.5, 0.75, 5.]
+])
+THIS_INTERP_MATRIX_TIME8 = numpy.array([
+    [4., 8., 9., 20.],
+    [2., 3., 7., 10.],
+    [0.5, -2.5, -3., 0.]
+])
 
 INTERP_MATRIX_LINEAR_IN_TIME = numpy.stack(
     (THIS_INTERP_MATRIX_TIME1, THIS_INTERP_MATRIX_TIME2,
-     THIS_INTERP_MATRIX_TIME3), axis=-1)
+     THIS_INTERP_MATRIX_TIME3),
+    axis=-1
+)
 TIME_EXTRAP_MATRIX = numpy.expand_dims(THIS_INTERP_MATRIX_TIME8, axis=-1)
 
 QUERY_TIMES_FOR_PREV_NEIGH_UNIX_SEC = numpy.array([1, 2, 3, 8])
@@ -106,24 +133,32 @@ THIS_INTERP_MATRIX_TIME1 = copy.deepcopy(INPUT_MATRIX_TIME0)
 THIS_INTERP_MATRIX_TIME2 = copy.deepcopy(INPUT_MATRIX_TIME0)
 THIS_INTERP_MATRIX_TIME3 = copy.deepcopy(INPUT_MATRIX_TIME0)
 THIS_INTERP_MATRIX_TIME8 = copy.deepcopy(INPUT_MATRIX_TIME4)
+
 INTERP_MATRIX_PREVIOUS_TIME = numpy.stack(
     (THIS_INTERP_MATRIX_TIME1, THIS_INTERP_MATRIX_TIME2,
-     THIS_INTERP_MATRIX_TIME3, THIS_INTERP_MATRIX_TIME8), axis=-1)
+     THIS_INTERP_MATRIX_TIME3, THIS_INTERP_MATRIX_TIME8),
+    axis=-1
+)
 
 QUERY_TIMES_FOR_NEXT_NEIGH_UNIX_SEC = numpy.array([1, 2, 3])
 THIS_INTERP_MATRIX_TIME1 = copy.deepcopy(INPUT_MATRIX_TIME4)
 THIS_INTERP_MATRIX_TIME2 = copy.deepcopy(INPUT_MATRIX_TIME4)
 THIS_INTERP_MATRIX_TIME3 = copy.deepcopy(INPUT_MATRIX_TIME4)
+
 INTERP_MATRIX_NEXT_TIME = numpy.stack(
     (THIS_INTERP_MATRIX_TIME1, THIS_INTERP_MATRIX_TIME2,
-     THIS_INTERP_MATRIX_TIME3), axis=-1)
+     THIS_INTERP_MATRIX_TIME3),
+    axis=-1
+)
 
 # The following constants are used to test interp_from_xy_grid_to_points.
-INPUT_MATRIX_FOR_SPATIAL_INTERP = numpy.array([[17., 24., 1., 8.],
-                                               [23., 5., 7., 14.],
-                                               [4., 6., 13., 20.],
-                                               [10., 12., 19., 21.],
-                                               [11., 18., 25., 2.]])
+INPUT_MATRIX_FOR_SPATIAL_INTERP = numpy.array([
+    [17., 24., 1., 8.],
+    [23., 5., 7., 14.],
+    [4., 6., 13., 20.],
+    [10., 12., 19., 21.],
+    [11., 18., 25., 2.]
+])
 
 SPLINE_DEGREE = 1
 GRID_POINT_X_METRES = numpy.array([0., 1., 2., 3.])
@@ -133,9 +168,11 @@ QUERY_Y_FOR_SPLINE_METRES = numpy.array([0., 2., 2.5, 3., 5., 6., 7.5])
 INTERP_VALUES_SPLINE = numpy.array([17., 14., 5.25, 7.75, 16., 20., 6.75])
 
 QUERY_X_FOR_NEAREST_NEIGH_METRES = numpy.array(
-    [0., 0.3, 0.7, 1.2, 1.8, 2.1, 2.9])
+    [0., 0.3, 0.7, 1.2, 1.8, 2.1, 2.9]
+)
 QUERY_Y_FOR_NEAREST_NEIGH_METRES = numpy.array(
-    [0.5, 1.5, 2.5, 4., 5.5, 6.5, 7.7])
+    [0.5, 1.5, 2.5, 4., 5.5, 6.5, 7.7]
+)
 INTERP_VALUES_NEAREST_NEIGH = numpy.array([17., 23., 5., 6., 19., 19., 2])
 
 QUERY_X_FOR_EXTRAP_METRES = numpy.array([-1., 4.])
@@ -151,8 +188,8 @@ def _compare_metadata_dicts(first_metadata_dict, second_metadata_dict):
     :return: are_dicts_equal: Boolean flag.
     """
 
-    first_keys = first_metadata_dict.keys()
-    second_keys = second_metadata_dict.keys()
+    first_keys = list(first_metadata_dict.keys())
+    second_keys = list(second_metadata_dict.keys())
     if set(first_keys) != set(second_keys):
         return False
 

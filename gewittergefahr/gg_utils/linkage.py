@@ -628,8 +628,9 @@ def _find_nearest_storms(
     linkage_distances_metres = numpy.full(num_events, numpy.nan)
 
     for i in range(num_unique_interp_times):
-        print 'Linking events at ~{0:s} to storms...'.format(
-            unique_interp_time_strings[i])
+        print('Linking events at ~{0:s} to storms...'.format(
+            unique_interp_time_strings[i]
+        ))
 
         this_interp_vertex_table = _interp_storms_in_time(
             storm_object_table=storm_object_table,
@@ -703,14 +704,14 @@ def _find_nearest_storms(
     num_unlinked_events = len(unlinked_indices)
     num_unlinked_events_in_box = numpy.sum(in_box_flags)
 
-    print (
+    print((
         'Number of events = {0:d} ... number of storm objects = {1:d} ... '
         'number of unlinked events = {2:d} ... number of these in unbuffered '
         'bounding box around storms = {3:d}'
     ).format(
         len(event_table.index), len(storm_object_table.index),
         num_unlinked_events, num_unlinked_events_in_box
-    )
+    ))
 
     argument_dict = {
         NEAREST_PRIMARY_ID_COLUMN: nearest_primary_id_strings,
@@ -999,12 +1000,12 @@ def _remove_storms_near_start_of_period(
 
     bad_indices = numpy.where(times_after_start_sec < min_time_elapsed_sec)[0]
 
-    print (
+    print((
         '{0:d} of {1:d} storm objects occur within {2:d} seconds of beginning '
         'of tracking period.  REMOVING.'
     ).format(
         len(bad_indices), len(storm_object_table.index), min_time_elapsed_sec
-    )
+    ))
 
     return storm_object_table.drop(
         storm_object_table.index[bad_indices], axis=0, inplace=False)
@@ -1036,7 +1037,7 @@ def _read_input_storm_tracks(tracking_file_names):
     list_of_storm_object_tables = []
 
     for this_file_name in tracking_file_names:
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_storm_object_table = tracking_io.read_file(this_file_name)[
             REQUIRED_STORM_COLUMNS
         ]
@@ -1093,7 +1094,7 @@ def _read_input_wind_observations(
     list_of_wind_tables = []
 
     for this_file_name in wind_file_names:
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         list_of_wind_tables.append(
             raw_wind_io.read_processed_file(this_file_name)[
                 REQUIRED_WIND_COLUMNS]
@@ -1170,7 +1171,7 @@ def _read_input_tornado_reports(
         this_file_name = tornado_io.find_processed_file(
             directory_name=input_directory_name, year=this_year)
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         list_of_tornado_tables.append(
             tornado_io.read_processed_file(this_file_name)[
                 REQUIRED_TORNADO_COLUMNS]
@@ -1362,7 +1363,7 @@ def link_storms_to_winds(
         max_link_distance_metres=max_link_distance_metres)
 
     storm_object_table = _read_input_storm_tracks(tracking_file_names)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     num_storm_objects = len(storm_object_table.index)
 
@@ -1384,7 +1385,7 @@ def link_storms_to_winds(
         storm_times_unix_sec=these_times_unix_sec,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     if num_storm_objects == 0:
         num_wind_obs = len(wind_table.index)
@@ -1427,7 +1428,7 @@ def link_storms_to_winds(
             max_time_after_storm_end_sec=max_time_after_storm_end_sec,
             interp_time_resolution_sec=interp_time_resolution_sec,
             max_link_distance_metres=max_link_distance_metres)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
     return _reverse_wind_linkages(storm_object_table=storm_object_table,
                                   wind_to_storm_table=wind_to_storm_table)
@@ -1462,7 +1463,7 @@ def link_storms_to_tornadoes(
         max_link_distance_metres=max_link_distance_metres)
 
     storm_object_table = _read_input_storm_tracks(tracking_file_names)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     num_storm_objects = len(storm_object_table.index)
 
@@ -1484,7 +1485,7 @@ def link_storms_to_tornadoes(
         storm_times_unix_sec=these_times_unix_sec,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     if num_storm_objects == 0:
         num_tornadoes = len(tornado_table.index)
@@ -1529,7 +1530,7 @@ def link_storms_to_tornadoes(
             max_time_after_storm_end_sec=max_time_after_storm_end_sec,
             interp_time_resolution_sec=interp_time_resolution_sec,
             max_link_distance_metres=max_link_distance_metres)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
     return _reverse_tornado_linkages(
         storm_object_table=storm_object_table,
@@ -1590,8 +1591,9 @@ def share_linkages_across_spc_dates(
         if orig_linkage_file_names[0] == new_linkage_file_names[0]:
             return
 
-        print 'Copying file from "{0:s}" to "{1:s}"...'.format(
-            orig_linkage_file_names[0], new_linkage_file_names[0])
+        print('Copying file from "{0:s}" to "{1:s}"...'.format(
+            orig_linkage_file_names[0], new_linkage_file_names[0]
+        ))
 
         file_system_utils.mkdir_recursive_if_necessary(
             file_name=new_linkage_file_names[0])
@@ -1602,8 +1604,9 @@ def share_linkages_across_spc_dates(
     for i in range(num_spc_dates + 1):
         if i == num_spc_dates:
             for j in [num_spc_dates - 2, num_spc_dates - 1]:
-                print 'Writing new linkages to: "{0:s}"...'.format(
-                    new_linkage_file_names[j])
+                print('Writing new linkages to: "{0:s}"...'.format(
+                    new_linkage_file_names[j]
+                ))
 
                 write_linkage_file(
                     storm_to_events_table=storm_to_events_table_by_date[j],
@@ -1612,8 +1615,9 @@ def share_linkages_across_spc_dates(
             break
 
         if i >= 2:
-            print 'Writing new linkages to: "{0:s}"...'.format(
-                new_linkage_file_names[i - 2])
+            print('Writing new linkages to: "{0:s}"...'.format(
+                new_linkage_file_names[i - 2]
+            ))
 
             write_linkage_file(
                 storm_to_events_table=storm_to_events_table_by_date[i - 2],
@@ -1628,8 +1632,9 @@ def share_linkages_across_spc_dates(
             if not storm_to_events_table_by_date[j].empty:
                 continue
 
-            print 'Reading original linkages from: "{0:s}"...'.format(
-                orig_linkage_file_names[j])
+            print('Reading original linkages from: "{0:s}"...'.format(
+                orig_linkage_file_names[j]
+            ))
 
             storm_to_events_table_by_date[j] = read_linkage_file(
                 orig_linkage_file_names[j])
@@ -1641,7 +1646,7 @@ def share_linkages_across_spc_dates(
                 early_storm_to_events_table=storm_to_events_table_by_date[i],
                 late_storm_to_events_table=storm_to_events_table_by_date[i + 1])
 
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
 
 
 def find_linkage_file(

@@ -1331,10 +1331,10 @@ def create_forecast_grids(
         )
 
         for this_lead_time_sec in lead_times_seconds:
-            print (
+            print((
                 'Updating forecast grid for initial time {0:s}, lead time {1:d}'
                 ' seconds...'
-            ).format(init_time_strings[i], this_lead_time_sec)
+            ).format(init_time_strings[i], this_lead_time_sec))
 
             this_extrap_storm_object_table = _extrapolate_polygons(
                 storm_object_table=this_storm_object_table,
@@ -1373,9 +1373,9 @@ def create_forecast_grids(
         )
 
         if smoothing_method is not None:
-            print 'Smoothing forecast grid for initial time {0:s}...'.format(
+            print('Smoothing forecast grid for initial time {0:s}...'.format(
                 init_time_strings[i]
-            )
+            ))
 
             if smoothing_method == GAUSSIAN_SMOOTHING_METHOD:
                 this_probability_matrix_xy = grid_smoothing_2d.apply_gaussian(
@@ -1402,17 +1402,17 @@ def create_forecast_grids(
 
         if not interp_to_latlng_grid:
             if i != num_init_times - 1:
-                print MINOR_SEPARATOR_STRING
+                print(MINOR_SEPARATOR_STRING)
 
             continue
 
-        print (
+        print((
             'Interpolating forecast to lat-long grid for initial time '
             '{0:s}...'
-        ).format(init_time_strings[i])
+        ).format(init_time_strings[i]))
 
         if i != num_init_times - 1:
-            print MINOR_SEPARATOR_STRING
+            print(MINOR_SEPARATOR_STRING)
 
         (this_prob_matrix_latlng, these_latitudes_deg, these_longitudes_deg
         ) = _interp_probabilities_to_latlng_grid(

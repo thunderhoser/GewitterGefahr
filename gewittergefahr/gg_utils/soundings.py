@@ -1024,19 +1024,21 @@ def interp_soundings_to_storm_objects(
     error_checking.assert_is_integer(lag_time_for_convective_contamination_sec)
     error_checking.assert_is_geq(lag_time_for_convective_contamination_sec, 0)
 
-    print (
+    print((
         'Creating target point for each storm object and lead time ({0:s} '
         'seconds)...'
-    ).format(str(lead_times_seconds))
+    ).format(
+        str(lead_times_seconds)
+    ))
 
     target_point_table = _create_target_points_for_interp(
         storm_object_table=storm_object_table,
         lead_times_seconds=lead_times_seconds)
 
-    print (
+    print((
         'Subtracting lag time ({0:d} seconds) from each target point, to '
         'account for convective contamination...'
-    ).format(lag_time_for_convective_contamination_sec)
+    ).format(lag_time_for_convective_contamination_sec))
 
     target_point_table[
         FORECAST_TIME_COLUMN
@@ -1050,30 +1052,30 @@ def interp_soundings_to_storm_objects(
 
     target_point_table.rename(columns=column_dict_old_to_new, inplace=True)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     interp_table = _interp_soundings_from_nwp(
         target_point_table=target_point_table,
         top_grib_directory_name=top_grib_directory_name, include_surface=False,
         model_name=model_name, use_all_grids=use_all_grids, grid_id=grid_id,
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_missing=raise_error_if_missing)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
-    print 'Converting interpolated values to soundings...'
+    print('Converting interpolated values to soundings...')
     sounding_dict_pressure_coords = _convert_interp_table_to_soundings(
         interp_table=interp_table, target_point_table=target_point_table,
         model_name=model_name, include_surface=False)
 
-    print 'Converting fields and units in each sounding...'
+    print('Converting fields and units in each sounding...')
     orig_num_soundings = len(sounding_dict_pressure_coords[FULL_IDS_KEY])
     sounding_dict_pressure_coords = _convert_fields_and_units(
         sounding_dict_pressure_coords)
     num_soundings = len(sounding_dict_pressure_coords[FULL_IDS_KEY])
 
-    print 'Removed {0:d} of {1:d} soundings (too many NaN''s).'.format(
-        orig_num_soundings - num_soundings, orig_num_soundings)
+    print('Removed {0:d} of {1:d} soundings (too many NaN''s).'.format(
+        orig_num_soundings - num_soundings, orig_num_soundings))
 
-    print 'Finding elevation of each storm object...'
+    print('Finding elevation of each storm object...')
     storm_elevations_m_asl = geodetic_utils.get_elevations(
         latitudes_deg=storm_object_table[
             tracking_utils.CENTROID_LATITUDE_COLUMN].values,
@@ -1095,7 +1097,7 @@ def interp_soundings_to_storm_objects(
         STORM_ELEVATIONS_KEY: storm_elevations_m_asl
     })
 
-    print 'Converting soundings from pressure coords to metres AGL...\n'
+    print('Converting soundings from pressure coords to metres AGL...\n')
     sounding_dict_height_coords = _pressure_to_height_coords(
         sounding_dict_pressure_coords=sounding_dict_pressure_coords,
         height_levels_m_agl=height_levels_m_agl)
@@ -1104,10 +1106,10 @@ def interp_soundings_to_storm_objects(
     sounding_dict_by_lead_time = [None] * num_lead_times
 
     for k in range(num_lead_times):
-        print (
+        print((
             'Creating separate sounding dictionary for {0:d}-second lead '
             'time...'
-        ).format(lead_times_seconds[k])
+        ).format(lead_times_seconds[k]))
 
         these_indices = numpy.where(
             sounding_dict_height_coords[LEAD_TIMES_KEY] ==
@@ -1133,10 +1135,10 @@ def interp_soundings_to_storm_objects(
             FIELD_NAMES_KEY: sounding_dict_height_coords[FIELD_NAMES_KEY]
         }
 
-        print (
+        print((
             'Dictionary for {0:d}-second lead time contains {1:d} of {2:d} '
             'soundings.'
-        ).format(lead_times_seconds[k], len(these_indices), num_soundings)
+        ).format(lead_times_seconds[k], len(these_indices), num_soundings))
 
     return sounding_dict_by_lead_time
 

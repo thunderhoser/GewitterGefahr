@@ -10,51 +10,64 @@ FAKE_THRESHOLD_ARG = 'foo'
 
 UNIQUE_FORECAST_PRECISION_FOR_THRESHOLDS = 0.01
 FORECAST_PROBABILITIES = numpy.array(
-    [0.0801, 0.0503, 0.1805, 0.111, 0.042, 0.803, 0.294, 0.273, 0.952, 0.951])
+    [0.0801, 0.0503, 0.1805, 0.111, 0.042, 0.803, 0.294, 0.273, 0.952, 0.951]
+)
 OBSERVED_LABELS = numpy.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1], dtype=int)
 
 # The following constants are used to test get_binarization_thresholds.
 THRESHOLDS_FOR_DIRECT_INPUT = numpy.array(
-    [0., 0.001, 0.005, 0.01, 0.1, 0.2, 0.3, 0.5, 0.75, 0.99, 0.999, 1.])
-THRESHOLDS_FROM_DIRECT_INPUT = numpy.array(
-    [0., 0.001, 0.005, 0.01, 0.1, 0.2, 0.3, 0.5, 0.75, 0.99, 0.999, 1.,
-     model_eval.MAX_BINARIZATION_THRESHOLD])
+    [0., 0.001, 0.005, 0.01, 0.1, 0.2, 0.3, 0.5, 0.75, 0.99, 0.999, 1.]
+)
+THRESHOLDS_FROM_DIRECT_INPUT = numpy.array([
+    0., 0.001, 0.005, 0.01, 0.1, 0.2, 0.3, 0.5, 0.75, 0.99, 0.999, 1.,
+    model_eval.MAX_BINARIZATION_THRESHOLD
+])
 
 NUM_THRESHOLDS_FOR_INPUT = 11
-THRESHOLDS_FROM_NUMBER = numpy.array(
-    [0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,
-     model_eval.MAX_BINARIZATION_THRESHOLD])
+THRESHOLDS_FROM_NUMBER = numpy.array([
+    0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,
+    model_eval.MAX_BINARIZATION_THRESHOLD
+])
 
-FORECAST_PROBS_FOR_THRESHOLDS = numpy.array(
-    [0.22, 0.39, 0.86, 1., 0., 0.221, 0.10, 0.393, 0.02, 0.018])
-THRESHOLDS_FROM_UNIQUE_FORECASTS = numpy.array(
-    [0., 0.02, 0.10, 0.22, 0.39, 0.86, 1.,
-     model_eval.MAX_BINARIZATION_THRESHOLD])
+FORECAST_PROBS_FOR_THRESHOLDS = numpy.array([
+    0.22, 0.39, 0.86, 1., 0., 0.221, 0.10, 0.393, 0.02, 0.018
+])
+THRESHOLDS_FROM_UNIQUE_FORECASTS = numpy.array([
+    0., 0.02, 0.10, 0.22, 0.39, 0.86, 1.,
+    model_eval.MAX_BINARIZATION_THRESHOLD
+])
 
 # The following constants are used to test _pad_binarization_thresholds.
 THRESHOLDS_WITH_NO_PADDING = numpy.array(
-    [0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99])
-THRESHOLDS_WITH_MIN_PADDING = numpy.array(
-    [model_eval.MIN_BINARIZATION_THRESHOLD,
-     0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99])
-THRESHOLDS_WITH_MAX_PADDING = numpy.array(
-    [0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99,
-     model_eval.MAX_BINARIZATION_THRESHOLD])
-THRESHOLDS_WITH_MINMAX_PADDING = numpy.array(
-    [model_eval.MIN_BINARIZATION_THRESHOLD,
-     0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99,
-     model_eval.MAX_BINARIZATION_THRESHOLD])
+    [0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99]
+)
+THRESHOLDS_WITH_MIN_PADDING = numpy.array([
+    model_eval.MIN_BINARIZATION_THRESHOLD,
+    0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99
+])
+THRESHOLDS_WITH_MAX_PADDING = numpy.array([
+    0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99,
+    model_eval.MAX_BINARIZATION_THRESHOLD
+])
+THRESHOLDS_WITH_MINMAX_PADDING = numpy.array([
+    model_eval.MIN_BINARIZATION_THRESHOLD,
+    0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99,
+    model_eval.MAX_BINARIZATION_THRESHOLD
+])
 
 # The following constants are used to test binarize_forecast_probs.
 BINARIZATION_THRESHOLD_HALF = 0.5
 FORECAST_LABELS_THRESHOLD_HALF = numpy.array(
-    [0, 0, 0, 0, 0, 1, 0, 0, 1, 1], dtype=int)
+    [0, 0, 0, 0, 0, 1, 0, 0, 1, 1], dtype=int
+)
 
 # The following constants are used to test get_contingency_table.
-CONTINGENCY_TABLE_THRESHOLD_HALF = {model_eval.NUM_TRUE_POSITIVES_KEY: 3,
-                                    model_eval.NUM_FALSE_POSITIVES_KEY: 0,
-                                    model_eval.NUM_FALSE_NEGATIVES_KEY: 2,
-                                    model_eval.NUM_TRUE_NEGATIVES_KEY: 5}
+CONTINGENCY_TABLE_THRESHOLD_HALF = {
+    model_eval.NUM_TRUE_POSITIVES_KEY: 3,
+    model_eval.NUM_FALSE_POSITIVES_KEY: 0,
+    model_eval.NUM_FALSE_NEGATIVES_KEY: 2,
+    model_eval.NUM_TRUE_NEGATIVES_KEY: 5
+}
 
 # The following constants are used to test get_pod, get_fom, get_pofd, get_npv,
 # get_success_ratio, get_far, get_dfr, get_focn, get_accuracy, get_csi,
@@ -73,35 +86,43 @@ FREQUENCY_BIAS_THRESHOLD_HALF = 0.6
 PEIRCE_SCORE_THRESHOLD_HALF = 0.6
 HEIDKE_SCORE_THRESHOLD_HALF = 0.6
 
-CONTINGENCY_TABLE_ALL_ZEROS = {model_eval.NUM_TRUE_POSITIVES_KEY: 0,
-                               model_eval.NUM_FALSE_POSITIVES_KEY: 0,
-                               model_eval.NUM_FALSE_NEGATIVES_KEY: 0,
-                               model_eval.NUM_TRUE_NEGATIVES_KEY: 0}
+CONTINGENCY_TABLE_ALL_ZEROS = {
+    model_eval.NUM_TRUE_POSITIVES_KEY: 0,
+    model_eval.NUM_FALSE_POSITIVES_KEY: 0,
+    model_eval.NUM_FALSE_NEGATIVES_KEY: 0,
+    model_eval.NUM_TRUE_NEGATIVES_KEY: 0
+}
 
 # The following constants are used to test get_brier_score.
 FORECAST_PROBS_FOR_BS_AND_XENTROPY = numpy.array(
-    [0.2, 0.8, 0.5, 0., 0.3, 0.7, 0.25, 1., 0.9, 0.8])
+    [0.2, 0.8, 0.5, 0., 0.3, 0.7, 0.25, 1., 0.9, 0.8]
+)
 BRIER_SCORE = 0.17225
 
 # The following constants are used to test get_cross_entropy.
-MODIFIED_FORECAST_PROBS_FOR_XENTROPY = numpy.array(
-    [0.2, 0.8, 0.5, model_eval.MIN_FORECAST_PROB_FOR_XENTROPY, 0.3, 0.7, 0.25,
-     model_eval.MAX_FORECAST_PROB_FOR_XENTROPY, 0.9, 0.8])
+MODIFIED_FORECAST_PROBS_FOR_XENTROPY = numpy.array([
+    0.2, 0.8, 0.5, model_eval.MIN_FORECAST_PROB_FOR_XENTROPY, 0.3, 0.7, 0.25,
+    model_eval.MAX_FORECAST_PROB_FOR_XENTROPY, 0.9, 0.8
+])
 CROSS_ENTROPY = -0.1 * numpy.sum(
     numpy.log2(MODIFIED_FORECAST_PROBS_FOR_XENTROPY[-5:]) +
-    numpy.log2(1 - MODIFIED_FORECAST_PROBS_FOR_XENTROPY[:5]))
+    numpy.log2(1 - MODIFIED_FORECAST_PROBS_FOR_XENTROPY[:5])
+)
 
 # The following constants are used to test get_points_in_roc_curve.
-ROC_AND_PERFORMANCE_THRESHOLDS = numpy.array(
-    [0., 0.04, 0.05, 0.08, 0.11, 0.18, 0.27, 0.29, 0.8, 0.95,
-     model_eval.MAX_BINARIZATION_THRESHOLD])
+ROC_AND_PERFORMANCE_THRESHOLDS = numpy.array([
+    0., 0.04, 0.05, 0.08, 0.11, 0.18, 0.27, 0.29, 0.8, 0.95,
+    model_eval.MAX_BINARIZATION_THRESHOLD
+])
 POD_BY_THRESHOLD = numpy.array([1., 1., 1., 1., 1., 1., 1., 0.8, 0.6, 0.4, 0.])
 POFD_BY_THRESHOLD = numpy.array(
-    [1., 1., 0.8, 0.6, 0.4, 0.2, 0., 0., 0., 0., 0.])
+    [1., 1., 0.8, 0.6, 0.4, 0.2, 0., 0., 0., 0., 0.]
+)
 
 # The following constants are used to test get_points_in_performance_diagram.
 SUCCESS_RATIO_BY_THRESHOLD = numpy.array(
-    [0.5, 0.5, 5. / 9, 0.625, 5. / 7, 0.833333, 1., 1., 1., 1., numpy.nan])
+    [0.5, 0.5, 5. / 9, 0.625, 5. / 7, 0.833333, 1., 1., 1., 1., numpy.nan]
+)
 
 # The following constants are used to test get_sr_pod_grid.
 SUCCESS_RATIO_SPACING_FOR_GRID = 0.5
@@ -119,19 +140,22 @@ CSI_MATRIX = 3. / numpy.array([[13., 5.], [21., 13.]])
 NUM_FORECAST_BINS = 10
 BIN_INDEX_BY_FORECAST = numpy.array([0, 0, 1, 1, 0, 8, 2, 2, 9, 9], dtype=int)
 
-MEAN_FORECAST_PROB_BIN0 = numpy.mean(
-    numpy.array([0.0801, 0.0503, 0.042]))
+MEAN_FORECAST_PROB_BIN0 = numpy.mean(numpy.array(
+    [0.0801, 0.0503, 0.042]
+))
 MEAN_FORECAST_PROB_BIN1 = numpy.mean(numpy.array([0.1805, 0.111]))
 MEAN_FORECAST_PROB_BIN2 = numpy.mean(numpy.array([0.294, 0.273]))
 MEAN_FORECAST_PROB_BIN9 = numpy.mean(numpy.array([0.952, 0.951]))
 
-MEAN_FORECAST_PROB_BY_BIN = numpy.array(
-    [MEAN_FORECAST_PROB_BIN0, MEAN_FORECAST_PROB_BIN1, MEAN_FORECAST_PROB_BIN2,
-     numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, 0.803,
-     MEAN_FORECAST_PROB_BIN9])
+MEAN_FORECAST_PROB_BY_BIN = numpy.array([
+    MEAN_FORECAST_PROB_BIN0, MEAN_FORECAST_PROB_BIN1, MEAN_FORECAST_PROB_BIN2,
+    numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, 0.803,
+    MEAN_FORECAST_PROB_BIN9
+])
 
 MEAN_OBSERVED_LABEL_BY_BIN = numpy.array(
-    [0., 0., 1., numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, 1., 1.])
+    [0., 0., 1., numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, 1., 1.]
+)
 NUM_EXAMPLES_BY_BIN = numpy.array([3, 2, 2, 0, 0, 0, 0, 0, 1, 2])
 
 # The following constants are used to test get_brier_skill_score.
@@ -142,22 +166,26 @@ THIS_RESOLUTION = 0.34
 THESE_INDICES = numpy.array([0, 1], dtype=int)
 THIS_RELIABILITY_LABEL0 = 0.1 * numpy.sum(
     NUM_EXAMPLES_BY_BIN[THESE_INDICES] *
-    MEAN_FORECAST_PROB_BY_BIN[THESE_INDICES] ** 2)
+    MEAN_FORECAST_PROB_BY_BIN[THESE_INDICES] ** 2
+)
 
 THESE_INDICES = numpy.array([2, 8, 9], dtype=int)
 THIS_RELIABILITY_LABEL1 = 0.1 * numpy.sum(
     NUM_EXAMPLES_BY_BIN[THESE_INDICES] *
-    (1. - MEAN_FORECAST_PROB_BY_BIN[THESE_INDICES]) ** 2)
+    (1. - MEAN_FORECAST_PROB_BY_BIN[THESE_INDICES]) ** 2
+)
 
 THIS_RELIABILITY = THIS_RELIABILITY_LABEL0 + THIS_RELIABILITY_LABEL1
 THIS_BRIER_SCORE = THIS_UNCERTAINTY + THIS_RELIABILITY - THIS_RESOLUTION
 THIS_BSS = (THIS_RESOLUTION - THIS_RELIABILITY) / THIS_UNCERTAINTY
 
-BSS_DICTIONARY = {model_eval.BRIER_SKILL_SCORE_KEY: THIS_BSS,
-                  model_eval.BRIER_SCORE_KEY: THIS_BRIER_SCORE,
-                  model_eval.RELIABILITY_KEY: THIS_RELIABILITY,
-                  model_eval.RESOLUTION_KEY: THIS_RESOLUTION,
-                  model_eval.UNCERTAINTY_KEY: THIS_UNCERTAINTY}
+BSS_DICTIONARY = {
+    model_eval.BRIER_SKILL_SCORE_KEY: THIS_BSS,
+    model_eval.BRIER_SCORE_KEY: THIS_BRIER_SCORE,
+    model_eval.RELIABILITY_KEY: THIS_RELIABILITY,
+    model_eval.RESOLUTION_KEY: THIS_RESOLUTION,
+    model_eval.UNCERTAINTY_KEY: THIS_UNCERTAINTY
+}
 
 # The following constants are used to test get_no_skill_reliability_curve,
 # get_skill_areas_in_reliability_curve,
@@ -649,7 +677,7 @@ class ModelEvaluationTests(unittest.TestCase):
 
         self.assertTrue(set(this_bss_dict.keys()) == set(BSS_DICTIONARY.keys()))
 
-        for this_key in BSS_DICTIONARY.keys():
+        for this_key in list(BSS_DICTIONARY.keys()):
             self.assertTrue(numpy.isclose(
                 this_bss_dict[this_key], BSS_DICTIONARY[this_key],
                 atol=TOLERANCE))

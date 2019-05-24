@@ -1507,7 +1507,7 @@ def read_results(pickle_file_name):
     evaluation_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    if AUPD_KEY not in evaluation_dict.keys():
+    if AUPD_KEY not in list(evaluation_dict.keys()):
         evaluation_dict.update({AUPD_KEY: numpy.nan})
 
     expected_keys_as_set = set(EVALUATION_DICT_KEYS)
@@ -1517,7 +1517,7 @@ def read_results(pickle_file_name):
             '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
             '("{1:s}") are listed below.  Some expected keys were not found.'
             '\n{2:s}\n').format(EVALUATION_DICT_KEYS, pickle_file_name,
-                                evaluation_dict.keys())
+                                list(evaluation_dict.keys()))
 
         raise ValueError(error_string)
 

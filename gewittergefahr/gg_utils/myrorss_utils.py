@@ -82,8 +82,8 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
             top_directory_name=top_directory_name,
             height_m_asl=grid_point_heights_m_asl[k])
 
-    print 'Reading "{0:s}" for echo-top calculation...'.format(
-        column_max_refl_file_name)
+    print('Reading "{0:s}" for echo-top calculation...'.format(
+        column_max_refl_file_name))
 
     metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
         column_max_refl_file_name, data_source=radar_utils.MYRORSS_SOURCE_ID)
@@ -106,9 +106,12 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
         column_max_refl_matrix_dbz, num_grid_rows * num_grid_columns) >=
                                              critical_reflectivity_dbz)[0]
 
-    print ('Echo-top calculation is needed at only {0:d}/{1:d} horizontal grid '
-           'points!').format(len(linear_indices_to_consider),
-                             num_grid_rows * num_grid_columns)
+    print((
+        'Echo-top calculation is needed at only {0:d}/{1:d} horizontal grid '
+        'points!'
+    ).format(
+        len(linear_indices_to_consider), num_grid_rows * num_grid_columns
+    ))
 
     echo_top_matrix_m_asl = numpy.full(
         (num_grid_rows, num_grid_columns), numpy.nan)
@@ -122,8 +125,9 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
         (num_grid_heights, num_horiz_points_to_consider), numpy.nan)
 
     for k in range(num_grid_heights):
-        print 'Reading "{0:s}" for echo-top calculation...'.format(
-            single_height_refl_file_names[k])
+        print('Reading "{0:s}" for echo-top calculation...'.format(
+            single_height_refl_file_names[k]
+        ))
 
         this_metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
             single_height_refl_file_names[k],
@@ -143,8 +147,8 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
         reflectivity_matrix_dbz[k, :] = this_reflectivity_matrix_dbz[
             grid_rows_to_consider, grid_columns_to_consider]
 
-    print 'Computing echo tops at the {0:d} horizontal grid points...'.format(
-        num_horiz_points_to_consider)
+    print('Computing echo tops at the {0:d} horizontal grid points...'.format(
+        num_horiz_points_to_consider))
 
     for i in range(num_horiz_points_to_consider):
         echo_top_matrix_m_asl[

@@ -822,7 +822,7 @@ def _write_new_tracks(storm_object_table, top_output_dir_name,
             source_name=tracking_utils.SEGMOTION_NAME,
             raise_error_if_missing=False)
 
-        print 'Writing new data to: "{0:s}"...'.format(this_file_name)
+        print('Writing new data to: "{0:s}"...'.format(this_file_name))
 
         tracking_io.write_file(
             storm_object_table=storm_object_table.loc[
@@ -969,7 +969,7 @@ def _shuffle_tracking_data(
                 valid_times_unix_sec=valid_times_by_date_unix_sec[j]
             )
 
-            print '\n'
+            print('\n')
             storm_object_table_by_date[j] = pandas.DataFrame()
 
         return storm_object_table_by_date
@@ -983,7 +983,7 @@ def _shuffle_tracking_data(
                 current_date_index - 2]
         )
 
-        print '\n'
+        print('\n')
         storm_object_table_by_date[current_date_index - 2] = pandas.DataFrame()
 
     # Shuffle data into memory.
@@ -998,7 +998,7 @@ def _shuffle_tracking_data(
         storm_object_table_by_date[j] = tracking_io.read_many_files(
             tracking_file_names_by_date[j]
         )
-        print '\n'
+        print('\n')
 
         storm_object_table_by_date[j] = _storm_objects_latlng_to_xy(
             storm_object_table_by_date[j]
@@ -1056,14 +1056,14 @@ def _radar_times_to_tracking_periods(
         for t in tracking_end_times_unix_sec
     ]
 
-    print '\n'
+    print('\n')
     for k in range(len(tracking_start_time_strings)):
-        print '{0:d}th tracking period = {1:s} to {2:s}'.format(
+        print('{0:d}th tracking period = {1:s} to {2:s}'.format(
             k + 1, tracking_start_time_strings[k],
             tracking_end_time_strings[k]
-        )
+        ))
 
-    print '\n'
+    print('\n')
     return tracking_start_times_unix_sec, tracking_end_times_unix_sec
 
 
@@ -1082,7 +1082,7 @@ def _read_tracking_periods(tracking_file_names):
     tracking_end_times_unix_sec = numpy.array([], dtype=int)
 
     for this_file_name in tracking_file_names:
-        print 'Reading tracking periods from: "{0:s}"...'.format(this_file_name)
+        print('Reading tracking periods from: "{0:s}"...'.format(this_file_name))
         this_storm_object_table = tracking_io.read_file(this_file_name)
 
         these_start_times_unix_sec = numpy.unique(
@@ -1153,7 +1153,7 @@ def _old_to_new_tracking_periods(
         for t in tracking_end_times_unix_sec
     ]
 
-    print '\n'
+    print('\n')
     for k in range(len(tracking_start_time_strings)):
         this_message_string = (
             '{0:d}th original tracking period = {1:s} to {2:s}'
@@ -1163,13 +1163,13 @@ def _old_to_new_tracking_periods(
         )
 
         if k == 0:
-            print this_message_string
+            print(this_message_string)
             continue
 
         this_message_string += (
             ' ... gap between this and previous period = {0:d} seconds'
         ).format(interperiod_diffs_sec[k - 1])
-        print this_message_string
+        print(this_message_string)
 
     bad_indices = numpy.where(interperiod_diffs_sec <= max_time_interval_sec)[0]
 
@@ -1191,14 +1191,14 @@ def _old_to_new_tracking_periods(
         for t in tracking_end_times_unix_sec
     ]
 
-    print '\n'
+    print('\n')
     for k in range(len(tracking_start_time_strings)):
-        print '{0:d}th final tracking period = {1:s} to {2:s}'.format(
+        print('{0:d}th final tracking period = {1:s} to {2:s}'.format(
             k + 1, tracking_start_time_strings[k],
             tracking_end_time_strings[k]
-        )
+        ))
 
-    print '\n'
+    print('\n')
     return tracking_start_times_unix_sec, tracking_end_times_unix_sec
 
 
@@ -1312,7 +1312,7 @@ def run_tracking(
 
             keep_time_indices.append(i)
 
-        print 'Reading data from: "{0:s}"...'.format(radar_file_names[i])
+        print('Reading data from: "{0:s}"...'.format(radar_file_names[i]))
         this_metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
             netcdf_file_name=radar_file_names[i], data_source=radar_source_name)
 
@@ -1334,8 +1334,8 @@ def run_tracking(
         )[0]
 
         if this_echo_classifn_file_name is not None:
-            print 'Reading data from: "{0:s}"...'.format(
-                this_echo_classifn_file_name)
+            print('Reading data from: "{0:s}"...'.format(
+                this_echo_classifn_file_name))
 
             this_convective_flag_matrix = echo_classifn.read_classifications(
                 this_echo_classifn_file_name
@@ -1345,9 +1345,9 @@ def run_tracking(
                 this_convective_flag_matrix, axis=0)
             this_echo_top_matrix_km[this_convective_flag_matrix == False] = 0.
 
-        print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
+        print('Finding local maxima in "{0:s}" at {1:s}...'.format(
             echo_top_field_name, radar_time_strings[i]
-        )
+        ))
 
         this_latitude_spacing_deg = this_metadata_dict[
             radar_utils.LAT_SPACING_COLUMN]
@@ -1397,9 +1397,9 @@ def run_tracking(
                     max_link_distance_m_s01=max_link_distance_m_s01)
             )
         else:
-            print (
+            print((
                 'Linking local maxima at {0:s} with those at {1:s}...\n'
-            ).format(radar_time_strings[i], radar_time_strings[i - 1])
+            ).format(radar_time_strings[i], radar_time_strings[i - 1]))
 
             this_current_to_prev_matrix = (
                 temporal_tracking.link_local_maxima_in_time(
@@ -1428,7 +1428,7 @@ def run_tracking(
                     previous_local_max_dict=local_max_dict_by_time[i - 1])
             )
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     keep_time_indices = numpy.array(keep_time_indices, dtype=int)
     radar_times_unix_sec = radar_times_unix_sec[keep_time_indices]
@@ -1438,20 +1438,22 @@ def run_tracking(
         local_max_dict_by_time[k] for k in keep_time_indices
     ]
 
-    print 'Converting time series of "{0:s}" maxima to storm tracks...'.format(
-        echo_top_field_name)
+    print('Converting time series of "{0:s}" maxima to storm tracks...'.format(
+        echo_top_field_name))
+
     storm_object_table = temporal_tracking.local_maxima_to_storm_tracks(
         local_max_dict_by_time=local_max_dict_by_time,
         first_numeric_id=first_numeric_id)
 
-    print 'Removing tracks that last < {0:d} seconds...'.format(
+    print('Removing tracks that last < {0:d} seconds...'.format(
         int(min_track_duration_seconds)
-    )
+    ))
+
     storm_object_table = temporal_tracking.remove_short_lived_storms(
         storm_object_table=storm_object_table,
         min_duration_seconds=min_track_duration_seconds)
 
-    print 'Computing storm ages...'
+    print('Computing storm ages...')
     tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
         _radar_times_to_tracking_periods(
             radar_times_unix_sec=radar_times_unix_sec,
@@ -1464,11 +1466,11 @@ def run_tracking(
         tracking_end_times_unix_sec=tracking_end_times_unix_sec,
         max_link_time_seconds=max_link_time_seconds)
 
-    print 'Computing storm velocities...'
+    print('Computing storm velocities...')
     storm_object_table = temporal_tracking.get_storm_velocities(
         storm_object_table=storm_object_table)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     _write_new_tracks(
         storm_object_table=storm_object_table,
         top_output_dir_name=top_output_dir_name,
@@ -1521,7 +1523,7 @@ def reanalyze_across_spc_dates(
     tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
         _read_tracking_periods(tracking_file_names)
     )
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     tracking_start_times_unix_sec, tracking_end_times_unix_sec = (
         _old_to_new_tracking_periods(
@@ -1539,7 +1541,7 @@ def reanalyze_across_spc_dates(
         storm_object_table = tracking_io.read_many_files(
             tracking_file_names_by_date[0]
         )
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         storm_object_table = _storm_objects_latlng_to_xy(storm_object_table)
 
@@ -1556,17 +1558,17 @@ def reanalyze_across_spc_dates(
             last_late_time_unix_sec=last_late_time_unix_sec,
             max_join_time_seconds=max_join_time_seconds,
             max_join_error_m_s01=max_join_error_m_s01)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
-        print 'Removing tracks that last < {0:d} seconds...'.format(
+        print('Removing tracks that last < {0:d} seconds...'.format(
             int(min_track_duration_seconds)
-        )
+        ))
 
         storm_object_table = temporal_tracking.remove_short_lived_storms(
             storm_object_table=storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 
-        print 'Recomputing storm ages...'
+        print('Recomputing storm ages...')
         storm_object_table = temporal_tracking.get_storm_ages(
             storm_object_table=storm_object_table,
             tracking_start_times_unix_sec=tracking_start_times_unix_sec,
@@ -1576,11 +1578,11 @@ def reanalyze_across_spc_dates(
             ])
         )
 
-        print 'Computing storm velocities...'
+        print('Computing storm velocities...')
         storm_object_table = temporal_tracking.get_storm_velocities(
             storm_object_table=storm_object_table)
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
         _write_new_tracks(
             storm_object_table=storm_object_table,
             top_output_dir_name=top_output_dir_name,
@@ -1596,7 +1598,7 @@ def reanalyze_across_spc_dates(
             valid_times_by_date_unix_sec=valid_times_by_date_unix_sec,
             storm_object_table_by_date=storm_object_table_by_date,
             current_date_index=i, top_output_dir_name=top_output_dir_name)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         if i == num_spc_dates:
             break
@@ -1617,7 +1619,7 @@ def reanalyze_across_spc_dates(
                 max_join_time_seconds=max_link_time_seconds,
                 max_join_error_m_s01=max_velocity_diff_m_s01,
                 max_join_distance_m_s01=max_link_distance_m_s01)
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
 
             if i == 0:
                 this_first_time_unix_sec = numpy.min(
@@ -1641,7 +1643,7 @@ def reanalyze_across_spc_dates(
                 last_late_time_unix_sec=this_last_time_unix_sec,
                 max_join_time_seconds=max_join_time_seconds,
                 max_join_error_m_s01=max_join_error_m_s01)
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
 
             storm_object_table_by_date[i] = concat_storm_object_table.loc[
                 concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
@@ -1664,14 +1666,15 @@ def reanalyze_across_spc_dates(
             [storm_object_table_by_date[k] for k in indices_to_concat],
             axis=0, ignore_index=True)
 
-        print 'Removing tracks that last < {0:d} seconds...'.format(
+        print('Removing tracks that last < {0:d} seconds...'.format(
             int(min_track_duration_seconds)
-        )
+        ))
+
         concat_storm_object_table = temporal_tracking.remove_short_lived_storms(
             storm_object_table=concat_storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 
-        print 'Recomputing storm ages...'
+        print('Recomputing storm ages...')
         concat_storm_object_table = temporal_tracking.get_storm_ages(
             storm_object_table=concat_storm_object_table,
             tracking_start_times_unix_sec=tracking_start_times_unix_sec,
@@ -1681,7 +1684,7 @@ def reanalyze_across_spc_dates(
             ])
         )
 
-        print 'Computing storm velocities...'
+        print('Computing storm velocities...')
         concat_storm_object_table = temporal_tracking.get_storm_velocities(
             storm_object_table=concat_storm_object_table)
 
@@ -1689,4 +1692,4 @@ def reanalyze_across_spc_dates(
             concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
             spc_date_strings[i]
         ]
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)

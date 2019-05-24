@@ -677,12 +677,12 @@ def _compare_sounding_dictionaries(first_sounding_dict, second_sounding_dict):
     :return: are_dicts_equal: Boolean flag.
     """
 
-    first_keys = first_sounding_dict.keys()
-    second_keys = second_sounding_dict.keys()
+    first_keys = list(first_sounding_dict.keys())
+    second_keys = list(second_sounding_dict.keys())
     if set(first_keys) != set(second_keys):
         return False
 
-    for this_key in first_sounding_dict.keys():
+    for this_key in list(first_sounding_dict.keys()):
         if this_key in [soundings.FIELD_NAMES_KEY, soundings.FULL_IDS_KEY]:
             if first_sounding_dict[this_key] != second_sounding_dict[this_key]:
                 return False

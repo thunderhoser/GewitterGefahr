@@ -122,9 +122,9 @@ def _fit_theil_sen_many_tracks(storm_track_table):
 
     for i in range(num_tracks):
         if numpy.mod(i, 100) == 0:
-            print (
+            print((
                 'Have fit Theil-Sen model for {0:d} of {1:d} storm tracks...'
-            ).format(i, num_tracks)
+            ).format(i, num_tracks))
 
         this_dict = _fit_theil_sen_one_track(
             x_coords_metres=storm_track_table[
@@ -140,8 +140,8 @@ def _fit_theil_sen_many_tracks(storm_track_table):
         y_intercepts_metres[i] = this_dict[Y_INTERCEPT_KEY]
         y_velocities_m_s01[i] = this_dict[Y_VELOCITY_KEY]
 
-    print 'Have fit Theil-Sen model for all {0:d} storm tracks!'.format(
-        num_tracks)
+    print('Have fit Theil-Sen model for all {0:d} storm tracks!'.format(
+        num_tracks))
 
     return storm_track_table.assign(**{
         X_INTERCEPT_COLUMN: x_intercepts_metres,
@@ -264,9 +264,9 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
         storm_object_table)
 
     # Fit Theil-Sen model to each track.
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     storm_track_table = _fit_theil_sen_many_tracks(storm_track_table)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     # Compute storm durations.
     num_tracks = len(storm_track_table.index)
@@ -287,23 +287,23 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
         this_percentile_seconds = numpy.percentile(
             track_durations_sec, this_percentile_level)
 
-        print '{0:d}th percentile of track durations = {1:.1f} seconds'.format(
+        print('{0:d}th percentile of track durations = {1:.1f} seconds'.format(
             int(numpy.round(this_percentile_level)), this_percentile_seconds
-        )
+        ))
 
-    print '\n'
+    print('\n')
 
     for this_percentile_level in DURATION_PERCENTILE_LEVELS:
         this_percentile_seconds = numpy.percentile(
             track_durations_sec[track_durations_sec != 0], this_percentile_level)
 
-        print (
+        print((
             '{0:d}th percentile of non-zero track durations = {1:.1f} seconds'
         ).format(
             int(numpy.round(this_percentile_level)), this_percentile_seconds
-        )
+        ))
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     median_duration_sec = numpy.median(
         track_durations_sec[track_durations_sec != 0]
@@ -316,15 +316,15 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
 
     for i in range(num_tracks):
         if numpy.mod(i, 50) == 0:
-            print (
+            print((
                 'Have computed linearity error for {0:d} of {1:d} tracks...'
-            ).format(i, num_tracks)
+            ).format(i, num_tracks))
 
         track_linearity_errors_metres[i] = _get_mean_ts_error_one_track(
             storm_track_table=storm_track_table, row_index=i)
 
-    print 'Have computed linearity error for all {0:d} tracks!'.format(
-        num_tracks)
+    print('Have computed linearity error for all {0:d} tracks!'.format(
+        num_tracks))
 
     good_indices = numpy.where(numpy.logical_and(
         long_track_flags,
@@ -335,9 +335,9 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
         track_linearity_errors_metres[good_indices]
     )
 
-    print 'Mean linearity error = {0:.1f} metres'.format(
-        mean_linearity_error_metres)
-    print SEPARATOR_STRING
+    print('Mean linearity error = {0:.1f} metres'.format(
+        mean_linearity_error_metres))
+    print(SEPARATOR_STRING)
 
     # Compute mismatch error for each track.
     radar_statistic_table = (
@@ -350,7 +350,7 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
             radar_source=radar_utils.MYRORSS_SOURCE_ID)
     )
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     radar_height_m_asl = radar_utils.get_valid_heights(
         data_source=radar_utils.MYRORSS_SOURCE_ID, field_name=radar_field_name
@@ -379,8 +379,8 @@ def evaluate_tracks(storm_object_table, top_myrorss_dir_name, radar_field_name):
         track_mismatch_errors[long_track_indices]
     )
 
-    print 'Mean mismatch error for "{0:s}" = {1:.4e}'.format(
-        radar_field_name, mean_mismatch_error)
+    print('Mean mismatch error for "{0:s}" = {1:.4e}'.format(
+        radar_field_name, mean_mismatch_error))
 
     return {
         DURATIONS_KEY: track_durations_sec,
