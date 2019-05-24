@@ -72,7 +72,7 @@ def time_to_spc_date_unix_sec(unix_time_sec):
 
     error_checking.assert_is_integer(unix_time_sec)
     return int(SECONDS_INTO_SPC_DATE_DEFAULT + rounder.floor_to_nearest(
-        unix_time_sec - DAYS_TO_SECONDS / 2, DAYS_TO_SECONDS))
+        unix_time_sec - DAYS_TO_SECONDS // 2, DAYS_TO_SECONDS))
 
 
 def time_to_spc_date_string(unix_time_sec):
@@ -84,7 +84,7 @@ def time_to_spc_date_string(unix_time_sec):
 
     error_checking.assert_is_integer(unix_time_sec)
     return unix_sec_to_string(
-        unix_time_sec - DAYS_TO_SECONDS / 2, SPC_DATE_FORMAT)
+        unix_time_sec - DAYS_TO_SECONDS // 2, SPC_DATE_FORMAT)
 
 
 def spc_date_string_to_unix_sec(spc_date_string):

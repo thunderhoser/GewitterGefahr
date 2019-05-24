@@ -433,8 +433,12 @@ def check_heights(data_source, heights_m_asl, field_name=None):
         error_string = (
             '\n\n{0:s}\n\nValid heights for source "{1:s}" and field "{2:s}" '
             '(listed above in metres ASL) do not include the following: '
-            '{3:d}').format(valid_heights_m_asl, data_source, field_name,
-                            this_height_m_asl)
+            '{3:d}'
+        ).format(
+            str(valid_heights_m_asl), data_source,
+            'None' if field_name is None else field_name, this_height_m_asl
+        )
+
         raise ValueError(error_string)
 
 

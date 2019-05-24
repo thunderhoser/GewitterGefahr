@@ -377,13 +377,13 @@ class InputExamplesTests(unittest.TestCase):
         desired examples from all classes is non-zero.
         """
 
-        these_indices_to_keep = input_examples._filter_examples_by_class(
+        these_indices = input_examples._filter_examples_by_class(
             target_values=TARGET_VALUES_TORNADO,
             class_to_num_examples_dict=FIRST_TORNADO_CLASS_TO_NUM_EX_DICT,
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
-            these_indices_to_keep, FIRST_TORNADO_INDICES_TO_KEEP
+            these_indices, FIRST_TORNADO_INDICES_TO_KEEP
         ))
 
     def test_filter_examples_by_class_tornado_second(self):
@@ -393,13 +393,13 @@ class InputExamplesTests(unittest.TestCase):
         desired examples from some classes is zero.
         """
 
-        these_indices_to_keep = input_examples._filter_examples_by_class(
+        these_indices = input_examples._filter_examples_by_class(
             target_values=TARGET_VALUES_TORNADO,
             class_to_num_examples_dict=SECOND_TORNADO_CLASS_TO_NUM_EX_DICT,
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
-            these_indices_to_keep, SECOND_TORNADO_INDICES_TO_KEEP
+            these_indices, SECOND_TORNADO_INDICES_TO_KEEP
         ))
 
     def test_filter_examples_by_class_wind_first(self):
@@ -409,13 +409,13 @@ class InputExamplesTests(unittest.TestCase):
         desired examples from all classes is non-zero.
         """
 
-        these_indices_to_keep = input_examples._filter_examples_by_class(
+        these_indices = input_examples._filter_examples_by_class(
             target_values=TARGET_VALUES_WIND,
             class_to_num_examples_dict=FIRST_WIND_CLASS_TO_NUM_EX_DICT,
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
-            these_indices_to_keep, FIRST_WIND_INDICES_TO_KEEP
+            numpy.sort(these_indices), numpy.sort(FIRST_WIND_INDICES_TO_KEEP)
         ))
 
     def test_filter_examples_by_class_wind_second(self):
@@ -425,13 +425,13 @@ class InputExamplesTests(unittest.TestCase):
         desired examples from some classes is zero.
         """
 
-        these_indices_to_keep = input_examples._filter_examples_by_class(
+        these_indices = input_examples._filter_examples_by_class(
             target_values=TARGET_VALUES_WIND,
             class_to_num_examples_dict=SECOND_WIND_CLASS_TO_NUM_EX_DICT,
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
-            these_indices_to_keep, SECOND_WIND_INDICES_TO_KEEP
+            these_indices, SECOND_WIND_INDICES_TO_KEEP
         ))
 
     def test_remove_storms_with_undefined_target(self):

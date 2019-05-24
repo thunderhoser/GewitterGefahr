@@ -715,8 +715,8 @@ class StormImagesTests(unittest.TestCase):
         this_storm_image_matrix = storm_images.downsize_storm_images(
             storm_image_matrix=FULL_STORM_IMAGE_MATRIX,
             radar_field_name=radar_utils.LOW_LEVEL_SHEAR_NAME,
-            num_rows_to_keep=NUM_ROWS_TO_KEEP / 2,
-            num_columns_to_keep=NUM_COLUMNS_TO_KEEP / 2)
+            num_rows_to_keep=NUM_ROWS_TO_KEEP // 2,
+            num_columns_to_keep=NUM_COLUMNS_TO_KEEP // 2)
 
         self.assertTrue(numpy.allclose(
             this_storm_image_matrix, DOWNSIZED_STORM_IMAGE_MATRIX,

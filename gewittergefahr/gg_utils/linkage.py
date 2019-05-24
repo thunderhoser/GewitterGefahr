@@ -613,6 +613,7 @@ def _find_nearest_storms(
 
     interp_times_unix_sec = number_rounding.round_to_nearest(
         event_table[EVENT_TIME_COLUMN].values, interp_time_resolution_sec)
+    interp_times_unix_sec = numpy.round(interp_times_unix_sec).astype(int)
 
     unique_interp_times_unix_sec, orig_to_unique_indices = numpy.unique(
         interp_times_unix_sec, return_inverse=True)

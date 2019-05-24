@@ -1055,7 +1055,7 @@ def downsize_storm_images(
             ).format(num_rows_total, num_rows_to_keep, num_rows_leftover)
             raise ValueError(error_string)
 
-        first_row_to_keep = num_rows_leftover / 2
+        first_row_to_keep = num_rows_leftover // 2
         last_row_to_keep = first_row_to_keep + num_rows_to_keep - 1
         storm_image_matrix = storm_image_matrix[
             :, first_row_to_keep:(last_row_to_keep + 1), ...
@@ -1076,7 +1076,7 @@ def downsize_storm_images(
             )
             raise ValueError(error_string)
 
-        first_column_to_keep = num_columns_leftover / 2
+        first_column_to_keep = num_columns_leftover // 2
         last_column_to_keep = first_column_to_keep + num_columns_to_keep - 1
         storm_image_matrix = storm_image_matrix[
             :, :, first_column_to_keep:(last_column_to_keep + 1), ...

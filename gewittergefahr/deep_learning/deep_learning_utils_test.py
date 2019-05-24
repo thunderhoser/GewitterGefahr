@@ -1170,7 +1170,9 @@ class DeepLearningUtilsTests(unittest.TestCase):
             target_values=WIND_LABELS_TO_SAMPLE,
             num_examples_total=NUM_EXAMPLES_TOTAL, test_mode=True)
 
-        self.assertTrue(numpy.array_equal(these_indices, WIND_INDICES_TO_KEEP))
+        self.assertTrue(numpy.array_equal(
+            numpy.sort(these_indices), numpy.sort(WIND_INDICES_TO_KEEP)
+        ))
 
 
 if __name__ == '__main__':
