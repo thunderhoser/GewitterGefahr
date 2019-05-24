@@ -1512,12 +1512,15 @@ def read_results(pickle_file_name):
 
     expected_keys_as_set = set(EVALUATION_DICT_KEYS)
     actual_keys_as_set = set(evaluation_dict.keys())
+
     if not set(expected_keys_as_set).issubset(actual_keys_as_set):
         error_string = (
             '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
             '("{1:s}") are listed below.  Some expected keys were not found.'
-            '\n{2:s}\n').format(EVALUATION_DICT_KEYS, pickle_file_name,
-                                list(evaluation_dict.keys()))
+            '\n{2:s}\n'
+        ).format(
+            EVALUATION_DICT_KEYS, pickle_file_name, list(evaluation_dict.keys())
+        )
 
         raise ValueError(error_string)
 

@@ -101,9 +101,11 @@ def get_uniform_colours_in_hsv_space(
     rgb_matrix = numpy.reshape(rgb_matrix, (num_colours, 3))
 
     if colour_to_exclude_rgb is not None:
-        good_indices = []
-        all_indices = list(range(num_colours))
+        all_indices = numpy.linspace(
+            0, num_colours - 1, num=num_colours, dtype=int)
+
         numpy.random.shuffle(all_indices)
+        good_indices = []
 
         for i in all_indices:
             this_distance = numpy.linalg.norm(

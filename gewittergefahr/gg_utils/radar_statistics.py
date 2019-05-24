@@ -796,11 +796,12 @@ def get_storm_based_radar_stats_gridrad(
 
                 for this_storm_index in these_storm_indices:
                     these_grid_point_rows = storm_object_table[
-                        tracking_utils.ROWS_IN_STORM_COLUMN].values[
-                        this_storm_index].astype(int)
+                        tracking_utils.ROWS_IN_STORM_COLUMN
+                    ].values[this_storm_index].astype(int)
+
                     these_grid_point_columns = storm_object_table[
-                        tracking_utils.COLUMNS_IN_STORM_COLUMN].values[
-                            this_storm_index].astype(int)
+                        tracking_utils.COLUMNS_IN_STORM_COLUMN
+                    ].values[this_storm_index].astype(int)
 
                     radar_values_this_storm = extract_radar_grid_points(
                         field_matrix=numpy.flipud(
@@ -809,11 +810,11 @@ def get_storm_based_radar_stats_gridrad(
                         column_indices=these_grid_point_columns)
 
                     (statistic_matrix[this_storm_index, j, k, :],
-                     percentile_matrix[this_storm_index, j, k, :]) = (
-                         get_spatial_statistics(
-                             radar_values_this_storm,
-                             statistic_names=statistic_names,
-                             percentile_levels=percentile_levels))
+                     percentile_matrix[this_storm_index, j, k, :]
+                    ) = get_spatial_statistics(
+                        radar_values_this_storm,
+                        statistic_names=statistic_names,
+                        percentile_levels=percentile_levels)
 
             print('\n')
 

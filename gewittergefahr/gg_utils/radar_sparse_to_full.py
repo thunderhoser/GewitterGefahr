@@ -59,12 +59,18 @@ def _convert(sparse_grid_table, field_name, num_grid_rows, num_grid_columns,
     num_values_added = 0
 
     for i in range(num_data_runs):
-        these_data_indices = list(range(
-            data_start_indices[i], data_end_indices[i] + 1))
+        these_data_indices = numpy.linspace(
+            data_start_indices[i], data_end_indices[i],
+            num=data_end_indices[i] - data_start_indices[i] + 1, dtype=int
+        )
+
         this_num_values = len(these_data_indices)
 
-        these_array_indices = list(range(
-            num_values_added, num_values_added + this_num_values))
+        these_array_indices = numpy.linspace(
+            num_values_added, num_values_added + this_num_values - 1,
+            num=this_num_values, dtype=int
+        )
+
         num_values_added += this_num_values
 
         data_indices[these_array_indices] = these_data_indices
