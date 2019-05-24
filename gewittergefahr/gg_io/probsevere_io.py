@@ -33,7 +33,8 @@ MONTH_FORMAT = '%Y%m'
 DATE_FORMAT = '%Y%m%d'
 RAW_FILE_TIME_FORMAT = '%Y%m%d_%H%M%S'
 RAW_FILE_TIME_FORMAT_REGEX = (
-    '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9]_[0-2][0-9][0-5][0-9][0-5][0-9]')
+    '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9]_[0-2][0-9][0-5][0-9][0-5][0-9]'
+)
 
 TIME_KEY_IN_JSON_FILES = 'validTime'
 FEATURES_KEY_IN_JSON_FILES = 'features'
@@ -132,7 +133,7 @@ def _find_io_files_for_renaming(
     valid_times_by_date_unix_sec = [numpy.array([], dtype=int)] * num_dates
 
     for i in range(num_dates):
-        print 'Finding input files for date {0:s}...'.format(date_strings[i])
+        print('Finding input files for date {0:s}...'.format(date_strings[i]))
 
         these_input_file_names = tracking_io.find_files_one_spc_date(
             spc_date_string=date_strings[i],
@@ -163,7 +164,7 @@ def _find_io_files_for_renaming(
             these_output_file_names, dtype=object)
         valid_times_by_date_unix_sec[i] = these_valid_times_unix_sec
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     return (input_file_names_by_date, output_file_names_by_date,
             valid_times_by_date_unix_sec)
@@ -231,7 +232,7 @@ def _shuffle_io_for_renaming(
             storm_object_table_by_date[j] = tracking_io.read_many_files(
                 input_file_names_by_date[j].tolist()
             )
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
 
             this_num_storm_objects = len(storm_object_table_by_date[j].index)
             these_date_indices = numpy.full(
@@ -249,8 +250,9 @@ def _shuffle_io_for_renaming(
                 these_valid_times_unix_sec = valid_times_by_date_unix_sec[j]
 
                 for k in range(len(these_valid_times_unix_sec)):
-                    print 'Writing new data to "{0:s}"...'.format(
-                        these_output_file_names[k])
+                    print('Writing new data to "{0:s}"...'.format(
+                        these_output_file_names[k]
+                    ))
 
                     these_indices = numpy.where(
                         storm_object_table_by_date[j][
@@ -264,7 +266,7 @@ def _shuffle_io_for_renaming(
                         pickle_file_name=these_output_file_names[k]
                     )
 
-                print SEPARATOR_STRING
+                print(SEPARATOR_STRING)
 
             storm_object_table_by_date[j] = None
 
@@ -307,10 +309,10 @@ def _rename_storms_one_table(
 
     for j in range(num_storm_cells):
         if numpy.mod(j, 1000) == 0:
-            print (
+            print((
                 'Have renamed {0:d} of {1:d} original storm cells (next ID = '
                 '{2:d})...'
-            ).format(j, num_storm_cells, next_id_number)
+            ).format(j, num_storm_cells, next_id_number))
 
         these_object_indices = numpy.where(
             storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values ==
@@ -335,7 +337,7 @@ def _rename_storms_one_table(
             these_object_indices
         ] = numpy.array(these_id_strings)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     return storm_object_table, next_id_number
 
 

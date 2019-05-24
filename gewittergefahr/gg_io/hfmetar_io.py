@@ -678,7 +678,7 @@ if __name__ == '__main__':
         WIND_TABLE_1MINUTE)
     WIND_TABLE_1MINUTE = merge_winds_and_station_metadata(
         WIND_TABLE_1MINUTE, STATION_METADATA_TABLE, STATION_ID_1MINUTE)
-    print WIND_TABLE_1MINUTE
+    print(WIND_TABLE_1MINUTE)
 
     raw_wind_io.write_processed_file(WIND_TABLE_1MINUTE, CSV_FILE_NAME_1MINUTE)
 
@@ -702,6 +702,6 @@ if __name__ == '__main__':
         WIND_TABLE_5MINUTE)
     WIND_TABLE_5MINUTE = merge_winds_and_station_metadata(
         WIND_TABLE_5MINUTE, STATION_METADATA_TABLE, STATION_ID_5MINUTE)
-    print WIND_TABLE_5MINUTE
+    print(WIND_TABLE_5MINUTE)
 
     raw_wind_io.write_processed_file(WIND_TABLE_5MINUTE, CSV_FILE_NAME_5MINUTE)

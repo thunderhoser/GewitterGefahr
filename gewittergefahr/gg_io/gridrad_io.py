@@ -78,45 +78,54 @@ def _check_grid_points(
         metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
         (metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)
     )
-    (expected_latitudes_deg, expected_longitudes_deg
-    ) = grids.get_latlng_grid_points(
-        min_latitude_deg=min_latitude_deg,
-        min_longitude_deg=metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
-        lat_spacing_deg=metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-        lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN],
-        num_rows=metadata_dict[radar_utils.NUM_LAT_COLUMN],
-        num_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN])
+
+    expected_latitudes_deg, expected_longitudes_deg = (
+        grids.get_latlng_grid_points(
+            min_latitude_deg=min_latitude_deg,
+            min_longitude_deg=metadata_dict[
+                radar_utils.NW_GRID_POINT_LNG_COLUMN],
+            lat_spacing_deg=metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+            lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN],
+            num_rows=metadata_dict[radar_utils.NUM_LAT_COLUMN],
+            num_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN])
+    )
 
     if not numpy.allclose(grid_point_latitudes_deg, expected_latitudes_deg,
                           atol=LATITUDE_TOLERANCE_DEG):
 
         for i in range(len(grid_point_latitudes_deg)):
-            print (
-                'Expected latitude = {0:.4f} deg N ... actual = {1:.4f} deg N'
-            ).format(expected_latitudes_deg[i], grid_point_latitudes_deg[i])
+            print((
+                      'Expected latitude = {0:.4f} deg N ... actual = {1:.4f} deg N'
+            ).format(expected_latitudes_deg[i], grid_point_latitudes_deg[i]))
 
         max_latitude_diff_deg = numpy.max(numpy.absolute(
-            expected_latitudes_deg - grid_point_latitudes_deg))
+            expected_latitudes_deg - grid_point_latitudes_deg
+        ))
+
         error_string = (
             '\n\nAs shown above, lat-long grid is irregular.  There is a max '
             'difference of {0:f} deg N between expected and actual latitudes.'
         ).format(max_latitude_diff_deg)
+
         raise ValueError(error_string)
 
     if not numpy.allclose(grid_point_longitudes_deg, expected_longitudes_deg,
                           atol=LONGITUDE_TOLERANCE_DEG):
 
         for i in range(len(grid_point_longitudes_deg)):
-            print (
+            print((
                 'Expected longitude = {0:.4f} deg E ... actual = {1:.4f} deg E'
-            ).format(expected_longitudes_deg[i], grid_point_longitudes_deg[i])
+            ).format(expected_longitudes_deg[i], grid_point_longitudes_deg[i]))
 
         max_longitude_diff_deg = numpy.max(numpy.absolute(
-            expected_longitudes_deg - grid_point_longitudes_deg))
+            expected_longitudes_deg - grid_point_longitudes_deg
+        ))
+
         error_string = (
             '\n\nAs shown above, lat-long grid is irregular.  There is a max '
             'difference of {0:f} deg E between expected and actual longitudes.'
         ).format(max_longitude_diff_deg)
+
         raise ValueError(error_string)
 
 

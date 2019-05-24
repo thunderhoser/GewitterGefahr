@@ -19,19 +19,21 @@ TEMPERATURE_NAME_GRIB1 = 'TMP:2 m above gnd'
 TEMPERATURE_NAME_GRIB2 = 'TMP:2 m above ground'
 
 SENTINEL_VALUE = 9.999e20
-DATA_MATRIX_WITH_SENTINELS = numpy.array(
-    [[999.25, 1000., 1001., 1001.5, SENTINEL_VALUE],
-     [999.5, 1000.75, 1002., 1002.2, SENTINEL_VALUE],
-     [999.9, 1001.1, 1001.7, 1002.3, 1003.],
-     [SENTINEL_VALUE, 1001.5, 1001.6, 1002.1, 1002.5],
-     [SENTINEL_VALUE, SENTINEL_VALUE, 1002., 1002., 1003.3]])
+DATA_MATRIX_WITH_SENTINELS = numpy.array([
+    [999.25, 1000., 1001., 1001.5, SENTINEL_VALUE],
+    [999.5, 1000.75, 1002., 1002.2, SENTINEL_VALUE],
+    [999.9, 1001.1, 1001.7, 1002.3, 1003.],
+    [SENTINEL_VALUE, 1001.5, 1001.6, 1002.1, 1002.5],
+    [SENTINEL_VALUE, SENTINEL_VALUE, 1002., 1002., 1003.3]
+])
 
-DATA_MATRIX_NO_SENTINELS = numpy.array(
-    [[999.25, 1000., 1001., 1001.5, numpy.nan],
-     [999.5, 1000.75, 1002., 1002.2, numpy.nan],
-     [999.9, 1001.1, 1001.7, 1002.3, 1003.],
-     [numpy.nan, 1001.5, 1001.6, 1002.1, 1002.5],
-     [numpy.nan, numpy.nan, 1002., 1002., 1003.3]])
+DATA_MATRIX_NO_SENTINELS = numpy.array([
+    [999.25, 1000., 1001., 1001.5, numpy.nan],
+    [999.5, 1000.75, 1002., 1002.2, numpy.nan],
+    [999.9, 1001.1, 1001.7, 1002.3, 1003.],
+    [numpy.nan, 1001.5, 1001.6, 1002.1, 1002.5],
+    [numpy.nan, numpy.nan, 1002., 1002., 1003.3]
+])
 
 U_WIND_NAME_GRIB1 = 'UGRD:500 mb'
 V_WIND_NAME_GRIB1 = 'VGRD:500 mb'
@@ -49,7 +51,7 @@ class GribIoTests(unittest.TestCase):
         In this case the field is 500-mb specific humidity.
         """
 
-        self.assertEquals(
+        self.assertEqual(
             grib_io._field_name_grib1_to_grib2(SPECIFIC_HUMIDITY_NAME_GRIB1),
             SPECIFIC_HUMIDITY_NAME_GRIB2)
 
@@ -59,7 +61,7 @@ class GribIoTests(unittest.TestCase):
         In this case the field is surface geopotential height.
         """
 
-        self.assertEquals(
+        self.assertEqual(
             grib_io._field_name_grib1_to_grib2(HEIGHT_NAME_GRIB1),
             HEIGHT_NAME_GRIB2)
 
@@ -69,7 +71,7 @@ class GribIoTests(unittest.TestCase):
         In this case the field is 2-metre temperature.
         """
 
-        self.assertEquals(
+        self.assertEqual(
             grib_io._field_name_grib1_to_grib2(TEMPERATURE_NAME_GRIB1),
             TEMPERATURE_NAME_GRIB2)
 
@@ -131,7 +133,7 @@ class GribIoTests(unittest.TestCase):
         Here, file type is grib1.
         """
 
-        self.assertEquals(grib_io.file_name_to_type(GRIB1_FILE_NAME),
+        self.assertEqual(grib_io.file_name_to_type(GRIB1_FILE_NAME),
                           grib_io.GRIB1_FILE_TYPE)
 
     def test_file_name_to_type_grib2(self):
@@ -140,7 +142,7 @@ class GribIoTests(unittest.TestCase):
         Here, file type is grib2.
         """
 
-        self.assertEquals(grib_io.file_name_to_type(GRIB2_FILE_NAME),
+        self.assertEqual(grib_io.file_name_to_type(GRIB2_FILE_NAME),
                           grib_io.GRIB2_FILE_TYPE)
 
     def test_file_name_to_type_invalid(self):
@@ -235,7 +237,7 @@ class GribIoTests(unittest.TestCase):
         Here, file type is grib1.
         """
 
-        self.assertEquals(
+        self.assertEqual(
             grib_io.file_type_to_extension(grib_io.GRIB1_FILE_TYPE),
             grib_io.GRIB1_FILE_EXTENSION)
 
@@ -245,7 +247,7 @@ class GribIoTests(unittest.TestCase):
         Here, file type is grib2.
         """
 
-        self.assertEquals(
+        self.assertEqual(
             grib_io.file_type_to_extension(grib_io.GRIB2_FILE_TYPE),
             grib_io.GRIB2_FILE_EXTENSION)
 

@@ -676,8 +676,9 @@ def _filter_examples_by_class(
         return numpy.linspace(0, num_examples - 1, num=num_examples, dtype=int)
 
     indices_to_keep = numpy.array([], dtype=int)
+    class_keys = list(class_to_num_examples_dict.keys())
 
-    for this_class in list(class_to_num_examples_dict.keys()):
+    for this_class in class_keys:
         this_num_storm_objects = class_to_num_examples_dict[this_class]
         these_indices = numpy.where(target_values == this_class)[0]
 

@@ -451,9 +451,9 @@ def read_winds_from_raw_file(netcdf_file_name, secondary_source=None,
 
 if __name__ == '__main__':
     WIND_TABLE = read_winds_from_raw_file(NETCDF_FILE_NAME)
-    print WIND_TABLE
+    print(WIND_TABLE)
 
     WIND_TABLE = raw_wind_io.sustained_and_gust_to_uv_max(WIND_TABLE)
-    print WIND_TABLE
+    print(WIND_TABLE)
 
     raw_wind_io.write_processed_file(WIND_TABLE, CSV_FILE_NAME)

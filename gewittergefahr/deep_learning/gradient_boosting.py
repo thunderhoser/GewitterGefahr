@@ -262,13 +262,16 @@ def read_model_metadata(pickle_file_name):
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
+
     if not set(expected_keys_as_set).issubset(actual_keys_as_set):
         error_string = (
             '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
             '("{1:s}") are listed below.  Some expected keys were not found.'
             '\n{2:s}\n'
-        ).format(MODEL_METADATA_KEYS, pickle_file_name,
-                 list(model_metadata_dict.keys()))
+        ).format(
+            MODEL_METADATA_KEYS, pickle_file_name,
+            list(model_metadata_dict.keys())
+        )
 
         raise ValueError(error_string)
 

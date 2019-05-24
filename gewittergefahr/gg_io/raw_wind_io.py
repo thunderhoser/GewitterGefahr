@@ -39,7 +39,8 @@ MERGED_DATA_SOURCE = 'merged'
 
 PRIMARY_UNMERGED_DATA_SOURCES = [
     HFMETAR_DATA_SOURCE, MADIS_DATA_SOURCE, OK_MESONET_DATA_SOURCE,
-    STORM_EVENTS_DATA_SOURCE]
+    STORM_EVENTS_DATA_SOURCE
+]
 PRIMARY_DATA_SOURCES = PRIMARY_UNMERGED_DATA_SOURCES + [MERGED_DATA_SOURCE]
 
 MADIS_COOP_DATA_SOURCE = 'coop'
@@ -57,7 +58,8 @@ SECONDARY_DATA_SOURCES = [
     MADIS_COOP_DATA_SOURCE, MADIS_CRN_DATA_SOURCE, MADIS_HCN_DATA_SOURCE,
     MADIS_HFMETAR_DATA_SOURCE, MADIS_MARITIME_DATA_SOURCE,
     MADIS_MESONET_DATA_SOURCE, MADIS_METAR_DATA_SOURCE, MADIS_NEPP_DATA_SOURCE,
-    MADIS_SAO_DATA_SOURCE, MADIS_URBANET_DATA_SOURCE]
+    MADIS_SAO_DATA_SOURCE, MADIS_URBANET_DATA_SOURCE
+]
 
 PRIMARY_SOURCE_COLUMN = 'primary_source'
 SECONDARY_SOURCE_COLUMN = 'secondary_source'
@@ -94,22 +96,28 @@ TIME_COLUMN = 'unix_time_sec'
 
 REQUIRED_STATION_METADATA_COLUMNS = [
     STATION_ID_COLUMN, STATION_NAME_COLUMN, LATITUDE_COLUMN, LONGITUDE_COLUMN,
-    ELEVATION_COLUMN]
+    ELEVATION_COLUMN
+]
 
-STATION_METADATA_COLUMNS = REQUIRED_STATION_METADATA_COLUMNS + [
-    UTC_OFFSET_COLUMN]
+STATION_METADATA_COLUMNS = (
+    REQUIRED_STATION_METADATA_COLUMNS + [UTC_OFFSET_COLUMN]
+)
 
 STATION_METADATA_COLUMN_TYPE_DICT = {
     STATION_ID_COLUMN: str, STATION_NAME_COLUMN: str,
     LATITUDE_COLUMN: numpy.float64, LONGITUDE_COLUMN: numpy.float64,
     ELEVATION_COLUMN: numpy.float64, UTC_OFFSET_COLUMN: numpy.float64}
 
-WIND_COLUMNS = REQUIRED_STATION_METADATA_COLUMNS + [TIME_COLUMN, U_WIND_COLUMN,
-                                                    V_WIND_COLUMN]
+WIND_COLUMNS = REQUIRED_STATION_METADATA_COLUMNS + [
+    TIME_COLUMN, U_WIND_COLUMN, V_WIND_COLUMN
+]
+
 WIND_COLUMN_TYPE_DICT = copy.deepcopy(STATION_METADATA_COLUMN_TYPE_DICT)
-WIND_COLUMN_TYPE_DICT.update({TIME_COLUMN: numpy.int64,
-                              U_WIND_COLUMN: numpy.float64,
-                              V_WIND_COLUMN: numpy.float64})
+WIND_COLUMN_TYPE_DICT.update({
+    TIME_COLUMN: numpy.int64,
+    U_WIND_COLUMN: numpy.float64,
+    V_WIND_COLUMN: numpy.float64
+})
 
 
 def _primary_and_secondary_sources_to_table():
@@ -879,8 +887,10 @@ def merge_data_sources_by_hour(
             primary_source=MERGED_DATA_SOURCE,
             top_directory_name=top_directory_name, raise_error_if_missing=False)
 
-        print 'Writing wind obs for all data sources to "{0:s}"...'.format(
-            merged_file_names[i])
+        print('Writing wind obs for all data sources to "{0:s}"...'.format(
+            merged_file_names[i]
+        ))
+
         write_processed_file(
             this_wind_table, merged_file_names[i], write_mode='w')
 

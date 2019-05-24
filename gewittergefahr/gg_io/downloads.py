@@ -4,7 +4,7 @@ import os
 import warnings
 import subprocess
 import ftplib
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import numpy
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -21,7 +21,8 @@ FTP_NOT_FOUND_ERROR_CODE = 550
 
 ACCEPTABLE_URL_ERROR_CODES = [URL_NOT_FOUND_ERROR_CODE, URL_TIMEOUT_ERROR_CODE]
 ACCEPTABLE_HTTP_ERROR_CODES = [
-    HTTP_NOT_FOUND_ERROR_CODE, SERVICE_TEMP_UNAVAILABLE_ERROR_CODE]
+    HTTP_NOT_FOUND_ERROR_CODE, SERVICE_TEMP_UNAVAILABLE_ERROR_CODE
+]
 
 
 def download_file_via_passwordless_ssh(host_name=None, user_name=None,
@@ -115,12 +116,12 @@ def download_files_via_http(
         error_checking.assert_is_string(password)
         error_checking.assert_is_string(host_name)
 
-        manager_object = urllib2.HTTPPasswordMgrWithDefaultRealm()
+        manager_object = urllib.request.HTTPPasswordMgrWithDefaultRealm()
         manager_object.add_password(
             realm=None, uri=host_name, user=user_name, passwd=password)
-        authentication_handler = urllib2.HTTPBasicAuthHandler(manager_object)
-        opener_object = urllib2.build_opener(authentication_handler)
-        urllib2.install_opener(opener_object)
+        authentication_handler = urllib.request.HTTPBasicAuthHandler(manager_object)
+        opener_object = urllib.request.build_opener(authentication_handler)
+        urllib.request.install_opener(opener_object)
 
     error_checking.assert_is_string_list(online_file_names)
     error_checking.assert_is_numpy_array(
@@ -139,15 +140,15 @@ def download_files_via_http(
         this_response_object = None
 
         try:
-            this_response_object = urllib2.urlopen(online_file_names[i])
+            this_response_object = urllib.request.urlopen(online_file_names[i])
             this_download_succeeded = True
 
-        except urllib2.HTTPError as this_error:
+        except urllib.error.HTTPError as this_error:
             if (raise_error_if_fails or
                     this_error.code not in ACCEPTABLE_HTTP_ERROR_CODES):
                 raise
 
-        except urllib2.URLError as this_error:
+        except urllib.error.URLError as this_error:
             error_words = this_error.reason.split()
             acceptable_error_flags = numpy.array(
                 [w in str(ACCEPTABLE_URL_ERROR_CODES) for w in error_words])

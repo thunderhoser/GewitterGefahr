@@ -330,10 +330,10 @@ def find_files_at_times(
 
                     glob_patterns.append(this_file_pattern)
 
-                    print (
+                    print((
                         'Finding files with pattern "{0:s}" (this may take a '
                         'few minutes)...'
-                    ).format(this_file_pattern)
+                    ).format(this_file_pattern))
 
                     tracking_file_names += glob.glob(this_file_pattern)
 
@@ -519,7 +519,7 @@ def read_many_files(pickle_file_names):
     list_of_storm_object_tables = [None] * num_files
 
     for i in range(num_files):
-        print 'Reading data from file: "{0:s}"...'.format(pickle_file_names[i])
+        print('Reading data from file: "{0:s}"...'.format(pickle_file_names[i]))
         list_of_storm_object_tables[i] = read_file(pickle_file_names[i])
 
         if i == 0:

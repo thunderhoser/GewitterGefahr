@@ -75,7 +75,7 @@ def unzip_1day_tar_file(
 
     target_directory_name = '{0:s}/{1:s}/{2:s}'.format(
         top_target_directory_name, spc_date_string[:4], spc_date_string)
-    field_names = field_to_heights_dict_m_asl.keys()
+    field_names = list(field_to_heights_dict_m_asl.keys())
     directory_names_to_unzip = []
 
     for this_field_name in field_names:
@@ -122,7 +122,7 @@ def remove_unzipped_data_1day(
             field_names=field_names, data_source=radar_utils.MYRORSS_SOURCE_ID,
             refl_heights_m_asl=refl_heights_m_asl))
 
-    for this_field_name in field_to_heights_dict_m_asl.keys():
+    for this_field_name in list(field_to_heights_dict_m_asl.keys()):
         these_heights_m_asl = field_to_heights_dict_m_asl[this_field_name]
 
         for this_height_m_asl in these_heights_m_asl:
@@ -150,7 +150,9 @@ def remove_unzipped_data_1day(
                 dir_name_to_remove = '/'.join(directory_name_parts[:-1])
 
             if os.path.isdir(dir_name_to_remove):
-                print 'Removing directory "{0:s}"...'.format(dir_name_to_remove)
+                print('Removing directory "{0:s}"...'.format(
+                    dir_name_to_remove))
+
                 shutil.rmtree(dir_name_to_remove, ignore_errors=True)
 
             if remove_all_heights:

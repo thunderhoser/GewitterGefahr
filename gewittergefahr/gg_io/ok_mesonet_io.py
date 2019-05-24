@@ -33,7 +33,8 @@ ELEVATION_COLUMN_ORIG = 'elev'
 
 ORIG_METADATA_COLUMN_NAMES = [
     STATION_ID_COLUMN_IN_METADATA, STATION_NAME_COLUMN_ORIG,
-    LATITUDE_COLUMN_ORIG, LONGITUDE_COLUMN_ORIG, ELEVATION_COLUMN_ORIG]
+    LATITUDE_COLUMN_ORIG, LONGITUDE_COLUMN_ORIG, ELEVATION_COLUMN_ORIG
+]
 
 STATION_ID_COLUMN_IN_WIND_DATA = 'STID'
 WIND_SPEED_COLUMN_ORIG = 'WSPD'
@@ -44,7 +45,8 @@ MINUTES_INTO_DAY_COLUMN_ORIG = 'TIME'
 ORIG_WIND_DATA_COLUMN_NAMES = [
     STATION_ID_COLUMN_IN_WIND_DATA, WIND_SPEED_COLUMN_ORIG,
     WIND_DIR_COLUMN_ORIG, WIND_GUST_SPEED_COLUMN_ORIG,
-    MINUTES_INTO_DAY_COLUMN_ORIG]
+    MINUTES_INTO_DAY_COLUMN_ORIG
+]
 
 # The following constants are used only in the main method.
 ORIG_METAFILE_NAME = '/localdata/ryan.lagerquist/aasswp/geoinfo.csv'
@@ -306,6 +308,6 @@ if __name__ == '__main__':
     WIND_TABLE = raw_wind_io.sustained_and_gust_to_uv_max(WIND_TABLE)
     WIND_TABLE = merge_winds_and_station_metadata(WIND_TABLE,
                                                   STATION_METADATA_TABLE)
-    print WIND_TABLE
+    print(WIND_TABLE)
 
     raw_wind_io.write_processed_file(WIND_TABLE, NEW_WIND_FILE_NAME)

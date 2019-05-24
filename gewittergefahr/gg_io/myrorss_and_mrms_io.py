@@ -759,7 +759,7 @@ def write_field_to_myrorss_file(
                 field_names=[field_name],
                 data_source=radar_utils.MYRORSS_SOURCE_ID))
 
-    field_name = field_to_heights_dict_m_asl.keys()[0]
+    field_name = list(field_to_heights_dict_m_asl.keys())[0]
     radar_height_m_asl = field_to_heights_dict_m_asl[field_name][0]
 
     if field_name in radar_utils.ECHO_TOP_NAMES:

@@ -110,6 +110,7 @@ def _get_batch_size_by_class(
 
         values = numpy.full(
             num_extended_classes, num_examples_per_batch, dtype=int)
+
         return dict(list(zip(keys, values)))
 
     return dl_utils.class_fractions_to_num_examples(
@@ -132,9 +133,10 @@ def _get_remaining_batch_size_by_class(
     if target_values_in_memory is None:
         return class_to_batch_size_dict
 
+    class_keys = list(class_to_batch_size_dict.keys())
     class_to_rem_batch_size_dict = {}
 
-    for this_class in list(class_to_batch_size_dict.keys()):
+    for this_class in class_keys:
         this_num_examples = (
             class_to_batch_size_dict[this_class] -
             numpy.sum(target_values_in_memory == this_class)
@@ -175,7 +177,9 @@ def _check_stopping_criterion(
     stop_generator = num_examples_in_memory >= num_examples_per_batch
 
     if stop_generator and class_to_sampling_fraction_dict is not None:
-        for this_key in list(class_to_batch_size_dict.keys()):
+        class_keys = list(class_to_batch_size_dict.keys())
+
+        for this_key in class_keys:
             stop_generator = (
                 stop_generator and
                 class_to_num_read_dict[this_key] >=

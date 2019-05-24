@@ -350,12 +350,12 @@ def read_tornado_reports(csv_file_name):
 
 if __name__ == '__main__':
     WIND_TABLE = read_thunderstorm_wind_reports(STORM_EVENT_FILE_NAME)
-    print WIND_TABLE
+    print(WIND_TABLE)
 
     raw_wind_io.write_processed_file(WIND_TABLE, PROCESSED_WIND_FILE_NAME)
-    print '\n'
+    print('\n')
 
     TORNADO_TABLE = read_tornado_reports(STORM_EVENT_FILE_NAME)
-    print TORNADO_TABLE
+    print(TORNADO_TABLE)
 
     tornado_io.write_processed_file(TORNADO_TABLE, PROCESSED_TORNADO_FILE_NAME)
