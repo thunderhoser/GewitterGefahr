@@ -118,9 +118,9 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
         sounding_field_names = None
 
     if len(downsampling_keys) > 1:
-        class_to_sampling_fraction_dict = dict(zip(
+        class_to_sampling_fraction_dict = dict(list(zip(
             downsampling_keys, downsampling_fractions
-        ))
+        )))
     else:
         class_to_sampling_fraction_dict = None
 
@@ -158,7 +158,7 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
         last_batch_number=LAST_BATCH_NUMBER, raise_error_if_any_missing=False)
 
     # Read architecture.
-    print 'Reading architecture from: "{0:s}"...'.format(input_model_file_name)
+    print('Reading architecture from: "{0:s}"...'.format(input_model_file_name))
     model_object = cnn.read_model(input_model_file_name)
     model_object = keras.models.clone_model(model_object)
 
@@ -168,9 +168,9 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
         optimizer=keras.optimizers.Adam(),
         metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     model_object.summary()
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     # Write metadata.
     this_example_dict = input_examples.read_example_file(
@@ -225,7 +225,7 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
         trainval_io.FLIP_Y_KEY: flip_in_y
     }
 
-    print 'Writing metadata to: "{0:s}"...'.format(model_metafile_name)
+    print('Writing metadata to: "{0:s}"...'.format(model_metafile_name))
     cnn.write_model_metadata(
         pickle_file_name=model_metafile_name, metadata_dict=metadata_dict,
         training_option_dict=training_option_dict)

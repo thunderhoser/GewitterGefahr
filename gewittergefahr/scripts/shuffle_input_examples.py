@@ -109,7 +109,7 @@ def _find_input_files(
     num_input_examples = 0
 
     for this_file_name in input_example_file_names:
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=this_file_name, metadata_only=True)
 
@@ -136,10 +136,10 @@ def _set_output_locations(
         numpy.ceil(float(num_input_examples) / num_examples_per_out_file)
     )
 
-    print (
+    print((
         'Num input examples = {0:d} ... num examples per output file = {1:d} '
         '... num output files = {2:d}'
-    ).format(num_input_examples, num_examples_per_out_file, num_output_files)
+    ).format(num_input_examples, num_examples_per_out_file, num_output_files))
 
     output_example_file_names = [
         input_examples.find_example_file(
@@ -152,7 +152,8 @@ def _set_output_locations(
     for this_file_name in output_example_file_names:
         if not os.path.isfile(this_file_name):
             continue
-        print 'Deleting output file: "{0:s}"...'.format(this_file_name)
+
+        print('Deleting output file: "{0:s}"...'.format(this_file_name))
         os.remove(this_file_name)
 
     return output_example_file_names
@@ -169,7 +170,7 @@ def _shuffle_one_input_file(
     :param output_example_file_names: 1-D list of paths to output files.
     """
 
-    print 'Reading data from: "{0:s}"...'.format(input_example_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_example_file_name))
     example_dict = input_examples.read_example_file(
         netcdf_file_name=input_example_file_name,
         radar_field_names_to_keep=radar_field_names)
@@ -182,11 +183,12 @@ def _shuffle_one_input_file(
     example_dict = input_examples.subset_examples(
         example_dict=example_dict, indices_to_keep=shuffled_indices)
 
-    for j in xrange(0, num_examples, num_examples_per_out_chunk):
+    for j in range(0, num_examples, num_examples_per_out_chunk):
         this_first_index = j
         this_last_index = min(
             [j + num_examples_per_out_chunk - 1, num_examples - 1]
         )
+
         these_indices = numpy.linspace(
             this_first_index, this_last_index,
             num=this_last_index - this_first_index + 1, dtype=int)
@@ -196,8 +198,8 @@ def _shuffle_one_input_file(
             create_new_dict=True)
 
         this_output_file_name = random.choice(output_example_file_names)
-        print 'Writing shuffled examples to: "{0:s}"...'.format(
-            this_output_file_name)
+        print('Writing shuffled examples to: "{0:s}"...'.format(
+            this_output_file_name))
 
         input_examples.write_example_file(
             netcdf_file_name=this_output_file_name,
@@ -233,14 +235,14 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
         top_input_dir_name=top_input_dir_name,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     output_example_file_names = _set_output_locations(
         top_output_dir_name=top_output_dir_name,
         num_input_examples=num_input_examples,
         num_examples_per_out_file=num_examples_per_out_file,
         first_output_batch_number=first_output_batch_number)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     for this_file_name in input_example_file_names:
         _shuffle_one_input_file(
@@ -248,7 +250,7 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
             radar_field_names=radar_field_names,
             num_examples_per_out_chunk=num_examples_per_out_chunk,
             output_example_file_names=output_example_file_names)
-        print '\n'
+        print('\n')
 
 
 if __name__ == '__main__':

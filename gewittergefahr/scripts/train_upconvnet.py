@@ -198,20 +198,22 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
         first_batch_number=FIRST_BATCH_NUMBER,
         last_batch_number=LAST_BATCH_NUMBER, raise_error_if_any_missing=False)
 
-    print 'Reading trained CNN from: "{0:s}"...'.format(input_cnn_file_name)
+    print('Reading trained CNN from: "{0:s}"...'.format(input_cnn_file_name))
     cnn_model_object = cnn.read_model(input_cnn_file_name)
+
     cnn_model_object.summary()
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     cnn_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(input_cnn_file_name)[0]
     )
 
-    print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
+    print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
 
-    print 'Reading upconvnet architecture from: "{0:s}"...'.format(
-        input_upconvnet_file_name)
+    print('Reading upconvnet architecture from: "{0:s}"...'.format(
+        input_upconvnet_file_name))
+
     upconvnet_model_object = cnn.read_model(input_upconvnet_file_name)
     upconvnet_model_object = keras.models.clone_model(upconvnet_model_object)
 
@@ -221,16 +223,16 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
         optimizer=keras.optimizers.Adam()
     )
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     upconvnet_model_object.summary()
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     upconvnet_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(output_model_file_name)[0]
     )
 
-    print 'Writing upconvnet metadata to: "{0:s}"...'.format(
-        upconvnet_metafile_name)
+    print('Writing upconvnet metadata to: "{0:s}"...'.format(
+        upconvnet_metafile_name))
 
     upconvnet.write_model_metadata(
         cnn_file_name=input_cnn_file_name,
@@ -246,7 +248,7 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
         last_validation_time_unix_sec=last_validation_time_unix_sec,
         pickle_file_name=upconvnet_metafile_name)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     upconvnet.train_upconvnet(
         upconvnet_model_object=upconvnet_model_object,

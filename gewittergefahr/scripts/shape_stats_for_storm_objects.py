@@ -70,17 +70,18 @@ def _compute_shape_stats(
     )[0]
 
     storm_object_table = tracking_io.read_many_files(tracking_file_names)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     shape_statistic_table = shape_stats.get_stats_for_storm_objects(
         storm_object_table)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     shape_statistic_file_name = '{0:s}/shape_statistics_{1:s}.p'.format(
         output_dir_name, spc_date_string)
 
-    print 'Writing shape statistics to: "{0:s}"...'.format(
-        shape_statistic_file_name)
+    print('Writing shape statistics to: "{0:s}"...'.format(
+        shape_statistic_file_name))
+
     shape_stats.write_stats_for_storm_objects(
         shape_statistic_table, shape_statistic_file_name)
 

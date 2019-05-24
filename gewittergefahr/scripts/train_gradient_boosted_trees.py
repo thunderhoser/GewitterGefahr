@@ -118,22 +118,26 @@ def _train_model(
     :param num_iters_for_early_stopping: Same.
     """
 
-    print 'Reading training data from: "{0:s}"...'.format(
-        input_training_file_name)
-    (training_feature_matrix, training_target_values, num_classes
-    ) = cnn.read_features(input_training_file_name)
+    print('Reading training data from: "{0:s}"...'.format(
+        input_training_file_name))
+
+    training_feature_matrix, training_target_values, num_classes = (
+        cnn.read_features(input_training_file_name)
+    )
 
     if input_validation_file_name == 'None':
         input_validation_file_name = None
         num_iters_for_early_stopping = None
 
     if input_validation_file_name is not None:
-        print 'Reading validation data from: "{0:s}"...'.format(
-            input_validation_file_name)
-        (validation_feature_matrix, validation_target_values, num_classes
-        ) = cnn.read_features(input_validation_file_name)
+        print('Reading validation data from: "{0:s}"...'.format(
+            input_validation_file_name))
 
-    print 'Setting up model architecture...'
+        validation_feature_matrix, validation_target_values, num_classes = (
+            cnn.read_features(input_validation_file_name)
+        )
+
+    print('Setting up model architecture...')
     model_object = gradient_boosting.create_model(
         num_classes=num_classes, num_trees=num_trees,
         learning_rate=learning_rate, max_depth=max_tree_depth,
@@ -144,7 +148,7 @@ def _train_model(
     model_directory_name, _ = os.path.split(output_model_file_name)
     metadata_file_name = '{0:s}/model_metadata.p'.format(model_directory_name)
 
-    print 'Writing metadata to: "{0:s}"...'.format(metadata_file_name)
+    print('Writing metadata to: "{0:s}"...'.format(metadata_file_name))
     gradient_boosting.write_model_metadata(
         num_classes=num_classes, num_trees=num_trees,
         learning_rate=learning_rate, max_depth=max_tree_depth,
@@ -155,7 +159,8 @@ def _train_model(
         training_file_name=input_training_file_name,
         validation_file_name=input_validation_file_name,
         pickle_file_name=metadata_file_name)
-    print SEPARATOR_STRING
+
+    print(SEPARATOR_STRING)
 
     if input_validation_file_name is None:
         gradient_boosting.train_model(
@@ -171,19 +176,21 @@ def _train_model(
             validation_feature_matrix=validation_feature_matrix,
             validation_target_values=validation_target_values)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     if input_validation_file_name is not None and num_classes == 2:
-        print 'Applying model to validation examples...'
+        print('Applying model to validation examples...')
+
         validation_forecast_probs = gradient_boosting.apply_model(
             model_object=model_object, feature_matrix=validation_feature_matrix
         )[:, 1]
+
         validation_auc = sklearn.metrics.roc_auc_score(
             y_true=validation_target_values, y_score=validation_forecast_probs)
 
-        print 'Validation AUC: {0:.4f}'.format(validation_auc)
+        print('Validation AUC: {0:.4f}'.format(validation_auc))
 
-    print 'Writing trained model to: "{0:s}"...'.format(output_model_file_name)
+    print('Writing trained model to: "{0:s}"...'.format(output_model_file_name))
     gradient_boosting.write_model(
         model_object=model_object, pickle_file_name=output_model_file_name)
 
