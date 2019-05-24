@@ -187,7 +187,9 @@ def _get_percentile(frequency_dict, percentile_level):
     :return: percentile: [q]th percentile.
     """
 
-    unique_values, counts = list(zip(*iter(frequency_dict.items())))
+    unique_values, counts = list(zip(
+        *iter(frequency_dict.items())
+    ))
     unique_values = numpy.array(unique_values)
     counts = numpy.array(counts, dtype=int)
 

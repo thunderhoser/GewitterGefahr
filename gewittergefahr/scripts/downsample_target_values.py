@@ -132,7 +132,9 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
-    class_fraction_dict = dict(list(zip(class_fraction_keys, class_fraction_values)))
+    class_fraction_dict = dict(list(zip(
+        class_fraction_keys, class_fraction_values
+    )))
     target_param_dict = target_val_utils.target_name_to_params(target_name)
 
     input_target_file_names = []

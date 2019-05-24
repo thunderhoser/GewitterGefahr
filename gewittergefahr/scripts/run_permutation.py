@@ -377,7 +377,8 @@ def _run(model_file_name, top_example_dir_name,
 
     if len(class_fraction_keys) > 1:
         class_to_sampling_fraction_dict = dict(list(zip(
-            class_fraction_keys, class_fraction_values)))
+            class_fraction_keys, class_fraction_values
+        )))
     else:
         class_to_sampling_fraction_dict = None
 
