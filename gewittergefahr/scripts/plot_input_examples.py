@@ -228,6 +228,8 @@ def plot_examples(
         )
 
         if plot_soundings:
+            pass
+
             # sounding_plotting.plot_sounding(
             #     sounding_dict_for_metpy=list_of_metpy_dictionaries[i],
             #     title_string=this_base_title_string)
