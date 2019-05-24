@@ -18,7 +18,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
-from gewittergefahr.plotting import sounding_plotting
+# from gewittergefahr.plotting import sounding_plotting
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -228,14 +228,14 @@ def plot_examples(
         )
 
         if plot_soundings:
-            sounding_plotting.plot_sounding(
-                sounding_dict_for_metpy=list_of_metpy_dictionaries[i],
-                title_string=this_base_title_string)
-
-            this_file_name = '{0:s}_sounding.jpg'.format(this_base_file_name)
-            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
-            pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-            pyplot.close()
+            # sounding_plotting.plot_sounding(
+            #     sounding_dict_for_metpy=list_of_metpy_dictionaries[i],
+            #     title_string=this_base_title_string)
+            #
+            # this_file_name = '{0:s}_sounding.jpg'.format(this_base_file_name)
+            # print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+            # pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+            # pyplot.close()
 
         if myrorss_2d3d:
             this_reflectivity_matrix_dbz = numpy.flip(
