@@ -26,7 +26,7 @@ CLASSIFIERS = [
     'Development Status :: 2 - Pre-Alpha',
     'Intended Audience :: Science/Research',
     'License :: OSI Approved :: MIT License',
-    'Programming Language :: Python :: 2.7'
+    'Programming Language :: Python :: 3'
 ]
 
 # You also need to install the following packages, which are not available in
