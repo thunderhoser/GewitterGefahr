@@ -682,14 +682,38 @@ def _compare_sounding_dictionaries(first_sounding_dict, second_sounding_dict):
     if set(first_keys) != set(second_keys):
         return False
 
+    sort_indices = numpy.argsort(numpy.array(
+        first_sounding_dict[soundings.FIELD_NAMES_KEY]
+    ))
+
+    first_sounding_dict[soundings.FIELD_NAMES_KEY] = [
+        first_sounding_dict[soundings.FIELD_NAMES_KEY][k] for k in sort_indices
+    ]
+    first_sounding_dict[soundings.SOUNDING_MATRIX_KEY] = (
+        first_sounding_dict[soundings.SOUNDING_MATRIX_KEY][..., sort_indices]
+    )
+
+    sort_indices = numpy.argsort(numpy.array(
+        second_sounding_dict[soundings.FIELD_NAMES_KEY]
+    ))
+
+    second_sounding_dict[soundings.FIELD_NAMES_KEY] = [
+        second_sounding_dict[soundings.FIELD_NAMES_KEY][k] for k in sort_indices
+    ]
+    second_sounding_dict[soundings.SOUNDING_MATRIX_KEY] = (
+        second_sounding_dict[soundings.SOUNDING_MATRIX_KEY][..., sort_indices]
+    )
+
     for this_key in list(first_sounding_dict.keys()):
         if this_key in [soundings.FIELD_NAMES_KEY, soundings.FULL_IDS_KEY]:
             if first_sounding_dict[this_key] != second_sounding_dict[this_key]:
+                print('FOO2')
                 return False
 
         elif (this_key == soundings.SURFACE_PRESSURES_KEY and
               first_sounding_dict[this_key] is None):
             if second_sounding_dict[this_key] is not None:
+                print('FOO3')
                 return False
 
         else:
@@ -697,6 +721,10 @@ def _compare_sounding_dictionaries(first_sounding_dict, second_sounding_dict):
                     first_sounding_dict[this_key],
                     second_sounding_dict[this_key], atol=TOLERANCE,
                     equal_nan=True):
+                print(first_sounding_dict[this_key])
+                print('\n\n')
+                print(second_sounding_dict[this_key])
+                print('\n\n\n***\n\n\n')
                 return False
 
     return True
@@ -756,8 +784,12 @@ class SoundingsTests(unittest.TestCase):
             minimum_pressure_mb=MINIMUM_PRESSURE_MB, include_surface=False
         )[-1]
 
-        self.assertTrue(this_field_name_table.equals(
-            FIELD_NAME_TABLE_NO_SURFACE
+        actual_columns = list(this_field_name_table)
+        expected_columns = list(FIELD_NAME_TABLE_NO_SURFACE)
+        self.assertTrue(set(actual_columns) == set(expected_columns))
+
+        self.assertTrue(this_field_name_table[actual_columns].equals(
+            FIELD_NAME_TABLE_NO_SURFACE[actual_columns]
         ))
 
     def test_get_nwp_fields_for_sounding_yes_table_yes_surface(self):
@@ -771,8 +803,12 @@ class SoundingsTests(unittest.TestCase):
             minimum_pressure_mb=MINIMUM_PRESSURE_MB, include_surface=True
         )[-1]
 
-        self.assertTrue(this_field_name_table.equals(
-            FIELD_NAME_TABLE_WITH_SURFACE
+        actual_columns = list(this_field_name_table)
+        expected_columns = list(FIELD_NAME_TABLE_WITH_SURFACE)
+        self.assertTrue(set(actual_columns) == set(expected_columns))
+
+        self.assertTrue(this_field_name_table[actual_columns].equals(
+            FIELD_NAME_TABLE_WITH_SURFACE[actual_columns]
         ))
 
     def test_create_target_points_for_interp(self):
@@ -798,7 +834,7 @@ class SoundingsTests(unittest.TestCase):
             include_surface=False, minimum_pressure_mb=MINIMUM_PRESSURE_MB)
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_NO_SURFACE
+            this_sounding_dict, copy.deepcopy(SOUNDING_DICT_P_COORDS_NO_SURFACE)
         ))
 
     def test_convert_interp_table_to_soundings_with_surface(self):
@@ -813,7 +849,8 @@ class SoundingsTests(unittest.TestCase):
             include_surface=True, minimum_pressure_mb=MINIMUM_PRESSURE_MB)
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_SURFACE
+            this_sounding_dict,
+            copy.deepcopy(SOUNDING_DICT_P_COORDS_WITH_SURFACE)
         ))
 
     def test_get_pressures_no_surface(self):
@@ -859,7 +896,7 @@ class SoundingsTests(unittest.TestCase):
         ))
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_SPFH
+            this_sounding_dict, copy.deepcopy(SOUNDING_DICT_P_COORDS_WITH_SPFH)
         ))
 
     def test_specific_to_relative_humidity(self):
@@ -877,7 +914,7 @@ class SoundingsTests(unittest.TestCase):
         ))
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_RH
+            this_sounding_dict, copy.deepcopy(SOUNDING_DICT_P_COORDS_WITH_RH)
         ))
 
     def test_get_virtual_potential_temperatures(self):
@@ -889,7 +926,8 @@ class SoundingsTests(unittest.TestCase):
             dewpoint_matrix_kelvins=DEWPOINT_MATRIX_KELVINS)
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_WITH_THETA_V
+            this_sounding_dict,
+            copy.deepcopy(SOUNDING_DICT_P_COORDS_WITH_THETA_V)
         ))
 
     def test_fill_nans_in_soundings(self):
@@ -902,7 +940,7 @@ class SoundingsTests(unittest.TestCase):
             min_num_pressure_levels_without_nan=2)
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_P_COORDS_NO_NANS
+            this_sounding_dict, copy.deepcopy(SOUNDING_DICT_P_COORDS_NO_NANS)
         ))
 
     def test_pressure_to_height_coords(self):
@@ -914,7 +952,7 @@ class SoundingsTests(unittest.TestCase):
             height_levels_m_agl=HEIGHT_LEVELS_M_AGL)
 
         self.assertTrue(_compare_sounding_dictionaries(
-            this_sounding_dict, SOUNDING_DICT_HEIGHT_COORDS
+            this_sounding_dict, copy.deepcopy(SOUNDING_DICT_HEIGHT_COORDS)
         ))
 
     def test_check_field_name_valid(self):

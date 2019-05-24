@@ -53,8 +53,8 @@ def _reorder_standardization_or_replacement_dict(
             '(shown above) do not span those in new_feature_names (shown below)'
             '.\n\n{1:s}'
         ).format(
-            standardization_or_replacement_dict[FEATURE_NAMES_KEY],
-            new_feature_names
+            str(standardization_or_replacement_dict[FEATURE_NAMES_KEY]),
+            str(new_feature_names)
         )
 
         raise ValueError(error_string)

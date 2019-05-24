@@ -36,23 +36,31 @@ def _convert(sparse_grid_table, field_name, num_grid_rows, num_grid_columns,
     if ignore_if_below is None:
         num_sparse_values = len(sparse_grid_table.index)
         sparse_indices_to_consider = numpy.linspace(
-            0, num_sparse_values - 1, num=num_sparse_values, dtype=int)
+            0, num_sparse_values - 1, num=num_sparse_values, dtype=int
+        )
     else:
         sparse_indices_to_consider = numpy.where(
-            sparse_grid_table[field_name].values >= ignore_if_below)[0]
+            sparse_grid_table[field_name].values >= ignore_if_below
+        )[0]
 
     new_sparse_grid_table = sparse_grid_table.iloc[sparse_indices_to_consider]
+
     data_start_indices = numpy.ravel_multi_index(
         (new_sparse_grid_table[myrorss_and_mrms_io.GRID_ROW_COLUMN].values,
          new_sparse_grid_table[myrorss_and_mrms_io.GRID_COLUMN_COLUMN].values),
-        (num_grid_rows, num_grid_columns))
-    data_end_indices = (data_start_indices + new_sparse_grid_table[
-        myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN].values - 1)
+        (num_grid_rows, num_grid_columns)
+    )
+
+    data_end_indices = (
+        data_start_indices +
+        new_sparse_grid_table[myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN].values
+        - 1
+    )
 
     num_data_runs = len(data_start_indices)
     num_data_values = numpy.sum(
-        new_sparse_grid_table[
-            myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN].values).astype(int)
+        new_sparse_grid_table[myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN].values
+    ).astype(int)
 
     data_indices = numpy.full(num_data_values, numpy.nan, dtype=int)
     data_values = numpy.full(num_data_values, numpy.nan)
@@ -75,10 +83,12 @@ def _convert(sparse_grid_table, field_name, num_grid_rows, num_grid_columns,
 
         data_indices[these_array_indices] = these_data_indices
         data_values[these_array_indices] = new_sparse_grid_table[
-            field_name].values[i]
+            field_name
+        ].values[i]
 
     full_matrix = numpy.full(num_grid_rows * num_grid_columns, numpy.nan)
     full_matrix[data_indices] = data_values
+
     return numpy.reshape(full_matrix, (num_grid_rows, num_grid_columns))
 
 
@@ -103,11 +113,14 @@ def sparse_to_full_grid(sparse_grid_table, metadata_dict, ignore_if_below=None):
         longitudes (deg E), sorted in acending order.
     """
 
-    min_latitude_deg = metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
-        metadata_dict[radar_utils.LAT_SPACING_COLUMN] * (
-            metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1))
+    min_latitude_deg = (
+        metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
+            metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
+            (metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)
+        )
+    )
 
-    (unique_grid_point_lat_deg, unique_grid_point_lng_deg) = (
+    unique_grid_point_lat_deg, unique_grid_point_lng_deg = (
         grids.get_latlng_grid_points(
             min_latitude_deg=min_latitude_deg,
             min_longitude_deg=
@@ -115,14 +128,16 @@ def sparse_to_full_grid(sparse_grid_table, metadata_dict, ignore_if_below=None):
             lat_spacing_deg=metadata_dict[radar_utils.LAT_SPACING_COLUMN],
             lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN],
             num_rows=metadata_dict[radar_utils.NUM_LAT_COLUMN],
-            num_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN]))
+            num_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN])
+    )
 
     full_matrix = _convert(
-        sparse_grid_table,
+        sparse_grid_table=sparse_grid_table,
         field_name=metadata_dict[radar_utils.FIELD_NAME_COLUMN],
         num_grid_rows=metadata_dict[radar_utils.NUM_LAT_COLUMN],
         num_grid_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN],
         ignore_if_below=ignore_if_below)
 
     return (
-        full_matrix, unique_grid_point_lat_deg[::-1], unique_grid_point_lng_deg)
+        full_matrix, unique_grid_point_lat_deg[::-1], unique_grid_point_lng_deg
+    )

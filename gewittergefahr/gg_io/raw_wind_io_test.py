@@ -205,9 +205,25 @@ class RawWindIoTests(unittest.TestCase):
     def test_primary_and_secondary_sources_to_table(self):
         """Ensures correctness of _primary_and_secondary_sources_to_table."""
 
-        this_table = raw_wind_io._primary_and_secondary_sources_to_table()
-        self.assertTrue(this_table.equals(
-            PRIMARY_AND_SECONDARY_SOURCE_PAIRS_AS_TABLE))
+        this_actual_table = raw_wind_io._primary_and_secondary_sources_to_table()
+
+        this_actual_table.sort_values(
+            raw_wind_io.PRIMARY_SOURCE_COLUMN, axis=0, ascending=True,
+            inplace=True)
+
+        this_actual_table.fillna(value='FOO', axis=1, inplace=True)
+        this_actual_table.reset_index(inplace=True, drop=True)
+
+        this_expected_table = (
+            PRIMARY_AND_SECONDARY_SOURCE_PAIRS_AS_TABLE.sort_values(
+                raw_wind_io.PRIMARY_SOURCE_COLUMN, axis=0, ascending=True,
+                inplace=False)
+        )
+
+        this_expected_table.fillna(value='FOO', axis=1, inplace=True)
+        this_expected_table.reset_index(inplace=True, drop=True)
+
+        self.assertTrue(this_actual_table.equals(this_expected_table))
 
     def test_check_elevations(self):
         """Ensures correct output from _check_elevations."""

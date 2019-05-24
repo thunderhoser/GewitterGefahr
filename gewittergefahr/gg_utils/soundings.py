@@ -955,7 +955,7 @@ def check_field_name(field_name):
     if field_name not in VALID_FIELD_NAMES:
         error_string = (
             '\n{0:s}\nValid field names (listed above) do not include "{1:s}".'
-        ).format(VALID_FIELD_NAMES, field_name)
+        ).format(str(VALID_FIELD_NAMES), field_name)
 
         raise ValueError(error_string)
 
