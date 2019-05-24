@@ -187,7 +187,7 @@ def _get_percentile(frequency_dict, percentile_level):
     :return: percentile: [q]th percentile.
     """
 
-    unique_values, counts = zip(*frequency_dict.iteritems())
+    unique_values, counts = list(zip(*iter(frequency_dict.items())))
     unique_values = numpy.array(unique_values)
     counts = numpy.array(counts, dtype=int)
 
@@ -394,15 +394,16 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
             ] = copy.deepcopy(orig_parameter_dict)
 
     for this_example_file_name in example_file_names:
-        print 'Reading data from: "{0:s}"...'.format(this_example_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_example_file_name))
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=this_example_file_name,
             num_rows_to_keep=NUM_RADAR_ROWS,
             num_columns_to_keep=NUM_RADAR_COLUMNS)
 
         for j in range(num_radar_fields):
-            print 'Updating normalization params for "{0:s}"...'.format(
-                radar_field_names[j])
+            print('Updating normalization params for "{0:s}"...'.format(
+                radar_field_names[j]
+            ))
 
             if num_radar_dimensions == 3:
                 this_field_index = this_example_dict[
@@ -454,10 +455,10 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
             )
 
         for k in range(num_radar_field_height_pairs):
-            print (
+            print((
                 'Updating normalization params for "{0:s}" at {1:d} metres '
                 'AGL...'
-            ).format(radar_field_name_by_pair[k], radar_height_by_pair_m_agl[k])
+            ).format(radar_field_name_by_pair[k], radar_height_by_pair_m_agl[k]))
 
             if num_radar_dimensions == 3:
                 this_field_index = this_example_dict[
@@ -514,8 +515,9 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
                 new_data_matrix=this_radar_matrix)
 
         for j in range(num_sounding_fields):
-            print 'Updating normalization params for "{0:s}"...'.format(
-                sounding_field_names[j])
+            print('Updating normalization params for "{0:s}"...'.format(
+                sounding_field_names[j]
+            ))
 
             this_field_index = this_example_dict[
                 input_examples.SOUNDING_FIELDS_KEY
@@ -552,10 +554,10 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
                     input_examples.SOUNDING_MATRIX_KEY
                 ][..., this_height_index, this_field_index]
 
-                print (
+                print((
                     'Updating normalization params for "{0:s}" at {1:d} m '
                     'AGL...'
-                ).format(sounding_field_names[j], sounding_heights_m_agl[k])
+                ).format(sounding_field_names[j], sounding_heights_m_agl[k]))
 
                 sounding_z_score_dict_with_height[
                     sounding_field_names[j], sounding_heights_m_agl[k]
@@ -565,7 +567,7 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
                     ],
                     new_data_matrix=this_sounding_matrix)
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
     # Convert dictionaries to pandas DataFrames.
     radar_table_no_height = _convert_normalization_params(
@@ -574,15 +576,16 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
         min_percentile_level=min_percentile_level,
         max_percentile_level=max_percentile_level)
 
-    print 'Normalization params for each radar field:\n{0:s}\n\n'.format(
-        str(radar_table_no_height))
+    print('Normalization params for each radar field:\n{0:s}\n\n'.format(
+        str(radar_table_no_height)
+    ))
 
     radar_table_with_height = _convert_normalization_params(
         z_score_dict_dict=radar_z_score_dict_with_height)
 
-    print (
+    print((
         'Normalization params for each radar field/height pair:\n{0:s}\n\n'
-    ).format(str(radar_table_with_height))
+    ).format(str(radar_table_with_height)))
 
     sounding_table_no_height = _convert_normalization_params(
         z_score_dict_dict=sounding_z_score_dict_no_height,
@@ -590,18 +593,20 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
         min_percentile_level=min_percentile_level,
         max_percentile_level=max_percentile_level)
 
-    print 'Normalization params for each sounding field:\n{0:s}\n\n'.format(
-        str(sounding_table_no_height))
+    print('Normalization params for each sounding field:\n{0:s}\n\n'.format(
+        str(sounding_table_no_height)
+    ))
 
     sounding_table_with_height = _convert_normalization_params(
         z_score_dict_dict=sounding_z_score_dict_with_height)
 
-    print (
+    print((
         'Normalization params for each sounding field/height pair:\n{0:s}\n\n'
-    ).format(str(sounding_table_with_height))
+    ).format(str(sounding_table_with_height)))
 
-    print 'Writing normalization params to file: "{0:s}"...'.format(
-        output_file_name)
+    print('Writing normalization params to file: "{0:s}"...'.format(
+        output_file_name))
+
     dl_utils.write_normalization_params(
         pickle_file_name=output_file_name,
         radar_table_no_height=radar_table_no_height,

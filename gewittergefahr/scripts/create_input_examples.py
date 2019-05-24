@@ -217,7 +217,8 @@ def _run(top_storm_image_dir_name, radar_source, num_radar_dimensions,
 
     if len(class_fraction_keys) > 1:
         class_to_sampling_fraction_dict = dict(list(zip(
-            class_fraction_keys, class_fraction_values)))
+            class_fraction_keys, class_fraction_values
+        )))
     else:
         class_to_sampling_fraction_dict = None
 

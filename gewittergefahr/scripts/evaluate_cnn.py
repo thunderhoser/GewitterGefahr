@@ -112,7 +112,7 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
     :raises: ValueError: if the model does multi-class classification.
     """
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
 
     num_output_neurons = (
@@ -130,14 +130,14 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
     model_directory_name, _ = os.path.split(model_file_name)
     model_metafile_name = '{0:s}/model_metadata.p'.format(model_directory_name)
 
-    print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     if len(class_fraction_keys) > 1:
-        class_to_sampling_fraction_dict = dict(zip(
+        class_to_sampling_fraction_dict = dict(list(zip(
             class_fraction_keys, class_fraction_values
-        ))
+        )))
     else:
         class_to_sampling_fraction_dict = None
 
@@ -180,7 +180,7 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
     for _ in range(len(example_file_names)):
         try:
             this_storm_object_dict = next(generator_object)
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
         except StopIteration:
             break
 
@@ -213,7 +213,7 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
                 radar_image_matrix=these_predictor_matrices[0],
                 sounding_matrix=this_sounding_matrix, verbose=True)
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         forecast_probabilities = numpy.concatenate((
             forecast_probabilities, this_probability_matrix[:, -1]))

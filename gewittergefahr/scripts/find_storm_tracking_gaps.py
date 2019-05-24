@@ -89,8 +89,9 @@ def _find_tracking_gaps(
     num_spc_dates = len(spc_date_strings)
 
     for i in range(num_spc_dates):
-        print 'Finding tracking files for SPC date "{0:s}"...'.format(
-            spc_date_strings[i])
+        print('Finding tracking files for SPC date "{0:s}"...'.format(
+            spc_date_strings[i]
+        ))
 
         these_file_names = tracking_io.find_files_one_spc_date(
             spc_date_string=spc_date_strings[i], source_name=source_name,
@@ -98,7 +99,8 @@ def _find_tracking_gaps(
             tracking_scale_metres2=tracking_scale_metres2,
             raise_error_if_missing=False
         )[0]
-        print len(these_file_names)
+
+        print(len(these_file_names))
 
         if not len(these_file_names):
             continue
@@ -131,10 +133,10 @@ def _find_tracking_gaps(
 
     num_time_gaps = len(time_gap_indices)
 
-    print (
+    print((
         '\nThere are {0:d} time gaps (successive files >= {1:d} seconds apart),'
         ' listed below:\n'
-    ).format(num_time_gaps, min_time_diff_seconds)
+    ).format(num_time_gaps, min_time_diff_seconds))
 
     for i in time_gap_indices:
         this_start_time_string = time_conversion.unix_sec_to_string(
@@ -142,9 +144,9 @@ def _find_tracking_gaps(
         this_end_time_string = time_conversion.unix_sec_to_string(
             unix_times_sec[i + 1], TIME_FORMAT)
 
-        print 'Gap between {0:s} and {1:s} = {2:d} seconds'.format(
+        print('Gap between {0:s} and {1:s} = {2:d} seconds'.format(
             this_start_time_string, this_end_time_string, time_diffs_seconds[i]
-        )
+        ))
 
 
 if __name__ == '__main__':

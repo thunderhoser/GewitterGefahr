@@ -101,11 +101,14 @@ def _report_class_fractions(target_values):
     unique_target_values, unique_counts = numpy.unique(
         target_values, return_counts=True)
 
-    print '\n'
+    print('\n')
+
     for k in range(len(unique_target_values)):
-        print '{0:d} examples in class = {1:d}'.format(
-            unique_counts[k], unique_target_values[k])
-    print '\n'
+        print('{0:d} examples in class = {1:d}'.format(
+            unique_counts[k], unique_target_values[k]
+        ))
+
+    print('\n')
 
 
 def _run(top_input_dir_name, target_name, first_spc_date_string,
@@ -129,7 +132,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
-    class_fraction_dict = dict(zip(class_fraction_keys, class_fraction_values))
+    class_fraction_dict = dict(list(zip(class_fraction_keys, class_fraction_values)))
     target_param_dict = target_val_utils.target_name_to_params(target_name)
 
     input_target_file_names = []
@@ -157,9 +160,9 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     storm_to_file_indices = numpy.array([], dtype=int)
 
     for i in range(num_files):
-        print 'Reading "{0:s}" from: "{1:s}"...'.format(
+        print('Reading "{0:s}" from: "{1:s}"...'.format(
             target_name, input_target_file_names[i]
-        )
+        ))
 
         target_dict_by_file[i] = target_val_utils.read_target_values(
             netcdf_file_name=input_target_file_names[i],
@@ -187,7 +190,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             numpy.full(this_num_storm_objects, i, dtype=int)
         ))
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     good_indices = numpy.where(
         target_values != target_val_utils.INVALID_STORM_INTEGER
@@ -215,7 +218,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             target_values=target_values, target_name=target_name,
             class_fraction_dict=class_fraction_dict)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     for i in range(num_files):
         these_object_subindices = numpy.where(
@@ -258,14 +261,14 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             spc_date_string=spc_date_string_by_file[i],
             raise_error_if_missing=False)
 
-        print (
+        print((
             'Writing {0:d} downsampled storm objects (out of {1:d} total) to: '
             '"{2:s}"...'
         ).format(
             len(this_output_table.index),
             len(target_dict_by_file[i][target_val_utils.FULL_IDS_KEY]),
             this_new_file_name
-        )
+        ))
 
         target_val_utils.write_target_values(
             storm_to_events_table=this_output_table, target_names=[target_name],

@@ -169,21 +169,23 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
     model_interpretation.check_component_type(component_type_string)
 
     # Read model and metadata.
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
+
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )
 
-    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
-    print 'Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name)
+    print('Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name))
     full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
         storm_metafile_name)
-    print SEPARATOR_STRING
+
+    print(SEPARATOR_STRING)
 
     if 0 < num_examples < len(full_id_strings):
         full_id_strings = full_id_strings[:num_examples]
@@ -199,11 +201,12 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
                 cnn.LAYER_OPERATIONS_KEY]
         )
     )
-    print SEPARATOR_STRING
+
+    print(SEPARATOR_STRING)
 
     if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-        print 'Computing saliency maps for target class {0:d}...'.format(
-            target_class)
+        print('Computing saliency maps for target class {0:d}...'.format(
+            target_class))
 
         list_of_saliency_matrices = (
             saliency_maps.get_saliency_maps_for_class_activation(
@@ -212,9 +215,9 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
         )
 
     elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
-        print (
+        print((
             'Computing saliency maps for neuron {0:s} in layer "{1:s}"...'
-        ).format(str(neuron_indices), layer_name)
+        ).format(str(neuron_indices), layer_name))
 
         list_of_saliency_matrices = (
             saliency_maps.get_saliency_maps_for_neuron_activation(
@@ -225,9 +228,9 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
         )
 
     else:
-        print (
+        print((
             'Computing saliency maps for channel {0:d} in layer "{1:s}"...'
-        ).format(channel_index, layer_name)
+        ).format(channel_index, layer_name))
 
         list_of_saliency_matrices = (
             saliency_maps.get_saliency_maps_for_channel_activation(
@@ -238,12 +241,12 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
                 ideal_activation=ideal_activation)
         )
 
-    print 'Denormalizing model inputs...'
+    print('Denormalizing model inputs...')
     list_of_input_matrices = model_interpretation.denormalize_data(
         list_of_input_matrices=list_of_input_matrices,
         model_metadata_dict=model_metadata_dict)
 
-    print 'Writing saliency maps to file: "{0:s}"...'.format(output_file_name)
+    print('Writing saliency maps to file: "{0:s}"...'.format(output_file_name))
 
     saliency_metadata_dict = saliency_maps.check_metadata(
         component_type_string=component_type_string, target_class=target_class,

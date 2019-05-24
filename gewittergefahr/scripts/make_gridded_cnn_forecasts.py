@@ -133,7 +133,7 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
     :param top_output_dir_name: Same.
     """
 
-    print 'Reading data from: "{0:s}"...'.format(input_prediction_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_prediction_file_name))
     ungridded_forecast_dict = prediction_io.read_ungridded_predictions(
         input_prediction_file_name)
 
@@ -157,7 +157,7 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
     max_lead_time_seconds = target_param_dict[
         target_val_utils.MAX_LEAD_TIME_KEY]
 
-    forecast_column_name = gridded_forecasts._distance_buffer_to_column_name(
+    forecast_column_name = gridded_forecasts._buffer_to_column_name(
         min_buffer_dist_metres=min_buffer_dist_metres,
         max_buffer_dist_metres=max_buffer_dist_metres,
         column_type=gridded_forecasts.FORECAST_COLUMN_TYPE)
@@ -169,11 +169,11 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
     tracking_file_names = []
 
     for this_time_unix_sec in init_times_unix_sec:
-        this_tracking_file_name = tracking_io.find_processed_file(
-            top_processed_dir_name=top_tracking_dir_name,
+        this_tracking_file_name = tracking_io.find_file(
+            top_tracking_dir_name=top_tracking_dir_name,
             tracking_scale_metres2=tracking_scale_metres2,
-            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-            unix_time_sec=this_time_unix_sec,
+            source_name=tracking_utils.SEGMOTION_NAME,
+            valid_time_unix_sec=this_time_unix_sec,
             spc_date_string=time_conversion.time_to_spc_date_string(
                 this_time_unix_sec),
             raise_error_if_missing=True
@@ -181,28 +181,27 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
 
         tracking_file_names.append(this_tracking_file_name)
 
-    storm_object_table = tracking_io.read_many_processed_files(
-        tracking_file_names)
-    print SEPARATOR_STRING
+    storm_object_table = tracking_io.read_many_files(tracking_file_names)
+    print(SEPARATOR_STRING)
 
     tracking_utils.find_storm_objects(
-        all_storm_ids=ungridded_forecast_dict[
+        all_id_strings=ungridded_forecast_dict[
             prediction_io.STORM_IDS_KEY],
         all_times_unix_sec=ungridded_forecast_dict[
             prediction_io.STORM_TIMES_KEY],
-        storm_ids_to_keep=storm_object_table[
-            tracking_utils.STORM_ID_COLUMN].values.tolist(),
+        id_strings_to_keep=storm_object_table[
+            tracking_utils.FULL_ID_COLUMN].values.tolist(),
         times_to_keep_unix_sec=storm_object_table[
-            tracking_utils.TIME_COLUMN].values,
+            tracking_utils.VALID_TIME_COLUMN].values,
         allow_missing=False
     )
 
     sort_indices = tracking_utils.find_storm_objects(
-        all_storm_ids=storm_object_table[
-            tracking_utils.STORM_ID_COLUMN].values.tolist(),
+        all_id_strings=storm_object_table[
+            tracking_utils.FULL_ID_COLUMN].values.tolist(),
         all_times_unix_sec=storm_object_table[
-            tracking_utils.TIME_COLUMN].values,
-        storm_ids_to_keep=ungridded_forecast_dict[
+            tracking_utils.VALID_TIME_COLUMN].values,
+        id_strings_to_keep=ungridded_forecast_dict[
             prediction_io.STORM_IDS_KEY],
         times_to_keep_unix_sec=ungridded_forecast_dict[
             prediction_io.STORM_TIMES_KEY],
@@ -231,24 +230,24 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
         smoothing_e_folding_radius_metres=smoothing_efold_radius_metres,
         smoothing_cutoff_radius_metres=smoothing_cutoff_radius_metres)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     output_file_name = prediction_io.find_file(
         top_prediction_dir_name=top_output_dir_name,
         first_init_time_unix_sec=numpy.min(
-            storm_object_table[tracking_utils.TIME_COLUMN].values),
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values),
         last_init_time_unix_sec=numpy.max(
-            storm_object_table[tracking_utils.TIME_COLUMN].values),
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values),
         gridded=True, raise_error_if_missing=False
     )
 
-    print (
+    print((
         'Writing results (forecast grids for {0:d} initial times) to: '
         '"{1:s}"...'
     ).format(
         len(gridded_forecast_dict[prediction_io.INIT_TIMES_KEY]),
         output_file_name
-    )
+    ))
 
     prediction_io.write_gridded_predictions(
         gridded_forecast_dict=gridded_forecast_dict,

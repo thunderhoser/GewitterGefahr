@@ -167,12 +167,14 @@ def _run(
         neuron_index_matrix = None
 
     # Read model and metadata.
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
-    metadata_file_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(model_file_name)[0])
 
-    print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
+    metadata_file_name = '{0:s}/model_metadata.p'.format(
+        os.path.split(model_file_name)[0]
+    )
+
+    print('Reading metadata from: "{0:s}"...'.format(metadata_file_name))
     model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
@@ -209,7 +211,8 @@ def _run(
     full_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)
     activation_matrix = None
-    print SEPARATOR_STRING
+
+    print(SEPARATOR_STRING)
 
     for _ in range(len(example_file_names)):
         try:
@@ -228,8 +231,8 @@ def _run(
             storm_times_unix_sec, these_times_unix_sec))
 
         if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-            print 'Computing activations for target class {0:d}...'.format(
-                target_class)
+            print('Computing activations for target class {0:d}...'.format(
+                target_class))
 
             this_activation_matrix = (
                 model_activation.get_class_activation_for_examples(
@@ -245,9 +248,9 @@ def _run(
             this_activation_matrix = None
 
             for j in range(neuron_index_matrix.shape[0]):
-                print (
+                print((
                     'Computing activations for neuron {0:s} in layer "{1:s}"...'
-                ).format(str(neuron_index_matrix[j, :]), layer_name)
+                ).format(str(neuron_index_matrix[j, :]), layer_name))
 
                 these_activations = (
                     model_activation.get_neuron_activation_for_examples(
@@ -269,10 +272,10 @@ def _run(
             this_activation_matrix = None
 
             for this_channel_index in channel_indices:
-                print (
+                print((
                     'Computing activations for channel {0:d} in layer '
                     '"{1:s}"...'
-                ).format(this_channel_index, layer_name)
+                ).format(this_channel_index, layer_name))
 
                 these_activations = (
                     model_activation.get_channel_activation_for_examples(
@@ -298,9 +301,9 @@ def _run(
             activation_matrix = numpy.concatenate(
                 (activation_matrix, this_activation_matrix), axis=0)
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
-    print 'Writing activations to file: "{0:s}"...'.format(output_file_name)
+    print('Writing activations to file: "{0:s}"...'.format(output_file_name))
     model_activation.write_file(
         pickle_file_name=output_file_name, activation_matrix=activation_matrix,
         full_id_strings=full_id_strings,

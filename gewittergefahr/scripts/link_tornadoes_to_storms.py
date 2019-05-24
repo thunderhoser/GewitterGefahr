@@ -83,7 +83,7 @@ def _link_tornadoes_one_period(
     storm_to_tornadoes_table = linkage.link_storms_to_tornadoes(
         tracking_file_names=tracking_file_names,
         tornado_directory_name=tornado_dir_name)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     spc_date_string = time_conversion.time_to_spc_date_string(
         tracking_io.file_name_to_time(tracking_file_names[0])
@@ -94,11 +94,12 @@ def _link_tornadoes_one_period(
         event_type_string=linkage.TORNADO_EVENT_STRING,
         spc_date_string=spc_date_string, raise_error_if_missing=False)
 
-    print 'Writing linkages to: "{0:s}"...'.format(output_file_name)
+    print('Writing linkages to: "{0:s}"...'.format(output_file_name))
+
     linkage.write_linkage_file(
         storm_to_events_table=storm_to_tornadoes_table,
         pickle_file_name=output_file_name)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
 
 def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
@@ -136,7 +137,7 @@ def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
                     tornado_dir_name=tornado_dir_name,
                     top_output_dir_name=top_output_dir_name)
 
-                print SEPARATOR_STRING
+                print(SEPARATOR_STRING)
                 tracking_file_names = []
 
             continue

@@ -208,8 +208,8 @@ def _compare_z_score_dicts(first_z_score_dict, second_z_score_dict):
     :return: are_dicts_equal: Boolean flag.
     """
 
-    first_keys = first_z_score_dict.keys()
-    second_keys = second_z_score_dict.keys()
+    first_keys = list(first_z_score_dict.keys())
+    second_keys = list(second_z_score_dict.keys())
     if set(first_keys) != set(second_keys):
         return False
 
@@ -233,7 +233,7 @@ def _compare_frequency_dicts(first_frequency_dict, second_frequency_dict):
     :return: are_dicts_equal: Boolean flag.
     """
 
-    first_keys, first_values = zip(*first_frequency_dict.iteritems())
+    first_keys, first_values = list(zip(*iter(first_frequency_dict.items())))
     first_keys = numpy.array(first_keys)
     first_values = numpy.array(first_values, dtype=int)
 
@@ -241,7 +241,7 @@ def _compare_frequency_dicts(first_frequency_dict, second_frequency_dict):
     first_keys = first_keys[sort_indices]
     first_values = first_values[sort_indices]
 
-    second_keys, second_values = zip(*second_frequency_dict.iteritems())
+    second_keys, second_values = list(zip(*iter(second_frequency_dict.items())))
     second_keys = numpy.array(second_keys)
     second_values = numpy.array(second_values, dtype=int)
 

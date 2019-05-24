@@ -232,8 +232,8 @@ def _convert_to_myrorss_format(
             raise_error_if_missing=False)
         this_myrorss_file_name = this_myrorss_file_name.replace('.gz', '')
 
-        print 'Writing "{0:s}" to MYRORSS file: "{1:s}"...'.format(
-            output_field_name, this_myrorss_file_name)
+        print('Writing "{0:s}" to MYRORSS file: "{1:s}"...'.format(
+            output_field_name, this_myrorss_file_name))
 
         myrorss_and_mrms_io.write_field_to_myrorss_file(
             field_matrix=this_output_matrix,

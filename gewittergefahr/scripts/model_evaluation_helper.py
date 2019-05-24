@@ -50,13 +50,15 @@ def _create_roc_curve(forecast_probabilities, observed_labels, output_dir_name):
 
     title_string = 'AUC = {0:.4f} ... scikit-learn AUC = {1:.4f}'.format(
         auc, scikit_learn_auc)
-    print title_string
+    print(title_string)
 
     figure_file_name = '{0:s}/roc_curve.jpg'.format(output_dir_name)
-    print 'Saving ROC curve to: "{0:s}"...\n'.format(figure_file_name)
+    print('Saving ROC curve to: "{0:s}"...\n'.format(figure_file_name))
 
     _, axes_object = pyplot.subplots(
-        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
     model_eval_plotting.plot_roc_curve(
         axes_object=axes_object, pod_by_threshold=pod_by_threshold,
         pofd_by_threshold=pofd_by_threshold)
@@ -90,13 +92,15 @@ def _create_performance_diagram(
         pod_by_threshold=pod_by_threshold)
 
     title_string = 'AUPD = {0:.4f}'.format(aupd)
-    print title_string
+    print(title_string)
 
     figure_file_name = '{0:s}/performance_diagram.jpg'.format(output_dir_name)
-    print 'Saving performance diagram to: "{0:s}"...\n'.format(figure_file_name)
+    print('Saving performance diagram to: "{0:s}"...\n'.format(figure_file_name))
 
     _, axes_object = pyplot.subplots(
-        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
     model_eval_plotting.plot_performance_diagram(
         axes_object=axes_object, pod_by_threshold=pod_by_threshold,
         success_ratio_by_threshold=success_ratio_by_threshold)
@@ -130,18 +134,20 @@ def _create_attributes_diagram(
         mean_observed_label_by_bin=class_frequency_by_bin,
         num_examples_by_bin=num_examples_by_bin, climatology=climatology)
 
-    print (
+    print((
         'Climatology = {0:.4f} ... reliability = {1:.4f} ... resolution = '
         '{2:.4f} ... BSS = {3:.4f}'
     ).format(climatology, bss_dict[model_eval.RELIABILITY_KEY],
              bss_dict[model_eval.RESOLUTION_KEY],
-             bss_dict[model_eval.BRIER_SKILL_SCORE_KEY])
+             bss_dict[model_eval.BRIER_SKILL_SCORE_KEY]))
 
     figure_file_name = '{0:s}/reliability_curve.jpg'.format(output_dir_name)
-    print 'Saving reliability curve to: "{0:s}"...\n'.format(figure_file_name)
+    print('Saving reliability curve to: "{0:s}"...\n'.format(figure_file_name))
 
     _, axes_object = pyplot.subplots(
-        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
     model_eval_plotting.plot_reliability_curve(
         axes_object=axes_object, mean_forecast_prob_by_bin=mean_forecast_by_bin,
         mean_observed_label_by_bin=class_frequency_by_bin)
@@ -149,16 +155,20 @@ def _create_attributes_diagram(
     title_string = 'REL = {0:.4f} ... RES = {1:.4f} ... BSS = {2:.4f}'.format(
         bss_dict[model_eval.RELIABILITY_KEY],
         bss_dict[model_eval.RESOLUTION_KEY],
-        bss_dict[model_eval.BRIER_SKILL_SCORE_KEY])
+        bss_dict[model_eval.BRIER_SKILL_SCORE_KEY]
+    )
+
     pyplot.title(title_string)
     pyplot.savefig(figure_file_name, dpi=DOTS_PER_INCH)
     pyplot.close()
 
     figure_file_name = '{0:s}/attributes_diagram.jpg'.format(output_dir_name)
-    print 'Saving attributes diagram to: "{0:s}"...\n'.format(figure_file_name)
+    print('Saving attributes diagram to: "{0:s}"...\n'.format(figure_file_name))
 
     figure_object, axes_object = pyplot.subplots(
-        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
     model_eval_plotting.plot_attributes_diagram(
         figure_object=figure_object, axes_object=axes_object,
         mean_forecast_prob_by_bin=mean_forecast_by_bin,
@@ -194,30 +204,33 @@ def run_evaluation(forecast_probabilities, observed_labels, output_dir_name):
 
     # TODO(thunderhoser): Make binarization threshold an input argument to this
     # method.
-    (binarization_threshold, best_csi
-    ) = model_eval.find_best_binarization_threshold(
-        forecast_probabilities=forecast_probabilities,
-        observed_labels=observed_labels,
-        threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
-        criterion_function=model_eval.get_csi,
-        optimization_direction=model_eval.MAX_OPTIMIZATION_DIRECTION,
-        unique_forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS)
+    binarization_threshold, best_csi = (
+        model_eval.find_best_binarization_threshold(
+            forecast_probabilities=forecast_probabilities,
+            observed_labels=observed_labels,
+            threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
+            criterion_function=model_eval.get_csi,
+            optimization_direction=model_eval.MAX_OPTIMIZATION_DIRECTION,
+            unique_forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS)
+    )
 
-    print (
+    print((
         'Best binarization threshold = {0:.4f} ... corresponding CSI = {1:.4f}'
-    ).format(binarization_threshold, best_csi)
+    ).format(binarization_threshold, best_csi))
 
-    print 'Binarizing forecast probabilities...'
+    print('Binarizing forecast probabilities...')
     forecast_labels = model_eval.binarize_forecast_probs(
         forecast_probabilities=forecast_probabilities,
         binarization_threshold=binarization_threshold)
 
-    print 'Creating contingency table...'
+    print('Creating contingency table...')
     contingency_table_as_dict = model_eval.get_contingency_table(
         forecast_labels=forecast_labels, observed_labels=observed_labels)
-    print '{0:s}\n'.format(str(contingency_table_as_dict))
 
-    print 'Computing performance metrics...'
+    print('{0:s}\n'.format(str(contingency_table_as_dict)))
+
+    print('Computing performance metrics...')
+
     pod = model_eval.get_pod(contingency_table_as_dict)
     pofd = model_eval.get_pofd(contingency_table_as_dict)
     success_ratio = model_eval.get_success_ratio(contingency_table_as_dict)
@@ -228,30 +241,31 @@ def run_evaluation(forecast_probabilities, observed_labels, output_dir_name):
     peirce_score = model_eval.get_peirce_score(contingency_table_as_dict)
     heidke_score = model_eval.get_heidke_score(contingency_table_as_dict)
 
-    print (
+    print((
         'POD = {0:.4f} ... POFD = {1:.4f} ... success ratio = {2:.4f} ... '
         'FOCN = {3:.4f} ... accuracy = {4:.4f} ... CSI = {5:.4f} ... frequency '
         'bias = {6:.4f} ... Peirce score = {7:.4f} ... Heidke score = {8:.4f}\n'
     ).format(pod, pofd, success_ratio, focn, accuracy, csi, frequency_bias,
-             peirce_score, heidke_score)
+             peirce_score, heidke_score))
 
     auc, scikit_learn_auc = _create_roc_curve(
         forecast_probabilities=forecast_probabilities,
         observed_labels=observed_labels, output_dir_name=output_dir_name)
-    print '\n'
+    print('\n')
 
     bss_dict = _create_attributes_diagram(
         forecast_probabilities=forecast_probabilities,
         observed_labels=observed_labels, output_dir_name=output_dir_name)
-    print '\n'
+    print('\n')
 
     aupd = _create_performance_diagram(
         forecast_probabilities=forecast_probabilities,
         observed_labels=observed_labels, output_dir_name=output_dir_name)
-    print '\n'
+    print('\n')
 
     evaluation_file_name = '{0:s}/model_evaluation.p'.format(output_dir_name)
-    print 'Writing results to: "{0:s}"...'.format(evaluation_file_name)
+    print('Writing results to: "{0:s}"...'.format(evaluation_file_name))
+
     model_eval.write_results(
         forecast_probabilities=forecast_probabilities,
         observed_labels=observed_labels,

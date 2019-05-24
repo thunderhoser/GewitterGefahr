@@ -20,9 +20,11 @@ DATA_FILE_HELP_STRING = (
     'Preferably input data for evaluation should be independent of the training'
     ' data (the best way to ensure independence is separate training and '
     'evaluation data by year), but this is not enforced by the code.')
+
 MODEL_FILE_HELP_STRING = (
     'Path to file with trained model (readable by '
     '`gradient_boosting.read_model`).')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures and performance metrics (in general, '
     'results of model evaluation) will be saved here.')
@@ -52,7 +54,7 @@ def _evaluate_model(
         designed for binary classification only.
     """
 
-    print 'Reading input data from: "{0:s}"...'.format(input_data_file_name)
+    print('Reading input data from: "{0:s}"...'.format(input_data_file_name))
     feature_matrix, target_values, num_classes = cnn.read_features(
         input_data_file_name)
 
@@ -61,13 +63,16 @@ def _evaluate_model(
             'The target variable has {0:d} classes.  This script is designed '
             'for binary classification only.'
         ).format(num_classes)
+
         raise ValueError(error_string)
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = gradient_boosting.read_model(model_file_name)
 
-    print 'Generating predictions for all {0:d} storm objects...\n'.format(
-        len(target_values))
+    print('Generating predictions for all {0:d} storm objects...\n'.format(
+        len(target_values)
+    ))
+
     forecast_probabilities = gradient_boosting.apply_model(
         model_object=model_object, feature_matrix=feature_matrix)[:, -1]
 

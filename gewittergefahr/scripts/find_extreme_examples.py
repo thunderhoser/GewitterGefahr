@@ -155,7 +155,7 @@ def _read_target_values(
         os.path.split(model_file_name)[0]
     )
 
-    print 'Reading metadata from: "{0:s}"...'.format(model_metadata_file_name)
+    print('Reading metadata from: "{0:s}"...'.format(model_metadata_file_name))
     model_metadata_dict = cnn.read_model_metadata(model_metadata_file_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
@@ -192,7 +192,7 @@ def _read_target_values(
             spc_date_string=unique_spc_date_strings_numpy[i]
         )
 
-        print 'Reading data from: "{0:s}"...'.format(this_target_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_target_file_name))
         this_target_value_dict = target_val_utils.read_target_values(
             netcdf_file_name=this_target_file_name, target_name=target_name)
 
@@ -269,8 +269,9 @@ def _run(
         directory_name=output_dir_name)
 
     # Read activations.
-    print 'Reading activations from: "{0:s}"...'.format(
-        input_activation_file_name)
+    print('Reading activations from: "{0:s}"...'.format(
+        input_activation_file_name
+    ))
     activation_matrix, activation_metadata_dict = model_activation.read_file(
         input_activation_file_name)
 
@@ -308,9 +309,9 @@ def _run(
         high_activation_file_name = '{0:s}/high_activation_examples.p'.format(
             output_dir_name)
 
-        print (
+        print((
             'Writing IDs and times for high-activation examples to: "{0:s}"...'
-        ).format(high_activation_file_name)
+        ).format(high_activation_file_name))
 
         this_activation_matrix = numpy.reshape(
             storm_activations[high_indices], (len(high_indices), 1)
@@ -340,9 +341,9 @@ def _run(
         low_activation_file_name = '{0:s}/low_activation_examples.p'.format(
             output_dir_name)
 
-        print (
+        print((
             'Writing IDs and times for low-activation examples to: "{0:s}"...'
-        ).format(low_activation_file_name)
+        ).format(low_activation_file_name))
 
         this_activation_matrix = numpy.reshape(
             storm_activations[low_indices], (len(low_indices), 1)
@@ -370,12 +371,12 @@ def _run(
     if num_hits + num_misses + num_false_alarms + num_correct_nulls == 0:
         return
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     target_value_dict = _read_target_values(
         top_target_dir_name=top_target_dir_name,
         storm_activations=storm_activations,
         activation_metadata_dict=activation_metadata_dict)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     full_id_strings = target_value_dict[FULL_IDS_KEY]
     storm_times_unix_sec = target_value_dict[STORM_TIMES_KEY]
@@ -398,8 +399,8 @@ def _run(
     # Write best hits to file.
     if len(hit_indices) > 0:
         best_hit_file_name = '{0:s}/best_hits.p'.format(output_dir_name)
-        print 'Writing IDs and times for best hits to: "{0:s}"...'.format(
-            best_hit_file_name)
+        print('Writing IDs and times for best hits to: "{0:s}"...'.format(
+            best_hit_file_name))
 
         this_activation_matrix = numpy.reshape(
             storm_activations[hit_indices], (len(hit_indices), 1)
@@ -427,8 +428,8 @@ def _run(
     # Write worst misses to file.
     if len(miss_indices) > 0:
         worst_miss_file_name = '{0:s}/worst_misses.p'.format(output_dir_name)
-        print 'Writing IDs and times for worst misses to: "{0:s}"...'.format(
-            worst_miss_file_name)
+        print('Writing IDs and times for worst misses to: "{0:s}"...'.format(
+            worst_miss_file_name))
 
         this_activation_matrix = numpy.reshape(
             storm_activations[miss_indices], (len(miss_indices), 1)
@@ -458,9 +459,9 @@ def _run(
         worst_fa_file_name = '{0:s}/worst_false_alarms.p'.format(
             output_dir_name)
 
-        print (
+        print((
             'Writing IDs and times for worst false alarms to: "{0:s}"...'
-        ).format(worst_fa_file_name)
+        ).format(worst_fa_file_name))
 
         this_activation_matrix = numpy.reshape(
             storm_activations[false_alarm_indices],
@@ -491,9 +492,9 @@ def _run(
         best_cn_file_name = '{0:s}/best_correct_nulls.p'.format(
             output_dir_name)
 
-        print (
+        print((
             'Writing IDs and times for best correct nulls to: "{0:s}"...'
-        ).format(best_cn_file_name)
+        ).format(best_cn_file_name))
 
         this_activation_matrix = numpy.reshape(
             storm_activations[correct_null_indices],

@@ -135,7 +135,7 @@ def _interp_soundings(
     )[0]
 
     storm_object_table = tracking_io.read_many_files(tracking_file_names)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     first_storm_time_unix_sec = numpy.min(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
@@ -205,7 +205,7 @@ def _interp_soundings(
         wgrib_exe_name=WGRIB_EXE_NAME, wgrib2_exe_name=WGRIB2_EXE_NAME,
         raise_error_if_missing=False)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     num_lead_times = len(lead_times_seconds)
 
     for k in range(num_lead_times):
@@ -217,7 +217,9 @@ def _interp_soundings(
             lag_time_for_convective_contamination_sec,
             raise_error_if_missing=False)
 
-        print 'Writing soundings to: "{0:s}"...'.format(this_sounding_file_name)
+        print('Writing soundings to: "{0:s}"...'.format(
+            this_sounding_file_name))
+
         soundings.write_soundings(
             netcdf_file_name=this_sounding_file_name,
             sounding_dict_height_coords=sounding_dict_by_lead_time[k],

@@ -115,7 +115,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         list_of_storm_object_tables.append(this_storm_object_table)
 
         if this_spc_date_string != spc_date_strings[-1]:
-            print MINOR_SEPARATOR_STRING
+            print(MINOR_SEPARATOR_STRING)
 
         if len(list_of_storm_object_tables) == 1:
             continue
@@ -124,7 +124,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             list_of_storm_object_tables[0], axis=1
         )[0]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     storm_object_table = pandas.concat(
         list_of_storm_object_tables, axis=0, ignore_index=True)
@@ -134,7 +134,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         top_myrorss_dir_name=top_myrorss_dir_name,
         radar_field_name=radar_field_name)
 
-    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     tracking_eval.write_file(evaluation_dict=evaluation_dict,
                              pickle_file_name=output_file_name)
 

@@ -192,10 +192,11 @@ def _extract_storm_images(
                 target_val_utils.EVENT_TYPE_KEY],
             spc_date_string=spc_date_string)
 
-        print 'Reading data from: "{0:s}"...'.format(target_file_name)
+        print('Reading data from: "{0:s}"...'.format(target_file_name))
         target_dict = target_val_utils.read_target_values(
             netcdf_file_name=target_file_name, target_name=target_name)
-        print '\n'
+
+        print('\n')
 
     # Find storm objects on the given SPC date.
     tracking_file_names = tracking_io.find_files_one_spc_date(
@@ -209,13 +210,14 @@ def _extract_storm_images(
     storm_object_table = tracking_io.read_many_files(
         tracking_file_names
     )[storm_images.STORM_COLUMNS_NEEDED]
-    print SEPARATOR_STRING
+
+    print(SEPARATOR_STRING)
 
     if target_name is not None:
-        print (
+        print((
             'Removing storm objects without target values (variable = '
             '"{0:s}")...'
-        ).format(target_name)
+        ).format(target_name))
 
         these_indices = tracking_utils.find_storm_objects(
             all_id_strings=storm_object_table[
@@ -231,9 +233,9 @@ def _extract_storm_images(
         storm_object_table = storm_object_table.iloc[these_indices]
         num_storm_objects = len(storm_object_table.index)
 
-        print 'Removed {0:d} of {1:d} storm objects!\n'.format(
+        print('Removed {0:d} of {1:d} storm objects!\n'.format(
             num_storm_objects_orig - num_storm_objects, num_storm_objects_orig
-        )
+        ))
 
     # Extract storm-centered radar images.
     storm_images.extract_storm_images_gridrad(
