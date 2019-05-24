@@ -235,10 +235,13 @@ def generator_2d_or_3d(option_dict, num_examples_total):
     sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
 
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
-    normalization_param_file_name = option_dict[
-        trainval_io.NORMALIZATION_FILE_KEY]
-    min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
-    max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+
+    if normalization_type_string is not None:
+        normalization_param_file_name = option_dict[
+            trainval_io.NORMALIZATION_FILE_KEY
+        ]
+        min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
+        max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
 
     binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
     refl_masking_threshold_dbz = option_dict[trainval_io.REFLECTIVITY_MASK_KEY]
@@ -460,10 +463,13 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
     sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
 
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
-    normalization_param_file_name = option_dict[
-        trainval_io.NORMALIZATION_FILE_KEY]
-    min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
-    max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+
+    if normalization_type_string is not None:
+        normalization_param_file_name = option_dict[
+            trainval_io.NORMALIZATION_FILE_KEY
+        ]
+        min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
+        max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
 
     binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
 
@@ -710,10 +716,13 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
     sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
 
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
-    normalization_param_file_name = option_dict[
-        trainval_io.NORMALIZATION_FILE_KEY]
-    min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
-    max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+
+    if normalization_type_string is not None:
+        normalization_param_file_name = option_dict[
+            trainval_io.NORMALIZATION_FILE_KEY
+        ]
+        min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
+        max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
 
     binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
 
