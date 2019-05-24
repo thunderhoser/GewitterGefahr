@@ -8,6 +8,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import number_rounding
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 
@@ -110,7 +111,7 @@ def _run(input_file_name, border_colour, polygon_colour, min_plot_latitude_deg,
     :param output_file_name: Same.
     """
 
-    print 'Reading data from: "{0:s}"...'.format(input_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_file_name))
     pickle_file_handle = open(input_file_name, 'rb')
     warning_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
@@ -229,7 +230,9 @@ def _run(input_file_name, border_colour, polygon_colour, min_plot_latitude_deg,
             these_x_coords_metres, these_y_coords_metres, color=polygon_colour,
             linestyle='solid', linewidth=LINE_WIDTH)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 

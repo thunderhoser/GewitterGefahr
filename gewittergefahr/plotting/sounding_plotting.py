@@ -230,8 +230,10 @@ def plot_many_soundings(
                     dir=temp_directory_name, delete=False).name
             )
 
-            print 'Saving sounding to: "{0:s}"...'.format(
-                temp_file_names[this_sounding_index])
+            print('Saving sounding to: "{0:s}"...'.format(
+                temp_file_names[this_sounding_index]
+            ))
+
             pyplot.savefig(
                 temp_file_names[this_sounding_index], dpi=DOTS_PER_INCH)
             pyplot.close()
@@ -246,8 +248,8 @@ def plot_many_soundings(
                 output_file_name=temp_file_names[this_sounding_index],
                 output_size_pixels=SINGLE_IMAGE_SIZE_PX)
 
-    print 'Concatenating panels into one figure: "{0:s}"...'.format(
-        output_file_name)
+    print('Concatenating panels into one figure: "{0:s}"...'.format(
+        output_file_name))
 
     imagemagick_utils.concatenate_images(
         input_file_names=temp_file_names, output_file_name=output_file_name,

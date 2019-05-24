@@ -89,7 +89,7 @@ def _run(input_shapefile_name, first_time_string, last_time_string,
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, INPUT_TIME_FORMAT)
 
-    print 'Reading data from: "{0:s}"...'.format(input_shapefile_name)
+    print('Reading data from: "{0:s}"...'.format(input_shapefile_name))
     shapefile_handle = shapefile.Reader(input_shapefile_name)
 
     list_of_polygon_objects_latlng = []
@@ -116,7 +116,7 @@ def _run(input_shapefile_name, first_time_string, last_time_string,
         if this_end_time_unix_sec < first_time_unix_sec:
             continue
 
-        print this_record_object.record
+        print(this_record_object.record)
 
         this_area_dict = this_record_object.shape.__geo_interface__
 
@@ -171,7 +171,9 @@ def _run(input_shapefile_name, first_time_string, last_time_string,
     warning_table = pandas.DataFrame.from_dict(warning_dict)
     # print warning_table
 
-    print 'Writing warnings to file: "{0:s}"...'.format(output_pickle_file_name)
+    print('Writing warnings to file: "{0:s}"...'.format(
+        output_pickle_file_name))
+
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=output_pickle_file_name)
 

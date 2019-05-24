@@ -10,6 +10,7 @@ from descartes import PolygonPatch
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 
@@ -301,7 +302,9 @@ def _run(input_outlook_file_name, input_warning_file_name, border_colour,
     :param output_file_name: Same.
     """
 
-    print 'Reading SPC outlook from: "{0:s}"...'.format(input_outlook_file_name)
+    print('Reading SPC outlook from: "{0:s}"...'.format(
+        input_outlook_file_name))
+
     pickle_file_handle = open(input_outlook_file_name, 'rb')
     outlook_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
@@ -319,8 +322,8 @@ def _run(input_outlook_file_name, input_warning_file_name, border_colour,
     if input_warning_file_name in ['', 'None']:
         warning_table = None
     else:
-        print 'Reading tornado warnings from: "{0:s}"...'.format(
-            input_warning_file_name)
+        print('Reading tornado warnings from: "{0:s}"...'.format(
+            input_warning_file_name))
 
         pickle_file_handle = open(input_warning_file_name, 'rb')
         warning_table = pickle.load(pickle_file_handle)
@@ -340,11 +343,13 @@ def _run(input_outlook_file_name, input_warning_file_name, border_colour,
     min_plot_longitude_deg = longitude_limits_deg[0]
     max_plot_longitude_deg = longitude_limits_deg[1]
 
-    print (
+    print((
         'Plotting limits = [{0:.2f}, {1:.2f}] deg N and [{2:.2f}, {3:.2f}] '
         'deg E'
-    ).format(min_plot_latitude_deg, max_plot_latitude_deg,
-             min_plot_longitude_deg, max_plot_longitude_deg)
+    ).format(
+        min_plot_latitude_deg, max_plot_latitude_deg, min_plot_longitude_deg,
+        max_plot_longitude_deg
+    ))
 
     latlng_limit_dict = {
         plotting_utils.MIN_LATITUDE_KEY: min_plot_latitude_deg,
@@ -458,7 +463,9 @@ def _run(input_outlook_file_name, input_warning_file_name, border_colour,
 
     axes_object.legend(legend_handles, legend_strings, loc='upper left')
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 

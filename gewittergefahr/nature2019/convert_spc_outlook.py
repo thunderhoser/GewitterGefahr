@@ -76,7 +76,7 @@ def _run(input_shapefile_name, output_pickle_file_name):
         central_longitude_deg=CENTRAL_LONGITUDE_DEG,
         ellipsoid_name=ELLIPSOID_NAME)
 
-    print 'Reading data from: "{0:s}"...'.format(input_shapefile_name)
+    print('Reading data from: "{0:s}"...'.format(input_shapefile_name))
     shapefile_handle = shapefile.Reader(input_shapefile_name)
 
     list_of_polygon_objects_latlng = []
@@ -127,10 +127,11 @@ def _run(input_shapefile_name, output_pickle_file_name):
     }
 
     outlook_table = pandas.DataFrame.from_dict(outlook_dict)
-    print outlook_table
+    # print(outlook_table)
 
-    print 'Writing outlook polygons to file: "{0:s}"...'.format(
-        output_pickle_file_name)
+    print('Writing outlook polygons to file: "{0:s}"...'.format(
+        output_pickle_file_name))
+
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=output_pickle_file_name)
 

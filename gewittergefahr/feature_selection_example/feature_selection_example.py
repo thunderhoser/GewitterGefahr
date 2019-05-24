@@ -52,9 +52,9 @@ for this_column in FEATURE_COLUMNS:
     INPUT_COLUMN_TYPE_DICT.update({this_column: float})
 INPUT_COLUMN_TYPE_DICT.update({LABEL_COLUMN: str})
 
-WORKING_DIRECTORY_NAME = os.path.dirname(__file__)
+WORKING_DIR_NAME = os.path.dirname(__file__)
 DEFAULT_INPUT_FILE_NAME = os.path.join(
-    WORKING_DIRECTORY_NAME, 'feature_selection_data.csv')
+    WORKING_DIR_NAME, 'feature_selection_data.csv')
 
 
 def _labels_from_string_to_integer(string_labels):
@@ -150,23 +150,31 @@ def _print_forward_selection_results(forward_selection_dict):
         `feature_selection.floating_sfs`.
     """
 
-    print ('\nFeatures were selected in the following order: ' + str(
-        forward_selection_dict[feature_selection.SELECTED_FEATURES_KEY]))
+    print('\nFeatures were selected in the following order: {0:s}'.format(
+        str(forward_selection_dict[feature_selection.SELECTED_FEATURES_KEY])
+    ))
 
     num_selected_features = len(
-        forward_selection_dict[feature_selection.SELECTED_FEATURES_KEY])
+        forward_selection_dict[feature_selection.SELECTED_FEATURES_KEY]
+    )
 
-    print ('Validation AUC and cross-entropy of {0:d}-feature model: {1:.3f}, '
-           '{2:.4f}').format(
-               num_selected_features,
-               forward_selection_dict[feature_selection.VALIDATION_AUC_KEY],
-               forward_selection_dict[
-                   feature_selection.VALIDATION_XENTROPY_KEY])
-    print ('Testing AUC and cross-entropy of {0:d}-feature model: {1:.3f}, '
-           '{2:.4f}').format(
-               num_selected_features,
-               forward_selection_dict[feature_selection.TESTING_AUC_KEY],
-               forward_selection_dict[feature_selection.TESTING_XENTROPY_KEY])
+    print((
+        'Validation AUC and cross-entropy of {0:d}-feature model: {1:.3f}, '
+        '{2:.4f}'
+    ).format(
+        num_selected_features,
+        forward_selection_dict[feature_selection.VALIDATION_AUC_KEY],
+        forward_selection_dict[feature_selection.VALIDATION_XENTROPY_KEY]
+    ))
+
+    print((
+        'Testing AUC and cross-entropy of {0:d}-feature model: {1:.3f}, '
+        '{2:.4f}'
+    ).format(
+        num_selected_features,
+        forward_selection_dict[feature_selection.TESTING_AUC_KEY],
+        forward_selection_dict[feature_selection.TESTING_XENTROPY_KEY]
+    ))
 
 
 def _print_backward_selection_results(backward_selection_dict):
@@ -178,25 +186,35 @@ def _print_backward_selection_results(backward_selection_dict):
         `feature_selection.floating_sbs`.
     """
 
-    print ('\nFeatures were removed in the following order: ' + str(
-        backward_selection_dict[feature_selection.REMOVED_FEATURES_KEY]))
-    print ('The following features remain (were selected): ' + str(
-        backward_selection_dict[feature_selection.SELECTED_FEATURES_KEY]))
+    print('\nFeatures were removed in the following order: {0:s}'.format(
+        backward_selection_dict[feature_selection.REMOVED_FEATURES_KEY]
+    ))
+
+    print('The following features remain (were selected): {0:s}'.format(
+        backward_selection_dict[feature_selection.SELECTED_FEATURES_KEY]
+    ))
 
     num_selected_features = len(
-        backward_selection_dict[feature_selection.SELECTED_FEATURES_KEY])
+        backward_selection_dict[feature_selection.SELECTED_FEATURES_KEY]
+    )
 
-    print ('Validation AUC and cross-entropy of {0:d}-feature model: {1:.3f}, '
-           '{2:.4f}').format(
-               num_selected_features,
-               backward_selection_dict[feature_selection.VALIDATION_AUC_KEY],
-               backward_selection_dict[
-                   feature_selection.VALIDATION_XENTROPY_KEY])
-    print ('Testing AUC and cross-entropy of {0:d}-feature model: {1:.3f}, '
-           '{2:.4f}').format(
-               num_selected_features,
-               backward_selection_dict[feature_selection.TESTING_AUC_KEY],
-               backward_selection_dict[feature_selection.TESTING_XENTROPY_KEY])
+    print((
+        'Validation AUC and cross-entropy of {0:d}-feature model: {1:.3f}, '
+        '{2:.4f}'
+    ).format(
+        num_selected_features,
+        backward_selection_dict[feature_selection.VALIDATION_AUC_KEY],
+        backward_selection_dict[feature_selection.VALIDATION_XENTROPY_KEY]
+    ))
+
+    print((
+        'Testing AUC and cross-entropy of {0:d}-feature model: {1:.3f}, '
+        '{2:.4f}'
+    ).format(
+        num_selected_features,
+        backward_selection_dict[feature_selection.TESTING_AUC_KEY],
+        backward_selection_dict[feature_selection.TESTING_XENTROPY_KEY]
+    ))
 
 
 if __name__ == '__main__':
@@ -211,11 +229,12 @@ if __name__ == '__main__':
         target_name=LABEL_COLUMN,
         estimator_object=sklearn.neural_network.MLPClassifier(),
         num_features_to_add_per_step=NUM_FEATURES_TO_ADD_PER_STEP)
+
     _print_forward_selection_results(SFS_DICTIONARY)
 
-    SFS_IMAGE_FILE_NAME = '{0:s}/sfs_results.jpg'.format(WORKING_DIRECTORY_NAME)
-    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-        SFS_IMAGE_FILE_NAME, SEPARATOR_STRING)
+    SFS_IMAGE_FILE_NAME = '{0:s}/sfs_results.jpg'.format(WORKING_DIR_NAME)
+    print('Saving bar graph to "{0:s}"...{1:s}'.format(
+        SFS_IMAGE_FILE_NAME, SEPARATOR_STRING))
 
     feature_selection.plot_forward_selection_results(
         SFS_DICTIONARY, plot_feature_names=True)
@@ -231,13 +250,15 @@ if __name__ == '__main__':
         num_features_to_add_per_forward_step=NUM_FEATURES_TO_ADD_PER_STEP,
         num_features_to_remove_per_backward_step=
         NUM_FEATURES_TO_REMOVE_PER_STEP)
+
     _print_forward_selection_results(SFS_WITH_BACKWARD_STEPS_DICT)
 
     SFS_BACKWARD_IMAGE_FILE_NAME = (
-        '{0:s}/sfs_with_backward_steps_results.jpg'.format(
-            WORKING_DIRECTORY_NAME))
-    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-        SFS_BACKWARD_IMAGE_FILE_NAME, SEPARATOR_STRING)
+        '{0:s}/sfs_with_backward_steps_results.jpg'
+    ).format(WORKING_DIR_NAME)
+
+    print('Saving bar graph to "{0:s}"...{1:s}'.format(
+        SFS_BACKWARD_IMAGE_FILE_NAME, SEPARATOR_STRING))
 
     feature_selection.plot_forward_selection_results(
         SFS_WITH_BACKWARD_STEPS_DICT, plot_feature_names=True)
@@ -251,12 +272,12 @@ if __name__ == '__main__':
         target_name=LABEL_COLUMN,
         estimator_object=sklearn.neural_network.MLPClassifier(),
         num_features_to_add_per_step=NUM_FEATURES_TO_ADD_PER_STEP)
+
     _print_forward_selection_results(SFFS_DICTIONARY)
 
-    SFFS_IMAGE_FILE_NAME = '{0:s}/sffs_results.jpg'.format(
-        WORKING_DIRECTORY_NAME)
-    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-        SFFS_IMAGE_FILE_NAME, SEPARATOR_STRING)
+    SFFS_IMAGE_FILE_NAME = '{0:s}/sffs_results.jpg'.format(WORKING_DIR_NAME)
+    print('Saving bar graph to "{0:s}"...{1:s}'.format(
+        SFFS_IMAGE_FILE_NAME, SEPARATOR_STRING))
 
     feature_selection.plot_forward_selection_results(
         SFFS_DICTIONARY, plot_feature_names=True)
@@ -270,11 +291,12 @@ if __name__ == '__main__':
         target_name=LABEL_COLUMN,
         estimator_object=sklearn.neural_network.MLPClassifier(),
         num_features_to_remove_per_step=NUM_FEATURES_TO_REMOVE_PER_STEP)
+
     _print_backward_selection_results(SBS_DICTIONARY)
 
-    SBS_IMAGE_FILE_NAME = '{0:s}/sbs_results.jpg'.format(WORKING_DIRECTORY_NAME)
-    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-        SBS_IMAGE_FILE_NAME, SEPARATOR_STRING)
+    SBS_IMAGE_FILE_NAME = '{0:s}/sbs_results.jpg'.format(WORKING_DIR_NAME)
+    print('Saving bar graph to "{0:s}"...{1:s}'.format(
+        SBS_IMAGE_FILE_NAME, SEPARATOR_STRING))
 
     feature_selection.plot_backward_selection_results(
         SBS_DICTIONARY, plot_feature_names=True)
@@ -290,13 +312,15 @@ if __name__ == '__main__':
         num_features_to_add_per_forward_step=NUM_FEATURES_TO_ADD_PER_STEP,
         num_features_to_remove_per_backward_step=
         NUM_FEATURES_TO_REMOVE_PER_STEP)
+
     _print_backward_selection_results(SBS_WITH_FORWARD_STEPS_DICT)
 
     SBS_FORWARD_IMAGE_FILE_NAME = (
-        '{0:s}/sbs_with_forward_steps_results.jpg'.format(
-            WORKING_DIRECTORY_NAME))
-    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-        SBS_FORWARD_IMAGE_FILE_NAME, SEPARATOR_STRING)
+        '{0:s}/sbs_with_forward_steps_results.jpg'
+    ).format(WORKING_DIR_NAME)
+
+    print('Saving bar graph to "{0:s}"...{1:s}'.format(
+        SBS_FORWARD_IMAGE_FILE_NAME, SEPARATOR_STRING))
 
     feature_selection.plot_backward_selection_results(
         SBS_WITH_FORWARD_STEPS_DICT, plot_feature_names=True)
@@ -310,12 +334,12 @@ if __name__ == '__main__':
         target_name=LABEL_COLUMN,
         estimator_object=sklearn.neural_network.MLPClassifier(),
         num_features_to_remove_per_step=NUM_FEATURES_TO_REMOVE_PER_STEP)
+
     _print_backward_selection_results(SBFS_DICTIONARY)
 
-    SBFS_IMAGE_FILE_NAME = '{0:s}/sbfs_results.jpg'.format(
-        WORKING_DIRECTORY_NAME)
-    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-        SBFS_IMAGE_FILE_NAME, SEPARATOR_STRING)
+    SBFS_IMAGE_FILE_NAME = '{0:s}/sbfs_results.jpg'.format(WORKING_DIR_NAME)
+    print('Saving bar graph to "{0:s}"...{1:s}'.format(
+        SBFS_IMAGE_FILE_NAME, SEPARATOR_STRING))
 
     feature_selection.plot_backward_selection_results(
         SBFS_DICTIONARY, plot_feature_names=True)
@@ -327,33 +351,35 @@ if __name__ == '__main__':
     (PERMUTATION_TABLE,
      ORIG_VALIDATION_COST,
      ORIG_VALIDATION_CROSS_ENTROPY,
-     ORIG_VALIDATION_AUC) = feature_selection.permutation_selection(
+     ORIG_VALIDATION_AUC
+    ) = feature_selection.permutation_selection(
          training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
          feature_names=FEATURE_COLUMNS, target_name=LABEL_COLUMN,
-         estimator_object=sklearn.neural_network.MLPClassifier())
+         estimator_object=sklearn.neural_network.MLPClassifier()
+    )
 
-    print '\nFeatures were permuted in the following order:'
-    print (
-        'No permutation: validation AUC = {0:.3f}, '
-        'cross-entropy = {1:.4f}').format(
-            ORIG_VALIDATION_AUC, ORIG_VALIDATION_CROSS_ENTROPY)
+    print('\nFeatures were permuted in the following order:')
+    print((
+        'No permutation: validation AUC = {0:.3f}, cross-entropy = {1:.4f}'
+    ).format(ORIG_VALIDATION_AUC, ORIG_VALIDATION_CROSS_ENTROPY))
 
     NUM_FEATURES = len(PERMUTATION_TABLE.index)
     for f in range(NUM_FEATURES):
-        print (
+        print((
             'Permutation #{0:d} ({1:s}): new validation AUC = {2:.3f}, '
-            'cross-entropy = {3:.4f}').format(
-                f + 1,
-                PERMUTATION_TABLE[feature_selection.FEATURE_NAME_KEY].values[f],
-                PERMUTATION_TABLE[
-                    feature_selection.VALIDATION_AUC_KEY].values[f],
-                PERMUTATION_TABLE[
-                    feature_selection.VALIDATION_XENTROPY_KEY].values[f])
+            'cross-entropy = {3:.4f}'
+        ).format(
+            f + 1,
+            PERMUTATION_TABLE[feature_selection.FEATURE_NAME_KEY].values[f],
+            PERMUTATION_TABLE[feature_selection.VALIDATION_AUC_KEY].values[f],
+            PERMUTATION_TABLE[
+                feature_selection.VALIDATION_XENTROPY_KEY].values[f]
+        ))
 
     PERMUTATION_IMAGE_FILE_NAME = '{0:s}/permutation_results.jpg'.format(
-        WORKING_DIRECTORY_NAME)
-    print '\nSaving bar graph to "{0:s}"...{1:s}'.format(
-        PERMUTATION_IMAGE_FILE_NAME, SEPARATOR_STRING)
+        WORKING_DIR_NAME)
+    print('\nSaving bar graph to "{0:s}"...{1:s}'.format(
+        PERMUTATION_IMAGE_FILE_NAME, SEPARATOR_STRING))
 
     feature_selection.plot_permutation_results(
         PERMUTATION_TABLE, plot_feature_names=True,

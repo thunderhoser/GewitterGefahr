@@ -53,7 +53,6 @@ def plot_histogram(
     _, num_examples_by_bin = histograms.create_histogram(
         input_values=input_values, num_bins=num_bins, min_value=min_value,
         max_value=max_value)
-    print num_examples_by_bin
 
     fraction_of_examples_by_bin = (
             num_examples_by_bin.astype(float) / numpy.sum(num_examples_by_bin))
