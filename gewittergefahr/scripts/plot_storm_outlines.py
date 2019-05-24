@@ -440,7 +440,7 @@ def _plot_storm_outlines_one_time(
     output_file_name = '{0:s}/storm_outlines_{1:s}.jpg'.format(
         output_dir_name, abbrev_time_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -500,7 +500,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         )
 
     storm_object_table = tracking_io.read_many_files(tracking_file_names)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     latitude_limits_deg, longitude_limits_deg = _get_plotting_limits(
         min_plot_latitude_deg=min_plot_latitude_deg,
@@ -563,8 +563,8 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
                 height_m_asl=radar_height_m_asl,
                 raise_error_if_missing=True)
 
-            print 'Reading data from: "{0:s}"...'.format(
-                this_myrorss_file_name)
+            print('Reading data from: "{0:s}"...'.format(
+                this_myrorss_file_name))
 
             this_metadata_dict = (
                 myrorss_and_mrms_io.read_metadata_from_raw_file(

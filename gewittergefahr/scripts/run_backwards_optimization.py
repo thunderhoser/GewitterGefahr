@@ -240,12 +240,12 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         os.path.split(model_file_name)[0]
     )
 
-    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
 
     if init_function_name is None:
-        print 'Reading storm metadata from: "{0:s}"...'.format(
-            storm_metafile_name)
+        print('Reading storm metadata from: "{0:s}"...'.format(
+            storm_metafile_name))
 
         full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
             storm_metafile_name)
@@ -264,7 +264,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         )[0]
 
         num_examples = list_of_init_matrices[0].shape[0]
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
     else:
         full_id_strings = None
@@ -275,7 +275,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
             init_function_name=init_function_name,
             model_metadata_dict=model_metadata_dict)
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
 
     list_of_optimized_matrices = None
@@ -287,9 +287,9 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
             this_init_arg = init_function
 
         if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-            print (
+            print((
                 '\nOptimizing {0:d}th of {1:d} images for target class {2:d}...'
-            ).format(i + 1, num_examples, target_class)
+            ).format(i + 1, num_examples, target_class))
 
             these_optimized_matrices = backwards_opt.optimize_input_for_class(
                 model_object=model_object, target_class=target_class,
@@ -297,10 +297,10 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 num_iterations=num_iterations, learning_rate=learning_rate)
 
         elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
-            print (
+            print((
                 '\nOptimizing {0:d}th of {1:d} images for neuron {2:s} in layer'
                 ' "{3:s}"...'
-            ).format(i + 1, num_examples, str(neuron_indices), layer_name)
+            ).format(i + 1, num_examples, str(neuron_indices), layer_name))
 
             these_optimized_matrices = backwards_opt.optimize_input_for_neuron(
                 model_object=model_object, layer_name=layer_name,
@@ -310,10 +310,10 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 ideal_activation=ideal_activation)
 
         else:
-            print (
+            print((
                 '\nOptimizing {0:d}th of {1:d} images for channel {2:d} in '
                 'layer "{3:s}"...'
-            ).format(i + 1, num_examples, channel_index, layer_name)
+            ).format(i + 1, num_examples, channel_index, layer_name))
 
             these_optimized_matrices = backwards_opt.optimize_input_for_channel(
                 model_object=model_object, layer_name=layer_name,
@@ -336,15 +336,15 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                      these_optimized_matrices[k]),
                     axis=0)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
-    print 'Denormalizing optimized examples...'
+    print('Denormalizing optimized examples...')
     list_of_optimized_matrices = model_interpretation.denormalize_data(
         list_of_input_matrices=list_of_optimized_matrices,
         model_metadata_dict=model_metadata_dict)
 
     if init_function_name is None:
-        print 'Denormalizing input examples...'
+        print('Denormalizing input examples...')
         list_of_init_matrices = model_interpretation.denormalize_data(
             list_of_input_matrices=list_of_init_matrices,
             model_metadata_dict=model_metadata_dict)
@@ -353,7 +353,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
     else:
         this_init_arg = init_function_name + ''
 
-    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     backwards_opt.write_standard_file(
         pickle_file_name=output_file_name,
         list_of_optimized_matrices=list_of_optimized_matrices,

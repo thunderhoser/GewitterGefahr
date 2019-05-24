@@ -20,12 +20,13 @@ def _run():
     test_file_names = glob.glob(test_file_pattern)
 
     for this_file_name in test_file_names:
-        print 'Running file: "{0:s}"...'.format(this_file_name)
+        print('Running file: "{0:s}"...'.format(this_file_name))
 
         command_string = '"{0:s}" "{1:s}"'.format(
             sys.executable, this_file_name)
+
         os.system(command_string)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':

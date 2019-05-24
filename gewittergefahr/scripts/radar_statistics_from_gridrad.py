@@ -93,20 +93,21 @@ def _compute_radar_stats_from_gridrad(
 
     storm_object_table = tracking_io.read_many_files(
         tracking_file_names)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     storm_object_statistic_table = (
         radar_statistics.get_storm_based_radar_stats_gridrad(
             storm_object_table=storm_object_table,
             top_radar_dir_name=top_gridrad_dir_name)
     )
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     output_file_name = '{0:s}/radar_stats_for_storm_objects_{1:s}.p'.format(
         output_dir_name, spc_date_string)
 
-    print 'Writing radar statistics to file: "{0:s}"...'.format(
-        output_file_name)
+    print('Writing radar statistics to file: "{0:s}"...'.format(
+        output_file_name))
+
     radar_statistics.write_stats_for_storm_objects(
         storm_object_statistic_table, output_file_name)
 

@@ -186,8 +186,9 @@ def _plot_forecast_one_time(
             this_file_name = tornado_io.find_processed_file(
                 directory_name=tornado_dir_name, year=this_year)
 
-            print 'Reading tornado reports from: "{0:s}"...'.format(
-                this_file_name)
+            print('Reading tornado reports from: "{0:s}"...'.format(
+                this_file_name))
+
             this_tornado_table = tornado_io.read_processed_file(this_file_name)
 
             this_tornado_table = this_tornado_table.loc[
@@ -207,7 +208,7 @@ def _plot_forecast_one_time(
                 this_tornado_table[tornado_io.START_LNG_COLUMN].values
             ))
 
-        print '\n'
+        print('\n')
 
     custom_area = all([
         x is not None for x in
@@ -350,7 +351,7 @@ def _plot_forecast_one_time(
         max_lead_time_seconds
     )
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -389,7 +390,7 @@ def _run(input_prediction_file_name, tornado_dir_name, min_plot_latitude_deg,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    print 'Reading data from: "{0:s}"...'.format(input_prediction_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_prediction_file_name))
     gridded_forecast_dict = prediction_io.read_gridded_predictions(
         input_prediction_file_name)
 

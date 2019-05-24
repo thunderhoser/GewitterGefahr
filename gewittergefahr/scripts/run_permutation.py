@@ -365,19 +365,19 @@ def _run(model_file_name, top_example_dir_name,
     :param output_file_name: Same.
     """
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
 
     model_directory_name, _ = os.path.split(model_file_name)
     metadata_file_name = '{0:s}/model_metadata.p'.format(model_directory_name)
 
-    print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
+    print('Reading metadata from: "{0:s}"...'.format(metadata_file_name))
     model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     if len(class_fraction_keys) > 1:
-        class_to_sampling_fraction_dict = dict(zip(
-            class_fraction_keys, class_fraction_values))
+        class_to_sampling_fraction_dict = dict(list(zip(
+            class_fraction_keys, class_fraction_values)))
     else:
         class_to_sampling_fraction_dict = None
 
@@ -418,12 +418,12 @@ def _run(model_file_name, top_example_dir_name,
     target_values = numpy.array([], dtype=int)
     list_of_predictor_matrices = None
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     for _ in range(len(example_file_names)):
         try:
             this_storm_object_dict = next(generator_object)
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
         except StopIteration:
             break
 
@@ -457,11 +457,11 @@ def _run(model_file_name, top_example_dir_name,
         list_of_predictor_matrices=list_of_predictor_matrices)
 
     for i in range(len(predictor_names_by_matrix)):
-        print 'Predictors in {0:d}th matrix:\n{1:s}\n'.format(
+        print('Predictors in {0:d}th matrix:\n{1:s}\n'.format(
             i + 1, str(predictor_names_by_matrix[i])
-        )
+        ))
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
@@ -476,14 +476,14 @@ def _run(model_file_name, top_example_dir_name,
 
         for i in range(len(predictor_names)):
             for j in range(i, len(predictor_names)):
-                print (
+                print((
                     'Pearson correlation between "{0:s}" and "{1:s}" = {2:.4f}'
                 ).format(
                     predictor_names[i], predictor_names[j],
                     correlation_matrix[i, j]
-                )
+                ))
 
-            print '\n'
+            print('\n')
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         prediction_function = permutation.prediction_function_2d3d_cnn
@@ -495,7 +495,7 @@ def _run(model_file_name, top_example_dir_name,
         else:
             prediction_function = permutation.prediction_function_3d_cnn
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     result_dict = permutation.run_permutation_test(
         model_object=model_object,
         list_of_input_matrices=list_of_predictor_matrices,
@@ -504,14 +504,14 @@ def _run(model_file_name, top_example_dir_name,
         cost_function=permutation.negative_auc_function,
         num_bootstrap_iters=num_bootstrap_iters,
         bootstrap_confidence_level=bootstrap_confidence_level)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     result_dict[permutation.MODEL_FILE_KEY] = model_file_name
     result_dict[permutation.TARGET_VALUES_KEY] = target_values
     result_dict[permutation.FULL_IDS_KEY] = full_id_strings
     result_dict[permutation.STORM_TIMES_KEY] = storm_times_unix_sec
 
-    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     permutation.write_results(
         result_dict=result_dict, pickle_file_name=output_file_name)
 

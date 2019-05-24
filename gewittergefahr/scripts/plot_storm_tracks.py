@@ -175,7 +175,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         list_of_storm_object_tables.append(this_storm_object_table)
 
         if this_spc_date_string != spc_date_strings[-1]:
-            print MINOR_SEPARATOR_STRING
+            print(MINOR_SEPARATOR_STRING)
 
         if len(list_of_storm_object_tables) == 1:
             continue
@@ -184,7 +184,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             list_of_storm_object_tables[0], axis=1
         )[0]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     storm_object_table = pandas.concat(
         list_of_storm_object_tables, axis=0, ignore_index=True)
 
@@ -261,7 +261,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=colour_map_object)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 

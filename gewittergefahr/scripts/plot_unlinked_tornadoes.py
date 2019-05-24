@@ -289,7 +289,7 @@ def _plot_tornado_and_radar(
     ).format(tornado_time_string, tornado_latitude_deg, tornado_longitude_deg)
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -325,13 +325,14 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
         event_type_string=linkage.TORNADO_EVENT_STRING,
         spc_date_string=spc_date_string)
 
-    print 'Reading data from: "{0:s}"...'.format(linkage_file_name)
+    print('Reading data from: "{0:s}"...'.format(linkage_file_name))
     storm_to_tornadoes_table = linkage.read_linkage_file(linkage_file_name)
 
     num_storm_objects = len(storm_to_tornadoes_table.index)
     if num_storm_objects == 0:
-        print 'No storms for SPC date "{0:s}".  There is nothing to do!'.format(
-            spc_date_string)
+        print('No storms for SPC date "{0:s}".  There is nothing to do!'.format(
+            spc_date_string))
+
         return
 
     tornado_table = linkage._read_input_tornado_reports(
@@ -344,12 +345,13 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
 
     num_tornadoes = len(tornado_table.index)
     if num_tornadoes == 0:
-        print (
+        print((
             'No tornadoes for SPC date "{0:s}".  There is nothing to do!'
-        ).format(spc_date_string)
+        ).format(spc_date_string))
+
         return
 
-    print '\nRemoving tornadoes outside bounding box of storms...'
+    print('\nRemoving tornadoes outside bounding box of storms...')
 
     min_storm_latitude_deg = numpy.min(
         storm_to_tornadoes_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
@@ -388,10 +390,10 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
     num_tornadoes = len(tornado_table.index)
 
     if num_tornadoes == 0:
-        print 'No tornadoes in bounding box.  There is nothing more to do!'
+        print('No tornadoes in bounding box.  There is nothing more to do!')
         return
 
-    print 'Finding linked tornadoes...'
+    print('Finding linked tornadoes...')
 
     linked_tornado_times_unix_sec = numpy.array([], dtype=int)
     linked_tornado_latitudes_deg = numpy.array([])
@@ -439,7 +441,7 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
             linked_tornado_longitudes_deg, these_longitudes_deg
         ))
 
-    print 'Finding unlinked tornadoes...'
+    print('Finding unlinked tornadoes...')
     unlinked_indices = []
 
     for j in range(num_tornadoes):
@@ -448,10 +450,10 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
                 tornado_table[linkage.EVENT_TIME_COLUMN].values[j],
                 TIME_FORMAT)
 
-            print (
+            print((
                 'Tornado at {0:s} was not linked.  Nearest linked tornado is '
                 'N/A, because no tornadoes were linked.'
-            ).format(this_tornado_time_string)
+            ).format(this_tornado_time_string))
 
             unlinked_indices.append(j)
             continue
@@ -474,10 +476,10 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
                 linked_tornado_times_unix_sec[this_nearest_index],
                 TIME_FORMAT)
 
-            print (
+            print((
                 'Tornado at {0:s} was not linked.  Nearest linked tornado in '
                 'time is at {1:s}.'
-            ).format(this_tornado_time_string, this_nearest_time_string)
+            ).format(this_tornado_time_string, this_nearest_time_string))
 
             unlinked_indices.append(j)
             continue
@@ -506,7 +508,7 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
 
         this_nearest_index = these_indices[this_nearest_subindex]
 
-        print (
+        print((
             'Tornado at {0:.4f} deg N and {1:.4f} deg E was not linked.  '
             'Nearest linked tornado in space is at {2:.4f} deg N and '
             '{3:.4f} deg E.'
@@ -515,15 +517,15 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
             tornado_table[linkage.EVENT_LONGITUDE_COLUMN].values[j],
             linked_tornado_latitudes_deg[this_nearest_index],
             linked_tornado_longitudes_deg[this_nearest_index]
-        )
+        ))
 
         unlinked_indices.append(j)
 
     if len(unlinked_indices) == 0:
-        print 'All tornadoes were linked.  Success!'
+        print('All tornadoes were linked.  Success!')
         return
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     unlinked_indices = numpy.array(unlinked_indices, dtype=int)
     tornado_table = tornado_table.iloc[unlinked_indices]

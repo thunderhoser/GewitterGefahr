@@ -171,7 +171,7 @@ def _run(top_radar_dir_name, top_radar_dir_name_tarred,
                 spc_date_string=this_spc_date_string,
                 top_target_directory_name=top_radar_dir_name)
 
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
 
     if top_echo_classifn_dir_name in ['', 'None']:
         top_echo_classifn_dir_name = None
@@ -190,7 +190,7 @@ def _run(top_radar_dir_name, top_radar_dir_name_tarred,
         max_link_distance_m_s01=max_link_distance_m_s01,
         min_track_duration_seconds=0)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     if echo_top_field_name in NATIVE_ECHO_TOP_FIELD_NAMES:
         for this_spc_date_string in spc_date_strings:

@@ -176,7 +176,7 @@ def _plot_feature_maps_one_layer(
                 this_time_string
             )
 
-            print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
+            print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
             pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -217,8 +217,9 @@ def _plot_feature_maps_one_layer(
                     this_time_string, k + 1
                 )
 
-                print 'Saving figure to: "{0:s}"...'.format(
-                    this_figure_file_name)
+                print('Saving figure to: "{0:s}"...'.format(
+                    this_figure_file_name))
+
                 pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
                 pyplot.close()
 
@@ -238,21 +239,23 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     :raises: ValueError: if feature maps do not have 2 or 3 spatial dimensions.
     """
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
+
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )
 
-    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
-    print 'Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name)
+    print('Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name))
     full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
         storm_metafile_name)
-    print SEPARATOR_STRING
+
+    print(SEPARATOR_STRING)
 
     if 0 < num_examples < len(full_id_strings):
         full_id_strings = full_id_strings[:num_examples]
@@ -267,7 +270,7 @@ def _run(model_file_name, layer_names, top_example_dir_name,
             cnn.LAYER_OPERATIONS_KEY]
     )[0]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     num_layers = len(layer_names)
     feature_matrix_by_layer = [None] * num_layers
@@ -313,6 +316,7 @@ def _run(model_file_name, layer_names, top_example_dir_name,
         this_output_dir_name = '{0:s}/{1:s}'.format(
             top_output_dir_name, layer_names[k]
         )
+
         file_system_utils.mkdir_recursive_if_necessary(
             directory_name=this_output_dir_name)
 
@@ -322,7 +326,8 @@ def _run(model_file_name, layer_names, top_example_dir_name,
             storm_times_unix_sec=storm_times_unix_sec,
             layer_name=layer_names[k],
             output_dir_name=this_output_dir_name)
-        print SEPARATOR_STRING
+
+        print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':

@@ -218,15 +218,15 @@ def _run(model_file_name, init_function_name, component_type_string,
     if ideal_activation <= 0:
         ideal_activation = None
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     custom_dict = {'brier_skill_score_keras': _brier_skill_score_keras}
     model_object = load_keras_model(model_file_name, custom_objects=custom_dict)
 
     init_function = _create_initializer(init_function_name)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-        print 'Optimizing image for target class {0:d}...'.format(target_class)
+        print('Optimizing image for target class {0:d}...'.format(target_class))
 
         list_of_optimized_matrices = backwards_opt.optimize_input_for_class(
             model_object=model_object, target_class=target_class,
@@ -234,8 +234,9 @@ def _run(model_file_name, init_function_name, component_type_string,
             num_iterations=num_iterations, learning_rate=learning_rate)
 
     elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
-        print 'Optimizing image for neuron {0:s} in layer "{1:s}"...'.format(
-            str(neuron_indices), layer_name)
+        print('Optimizing image for neuron {0:s} in layer "{1:s}"...'.format(
+            str(neuron_indices), layer_name
+        ))
 
         list_of_optimized_matrices = backwards_opt.optimize_input_for_neuron(
             model_object=model_object, layer_name=layer_name,
@@ -245,8 +246,8 @@ def _run(model_file_name, init_function_name, component_type_string,
             ideal_activation=ideal_activation)
 
     else:
-        print 'Optimizing image for channel {0:d} in layer "{1:s}"...'.format(
-            channel_index, layer_name)
+        print('Optimizing image for channel {0:d} in layer "{1:s}"...'.format(
+            channel_index, layer_name))
 
         list_of_optimized_matrices = backwards_opt.optimize_input_for_channel(
             model_object=model_object, layer_name=layer_name,
@@ -256,13 +257,14 @@ def _run(model_file_name, init_function_name, component_type_string,
             num_iterations=num_iterations, learning_rate=learning_rate,
             ideal_activation=ideal_activation)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
-    print 'Denormalizing optimized examples...'
+    print('Denormalizing optimized examples...')
     list_of_optimized_matrices[0] = _denormalize_data(
-        list_of_optimized_matrices[0])
+        list_of_optimized_matrices[0]
+    )
 
-    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     backwards_opt.write_standard_file(
         pickle_file_name=output_file_name,
         list_of_optimized_matrices=list_of_optimized_matrices,

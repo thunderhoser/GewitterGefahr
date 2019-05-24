@@ -179,7 +179,7 @@ def _run_for_gridrad(
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):
-        print 'Reading data from: "{0:s}"...\n'.format(radar_file_names[i])
+        print('Reading data from: "{0:s}"...\n'.format(radar_file_names[i]))
         radar_metadata_dict = gridrad_io.read_metadata_from_full_grid_file(
             netcdf_file_name=radar_file_names[i])
 
@@ -213,16 +213,17 @@ def _run_for_gridrad(
             valid_time_unix_sec=valid_times_unix_sec[i],
             option_dict=option_dict)
 
-        print 'Number of convective pixels = {0:d}\n'.format(
-            numpy.sum(convective_flag_matrix))
+        print('Number of convective pixels = {0:d}\n'.format(
+            numpy.sum(convective_flag_matrix)
+        ))
 
         this_output_file_name = echo_classifn.find_classification_file(
             top_directory_name=top_output_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i], desire_zipped=False,
             allow_zipped_or_unzipped=False, raise_error_if_missing=False)
 
-        print 'Writing echo classifications to: "{0:s}"...'.format(
-            this_output_file_name)
+        print('Writing echo classifications to: "{0:s}"...'.format(
+            this_output_file_name))
 
         echo_classifn.write_classifications(
             convective_flag_matrix=convective_flag_matrix,
@@ -230,7 +231,7 @@ def _run_for_gridrad(
             valid_time_unix_sec=valid_times_unix_sec[i],
             option_dict=option_dict, netcdf_file_name=this_output_file_name)
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
 
 def _run_for_myrorss(
@@ -258,7 +259,7 @@ def _run_for_myrorss(
             spc_date_string=spc_date_string,
             top_target_directory_name=top_radar_dir_name_untarred,
             refl_heights_m_asl=RADAR_HEIGHTS_M_ASL)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
     these_file_names = myrorss_and_mrms_io.find_raw_files_one_spc_date(
         spc_date_string=spc_date_string, field_name=radar_utils.REFL_NAME,
@@ -305,8 +306,9 @@ def _run_for_myrorss(
         found_corrupt_file = False
 
         for j in range(num_heights):
-            print 'Reading data from: "{0:s}"...'.format(
-                radar_file_name_matrix[i, j])
+            print('Reading data from: "{0:s}"...'.format(
+                radar_file_name_matrix[i, j]
+            ))
 
             this_metadata_dict = (
                 myrorss_and_mrms_io.read_metadata_from_raw_file(
@@ -345,7 +347,7 @@ def _run_for_myrorss(
                 reflectivity_matrix_dbz = numpy.concatenate(
                     (reflectivity_matrix_dbz, this_refl_matrix_dbz), axis=-1)
 
-        print '\n'
+        print('\n')
         if found_corrupt_file:
             continue
 
@@ -388,8 +390,9 @@ def _run_for_myrorss(
             valid_time_unix_sec=valid_times_unix_sec[i],
             option_dict=option_dict)
 
-        print 'Number of convective pixels = {0:d}\n'.format(
-            numpy.sum(convective_flag_matrix))
+        print('Number of convective pixels = {0:d}\n'.format(
+            numpy.sum(convective_flag_matrix)
+        ))
 
         convective_flag_matrix = echo_classifn._double_class_resolution(
             coarse_convective_flag_matrix=convective_flag_matrix,
@@ -403,8 +406,8 @@ def _run_for_myrorss(
             valid_time_unix_sec=valid_times_unix_sec[i], desire_zipped=False,
             allow_zipped_or_unzipped=False, raise_error_if_missing=False)
 
-        print 'Writing echo classifications to: "{0:s}"...'.format(
-            this_output_file_name)
+        print('Writing echo classifications to: "{0:s}"...'.format(
+            this_output_file_name))
 
         echo_classifn.write_classifications(
             convective_flag_matrix=convective_flag_matrix,
@@ -415,7 +418,7 @@ def _run_for_myrorss(
         unzipping.gzip_file(input_file_name=this_output_file_name,
                             delete_input_file=True)
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
     if top_radar_dir_name_tarred is None:
         return
@@ -425,7 +428,7 @@ def _run_for_myrorss(
         top_directory_name=top_radar_dir_name_untarred,
         field_names=[radar_utils.REFL_NAME],
         refl_heights_m_asl=RADAR_HEIGHTS_M_ASL)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
 
 def _run(radar_source_name, spc_date_string, top_radar_dir_name_tarred,

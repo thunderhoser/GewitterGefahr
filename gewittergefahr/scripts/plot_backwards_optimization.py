@@ -129,7 +129,7 @@ def _plot_bwo_for_2d3d_radar(
     num_storms = list_of_optimized_matrices[0].shape[0]
 
     for i in range(num_storms):
-        print '\n'
+        print('\n')
 
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
@@ -185,7 +185,8 @@ def _plot_bwo_for_2d3d_radar(
         ).format(after_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -221,7 +222,8 @@ def _plot_bwo_for_2d3d_radar(
         ).format(after_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -258,7 +260,8 @@ def _plot_bwo_for_2d3d_radar(
         ).format(before_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -294,7 +297,8 @@ def _plot_bwo_for_2d3d_radar(
         ).format(before_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -337,7 +341,8 @@ def _plot_bwo_for_2d3d_radar(
         ).format(difference_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -383,7 +388,8 @@ def _plot_bwo_for_2d3d_radar(
         ).format(difference_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -445,7 +451,7 @@ def _plot_bwo_for_3d_radar(
     ))
 
     for i in range(num_storms):
-        print '\n'
+        print('\n')
 
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
@@ -500,7 +506,8 @@ def _plot_bwo_for_3d_radar(
             )
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+            print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -540,7 +547,8 @@ def _plot_bwo_for_3d_radar(
             )
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+            print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -586,7 +594,8 @@ def _plot_bwo_for_3d_radar(
             )
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+            print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -675,7 +684,7 @@ def _plot_bwo_for_2d_radar(
     ))
 
     for i in range(num_storms):
-        print '\n'
+        print('\n')
 
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
@@ -709,7 +718,8 @@ def _plot_bwo_for_2d_radar(
             after_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -729,7 +739,8 @@ def _plot_bwo_for_2d_radar(
             before_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -793,7 +804,8 @@ def _plot_bwo_for_2d_radar(
             difference_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -884,7 +896,7 @@ def _plot_bwo_for_soundings(
             sounding_dict_for_metpy=list_of_optimized_metpy_dicts[i],
             title_string=this_title_string)
 
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -900,7 +912,7 @@ def _plot_bwo_for_soundings(
             sounding_dict_for_metpy=list_of_input_metpy_dicts[i],
             title_string=this_title_string)
 
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -923,7 +935,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
     error_checking.assert_is_leq(max_colour_percentile_for_diff, 100.)
     diff_colour_map_object = pyplot.cm.get_cmap(diff_colour_map_name)
 
-    print 'Reading data from: "{0:s}"...'.format(input_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_file_name))
 
     try:
         backwards_opt_dict = backwards_opt.read_standard_file(input_file_name)
@@ -957,8 +969,9 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         original_bwo_file_name = backwards_opt_dict[
             backwards_opt.STANDARD_FILE_NAME_KEY]
 
-        print 'Reading metadata from: "{0:s}"...'.format(
-            original_bwo_file_name)
+        print('Reading metadata from: "{0:s}"...'.format(
+            original_bwo_file_name))
+
         original_bwo_dict = backwards_opt.read_standard_file(
             original_bwo_file_name)
 
@@ -974,12 +987,12 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         os.path.split(model_file_name)[0]
     )
 
-    print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     if sounding_field_names is not None:
         if list_of_input_matrices is None:
@@ -994,7 +1007,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             input_sounding_matrix=this_input_matrix,
             full_id_strings=full_id_strings,
             storm_times_unix_sec=storm_times_unix_sec)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         _plot_bwo_for_2d3d_radar(

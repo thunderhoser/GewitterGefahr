@@ -221,7 +221,7 @@ def _plot_3d_radar(
                 orientation='horizontal', extend_min=True, extend_max=True)
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+            print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -398,7 +398,7 @@ def _plot_2d_radar(
             font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -437,7 +437,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
     error_checking.assert_is_leq(max_colour_percentile_for_diff, 100.)
     diff_colour_map_object = pyplot.cm.get_cmap(diff_colour_map_name)
 
-    print 'Reading data from: "{0:s}"...'.format(input_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_file_name))
 
     try:
         novelty_dict = novelty_detection.read_standard_file(input_file_name)
@@ -476,8 +476,9 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         orig_novelty_file_name = novelty_dict[
             novelty_detection.STANDARD_FILE_NAME_KEY]
 
-        print 'Reading metadata from: "{0:s}"...'.format(
-            orig_novelty_file_name)
+        print('Reading metadata from: "{0:s}"...'.format(
+            orig_novelty_file_name))
+
         novelty_metadata_dict = novelty_detection.read_standard_file(
             orig_novelty_file_name)
 
@@ -495,11 +496,11 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         os.path.split(cnn_file_name)[0]
     )
 
-    print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
+    print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     num_radar_dimensions = len(novel_radar_matrix.shape) - 2
 
     if num_radar_dimensions == 3:
@@ -509,7 +510,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             full_id_strings=full_id_strings,
             storm_time_strings=storm_time_strings,
             novel_radar_matrix=novel_radar_matrix)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         _plot_3d_radar(
             training_option_dict=training_option_dict,
@@ -517,7 +518,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             full_id_strings=full_id_strings,
             storm_time_strings=storm_time_strings,
             novel_radar_matrix_upconv=novel_radar_matrix_upconv)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         _plot_3d_radar(
             training_option_dict=training_option_dict,
@@ -525,7 +526,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             full_id_strings=full_id_strings,
             storm_time_strings=storm_time_strings,
             novel_radar_matrix_upconv_svd=novel_radar_matrix_upconv_svd)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         _plot_3d_radar(
             training_option_dict=training_option_dict,
@@ -544,21 +545,21 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         output_dir_name=actual_dir_name, pmm_flag=pmm_flag,
         full_id_strings=full_id_strings, storm_time_strings=storm_time_strings,
         novel_radar_matrix=novel_radar_matrix)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     _plot_2d_radar(
         model_metadata_dict=model_metadata_dict,
         output_dir_name=upconv_dir_name, pmm_flag=pmm_flag,
         full_id_strings=full_id_strings, storm_time_strings=storm_time_strings,
         novel_radar_matrix_upconv=novel_radar_matrix_upconv)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     _plot_2d_radar(
         model_metadata_dict=model_metadata_dict,
         output_dir_name=upconv_svd_dir_name, pmm_flag=pmm_flag,
         full_id_strings=full_id_strings, storm_time_strings=storm_time_strings,
         novel_radar_matrix_upconv_svd=novel_radar_matrix_upconv_svd)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     _plot_2d_radar(
         model_metadata_dict=model_metadata_dict,

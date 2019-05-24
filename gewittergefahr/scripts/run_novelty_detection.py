@@ -156,14 +156,15 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         of upconvnet output.
     """
 
-    print 'Reading trained CNN from: "{0:s}"...'.format(cnn_file_name)
+    print('Reading trained CNN from: "{0:s}"...'.format(cnn_file_name))
     cnn_model_object = cnn.read_model(cnn_file_name)
+
     cnn_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(cnn_file_name)[0]
     )
 
-    print 'Reading trained upconvnet from: "{0:s}"...'.format(
-        upconvnet_file_name)
+    print('Reading trained upconvnet from: "{0:s}"...'.format(
+        upconvnet_file_name))
     upconvnet_model_object = cnn.read_model(upconvnet_file_name)
 
     # ucn_output_dimensions = numpy.array(
@@ -187,17 +188,17 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
     #
     #     raise ValueError(error_string)
 
-    print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
+    print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
 
-    print 'Reading metadata for baseline examples from: "{0:s}"...'.format(
-        baseline_storm_metafile_name)
+    print('Reading metadata for baseline examples from: "{0:s}"...'.format(
+        baseline_storm_metafile_name))
     baseline_full_id_strings, baseline_times_unix_sec = (
         tracking_io.read_ids_and_times(baseline_storm_metafile_name)
     )
 
-    print 'Reading metadata for trial examples from: "{0:s}"...'.format(
-        trial_storm_metafile_name)
+    print('Reading metadata for trial examples from: "{0:s}"...'.format(
+        trial_storm_metafile_name))
     trial_full_id_strings, trial_times_unix_sec = (
         tracking_io.read_ids_and_times(trial_storm_metafile_name)
     )
@@ -218,7 +219,7 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         num_novel_examples = num_trial_examples + 0
 
     num_novel_examples = min([num_novel_examples, num_trial_examples])
-    print 'Number of novel examples to find: {0:d}'.format(num_novel_examples)
+    print('Number of novel examples to find: {0:d}'.format(num_novel_examples))
 
     bad_baseline_indices = tracking_utils.find_storm_objects(
         all_id_strings=baseline_full_id_strings,
@@ -226,9 +227,9 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         id_strings_to_keep=trial_full_id_strings,
         times_to_keep_unix_sec=trial_times_unix_sec, allow_missing=True)
 
-    print 'Removing {0:d} trial examples from baseline set...'.format(
+    print('Removing {0:d} trial examples from baseline set...'.format(
         len(bad_baseline_indices)
-    )
+    ))
 
     baseline_times_unix_sec = numpy.delete(
         baseline_times_unix_sec, bad_baseline_indices
@@ -240,7 +241,7 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
 
     # num_baseline_examples = len(baseline_full_id_strings)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     list_of_baseline_input_matrices, _ = testing_io.read_specific_examples(
         top_example_dir_name=top_example_dir_name,
@@ -251,7 +252,7 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
             cnn.LAYER_OPERATIONS_KEY]
     )
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     list_of_trial_input_matrices, _ = testing_io.read_specific_examples(
         top_example_dir_name=top_example_dir_name,
@@ -262,7 +263,7 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
             cnn.LAYER_OPERATIONS_KEY]
     )
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     novelty_dict = novelty_detection.do_novelty_detection(
         list_of_baseline_input_matrices=list_of_baseline_input_matrices,
@@ -273,9 +274,9 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         num_novel_examples=num_novel_examples, multipass=False,
         percent_svd_variance_to_keep=percent_svd_variance_to_keep)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
-    print 'Adding metadata to novelty-detection results...'
+    print('Adding metadata to novelty-detection results...')
     novelty_dict = novelty_detection.add_metadata(
         novelty_dict=novelty_dict,
         baseline_full_id_strings=baseline_full_id_strings,
@@ -284,7 +285,7 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         trial_storm_times_unix_sec=trial_times_unix_sec,
         cnn_file_name=cnn_file_name, upconvnet_file_name=upconvnet_file_name)
 
-    print 'Denormalizing inputs and outputs of novelty detection...'
+    print('Denormalizing inputs and outputs of novelty detection...')
 
     novelty_dict[novelty_detection.BASELINE_INPUTS_KEY] = (
         model_interpretation.denormalize_data(
@@ -321,7 +322,7 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
             model_metadata_dict=cnn_metadata_dict)
     )[0]
 
-    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     novelty_detection.write_standard_file(novelty_dict=novelty_dict,
                                           pickle_file_name=output_file_name)
 

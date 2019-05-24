@@ -159,23 +159,26 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
         threshold_type_string = None
 
     if input_saliency_file_name is not None:
-        print 'Reading data from: "{0:s}"...'.format(input_saliency_file_name)
+        print('Reading data from: "{0:s}"...'.format(input_saliency_file_name))
+
         saliency_dict = saliency_maps.read_standard_file(
             input_saliency_file_name)
         list_of_input_matrices = saliency_dict[gradcam.INPUT_MATRICES_KEY]
 
     elif input_gradcam_file_name is not None:
-        print 'Reading data from: "{0:s}"...'.format(input_gradcam_file_name)
+        print('Reading data from: "{0:s}"...'.format(input_gradcam_file_name))
+
         gradcam_dict = gradcam.read_standard_file(input_gradcam_file_name)
         list_of_input_matrices = gradcam_dict[gradcam.INPUT_MATRICES_KEY]
 
     elif input_bwo_file_name is not None:
-        print 'Reading data from: "{0:s}"...'.format(input_bwo_file_name)
+        print('Reading data from: "{0:s}"...'.format(input_bwo_file_name))
+
         bwo_dictionary = backwards_opt.read_standard_file(input_bwo_file_name)
         list_of_input_matrices = bwo_dictionary[backwards_opt.INIT_FUNCTION_KEY]
 
     else:
-        print 'Reading data from: "{0:s}"...'.format(input_novelty_file_name)
+        print('Reading data from: "{0:s}"...'.format(input_novelty_file_name))
         novelty_dict = novelty_detection.read_standard_file(
             input_novelty_file_name)
 
@@ -187,7 +190,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
             a[novel_indices, ...] for a in list_of_input_matrices
         ]
 
-    print 'Running PMM on denormalized predictor matrices...'
+    print('Running PMM on denormalized predictor matrices...')
 
     num_input_matrices = len(list_of_input_matrices)
     list_of_mean_input_matrices = [None] * num_input_matrices
@@ -218,7 +221,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
             )[0]
 
     if input_saliency_file_name is not None:
-        print 'Running PMM on saliency matrices...'
+        print('Running PMM on saliency matrices...')
         list_of_saliency_matrices = saliency_dict[
             saliency_maps.SALIENCY_MATRICES_KEY]
 
@@ -231,7 +234,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
                 max_percentile_level=max_percentile_level
             )[0]
 
-        print 'Writing output to: "{0:s}"...'.format(output_file_name)
+        print('Writing output to: "{0:s}"...'.format(output_file_name))
         saliency_maps.write_pmm_file(
             pickle_file_name=output_file_name,
             list_of_mean_input_matrices=list_of_mean_input_matrices,
@@ -243,7 +246,8 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
         return
 
     if input_gradcam_file_name is not None:
-        print 'Running PMM on class-activation matrices...'
+        print('Running PMM on class-activation matrices...')
+
         class_activation_matrix = gradcam_dict[gradcam.CLASS_ACTIVATIONS_KEY]
         ggradcam_output_matrix = gradcam_dict[gradcam.GUIDED_GRADCAM_KEY]
         class_activation_matrix = numpy.expand_dims(
@@ -256,13 +260,13 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
 
         mean_class_activation_matrix = mean_class_activation_matrix[..., 0]
 
-        print 'Running PMM on output matrices from guided Grad-CAM...'
+        print('Running PMM on output matrices from guided Grad-CAM...')
         mean_ggradcam_output_matrix = pmm.run_pmm_many_variables(
             input_matrix=ggradcam_output_matrix,
             max_percentile_level=max_percentile_level
         )[0]
 
-        print 'Writing output to: "{0:s}"...'.format(output_file_name)
+        print('Writing output to: "{0:s}"...'.format(output_file_name))
         gradcam.write_pmm_file(
             pickle_file_name=output_file_name,
             list_of_mean_input_matrices=list_of_mean_input_matrices,
@@ -275,7 +279,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
         return
 
     if input_bwo_file_name is not None:
-        print 'Running PMM on backwards-optimization output...'
+        print('Running PMM on backwards-optimization output...')
         list_of_optimized_matrices = bwo_dictionary[
             backwards_opt.OPTIMIZED_MATRICES_KEY]
 
@@ -288,7 +292,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
                 max_percentile_level=max_percentile_level
             )[0]
 
-        print 'Writing output to: "{0:s}"...'.format(output_file_name)
+        print('Writing output to: "{0:s}"...'.format(output_file_name))
         backwards_opt.write_pmm_file(
             pickle_file_name=output_file_name,
             list_of_mean_input_matrices=list_of_mean_input_matrices,
@@ -299,7 +303,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
 
         return
 
-    print 'Running PMM on novelty-detection output...'
+    print('Running PMM on novelty-detection output...')
 
     mean_novel_image_matrix_upconv = pmm.run_pmm_many_variables(
         input_matrix=novelty_dict[novelty_detection.NOVEL_IMAGES_UPCONV_KEY],
@@ -312,7 +316,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
         max_percentile_level=max_percentile_level
     )[0]
 
-    print 'Writing output to: "{0:s}"...'.format(output_file_name)
+    print('Writing output to: "{0:s}"...'.format(output_file_name))
     novelty_detection.write_pmm_file(
         pickle_file_name=output_file_name,
         mean_novel_image_matrix=list_of_mean_input_matrices[0],

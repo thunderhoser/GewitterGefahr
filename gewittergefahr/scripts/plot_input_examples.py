@@ -272,7 +272,7 @@ def plot_examples(
                 this_base_file_name)
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+            print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -305,7 +305,7 @@ def plot_examples(
             pyplot.suptitle(this_base_title_string, fontsize=TITLE_FONT_SIZE)
 
             this_file_name = '{0:s}_shear.jpg'.format(this_base_file_name)
-            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+            print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -330,7 +330,7 @@ def plot_examples(
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
             this_file_name = '{0:s}.jpg'.format(this_base_file_name)
-            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+            print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -374,7 +374,7 @@ def plot_examples(
             )
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+            print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -408,7 +408,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         activation_file_name = None
 
     if activation_file_name is None:
-        print 'Reading data from: "{0:s}"...'.format(storm_metafile_name)
+        print('Reading data from: "{0:s}"...'.format(storm_metafile_name))
         full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
             storm_metafile_name)
 
@@ -439,7 +439,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         }
 
     else:
-        print 'Reading data from: "{0:s}"...'.format(activation_file_name)
+        print('Reading data from: "{0:s}"...'.format(activation_file_name))
         activation_matrix, activation_metadata_dict = (
             model_activation.read_file(activation_file_name))
 
@@ -464,7 +464,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
             os.path.split(model_file_name)[0]
         )
 
-        print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
+        print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
         model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
 
         training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
@@ -487,7 +487,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         if storm_activations is not None:
             storm_activations = storm_activations[:num_examples]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     list_of_predictor_matrices = testing_io.read_specific_examples(
         desired_full_id_strings=full_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
@@ -496,7 +496,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         list_of_layer_operation_dicts=model_metadata_dict[
             cnn.LAYER_OPERATIONS_KEY]
     )[0]
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     plot_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,

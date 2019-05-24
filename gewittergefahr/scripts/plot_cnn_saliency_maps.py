@@ -173,7 +173,7 @@ def _plot_saliency_for_2d3d_radar(
             max_colour_value_by_example[i])
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-        print 'Saving figure to file: "{0:s}"...'.format(this_file_name)
+        print('Saving figure to file: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -209,7 +209,7 @@ def _plot_saliency_for_2d3d_radar(
         this_file_name = this_file_name.replace(
             '_reflectivity.jpg', '_azimuthal-shear.jpg')
 
-        print 'Saving figure to file: "{0:s}"...'.format(this_file_name)
+        print('Saving figure to file: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -316,7 +316,7 @@ def _plot_saliency_for_2d_radar(
             max_colour_value_by_example[i])
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-        print 'Saving figure to file: "{0:s}"...'.format(this_file_name)
+        print('Saving figure to file: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -411,7 +411,7 @@ def _plot_saliency_for_3d_radar(
                 max_colour_value_by_example[i])
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-            print 'Saving figure to file: "{0:s}"...'.format(this_file_name)
+            print('Saving figure to file: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -478,8 +478,9 @@ def _plot_sounding_saliency(
             this_storm_time_string
         )
 
-        print 'Saving figure to file: "{0:s}"...'.format(
-            this_left_file_name)
+        print('Saving figure to file: "{0:s}"...'.format(
+            this_left_file_name))
+
         pyplot.savefig(this_left_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -502,8 +503,9 @@ def _plot_sounding_saliency(
             this_storm_time_string
         )
 
-        print 'Saving figure to file: "{0:s}"...'.format(
-            this_right_file_name)
+        print('Saving figure to file: "{0:s}"...'.format(
+            this_right_file_name))
+
         pyplot.savefig(this_right_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -518,8 +520,8 @@ def _plot_sounding_saliency(
             this_storm_time_string
         )
 
-        print 'Concatenating panels into file: "{0:s}"...\n'.format(
-            this_file_name)
+        print('Concatenating panels into file: "{0:s}"...\n'.format(
+            this_file_name))
 
         imagemagick_utils.concatenate_images(
             input_file_names=[this_left_file_name, this_right_file_name],
@@ -554,7 +556,7 @@ def _run(input_file_name, saliency_colour_map_name,
     error_checking.assert_is_leq(max_colour_prctile_for_saliency, 100.)
     saliency_colour_map_object = pyplot.cm.get_cmap(saliency_colour_map_name)
 
-    print 'Reading data from: "{0:s}"...'.format(input_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_file_name))
 
     try:
         saliency_dict = saliency_maps.read_standard_file(input_file_name)
@@ -584,8 +586,9 @@ def _run(input_file_name, saliency_colour_map_name,
         orig_saliency_file_name = saliency_dict[
             saliency_maps.STANDARD_FILE_NAME_KEY]
 
-        print 'Reading metadata from: "{0:s}"...'.format(
-            orig_saliency_file_name)
+        print('Reading metadata from: "{0:s}"...'.format(
+            orig_saliency_file_name))
+
         orig_saliency_dict = saliency_maps.read_standard_file(
             orig_saliency_file_name)
 
@@ -612,12 +615,12 @@ def _run(input_file_name, saliency_colour_map_name,
         os.path.split(model_file_name)[0]
     )
 
-    print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     # if sounding_field_names is not None:
     #     _plot_sounding_saliency(

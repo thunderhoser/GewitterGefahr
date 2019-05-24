@@ -75,31 +75,34 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     :param top_output_dir_name: Same.
     """
 
-    print 'Reading trained upconvnet from: "{0:s}"...'.format(
-        upconvnet_file_name)
+    print('Reading trained upconvnet from: "{0:s}"...'.format(
+        upconvnet_file_name))
+
     upconvnet_model_object = cnn.read_model(upconvnet_file_name)
     upconvnet_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(upconvnet_file_name)[0]
     )
 
-    print 'Reading upconvnet metadata from: "{0:s}"...'.format(
-        upconvnet_metafile_name)
+    print('Reading upconvnet metadata from: "{0:s}"...'.format(
+        upconvnet_metafile_name))
+
     upconvnet_metadata_dict = upconvnet.read_model_metadata(
         upconvnet_metafile_name)
     cnn_file_name = upconvnet_metadata_dict[upconvnet.CNN_FILE_KEY]
 
-    print 'Reading trained CNN from: "{0:s}"...'.format(cnn_file_name)
+    print('Reading trained CNN from: "{0:s}"...'.format(cnn_file_name))
     cnn_model_object = cnn.read_model(cnn_file_name)
     cnn_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(cnn_file_name)[0]
     )
 
-    print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
+    print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
     training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    print 'Reading storm IDs and times from: "{0:s}"...'.format(
-        storm_metafile_name)
+    print('Reading storm IDs and times from: "{0:s}"...'.format(
+        storm_metafile_name))
+
     full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
         storm_metafile_name)
 
@@ -107,7 +110,7 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
         full_id_strings = full_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     list_of_predictor_matrices = testing_io.read_specific_examples(
         desired_full_id_strings=full_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
@@ -116,7 +119,7 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
         list_of_layer_operation_dicts=cnn_metadata_dict[
             cnn.LAYER_OPERATIONS_KEY]
     )[0]
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     actual_radar_matrix = list_of_predictor_matrices[0]
     have_soundings = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
@@ -132,14 +135,14 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
         feature_layer_name=upconvnet_metadata_dict[
             upconvnet.CNN_FEATURE_LAYER_KEY]
     )
-    print '\n'
+    print('\n')
 
     reconstructed_radar_matrix = upconvnet.apply_upconvnet(
         model_object=upconvnet_model_object, feature_matrix=feature_matrix,
         verbose=True)
-    print '\n'
+    print('\n')
 
-    print 'Denormalizing actual and reconstructed radar images...'
+    print('Denormalizing actual and reconstructed radar images...')
 
     cnn_metadata_dict[
         cnn.TRAINING_OPTION_DICT_KEY][trainval_io.SOUNDING_FIELDS_KEY] = None
@@ -154,7 +157,7 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
         model_metadata_dict=cnn_metadata_dict
     )[0]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     actual_output_dir_name = '{0:s}/actual_images'.format(top_output_dir_name)
     file_system_utils.mkdir_recursive_if_necessary(
@@ -168,7 +171,7 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
         storm_times_unix_sec=storm_times_unix_sec,
         model_metadata_dict=cnn_metadata_dict,
         output_dir_name=actual_output_dir_name)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     reconstructed_output_dir_name = '{0:s}/reconstructed_images'.format(
         top_output_dir_name)

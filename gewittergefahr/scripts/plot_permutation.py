@@ -94,7 +94,7 @@ def _run(input_file_name, num_predictors_to_plot, output_dir_name):
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    print 'Reading permutation results from: "{0:s}"...'.format(input_file_name)
+    print('Reading permutation results from: "{0:s}"...'.format(input_file_name))
     permutation_dict = permutation.read_results(input_file_name)
 
     _, axes_objects_2d_list = _init_panels(
@@ -123,7 +123,7 @@ def _run(input_file_name, num_predictors_to_plot, output_dir_name):
     absolute_value_file_name = '{0:s}/permutation_absolute-values.jpg'.format(
         output_dir_name)
 
-    print 'Saving figure to file: "{0:s}"...'.format(absolute_value_file_name)
+    print('Saving figure to file: "{0:s}"...'.format(absolute_value_file_name))
     pyplot.savefig(absolute_value_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -151,7 +151,7 @@ def _run(input_file_name, num_predictors_to_plot, output_dir_name):
     percentage_file_name = '{0:s}/permutation_percentage.jpg'.format(
         output_dir_name)
 
-    print 'Saving figure to file: "{0:s}"...'.format(percentage_file_name)
+    print('Saving figure to file: "{0:s}"...'.format(percentage_file_name))
     pyplot.savefig(percentage_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 

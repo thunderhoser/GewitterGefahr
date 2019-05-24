@@ -199,8 +199,9 @@ def _plot_3d_radar_cams(
                 quantity_string, this_max_contour_level)
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-            print 'Saving figure to file: "{0:s}"...'.format(
-                this_figure_file_name)
+            print('Saving figure to file: "{0:s}"...'.format(
+                this_figure_file_name))
+
             pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
@@ -342,7 +343,7 @@ def _plot_2d_radar_cams(
             quantity_string, this_max_contour_level)
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-        print 'Saving figure to file: "{0:s}"...'.format(this_figure_file_name)
+        print('Saving figure to file: "{0:s}"...'.format(this_figure_file_name))
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -374,7 +375,7 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
     error_checking.assert_is_leq(max_colour_prctile_for_cam, 100.)
     cam_colour_map_object = pyplot.cm.get_cmap(cam_colour_map_name)
 
-    print 'Reading data from: "{0:s}"...'.format(input_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_file_name))
 
     try:
         gradcam_dict = gradcam.read_standard_file(input_file_name)
@@ -405,7 +406,7 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
 
         orig_gradcam_file_name = gradcam_dict[gradcam.STANDARD_FILE_NAME_KEY]
 
-        print 'Reading metadata from: "{0:s}"...'.format(orig_gradcam_file_name)
+        print('Reading metadata from: "{0:s}"...'.format(orig_gradcam_file_name))
         orig_gradcam_dict = gradcam.read_standard_file(orig_gradcam_file_name)
 
         orig_gradcam_dict.pop(gradcam.INPUT_MATRICES_KEY)
@@ -427,9 +428,9 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
         os.path.split(model_file_name)[0]
     )
 
-    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     # Do plotting.
     if num_spatial_dimensions == 3:
@@ -442,7 +443,7 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
             output_dir_name=main_gradcam_dir_name,
             full_id_strings=full_id_strings,
             storm_times_unix_sec=storm_times_unix_sec)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         _plot_3d_radar_cams(
             radar_matrix=list_of_input_matrices[0],
@@ -469,7 +470,7 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
             output_dir_name=main_gradcam_dir_name,
             full_id_strings=full_id_strings,
             storm_times_unix_sec=storm_times_unix_sec)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         _plot_2d_radar_cams(
             radar_matrix=radar_matrix,
