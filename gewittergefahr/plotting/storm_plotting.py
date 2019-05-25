@@ -526,10 +526,15 @@ def plot_storm_tracks(
         extend_min=False, extend_max=False, fraction_of_axis_length=0.9,
         font_size=COLOUR_BAR_FONT_SIZE)
 
-    for t in colour_bar_object.ax.get_yticklabels():
-        print(t)
+    if orientation_string == 'horizontal':
+        tick_values = colour_bar_object.ax.get_xticks()
+    else:
+        tick_values = colour_bar_object.ax.get_yticks()
 
-    tick_times_unix_sec = numpy.round(colour_bar_object.get_ticks()).astype(int)
+    tick_times_unix_sec = numpy.round(
+        colour_norm_object.inverse(tick_values)
+    ).astype(int)
+
     tick_time_strings = [
         time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
         for t in tick_times_unix_sec
