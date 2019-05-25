@@ -534,7 +534,7 @@ def plot_storm_tracks(
         font_size=COLOUR_BAR_FONT_SIZE)
 
     for t in colour_bar_object.ax.get_yticklabels():
-        print(t.get_text())
+        print(t)
 
     tick_times_unix_sec = numpy.round(colour_bar_object.get_ticks()).astype(int)
     tick_time_strings = [
