@@ -444,6 +444,7 @@ def plot_storm_tracks(
                             tracking_utils.VALID_TIME_COLUMN].values[i]
                     ))
 
+                this_colour = 'k'
                 print(this_colour)
 
                 if start_marker_type == 'x':
