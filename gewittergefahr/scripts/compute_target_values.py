@@ -77,7 +77,7 @@ MAX_LINK_DISTANCES_HELP_STRING = (
 EVENT_TYPE_HELP_STRING = (
     'Target variables will be based on this event type.  Valid event types '
     'listed below.\n{0:s}'
-).format(linkage.VALID_EVENT_TYPE_STRINGS)
+).format(str(linkage.VALID_EVENT_TYPE_STRINGS))
 
 PERCENTILE_LEVEL_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Target variables will be based on this '
