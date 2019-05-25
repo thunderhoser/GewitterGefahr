@@ -566,8 +566,13 @@ def add_colour_bar(
     else:
         this_padding = PADDING_FOR_VERTICAL_COLOUR_BAR
 
+    if isinstance(axes_object_or_list, numpy.ndarray):
+        this_axes_arg = axes_object_or_list.tolist()
+    else:
+        this_axes_arg = axes_object_or_list
+
     colour_bar_object = pyplot.colorbar(
-        ax=axes_object_or_list, mappable=scalar_mappable_object,
+        ax=this_axes_arg, mappable=scalar_mappable_object,
         orientation=orientation, pad=this_padding, extend=extend_argument,
         shrink=fraction_of_axis_length)
 
@@ -607,7 +612,8 @@ def add_linear_colour_bar(
         vmin=colour_min, vmax=colour_max, clip=False)
 
     return add_colour_bar(
-        axes_object_or_list, values_to_colour=values_to_colour,
-        colour_map=colour_map, colour_norm_object=colour_norm_object,
-        orientation=orientation, extend_min=extend_min, extend_max=extend_max,
+        axes_object_or_list=axes_object_or_list,
+        values_to_colour=values_to_colour, colour_map=colour_map,
+        colour_norm_object=colour_norm_object, orientation=orientation,
+        extend_min=extend_min, extend_max=extend_max,
         fraction_of_axis_length=fraction_of_axis_length, font_size=font_size)
