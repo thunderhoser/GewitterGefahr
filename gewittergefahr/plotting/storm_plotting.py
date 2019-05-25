@@ -460,8 +460,6 @@ def plot_storm_tracks(
                             tracking_utils.VALID_TIME_COLUMN].values[i]
                     ))
 
-                    this_colour = tuple(this_colour.tolist())
-
                 if start_marker_type == 'x':
                     this_edge_width = 2
                 else:
@@ -489,8 +487,6 @@ def plot_storm_tracks(
                         storm_object_table[
                             tracking_utils.VALID_TIME_COLUMN].values[i]
                     ))
-
-                    this_colour = tuple(this_colour.tolist())
 
                 if end_marker_type == 'x':
                     this_edge_width = 2
