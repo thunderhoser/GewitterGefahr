@@ -305,6 +305,15 @@ def _create_target_points_for_interp(storm_object_table, lead_times_seconds):
                 list_of_target_point_tables[i].assign(**argument_dict)
             )
 
+            if i == 0:
+                continue
+
+            list_of_target_point_tables[i] = (
+                list_of_target_point_tables[i].align(
+                    list_of_target_point_tables[0], axis=1
+                )[0]
+            )
+
             continue
 
         these_extrap_latitudes_deg, these_extrap_longitudes_deg = (

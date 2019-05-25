@@ -53,11 +53,11 @@ def get_translations(
     error_checking.assert_is_leq(
         max_translation_pixels, max_max_translation_pixels)
 
-    x_offsets_pixels = numpy.random.random_integers(
-        low=-max_translation_pixels, high=max_translation_pixels,
+    x_offsets_pixels = numpy.random.randint(
+        low=-max_translation_pixels, high=max_translation_pixels + 1,
         size=num_translations * 4)
-    y_offsets_pixels = numpy.random.random_integers(
-        low=-max_translation_pixels, high=max_translation_pixels,
+    y_offsets_pixels = numpy.random.randint(
+        low=-max_translation_pixels, high=max_translation_pixels + 1,
         size=num_translations * 4)
 
     good_indices = numpy.where(

@@ -46,12 +46,12 @@ TORNADO_TABLE_WITH_INVALID_ROWS = pandas.DataFrame.from_dict(THIS_DICT)
 GOOD_ROWS = numpy.array([4, 5], dtype=int)
 TORNADO_TABLE_NO_INVALID_ROWS = TORNADO_TABLE_WITH_INVALID_ROWS.iloc[GOOD_ROWS]
 
-TORNADO_TABLE_NO_INVALID_ROWS[tornado_io.START_LNG_COLUMN] = (
-    lng_conversion.convert_lng_positive_in_west(
-        TORNADO_TABLE_NO_INVALID_ROWS[tornado_io.START_LNG_COLUMN].values))
-TORNADO_TABLE_NO_INVALID_ROWS[tornado_io.END_LNG_COLUMN] = (
-    lng_conversion.convert_lng_positive_in_west(
-        TORNADO_TABLE_NO_INVALID_ROWS[tornado_io.END_LNG_COLUMN].values))
+TORNADO_TABLE_NO_INVALID_ROWS = TORNADO_TABLE_NO_INVALID_ROWS.assign(**{
+    tornado_io.START_LNG_COLUMN: lng_conversion.convert_lng_positive_in_west(
+        TORNADO_TABLE_NO_INVALID_ROWS[tornado_io.START_LNG_COLUMN].values),
+    tornado_io.END_LNG_COLUMN: lng_conversion.convert_lng_positive_in_west(
+        TORNADO_TABLE_NO_INVALID_ROWS[tornado_io.END_LNG_COLUMN].values)
+})
 
 # The following constants are used to test find_processed_file.
 TORNADO_DIRECTORY_NAME = 'tornado_reports'
