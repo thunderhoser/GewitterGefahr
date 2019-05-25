@@ -567,7 +567,7 @@ def add_colour_bar(
         this_padding = PADDING_FOR_VERTICAL_COLOUR_BAR
 
     if isinstance(axes_object_or_list, numpy.ndarray):
-        this_axes_arg = axes_object_or_list.tolist()
+        this_axes_arg = axes_object_or_list.ravel().tolist()
     else:
         this_axes_arg = axes_object_or_list
 
