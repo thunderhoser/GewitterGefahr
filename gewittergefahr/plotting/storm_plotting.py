@@ -89,6 +89,9 @@ def plot_storm_track(
     :param end_marker_size: Size of marker at end of track.
     """
 
+    if isinstance(line_colour, numpy.ndarray):
+        line_colour = tuple(line_colour.tolist())
+
     # TODO(thunderhoser): Get rid of this method (or clean it up a lot).
 
     error_checking.assert_is_valid_lat_numpy_array(centroid_latitudes_deg)
@@ -148,6 +151,9 @@ def plot_storm_outlines(
     :param line_colour: Colour of each polygon.
     """
 
+    if isinstance(line_colour, numpy.ndarray):
+        line_colour = tuple(line_colour.tolist())
+
     num_storm_objects = len(storm_object_table.index)
 
     for i in range(num_storm_objects):
@@ -181,6 +187,9 @@ def plot_storm_centroids(
     :param marker_size: Marker size for storm centroids.
     """
 
+    if isinstance(marker_colour, numpy.ndarray):
+        marker_colour = tuple(marker_colour.tolist())
+
     x_coords_metres, y_coords_metres = basemap_object(
         storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
         storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
@@ -209,6 +218,9 @@ def plot_storm_ids(
     :param font_colour: Font colour.
     :param font_size: Font size.
     """
+
+    if isinstance(font_colour, numpy.ndarray):
+        font_colour = tuple(font_colour.tolist())
 
     error_checking.assert_is_boolean(plot_near_centroids)
     error_checking.assert_is_boolean(include_secondary_ids)
@@ -302,6 +314,9 @@ def plot_storm_tracks(
     :param end_marker_size: Size of each end-point marker.
     """
 
+    if isinstance(line_colour, numpy.ndarray):
+        line_colour = tuple(line_colour.tolist())
+
     plot_start_markers = start_marker_type is not None
     plot_end_markers = end_marker_type is not None
 
@@ -361,6 +376,7 @@ def plot_storm_tracks(
     for k in range(num_tracks):
         if colour_map_object is None:
             this_colour = rgb_matrix[numpy.mod(k, num_colours), :]
+            this_colour = tuple(this_colour.tolist())
         else:
             this_colour = None
 
@@ -444,19 +460,12 @@ def plot_storm_tracks(
                             tracking_utils.VALID_TIME_COLUMN].values[i]
                     ))
 
-                this_colour = 'k'
-                print(this_colour)
+                    this_colour = tuple(this_colour.tolist())
 
                 if start_marker_type == 'x':
                     this_edge_width = 2
                 else:
                     this_edge_width = 1
-
-                print(storm_object_table[tracking_utils.CENTROID_X_COLUMN].values[i])
-                print(storm_object_table[tracking_utils.CENTROID_Y_COLUMN].values[i])
-                print(start_marker_type)
-                print(start_marker_size)
-                print(this_edge_width)
 
                 axes_object.plot(
                     storm_object_table[
@@ -481,7 +490,7 @@ def plot_storm_tracks(
                             tracking_utils.VALID_TIME_COLUMN].values[i]
                     ))
 
-                print(this_colour)
+                    this_colour = tuple(this_colour.tolist())
 
                 if end_marker_type == 'x':
                     this_edge_width = 2
