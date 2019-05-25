@@ -444,7 +444,7 @@ def plot_storm_tracks(
                             tracking_utils.VALID_TIME_COLUMN].values[i]
                     ))
 
-                    print(this_colour)
+                print(this_colour)
 
                 if start_marker_type == 'x':
                     this_edge_width = 2
@@ -474,7 +474,7 @@ def plot_storm_tracks(
                             tracking_utils.VALID_TIME_COLUMN].values[i]
                     ))
 
-                    print(this_colour)
+                print(this_colour)
 
                 if end_marker_type == 'x':
                     this_edge_width = 2
