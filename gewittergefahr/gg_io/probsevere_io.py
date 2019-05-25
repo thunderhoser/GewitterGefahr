@@ -96,7 +96,8 @@ def _get_pathless_raw_file_name(unix_time_sec, file_extension):
         RAW_FILE_NAME_PREFIX,
         time_conversion.unix_sec_to_string(
             unix_time_sec, RAW_FILE_TIME_FORMAT),
-        file_extension)
+        file_extension
+    )
 
 
 def _find_io_files_for_renaming(
@@ -428,7 +429,8 @@ def find_raw_file(top_directory_name, unix_time_sec, file_extension,
         top_directory_name,
         time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
         time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
-        pathless_file_name)
+        pathless_file_name
+    )
 
     if os.path.isfile(raw_file_name) or not raise_error_if_missing:
         return raw_file_name
@@ -440,13 +442,14 @@ def find_raw_file(top_directory_name, unix_time_sec, file_extension,
         top_directory_name,
         time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
         time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
-        pathless_file_name)
+        pathless_file_name
+    )
 
     if os.path.isfile(alt_raw_file_name):
         return alt_raw_file_name
 
     error_string = (
-        'Cannot find raw probSevere file.  Expected at: {0:s}'
+        'Cannot find raw probSevere file.  Expected at: "{0:s}"'
     ).format(raw_file_name)
 
     raise ValueError(error_string)
@@ -483,7 +486,8 @@ def find_raw_files_one_day(top_directory_name, unix_time_sec, file_extension,
         top_directory_name,
         time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
         time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
-        pathless_file_name_pattern)
+        pathless_file_name_pattern
+    )
 
     raw_file_names = glob.glob(raw_file_pattern)
     if len(raw_file_names):
@@ -496,7 +500,8 @@ def find_raw_files_one_day(top_directory_name, unix_time_sec, file_extension,
         top_directory_name,
         time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
         time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
-        pathless_file_name_pattern)
+        pathless_file_name_pattern
+    )
 
     raw_file_names = glob.glob(raw_file_pattern)
 

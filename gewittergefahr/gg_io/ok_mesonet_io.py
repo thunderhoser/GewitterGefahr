@@ -158,7 +158,8 @@ def find_local_raw_file(unix_time_sec=None, top_directory_name=None,
         time_conversion.unix_sec_to_string(
             unix_time_sec, TIME_FORMAT_DAY_OF_MONTH),
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_MINUTE),
-        RAW_FILE_EXTENSION)
+        RAW_FILE_EXTENSION
+    )
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         raise ValueError(

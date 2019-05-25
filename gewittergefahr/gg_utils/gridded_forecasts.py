@@ -1409,7 +1409,9 @@ def create_forecast_grids(
         print((
             'Interpolating forecast to lat-long grid for initial time '
             '{0:s}...'
-        ).format(init_time_strings[i]))
+        ).format(
+            init_time_strings[i]
+        ))
 
         if i != num_init_times - 1:
             print(MINOR_SEPARATOR_STRING)

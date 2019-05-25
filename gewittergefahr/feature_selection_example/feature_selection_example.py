@@ -187,11 +187,11 @@ def _print_backward_selection_results(backward_selection_dict):
     """
 
     print('\nFeatures were removed in the following order: {0:s}'.format(
-        backward_selection_dict[feature_selection.REMOVED_FEATURES_KEY]
+        str(backward_selection_dict[feature_selection.REMOVED_FEATURES_KEY])
     ))
 
     print('The following features remain (were selected): {0:s}'.format(
-        backward_selection_dict[feature_selection.SELECTED_FEATURES_KEY]
+        str(backward_selection_dict[feature_selection.SELECTED_FEATURES_KEY])
     ))
 
     num_selected_features = len(

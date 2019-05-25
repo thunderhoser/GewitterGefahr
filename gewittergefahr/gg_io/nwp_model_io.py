@@ -66,6 +66,7 @@ def _get_pathless_grib_file_names(
         lead_time_hours = 0
 
     pathless_file_names = []
+
     for this_prefix in pathless_file_name_prefixes:
         for this_file_type in grib_file_types:
             this_pathless_file_name = '{0:s}_{1:s}_{2:s}{3:s}'.format(
@@ -73,7 +74,8 @@ def _get_pathless_grib_file_names(
                 time_conversion.unix_sec_to_string(
                     init_time_unix_sec, TIME_FORMAT_HOUR),
                 _lead_time_to_string(lead_time_hours),
-                grib_io.file_type_to_extension(this_file_type))
+                grib_io.file_type_to_extension(this_file_type)
+            )
 
             pathless_file_names.append(this_pathless_file_name)
 
@@ -110,7 +112,8 @@ def find_grib_file(
             top_directory_name,
             time_conversion.unix_sec_to_string(
                 init_time_unix_sec, TIME_FORMAT_MONTH),
-            this_pathless_file_name)
+            this_pathless_file_name
+        )
 
         possible_grib_file_names.append(grib_file_name)
         if os.path.isfile(grib_file_name):
@@ -121,6 +124,7 @@ def find_grib_file(
             '\n\n{0:s}\nCannot find grib file.  Expected at one of the above '
             'locations.'
         ).format(str(possible_grib_file_names))
+
         raise ValueError(error_string)
 
     return grib_file_name
@@ -225,7 +229,8 @@ def download_grib_file(
                     init_time_unix_sec, TIME_FORMAT_MONTH),
                 time_conversion.unix_sec_to_string(
                     init_time_unix_sec, TIME_FORMAT_DATE),
-                pathless_file_names[i])
+                pathless_file_names[i]
+            )
 
             raise_error_now = (
                 raise_error_if_fails and i == len(pathless_file_names) - 1 and
@@ -245,10 +250,12 @@ def download_grib_file(
 
             if local_file_extension == grib_io.GRIB1_FILE_EXTENSION:
                 new_local_file_name = '{0:s}{1:s}'.format(
-                    extensionless_local_file_name, grib_io.GRIB2_FILE_EXTENSION)
+                    extensionless_local_file_name, grib_io.GRIB2_FILE_EXTENSION
+                )
             else:
                 new_local_file_name = '{0:s}{1:s}'.format(
-                    extensionless_local_file_name, grib_io.GRIB1_FILE_EXTENSION)
+                    extensionless_local_file_name, grib_io.GRIB1_FILE_EXTENSION
+                )
 
             os.rename(local_file_name, new_local_file_name)
             local_file_name = copy.deepcopy(new_local_file_name)

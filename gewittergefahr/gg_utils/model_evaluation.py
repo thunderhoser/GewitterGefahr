@@ -224,8 +224,9 @@ def get_binarization_thresholds(
         if threshold_arg != THRESHOLD_ARG_FOR_UNIQUE_FORECASTS:
             error_string = (
                 'If string, threshold_arg must be "{0:s}".  Instead, got '
-                '"{1:s}".').format(THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
-                                   threshold_arg)
+                '"{1:s}".'
+            ).format(THRESHOLD_ARG_FOR_UNIQUE_FORECASTS, threshold_arg)
+
             raise ValueError(error_string)
 
         error_checking.assert_is_geq(unique_forecast_precision, 0.)
@@ -311,11 +312,13 @@ def find_best_binarization_threshold(
     """
 
     error_checking.assert_is_string(optimization_direction)
+
     if optimization_direction not in VALID_OPTIMIZATION_DIRECTIONS:
         error_string = (
             '\n\n{0:s}\nValid optimization directions (listed above) do not '
-            'include "{1:s}".').format(VALID_OPTIMIZATION_DIRECTIONS,
-                                       optimization_direction)
+            'include "{1:s}".'
+        ).format(str(VALID_OPTIMIZATION_DIRECTIONS), optimization_direction)
+
         raise ValueError(error_string)
 
     possible_thresholds = get_binarization_thresholds(
@@ -1519,7 +1522,8 @@ def read_results(pickle_file_name):
             '("{1:s}") are listed below.  Some expected keys were not found.'
             '\n{2:s}\n'
         ).format(
-            EVALUATION_DICT_KEYS, pickle_file_name, list(evaluation_dict.keys())
+            str(EVALUATION_DICT_KEYS), pickle_file_name,
+            str(list(evaluation_dict.keys()))
         )
 
         raise ValueError(error_string)

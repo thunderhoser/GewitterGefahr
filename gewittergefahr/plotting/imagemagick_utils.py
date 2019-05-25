@@ -83,6 +83,7 @@ def concatenate_images(
 
     command_string = '"{0:s}" -mode concatenate -tile {1:d}x{2:d}'.format(
         montage_exe_name, num_panel_columns, num_panel_rows)
+
     for this_file_name in input_file_names:
         command_string += ' "{0:s}"'.format(this_file_name)
 

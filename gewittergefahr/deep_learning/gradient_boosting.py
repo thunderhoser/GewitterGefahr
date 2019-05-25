@@ -269,8 +269,8 @@ def read_model_metadata(pickle_file_name):
             '("{1:s}") are listed below.  Some expected keys were not found.'
             '\n{2:s}\n'
         ).format(
-            MODEL_METADATA_KEYS, pickle_file_name,
-            list(model_metadata_dict.keys())
+            str(MODEL_METADATA_KEYS), pickle_file_name,
+            str(list(model_metadata_dict.keys()))
         )
 
         raise ValueError(error_string)

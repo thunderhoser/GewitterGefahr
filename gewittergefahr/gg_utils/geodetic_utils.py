@@ -179,8 +179,9 @@ def find_invalid_longitudes(
     else:
         error_string = (
             '\n\n{0:s}Valid options for `sign_in_western_hemisphere` are listed'
-            ' above and do not include "{1:s}".').format(
-                VALID_LONGITUDE_SIGN_ARGS, sign_in_western_hemisphere)
+            ' above and do not include "{1:s}".'
+        ).format(str(VALID_LONGITUDE_SIGN_ARGS), sign_in_western_hemisphere)
+
         raise ValueError(error_string)
 
     return numpy.where(numpy.invert(valid_flags))[0]

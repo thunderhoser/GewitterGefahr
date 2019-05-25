@@ -70,7 +70,9 @@ def _check_learning_phase(learning_phase):
     if learning_phase not in VALID_LEARNING_PHASES:
         error_string = (
             '\n\n{0:s}\n\nValid learning phases (listed above) do not include '
-            '"{1:s}".').format(VALID_LEARNING_PHASES, learning_phase)
+            '"{1:s}".'
+        ).format(str(VALID_LEARNING_PHASES), learning_phase)
+
         raise ValueError(error_string)
 
 
@@ -661,7 +663,8 @@ def train_neural_net(
     if solver not in VALID_SOLVERS_FOR_NN:
         error_string = (
             '\n\n{0:s}\n\nValid solvers (listed above) do not include "{1:s}".'
-        ).format(VALID_SOLVERS_FOR_NN, solver)
+        ).format(str(VALID_SOLVERS_FOR_NN), solver)
+
         raise ValueError(error_string)
 
     error_checking.assert_is_integer(num_examples_per_batch)

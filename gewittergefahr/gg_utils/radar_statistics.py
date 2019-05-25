@@ -227,7 +227,8 @@ def radar_field_and_statistic_to_column_name(
     error_checking.assert_is_string(statistic_name)
 
     return '{0:s}_{1:d}metres_{2:s}'.format(
-        radar_field_name, int(numpy.round(radar_height_m_asl)), statistic_name)
+        radar_field_name, int(numpy.round(radar_height_m_asl)), statistic_name
+    )
 
 
 def radar_field_and_percentile_to_column_name(
@@ -246,7 +247,8 @@ def radar_field_and_percentile_to_column_name(
 
     return '{0:s}_{1:d}metres_percentile{2:05.1f}'.format(
         radar_field_name, int(numpy.round(radar_height_m_asl)),
-        percentile_level)
+        percentile_level
+    )
 
 
 def get_statistic_columns(statistic_table):

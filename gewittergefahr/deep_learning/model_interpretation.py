@@ -38,6 +38,7 @@ def check_component_type(component_type_string):
             '\n\n{0:s}\nValid component types (listed above) do not include '
             '"{1:s}".'
         ).format(str(VALID_COMPONENT_TYPE_STRINGS), component_type_string)
+
         raise ValueError(error_string)
 
 
@@ -157,11 +158,13 @@ def sort_neurons_by_weight(model_object, layer_name):
 
     layer_type_string = type(model_object.get_layer(name=layer_name)).__name__
     valid_layer_type_strings = ['Dense', 'Conv1D', 'Conv2D', 'Conv3D']
+
     if layer_type_string not in valid_layer_type_strings:
         error_string = (
             '\n\n{0:s}\nLayer "{1:s}" has type "{2:s}", which is not in the '
             'above list.'
         ).format(str(valid_layer_type_strings), layer_name, layer_type_string)
+
         raise TypeError(error_string)
 
     weight_matrix = model_object.get_layer(name=layer_name).get_weights()[0]

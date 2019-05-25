@@ -65,12 +65,15 @@ def _check_normalization_type(normalization_type_string):
     """
 
     error_checking.assert_is_string(normalization_type_string)
+
     if normalization_type_string not in VALID_NORMALIZATION_TYPE_STRINGS:
         error_string = (
             '\n\n{0:s}\nValid normalization types (listed above) do not include'
             ' "{1:s}".'
-        ).format(str(VALID_NORMALIZATION_TYPE_STRINGS),
-                 normalization_type_string)
+        ).format(
+            str(VALID_NORMALIZATION_TYPE_STRINGS), normalization_type_string
+        )
+
         raise ValueError(error_string)
 
 
@@ -577,8 +580,9 @@ def mask_low_reflectivity_pixels(
     if radar_utils.REFL_NAME not in field_names:
         error_string = (
             'Cannot find "{0:s}" (needed to find low-reflectivity pixels) in '
-            'list `{1:s}`.'
-        ).format(radar_utils.REFL_NAME, field_names)
+            'the following list:\n{1:s}'
+        ).format(radar_utils.REFL_NAME, str(field_names))
+
         raise ValueError(error_string)
 
     reflectivity_index = field_names.index(radar_utils.REFL_NAME)

@@ -325,10 +325,12 @@ def field_name_new_to_orig(field_name, data_source):
 
     found_flags = [s == field_name for s in RADAR_FIELD_NAMES]
     field_name_orig = all_orig_field_names[numpy.where(found_flags)[0][0]]
+
     if field_name_orig is None:
         error_string = (
-            'Field "{0:s}" does not exist for data source "{1:s}"').format(
-                field_name, data_source)
+            'Field "{0:s}" does not exist for data source "{1:s}"'
+        ).format(field_name, data_source)
+
         raise ValueError(error_string)
 
     return field_name_orig
@@ -344,8 +346,9 @@ def field_name_to_echo_top_refl(field_name):
     if field_name not in ECHO_TOP_NAMES:
         error_string = (
             '\n{0:s}\nValid echo-top fields (listed above) do not include '
-            '"{0:s}".'
-        ).format(field_name)
+            '"{1:s}".'
+        ).format(str(ECHO_TOP_NAMES), field_name)
+
         raise ValueError(error_string)
 
     critical_reflectivity_dbz = int(

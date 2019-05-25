@@ -387,7 +387,8 @@ def unzip_1day_tar_file(
         )
 
     target_directory_name = '{0:s}/{1:s}/{2:s}'.format(
-        top_target_dir_name, spc_date_string[:4], spc_date_string)
+        top_target_dir_name, spc_date_string[:4], spc_date_string
+    )
 
     unzipping.unzip_tar(
         tar_file_name, target_directory_name=target_directory_name,

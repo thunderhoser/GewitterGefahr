@@ -121,7 +121,7 @@ def replace_missing_values(feature_table, replacement_dict=None,
             error_string = (
                 '\n\n{0:s}\n\nValid replacement methods (listed above) do not '
                 'include "{1:s}".'
-            ).format(VALID_REPLACEMENT_METHODS, replacement_method)
+            ).format(str(VALID_REPLACEMENT_METHODS), replacement_method)
 
             raise ValueError(error_string)
 

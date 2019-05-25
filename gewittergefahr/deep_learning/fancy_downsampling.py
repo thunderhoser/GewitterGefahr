@@ -95,6 +95,7 @@ def _find_uncovered_times(all_times_unix_sec, covered_times_unix_sec):
         '\nCovered times:\n{0:s}\nCovered times found in all_times_unix_sec:\n'
         '{1:s}\nNot all covered times were found, as shown above.'
     ).format(str(covered_times_unix_sec), str(found_times_unix_sec))
+
     raise ValueError(error_string)
 
 

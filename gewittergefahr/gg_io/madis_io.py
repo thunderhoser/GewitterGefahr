@@ -163,7 +163,8 @@ def _get_online_file_name(unix_time_sec, secondary_source, protocol):
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_MONTH),
         time_conversion.unix_sec_to_string(
             unix_time_sec, TIME_FORMAT_DAY_OF_MONTH),
-        first_subdir_name, secondary_source, second_subdir_name)
+        first_subdir_name, secondary_source, second_subdir_name
+    )
 
     return '{0:s}/{1:s}'.format(online_directory_name, pathless_file_name)
 
@@ -239,7 +240,8 @@ def _get_pathless_raw_file_name(unix_time_sec):
 
     return '{0:s}{1:s}'.format(
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_HOUR),
-        RAW_FILE_EXTENSION)
+        RAW_FILE_EXTENSION
+    )
 
 
 def find_local_raw_file(unix_time_sec=None, secondary_source=None,
@@ -269,11 +271,14 @@ def find_local_raw_file(unix_time_sec=None, secondary_source=None,
     raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_directory_name, secondary_source,
         time_conversion.unix_sec_to_string(
-            unix_time_sec, TIME_FORMAT_MONTH_YEAR), pathless_file_name)
+            unix_time_sec, TIME_FORMAT_MONTH_YEAR),
+        pathless_file_name
+    )
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         raise ValueError(
-            'Cannot find raw file.  Expected at location: ' + raw_file_name)
+            'Cannot find raw file.  Expected at: "{0:s}"'.format(raw_file_name)
+        )
 
     return raw_file_name
 
@@ -300,10 +305,12 @@ def download_raw_file(
     """
 
     error_checking.assert_is_string(protocol)
+
     if protocol not in ['ftp', 'http']:
         error_string = (
-            'Protocol should be either "ftp" or "http", not "{0:s}"'.format(
-                protocol))
+            'Protocol should be either "ftp" or "http", not "{0:s}"'
+        ).format(protocol)
+
         raise ValueError(error_string)
 
     raw_wind_io.check_data_sources(

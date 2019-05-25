@@ -1399,7 +1399,9 @@ def run_tracking(
         else:
             print((
                 'Linking local maxima at {0:s} with those at {1:s}...\n'
-            ).format(radar_time_strings[i], radar_time_strings[i - 1]))
+            ).format(
+                radar_time_strings[i], radar_time_strings[i - 1]
+            ))
 
             this_current_to_prev_matrix = (
                 temporal_tracking.link_local_maxima_in_time(

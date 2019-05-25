@@ -74,7 +74,9 @@ def unzip_1day_tar_file(
             refl_heights_m_asl=refl_heights_m_asl))
 
     target_directory_name = '{0:s}/{1:s}/{2:s}'.format(
-        top_target_directory_name, spc_date_string[:4], spc_date_string)
+        top_target_directory_name, spc_date_string[:4], spc_date_string
+    )
+
     field_names = list(field_to_heights_dict_m_asl.keys())
     directory_names_to_unzip = []
 

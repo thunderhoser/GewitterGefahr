@@ -25,6 +25,7 @@ def unzip_tar(tar_file_name, target_directory_name=None,
 
     unix_command_string = 'tar -C "{0:s}" -xvf "{1:s}"'.format(
         target_directory_name, tar_file_name)
+
     for this_relative_path in file_and_dir_names_to_unzip:
         unix_command_string += ' "' + this_relative_path + '"'
 
@@ -51,6 +52,7 @@ def unzip_gzip(gzip_file_name, extracted_file_name):
 
     unix_command_string = 'gunzip -v -c "{0:s}" > "{1:s}"'.format(
         gzip_file_name, extracted_file_name)
+
     exit_code = os.system(unix_command_string)
 
     if exit_code != 0:
@@ -80,6 +82,7 @@ def gzip_file(input_file_name, output_file_name=None, delete_input_file=True):
         error_string = (
             'Output file ("{0:s}") should have extension ".gz".'
         ).format(output_file_name)
+
         raise ValueError(error_string)
 
     unix_command_string = 'gzip -v -c "{0:s}" > "{1:s}"'.format(

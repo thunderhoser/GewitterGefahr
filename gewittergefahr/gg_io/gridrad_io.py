@@ -55,7 +55,8 @@ def _get_pathless_file_name(unix_time_sec):
         PATHLESS_FILE_NAME_PREFIX,
         time_conversion.unix_sec_to_string(
             unix_time_sec, TIME_FORMAT_IN_FILE_NAMES),
-        FILE_EXTENSION)
+        FILE_EXTENSION
+    )
 
 
 def _check_grid_points(
@@ -162,12 +163,14 @@ def find_file(unix_time_sec, top_directory_name, raise_error_if_missing=True):
     spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
     gridrad_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_directory_name, spc_date_string[:4], spc_date_string,
-        _get_pathless_file_name(unix_time_sec))
+        _get_pathless_file_name(unix_time_sec)
+    )
 
     if raise_error_if_missing and not os.path.isfile(gridrad_file_name):
         error_string = (
-            'Cannot find GridRad file.  Expected at location: {0:s}'.format(
-                gridrad_file_name))
+            'Cannot find GridRad file.  Expected at: "{0:s}"'
+        ).format(gridrad_file_name)
+
         raise ValueError(error_string)
 
     return gridrad_file_name

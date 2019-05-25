@@ -90,9 +90,11 @@ def _station_id_to_online(station_id):
 
     start_of_station_id = station_id.split('_')[0]
     possible_online_station_ids = []
+
     for this_prefix in PREFIXES_FOR_ONLINE_STATION_ID:
         possible_online_station_ids.append('{0:s}{1:s}'.format(
-            this_prefix, start_of_station_id))
+            this_prefix, start_of_station_id
+        ))
 
     return possible_online_station_ids
 
@@ -247,7 +249,8 @@ def _get_pathless_raw_1minute_file_name(station_id, month_unix_sec):
     return '{0:s}{1:s}{2:s}{3:s}'.format(
         PATHLESS_FILE_NAME_PREFIX_1MINUTE, station_id,
         time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_MONTH),
-        RAW_FILE_EXTENSION)
+        RAW_FILE_EXTENSION
+    )
 
 
 def _get_pathless_raw_5minute_file_name(station_id, month_unix_sec):
@@ -261,7 +264,8 @@ def _get_pathless_raw_5minute_file_name(station_id, month_unix_sec):
     return '{0:s}{1:s}{2:s}{3:s}'.format(
         PATHLESS_FILE_NAME_PREFIX_5MINUTE, station_id,
         time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_MONTH),
-        RAW_FILE_EXTENSION)
+        RAW_FILE_EXTENSION
+    )
 
 
 def find_local_raw_1minute_file(station_id=None, month_unix_sec=None,
@@ -423,11 +427,13 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
     for this_station_id in possible_orig_station_ids:
         pathless_file_name = _get_pathless_raw_1minute_file_name(
             this_station_id, month_unix_sec)
+
         online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
             TOP_FTP_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
             time_conversion.unix_sec_to_string(
                 month_unix_sec, TIME_FORMAT_YEAR),
-            pathless_file_name)
+            pathless_file_name
+        )
 
         this_local_file_name = downloads.download_file_via_ftp(
             server_name=FTP_SERVER_NAME, user_name=FTP_USER_NAME,
@@ -439,11 +445,15 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
             return local_file_name
 
     if raise_error_if_fails:
-        month_string = time_conversion.unix_sec_to_string(
-            month_unix_sec, TIME_FORMAT_MONTH)
-        raise ValueError(
-            'Could not download file for station "{0:s}", month {1:s}.'.format(
-                station_id, month_string))
+        error_string = (
+            'Could not download file for station "{0:s}", month {1:s}.'
+        ).format(
+            station_id,
+            time_conversion.unix_sec_to_string(
+                month_unix_sec, TIME_FORMAT_MONTH)
+        )
+
+        raise ValueError(error_string)
 
     return None
 
@@ -473,11 +483,13 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
     for this_station_id in possible_orig_station_ids:
         pathless_file_name = _get_pathless_raw_5minute_file_name(
             this_station_id, month_unix_sec)
+
         online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
             TOP_FTP_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
             time_conversion.unix_sec_to_string(
                 month_unix_sec, TIME_FORMAT_YEAR),
-            pathless_file_name)
+            pathless_file_name
+        )
 
         this_local_file_name = downloads.download_file_via_ftp(
             server_name=FTP_SERVER_NAME, user_name=FTP_USER_NAME,
@@ -489,11 +501,15 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
             return local_file_name
 
     if raise_error_if_fails:
-        month_string = time_conversion.unix_sec_to_string(
-            month_unix_sec, TIME_FORMAT_MONTH)
-        raise ValueError(
-            'Could not download file for station "{0:s}", month {1:s}.'.format(
-                station_id, month_string))
+        error_string = (
+            'Could not download file for station "{0:s}", month {1:s}.'
+        ).format(
+            station_id,
+            time_conversion.unix_sec_to_string(
+                month_unix_sec, TIME_FORMAT_MONTH)
+        )
+
+        raise ValueError(error_string)
 
     return None
 

@@ -65,7 +65,7 @@ def _check_learning_goal(goal_string):
         error_string = (
             '\n\n{0:s}\nValid learning goals (listed above) do not include '
             '"{1:s}".'
-        ).format(VALID_GOAL_STRINGS, goal_string)
+        ).format(str(VALID_GOAL_STRINGS), goal_string)
 
         raise ValueError(error_string)
 
@@ -655,10 +655,12 @@ def find_target_file(top_directory_name, event_type_string, spc_date_string,
 
         if event_type_string == linkage.WIND_EVENT_STRING:
             target_file_name = '{0:s}/{1:s}/wind_labels_{2:s}.nc'.format(
-                top_directory_name, spc_date_string[:4], spc_date_string)
+                top_directory_name, spc_date_string[:4], spc_date_string
+            )
         else:
             target_file_name = '{0:s}/{1:s}/tornado_labels_{2:s}.nc'.format(
-                top_directory_name, spc_date_string[:4], spc_date_string)
+                top_directory_name, spc_date_string[:4], spc_date_string
+            )
     else:
         spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
         valid_time_string = time_conversion.unix_sec_to_string(
@@ -667,12 +669,15 @@ def find_target_file(top_directory_name, event_type_string, spc_date_string,
         if event_type_string == linkage.WIND_EVENT_STRING:
             target_file_name = '{0:s}/{1:s}/{2:s}/wind_labels_{3:s}.nc'.format(
                 top_directory_name, spc_date_string[:4], spc_date_string,
-                valid_time_string)
+                valid_time_string
+            )
         else:
             target_file_name = (
                 '{0:s}/{1:s}/{2:s}/tornado_labels_{3:s}.nc'
-            ).format(top_directory_name, spc_date_string[:4], spc_date_string,
-                     valid_time_string)
+            ).format(
+                top_directory_name, spc_date_string[:4], spc_date_string,
+                valid_time_string
+            )
 
     if raise_error_if_missing and not os.path.isfile(target_file_name):
         error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(

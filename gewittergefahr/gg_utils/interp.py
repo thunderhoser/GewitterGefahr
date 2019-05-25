@@ -566,6 +566,7 @@ def check_temporal_interp_method(interp_method_string):
             '\n\n{0:s}\nValid temporal-interp methods (listed above) do not '
             'include "{1:s}".'
         ).format(str(TEMPORAL_INTERP_METHOD_STRINGS), interp_method_string)
+
         raise ValueError(error_string)
 
 
@@ -583,6 +584,7 @@ def check_spatial_interp_method(interp_method_string):
             '\n\n{0:s}\nValid spatial-interp methods (listed above) do not '
             'include "{1:s}".'
         ).format(str(SPATIAL_INTERP_METHOD_STRINGS), interp_method_string)
+
         raise ValueError(error_string)
 
 
@@ -1089,14 +1091,18 @@ def interp_temperature_surface_from_nwp(
 
     for this_pressure_mb in pressure_levels_mb:
         height_field_names.append('{0:s}_{1:d}'.format(
-            HEIGHT_NAME, int(this_pressure_mb)))
+            HEIGHT_NAME, int(this_pressure_mb)
+        ))
         height_field_names_grib1.append('{0:s}:{1:d} mb'.format(
-            HEIGHT_NAME_GRIB1, int(this_pressure_mb)))
+            HEIGHT_NAME_GRIB1, int(this_pressure_mb)
+        ))
 
         temperature_field_names.append('{0:s}_{1:d}'.format(
-            TEMPERATURE_NAME, int(this_pressure_mb)))
+            TEMPERATURE_NAME, int(this_pressure_mb)
+        ))
         temperature_field_names_grib1.append('{0:s}:{1:d} mb'.format(
-            TEMPERATURE_NAME_GRIB1, int(this_pressure_mb)))
+            TEMPERATURE_NAME_GRIB1, int(this_pressure_mb)
+        ))
 
     _, init_time_step_hours = nwp_model_utils.get_time_steps(model_name)
 

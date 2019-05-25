@@ -70,6 +70,7 @@ def check_file_type(grib_file_type):
         error_string = (
             '\n\n{0:s}\nValid file types (listed above) do not include "{1:s}".'
         ).format(str(VALID_FILE_TYPES), grib_file_type)
+
         raise ValueError(error_string)
 
 
@@ -90,6 +91,7 @@ def file_name_to_type(grib_file_name):
     error_string = (
         'File type should be either "{0:s}" or "{1:s}".  Instead, got: "{2:s}"'
     ).format(GRIB1_FILE_TYPE, GRIB2_FILE_TYPE, grib_file_name)
+
     raise ValueError(error_string)
 
 
@@ -155,15 +157,18 @@ def read_field_from_grib_file(
         command_string = (
             '"{0:s}" "{1:s}" -s | grep -w "{2:s}" | "{0:s}" -i "{1:s}" '
             '-text -nh -o "{3:s}"'
-        ).format(wgrib_exe_name, grib_file_name, field_name_grib1,
-                 temporary_file_name)
+        ).format(
+            wgrib_exe_name, grib_file_name, field_name_grib1,
+            temporary_file_name
+        )
     else:
         command_string = (
             '"{0:s}" "{1:s}" -s | grep -w "{2:s}" | "{0:s}" -i "{1:s}" '
             '-no_header -text "{3:s}"'
-        ).format(wgrib2_exe_name, grib_file_name,
-                 _field_name_grib1_to_grib2(field_name_grib1),
-                 temporary_file_name)
+        ).format(
+            wgrib2_exe_name, grib_file_name,
+            _field_name_grib1_to_grib2(field_name_grib1), temporary_file_name
+        )
 
     try:
         subprocess.call(command_string, shell=True)
@@ -176,6 +181,7 @@ def read_field_from_grib_file(
             '\n\n{0:s}\n\nCommand (shown above) failed (details shown below).'
             '\n\n{1:s}'
         ).format(command_string, str(this_exception))
+
         warnings.warn(warning_string)
         return None
 
@@ -193,6 +199,7 @@ def read_field_from_grib_file(
         warning_string = (
             '\n\nnumpy.reshape failed (details shown below).\n\n{0:s}'
         ).format(str(this_exception))
+
         warnings.warn(warning_string)
         return None
 

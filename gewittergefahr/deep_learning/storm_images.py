@@ -970,13 +970,17 @@ def _find_many_files_one_spc_date(
                 valid_times_unix_sec.append(this_time_unix_sec)
 
         num_times = len(image_file_names)
+
         if num_times == 0:
             if raise_error_if_all_missing:
                 error_string = (
                     'Cannot find files with "{0:s}" at {1:d} metres AGL on SPC '
                     'date "{2:s}".'
-                ).format(field_name_by_pair[j], height_by_pair_m_agl[j],
-                         spc_date_string)
+                ).format(
+                    field_name_by_pair[j], height_by_pair_m_agl[j],
+                    spc_date_string
+                )
+
                 raise ValueError(error_string)
 
             return None, None
@@ -1225,7 +1229,9 @@ def extract_storm_images_myrorss_or_mrms(
                 print((
                     'Creating rotated {0:.1f}-metre grids for storms at '
                     '{1:s}...'
-                ).format(rotated_grid_spacing_metres / 2, valid_time_strings[i]))
+                ).format(
+                    rotated_grid_spacing_metres / 2, valid_time_strings[i]
+                ))
 
                 this_storm_object_table = _rotate_grids_many_storm_objects(
                     storm_object_table=this_storm_object_table,
@@ -1238,7 +1244,9 @@ def extract_storm_images_myrorss_or_mrms(
                 print((
                     'Creating rotated {0:.1f}-metre grids for storms at '
                     '{1:s}...'
-                ).format(rotated_grid_spacing_metres, valid_time_strings[i]))
+                ).format(
+                    rotated_grid_spacing_metres, valid_time_strings[i]
+                ))
 
                 this_storm_object_table = _rotate_grids_many_storm_objects(
                     storm_object_table=this_storm_object_table,
@@ -1572,7 +1580,9 @@ def extract_storm_images_gridrad(
             print((
                 'Creating rotated {0:.1f}-metre grids for storms at '
                 '{1:s}...'
-            ).format(rotated_grid_spacing_metres, valid_time_strings[i]))
+            ).format(
+                rotated_grid_spacing_metres, valid_time_strings[i]
+            ))
 
             this_storm_object_table = _rotate_grids_many_storm_objects(
                 storm_object_table=this_storm_object_table,
@@ -2244,7 +2254,9 @@ def find_many_files_myrorss_or_mrms(
     for j in range(num_field_height_pairs):
         print((
             'Finding storm-image files for "{0:s}" at {1:d} metres AGL...'
-        ).format(field_name_by_pair[j], height_by_pair_m_agl[j]))
+        ).format(
+            field_name_by_pair[j], height_by_pair_m_agl[j]
+        ))
 
         if j == 0:
             image_file_names = []
@@ -2407,7 +2419,9 @@ def find_many_files_gridrad(
         for k in range(num_heights):
             print((
                 'Finding storm-image files for "{0:s}" at {1:d} metres AGL...'
-            ).format(radar_field_names[j], radar_heights_m_agl[k]))
+            ).format(
+                radar_field_names[j], radar_heights_m_agl[k]
+            ))
 
             if j == 0 and k == 0:
                 image_file_names = []
@@ -2453,6 +2467,7 @@ def find_many_files_gridrad(
                             error_string = (
                                 'Cannot find any files from {0:s} to {1:s}.'
                             ).format(start_time_string, end_time_string)
+
                             raise ValueError(error_string)
 
                         error_string = (

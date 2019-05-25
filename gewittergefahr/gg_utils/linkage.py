@@ -1330,7 +1330,7 @@ def check_event_type(event_type_string):
         error_string = (
             '\n\n{0:s}\nValid event types (listed above) do not include '
             '"{1:s}".'
-        ).format(VALID_EVENT_TYPE_STRINGS, event_type_string)
+        ).format(str(VALID_EVENT_TYPE_STRINGS), event_type_string)
 
         raise ValueError(error_string)
 
@@ -1587,6 +1587,7 @@ def share_linkages_across_spc_dates(
             'There is only one SPC date ("{0:s}"), so the method '
             '`share_linkages_across_spc_dates` has nothing to do.'
         ).format(spc_date_strings[0])
+
         warnings.warn(warning_string)
 
         if orig_linkage_file_names[0] == new_linkage_file_names[0]:
@@ -1676,10 +1677,12 @@ def find_linkage_file(
 
         if event_type_string == WIND_EVENT_STRING:
             linkage_file_name = '{0:s}/{1:s}/storm_to_winds_{2:s}.p'.format(
-                top_directory_name, spc_date_string[:4], spc_date_string)
+                top_directory_name, spc_date_string[:4], spc_date_string
+            )
         else:
             linkage_file_name = '{0:s}/{1:s}/storm_to_tornadoes_{2:s}.p'.format(
-                top_directory_name, spc_date_string[:4], spc_date_string)
+                top_directory_name, spc_date_string[:4], spc_date_string
+            )
     else:
         spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
         valid_time_string = time_conversion.unix_sec_to_string(
@@ -1688,13 +1691,17 @@ def find_linkage_file(
         if event_type_string == WIND_EVENT_STRING:
             linkage_file_name = (
                 '{0:s}/{1:s}/{2:s}/storm_to_winds_{3:s}.p'
-            ).format(top_directory_name, spc_date_string[:4], spc_date_string,
-                     valid_time_string)
+            ).format(
+                top_directory_name, spc_date_string[:4], spc_date_string,
+                valid_time_string
+            )
         else:
             linkage_file_name = (
                 '{0:s}/{1:s}/{2:s}/storm_to_tornadoes_{3:s}.p'
-            ).format(top_directory_name, spc_date_string[:4], spc_date_string,
-                     valid_time_string)
+            ).format(
+                top_directory_name, spc_date_string[:4], spc_date_string,
+                valid_time_string
+            )
 
     if raise_error_if_missing and not os.path.isfile(linkage_file_name):
         error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(

@@ -35,6 +35,7 @@ def _check_pooling_type(pooling_type_string):
             '\n\n{0:s}\nValid pooling types (listed above) do not include '
             '"{1:s}".'
         ).format(str(VALID_POOLING_TYPE_STRINGS), pooling_type_string)
+
         raise ValueError(error_string)
 
 

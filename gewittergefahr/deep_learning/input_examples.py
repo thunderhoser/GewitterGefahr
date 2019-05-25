@@ -750,8 +750,10 @@ def _check_layer_operation(example_dict, operation_dict):
             error_string = (
                 '\n{0:s}\nExamples contain only radar fields listed above, '
                 'which do not include "{1:s}".'
-            ).format(str(example_dict[RADAR_FIELDS_KEY]),
-                     operation_dict[RADAR_FIELD_KEY])
+            ).format(
+                str(example_dict[RADAR_FIELDS_KEY]),
+                operation_dict[RADAR_FIELD_KEY]
+            )
 
             raise ValueError(error_string)
 
@@ -759,8 +761,9 @@ def _check_layer_operation(example_dict, operation_dict):
         error_string = (
             '\n{0:s}\nValid operations (listed above) do not include '
             '"{1:s}".'
-        ).format(str(VALID_LAYER_OPERATION_NAMES),
-                 operation_dict[OPERATION_NAME_KEY])
+        ).format(
+            str(VALID_LAYER_OPERATION_NAMES), operation_dict[OPERATION_NAME_KEY]
+        )
 
         raise ValueError(error_string)
 
@@ -1275,6 +1278,7 @@ def find_many_example_files(
         example_file_pattern = (
             '{0:s}/batches{1:s}-{1:s}/input_examples_batch{1:s}.nc'
         ).format(top_directory_name, BATCH_NUMBER_REGEX)
+
         example_file_names = glob.glob(example_file_pattern)
 
         if len(example_file_names) > 0:
@@ -1315,6 +1319,7 @@ def find_many_example_files(
         error_string = (
             'Cannot find any file with SPC date from {0:s} to {1:s}.'
         ).format(first_spc_date_string, last_spc_date_string)
+
         raise ValueError(error_string)
 
     return example_file_names

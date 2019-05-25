@@ -153,7 +153,8 @@ def find_file(
 
     directory_name = '{0:s}/{1:s}/{2:s}/scale_{3:d}m2'.format(
         top_tracking_dir_name, date_string[:4], date_string,
-        tracking_scale_metres2)
+        tracking_scale_metres2
+    )
 
     tracking_file_name = '{0:s}/{1:s}_{2:s}_{3:s}{4:s}'.format(
         directory_name, FILE_NAME_PREFIX, source_name,
@@ -255,7 +256,8 @@ def find_files_at_times(
                         ]
                     else:
                         this_month_subdir_name = '{0:s}/{0:s}{1:s}{2:s}'.format(
-                            YEAR_REGEX, this_month_string, DAY_OF_MONTH_REGEX)
+                            YEAR_REGEX, this_month_string, DAY_OF_MONTH_REGEX
+                        )
 
                         this_prev_month, _ = _get_previous_month(
                             month=this_month, year=RANDOM_LEAP_YEAR)
@@ -287,7 +289,8 @@ def find_files_at_times(
                 else:
                     if this_month == -1:
                         this_year_subdir_name = '{0:s}/{0:s}{1:s}{2:s}'.format(
-                            this_year_string, MONTH_REGEX, DAY_OF_MONTH_REGEX)
+                            this_year_string, MONTH_REGEX, DAY_OF_MONTH_REGEX
+                        )
                         this_prev_year_subdir_name = (
                             '{0:04d}/{0:04d}1231'.format(this_year - 1)
                         )
@@ -298,7 +301,8 @@ def find_files_at_times(
                     else:
                         this_month_subdir_name = '{0:s}/{0:s}{1:s}{2:s}'.format(
                             this_year_string, this_month_string,
-                            DAY_OF_MONTH_REGEX)
+                            DAY_OF_MONTH_REGEX
+                        )
 
                         this_prev_month, this_prev_year = _get_previous_month(
                             month=this_month, year=this_year)
@@ -376,7 +380,8 @@ def find_files_one_spc_date(
 
     directory_name = '{0:s}/{1:s}/{2:s}/scale_{3:d}m2'.format(
         top_tracking_dir_name, spc_date_string[:4], spc_date_string,
-        tracking_scale_metres2)
+        tracking_scale_metres2
+    )
 
     glob_pattern = (
         '{0:s}/{1:s}_{2:s}_{3:s}{4:s}'

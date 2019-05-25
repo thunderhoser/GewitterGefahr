@@ -514,7 +514,7 @@ def sequential_forward_selection(
             '(previous minimum = {1:.4f}).\n{2:s}\n'
         ).format(
             min_new_cost, min_cost_by_num_selected[num_selected_features],
-            these_best_feature_names
+            str(these_best_feature_names)
         ))
 
         stopping_criterion = min_cost_by_num_selected[num_selected_features] * (
@@ -665,7 +665,7 @@ def sfs_with_backward_steps(
                 '(previous minimum = {1:.4f}).\n{2:s}\n'
             ).format(
                 min_new_cost, min_cost_by_num_selected[num_selected_features],
-                these_best_feature_names
+                str(these_best_feature_names)
             ))
 
             selected_feature_names += these_best_feature_names
@@ -700,7 +700,7 @@ def sfs_with_backward_steps(
                 '(previous minimum = {1:.4f}).\n{2:s}\n'
             ).format(
                 min_new_cost, min_cost_by_num_selected[num_selected_features],
-                these_worst_feature_names
+                str(these_worst_feature_names)
             ))
 
             remaining_feature_names += these_worst_feature_names
@@ -808,7 +808,7 @@ def floating_sfs(
             '(previous minimum = {1:.4f}).\n{2:s}\n'
         ).format(
             min_new_cost, min_cost_by_num_selected[num_selected_features],
-            these_best_feature_names
+            str(these_best_feature_names)
         ))
 
         stopping_criterion = min_cost_by_num_selected[num_selected_features] * (
@@ -977,7 +977,7 @@ def sequential_backward_selection(
             '(previous minimum = {1:.4f}).\n{2:s}\n'
         ).format(
             min_new_cost, min_cost_by_num_removed[num_removed_features],
-            these_worst_feature_names
+            str(these_worst_feature_names)
         ))
 
         stopping_criterion = min_cost_by_num_removed[num_removed_features] * (
@@ -1132,7 +1132,7 @@ def sbs_with_forward_steps(
                 '(previous minimum = {1:.4f}).\n{2:s}\n'
             ).format(
                 min_new_cost, min_cost_by_num_removed[num_removed_features],
-                these_worst_feature_names
+                str(these_worst_feature_names)
             ))
 
             removed_feature_names += these_worst_feature_names
@@ -1169,7 +1169,7 @@ def sbs_with_forward_steps(
                 '(previous minimum = {1:.4f}).\n{2:s}\n'
             ).format(
                 min_new_cost, min_cost_by_num_removed[num_removed_features],
-                these_best_feature_names
+                str(these_best_feature_names)
             ))
 
             selected_feature_names += these_best_feature_names
@@ -1280,7 +1280,7 @@ def floating_sbs(
             '(previous minimum = {1:.4f}).\n{2:s}\n'
         ).format(
             min_new_cost, min_cost_by_num_removed[num_removed_features],
-            these_worst_feature_names
+            str(these_worst_feature_names)
         ))
 
         stopping_criterion = min_cost_by_num_removed[num_removed_features] * (

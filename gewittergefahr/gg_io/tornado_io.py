@@ -165,7 +165,9 @@ def find_processed_file(directory_name, year, raise_error_if_missing=True):
     if raise_error_if_missing and not os.path.isfile(processed_file_name):
         error_string = (
             'Cannot find processed file with tornado reports.  Expected at: '
-            '{0:s}').format(processed_file_name)
+            '"{0:s}"'
+        ).format(processed_file_name)
+
         raise ValueError(error_string)
 
     return processed_file_name

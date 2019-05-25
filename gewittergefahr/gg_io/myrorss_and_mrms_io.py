@@ -83,7 +83,8 @@ def _get_pathless_raw_file_pattern(unix_time_sec):
 
     return '{0:s}*{1:s}*'.format(
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_MINUTES),
-        UNZIPPED_FILE_EXTENSION)
+        UNZIPPED_FILE_EXTENSION
+    )
 
 
 def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
@@ -99,11 +100,14 @@ def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
         return '{0:s}{1:s}{2:s}'.format(
             time_conversion.unix_sec_to_string(
                 unix_time_sec, TIME_FORMAT_SECONDS),
-            UNZIPPED_FILE_EXTENSION, ZIPPED_FILE_EXTENSION)
+            UNZIPPED_FILE_EXTENSION,
+            ZIPPED_FILE_EXTENSION
+        )
 
     return '{0:s}{1:s}'.format(
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_SECONDS),
-        UNZIPPED_FILE_EXTENSION)
+        UNZIPPED_FILE_EXTENSION
+    )
 
 
 def _remove_sentinels_from_sparse_grid(
@@ -180,7 +184,8 @@ def get_relative_dir_for_raw_files(field_name, data_source, height_m_asl=None):
 
     return '{0:s}/{1:05.2f}'.format(
         radar_utils.field_name_new_to_orig(field_name, data_source=data_source),
-        float(height_m_asl) * METRES_TO_KM)
+        float(height_m_asl) * METRES_TO_KM
+    )
 
 
 def find_raw_file(
@@ -212,9 +217,11 @@ def find_raw_file(
     relative_directory_name = get_relative_dir_for_raw_files(
         field_name=field_name, height_m_asl=height_m_asl,
         data_source=data_source)
+
     directory_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_directory_name, spc_date_string[:4], spc_date_string,
-        relative_directory_name)
+        relative_directory_name
+    )
 
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
     raw_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
@@ -226,7 +233,8 @@ def find_raw_file(
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         raise ValueError(
-            'Cannot find raw file.  Expected at location: ' + raw_file_name)
+            'Cannot find raw file.  Expected at: "{0:s}"'.format(raw_file_name)
+        )
 
     return raw_file_name
 
@@ -314,9 +322,12 @@ def find_raw_file_inexact_time(
     for this_time_unix_sec in allowed_minutes_unix_sec:
         this_pathless_file_pattern = _get_pathless_raw_file_pattern(
             this_time_unix_sec)
+
         this_file_pattern = '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}'.format(
             top_directory_name, spc_date_string[:4], spc_date_string,
-            relative_directory_name, this_pathless_file_pattern)
+            relative_directory_name, this_pathless_file_pattern
+        )
+
         raw_file_names += glob.glob(this_file_pattern)
 
     file_times_unix_sec = []
@@ -336,10 +347,12 @@ def find_raw_file_inexact_time(
         if raise_error_if_missing:
             desired_time_string = time_conversion.unix_sec_to_string(
                 desired_time_unix_sec, TIME_FORMAT_FOR_LOG_MESSAGES)
-            log_string = ('Could not find "{0:s}" file within {1:d} seconds of '
-                          '{2:s}').format(field_name, max_time_offset_sec,
-                                          desired_time_string)
-            raise ValueError(log_string)
+
+            error_string = (
+                'Could not find "{0:s}" file within {1:d} seconds of {2:s}.'
+            ).format(field_name, max_time_offset_sec, desired_time_string)
+
+            raise ValueError(error_string)
 
         return None
 
@@ -388,8 +401,9 @@ def find_raw_files_one_spc_date(
 
     if raise_error_if_missing and not raw_file_names:
         error_string = (
-            'Could not find any files with the following pattern: {0:s}'.format(
-                raw_file_pattern))
+            'Could not find any files with the following pattern: {0:s}'
+        ).format(raw_file_pattern)
+
         raise ValueError(error_string)
 
     return raw_file_names
@@ -514,9 +528,12 @@ def find_many_raw_files(
 
                 warning_string = (
                     'Cannot find file for "{0:s}" at {1:d} metres ASL and '
-                    '{2:s}.').format(
-                        field_name_by_pair[j], int(height_by_pair_m_asl[j]),
-                        this_time_string)
+                    '{2:s}.'
+                ).format(
+                    field_name_by_pair[j], int(height_by_pair_m_asl[j]),
+                    this_time_string
+                )
+
                 warnings.warn(warning_string)
 
     return {

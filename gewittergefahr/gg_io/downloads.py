@@ -62,10 +62,10 @@ def download_file_via_passwordless_ssh(host_name=None, user_name=None,
     file_system_utils.mkdir_recursive_if_necessary(file_name=local_file_name)
 
     unix_command_string = (
-        'LD_LIBRARY_PATH= rsync -rv -e "{0:s}"'
-        ' {1:s}@{2:s}:"{3:s}" "{4:s}"').format(
-            SSH_ARG_STRING, user_name, host_name, remote_file_name,
-            local_file_name)
+        'LD_LIBRARY_PATH= rsync -rv -e "{0:s}" {1:s}@{2:s}:"{3:s}" "{4:s}"'
+    ).format(
+        SSH_ARG_STRING, user_name, host_name, remote_file_name, local_file_name
+    )
 
     devnull_handle = open(os.devnull, 'w')
     subprocess.call(unix_command_string, shell=True, stdout=devnull_handle,
@@ -159,7 +159,9 @@ def download_files_via_http(
 
         if not this_download_succeeded:
             warnings.warn(
-                'Could not download file: {0:s}'.format(online_file_names[i]))
+                'Could not download file: {0:s}'.format(online_file_names[i])
+            )
+
             local_file_names[i] = None
             continue
 
@@ -173,8 +175,10 @@ def download_files_via_http(
                 this_file_handle.write(this_chunk)
 
         if not os.path.isfile(local_file_names[i]):
-            error_string = ('Could not download file.  Local file expected at: '
-                            '{0:s}').format(local_file_names[i])
+            error_string = (
+                'Could not download file.  Local file expected at: "{0:s}"'
+            ).format(local_file_names[i])
+
             if raise_error_if_fails:
                 raise ValueError(error_string)
 

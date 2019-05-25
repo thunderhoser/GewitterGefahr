@@ -239,7 +239,8 @@ def _get_pathless_processed_file_name(start_time_unix_sec=None,
             start_time_unix_sec, TIME_FORMAT_SECOND),
         time_conversion.unix_sec_to_string(
             end_time_unix_sec, TIME_FORMAT_SECOND),
-        PROCESSED_FILE_EXTENSION)
+        PROCESSED_FILE_EXTENSION
+    )
 
 
 def check_wind_speeds(wind_speeds_m_s01, one_component=False):
@@ -688,7 +689,8 @@ def find_processed_file(start_time_unix_sec=None, end_time_unix_sec=None,
     processed_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_directory_name, combined_source, time_conversion.unix_sec_to_string(
             start_time_unix_sec, TIME_FORMAT_MONTH_YEAR),
-        pathless_file_name)
+        pathless_file_name
+    )
 
     if raise_error_if_missing and not os.path.isfile(processed_file_name):
         raise ValueError(

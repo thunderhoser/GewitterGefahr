@@ -208,12 +208,14 @@ def find_file(year, directory_name, raise_error_if_missing=True):
 
     storm_event_file_name = '{0:s}/{1:s}{2:s}{3:s}'.format(
         directory_name, PATHLESS_FILE_PREFIX, _year_number_to_string(year),
-        FILE_EXTENSION)
+        FILE_EXTENSION
+    )
 
     if raise_error_if_missing and not os.path.isfile(storm_event_file_name):
         error_string = (
-            'Cannot find Storm Events file.  Expected at: {0:s}'.format(
-                storm_event_file_name))
+            'Cannot find Storm Events file.  Expected at: "{0:s}"'
+        ).format(storm_event_file_name)
+
         raise ValueError(error_string)
 
     return storm_event_file_name
