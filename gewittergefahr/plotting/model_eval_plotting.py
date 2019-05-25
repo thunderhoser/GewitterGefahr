@@ -252,7 +252,8 @@ def _plot_inset_histogram_for_attributes_diagram(
     error_checking.assert_is_geq(num_forecast_bins, 2)
 
     example_frequency_by_bin = (
-        num_examples_by_bin.astype(float) / numpy.sum(num_examples_by_bin))
+        num_examples_by_bin.astype(float) / numpy.sum(num_examples_by_bin)
+    )
 
     forecast_bin_edges = numpy.linspace(0., 1., num=num_forecast_bins + 1)
     forecast_bin_width = forecast_bin_edges[1] - forecast_bin_edges[0]
@@ -268,9 +269,11 @@ def _plot_inset_histogram_for_attributes_diagram(
 
     max_y_tick_value = rounder.floor_to_nearest(
         1.05 * numpy.max(example_frequency_by_bin),
-        INSET_HISTOGRAM_Y_TICK_SPACING)
+        INSET_HISTOGRAM_Y_TICK_SPACING
+    )
     num_y_ticks = 1 + int(numpy.round(
-        max_y_tick_value / INSET_HISTOGRAM_Y_TICK_SPACING))
+        max_y_tick_value / INSET_HISTOGRAM_Y_TICK_SPACING
+    ))
     y_tick_values = numpy.linspace(0., max_y_tick_value, num=num_y_ticks)
 
     pyplot.xticks(INSET_HISTOGRAM_X_TICKS, axes=inset_axes_object)

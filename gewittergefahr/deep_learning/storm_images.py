@@ -609,13 +609,17 @@ def _get_unrotated_storm_image_coords(
     """
 
     first_storm_image_row = int(numpy.ceil(
-        center_row - num_storm_image_rows / 2))
+        center_row - num_storm_image_rows / 2
+    ))
     last_storm_image_row = int(numpy.floor(
-        center_row + num_storm_image_rows / 2))
+        center_row + num_storm_image_rows / 2
+    ))
     first_storm_image_column = int(numpy.ceil(
-        center_column - num_storm_image_columns / 2))
+        center_column - num_storm_image_columns / 2
+    ))
     last_storm_image_column = int(numpy.floor(
-        center_column + num_storm_image_columns / 2))
+        center_column + num_storm_image_columns / 2
+    ))
 
     if first_storm_image_row < 0:
         num_padding_rows_at_top = 0 - first_storm_image_row

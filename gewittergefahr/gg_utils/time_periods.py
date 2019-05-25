@@ -32,14 +32,19 @@ def range_and_interval_to_list(start_time_unix_sec=None, end_time_unix_sec=None,
         error_checking.assert_is_greater(end_time_unix_sec, start_time_unix_sec)
 
     start_time_unix_sec = int(rounder.floor_to_nearest(
-        float(start_time_unix_sec), time_interval_sec))
+        float(start_time_unix_sec), time_interval_sec
+    ))
     end_time_unix_sec = int(rounder.ceiling_to_nearest(
-        float(end_time_unix_sec), time_interval_sec))
+        float(end_time_unix_sec), time_interval_sec
+    ))
+
     if not include_endpoint:
         end_time_unix_sec -= time_interval_sec
 
-    num_time_steps = 1 + (end_time_unix_sec -
-                          start_time_unix_sec) / time_interval_sec
+    num_time_steps = 1 + int(numpy.round(
+        (end_time_unix_sec - start_time_unix_sec) / time_interval_sec
+    ))
+
     return numpy.linspace(start_time_unix_sec, end_time_unix_sec,
                           num=num_time_steps, dtype=int)
 
@@ -58,7 +63,9 @@ def time_and_period_length_to_range(unix_time_sec, period_length_sec):
     error_checking.assert_is_integer(period_length_sec)
 
     start_time_unix_sec = int(rounder.floor_to_nearest(
-        float(unix_time_sec), period_length_sec))
+        float(unix_time_sec), period_length_sec
+    ))
+
     return start_time_unix_sec, start_time_unix_sec + period_length_sec
 
 
@@ -76,8 +83,9 @@ def time_and_period_length_and_interval_to_list(unix_time_sec=None,
     :return: unix_times_sec: length-N numpy array of exact times (Unix format).
     """
 
-    (start_time_unix_sec, end_time_unix_sec) = time_and_period_length_to_range(
+    start_time_unix_sec, end_time_unix_sec = time_and_period_length_to_range(
         unix_time_sec, period_length_sec)
+
     return range_and_interval_to_list(
         start_time_unix_sec=start_time_unix_sec,
         end_time_unix_sec=end_time_unix_sec,

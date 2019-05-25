@@ -47,7 +47,9 @@ def get_translations(
 
     smallest_horiz_dimension = min([num_grid_rows, num_grid_columns])
     max_max_translation_pixels = int(numpy.floor(
-        float(smallest_horiz_dimension) / 2))
+        float(smallest_horiz_dimension) / 2
+    ))
+
     error_checking.assert_is_leq(
         max_translation_pixels, max_max_translation_pixels)
 
@@ -145,13 +147,19 @@ def shift_radar_images(radar_image_matrix, x_offset_pixels, y_offset_pixels):
         max_num_dimensions=5)
 
     num_grid_rows = radar_image_matrix.shape[1]
-    half_num_grid_rows = numpy.floor(float(num_grid_rows) / 2)
+    half_num_grid_rows = int(numpy.floor(
+        float(num_grid_rows) / 2
+    ))
+
     error_checking.assert_is_integer(y_offset_pixels)
     error_checking.assert_is_geq(y_offset_pixels, -half_num_grid_rows)
     error_checking.assert_is_leq(y_offset_pixels, half_num_grid_rows)
 
     num_grid_columns = radar_image_matrix.shape[2]
-    half_num_grid_columns = numpy.floor(float(num_grid_columns) / 2)
+    half_num_grid_columns = int(numpy.floor(
+        float(num_grid_columns) / 2
+    ))
+
     error_checking.assert_is_integer(x_offset_pixels)
     error_checking.assert_is_geq(x_offset_pixels, -half_num_grid_columns)
     error_checking.assert_is_leq(x_offset_pixels, half_num_grid_columns)
