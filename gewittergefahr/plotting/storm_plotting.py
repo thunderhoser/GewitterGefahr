@@ -451,6 +451,12 @@ def plot_storm_tracks(
                 else:
                     this_edge_width = 1
 
+                print(storm_object_table[tracking_utils.CENTROID_X_COLUMN].values[i])
+                print(storm_object_table[tracking_utils.CENTROID_Y_COLUMN].values[i])
+                print(start_marker_type)
+                print(start_marker_size)
+                print(this_edge_width)
+
                 axes_object.plot(
                     storm_object_table[
                         tracking_utils.CENTROID_X_COLUMN].values[i],
