@@ -314,9 +314,6 @@ def plot_storm_tracks(
     :param end_marker_size: Size of each end-point marker.
     """
 
-    if isinstance(line_colour, numpy.ndarray):
-        line_colour = tuple(line_colour.tolist())
-
     plot_start_markers = start_marker_type is not None
     plot_end_markers = end_marker_type is not None
 
