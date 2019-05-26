@@ -537,11 +537,15 @@ def plot_rivers(
 
 
 def plot_parallels(
-        basemap_object, axes_object, min_latitude_deg, max_latitude_deg,
-        num_parallels=DEFAULT_NUM_PARALLELS, line_width=DEFAULT_GRID_LINE_WIDTH,
+        basemap_object, axes_object, min_latitude_deg=None,
+        max_latitude_deg=None, num_parallels=DEFAULT_NUM_PARALLELS,
+        line_width=DEFAULT_GRID_LINE_WIDTH,
         line_colour=DEFAULT_GRID_LINE_COLOUR,
         z_order=DEFAULT_GRID_LINE_Z_ORDER):
     """Plots parallels (grid lines for latitude).
+
+    If `min_latitude_deg` and `max_latitude_deg` are both None, this method will
+    take plotting limits from `basemap_object`.
 
     :param basemap_object: See doc for `plot_countries`.
     :param axes_object: Same.
@@ -552,6 +556,10 @@ def plot_parallels(
     :param line_colour: Same.
     :param z_order: Same.
     """
+
+    if min_latitude_deg is None or max_latitude_deg is None:
+        min_latitude_deg = basemap_object.llcrnrlat
+        max_latitude_deg = basemap_object.urcrnrlat
 
     error_checking.assert_is_valid_latitude(min_latitude_deg)
     error_checking.assert_is_valid_latitude(max_latitude_deg)
@@ -583,8 +591,6 @@ def plot_parallels(
         min_latitude_deg, max_latitude_deg, num=num_parallels
     )
 
-    print('Latitudes for meridians: {0:s}'.format(str(latitudes_deg)))
-
     basemap_object.drawparallels(
         latitudes_deg, color=colour_from_numpy_to_tuple(line_colour),
         linewidth=line_width, labels=[True, False, False, False],
@@ -593,11 +599,15 @@ def plot_parallels(
 
 
 def plot_meridians(
-        basemap_object, axes_object, min_longitude_deg, max_longitude_deg,
-        num_meridians=DEFAULT_NUM_MERIDIANS, line_width=DEFAULT_GRID_LINE_WIDTH,
+        basemap_object, axes_object, min_longitude_deg=None,
+        max_longitude_deg=None, num_meridians=DEFAULT_NUM_MERIDIANS,
+        line_width=DEFAULT_GRID_LINE_WIDTH,
         line_colour=DEFAULT_GRID_LINE_COLOUR,
         z_order=DEFAULT_GRID_LINE_Z_ORDER):
     """Plots meridians (grid lines for longitude).
+
+    If `min_longitude_deg` and `max_longitude_deg` are both None, this method
+    will take plotting limits from `basemap_object`.
 
     :param basemap_object: See doc for `plot_countries`.
     :param axes_object: Same.
@@ -608,6 +618,10 @@ def plot_meridians(
     :param line_colour: Same.
     :param z_order: Same.
     """
+
+    if min_longitude_deg is None or max_longitude_deg is None:
+        min_longitude_deg = basemap_object.llcrnrlon
+        max_longitude_deg = basemap_object.urcrnrlon
 
     min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
         min_longitude_deg)

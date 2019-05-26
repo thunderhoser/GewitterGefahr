@@ -326,12 +326,10 @@ def _plot_storm_outlines_one_time(
 
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        min_latitude_deg=-90., max_latitude_deg=90.,
         num_parallels=NUM_PARALLELS)
 
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        min_longitude_deg=0., max_longitude_deg=360.,
         num_meridians=NUM_MERIDIANS)
 
     if radar_matrix is not None:
