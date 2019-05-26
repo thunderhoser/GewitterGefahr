@@ -22,6 +22,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.plotting import plotting_utils
 
 # TODO(thunderhoser): A lot of this module is "dead code" right now.  Some of it
 # assumes that the task is binary classification, and some of it assumes
@@ -349,29 +350,40 @@ def _plot_selection_results(
 
     if selection_type == PERMUTATION_TYPE:
         x_coords_at_bar_edges = numpy.linspace(
-            -0.5, num_features_used + 0.5, num=num_features_used + 2)
+            -0.5, num_features_used + 0.5, num=num_features_used + 2
+        )
+
         y_values = numpy.concatenate((
             numpy.array([validation_cost_before_permutn]),
-            validation_cost_by_feature))
+            validation_cost_by_feature
+        ))
     else:
         x_coords_at_bar_edges = numpy.linspace(
-            0.5, num_features_used + 0.5, num=num_features_used + 1)
+            0.5, num_features_used + 0.5, num=num_features_used + 1
+        )
+
         y_values = copy.deepcopy(validation_cost_by_feature)
 
     x_width_of_bar = x_coords_at_bar_edges[1] - x_coords_at_bar_edges[0]
     x_coords_at_bar_centers = x_coords_at_bar_edges[:-1] + x_width_of_bar / 2
 
     figure_object, axes_object = pyplot.subplots(
-        1, 1, figsize=(FIG_WIDTH_INCHES, FIG_HEIGHT_INCHES))
+        1, 1, figsize=(FIG_WIDTH_INCHES, FIG_HEIGHT_INCHES)
+    )
+
     figure_object.subplots_adjust(bottom=FIG_PADDING_AT_BOTTOM_PERCENT / 100)
+
     axes_object.bar(
         x_coords_at_bar_centers, y_values, x_width_of_bar,
-        color=bar_face_colour, edgecolor=bar_edge_colour,
+        color=plotting_utils.colour_from_numpy_to_tuple(bar_face_colour),
+        edgecolor=plotting_utils.colour_from_numpy_to_tuple(bar_edge_colour),
         linewidth=bar_edge_width)
 
     pyplot.xticks(x_coords_at_bar_centers, axes=axes_object)
-    axes_object.set_xlim(numpy.min(x_coords_at_bar_edges),
-                         numpy.max(x_coords_at_bar_edges))
+
+    axes_object.set_xlim(
+        numpy.min(x_coords_at_bar_edges), numpy.max(x_coords_at_bar_edges)
+    )
     axes_object.set_ylim(0., 1.05 * numpy.max(y_values))
 
     if selection_type == PERMUTATION_TYPE:
@@ -396,10 +408,13 @@ def _plot_selection_results(
         if selection_type == PERMUTATION_TYPE:
             pyplot.xticks(
                 x_coords_at_bar_centers, [' '] + used_feature_names.tolist(),
-                rotation='vertical', fontsize=FEATURE_NAME_FONT_SIZE)
+                rotation='vertical', fontsize=FEATURE_NAME_FONT_SIZE
+            )
         else:
-            pyplot.xticks(x_coords_at_bar_centers, used_feature_names,
-                          rotation='vertical', fontsize=FEATURE_NAME_FONT_SIZE)
+            pyplot.xticks(
+                x_coords_at_bar_centers, used_feature_names,
+                rotation='vertical', fontsize=FEATURE_NAME_FONT_SIZE
+            )
 
     axes_object.set_ylabel('Validation cost')
 
@@ -674,7 +689,7 @@ def sfs_with_backward_steps(
                 if s not in these_best_feature_names]
 
             min_cost_by_num_selected[
-            (num_selected_features + 1):(len(selected_feature_names) + 1)
+                (num_selected_features + 1):(len(selected_feature_names) + 1)
             ] = min_new_cost
 
         for i in range(num_backward_steps):

@@ -8,7 +8,6 @@ matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from descartes import PolygonPatch
 from gewittergefahr.gg_utils import polygons
-from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
@@ -20,8 +19,6 @@ OUTLOOK_OPACITY = 0.5
 WARNING_LINE_WIDTH = 2.
 RISK_TYPE_FONT_SIZE = 30
 
-NUM_PARALLELS = 8
-NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = 0.5
 FIGURE_RESOLUTION_DPI = 300
 
@@ -358,30 +355,11 @@ def _run(input_outlook_file_name, input_warning_file_name, border_colour,
         plotting_utils.MAX_LONGITUDE_KEY: max_plot_longitude_deg
     }
 
-    axes_object, basemap_object = plotting_utils.init_map_with_nwp_projection(
+    axes_object, basemap_object = plotting_utils.create_map_with_nwp_proj(
         model_name=nwp_model_utils.RAP_MODEL_NAME,
         grid_name=nwp_model_utils.NAME_OF_130GRID, xy_limit_dict=None,
         latlng_limit_dict=latlng_limit_dict, resolution_string='i'
     )[1:]
-
-    parallel_spacing_deg = (
-        (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
-    )
-    meridian_spacing_deg = (
-        (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
-    )
-
-    if parallel_spacing_deg < 1.:
-        parallel_spacing_deg = number_rounding.round_to_nearest(
-            parallel_spacing_deg, 0.1)
-    else:
-        parallel_spacing_deg = numpy.round(parallel_spacing_deg)
-
-    if meridian_spacing_deg < 1.:
-        meridian_spacing_deg = number_rounding.round_to_nearest(
-            meridian_spacing_deg, 0.1)
-    else:
-        meridian_spacing_deg = numpy.round(meridian_spacing_deg)
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -394,16 +372,6 @@ def _run(input_outlook_file_name, input_warning_file_name, border_colour,
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=border_colour)
-
-    # plotting_utils.plot_parallels(
-    #     basemap_object=basemap_object, axes_object=axes_object,
-    #     bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-    #     parallel_spacing_deg=parallel_spacing_deg, line_colour=LATLNG_COLOUR)
-    #
-    # plotting_utils.plot_meridians(
-    #     basemap_object=basemap_object, axes_object=axes_object,
-    #     bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-    #     meridian_spacing_deg=meridian_spacing_deg, line_colour=LATLNG_COLOUR)
 
     _, unique_risk_type_indices = numpy.unique(
         outlook_table[RISK_TYPE_COLUMN].values, return_index=True)
@@ -447,6 +415,9 @@ def _run(input_outlook_file_name, input_warning_file_name, border_colour,
     else:
         num_warnings = len(warning_table.index)
 
+    warning_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
+        warning_colour)
+
     for i in range(num_warnings):
         this_vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
             warning_table[POLYGON_COLUMN].values[i]
@@ -458,8 +429,9 @@ def _run(input_outlook_file_name, input_warning_file_name, border_colour,
         )
 
         axes_object.plot(
-            these_x_coords_metres, these_y_coords_metres, color=warning_colour,
-            linestyle='solid', linewidth=WARNING_LINE_WIDTH)
+            these_x_coords_metres, these_y_coords_metres,
+            color=warning_colour_tuple, linestyle='solid',
+            linewidth=WARNING_LINE_WIDTH)
 
     axes_object.legend(legend_handles, legend_strings, loc='upper left')
 

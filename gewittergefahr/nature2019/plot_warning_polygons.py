@@ -7,7 +7,6 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import polygons
-from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
@@ -177,44 +176,38 @@ def _run(input_file_name, border_colour, polygon_colour, min_plot_latitude_deg,
     warning_table = warning_table.iloc[good_indices]
 
     _, axes_object, basemap_object = (
-        plotting_utils.init_equidistant_cylindrical_map(
+        plotting_utils.create_equidist_cylindrical_map(
             min_latitude_deg=min_plot_latitude_deg,
             max_latitude_deg=max_plot_latitude_deg,
             min_longitude_deg=min_plot_longitude_deg,
             max_longitude_deg=max_plot_longitude_deg, resolution_string='i')
     )
 
-    parallel_spacing_deg = (
-        (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
-    )
-    meridian_spacing_deg = (
-        (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
-    )
-
-    parallel_spacing_deg = number_rounding.round_to_nearest(
-        parallel_spacing_deg, 0.1)
-    meridian_spacing_deg = number_rounding.round_to_nearest(
-        meridian_spacing_deg, 0.1)
-
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=border_colour)
+
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=border_colour)
+
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=border_colour)
+
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=parallel_spacing_deg)
+        min_latitude_deg=-90., max_latitude_deg=90.,
+        num_parallels=NUM_PARALLELS)
+
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=meridian_spacing_deg)
+        min_longitude_deg=0., max_longitude_deg=360.,
+        num_meridians=NUM_MERIDIANS)
 
     num_warnings = len(warning_table.index)
+    polygon_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
+        polygon_colour)
 
     for i in range(num_warnings):
         this_vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
@@ -227,8 +220,8 @@ def _run(input_file_name, border_colour, polygon_colour, min_plot_latitude_deg,
         )
 
         axes_object.plot(
-            these_x_coords_metres, these_y_coords_metres, color=polygon_colour,
-            linestyle='solid', linewidth=LINE_WIDTH)
+            these_x_coords_metres, these_y_coords_metres,
+            color=polygon_colour_tuple, linestyle='solid', linewidth=LINE_WIDTH)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
 

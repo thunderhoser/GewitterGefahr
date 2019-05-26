@@ -6,7 +6,6 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_io import tornado_io
-from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -31,8 +30,6 @@ TORNADO_MARKER_EDGE_WIDTH = 1
 # TORNADO_MARKER_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
 
-NUM_PARALLELS = 8
-NUM_MERIDIANS = 6
 BORDER_COLOUR = numpy.full(3, 0.)
 GRID_LINE_COLOUR = numpy.full(3, 1.)
 
@@ -226,17 +223,17 @@ def _plot_forecast_one_time(
     else:
         latlng_limit_dict = None
 
-    axes_object, basemap_object = plotting_utils.init_map_with_nwp_projection(
+    axes_object, basemap_object = plotting_utils.create_map_with_nwp_proj(
         model_name=nwp_model_utils.RAP_MODEL_NAME,
         grid_name=nwp_model_utils.NAME_OF_130GRID, xy_limit_dict=None,
         latlng_limit_dict=latlng_limit_dict, resolution_string='i'
     )[1:]
 
-    if not custom_area:
-        min_plot_latitude_deg = basemap_object.llcrnrlat
-        max_plot_latitude_deg = basemap_object.urcrnrlat
-        min_plot_longitude_deg = basemap_object.llcrnrlon
-        max_plot_longitude_deg = basemap_object.urcrnrlon
+    # if not custom_area:
+    #     min_plot_latitude_deg = basemap_object.llcrnrlat
+    #     max_plot_latitude_deg = basemap_object.urcrnrlat
+    #     min_plot_longitude_deg = basemap_object.llcrnrlon
+    #     max_plot_longitude_deg = basemap_object.urcrnrlon
 
     x_offset_metres, y_offset_metres = _get_projection_offsets(
         basemap_object=basemap_object, pyproj_object=PYPROJ_OBJECT,
@@ -266,26 +263,6 @@ def _plot_forecast_one_time(
         y_spacing_metres=numpy.diff(y_coords_metres[:2])[0],
         axes_object=axes_object, basemap_object=basemap_object)
 
-    # TODO(thunderhoser): Put this business into a method.
-    parallel_spacing_deg = (
-        (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
-    )
-    meridian_spacing_deg = (
-        (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
-    )
-
-    if parallel_spacing_deg < 1.:
-        parallel_spacing_deg = number_rounding.round_to_nearest(
-            parallel_spacing_deg, 0.1)
-    else:
-        parallel_spacing_deg = numpy.round(parallel_spacing_deg)
-
-    if meridian_spacing_deg < 1.:
-        meridian_spacing_deg = number_rounding.round_to_nearest(
-            meridian_spacing_deg, 0.1)
-    else:
-        meridian_spacing_deg = numpy.round(meridian_spacing_deg)
-
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
@@ -298,25 +275,15 @@ def _plot_forecast_one_time(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
 
-    # plotting_utils.plot_parallels(
-    #     basemap_object=basemap_object, axes_object=axes_object,
-    #     bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-    #     parallel_spacing_deg=parallel_spacing_deg, line_colour=GRID_LINE_COLOUR)
-    #
-    # plotting_utils.plot_meridians(
-    #     basemap_object=basemap_object, axes_object=axes_object,
-    #     bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-    #     meridian_spacing_deg=meridian_spacing_deg, line_colour=GRID_LINE_COLOUR)
-
     colour_map_object, colour_norm_object = (
         probability_plotting.get_default_colour_map()
     )
 
-    plotting_utils.add_colour_bar(
-        axes_object_or_list=axes_object, values_to_colour=probability_matrix,
-        colour_map=colour_map_object, colour_norm_object=colour_norm_object,
-        orientation='horizontal', extend_min=True, extend_max=True,
-        fraction_of_axis_length=0.8)
+    plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=probability_matrix,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object, orientation_string='horizontal',
+        extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
 
     if len(tornado_latitudes_deg) > 0:
         tornado_x_coords_metres, tornado_y_coords_metres = basemap_object(
@@ -326,8 +293,11 @@ def _plot_forecast_one_time(
             tornado_x_coords_metres, tornado_y_coords_metres, linestyle='None',
             marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
             markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
-            markerfacecolor=TORNADO_MARKER_COLOUR,
-            markeredgecolor=TORNADO_MARKER_COLOUR)
+            markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
+                TORNADO_MARKER_COLOUR),
+            markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
+                TORNADO_MARKER_COLOUR)
+        )
 
     init_time_string = time_conversion.unix_sec_to_string(
         init_time_unix_sec, FILE_NAME_TIME_FORMAT

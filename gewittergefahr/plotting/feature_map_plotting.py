@@ -93,9 +93,8 @@ def plot_many_2d_feature_maps(
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
     :param font_size: Font size for panel labels.
-    :return: figure_object: Instance of `matplotlib.figure.Figure`.
-    :return: axes_objects_2d_list: 2-D list, where each item is an instance of
-        `matplotlib.axes._subplots.AxesSubplot`.
+    :return: figure_object: See doc for `plotting_utils.create_paneled_figure`.
+    :return: axes_object_matrix: Same.
     """
 
     error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=3)
@@ -110,28 +109,32 @@ def plot_many_2d_feature_maps(
     error_checking.assert_is_geq(num_panel_rows, 1)
     error_checking.assert_is_leq(num_panel_rows, num_panels)
 
-    num_panel_columns = int(numpy.ceil(float(num_panels) / num_panel_rows))
+    num_panel_columns = int(numpy.ceil(
+        float(num_panels) / num_panel_rows
+    ))
 
-    figure_object, axes_objects_2d_list = plotting_utils.init_panels(
-        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
+        num_rows=num_panel_rows, num_columns=num_panel_columns,
         figure_width_inches=figure_width_inches,
-        figure_height_inches=figure_height_inches, keep_aspect_ratio=False)
+        figure_height_inches=figure_height_inches, shared_x_axis=False,
+        shared_y_axis=False, keep_aspect_ratio=False)
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
             this_linear_index = i * num_panel_columns + j
 
             if this_linear_index >= num_panels:
-                axes_objects_2d_list[i][j].axis('off')
+                axes_object_matrix[i, j].axis('off')
                 continue
 
             plot_2d_feature_map(
                 feature_matrix=feature_matrix[..., this_linear_index],
-                axes_object=axes_objects_2d_list[i][j], font_size=font_size,
+                axes_object=axes_object_matrix[i, j], font_size=font_size,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object,
                 min_colour_value=min_colour_value,
                 max_colour_value=max_colour_value,
-                annotation_string=annotation_string_by_panel[this_linear_index])
+                annotation_string=annotation_string_by_panel[this_linear_index]
+            )
 
-    return figure_object, axes_objects_2d_list
+    return figure_object, axes_object_matrix

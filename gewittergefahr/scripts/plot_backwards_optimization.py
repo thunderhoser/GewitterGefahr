@@ -158,7 +158,7 @@ def _plot_bwo_for_2d3d_radar(
             numpy.sqrt(this_num_heights)
         ))
 
-        _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
+        _, this_axes_object_matrix = radar_plotting.plot_3d_grid_without_coords(
             field_matrix=this_reflectivity_matrix_dbz,
             field_name=radar_utils.REFL_NAME,
             grid_point_heights_metres=training_option_dict[
@@ -170,12 +170,12 @@ def _plot_bwo_for_2d3d_radar(
             radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
         )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=these_axes_objects,
-            values_to_colour=this_reflectivity_matrix_dbz,
-            colour_map=this_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=this_reflectivity_matrix_dbz,
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation='horizontal', extend_min=True, extend_max=True)
+            orientation_string='horizontal', extend_min=True, extend_max=True)
 
         this_title_string = '{0:s} (after optimization)'.format(
             this_base_title_string)
@@ -193,7 +193,7 @@ def _plot_bwo_for_2d3d_radar(
         this_az_shear_matrix_s01 = numpy.flip(
             list_of_optimized_matrices[1][i, ..., 0], axis=0)
 
-        _, these_axes_objects = (
+        _, this_axes_object_matrix = (
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=this_az_shear_matrix_s01,
                 field_name_by_panel=az_shear_field_names, num_panel_rows=1,
@@ -207,12 +207,12 @@ def _plot_bwo_for_2d3d_radar(
                 radar_utils.LOW_LEVEL_SHEAR_NAME)
         )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=these_axes_objects,
-            values_to_colour=this_az_shear_matrix_s01,
-            colour_map=this_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=this_az_shear_matrix_s01,
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation='horizontal', extend_min=True, extend_max=True)
+            orientation_string='horizontal', extend_min=True, extend_max=True)
 
         this_title_string = '{0:s} (after optimization)'.format(
             this_base_title_string)
@@ -233,7 +233,7 @@ def _plot_bwo_for_2d3d_radar(
         this_reflectivity_matrix_dbz = numpy.flip(
             list_of_input_matrices[0][i, ..., 0], axis=0)
 
-        _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
+        _, this_axes_object_matrix = radar_plotting.plot_3d_grid_without_coords(
             field_matrix=this_reflectivity_matrix_dbz,
             field_name=radar_utils.REFL_NAME,
             grid_point_heights_metres=training_option_dict[
@@ -245,12 +245,12 @@ def _plot_bwo_for_2d3d_radar(
             radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
         )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=these_axes_objects,
-            values_to_colour=this_reflectivity_matrix_dbz,
-            colour_map=this_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=this_reflectivity_matrix_dbz,
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation='horizontal', extend_min=True, extend_max=True)
+            orientation_string='horizontal', extend_min=True, extend_max=True)
 
         this_title_string = '{0:s} (before optimization)'.format(
             this_base_title_string)
@@ -268,7 +268,7 @@ def _plot_bwo_for_2d3d_radar(
         this_az_shear_matrix_s01 = numpy.flip(
             list_of_input_matrices[1][i, ..., 0], axis=0)
 
-        _, these_axes_objects = (
+        _, this_axes_object_matrix = (
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=this_az_shear_matrix_s01,
                 field_name_by_panel=az_shear_field_names, num_panel_rows=1,
@@ -282,12 +282,12 @@ def _plot_bwo_for_2d3d_radar(
                 radar_utils.LOW_LEVEL_SHEAR_NAME)
         )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=these_axes_objects,
-            values_to_colour=this_az_shear_matrix_s01,
-            colour_map=this_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=this_az_shear_matrix_s01,
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation='horizontal', extend_min=True, extend_max=True)
+            orientation_string='horizontal', extend_min=True, extend_max=True)
 
         this_title_string = '{0:s} (before optimization)'.format(
             this_base_title_string)
@@ -316,7 +316,7 @@ def _plot_bwo_for_2d3d_radar(
         this_colour_norm_object = matplotlib.colors.Normalize(
             vmin=-1 * this_max_value_dbz, vmax=this_max_value_dbz, clip=False)
 
-        _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
+        _, this_axes_object_matrix = radar_plotting.plot_3d_grid_without_coords(
             field_matrix=this_refl_diff_matrix_dbz,
             field_name=radar_utils.REFL_NAME,
             grid_point_heights_metres=training_option_dict[
@@ -326,12 +326,12 @@ def _plot_bwo_for_2d3d_radar(
             colour_map_object=diff_colour_map_object,
             colour_norm_object=this_colour_norm_object)
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=these_axes_objects,
-            values_to_colour=this_refl_diff_matrix_dbz,
-            colour_map=diff_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=this_refl_diff_matrix_dbz,
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation='horizontal', extend_min=True, extend_max=True)
+            orientation_string='horizontal', extend_min=True, extend_max=True)
 
         this_title_string = '{0:s} (after minus before optimization)'.format(
             this_base_title_string)
@@ -360,7 +360,7 @@ def _plot_bwo_for_2d3d_radar(
         this_colour_norm_object = matplotlib.colors.Normalize(
             vmin=-1 * this_max_value_s01, vmax=this_max_value_s01, clip=False)
 
-        _, these_axes_objects = (
+        _, this_axes_object_matrix = (
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=this_shear_diff_matrix_s01,
                 field_name_by_panel=az_shear_field_names, num_panel_rows=1,
@@ -373,12 +373,12 @@ def _plot_bwo_for_2d3d_radar(
                 font_size=FONT_SIZE_SANS_COLOUR_BARS)
         )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=these_axes_objects,
-            values_to_colour=this_shear_diff_matrix_s01,
-            colour_map=diff_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=this_shear_diff_matrix_s01,
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation='horizontal', extend_min=True, extend_max=True)
+            orientation_string='horizontal', extend_min=True, extend_max=True)
 
         this_title_string = '{0:s} (after minus before optimization)'.format(
             this_base_title_string)
@@ -473,7 +473,7 @@ def _plot_bwo_for_3d_radar(
                 this_base_pathless_file_name = 'example{0:06d}'.format(i)
 
         for j in range(len(radar_field_names)):
-            _, these_axes_objects = (
+            _, this_axes_object_matrix = (
                 radar_plotting.plot_3d_grid_without_coords(
                     field_matrix=numpy.flip(
                         optimized_radar_matrix[i, ..., j], axis=0),
@@ -488,12 +488,13 @@ def _plot_bwo_for_3d_radar(
                     radar_field_names[j])
             )
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=these_axes_objects,
-                values_to_colour=optimized_radar_matrix[i, ..., j],
-                colour_map=this_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=optimized_radar_matrix[i, ..., j],
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='horizontal', extend_min=True, extend_max=True)
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
             this_title_string = '{0:s} (after optimization)'.format(
                 this_base_title_string)
@@ -514,7 +515,7 @@ def _plot_bwo_for_3d_radar(
             if input_radar_matrix is None:
                 continue
 
-            _, these_axes_objects = (
+            _, this_axes_object_matrix = (
                 radar_plotting.plot_3d_grid_without_coords(
                     field_matrix=numpy.flip(
                         input_radar_matrix[i, ..., j], axis=0),
@@ -529,12 +530,13 @@ def _plot_bwo_for_3d_radar(
                     radar_field_names[j])
             )
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=these_axes_objects,
-                values_to_colour=input_radar_matrix[i, ..., j],
-                colour_map=this_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=input_radar_matrix[i, ..., j],
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='horizontal', extend_min=True, extend_max=True)
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
             this_title_string = '{0:s} (before optimization)'.format(
                 this_base_title_string)
@@ -564,7 +566,7 @@ def _plot_bwo_for_3d_radar(
             this_colour_norm_object = matplotlib.colors.Normalize(
                 vmin=-1 * this_max_value, vmax=this_max_value, clip=False)
 
-            _, these_axes_objects = (
+            _, this_axes_object_matrix = (
                 radar_plotting.plot_3d_grid_without_coords(
                     field_matrix=numpy.flip(this_diff_matrix, axis=0),
                     field_name=radar_field_names[j],
@@ -575,12 +577,13 @@ def _plot_bwo_for_3d_radar(
                     colour_norm_object=this_colour_norm_object)
             )
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=these_axes_objects,
-                values_to_colour=this_diff_matrix,
-                colour_map=diff_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=this_diff_matrix,
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='horizontal', extend_min=True, extend_max=True)
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
             this_title_string = (
                 '{0:s} (after minus before optimization)'

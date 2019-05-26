@@ -65,6 +65,7 @@ def _saliency_to_colour_and_size(
 
     colour_norm_object = pyplot.Normalize(
         vmin=0., vmax=max_absolute_colour_value)
+
     rgb_matrix = colour_map_object(colour_norm_object(
         numpy.absolute(saliency_matrix)
     ))[..., :-1]
@@ -132,15 +133,17 @@ def plot_saliency_for_sounding(
 
         colour_norm_object = pyplot.Normalize(
             vmin=0., vmax=max_absolute_colour_value)
+
         rgb_matrix_for_wind = colour_map_object(colour_norm_object(
             wind_saliency_magnitudes
         ))[..., :-1]
 
         non_wind_flags = numpy.array(
             [f not in WIND_COMPONENT_NAMES for f in sounding_field_names],
-            dtype=bool)
-        non_wind_indices = numpy.where(non_wind_flags)[0]
+            dtype=bool
+        )
 
+        non_wind_indices = numpy.where(non_wind_flags)[0]
         saliency_matrix = saliency_matrix[:, non_wind_indices]
         sounding_field_names = [
             sounding_field_names[k] for k in non_wind_indices
@@ -157,7 +160,11 @@ def plot_saliency_for_sounding(
     _, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
-    axes_object.set_axis_bgcolor(SOUNDING_SALIENCY_BACKGROUND_COLOUR)
+
+    axes_object.set_axis_bgcolor(
+        plotting_utils.colour_from_numpy_to_tuple(
+            SOUNDING_SALIENCY_BACKGROUND_COLOUR)
+    )
 
     for k in range(num_sounding_fields):
         if sounding_field_names[k] == WIND_NAME:
@@ -165,31 +172,40 @@ def plot_saliency_for_sounding(
                 this_vector = numpy.array([
                     u_wind_saliency_values[j], v_wind_saliency_values[j]
                 ])
+
                 this_vector = (
                     WIND_SALIENCY_MULTIPLIER * this_vector
                     / numpy.linalg.norm(this_vector, ord=2)
+                )
+
+                this_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
+                    rgb_matrix_for_wind[j, ...]
                 )
 
                 axes_object.barbs(
                     k, pressure_levels_mb[j], this_vector[0], this_vector[1],
                     length=WIND_BARB_LENGTH, fill_empty=True, rounding=False,
                     sizes={'emptybarb': EMPTY_WIND_BARB_RADIUS},
-                    color=rgb_matrix_for_wind[j, ...])
+                    color=this_colour_tuple)
 
             continue
 
         for j in range(num_pressure_levels):
+            this_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
+                rgb_matrix[j, k, ...]
+            )
+
             if saliency_matrix[j, k] >= 0:
                 axes_object.text(
                     k, pressure_levels_mb[j], '+',
                     fontsize=font_size_matrix[j, k],
-                    color=rgb_matrix[j, k, ...], horizontalalignment='center',
+                    color=this_colour_tuple, horizontalalignment='center',
                     verticalalignment='center')
             else:
                 axes_object.text(
                     k, pressure_levels_mb[j], '_',
                     fontsize=font_size_matrix[j, k],
-                    color=rgb_matrix[j, k, ...], horizontalalignment='center',
+                    color=this_colour_tuple, horizontalalignment='center',
                     verticalalignment='bottom')
 
     axes_object.set_xlim(-0.5, num_sounding_fields - 0.5)
@@ -209,11 +225,11 @@ def plot_saliency_for_sounding(
     ]
     pyplot.xticks(x_tick_locations, x_tick_labels)
 
-    colour_bar_object = plotting_utils.add_linear_colour_bar(
-        axes_object_or_list=axes_object, values_to_colour=saliency_matrix,
-        colour_map=colour_map_object, colour_min=0.,
-        colour_max=max_absolute_colour_value,
-        orientation='vertical', extend_min=True, extend_max=True)
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=saliency_matrix,
+        colour_map_object=colour_map_object, min_value=0.,
+        max_value=max_absolute_colour_value, orientation_string='vertical',
+        extend_min=True, extend_max=True)
 
     colour_bar_object.set_label('Saliency (absolute value)')
 
@@ -289,7 +305,7 @@ def plot_2d_grid_with_contours(
 
 
 def plot_many_2d_grids_with_contours(
-        saliency_matrix_3d, axes_objects_2d_list, colour_map_object,
+        saliency_matrix_3d, axes_object_matrix, colour_map_object,
         max_absolute_contour_level, contour_interval,
         line_width=DEFAULT_CONTOUR_WIDTH, row_major=True):
     """Plots 2-D saliency map with line contours for each predictor.
@@ -299,7 +315,8 @@ def plot_many_2d_grids_with_contours(
     P = number of predictors
 
     :param saliency_matrix_3d: M-by-N-by-P numpy array of saliency values.
-    :param axes_objects_2d_list: See doc for `plotting_utils.init_panels`.
+    :param axes_object_matrix: See doc for
+        `plotting_utils.create_paneled_figure`.
     :param colour_map_object: See doc for `plot_2d_grid_with_contours`.
     :param max_absolute_contour_level: Same.
     :param contour_interval: Same.
@@ -319,8 +336,8 @@ def plot_many_2d_grids_with_contours(
         order_string = 'F'
 
     num_predictors = saliency_matrix_3d.shape[-1]
-    num_panel_rows = len(axes_objects_2d_list)
-    num_panel_columns = len(axes_objects_2d_list[0])
+    num_panel_rows = axes_object_matrix.shape[0]
+    num_panel_columns = axes_object_matrix.shape[1]
 
     for k in range(num_predictors):
         this_panel_row, this_panel_column = numpy.unravel_index(
@@ -329,7 +346,7 @@ def plot_many_2d_grids_with_contours(
 
         plot_2d_grid_with_contours(
             saliency_matrix_2d=saliency_matrix_3d[..., k],
-            axes_object=axes_objects_2d_list[this_panel_row][this_panel_column],
+            axes_object=axes_object_matrix[this_panel_row, this_panel_column],
             colour_map_object=colour_map_object,
             max_absolute_contour_level=max_absolute_contour_level,
             contour_interval=contour_interval, line_width=line_width)
@@ -372,28 +389,32 @@ def plot_2d_grid_with_pm_signs(
 
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
+            this_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
+                rgb_matrix[i, j, ...]
+            )
+
             if saliency_matrix_2d[i, j] >= 0:
                 axes_object.text(
                     x_coords[i], y_coords[j], '+',
                     fontsize=font_size_matrix[i, j],
-                    color=rgb_matrix[i, j, ...], horizontalalignment='center',
+                    color=this_colour_tuple, horizontalalignment='center',
                     verticalalignment='center', transform=axes_object.transAxes)
             else:
                 axes_object.text(
                     x_coords[i], y_coords[j], '_',
                     fontsize=font_size_matrix[i, j],
-                    color=rgb_matrix[i, j, ...], horizontalalignment='center',
+                    color=this_colour_tuple, horizontalalignment='center',
                     verticalalignment='bottom', transform=axes_object.transAxes)
 
 
 def plot_many_2d_grids_with_pm_signs(
-        saliency_matrix_3d, axes_objects_2d_list, colour_map_object,
+        saliency_matrix_3d, axes_object_matrix, colour_map_object,
         max_absolute_colour_value, min_font_size=DEFAULT_MIN_FONT_SIZE,
         max_font_size=DEFAULT_MAX_FONT_SIZE, row_major=True):
     """Plots many 2-D saliency map with plus and minus signs ("+" and "-").
 
     :param saliency_matrix_3d: See doc for `plot_many_2d_grids_with_contours`.
-    :param axes_objects_2d_list: Same.
+    :param axes_object_matrix: Same.
     :param colour_map_object: See doc for `plot_2d_grid_with_pm_signs`.
     :param max_absolute_colour_value: Same.
     :param min_font_size: Same.
@@ -411,8 +432,8 @@ def plot_many_2d_grids_with_pm_signs(
         order_string = 'F'
 
     num_predictors = saliency_matrix_3d.shape[-1]
-    num_panel_rows = len(axes_objects_2d_list)
-    num_panel_columns = len(axes_objects_2d_list[0])
+    num_panel_rows = axes_object_matrix.shape[0]
+    num_panel_columns = axes_object_matrix.shape[1]
 
     for k in range(num_predictors):
         this_panel_row, this_panel_column = numpy.unravel_index(
@@ -421,7 +442,7 @@ def plot_many_2d_grids_with_pm_signs(
 
         plot_2d_grid_with_pm_signs(
             saliency_matrix_2d=saliency_matrix_3d[..., k],
-            axes_object=axes_objects_2d_list[this_panel_row][this_panel_column],
+            axes_object=axes_object_matrix[this_panel_row, this_panel_column],
             colour_map_object=colour_map_object,
             max_absolute_colour_value=max_absolute_colour_value,
             min_font_size=min_font_size, max_font_size=max_font_size)

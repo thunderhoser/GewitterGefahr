@@ -248,24 +248,27 @@ def plot_examples(
             this_num_heights = this_reflectivity_matrix_dbz.shape[-1]
             this_num_panel_rows = int(numpy.floor(numpy.sqrt(this_num_heights)))
 
-            _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
-                field_matrix=this_reflectivity_matrix_dbz,
-                field_name=radar_utils.REFL_NAME,
-                grid_point_heights_metres=training_option_dict[
-                    trainval_io.RADAR_HEIGHTS_KEY],
-                ground_relative=True, num_panel_rows=this_num_panel_rows,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS)
+            _, this_axes_object_matrix = (
+                radar_plotting.plot_3d_grid_without_coords(
+                    field_matrix=this_reflectivity_matrix_dbz,
+                    field_name=radar_utils.REFL_NAME,
+                    grid_point_heights_metres=training_option_dict[
+                        trainval_io.RADAR_HEIGHTS_KEY],
+                    ground_relative=True, num_panel_rows=this_num_panel_rows,
+                    font_size=FONT_SIZE_SANS_COLOUR_BARS)
+            )
 
             this_colour_map_object, this_colour_norm_object = (
                 radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
             )
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=these_axes_objects,
-                values_to_colour=this_reflectivity_matrix_dbz,
-                colour_map=this_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=this_reflectivity_matrix_dbz,
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='horizontal', extend_min=True, extend_max=True)
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
             this_title_string = '{0:s}; {1:s}'.format(
                 this_base_title_string, radar_utils.REFL_NAME)
@@ -281,7 +284,7 @@ def plot_examples(
                 list_of_predictor_matrices[1][i, ..., 0], axis=0
             )
 
-            _, these_axes_objects = (
+            _, this_axes_object_matrix = (
                 radar_plotting.plot_many_2d_grids_without_coords(
                     field_matrix=this_az_shear_matrix_s01,
                     field_name_by_panel=az_shear_field_names,
@@ -296,12 +299,13 @@ def plot_examples(
                     radar_utils.LOW_LEVEL_SHEAR_NAME)
             )
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=these_axes_objects,
-                values_to_colour=this_az_shear_matrix_s01,
-                colour_map=this_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=this_az_shear_matrix_s01,
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='horizontal', extend_min=True, extend_max=True)
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
             pyplot.suptitle(this_base_title_string, fontsize=TITLE_FONT_SIZE)
 
@@ -348,26 +352,28 @@ def plot_examples(
                 numpy.sqrt(this_num_heights)
             ))
 
-            _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
-                field_matrix=numpy.flip(this_radar_matrix[i, ..., j], axis=0),
-                field_name=radar_field_names[j],
-                grid_point_heights_metres=radar_heights_m_agl,
-                ground_relative=True, num_panel_rows=this_num_panel_rows,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS)
+            _, this_axes_object_matrix = (
+                radar_plotting.plot_3d_grid_without_coords(
+                    field_matrix=numpy.flip(this_radar_matrix[i, ..., j],
+                                            axis=0),
+                    field_name=radar_field_names[j],
+                    grid_point_heights_metres=radar_heights_m_agl,
+                    ground_relative=True, num_panel_rows=this_num_panel_rows,
+                    font_size=FONT_SIZE_SANS_COLOUR_BARS)
+            )
 
             this_colour_map_object, this_colour_norm_object = (
                 radar_plotting.get_default_colour_scheme(
                     radar_field_names[j])
             )
 
-            print(these_axes_objects)
-
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=these_axes_objects,
-                values_to_colour=this_radar_matrix[i, ..., j],
-                colour_map=this_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=this_radar_matrix[i, ..., j],
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='horizontal', extend_min=True, extend_max=True)
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
             this_title_string = '{0:s}; {1:s}'.format(
                 this_base_title_string, radar_field_names[j]

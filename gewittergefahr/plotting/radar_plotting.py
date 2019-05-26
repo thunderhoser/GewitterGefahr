@@ -786,9 +786,8 @@ def plot_many_2d_grids_without_coords(
     :param row_major: Boolean flag.  If True, panels will be filled along rows
         first, then down columns.  If False, down columns first, then along
         rows.
-    :return: figure_object: Instance of `matplotlib.figure.Figure`.
-    :return: axes_objects_2d_list: 2-D list, where each item is an instance of
-        `matplotlib.axes._subplots.AxesSubplot`.
+    :return: figure_object: See doc for `plotting_utils.create_paneled_figure`.
+    :return: axes_object_matrix: Same.
     :raises: ValueError: if `colour_map_object_by_panel` or
         `colour_norm_object_by_panel` has different length than number of
         panels.
@@ -850,10 +849,11 @@ def plot_many_2d_grids_without_coords(
         float(num_panels) / num_panel_rows
     ))
 
-    figure_object, axes_objects_2d_list = plotting_utils.init_panels(
-        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
+        num_rows=num_panel_rows, num_columns=num_panel_columns,
         figure_width_inches=figure_width_inches,
-        figure_height_inches=figure_height_inches)
+        figure_height_inches=figure_height_inches, shared_x_axis=False,
+        shared_y_axis=False, keep_aspect_ratio=True)
 
     for k in range(num_panels):
         this_panel_row, this_panel_column = numpy.unravel_index(
@@ -869,8 +869,8 @@ def plot_many_2d_grids_without_coords(
             plot_2d_grid_without_coords(
                 field_matrix=field_matrix[..., k],
                 field_name=field_name_by_panel[k],
-                axes_object=axes_objects_2d_list[
-                    this_panel_row][this_panel_column],
+                axes_object=axes_object_matrix[
+                    this_panel_row, this_panel_column],
                 annotation_string=this_annotation_string, font_size=font_size,
                 colour_map_object=colour_map_object_by_panel[k],
                 colour_norm_object=colour_norm_object_by_panel[k]
@@ -882,18 +882,19 @@ def plot_many_2d_grids_without_coords(
 
         this_extend_min_flag = field_name_by_panel[k] in SHEAR_VORT_DIV_NAMES
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=axes_objects_2d_list[
-                this_panel_row][this_panel_column],
-            values_to_colour=field_matrix[..., k],
-            colour_map=this_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=axes_object_matrix[
+                this_panel_row, this_panel_column],
+            data_matrix=field_matrix[..., k],
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation='horizontal', font_size=font_size,
+            orientation_string='horizontal',
             extend_min=this_extend_min_flag, extend_max=True,
-            fraction_of_axis_length=0.9)
+            fraction_of_axis_length=0.9, font_size=font_size)
 
-        axes_objects_2d_list[this_panel_row][this_panel_column].set_xlabel(
-            panel_names[k], fontsize=font_size)
+        axes_object_matrix[this_panel_row, this_panel_column].set_xlabel(
+            panel_names[k], fontsize=font_size
+        )
 
     for k in range(num_panel_rows * num_panel_columns):
         if k < num_panels:
@@ -903,9 +904,9 @@ def plot_many_2d_grids_without_coords(
             k, (num_panel_rows, num_panel_columns), order=order_string
         )
 
-        axes_objects_2d_list[this_panel_row][this_panel_column].axis('off')
+        axes_object_matrix[this_panel_row, this_panel_column].axis('off')
 
-    return figure_object, axes_objects_2d_list
+    return figure_object, axes_object_matrix
 
 
 def plot_3d_grid_without_coords(
@@ -937,9 +938,8 @@ def plot_3d_grid_without_coords(
     :param font_size: Font size for colour-bar ticks and panel labels.
     :param colour_map_object: See doc for `plot_latlng_grid`.
     :param colour_norm_object: Same.
-    :return: figure_object: Instance of `matplotlib.figure.Figure`.
-    :return: axes_objects_2d_list: 2-D list, where each item is an instance of
-        `matplotlib.axes._subplots.AxesSubplot`.
+    :return: figure_object: See doc for `plotting_utils.init_panels`.
+    :return: axes_object_matrix: Same.
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
@@ -956,18 +956,22 @@ def plot_3d_grid_without_coords(
     error_checking.assert_is_geq(num_panel_rows, 1)
     error_checking.assert_is_leq(num_panel_rows, num_heights)
 
-    num_panel_columns = int(numpy.ceil(float(num_heights) / num_panel_rows))
-    figure_object, axes_objects_2d_list = plotting_utils.init_panels(
-        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+    num_panel_columns = int(numpy.ceil(
+        float(num_heights) / num_panel_rows
+    ))
+
+    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
+        num_rows=num_panel_rows, num_columns=num_panel_columns,
         figure_width_inches=figure_width_inches,
-        figure_height_inches=figure_height_inches)
+        figure_height_inches=figure_height_inches, shared_x_axis=False,
+        shared_y_axis=False, keep_aspect_ratio=True)
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
             this_height_index = i * num_panel_columns + j
 
             if this_height_index >= num_heights:
-                axes_objects_2d_list[i][j].axis('off')
+                axes_object_matrix[i, j].axis('off')
                 continue
 
             this_annotation_string = '{0:.1f} km'.format(
@@ -979,9 +983,9 @@ def plot_3d_grid_without_coords(
 
             plot_2d_grid_without_coords(
                 field_matrix=field_matrix[..., this_height_index],
-                field_name=field_name, axes_object=axes_objects_2d_list[i][j],
+                field_name=field_name, axes_object=axes_object_matrix[i, j],
                 annotation_string=this_annotation_string,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object, font_size=font_size)
 
-    return figure_object, axes_objects_2d_list
+    return figure_object, axes_object_matrix

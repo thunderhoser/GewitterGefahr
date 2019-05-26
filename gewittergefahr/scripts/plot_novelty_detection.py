@@ -203,22 +203,25 @@ def _plot_3d_radar(
                         radar_field_names[j])
                 )
 
-            _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
-                field_matrix=numpy.flip(
-                    radar_matrix_to_plot[i, ..., j], axis=0),
-                field_name=radar_field_names[j],
-                grid_point_heights_metres=radar_heights_m_agl,
-                ground_relative=True, num_panel_rows=num_panel_rows,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS,
-                colour_map_object=this_colour_map_object,
-                colour_norm_object=this_colour_norm_object)
+            _, this_axes_object_matrix = (
+                radar_plotting.plot_3d_grid_without_coords(
+                    field_matrix=numpy.flip(
+                        radar_matrix_to_plot[i, ..., j], axis=0),
+                    field_name=radar_field_names[j],
+                    grid_point_heights_metres=radar_heights_m_agl,
+                    ground_relative=True, num_panel_rows=num_panel_rows,
+                    font_size=FONT_SIZE_SANS_COLOUR_BARS,
+                    colour_map_object=this_colour_map_object,
+                    colour_norm_object=this_colour_norm_object)
+            )
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=these_axes_objects,
-                values_to_colour=radar_matrix_to_plot[i, ..., j],
-                colour_map=this_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=radar_matrix_to_plot[i, ..., j],
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='horizontal', extend_min=True, extend_max=True)
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
             print('Saving figure to: "{0:s}"...'.format(this_file_name))

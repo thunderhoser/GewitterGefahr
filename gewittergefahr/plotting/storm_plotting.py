@@ -89,26 +89,28 @@ def plot_storm_track(
     :param end_marker_size: Size of marker at end of track.
     """
 
-    if isinstance(line_colour, numpy.ndarray):
-        line_colour = tuple(line_colour.tolist())
-
     # TODO(thunderhoser): Get rid of this method (or clean it up a lot).
 
     error_checking.assert_is_valid_lat_numpy_array(centroid_latitudes_deg)
     error_checking.assert_is_numpy_array(
         centroid_latitudes_deg, num_dimensions=1)
-    num_points = len(centroid_latitudes_deg)
 
     centroid_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
         centroid_longitudes_deg)
+
+    num_points = len(centroid_latitudes_deg)
+    these_expected_dim = numpy.array([num_points], dtype=int)
     error_checking.assert_is_numpy_array(
-        centroid_longitudes_deg, exact_dimensions=numpy.array([num_points]))
+        centroid_longitudes_deg, exact_dimensions=these_expected_dim)
 
     centroid_x_coords_metres, centroid_y_coords_metres = basemap_object(
         centroid_longitudes_deg, centroid_latitudes_deg)
+
+    line_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(line_colour)
+
     axes_object.plot(
-        centroid_x_coords_metres, centroid_y_coords_metres, color=line_colour,
-        linestyle=line_style, linewidth=line_width)
+        centroid_x_coords_metres, centroid_y_coords_metres,
+        color=line_colour_tuple, linestyle=line_style, linewidth=line_width)
 
     if start_marker is not None:
         if start_marker == 'x':
@@ -118,9 +120,10 @@ def plot_storm_track(
 
         axes_object.plot(
             centroid_x_coords_metres[0], centroid_y_coords_metres[0],
-            linestyle='None', marker=start_marker, markerfacecolor=line_colour,
-            markeredgecolor=line_colour, markersize=start_marker_size,
-            markeredgewidth=this_edge_width)
+            linestyle='None', marker=start_marker,
+            markerfacecolor=line_colour_tuple,
+            markeredgecolor=line_colour_tuple,
+            markersize=start_marker_size, markeredgewidth=this_edge_width)
 
     if end_marker is not None:
         if end_marker == 'x':
@@ -130,9 +133,10 @@ def plot_storm_track(
 
         axes_object.plot(
             centroid_x_coords_metres[-1], centroid_y_coords_metres[-1],
-            linestyle='None', marker=end_marker, markerfacecolor=line_colour,
-            markeredgecolor=line_colour, markersize=end_marker_size,
-            markeredgewidth=this_edge_width)
+            linestyle='None', marker=end_marker,
+            markerfacecolor=line_colour_tuple,
+            markeredgecolor=line_colour_tuple,
+            markersize=end_marker_size, markeredgewidth=this_edge_width)
 
 
 def plot_storm_outlines(
@@ -151,9 +155,7 @@ def plot_storm_outlines(
     :param line_colour: Colour of each polygon.
     """
 
-    if isinstance(line_colour, numpy.ndarray):
-        line_colour = tuple(line_colour.tolist())
-
+    line_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(line_colour)
     num_storm_objects = len(storm_object_table.index)
 
     for i in range(num_storm_objects):
@@ -167,8 +169,8 @@ def plot_storm_outlines(
         )
 
         axes_object.plot(
-            these_x_coords_metres, these_y_coords_metres, color=line_colour,
-            linestyle='solid', linewidth=line_width)
+            these_x_coords_metres, these_y_coords_metres,
+            color=line_colour_tuple, linestyle='solid', linewidth=line_width)
 
 
 def plot_storm_centroids(
@@ -187,8 +189,8 @@ def plot_storm_centroids(
     :param marker_size: Marker size for storm centroids.
     """
 
-    if isinstance(marker_colour, numpy.ndarray):
-        marker_colour = tuple(marker_colour.tolist())
+    marker_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
+        marker_colour)
 
     x_coords_metres, y_coords_metres = basemap_object(
         storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
@@ -197,8 +199,9 @@ def plot_storm_centroids(
 
     axes_object.plot(
         x_coords_metres, y_coords_metres, linestyle='None', marker=marker_type,
-        markerfacecolor=marker_colour, markeredgecolor=marker_colour,
-        markersize=marker_size, markeredgewidth=0)
+        markerfacecolor=marker_colour_tuple,
+        markeredgecolor=marker_colour_tuple, markersize=marker_size,
+        markeredgewidth=0)
 
 
 def plot_storm_ids(
@@ -219,12 +222,10 @@ def plot_storm_ids(
     :param font_size: Font size.
     """
 
-    if isinstance(font_colour, numpy.ndarray):
-        font_colour = tuple(font_colour.tolist())
-
     error_checking.assert_is_boolean(plot_near_centroids)
     error_checking.assert_is_boolean(include_secondary_ids)
 
+    font_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(font_colour)
     num_storm_objects = len(storm_object_table.index)
 
     if plot_near_centroids:
@@ -276,7 +277,7 @@ def plot_storm_ids(
 
         axes_object.text(
             text_x_coords_metres[i], text_y_coords_metres[i], this_label_string,
-            fontsize=font_size, fontweight='bold', color=font_colour,
+            fontsize=font_size, fontweight='bold', color=font_colour_tuple,
             horizontalalignment='left', verticalalignment='top')
 
 
@@ -373,7 +374,7 @@ def plot_storm_tracks(
     for k in range(num_tracks):
         if colour_map_object is None:
             this_colour = rgb_matrix[numpy.mod(k, num_colours), :]
-            this_colour = tuple(this_colour.tolist())
+            this_colour = plotting_utils.colour_from_numpy_to_tuple(this_colour)
         else:
             this_colour = None
 
@@ -517,12 +518,13 @@ def plot_storm_tracks(
     else:
         orientation_string = 'horizontal'
 
-    colour_bar_object = plotting_utils.add_linear_colour_bar(
-        axes_object_or_list=axes_object,
-        values_to_colour=storm_object_table[
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object,
+        data_matrix=storm_object_table[
             tracking_utils.VALID_TIME_COLUMN].values,
-        colour_map=colour_map_object, colour_min=colour_norm_object.vmin,
-        colour_max=colour_norm_object.vmax, orientation=orientation_string,
+        colour_map_object=colour_map_object, min_value=colour_norm_object.vmin,
+        max_value=colour_norm_object.vmax,
+        orientation_string=orientation_string,
         extend_min=False, extend_max=False, fraction_of_axis_length=0.9,
         font_size=COLOUR_BAR_FONT_SIZE)
 

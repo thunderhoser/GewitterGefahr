@@ -147,7 +147,7 @@ def _plot_feature_maps_one_layer(
             storm_times_unix_sec[i], TIME_FORMAT)
 
         if num_spatial_dimensions == 2:
-            _, these_axes_objects = (
+            _, this_axes_object_matrix = (
                 feature_map_plotting.plot_many_2d_feature_maps(
                     feature_matrix=numpy.flip(feature_matrix[i, ...], axis=0),
                     annotation_string_by_panel=annotation_string_by_channel,
@@ -157,11 +157,11 @@ def _plot_feature_maps_one_layer(
                     max_colour_value=max_colour_value, font_size=font_size)
             )
 
-            plotting_utils.add_linear_colour_bar(
-                axes_object_or_list=these_axes_objects,
-                values_to_colour=feature_matrix[i, ...],
-                colour_map=pyplot.cm.seismic, colour_min=min_colour_value,
-                colour_max=max_colour_value, orientation='horizontal',
+            plotting_utils.plot_linear_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=feature_matrix[i, ...],
+                colour_map_object=pyplot.cm.seismic, min_value=min_colour_value,
+                max_value=max_colour_value, orientation_string='horizontal',
                 extend_min=True, extend_max=True)
 
             this_title_string = 'Layer "{0:s}", storm "{1:s}" at {2:s}'.format(
@@ -182,7 +182,7 @@ def _plot_feature_maps_one_layer(
 
         else:
             for k in range(num_heights):
-                _, these_axes_objects = (
+                _, this_axes_object_matrix = (
                     feature_map_plotting.plot_many_2d_feature_maps(
                         feature_matrix=numpy.flip(
                             feature_matrix[i, :, :, k, :], axis=0),
@@ -193,12 +193,13 @@ def _plot_feature_maps_one_layer(
                         max_colour_value=max_colour_value, font_size=font_size)
                 )
 
-                plotting_utils.add_linear_colour_bar(
-                    axes_object_or_list=these_axes_objects,
-                    values_to_colour=feature_matrix[i, :, :, k, :],
-                    colour_map=pyplot.cm.seismic, colour_min=min_colour_value,
-                    colour_max=max_colour_value, orientation='horizontal',
-                    extend_min=True, extend_max=True)
+                plotting_utils.plot_linear_colour_bar(
+                    axes_object_or_matrix=this_axes_object_matrix,
+                    data_matrix=feature_matrix[i, :, :, k, :],
+                    colour_map_object=pyplot.cm.seismic,
+                    min_value=min_colour_value, max_value=max_colour_value,
+                    orientation_string='horizontal', extend_min=True,
+                    extend_max=True)
 
                 this_title_string = (
                     'Layer "{0:s}", height {1:d} of {2:d}, storm "{3:s}" at '

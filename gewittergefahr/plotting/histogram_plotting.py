@@ -7,6 +7,7 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.plotting import plotting_utils
 
 DEFAULT_HISTOGRAM_FACE_COLOUR = numpy.array([55., 126., 184.]) / 255
 DEFAULT_HISTOGRAM_EDGE_COLOUR = numpy.array([0., 0., 0.]) / 255
@@ -55,7 +56,8 @@ def plot_histogram(
         max_value=max_value)
 
     fraction_of_examples_by_bin = (
-            num_examples_by_bin.astype(float) / numpy.sum(num_examples_by_bin))
+        num_examples_by_bin.astype(float) / numpy.sum(num_examples_by_bin)
+    )
 
     bin_edges = numpy.linspace(min_value, max_value, num=num_bins + 1)
     bin_width = bin_edges[1] - bin_edges[0]
@@ -63,7 +65,8 @@ def plot_histogram(
 
     axes_object.bar(
         bin_centers, fraction_of_examples_by_bin, bin_width,
-        color=bar_face_colour, edgecolor=bar_edge_colour,
+        color=plotting_utils.colour_from_numpy_to_tuple(bar_face_colour),
+        edgecolor=plotting_utils.colour_from_numpy_to_tuple(bar_edge_colour),
         linewidth=bar_edge_width)
 
     x_tick_indices = numpy.arange(

@@ -65,7 +65,7 @@ def plot_2d_grid(class_activation_matrix_2d, axes_object, colour_map_object,
 
 
 def plot_many_2d_grids(
-        class_activation_matrix_3d, axes_objects_2d_list, colour_map_object,
+        class_activation_matrix_3d, axes_object_matrix, colour_map_object,
         max_contour_level, contour_interval, line_width=DEFAULT_CONTOUR_WIDTH,
         row_major=True):
     """Plots the same 2-D class-activation map for each predictor.
@@ -76,7 +76,7 @@ def plot_many_2d_grids(
 
     :param class_activation_matrix_3d: M-by-N-by-P numpy array of class
         activations.
-    :param axes_objects_2d_list: See doc for `plotting_utils.init_panels`.
+    :param axes_object_matrix: See doc for `plotting_utils.init_panels`.
     :param colour_map_object: See doc for `plot_2d_grid`.
     :param max_contour_level: Same.
     :param contour_interval: Same.
@@ -97,8 +97,8 @@ def plot_many_2d_grids(
         order_string = 'F'
 
     num_predictors = class_activation_matrix_3d.shape[-1]
-    num_panel_rows = len(axes_objects_2d_list)
-    num_panel_columns = len(axes_objects_2d_list[0])
+    num_panel_rows = axes_object_matrix.shape[0]
+    num_panel_columns = axes_object_matrix.shape[1]
 
     for k in range(num_predictors):
         this_panel_row, this_panel_column = numpy.unravel_index(
@@ -107,7 +107,7 @@ def plot_many_2d_grids(
 
         plot_2d_grid(
             class_activation_matrix_2d=class_activation_matrix_3d[..., k],
-            axes_object=axes_objects_2d_list[this_panel_row][this_panel_column],
+            axes_object=axes_object_matrix[this_panel_row, this_panel_column],
             colour_map_object=colour_map_object,
             max_contour_level=max_contour_level,
             contour_interval=contour_interval, line_width=line_width)

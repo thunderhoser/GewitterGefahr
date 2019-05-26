@@ -45,6 +45,7 @@ def _create_roc_curve(forecast_probabilities, observed_labels, output_dir_name):
     auc = model_eval.get_area_under_roc_curve(
         pofd_by_threshold=pofd_by_threshold,
         pod_by_threshold=pod_by_threshold)
+
     scikit_learn_auc = roc_auc_score(
         y_true=observed_labels, y_score=forecast_probabilities)
 
@@ -129,6 +130,7 @@ def _create_attributes_diagram(
             observed_labels=observed_labels))
 
     climatology = numpy.mean(observed_labels)
+
     bss_dict = model_eval.get_brier_skill_score(
         mean_forecast_prob_by_bin=mean_forecast_by_bin,
         mean_observed_label_by_bin=class_frequency_by_bin,
@@ -137,9 +139,11 @@ def _create_attributes_diagram(
     print((
         'Climatology = {0:.4f} ... reliability = {1:.4f} ... resolution = '
         '{2:.4f} ... BSS = {3:.4f}'
-    ).format(climatology, bss_dict[model_eval.RELIABILITY_KEY],
-             bss_dict[model_eval.RESOLUTION_KEY],
-             bss_dict[model_eval.BRIER_SKILL_SCORE_KEY]))
+    ).format(
+        climatology, bss_dict[model_eval.RELIABILITY_KEY],
+        bss_dict[model_eval.RESOLUTION_KEY],
+        bss_dict[model_eval.BRIER_SKILL_SCORE_KEY]
+    ))
 
     figure_file_name = '{0:s}/reliability_curve.jpg'.format(output_dir_name)
     print('Saving reliability curve to: "{0:s}"...\n'.format(figure_file_name))

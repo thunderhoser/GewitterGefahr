@@ -9,7 +9,6 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
@@ -209,31 +208,12 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         ) + LATLNG_BUFFER_DEG
 
     _, axes_object, basemap_object = (
-        plotting_utils.init_equidistant_cylindrical_map(
+        plotting_utils.create_equidist_cylindrical_map(
             min_latitude_deg=min_plot_latitude_deg,
             max_latitude_deg=max_plot_latitude_deg,
             min_longitude_deg=min_plot_longitude_deg,
             max_longitude_deg=max_plot_longitude_deg, resolution_string='i')
     )
-
-    parallel_spacing_deg = (
-        (max_plot_latitude_deg - min_plot_latitude_deg) / (NUM_PARALLELS - 1)
-    )
-    meridian_spacing_deg = (
-        (max_plot_longitude_deg - min_plot_longitude_deg) / (NUM_MERIDIANS - 1)
-    )
-
-    if parallel_spacing_deg < 1.:
-        parallel_spacing_deg = number_rounding.round_to_nearest(
-            parallel_spacing_deg, 0.1)
-    else:
-        parallel_spacing_deg = numpy.round(parallel_spacing_deg)
-
-    if meridian_spacing_deg < 1.:
-        meridian_spacing_deg = number_rounding.round_to_nearest(
-            meridian_spacing_deg, 0.1)
-    else:
-        meridian_spacing_deg = numpy.round(meridian_spacing_deg)
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -249,13 +229,13 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=parallel_spacing_deg)
+        min_latitude_deg=-90., max_latitude_deg=90.,
+        num_parallels=NUM_PARALLELS)
 
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=meridian_spacing_deg)
+        min_longitude_deg=0., max_longitude_deg=360.,
+        num_meridians=NUM_MERIDIANS)
 
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,

@@ -124,13 +124,15 @@ def _plot_3d_radar_cams(
             this_field_name = training_option_dict[
                 trainval_io.RADAR_FIELDS_KEY][k]
 
-            _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
-                field_matrix=numpy.flip(radar_matrix[i, ..., k], axis=0),
-                field_name=this_field_name,
-                grid_point_heights_metres=training_option_dict[
-                    trainval_io.RADAR_HEIGHTS_KEY],
-                ground_relative=True, num_panel_rows=num_panel_rows,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS)
+            _, this_axes_object_matrix = (
+                radar_plotting.plot_3d_grid_without_coords(
+                    field_matrix=numpy.flip(radar_matrix[i, ..., k], axis=0),
+                    field_name=this_field_name,
+                    grid_point_heights_metres=training_option_dict[
+                        trainval_io.RADAR_HEIGHTS_KEY],
+                    ground_relative=True, num_panel_rows=num_panel_rows,
+                    font_size=FONT_SIZE_SANS_COLOUR_BARS)
+            )
 
             if class_activation_matrix is None:
                 this_matrix = ggradcam_output_matrix[i, ..., k]
@@ -142,7 +144,7 @@ def _plot_3d_radar_cams(
 
                 saliency_plotting.plot_many_2d_grids_with_contours(
                     saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
-                    axes_objects_2d_list=these_axes_objects,
+                    axes_object_matrix=this_axes_object_matrix,
                     colour_map_object=cam_colour_map_object,
                     max_absolute_contour_level=this_max_contour_level,
                     contour_interval=this_max_contour_level / 10)
@@ -157,7 +159,7 @@ def _plot_3d_radar_cams(
 
                 cam_plotting.plot_many_2d_grids(
                     class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
-                    axes_objects_2d_list=these_axes_objects,
+                    axes_object_matrix=this_axes_object_matrix,
                     colour_map_object=cam_colour_map_object,
                     max_contour_level=this_max_contour_level,
                     contour_interval=this_max_contour_level / NUM_CONTOURS)
@@ -166,12 +168,13 @@ def _plot_3d_radar_cams(
                 radar_plotting.get_default_colour_scheme(this_field_name)
             )
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=these_axes_objects,
-                values_to_colour=radar_matrix[i, ..., k],
-                colour_map=this_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=radar_matrix[i, ..., k],
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='horizontal', extend_min=True, extend_max=True)
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
             if pmm_flag:
                 this_title_string = 'Probability-matched mean'
@@ -280,7 +283,7 @@ def _plot_2d_radar_cams(
         pathless_file_name_prefix = 'gradcam'
 
     for i in range(num_examples):
-        _, these_axes_objects = (
+        _, this_axes_object_matrix = (
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
                 field_name_by_panel=field_name_by_panel,
@@ -299,7 +302,7 @@ def _plot_2d_radar_cams(
 
             saliency_plotting.plot_many_2d_grids_with_contours(
                 saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
-                axes_objects_2d_list=these_axes_objects,
+                axes_object_matrix=this_axes_object_matrix,
                 colour_map_object=cam_colour_map_object,
                 max_absolute_contour_level=this_max_contour_level,
                 contour_interval=this_max_contour_level / 10, row_major=False)
@@ -317,7 +320,7 @@ def _plot_2d_radar_cams(
 
             cam_plotting.plot_many_2d_grids(
                 class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
-                axes_objects_2d_list=these_axes_objects,
+                axes_object_matrix=this_axes_object_matrix,
                 colour_map_object=cam_colour_map_object,
                 max_contour_level=this_max_contour_level,
                 contour_interval=this_max_contour_level / NUM_CONTOURS,

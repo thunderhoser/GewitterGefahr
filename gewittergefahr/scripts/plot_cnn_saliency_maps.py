@@ -124,7 +124,7 @@ def _plot_saliency_for_2d3d_radar(
     plot_colour_bar_flags = numpy.full(num_az_shear_fields, False, dtype=bool)
 
     for i in range(num_examples):
-        _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
+        _, this_axes_object_matrix = radar_plotting.plot_3d_grid_without_coords(
             field_matrix=numpy.flip(reflectivity_matrix_dbz[i, ..., 0], axis=0),
             field_name=radar_utils.REFL_NAME,
             grid_point_heights_metres=training_option_dict[
@@ -136,7 +136,7 @@ def _plot_saliency_for_2d3d_radar(
         saliency_plotting.plot_many_2d_grids_with_pm_signs(
             saliency_matrix_3d=numpy.flip(
                 reflectivity_saliency_matrix[i, ..., 0], axis=0),
-            axes_objects_2d_list=these_axes_objects,
+            axes_object_matrix=this_axes_object_matrix,
             colour_map_object=saliency_colour_map_object,
             max_absolute_colour_value=max_colour_value_by_example[i])
 
@@ -144,12 +144,12 @@ def _plot_saliency_for_2d3d_radar(
             radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
         )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=these_axes_objects,
-            values_to_colour=reflectivity_matrix_dbz[i, ..., 0],
-            colour_map=this_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=reflectivity_matrix_dbz[i, ..., 0],
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation='horizontal', extend_min=True, extend_max=True)
+            orientation_string='horizontal', extend_min=True, extend_max=True)
 
         if pmm_flag:
             this_title_string = 'Probability-matched mean'
@@ -177,7 +177,7 @@ def _plot_saliency_for_2d3d_radar(
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
-        _, these_axes_objects = (
+        _, this_axes_object_matrix = (
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=numpy.flip(az_shear_matrix_s01[i, ...], axis=0),
                 field_name_by_panel=az_shear_field_names,
@@ -189,7 +189,7 @@ def _plot_saliency_for_2d3d_radar(
         saliency_plotting.plot_many_2d_grids_with_pm_signs(
             saliency_matrix_3d=numpy.flip(
                 az_shear_saliency_matrix[i, ...], axis=0),
-            axes_objects_2d_list=these_axes_objects,
+            axes_object_matrix=this_axes_object_matrix,
             colour_map_object=saliency_colour_map_object,
             max_absolute_colour_value=max_colour_value_by_example[i])
 
@@ -198,12 +198,12 @@ def _plot_saliency_for_2d3d_radar(
                 radar_utils.LOW_LEVEL_SHEAR_NAME)
         )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=these_axes_objects,
-            values_to_colour=az_shear_saliency_matrix[i, ...],
-            colour_map=this_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=az_shear_saliency_matrix[i, ...],
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation='horizontal', extend_min=True, extend_max=True)
+            orientation_string='horizontal', extend_min=True, extend_max=True)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
         this_file_name = this_file_name.replace(
@@ -276,7 +276,7 @@ def _plot_saliency_for_2d_radar(
     num_panel_rows = int(numpy.floor(numpy.sqrt(num_panels)))
 
     for i in range(num_examples):
-        _, these_axes_objects = (
+        _, this_axes_object_matrix = (
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
                 field_name_by_panel=field_name_by_panel,
@@ -292,7 +292,7 @@ def _plot_saliency_for_2d_radar(
         saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=numpy.flip(
                 radar_saliency_matrix[i, ...], axis=0),
-            axes_objects_2d_list=these_axes_objects,
+            axes_object_matrix=this_axes_object_matrix,
             colour_map_object=saliency_colour_map_object,
             max_absolute_contour_level=max_colour_value_by_example[i],
             contour_interval=this_contour_interval, row_major=False)
@@ -362,7 +362,7 @@ def _plot_saliency_for_3d_radar(
             this_field_name = training_option_dict[
                 trainval_io.RADAR_FIELDS_KEY][k]
 
-            _, these_axes_objects = (
+            _, this_axes_object_matrix = (
                 radar_plotting.plot_3d_grid_without_coords(
                     field_matrix=numpy.flip(radar_matrix[i, ..., k], axis=0),
                     field_name=this_field_name,
@@ -375,7 +375,7 @@ def _plot_saliency_for_3d_radar(
             saliency_plotting.plot_many_2d_grids_with_pm_signs(
                 saliency_matrix_3d=numpy.flip(
                     radar_saliency_matrix[i, ..., k], axis=0),
-                axes_objects_2d_list=these_axes_objects,
+                axes_object_matrix=this_axes_object_matrix,
                 colour_map_object=saliency_colour_map_object,
                 max_absolute_colour_value=max_colour_value_by_example[i])
 
@@ -383,12 +383,13 @@ def _plot_saliency_for_3d_radar(
                 radar_plotting.get_default_colour_scheme(this_field_name)
             )
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=these_axes_objects,
-                values_to_colour=radar_matrix[i, ..., k],
-                colour_map=this_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=radar_matrix[i, ..., k],
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='horizontal', extend_min=True, extend_max=True)
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
             if pmm_flag:
                 this_title_string = 'Probability-matched mean'

@@ -11,6 +11,7 @@ import metpy.units
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 
 MAIN_LINE_COLOUR_KEY = 'main_line_colour'
@@ -126,12 +127,16 @@ def plot_sounding(
         soundings.DEWPOINT_COLUMN_METPY] * metpy.units.units.degC
 
     skewt_object.plot(
-        pressures_mb, temperatures_deg_c, color=main_line_colour,
-        linewidth=main_line_width, linestyle='solid')
+        pressures_mb, temperatures_deg_c,
+        color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
+        linewidth=main_line_width, linestyle='solid'
+    )
 
     skewt_object.plot(
-        pressures_mb, dewpoints_deg_c, color=main_line_colour,
-        linewidth=main_line_width, linestyle='dashed')
+        pressures_mb, dewpoints_deg_c,
+        color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
+        linewidth=main_line_width, linestyle='dashed'
+    )
 
     try:
         u_winds_kt = sounding_dict_for_metpy[
@@ -147,17 +152,22 @@ def plot_sounding(
 
     axes_object = skewt_object.ax
     axes_object.grid(
-        color=grid_line_colour, linewidth=grid_line_width, linestyle='dashed')
+        color=plotting_utils.colour_from_numpy_to_tuple(grid_line_colour),
+        linewidth=grid_line_width, linestyle='dashed'
+    )
 
     skewt_object.plot_dry_adiabats(
-        color=dry_adiabat_colour, linewidth=contour_line_width,
-        linestyle='solid', alpha=1.)
+        color=plotting_utils.colour_from_numpy_to_tuple(dry_adiabat_colour),
+        linewidth=contour_line_width, linestyle='solid', alpha=1.
+    )
     skewt_object.plot_moist_adiabats(
-        color=moist_adiabat_colour, linewidth=contour_line_width,
-        linestyle='solid', alpha=1.)
+        color=plotting_utils.colour_from_numpy_to_tuple(moist_adiabat_colour),
+        linewidth=contour_line_width, linestyle='solid', alpha=1.
+    )
     skewt_object.plot_mixing_lines(
-        color=isohume_colour, linewidth=contour_line_width, linestyle='solid',
-        alpha=1.)
+        color=plotting_utils.colour_from_numpy_to_tuple(isohume_colour),
+        linewidth=contour_line_width, linestyle='solid', alpha=1.
+    )
 
     axes_object.set_ylim(1000, 100)
     axes_object.set_xlim(-40, 50)

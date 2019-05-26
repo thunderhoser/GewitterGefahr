@@ -207,7 +207,7 @@ def _plot_tornado_and_radar(
     grid_point_latitudes_deg = grid_point_latitudes_deg[::-1]
 
     axes_object, basemap_object = (
-        plotting_utils.init_equidistant_cylindrical_map(
+        plotting_utils.create_equidist_cylindrical_map(
             min_latitude_deg=numpy.min(grid_point_latitudes_deg),
             max_latitude_deg=numpy.max(grid_point_latitudes_deg),
             min_longitude_deg=numpy.min(grid_point_longitudes_deg),
@@ -215,27 +215,6 @@ def _plot_tornado_and_radar(
             resolution_string='i'
         )[1:]
     )
-
-    parallel_spacing_deg = (
-        (basemap_object.urcrnrlat - basemap_object.llcrnrlat) /
-        (NUM_PARALLELS - 1)
-    )
-    meridian_spacing_deg = (
-        (basemap_object.urcrnrlon - basemap_object.llcrnrlon) /
-        (NUM_MERIDIANS - 1)
-    )
-
-    if parallel_spacing_deg < 1.:
-        parallel_spacing_deg = number_rounding.round_to_nearest(
-            parallel_spacing_deg, 0.1)
-    else:
-        parallel_spacing_deg = numpy.round(parallel_spacing_deg)
-
-    if meridian_spacing_deg < 1.:
-        meridian_spacing_deg = number_rounding.round_to_nearest(
-            meridian_spacing_deg, 0.1)
-    else:
-        meridian_spacing_deg = numpy.round(meridian_spacing_deg)
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -251,13 +230,13 @@ def _plot_tornado_and_radar(
 
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=parallel_spacing_deg)
+        min_latitude_deg=-90., max_latitude_deg=90.,
+        num_parallels=NUM_PARALLELS)
 
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=meridian_spacing_deg)
+        min_longitude_deg=0., max_longitude_deg=360.,
+        num_meridians=NUM_MERIDIANS)
 
     radar_plotting.plot_latlng_grid(
         field_matrix=radar_matrix, field_name=radar_field_name,
@@ -278,8 +257,11 @@ def _plot_tornado_and_radar(
         tornado_longitude_deg, tornado_latitude_deg, linestyle='None',
         marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
         markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
-        markerfacecolor=TORNADO_MARKER_COLOUR,
-        markeredgecolor=TORNADO_MARKER_COLOUR)
+        markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
+            TORNADO_MARKER_COLOUR),
+        markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
+            TORNADO_MARKER_COLOUR)
+    )
 
     tornado_time_string = time_conversion.unix_sec_to_string(
         tornado_time_unix_sec, TIME_FORMAT)
