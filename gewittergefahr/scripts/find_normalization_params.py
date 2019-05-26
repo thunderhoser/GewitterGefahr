@@ -19,42 +19,42 @@ LARGE_INTEGER = int(1e12)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 # TODO(thunderhoser): Make these input args.
-NUM_RADAR_ROWS = 24
-NUM_RADAR_COLUMNS = 24
+NUM_RADAR_ROWS = 32
+NUM_RADAR_COLUMNS = 32
 
 NUM_VALUES_KEY = 'num_values'
 MEAN_VALUE_KEY = 'mean_value'
 MEAN_OF_SQUARES_KEY = 'mean_of_squares'
 
 RADAR_INTERVAL_DICT = {
-    radar_utils.ECHO_TOP_18DBZ_NAME: 0.01,  # km
-    radar_utils.ECHO_TOP_40DBZ_NAME: 0.01,  # km
-    radar_utils.ECHO_TOP_50DBZ_NAME: 0.01,  # km
-    radar_utils.LOW_LEVEL_SHEAR_NAME: 1e-5,  # s^-1
-    radar_utils.MID_LEVEL_SHEAR_NAME: 1e-5,  # s^-1
-    radar_utils.MESH_NAME: 0.1,  # mm
-    radar_utils.REFL_NAME: 0.1,  # dBZ
-    radar_utils.REFL_COLUMN_MAX_NAME: 0.1,  # dBZ
-    radar_utils.REFL_0CELSIUS_NAME: 0.1,  # dBZ
-    radar_utils.REFL_M10CELSIUS_NAME: 0.1,  # dBZ
-    radar_utils.REFL_M20CELSIUS_NAME: 0.1,  # dBZ
-    radar_utils.REFL_LOWEST_ALTITUDE_NAME: 0.1,  # dBZ
-    radar_utils.SHI_NAME: 0.1,  # unitless
-    radar_utils.VIL_NAME: 0.1,  # mm
-    radar_utils.DIFFERENTIAL_REFL_NAME: 1e-3,  # dB
-    radar_utils.SPEC_DIFF_PHASE_NAME: 1e-3,  # deg km^-1
-    radar_utils.CORRELATION_COEFF_NAME: 1e-3,  # unitless
-    radar_utils.SPECTRUM_WIDTH_NAME: 0.01,  # m s^-1
-    radar_utils.VORTICITY_NAME: 1e-5,  # s^-1
-    radar_utils.DIVERGENCE_NAME: 1e-5  # s^-1
+    radar_utils.ECHO_TOP_18DBZ_NAME: 0.001,  # km
+    radar_utils.ECHO_TOP_40DBZ_NAME: 0.001,  # km
+    radar_utils.ECHO_TOP_50DBZ_NAME: 0.001,  # km
+    radar_utils.LOW_LEVEL_SHEAR_NAME: 1e-6,  # s^-1
+    radar_utils.MID_LEVEL_SHEAR_NAME: 1e-6,  # s^-1
+    radar_utils.MESH_NAME: 0.01,  # mm
+    radar_utils.REFL_NAME: 0.01,  # dBZ
+    radar_utils.REFL_COLUMN_MAX_NAME: 0.01,  # dBZ
+    radar_utils.REFL_0CELSIUS_NAME: 0.01,  # dBZ
+    radar_utils.REFL_M10CELSIUS_NAME: 0.01,  # dBZ
+    radar_utils.REFL_M20CELSIUS_NAME: 0.01,  # dBZ
+    radar_utils.REFL_LOWEST_ALTITUDE_NAME: 0.01,  # dBZ
+    radar_utils.SHI_NAME: 0.01,  # unitless
+    radar_utils.VIL_NAME: 0.01,  # mm
+    radar_utils.DIFFERENTIAL_REFL_NAME: 0.001,  # dB
+    radar_utils.SPEC_DIFF_PHASE_NAME: 0.001,  # deg km^-1
+    radar_utils.CORRELATION_COEFF_NAME: 1e-4,  # unitless
+    radar_utils.SPECTRUM_WIDTH_NAME: 0.001,  # m s^-1
+    radar_utils.VORTICITY_NAME: 1e-6,  # s^-1
+    radar_utils.DIVERGENCE_NAME: 1e-6  # s^-1
 }
 
 SOUNDING_INTERVAL_DICT = {
     soundings.PRESSURE_NAME: 1.,  # Pascals
     soundings.TEMPERATURE_NAME: 0.01,  # Kelvins
     soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: 0.01,  # Kelvins
-    soundings.U_WIND_NAME: 0.01,  # m s^-1
-    soundings.V_WIND_NAME: 0.01,  # m s^-1
+    soundings.U_WIND_NAME: 0.001,  # m s^-1
+    soundings.V_WIND_NAME: 0.001,  # m s^-1
     soundings.SPECIFIC_HUMIDITY_NAME: 1e-6,  # kg kg^-1
     soundings.RELATIVE_HUMIDITY_NAME: 1e-4  # unitless
 }
