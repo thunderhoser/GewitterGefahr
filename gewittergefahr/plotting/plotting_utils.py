@@ -583,6 +583,8 @@ def plot_parallels(
         min_latitude_deg, max_latitude_deg, num=num_parallels
     )
 
+    print('Latitudes for meridians: {0:s}'.format(str(latitudes_deg)))
+
     basemap_object.drawparallels(
         latitudes_deg, color=colour_from_numpy_to_tuple(line_colour),
         linewidth=line_width, labels=[True, False, False, False],
