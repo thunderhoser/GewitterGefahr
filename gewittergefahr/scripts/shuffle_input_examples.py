@@ -111,7 +111,8 @@ def _find_input_files(
     for this_file_name in input_example_file_names:
         print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_example_dict = input_examples.read_example_file(
-            netcdf_file_name=this_file_name, metadata_only=True)
+            netcdf_file_name=this_file_name, read_all_target_vars=True,
+            metadata_only=True)
 
         num_input_examples += len(
             this_example_dict[input_examples.FULL_IDS_KEY]
@@ -172,7 +173,7 @@ def _shuffle_one_input_file(
 
     print('Reading data from: "{0:s}"...'.format(input_example_file_name))
     example_dict = input_examples.read_example_file(
-        netcdf_file_name=input_example_file_name,
+        netcdf_file_name=input_example_file_name, read_all_target_vars=True,
         radar_field_names_to_keep=radar_field_names)
 
     num_examples = len(example_dict[input_examples.FULL_IDS_KEY])

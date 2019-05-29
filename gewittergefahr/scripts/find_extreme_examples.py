@@ -159,7 +159,7 @@ def _read_target_values(
     model_metadata_dict = cnn.read_model_metadata(model_metadata_file_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    target_name = model_metadata_dict[cnn.TARGET_NAME_KEY]
+    target_name = training_option_dict[trainval_io.TARGET_NAME_KEY]
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
 
@@ -194,7 +194,8 @@ def _read_target_values(
 
         print('Reading data from: "{0:s}"...'.format(this_target_file_name))
         this_target_value_dict = target_val_utils.read_target_values(
-            netcdf_file_name=this_target_file_name, target_name=target_name)
+            netcdf_file_name=this_target_file_name, target_names=[target_name]
+        )
 
         these_indices = numpy.where(
             storm_spc_date_strings_numpy == unique_spc_date_strings_numpy[i]
@@ -212,8 +213,8 @@ def _read_target_values(
 
         storm_target_values = numpy.concatenate((
             storm_target_values,
-            this_target_value_dict[target_val_utils.TARGET_VALUES_KEY][
-                these_indices]
+            this_target_value_dict[target_val_utils.TARGET_MATRIX_KEY][
+                these_indices, :]
         ))
 
     good_indices = numpy.where(

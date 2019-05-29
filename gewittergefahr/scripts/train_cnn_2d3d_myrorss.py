@@ -35,9 +35,9 @@ INPUT_ARG_PARSER = dl_helper.add_input_args(argument_parser=INPUT_ARG_PARSER)
 
 def _run(input_model_file_name, sounding_field_names, normalization_type_string,
          normalization_param_file_name, min_normalized_value,
-         max_normalized_value, downsampling_keys, downsampling_fractions,
-         monitor_string, weight_loss_function, x_translations_pixels,
-         y_translations_pixels, ccw_rotation_angles_deg,
+         max_normalized_value, target_name, downsampling_classes,
+         downsampling_fractions, monitor_string, weight_loss_function,
+         x_translations_pixels, y_translations_pixels, ccw_rotation_angles_deg,
          noise_standard_deviation, num_noisings, flip_in_x, flip_in_y,
          top_training_dir_name, first_training_time_string,
          last_training_time_string, top_validation_dir_name,
@@ -54,7 +54,8 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
     :param normalization_param_file_name: Same.
     :param min_normalized_value: Same.
     :param max_normalized_value: Same.
-    :param downsampling_keys: Same.
+    :param target_name: Same.
+    :param downsampling_classes: Same.
     :param downsampling_fractions: Same.
     :param monitor_string: Same.
     :param weight_loss_function: Same.
@@ -92,12 +93,12 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
     if sounding_field_names[0] in ['', 'None']:
         sounding_field_names = None
 
-    if len(downsampling_keys) > 1:
-        class_to_sampling_fraction_dict = dict(list(zip(
-            downsampling_keys, downsampling_fractions
+    if len(downsampling_classes) > 1:
+        downsampling_dict = dict(list(zip(
+            downsampling_classes, downsampling_fractions
         )))
     else:
-        class_to_sampling_fraction_dict = None
+        downsampling_dict = None
 
     if (len(x_translations_pixels) == 1 and
             x_translations_pixels + y_translations_pixels == 0
@@ -148,12 +149,7 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
     print(SEPARATOR_STRING)
 
     # Write metadata.
-    this_example_dict = input_examples.read_example_file(
-        netcdf_file_name=training_file_names[0], metadata_only=True)
-    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
-
     metadata_dict = {
-        cnn.TARGET_NAME_KEY: target_name,
         cnn.NUM_EPOCHS_KEY: num_epochs,
         cnn.NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
         cnn.NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
@@ -174,6 +170,7 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
 
     training_option_dict = {
         trainval_io.EXAMPLE_FILES_KEY: training_file_names,
+        trainval_io.TARGET_NAME_KEY: target_name,
         trainval_io.FIRST_STORM_TIME_KEY: first_training_time_unix_sec,
         trainval_io.LAST_STORM_TIME_KEY: last_training_time_unix_sec,
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
@@ -189,7 +186,7 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
         trainval_io.MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
         trainval_io.MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
         trainval_io.BINARIZE_TARGET_KEY: False,
-        trainval_io.SAMPLING_FRACTIONS_KEY: class_to_sampling_fraction_dict,
+        trainval_io.SAMPLING_FRACTIONS_KEY: downsampling_dict,
         trainval_io.LOOP_ONCE_KEY: False,
         trainval_io.X_TRANSLATIONS_KEY: x_translations_pixels,
         trainval_io.Y_TRANSLATIONS_KEY: y_translations_pixels,
@@ -235,22 +232,29 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.MIN_NORM_VALUE_ARG_NAME),
         max_normalized_value=getattr(
             INPUT_ARG_OBJECT, dl_helper.MAX_NORM_VALUE_ARG_NAME),
-        downsampling_keys=numpy.array(
-            getattr(INPUT_ARG_OBJECT, dl_helper.DOWNSAMPLING_KEYS_ARG_NAME),
-            dtype=int),
+        target_name=getattr(INPUT_ARG_OBJECT, dl_helper.TARGET_NAME_ARG_NAME),
+        downsampling_classes=numpy.array(
+            getattr(INPUT_ARG_OBJECT, dl_helper.DOWNSAMPLING_CLASSES_ARG_NAME),
+            dtype=int
+        ),
         downsampling_fractions=numpy.array(
             getattr(INPUT_ARG_OBJECT,
                     dl_helper.DOWNSAMPLING_FRACTIONS_ARG_NAME),
-            dtype=float),
+            dtype=float
+        ),
         monitor_string=getattr(INPUT_ARG_OBJECT, dl_helper.MONITOR_ARG_NAME),
         weight_loss_function=bool(getattr(
-            INPUT_ARG_OBJECT, dl_helper.WEIGHT_LOSS_ARG_NAME)),
-        x_translations_pixels=numpy.array(getattr(
-            INPUT_ARG_OBJECT, dl_helper.X_TRANSLATIONS_ARG_NAME), dtype=int),
-        y_translations_pixels=numpy.array(getattr(
-            INPUT_ARG_OBJECT, dl_helper.Y_TRANSLATIONS_ARG_NAME), dtype=int),
-        ccw_rotation_angles_deg=numpy.array(getattr(
-            INPUT_ARG_OBJECT, dl_helper.ROTATION_ANGLES_ARG_NAME), dtype=float),
+            INPUT_ARG_OBJECT, dl_helper.WEIGHT_LOSS_ARG_NAME
+        )),
+        x_translations_pixels=numpy.array(
+            getattr(INPUT_ARG_OBJECT, dl_helper.X_TRANSLATIONS_ARG_NAME),
+            dtype=int),
+        y_translations_pixels=numpy.array(
+            getattr(INPUT_ARG_OBJECT, dl_helper.Y_TRANSLATIONS_ARG_NAME),
+            dtype=int),
+        ccw_rotation_angles_deg=numpy.array(
+            getattr(INPUT_ARG_OBJECT, dl_helper.ROTATION_ANGLES_ARG_NAME),
+            dtype=float),
         noise_standard_deviation=getattr(
             INPUT_ARG_OBJECT, dl_helper.NOISE_STDEV_ARG_NAME),
         num_noisings=getattr(INPUT_ARG_OBJECT, dl_helper.NUM_NOISINGS_ARG_NAME),

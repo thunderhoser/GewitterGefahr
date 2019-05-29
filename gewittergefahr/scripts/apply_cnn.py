@@ -173,7 +173,7 @@ def _run(model_file_name, example_file_name, first_time_string,
         print('\n')
 
     target_param_dict = target_val_utils.target_name_to_params(
-        model_metadata_dict[cnn.TARGET_NAME_KEY]
+        training_option_dict[trainval_io.TARGET_NAME_KEY]
     )
 
     target_name = target_val_utils.target_params_to_name(

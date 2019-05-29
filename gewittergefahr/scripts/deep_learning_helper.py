@@ -16,7 +16,8 @@ NORMALIZATION_FILE_ARG_NAME = 'normalization_param_file_name'
 MIN_NORM_VALUE_ARG_NAME = 'min_normalized_value'
 MAX_NORM_VALUE_ARG_NAME = 'max_normalized_value'
 
-DOWNSAMPLING_KEYS_ARG_NAME = 'downsampling_keys'
+TARGET_NAME_ARG_NAME = 'target_name'
+DOWNSAMPLING_CLASSES_ARG_NAME = 'downsampling_classes'
 DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
 MONITOR_ARG_NAME = 'monitor_string'
 WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
@@ -72,15 +73,17 @@ MAX_NORM_VALUE_HELP_STRING = (
     'soundings).  See doc for `deep_learning_utils.normalize_radar_images` or '
     '`deep_learning_utils.normalize_soundings`.')
 
-DOWNSAMPLING_KEYS_HELP_STRING = (
-    'Keys used to create downsampling dictionary.  Each key is the integer '
-    'encoding for a class (-2 for "dead storm"), and each value in `{0:s}` is '
-    'the corresponding frequency in training data.  If you do not want '
-    'downsampling, make this a one-item list.'
-).format(DOWNSAMPLING_FRACTIONS_ARG_NAME)
+TARGET_NAME_HELP_STRING = 'Name of target variable.'
 
-DOWNSAMPLING_FRACTIONS_HELP_STRING = 'See doc for `{0:s}`.'.format(
-    DOWNSAMPLING_KEYS_ARG_NAME)
+DOWNSAMPLING_CLASSES_HELP_STRING = (
+    'List of classes (integer labels) for downsampling.  If you do not want '
+    'downsampling, leave this alone.')
+
+DOWNSAMPLING_FRACTIONS_HELP_STRING = (
+    'List of downsampling fractions.  The [k]th downsampling fraction goes with'
+    ' the [k]th class in `{0:s}`, and the sum of all downsampling fractions '
+    'must be 1.0.  If you do not want downsampling, leave this alone.'
+).format(DOWNSAMPLING_CLASSES_ARG_NAME)
 
 MONITOR_HELP_STRING = (
     'Function used to monitor validation performance (and implement early '
@@ -165,12 +168,8 @@ DEFAULT_SOUNDING_FIELD_NAMES = [
 DEFAULT_NORM_TYPE_STRING = dl_utils.Z_NORMALIZATION_TYPE_STRING + ''
 DEFAULT_MIN_NORM_VALUE = -1.
 DEFAULT_MAX_NORM_VALUE = 1.
-DEFAULT_NORM_FILE_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
-    'correct_echo_tops/reanalyzed/downsampled/for_training/input_examples/'
-    'shuffled/single_pol_2011-2015/normalization_params.p')
 
-DEFAULT_DOWNSAMPLING_KEYS = numpy.array([0, 1], dtype=int)
+DEFAULT_DOWNSAMPLING_CLASSES = numpy.array([0, 1], dtype=int)
 DEFAULT_DOWNSAMPLING_FRACTIONS = numpy.array([0.5, 0.5])
 DEFAULT_MONITOR_STRING = cnn.LOSS_FUNCTION_STRING + ''
 DEFAULT_WEIGHT_LOSS_FLAG = 0
@@ -182,22 +181,6 @@ DEFAULT_NOISE_STDEV = 0.05
 DEFAULT_NUM_NOISINGS = 0
 DEFAULT_FLIP_X_FLAG = 0
 DEFAULT_FLIP_Y_FLAG = 0
-
-DEFAULT_TOP_TRAINING_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
-    'correct_echo_tops/reanalyzed/downsampled/for_training/input_examples/'
-    'shuffled/single_pol_2011-2015'
-)
-DEFAULT_FIRST_TRAINING_TIME_STRING = '2011-01-01-000000'
-DEFAULT_LAST_TRAINING_TIME_STRING = '2013-12-31-120000'
-
-DEFAULT_TOP_VALIDATION_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
-    'correct_echo_tops/reanalyzed/downsampled/for_training/input_examples/'
-    'shuffled/single_pol_2011-2015'
-)
-DEFAULT_FIRST_VALIDN_TIME_STRING = '2014-01-01-120000'
-DEFAULT_LAST_VALIDN_TIME_STRING = '2015-12-31-120000'
 
 DEFAULT_NUM_EXAMPLES_PER_BATCH = 512
 DEFAULT_NUM_EPOCHS = 100
@@ -226,8 +209,8 @@ def add_input_args(argument_parser):
         default=DEFAULT_NORM_TYPE_STRING, help=NORMALIZATION_TYPE_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + NORMALIZATION_FILE_ARG_NAME, type=str, required=False,
-        default=DEFAULT_NORM_FILE_NAME, help=NORMALIZATION_FILE_HELP_STRING)
+        '--' + NORMALIZATION_FILE_ARG_NAME, type=str, required=True,
+        help=NORMALIZATION_FILE_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + MIN_NORM_VALUE_ARG_NAME, type=float, required=False,
@@ -238,8 +221,13 @@ def add_input_args(argument_parser):
         default=DEFAULT_MAX_NORM_VALUE, help=MAX_NORM_VALUE_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + DOWNSAMPLING_KEYS_ARG_NAME, type=int, nargs='+', required=False,
-        default=DEFAULT_DOWNSAMPLING_KEYS, help=DOWNSAMPLING_KEYS_HELP_STRING)
+        '--' + TARGET_NAME_ARG_NAME, type=str, required=True,
+        help=TARGET_NAME_HELP_STRING)
+
+    argument_parser.add_argument(
+        '--' + DOWNSAMPLING_CLASSES_ARG_NAME, type=int, nargs='+',
+        required=False, default=DEFAULT_DOWNSAMPLING_CLASSES,
+        help=DOWNSAMPLING_CLASSES_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + DOWNSAMPLING_FRACTIONS_ARG_NAME, type=float, nargs='+',
@@ -284,32 +272,27 @@ def add_input_args(argument_parser):
         default=DEFAULT_FLIP_Y_FLAG, help=FLIP_Y_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + TRAINING_DIR_ARG_NAME, type=str, required=False,
-        default=DEFAULT_TOP_TRAINING_DIR_NAME, help=TRAINING_DIR_HELP_STRING)
+        '--' + TRAINING_DIR_ARG_NAME, type=str, required=True,
+        help=TRAINING_DIR_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + FIRST_TRAINING_TIME_ARG_NAME, type=str, required=False,
-        default=DEFAULT_FIRST_TRAINING_TIME_STRING,
+        '--' + FIRST_TRAINING_TIME_ARG_NAME, type=str, required=True,
         help=TRAINING_TIME_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + LAST_TRAINING_TIME_ARG_NAME, type=str, required=False,
-        default=DEFAULT_LAST_TRAINING_TIME_STRING,
+        '--' + LAST_TRAINING_TIME_ARG_NAME, type=str, required=True,
         help=TRAINING_TIME_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + VALIDATION_DIR_ARG_NAME, type=str, required=False,
-        default=DEFAULT_TOP_VALIDATION_DIR_NAME,
+        '--' + VALIDATION_DIR_ARG_NAME, type=str, required=True,
         help=VALIDATION_DIR_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + FIRST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
-        default=DEFAULT_FIRST_VALIDN_TIME_STRING,
+        '--' + FIRST_VALIDATION_TIME_ARG_NAME, type=str, required=True,
         help=VALIDATION_TIME_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + LAST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
-        default=DEFAULT_LAST_VALIDN_TIME_STRING,
+        '--' + LAST_VALIDATION_TIME_ARG_NAME, type=str, required=True,
         help=VALIDATION_TIME_HELP_STRING)
 
     argument_parser.add_argument(

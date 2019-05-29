@@ -302,7 +302,10 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
         first_batch_number=0, last_batch_number=LARGE_INTEGER,
         raise_error_if_any_missing=False)
 
-    this_example_dict = input_examples.read_example_file(example_file_names[0])
+    this_example_dict = input_examples.read_example_file(
+        netcdf_file_name=example_file_names[0], read_all_target_vars=True
+    )
+
     sounding_field_names = this_example_dict[input_examples.SOUNDING_FIELDS_KEY]
     sounding_heights_m_agl = this_example_dict[
         input_examples.SOUNDING_HEIGHTS_KEY]
@@ -398,7 +401,7 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
     for this_example_file_name in example_file_names:
         print('Reading data from: "{0:s}"...'.format(this_example_file_name))
         this_example_dict = input_examples.read_example_file(
-            netcdf_file_name=this_example_file_name,
+            netcdf_file_name=this_example_file_name, read_all_target_vars=True,
             num_rows_to_keep=NUM_RADAR_ROWS,
             num_columns_to_keep=NUM_RADAR_COLUMNS)
 
@@ -418,7 +421,8 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
 
             elif num_radar_dimensions == 2:
                 all_field_names = numpy.array(
-                    this_example_dict[input_examples.RADAR_FIELDS_KEY])
+                    this_example_dict[input_examples.RADAR_FIELDS_KEY]
+                )
 
                 these_field_indices = numpy.where(
                     all_field_names == radar_field_names[j]
@@ -478,9 +482,11 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
 
             elif num_radar_dimensions == 2:
                 all_field_names = numpy.array(
-                    this_example_dict[input_examples.RADAR_FIELDS_KEY])
+                    this_example_dict[input_examples.RADAR_FIELDS_KEY]
+                )
                 all_heights_m_agl = this_example_dict[
-                    input_examples.RADAR_HEIGHTS_KEY]
+                    input_examples.RADAR_HEIGHTS_KEY
+                ]
 
                 this_index = numpy.where(numpy.logical_and(
                     all_field_names == radar_field_name_by_pair[k],
@@ -488,7 +494,8 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
                 ))[0][0]
 
                 this_radar_matrix = this_example_dict[
-                    input_examples.RADAR_IMAGE_MATRIX_KEY][..., this_index]
+                    input_examples.RADAR_IMAGE_MATRIX_KEY
+                ][..., this_index]
 
             else:
                 if radar_field_name_by_pair[k] == radar_utils.REFL_NAME:

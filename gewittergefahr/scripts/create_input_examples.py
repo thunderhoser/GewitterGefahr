@@ -20,13 +20,14 @@ RADAR_HEIGHTS_ARG_NAME = 'radar_heights_m_agl'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 TARGET_DIR_ARG_NAME = 'input_target_dir_name'
-TARGET_NAME_ARG_NAME = 'target_name'
+TARGET_NAMES_ARG_NAME = 'target_names'
+DOWNSAMPLING_TARGET_ARG_NAME = 'target_name_for_downsampling'
 SOUNDING_DIR_ARG_NAME = 'input_sounding_dir_name'
 LAG_TIME_ARG_NAME = 'sounding_lag_time_sec'
 NUM_EXAMPLES_PER_IN_FILE_ARG_NAME = 'num_examples_per_in_file'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
-CLASS_FRACTION_KEYS_ARG_NAME = 'class_fraction_keys'
-CLASS_FRACTION_VALUES_ARG_NAME = 'class_fraction_values'
+DOWNSAMPLING_CLASSES_ARG_NAME = 'downsampling_classes'
+DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
 
 STORM_IMAGE_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images.  Files '
@@ -68,9 +69,8 @@ TARGET_DIR_HELP_STRING = (
     '`labels.read_labels_from_netcdf`.'
 )
 
-TARGET_NAME_HELP_STRING = (
-    'Name of target variable.  Must be accepted by '
-    '`labels.column_name_to_label_params`.'
+TARGET_NAMES_HELP_STRING = (
+    'List of target variables to include in example files.'
 )
 
 SOUNDING_DIR_HELP_STRING = (
@@ -96,39 +96,28 @@ OUTPUT_DIR_HELP_STRING = (
     '`input_examples.find_example_file`.'
 )
 
-CLASS_FRACTION_KEYS_HELP_STRING = (
-    'List of keys used to create input `class_to_sampling_fraction_dict` for '
-    '`input_examples.create_examples`.  If you do not want class-conditional '
-    'sampling, leave this alone.'
+DOWNSAMPLING_TARGET_HELP_STRING = (
+    'Name of target variable to use for downsampling.  If you do not want '
+    'downsampling, leave this alone.'
 )
 
-CLASS_FRACTION_VALUES_HELP_STRING = (
-    'List of values used to create input `class_to_sampling_fraction_dict` for '
-    '`input_examples.create_examples`.  If you do not want class-conditional '
-    'sampling, leave this alone.'
-)
+DOWNSAMPLING_CLASSES_HELP_STRING = (
+    'List of classes (integer labels) for downsampling.  If you do not want '
+    'downsampling, leave this alone.')
 
-DEFAULT_TOP_STORM_IMAGE_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
-    'correct_echo_tops/reanalyzed/storm_images'
-)
-DEFAULT_TOP_TARGET_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
-    'correct_echo_tops/reanalyzed/tornado_linkages/reanalyzed/labels'
-)
-DEFAULT_TOP_SOUNDING_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
-    'correct_echo_tops/reanalyzed/soundings'
-)
+DOWNSAMPLING_FRACTIONS_HELP_STRING = (
+    'List of downsampling fractions.  The [k]th downsampling fraction goes with'
+    ' the [k]th class in `{0:s}`, and the sum of all downsampling fractions '
+    'must be 1.0.  If you do not want downsampling, leave this alone.'
+).format(DOWNSAMPLING_CLASSES_ARG_NAME)
 
 DEFAULT_RADAR_HEIGHTS_M_AGL = storm_images.DEFAULT_RADAR_HEIGHTS_M_AGL + 0
-DEFAULT_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 DEFAULT_NUM_EXAMPLES_PER_IN_FILE = 10000
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_IMAGE_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TOP_STORM_IMAGE_DIR_NAME, help=STORM_IMAGE_DIR_HELP_STRING)
+    '--' + STORM_IMAGE_DIR_ARG_NAME, type=str, required=True,
+    help=STORM_IMAGE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_SOURCE_ARG_NAME, type=str, required=False,
@@ -155,16 +144,16 @@ INPUT_ARG_PARSER.add_argument(
     help=SPC_DATE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TARGET_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TOP_TARGET_DIR_NAME, help=TARGET_DIR_HELP_STRING)
+    '--' + TARGET_DIR_ARG_NAME, type=str, required=True,
+    help=TARGET_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TARGET_NAME_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TARGET_NAME, help=TARGET_NAME_HELP_STRING)
+    '--' + TARGET_NAMES_ARG_NAME, type=str, nargs='+', required=True,
+    help=TARGET_NAMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SOUNDING_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TOP_SOUNDING_DIR_NAME, help=SOUNDING_DIR_HELP_STRING)
+    '--' + SOUNDING_DIR_ARG_NAME, type=str, required=True,
+    help=SOUNDING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + LAG_TIME_ARG_NAME, type=int, required=False,
@@ -181,19 +170,24 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + CLASS_FRACTION_KEYS_ARG_NAME, type=int, nargs='+',
-    required=False, default=[0], help=CLASS_FRACTION_KEYS_HELP_STRING)
+    '--' + DOWNSAMPLING_TARGET_ARG_NAME, type=str, required=False, default='',
+    help=DOWNSAMPLING_TARGET_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + CLASS_FRACTION_VALUES_ARG_NAME, type=float, nargs='+',
-    required=False, default=[0.], help=CLASS_FRACTION_VALUES_HELP_STRING)
+    '--' + DOWNSAMPLING_CLASSES_ARG_NAME, type=int, nargs='+',
+    required=False, default=[0], help=DOWNSAMPLING_CLASSES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + DOWNSAMPLING_FRACTIONS_ARG_NAME, type=float, nargs='+',
+    required=False, default=[0.], help=DOWNSAMPLING_FRACTIONS_HELP_STRING)
 
 
 def _run(top_storm_image_dir_name, radar_source, num_radar_dimensions,
          radar_field_names, radar_heights_m_agl, first_spc_date_string,
-         last_spc_date_string, top_target_dir_name, target_name,
+         last_spc_date_string, top_target_dir_name, target_names,
          top_sounding_dir_name, sounding_lag_time_sec, num_examples_per_in_file,
-         top_output_dir_name, class_fraction_keys, class_fraction_values):
+         top_output_dir_name, target_name_for_downsampling,
+         downsampling_classes, downsampling_fractions):
     """Creates input examples and writes them to unshuffled files.
 
     This is effectively the main method.
@@ -206,21 +200,23 @@ def _run(top_storm_image_dir_name, radar_source, num_radar_dimensions,
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
     :param top_target_dir_name: Same.
-    :param target_name: Same.
+    :param target_names: Same.
     :param top_sounding_dir_name: Same.
     :param sounding_lag_time_sec: Same.
     :param num_examples_per_in_file: Same.
     :param top_output_dir_name: Same.
-    :param class_fraction_keys: Same.
-    :param class_fraction_values: Same.
+    :param downsampling_classes: Same.
+    :param downsampling_fractions: Same.
     """
 
-    if len(class_fraction_keys) > 1:
-        class_to_sampling_fraction_dict = dict(list(zip(
-            class_fraction_keys, class_fraction_values
+    downsample = target_name_for_downsampling not in ['', 'None']
+
+    if downsample:
+        downsampling_dict = dict(list(zip(
+            downsampling_classes, downsampling_fractions
         )))
     else:
-        class_to_sampling_fraction_dict = None
+        downsampling_dict = None
 
     include_soundings = top_sounding_dir_name != ''
     radar_file_name_matrix = None
@@ -260,25 +256,26 @@ def _run(top_storm_image_dir_name, radar_source, num_radar_dimensions,
 
     target_file_names = input_examples.find_target_files(
         top_target_dir_name=top_target_dir_name,
-        radar_file_name_matrix=main_file_name_matrix, target_name=target_name)
+        radar_file_name_matrix=main_file_name_matrix, target_names=target_names)
 
     if include_soundings:
         sounding_file_names = input_examples.find_sounding_files(
             top_sounding_dir_name=top_sounding_dir_name,
             radar_file_name_matrix=main_file_name_matrix,
-            target_name=target_name,
+            target_names=target_names,
             lag_time_for_convective_contamination_sec=sounding_lag_time_sec)
     else:
         sounding_file_names = None
 
     input_examples.create_examples(
-        target_file_names=target_file_names, target_name=target_name,
+        target_file_names=target_file_names, target_names=target_names,
         num_examples_per_in_file=num_examples_per_in_file,
         top_output_dir_name=top_output_dir_name,
         radar_file_name_matrix=radar_file_name_matrix,
         reflectivity_file_name_matrix=reflectivity_file_name_matrix,
         az_shear_file_name_matrix=az_shear_file_name_matrix,
-        class_to_sampling_fraction_dict=class_to_sampling_fraction_dict,
+        downsampling_dict=downsampling_dict,
+        target_name_for_downsampling=target_name_for_downsampling,
         sounding_file_names=sounding_file_names)
 
 
@@ -287,24 +284,32 @@ if __name__ == '__main__':
 
     _run(
         top_storm_image_dir_name=getattr(
-            INPUT_ARG_OBJECT, STORM_IMAGE_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, STORM_IMAGE_DIR_ARG_NAME
+        ),
         radar_source=getattr(INPUT_ARG_OBJECT, RADAR_SOURCE_ARG_NAME),
         num_radar_dimensions=getattr(INPUT_ARG_OBJECT, NUM_RADAR_DIM_ARG_NAME),
         radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELDS_ARG_NAME),
         radar_heights_m_agl=numpy.array(
-            getattr(INPUT_ARG_OBJECT, RADAR_HEIGHTS_ARG_NAME), dtype=int),
+            getattr(INPUT_ARG_OBJECT, RADAR_HEIGHTS_ARG_NAME), dtype=int
+        ),
         first_spc_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
-        target_name=getattr(INPUT_ARG_OBJECT, TARGET_NAME_ARG_NAME),
+        target_names=getattr(INPUT_ARG_OBJECT, TARGET_NAMES_ARG_NAME),
         top_sounding_dir_name=getattr(INPUT_ARG_OBJECT, SOUNDING_DIR_ARG_NAME),
         sounding_lag_time_sec=getattr(INPUT_ARG_OBJECT, LAG_TIME_ARG_NAME),
         num_examples_per_in_file=getattr(
-            INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_IN_FILE_ARG_NAME),
+            INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_IN_FILE_ARG_NAME
+        ),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME),
-        class_fraction_keys=numpy.array(
-            getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_KEYS_ARG_NAME), dtype=int),
-        class_fraction_values=numpy.array(
-            getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_VALUES_ARG_NAME),
-            dtype=float)
+        target_name_for_downsampling=getattr(
+            INPUT_ARG_OBJECT, DOWNSAMPLING_TARGET_ARG_NAME
+        ),
+        downsampling_classes=numpy.array(
+            getattr(INPUT_ARG_OBJECT, DOWNSAMPLING_CLASSES_ARG_NAME), dtype=int
+        ),
+        downsampling_fractions=numpy.array(
+            getattr(INPUT_ARG_OBJECT, DOWNSAMPLING_FRACTIONS_ARG_NAME),
+            dtype=float
+        )
     )

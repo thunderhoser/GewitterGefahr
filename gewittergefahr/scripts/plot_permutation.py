@@ -2,7 +2,6 @@
 
 import os.path
 import argparse
-import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot

@@ -4,6 +4,8 @@ import copy
 import unittest
 import numpy
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import linkage
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import input_examples
 
@@ -14,8 +16,8 @@ TARGET_VALUES_TORNADO = numpy.array(
     [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0], dtype=int
 )
 
-FIRST_TORNADO_CLASS_TO_NUM_EX_DICT = {0: 2, 1: 50}
-SECOND_TORNADO_CLASS_TO_NUM_EX_DICT = {0: 0, 1: 50}
+FIRST_TORNADO_DOWNSAMPLING_DICT = {0: 2, 1: 50}
+SECOND_TORNADO_DOWNSAMPLING_DICT = {0: 0, 1: 50}
 FIRST_TORNADO_INDICES_TO_KEEP = numpy.array([0, 1, 2, 4, 6], dtype=int)
 SECOND_TORNADO_INDICES_TO_KEEP = numpy.array([2, 4, 6], dtype=int)
 
@@ -24,8 +26,8 @@ TARGET_VALUES_WIND = numpy.array([
     3, 2, 4, 1, 0, 0, 1, 0, 0, -2, 4, -2, 0, 0, -2, 0
 ], dtype=int)
 
-FIRST_WIND_CLASS_TO_NUM_EX_DICT = {-2: 5, 0: 1, 1: 2, 2: 3, 3: 4, 4: 25, 5: 100}
-SECOND_WIND_CLASS_TO_NUM_EX_DICT = {-2: 0, 0: 1, 1: 0, 2: 3, 3: 0, 4: 25, 5: 0}
+FIRST_WIND_DOWNSAMPLING_DICT = {-2: 5, 0: 1, 1: 2, 2: 3, 3: 4, 4: 25, 5: 100}
+SECOND_WIND_DOWNSAMPLING_DICT = {-2: 0, 0: 1, 1: 0, 2: 3, 3: 0, 4: 25, 5: 0}
 
 FIRST_WIND_INDICES_TO_KEEP = numpy.array(
     [0, 5, 7, 4, 13, 20, 6, 18, 24, 26, 34, 3, 1, 21, 33, 35, 38], dtype=int
@@ -301,6 +303,32 @@ EXAMPLE_FILE_NAME_SHUFFLED = (
 )
 EXAMPLE_FILE_NAME_UNSHUFFLED = 'foo/1967/input_examples_19670502.nc'
 
+# The following constants are used to test _check_target_vars.
+TORNADO_MEAN_LEAD_TIME_SEC = 1800
+WIND_MEAN_LEAD_TIME_SEC = 2700
+
+NEAR_TORNADO_TARGET_NAME = target_val_utils.target_params_to_name(
+    min_lead_time_sec=0, max_lead_time_sec=3600, min_link_distance_metres=0,
+    max_link_distance_metres=10000)
+
+MEDIUM_TORNADO_TARGET_NAME = target_val_utils.target_params_to_name(
+    min_lead_time_sec=450, max_lead_time_sec=3150, min_link_distance_metres=0,
+    max_link_distance_metres=20000)
+
+FAR_TORNADO_TARGET_NAME = target_val_utils.target_params_to_name(
+    min_lead_time_sec=900, max_lead_time_sec=2700, min_link_distance_metres=0,
+    max_link_distance_metres=30000)
+
+BAD_TORNADO_TARGET_NAME = target_val_utils.target_params_to_name(
+    min_lead_time_sec=1800, max_lead_time_sec=3600, min_link_distance_metres=0,
+    max_link_distance_metres=10000)
+
+WIND_TARGET_NAME = target_val_utils.target_params_to_name(
+    min_lead_time_sec=1800, max_lead_time_sec=3600, min_link_distance_metres=0,
+    max_link_distance_metres=10000, wind_speed_percentile_level=100.,
+    wind_speed_cutoffs_kt=numpy.array([50.])
+)
+
 
 def _compare_radar_image_dicts(first_radar_image_dict, second_radar_image_dict):
     """Compares two dictionaries with storm-centered radar images.
@@ -379,8 +407,7 @@ class InputExamplesTests(unittest.TestCase):
 
         these_indices = input_examples._filter_examples_by_class(
             target_values=TARGET_VALUES_TORNADO,
-            class_to_num_examples_dict=FIRST_TORNADO_CLASS_TO_NUM_EX_DICT,
-            test_mode=True)
+            downsampling_dict=FIRST_TORNADO_DOWNSAMPLING_DICT, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
             these_indices, FIRST_TORNADO_INDICES_TO_KEEP
@@ -395,8 +422,7 @@ class InputExamplesTests(unittest.TestCase):
 
         these_indices = input_examples._filter_examples_by_class(
             target_values=TARGET_VALUES_TORNADO,
-            class_to_num_examples_dict=SECOND_TORNADO_CLASS_TO_NUM_EX_DICT,
-            test_mode=True)
+            downsampling_dict=SECOND_TORNADO_DOWNSAMPLING_DICT, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
             these_indices, SECOND_TORNADO_INDICES_TO_KEEP
@@ -411,8 +437,7 @@ class InputExamplesTests(unittest.TestCase):
 
         these_indices = input_examples._filter_examples_by_class(
             target_values=TARGET_VALUES_WIND,
-            class_to_num_examples_dict=FIRST_WIND_CLASS_TO_NUM_EX_DICT,
-            test_mode=True)
+            downsampling_dict=FIRST_WIND_DOWNSAMPLING_DICT, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
             numpy.sort(these_indices), numpy.sort(FIRST_WIND_INDICES_TO_KEEP)
@@ -427,23 +452,10 @@ class InputExamplesTests(unittest.TestCase):
 
         these_indices = input_examples._filter_examples_by_class(
             target_values=TARGET_VALUES_WIND,
-            class_to_num_examples_dict=SECOND_WIND_CLASS_TO_NUM_EX_DICT,
-            test_mode=True)
+            downsampling_dict=SECOND_WIND_DOWNSAMPLING_DICT, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
             these_indices, SECOND_WIND_INDICES_TO_KEEP
-        ))
-
-    def test_remove_storms_with_undefined_target(self):
-        """Ensures correct output from remove_storms_with_undefined_target."""
-
-        this_radar_image_dict = (
-            input_examples.remove_storms_with_undefined_target(
-                copy.deepcopy(RADAR_IMAGE_DICT_UNFILTERED))
-        )
-
-        self.assertTrue(_compare_radar_image_dicts(
-            this_radar_image_dict, RADAR_IMAGE_DICT_NO_UNDEF_TARGETS
         ))
 
     def test_subset_examples_2d(self):
@@ -617,6 +629,69 @@ class InputExamplesTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             input_examples._file_name_to_batch_number(
                 EXAMPLE_FILE_NAME_UNSHUFFLED)
+
+    def test_check_target_vars_good_tornado(self):
+        """Ensures correct output from _check_target_vars.
+
+        In this case, event type is tornado and all target variables have the
+        same mean lead time.
+        """
+
+        these_target_names = [
+            NEAR_TORNADO_TARGET_NAME, MEDIUM_TORNADO_TARGET_NAME,
+            FAR_TORNADO_TARGET_NAME
+        ]
+
+        this_mean_lead_time_sec, this_event_type_string = (
+            input_examples._check_target_vars(these_target_names)
+        )
+
+        self.assertTrue(this_mean_lead_time_sec == TORNADO_MEAN_LEAD_TIME_SEC)
+        self.assertTrue(this_event_type_string == linkage.TORNADO_EVENT_STRING)
+
+    def test_check_target_vars_bad_tornado(self):
+        """Ensures correct output from _check_target_vars.
+
+        In this case, event type is tornado target variables do *not* have the
+        same mean lead time.
+        """
+
+        these_target_names = [
+            NEAR_TORNADO_TARGET_NAME, MEDIUM_TORNADO_TARGET_NAME,
+            FAR_TORNADO_TARGET_NAME, BAD_TORNADO_TARGET_NAME
+        ]
+
+        with self.assertRaises(ValueError):
+            input_examples._check_target_vars(these_target_names)
+
+    def test_check_target_vars_good_wind(self):
+        """Ensures correct output from _check_target_vars.
+
+        In this case, event type is wind and all target variables have the
+        same mean lead time.
+        """
+
+        this_mean_lead_time_sec, this_event_type_string = (
+            input_examples._check_target_vars([WIND_TARGET_NAME])
+        )
+
+        self.assertTrue(this_mean_lead_time_sec == WIND_MEAN_LEAD_TIME_SEC)
+        self.assertTrue(this_event_type_string == linkage.WIND_EVENT_STRING)
+
+    def test_check_target_vars_both_events(self):
+        """Ensures correct output from _check_target_vars.
+
+        In this case, target variables have different event types (wind and
+        tornado).
+        """
+
+        these_target_names = [
+            NEAR_TORNADO_TARGET_NAME, MEDIUM_TORNADO_TARGET_NAME,
+            FAR_TORNADO_TARGET_NAME, WIND_TARGET_NAME
+        ]
+
+        with self.assertRaises(ValueError):
+            input_examples._check_target_vars(these_target_names)
 
 
 if __name__ == '__main__':

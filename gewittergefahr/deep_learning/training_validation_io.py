@@ -42,6 +42,7 @@ NORMALIZATION_FILE_KEY = 'normalization_param_file_name'
 MIN_NORMALIZED_VALUE_KEY = 'min_normalized_value'
 MAX_NORMALIZED_VALUE_KEY = 'max_normalized_value'
 
+TARGET_NAME_KEY = 'target_name'
 BINARIZE_TARGET_KEY = 'binarize_target'
 LOOP_ONCE_KEY = 'loop_thru_files_once'
 REFLECTIVITY_MASK_KEY = 'refl_masking_threshold_dbz'
@@ -569,6 +570,7 @@ def generator_2d_or_3d(option_dict):
     min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
     max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
 
+    target_name = option_dict[TARGET_NAME_KEY]
     binarize_target = option_dict[BINARIZE_TARGET_KEY]
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     refl_masking_threshold_dbz = option_dict[REFLECTIVITY_MASK_KEY]
@@ -581,10 +583,6 @@ def generator_2d_or_3d(option_dict):
     num_noisings = option_dict[NUM_NOISINGS_KEY]
     flip_in_x = option_dict[FLIP_X_KEY]
     flip_in_y = option_dict[FLIP_Y_KEY]
-
-    this_example_dict = input_examples.read_example_file(
-        netcdf_file_name=example_file_names[0], metadata_only=True)
-    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
     class_to_batch_size_dict = _get_batch_size_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
@@ -625,6 +623,7 @@ def generator_2d_or_3d(option_dict):
 
             this_example_dict = input_examples.read_example_file(
                 netcdf_file_name=example_file_names[file_index],
+                read_all_target_vars=False, target_name=target_name,
                 include_soundings=sounding_field_names is not None,
                 radar_field_names_to_keep=radar_field_names,
                 radar_heights_to_keep_m_agl=radar_heights_m_agl,
@@ -634,14 +633,15 @@ def generator_2d_or_3d(option_dict):
                 last_time_to_keep_unix_sec=last_storm_time_unix_sec,
                 num_rows_to_keep=num_grid_rows,
                 num_columns_to_keep=num_grid_columns,
-                class_to_num_examples_dict=class_to_rem_batch_size_dict)
+                downsampling_dict=class_to_rem_batch_size_dict)
 
             file_index += 1
             if this_example_dict is None:
                 continue
 
             include_soundings = (
-                input_examples.SOUNDING_MATRIX_KEY in this_example_dict)
+                input_examples.SOUNDING_MATRIX_KEY in this_example_dict
+            )
             num_radar_dimensions = len(
                 this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY].shape
             ) - 2
@@ -652,7 +652,8 @@ def generator_2d_or_3d(option_dict):
                     + 0.
                 )
                 target_values = (
-                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0)
+                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0
+                )
 
                 if include_soundings:
                     sounding_matrix = (
@@ -663,7 +664,8 @@ def generator_2d_or_3d(option_dict):
                 radar_image_matrix = numpy.concatenate(
                     (radar_image_matrix,
                      this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]),
-                    axis=0)
+                    axis=0
+                )
                 target_values = numpy.concatenate((
                     target_values,
                     this_example_dict[input_examples.TARGET_VALUES_KEY]
@@ -673,7 +675,8 @@ def generator_2d_or_3d(option_dict):
                     sounding_matrix = numpy.concatenate(
                         (sounding_matrix,
                          this_example_dict[input_examples.SOUNDING_MATRIX_KEY]),
-                        axis=0)
+                        axis=0
+                    )
 
             stop_generator = _check_stopping_criterion(
                 num_examples_per_batch=num_examples_per_batch,
@@ -816,6 +819,7 @@ def myrorss_generator_2d3d(option_dict):
     min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
     max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
 
+    target_name = option_dict[TARGET_NAME_KEY]
     binarize_target = option_dict[BINARIZE_TARGET_KEY]
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
@@ -827,10 +831,6 @@ def myrorss_generator_2d3d(option_dict):
     num_noisings = option_dict[NUM_NOISINGS_KEY]
     flip_in_x = option_dict[FLIP_X_KEY]
     flip_in_y = option_dict[FLIP_Y_KEY]
-
-    this_example_dict = input_examples.read_example_file(
-        netcdf_file_name=example_file_names[0], metadata_only=True)
-    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
     class_to_batch_size_dict = _get_batch_size_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
@@ -871,6 +871,7 @@ def myrorss_generator_2d3d(option_dict):
 
             this_example_dict = input_examples.read_example_file(
                 netcdf_file_name=example_file_names[file_index],
+                read_all_target_vars=False, target_name=target_name,
                 include_soundings=sounding_field_names is not None,
                 radar_field_names_to_keep=azimuthal_shear_field_names,
                 radar_heights_to_keep_m_agl=reflectivity_heights_m_agl,
@@ -880,14 +881,15 @@ def myrorss_generator_2d3d(option_dict):
                 last_time_to_keep_unix_sec=last_storm_time_unix_sec,
                 num_rows_to_keep=num_grid_rows,
                 num_columns_to_keep=num_grid_columns,
-                class_to_num_examples_dict=class_to_rem_batch_size_dict)
+                downsampling_dict=class_to_rem_batch_size_dict)
 
             file_index += 1
             if this_example_dict is None:
                 continue
 
             include_soundings = (
-                input_examples.SOUNDING_MATRIX_KEY in this_example_dict)
+                input_examples.SOUNDING_MATRIX_KEY in this_example_dict
+            )
 
             if target_values is None:
                 reflectivity_image_matrix_dbz = (
@@ -898,7 +900,8 @@ def myrorss_generator_2d3d(option_dict):
                     + 0.
                 )
                 target_values = (
-                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0)
+                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0
+                )
 
                 if include_soundings:
                     sounding_matrix = (
@@ -909,11 +912,13 @@ def myrorss_generator_2d3d(option_dict):
                 reflectivity_image_matrix_dbz = numpy.concatenate(
                     (reflectivity_image_matrix_dbz,
                      this_example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]),
-                    axis=0)
+                    axis=0
+                )
                 az_shear_image_matrix_s01 = numpy.concatenate((
                     az_shear_image_matrix_s01,
                     this_example_dict[input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY]
                 ), axis=0)
+
                 target_values = numpy.concatenate((
                     target_values,
                     this_example_dict[input_examples.TARGET_VALUES_KEY]
@@ -923,7 +928,8 @@ def myrorss_generator_2d3d(option_dict):
                     sounding_matrix = numpy.concatenate(
                         (sounding_matrix,
                          this_example_dict[input_examples.SOUNDING_MATRIX_KEY]),
-                        axis=0)
+                        axis=0
+                    )
 
             stop_generator = _check_stopping_criterion(
                 num_examples_per_batch=num_examples_per_batch,
@@ -1106,6 +1112,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
     max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
 
+    target_name = option_dict[TARGET_NAME_KEY]
     binarize_target = option_dict[BINARIZE_TARGET_KEY]
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
@@ -1117,10 +1124,6 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     num_noisings = option_dict[NUM_NOISINGS_KEY]
     flip_in_x = option_dict[FLIP_X_KEY]
     flip_in_y = option_dict[FLIP_Y_KEY]
-
-    this_example_dict = input_examples.read_example_file(
-        netcdf_file_name=example_file_names[0], metadata_only=True)
-    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
     class_to_batch_size_dict = _get_batch_size_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
@@ -1165,6 +1168,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
 
             this_example_dict = input_examples.read_example_file(
                 netcdf_file_name=example_file_names[file_index],
+                read_all_target_vars=False, target_name=target_name,
                 include_soundings=sounding_field_names is not None,
                 radar_field_names_to_keep=unique_radar_field_names,
                 radar_heights_to_keep_m_agl=unique_radar_heights_m_agl,
@@ -1174,7 +1178,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                 last_time_to_keep_unix_sec=last_storm_time_unix_sec,
                 num_rows_to_keep=num_grid_rows,
                 num_columns_to_keep=num_grid_columns,
-                class_to_num_examples_dict=class_to_rem_batch_size_dict)
+                downsampling_dict=class_to_rem_batch_size_dict)
 
             file_index += 1
             if this_example_dict is None:
@@ -1187,7 +1191,8 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                 input_examples.RADAR_FIELDS_KEY]
 
             include_soundings = (
-                input_examples.SOUNDING_MATRIX_KEY in this_example_dict)
+                input_examples.SOUNDING_MATRIX_KEY in this_example_dict
+            )
 
             if target_values is None:
                 radar_image_matrix = (
@@ -1195,7 +1200,8 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                     + 0.
                 )
                 target_values = (
-                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0)
+                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0
+                )
 
                 if include_soundings:
                     sounding_matrix = (
@@ -1206,7 +1212,8 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                 radar_image_matrix = numpy.concatenate(
                     (radar_image_matrix,
                      this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]),
-                    axis=0)
+                    axis=0
+                )
                 target_values = numpy.concatenate((
                     target_values,
                     this_example_dict[input_examples.TARGET_VALUES_KEY]
@@ -1216,7 +1223,8 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                     sounding_matrix = numpy.concatenate(
                         (sounding_matrix,
                          this_example_dict[input_examples.SOUNDING_MATRIX_KEY]),
-                        axis=0)
+                        axis=0
+                    )
 
             stop_generator = _check_stopping_criterion(
                 num_examples_per_batch=num_examples_per_batch,

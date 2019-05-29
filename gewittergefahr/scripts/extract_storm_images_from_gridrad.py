@@ -194,7 +194,8 @@ def _extract_storm_images(
 
         print('Reading data from: "{0:s}"...'.format(target_file_name))
         target_dict = target_val_utils.read_target_values(
-            netcdf_file_name=target_file_name, target_name=target_name)
+            netcdf_file_name=target_file_name, target_names=[target_name]
+        )
 
         print('\n')
 

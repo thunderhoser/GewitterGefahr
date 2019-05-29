@@ -27,7 +27,6 @@ import keras.callbacks
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import keras_metrics
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
-from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -52,7 +51,6 @@ PERFORMANCE_METRIC_DICT = {
     'binary_focn': keras_metrics.binary_focn
 }
 
-TARGET_NAME_KEY = 'target_name'
 NUM_EPOCHS_KEY = 'num_epochs'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
@@ -66,13 +64,11 @@ TRAINING_OPTION_DICT_KEY = 'training_option_dict'
 LAYER_OPERATIONS_KEY = 'list_of_layer_operation_dicts'
 
 METADATA_KEYS = [
-    TARGET_NAME_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
-    NUM_VALIDATION_BATCHES_KEY, MONITOR_STRING_KEY, WEIGHT_LOSS_FUNCTION_KEY,
-    USE_2D3D_CONVOLUTION_KEY, VALIDATION_FILES_KEY, FIRST_VALIDN_TIME_KEY,
-    LAST_VALIDN_TIME_KEY, TRAINING_OPTION_DICT_KEY, LAYER_OPERATIONS_KEY
+    NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, NUM_VALIDATION_BATCHES_KEY,
+    MONITOR_STRING_KEY, WEIGHT_LOSS_FUNCTION_KEY, USE_2D3D_CONVOLUTION_KEY,
+    VALIDATION_FILES_KEY, FIRST_VALIDN_TIME_KEY, LAST_VALIDN_TIME_KEY,
+    TRAINING_OPTION_DICT_KEY, LAYER_OPERATIONS_KEY
 ]
-
-DEFAULT_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 FEATURE_DIMENSION_KEY = 'feature'
@@ -135,19 +131,16 @@ def _check_training_args(
         return None
 
     class_to_sampling_fraction_dict = training_option_dict[
-        trainval_io.SAMPLING_FRACTIONS_KEY]
+        trainval_io.SAMPLING_FRACTIONS_KEY
+    ]
     if class_to_sampling_fraction_dict is None:
         return None
 
-    this_example_dict = input_examples.read_example_file(
-        netcdf_file_name=training_option_dict[trainval_io.EXAMPLE_FILES_KEY][0],
-        metadata_only=True)
-    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
-
     return dl_utils.class_fractions_to_weights(
         sampling_fraction_by_class_dict=class_to_sampling_fraction_dict,
-        target_name=target_name,
-        binarize_target=training_option_dict[trainval_io.BINARIZE_TARGET_KEY])
+        target_name=training_option_dict[trainval_io.TARGET_NAME_KEY],
+        binarize_target=training_option_dict[trainval_io.BINARIZE_TARGET_KEY]
+    )
 
 
 def _get_checkpoint_object(
@@ -338,8 +331,6 @@ def read_model_metadata(pickle_file_name):
     metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    if TARGET_NAME_KEY not in metadata_dict:
-        metadata_dict[TARGET_NAME_KEY] = DEFAULT_TARGET_NAME
     if LAYER_OPERATIONS_KEY not in metadata_dict:
         metadata_dict[LAYER_OPERATIONS_KEY] = None
 

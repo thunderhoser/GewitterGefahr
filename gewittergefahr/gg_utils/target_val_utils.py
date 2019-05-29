@@ -49,7 +49,7 @@ CHARACTER_DIMENSION_KEY = 'storm_id_character'
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 FULL_IDS_KEY = 'full_id_strings'
 VALID_TIMES_KEY = 'valid_times_unix_sec'
-TARGET_VALUES_KEY = 'target_values'
+TARGET_MATRIX_KEY = 'target_matrix'
 
 
 def _check_learning_goal(goal_string):
@@ -763,22 +763,27 @@ def write_target_values(storm_to_events_table, target_names, netcdf_file_name):
     netcdf_dataset.close()
 
 
-def read_target_values(netcdf_file_name, target_name):
+def read_target_values(netcdf_file_name, target_names):
     """Reads target values from NetCDF file.
 
-    N = number of storm objects
+    E = number of examples (storm objects)
+    T = number of target variables
 
     :param netcdf_file_name: Path to input file.
-    :param target_name: Name of target variable.
+    :param target_names: 1-D list with names of target variables to read.
     :return: storm_label_dict: Dictionary with the following keys.
-    storm_label_dict['full_id_strings']: length-N list of full storm IDs.
-    storm_label_dict['valid_times_unix_sec']: length-N numpy array of valid
+    storm_label_dict['full_id_strings']: length-E list of full storm IDs.
+    storm_label_dict['valid_times_unix_sec']: length-E numpy array of valid
         times.
-    storm_label_dict['target_values']: length-N numpy array with values of
-        `target_name`.
+    storm_label_dict['target_matrix']: E-by-T of target values (integer class
+        labels).
     """
 
-    error_checking.assert_is_string(target_name)
+    error_checking.assert_is_string_list(target_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(target_names), num_dimensions=1
+    )
+
     netcdf_dataset = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
 
@@ -788,14 +793,30 @@ def read_target_values(netcdf_file_name, target_name):
     valid_times_unix_sec = numpy.array(
         netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int
     )
-    target_values = numpy.array(
-        netcdf_dataset.variables[target_name][:], dtype=int
-    )
+
+    num_storm_objects = len(full_id_strings)
+    target_matrix = None
+
+    for this_target_name in target_names:
+        these_target_values = numpy.array(
+            netcdf_dataset.variables[this_target_name][:], dtype=int
+        )
+
+        these_target_values = numpy.reshape(
+            these_target_values, (num_storm_objects, 1)
+        )
+
+        if target_matrix is None:
+            target_matrix = these_target_values + 0
+        else:
+            target_matrix = numpy.concatenate(
+                (target_matrix, these_target_values), axis=1
+            )
 
     netcdf_dataset.close()
 
     return {
         FULL_IDS_KEY: [str(f) for f in full_id_strings],
         VALID_TIMES_KEY: valid_times_unix_sec,
-        TARGET_VALUES_KEY: target_values
+        TARGET_MATRIX_KEY: target_matrix
     }
