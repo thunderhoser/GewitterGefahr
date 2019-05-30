@@ -14,11 +14,11 @@ LARGE_INTEGER = int(1e12)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 INPUT_DIR_ARG_NAME = 'input_target_dir_name'
-TARGET_NAME_ARG_NAME = 'target_name'
+TARGET_NAME_ARG_NAME = 'target_name_for_downsampling'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
-CLASS_FRACTION_KEYS_ARG_NAME = 'class_fraction_keys'
-CLASS_FRACTION_VALUES_ARG_NAME = 'class_fraction_values'
+DOWNSAMPLING_CLASSES_ARG_NAME = 'downsampling_classes'
+DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
 FOR_TRAINING_ARG_NAME = 'for_training'
 OUTPUT_DIR_ARG_NAME = 'output_target_dir_name'
 
@@ -27,21 +27,21 @@ INPUT_DIR_HELP_STRING = (
     'be located by `target_val_utils.find_target_file` and read by '
     '`target_val_utils.read_target_values`.')
 
-TARGET_NAME_HELP_STRING = (
-    'Name of target variable on which to base downsampling.')
+TARGET_NAME_HELP_STRING = 'Name of target variable for downsampling.'
 
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  Downsampling will be based on all storm '
     'objects from `{0:s}`...`{1:s}` and applied to the same storm objects.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
-CLASS_FRACTION_KEYS_HELP_STRING = (
-    'List of keys.  Each key is the integer encoding a class (-2 for "dead '
-    'storm").  Corresponding values in `{0:s}` are sampling fractions.'
-).format(CLASS_FRACTION_VALUES_ARG_NAME)
+DOWNSAMPLING_CLASSES_HELP_STRING = (
+    'List of classes (integer labels) for downsampling.')
 
-CLASS_FRACTION_VALUES_HELP_STRING = 'See doc for `{0:s}`.'.format(
-    CLASS_FRACTION_KEYS_ARG_NAME)
+DOWNSAMPLING_FRACTIONS_HELP_STRING = (
+    'List of downsampling fractions.  The [k]th downsampling fraction goes with'
+    ' the [k]th class in `{0:s}`, and the sum of all downsampling fractions '
+    'must be 1.0.'
+).format(DOWNSAMPLING_CLASSES_ARG_NAME)
 
 FOR_TRAINING_HELP_STRING = (
     'Boolean flag.  If 1, will downsample for training, using '
@@ -75,12 +75,12 @@ INPUT_ARG_PARSER.add_argument(
     help=SPC_DATE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + CLASS_FRACTION_KEYS_ARG_NAME, type=int, nargs='+',
-    required=True, help=CLASS_FRACTION_KEYS_HELP_STRING)
+    '--' + DOWNSAMPLING_CLASSES_ARG_NAME, type=int, nargs='+',
+    required=True, help=DOWNSAMPLING_CLASSES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + CLASS_FRACTION_VALUES_ARG_NAME, type=float, nargs='+',
-    required=True, help=CLASS_FRACTION_VALUES_HELP_STRING)
+    '--' + DOWNSAMPLING_FRACTIONS_ARG_NAME, type=float, nargs='+',
+    required=True, help=DOWNSAMPLING_FRACTIONS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FOR_TRAINING_ARG_NAME, type=int, required=True,
@@ -111,19 +111,19 @@ def _report_class_fractions(target_values):
     print('\n')
 
 
-def _run(top_input_dir_name, target_name, first_spc_date_string,
-         last_spc_date_string, class_fraction_keys, class_fraction_values,
-         for_training, top_output_dir_name):
+def _run(top_input_dir_name, target_name_for_downsampling,
+         first_spc_date_string, last_spc_date_string, downsampling_classes,
+         downsampling_fractions, for_training, top_output_dir_name):
     """Downsamples storm objects, based on target values.
 
     This is effectively the main method.
 
     :param top_input_dir_name: See documentation at top of file.
-    :param target_name: Same.
+    :param target_name_for_downsampling: Same.
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
-    :param class_fraction_keys: Same.
-    :param class_fraction_values: Same.
+    :param downsampling_classes: Same.
+    :param downsampling_fractions: Same.
     :param for_training: Same.
     :param top_output_dir_name: Same.
     """
@@ -132,10 +132,14 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
-    class_fraction_dict = dict(list(zip(
-        class_fraction_keys, class_fraction_values
+    downsampling_dict = dict(list(zip(
+        downsampling_classes, downsampling_fractions
     )))
-    target_param_dict = target_val_utils.target_name_to_params(target_name)
+
+    target_param_dict = target_val_utils.target_name_to_params(
+        target_name_for_downsampling
+    )
+    event_type_string = target_param_dict[target_val_utils.EVENT_TYPE_KEY]
 
     input_target_file_names = []
     spc_date_string_by_file = []
@@ -143,8 +147,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     for this_spc_date_string in all_spc_date_strings:
         this_file_name = target_val_utils.find_target_file(
             top_directory_name=top_input_dir_name,
-            event_type_string=target_param_dict[
-                target_val_utils.EVENT_TYPE_KEY],
+            event_type_string=event_type_string,
             spc_date_string=this_spc_date_string, raise_error_if_missing=False)
 
         if not os.path.isfile(this_file_name):
@@ -158,17 +161,24 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
 
     full_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)
-    target_values = numpy.array([], dtype=int)
     storm_to_file_indices = numpy.array([], dtype=int)
 
+    target_names = []
+    target_matrix = None
+
     for i in range(num_files):
-        print('Reading "{0:s}" from: "{1:s}"...'.format(
-            target_name, input_target_file_names[i]
+        print('Reading data from: "{0:s}"...'.format(
+            input_target_file_names[i]
         ))
 
         target_dict_by_file[i] = target_val_utils.read_target_values(
-            netcdf_file_name=input_target_file_names[i],
-            target_name=target_name)
+            netcdf_file_name=input_target_file_names[i]
+        )
+
+        if i == 0:
+            target_names = (
+                target_dict_by_file[i][target_val_utils.TARGET_NAMES_KEY]
+            )
 
         these_full_id_strings = (
             target_dict_by_file[i][target_val_utils.FULL_IDS_KEY]
@@ -182,25 +192,33 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             target_dict_by_file[i][target_val_utils.VALID_TIMES_KEY]
         ))
 
-        target_values = numpy.concatenate((
-            target_values,
-            target_dict_by_file[i][target_val_utils.TARGET_VALUES_KEY]
-        ))
-
         storm_to_file_indices = numpy.concatenate((
             storm_to_file_indices,
             numpy.full(this_num_storm_objects, i, dtype=int)
         ))
 
+        this_target_matrix = (
+            target_dict_by_file[i][target_val_utils.TARGET_MATRIX_KEY]
+        )
+
+        if target_matrix is None:
+            target_matrix = this_target_matrix + 0
+        else:
+            target_matrix = numpy.concatenate(
+                (target_matrix, this_target_matrix), axis=0
+            )
+
     print(SEPARATOR_STRING)
 
+    downsampling_index = target_names.index(target_name_for_downsampling)
     good_indices = numpy.where(
-        target_values != target_val_utils.INVALID_STORM_INTEGER
+        target_matrix[:, downsampling_index] !=
+        target_val_utils.INVALID_STORM_INTEGER
     )[0]
 
     full_id_strings = [full_id_strings[k] for k in good_indices]
     storm_times_unix_sec = storm_times_unix_sec[good_indices]
-    target_values = target_values[good_indices]
+    target_matrix = target_matrix[good_indices, :]
     storm_to_file_indices = storm_to_file_indices[good_indices]
 
     primary_id_strings = temporal_tracking.full_to_partial_ids(
@@ -211,14 +229,16 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         indices_to_keep = fancy_downsampling.downsample_for_training(
             primary_id_strings=primary_id_strings,
             storm_times_unix_sec=storm_times_unix_sec,
-            target_values=target_values, target_name=target_name,
-            class_fraction_dict=class_fraction_dict)
+            target_values=target_matrix[:, downsampling_index],
+            target_name=target_name_for_downsampling,
+            class_fraction_dict=downsampling_dict)
     else:
         indices_to_keep = fancy_downsampling.downsample_for_non_training(
             primary_id_strings=primary_id_strings,
             storm_times_unix_sec=storm_times_unix_sec,
-            target_values=target_values, target_name=target_name,
-            class_fraction_dict=class_fraction_dict)
+            target_values=target_matrix[:, downsampling_index],
+            target_name=target_name_for_downsampling,
+            class_fraction_dict=downsampling_dict)
 
     print(SEPARATOR_STRING)
 
@@ -248,18 +268,20 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             ],
             tracking_utils.VALID_TIME_COLUMN:
                 target_dict_by_file[i][target_val_utils.VALID_TIMES_KEY][
-                    these_indices_in_file],
-            target_name:
-                target_dict_by_file[i][target_val_utils.TARGET_VALUES_KEY][
                     these_indices_in_file]
         }
+
+        for j in range(len(target_names)):
+            this_output_dict[target_names[j]] = (
+                target_dict_by_file[i][target_val_utils.TARGET_MATRIX_KEY][
+                    these_indices_in_file, j]
+            )
 
         this_output_table = pandas.DataFrame.from_dict(this_output_dict)
 
         this_new_file_name = target_val_utils.find_target_file(
             top_directory_name=top_output_dir_name,
-            event_type_string=target_param_dict[
-                target_val_utils.EVENT_TYPE_KEY],
+            event_type_string=event_type_string,
             spc_date_string=spc_date_string_by_file[i],
             raise_error_if_missing=False)
 
@@ -273,7 +295,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         ))
 
         target_val_utils.write_target_values(
-            storm_to_events_table=this_output_table, target_names=[target_name],
+            storm_to_events_table=this_output_table, target_names=target_names,
             netcdf_file_name=this_new_file_name)
 
 
@@ -282,14 +304,17 @@ if __name__ == '__main__':
 
     _run(
         top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
-        target_name=getattr(INPUT_ARG_OBJECT, TARGET_NAME_ARG_NAME),
+        target_name_for_downsampling=getattr(
+            INPUT_ARG_OBJECT, TARGET_NAME_ARG_NAME),
         first_spc_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
-        class_fraction_keys=numpy.array(
-            getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_KEYS_ARG_NAME), dtype=int),
-        class_fraction_values=numpy.array(
-            getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_VALUES_ARG_NAME),
-            dtype=float),
+        downsampling_classes=numpy.array(
+            getattr(INPUT_ARG_OBJECT, DOWNSAMPLING_CLASSES_ARG_NAME), dtype=int
+        ),
+        downsampling_fractions=numpy.array(
+            getattr(INPUT_ARG_OBJECT, DOWNSAMPLING_FRACTIONS_ARG_NAME),
+            dtype=float
+        ),
         for_training=bool(getattr(INPUT_ARG_OBJECT, FOR_TRAINING_ARG_NAME)),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

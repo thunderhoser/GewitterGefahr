@@ -47,8 +47,10 @@ TORNADO_PREFIX = 'tornado'
 
 CHARACTER_DIMENSION_KEY = 'storm_id_character'
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
+
 FULL_IDS_KEY = 'full_id_strings'
 VALID_TIMES_KEY = 'valid_times_unix_sec'
+TARGET_NAMES_KEY = 'target_names'
 TARGET_MATRIX_KEY = 'target_matrix'
 
 
@@ -763,26 +765,24 @@ def write_target_values(storm_to_events_table, target_names, netcdf_file_name):
     netcdf_dataset.close()
 
 
-def read_target_values(netcdf_file_name, target_names):
+def read_target_values(netcdf_file_name, target_names=None):
     """Reads target values from NetCDF file.
 
     E = number of examples (storm objects)
     T = number of target variables
 
     :param netcdf_file_name: Path to input file.
-    :param target_names: 1-D list with names of target variables to read.
+    :param target_names: 1-D list with names of target variables to read.  If
+        None, will read all target variables.
     :return: storm_label_dict: Dictionary with the following keys.
     storm_label_dict['full_id_strings']: length-E list of full storm IDs.
     storm_label_dict['valid_times_unix_sec']: length-E numpy array of valid
         times.
+    storm_label_dict['target_names']: length-T list with names of target
+        variables.
     storm_label_dict['target_matrix']: E-by-T of target values (integer class
         labels).
     """
-
-    error_checking.assert_is_string_list(target_names)
-    error_checking.assert_is_numpy_array(
-        numpy.array(target_names), num_dimensions=1
-    )
 
     netcdf_dataset = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
@@ -792,6 +792,16 @@ def read_target_values(netcdf_file_name, target_names):
     )
     valid_times_unix_sec = numpy.array(
         netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int
+    )
+
+    if target_names is None:
+        target_names = list(netcdf_dataset.variables.keys())
+        target_names.remove(FULL_IDS_KEY)
+        target_names.remove(VALID_TIMES_KEY)
+
+    error_checking.assert_is_string_list(target_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(target_names), num_dimensions=1
     )
 
     num_storm_objects = len(full_id_strings)
@@ -818,5 +828,6 @@ def read_target_values(netcdf_file_name, target_names):
     return {
         FULL_IDS_KEY: [str(f) for f in full_id_strings],
         VALID_TIMES_KEY: valid_times_unix_sec,
+        TARGET_NAMES_KEY: target_names,
         TARGET_MATRIX_KEY: target_matrix
     }
