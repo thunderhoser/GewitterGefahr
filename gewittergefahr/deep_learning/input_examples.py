@@ -1567,9 +1567,6 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
         numpy.array([len(t) for t in example_dict[TARGET_NAMES_KEY]])
     )
 
-    print('Target variables = {0:s}'.format(str(example_dict[TARGET_NAMES_KEY])))
-    print('Size of target matrix = {0:s}'.format(str(example_dict[TARGET_MATRIX_KEY])))
-
     num_target_vars = len(example_dict[TARGET_NAMES_KEY])
     netcdf_dataset.createDimension(EXAMPLE_DIMENSION_KEY, None)
     netcdf_dataset.createDimension(TARGET_VARIABLE_DIM_KEY, num_target_vars)
