@@ -603,6 +603,11 @@ def _read_metadata_from_example_file(netcdf_file_name, include_soundings):
         )
     }
 
+    # TODO(thunderhoser): This is a HACK to deal with bad files.
+    example_dict[TARGET_NAMES_KEY] = [
+        n for n in example_dict[TARGET_NAMES_KEY] if n != ''
+    ]
+
     if example_dict[ROTATED_GRIDS_KEY]:
         example_dict[ROTATED_GRID_SPACING_KEY] = getattr(
             netcdf_dataset, ROTATED_GRID_SPACING_KEY)
@@ -1561,7 +1566,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     num_target_name_chars = numpy.max(
         numpy.array([len(t) for t in example_dict[TARGET_NAMES_KEY]])
     )
-    
+
     print('Target variables = {0:s}'.format(str(example_dict[TARGET_NAMES_KEY])))
     print('Size of target matrix = {0:s}'.format(str(example_dict[TARGET_MATRIX_KEY])))
 
@@ -1660,7 +1665,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
 
     netcdf_dataset.createVariable(
         TARGET_NAMES_KEY, datatype='S1',
-        dimensions=(EXAMPLE_DIMENSION_KEY, TARGET_NAME_CHAR_DIM_KEY)
+        dimensions=(TARGET_VARIABLE_DIM_KEY, TARGET_NAME_CHAR_DIM_KEY)
     )
     netcdf_dataset.variables[TARGET_NAMES_KEY][:] = numpy.array(
         target_names_char_array)
