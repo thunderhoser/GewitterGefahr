@@ -1929,8 +1929,8 @@ def read_example_file(
         )[0]
     else:
         subindices_to_keep = numpy.linspace(
-            0, len(example_indices_to_keep) - 1, num=example_indices_to_keep,
-            dtype=int
+            0, len(example_indices_to_keep) - 1,
+            num=len(example_indices_to_keep), dtype=int
         )
 
     example_indices_to_keep = example_indices_to_keep[subindices_to_keep]
