@@ -328,12 +328,17 @@ def check_target_array(target_array, num_dimensions, num_classes):
         error_checking.assert_is_numpy_array(
             target_array, exact_dimensions=these_expected_dim)
 
-        live_storm_object_indices = numpy.where(
-            target_array != target_val_utils.DEAD_STORM_INTEGER
-        )[0]
+        # TODO(thunderhoser): This is a HACK.  Should do better input-checking.
+
+        # live_storm_object_indices = numpy.where(
+        #     target_array != target_val_utils.DEAD_STORM_INTEGER
+        # )[0]
+        # error_checking.assert_is_geq_numpy_array(
+        #     target_array[live_storm_object_indices], 0
+        # )
+
         error_checking.assert_is_geq_numpy_array(
-            target_array[live_storm_object_indices], 0
-        )
+            target_array, target_val_utils.DEAD_STORM_INTEGER)
         error_checking.assert_is_less_than_numpy_array(
             target_array, num_classes)
     else:
