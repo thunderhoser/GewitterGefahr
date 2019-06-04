@@ -1925,12 +1925,13 @@ def read_example_file(
 
     if downsampling_dict is not None:
         subindices_to_keep = _filter_examples_by_class(
-            target_values=main_target_values,
+            target_values=main_target_values[example_indices_to_keep],
             downsampling_dict=downsampling_dict
         )
     elif not read_all_target_vars:
         subindices_to_keep = numpy.where(
-            main_target_values != target_val_utils.INVALID_STORM_INTEGER
+            main_target_values[example_indices_to_keep] !=
+            target_val_utils.INVALID_STORM_INTEGER
         )[0]
     else:
         subindices_to_keep = numpy.linspace(
