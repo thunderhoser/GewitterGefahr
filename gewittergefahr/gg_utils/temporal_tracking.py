@@ -9,6 +9,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import error_checking
 
+LARGE_INTEGER = int(1e10)
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 MAX_STORMS_IN_SPLIT = 2
@@ -63,19 +64,15 @@ DEFAULT_EAST_VELOCITY_M_S01 = 0.
 DEFAULT_NORTH_VELOCITY_M_S01 = 0.
 
 
-def __find_predecessors(storm_object_table, target_row):
+def __find_predecessors(storm_object_table, target_row,
+                        num_secondary_id_changes):
     """Finds all predecessors of one storm object.
 
     :param storm_object_table: See doc for public method `find_predecessors`.
     :param target_row: Same.
+    :param num_secondary_id_changes: Same.
     :return: predecessor_rows: Same.
     """
-
-    error_checking.assert_is_integer(target_row)
-    error_checking.assert_is_geq(target_row, 0)
-    error_checking.assert_is_less_than(
-        target_row, len(storm_object_table.index)
-    )
 
     unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
@@ -90,7 +87,8 @@ def __find_predecessors(storm_object_table, target_row):
     )[0][0]
 
     predecessor_rows = []
-    rows_in_frontier = {target_row}
+    rows_in_frontier = numpy.array([target_row], dtype=int)
+    numbers_of_id_changes_in_frontier = numpy.array([0], dtype=int)
 
     while this_time_index >= 0:
         these_current_rows = numpy.where(
@@ -98,25 +96,63 @@ def __find_predecessors(storm_object_table, target_row):
         )[0]
 
         old_rows_in_frontier = copy.deepcopy(rows_in_frontier)
-        rows_in_frontier = set()
+        old_numbers_of_id_changes = copy.deepcopy(
+            numbers_of_id_changes_in_frontier)
 
-        for this_row in old_rows_in_frontier:
+        rows_in_frontier = []
+        numbers_of_id_changes_in_frontier = []
+
+        for this_row, this_num_changes in zip(
+                old_rows_in_frontier, old_numbers_of_id_changes
+        ):
             if this_row not in these_current_rows:
-                rows_in_frontier.add(this_row)
+                rows_in_frontier.append(this_row)
+                numbers_of_id_changes_in_frontier.append(this_num_changes)
                 continue
 
             these_previous_rows = __find_immediate_predecessors(
                 storm_object_table=storm_object_table, target_row=this_row)
 
+            these_change_flags = (
+                storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[
+                    these_previous_rows] !=
+                storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[
+                    this_row]
+            )
+
+            these_previous_num_changes = (
+                this_num_changes + these_change_flags.astype(int)
+            )
+
+            these_good_indices = numpy.where(
+                these_previous_num_changes <= num_secondary_id_changes
+            )[0]
+
+            these_previous_rows = these_previous_rows[these_good_indices]
+            these_previous_num_changes = these_previous_num_changes[
+                these_good_indices]
+
             if len(these_previous_rows) == 0:
                 if this_row != target_row:
                     predecessor_rows.append(this_row)
             else:
-                rows_in_frontier = (
-                    rows_in_frontier | set(these_previous_rows.tolist())
+                rows_in_frontier += these_previous_rows.tolist()
+                numbers_of_id_changes_in_frontier += (
+                    these_previous_num_changes.tolist()
                 )
 
         this_time_index -= 1
+
+        rows_in_frontier = numpy.array(rows_in_frontier, dtype=int)
+        numbers_of_id_changes_in_frontier = numpy.array(
+            numbers_of_id_changes_in_frontier, dtype=int)
+
+        rows_in_frontier, these_unique_indices = numpy.unique(
+            rows_in_frontier, return_index=True)
+        numbers_of_id_changes_in_frontier = numbers_of_id_changes_in_frontier[
+            these_unique_indices]
+
+        # print(numbers_of_id_changes_in_frontier)
 
     return numpy.array(predecessor_rows + list(rows_in_frontier), dtype=int)
 
@@ -1686,7 +1722,8 @@ def get_storm_ages(storm_object_table, tracking_start_times_unix_sec,
     return storm_object_table
 
 
-def find_predecessors(storm_object_table, target_row, num_seconds_back):
+def find_predecessors(storm_object_table, target_row, num_seconds_back,
+                      num_secondary_id_changes=LARGE_INTEGER):
     """Finds all predecessors of one storm object.
 
     :param storm_object_table: pandas DataFrame with at least the following
@@ -1701,7 +1738,9 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
     :param target_row: Will find predecessors for object in [k]th row of
         `storm_object_table`, where k = `target_row`.
     :param num_seconds_back: Max time difference between target object and a
-        given predecessor.
+        given predecesssor.
+    :param num_secondary_id_changes: Max number of secondary-ID changes between
+        target object and a given predecesssor.
     :return: predecessor_rows: 1-D numpy array with rows of predecessors.  These
         are rows in `storm_object_table`.
     """
@@ -1714,6 +1753,8 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
 
     error_checking.assert_is_integer(num_seconds_back)
     error_checking.assert_is_greater(num_seconds_back, 0)
+    error_checking.assert_is_integer(num_secondary_id_changes)
+    error_checking.assert_is_geq(num_secondary_id_changes, 0)
 
     last_time_unix_sec = (
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[target_row]
@@ -1734,7 +1775,8 @@ def find_predecessors(storm_object_table, target_row, num_seconds_back):
 
     predecessor_subrows = __find_predecessors(
         storm_object_table=storm_object_table.iloc[recent_rows],
-        target_row=target_subrow)
+        target_row=target_subrow,
+        num_secondary_id_changes=num_secondary_id_changes)
 
     return recent_rows[predecessor_subrows]
 

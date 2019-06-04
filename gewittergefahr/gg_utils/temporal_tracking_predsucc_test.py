@@ -196,6 +196,30 @@ FIRST_PREDECESSOR_DICT_2SEC = {
 
 FIRST_PREDECESSOR_DICT_1SEC = copy.deepcopy(FIRST_IMMED_PREDECESSOR_DICT_1SEC)
 
+FIRST_PREDECESSOR_DICT_5SEC_1CHANGE = {
+    0: [], 1: [], 2: [],
+    3: [0], 4: [2],
+    5: [0], 6: [1, 2],
+    7: [0], 8: [6],
+    9: [0], 10: [0], 11: [6], 12: [6],
+    13: [3], 14: [6], 15: [6],
+    16: [5], 17: [5],
+    18: [9, 10],
+    19: [13, 17]
+}
+
+FIRST_PREDECESSOR_DICT_5SEC_0CHANGES = {
+    0: [], 1: [], 2: [],
+    3: [0], 4: [2],
+    5: [0], 6: [],
+    7: [0], 8: [],
+    9: [], 10: [], 11: [8], 12: [],
+    13: [9], 14: [8], 15: [12],
+    16: [9], 17: [10],
+    18: [],
+    19: [18]
+}
+
 THESE_TIMES_UNIX_SEC = numpy.array([
     0, 0, 0, 0, 0, 0,
     10, 10, 10, 10, 10, 10, 10, 10,
@@ -352,6 +376,52 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
             these_predecessor_rows = numpy.sort(these_predecessor_rows)
             these_expected_rows = numpy.sort(numpy.array(
                 FIRST_PREDECESSOR_DICT_5SEC[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_predecessor_rows, these_expected_rows
+            ))
+
+    def test_find_predecessors_first_5sec_1change(self):
+        """Ensures correct output from find_predecessors.
+
+        In this case, working on the first table with max time difference =
+        5 seconds and max ID changes = 1.
+        """
+
+        this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
+
+        for i in range(this_num_storm_objects):
+            these_predecessor_rows = temporal_tracking.find_predecessors(
+                storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
+                num_seconds_back=5, num_secondary_id_changes=1)
+
+            these_predecessor_rows = numpy.sort(these_predecessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                FIRST_PREDECESSOR_DICT_5SEC_1CHANGE[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_predecessor_rows, these_expected_rows
+            ))
+
+    def test_find_predecessors_first_5sec_0changes(self):
+        """Ensures correct output from find_predecessors.
+
+        In this case, working on the first table with max time difference =
+        5 seconds and max ID changes = 0.
+        """
+
+        this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
+
+        for i in range(this_num_storm_objects):
+            these_predecessor_rows = temporal_tracking.find_predecessors(
+                storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
+                num_seconds_back=5, num_secondary_id_changes=0)
+
+            these_predecessor_rows = numpy.sort(these_predecessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                FIRST_PREDECESSOR_DICT_5SEC_0CHANGES[i], dtype=int
             ))
 
             self.assertTrue(numpy.array_equal(
