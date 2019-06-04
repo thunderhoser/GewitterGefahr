@@ -787,9 +787,15 @@ def read_target_values(netcdf_file_name, target_names=None):
     netcdf_dataset = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
 
-    full_id_strings = netCDF4.chartostring(
-        netcdf_dataset.variables[FULL_IDS_KEY][:]
-    )
+    try:
+        full_id_strings = netCDF4.chartostring(
+            netcdf_dataset.variables[FULL_IDS_KEY][:]
+        )
+    except KeyError:
+        full_id_strings = netCDF4.chartostring(
+            netcdf_dataset.variables['storm_ids'][:]
+        )
+
     valid_times_unix_sec = numpy.array(
         netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int
     )
