@@ -54,6 +54,10 @@ DEFAULT_MAX_DISTANCE_FOR_TORNADO_METRES = 30000.
 REQUIRED_STORM_COLUMNS = [
     tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.SECONDARY_ID_COLUMN,
     tracking_utils.FULL_ID_COLUMN, tracking_utils.VALID_TIME_COLUMN,
+    tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN,
+    tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN,
+    tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN,
+    tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN,
     tracking_utils.TRACKING_START_TIME_COLUMN,
     tracking_utils.TRACKING_END_TIME_COLUMN,
     tracking_utils.CELL_START_TIME_COLUMN, tracking_utils.CELL_END_TIME_COLUMN,
@@ -100,15 +104,17 @@ WIND_STATION_IDS_COLUMN = 'wind_station_ids'
 U_WINDS_COLUMN = 'u_winds_m_s01'
 V_WINDS_COLUMN = 'v_winds_m_s01'
 
-REQUIRED_WIND_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + [
+THESE_COLUMNS = [
     LINKAGE_DISTANCES_COLUMN, RELATIVE_EVENT_TIMES_COLUMN,
-    EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN, WIND_STATION_IDS_COLUMN,
-    U_WINDS_COLUMN, V_WINDS_COLUMN
+    EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN, MAIN_OBJECT_FLAGS_COLUMN
 ]
 
-REQUIRED_TORNADO_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + [
-    LINKAGE_DISTANCES_COLUMN, RELATIVE_EVENT_TIMES_COLUMN,
-    EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN, FUJITA_RATINGS_COLUMN
+REQUIRED_WIND_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
+    WIND_STATION_IDS_COLUMN, U_WINDS_COLUMN, V_WINDS_COLUMN
+]
+
+REQUIRED_TORNADO_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
+    FUJITA_RATINGS_COLUMN
 ]
 
 
@@ -405,6 +411,9 @@ def _interp_one_storm_in_time(storm_object_table_1cell, secondary_id_string,
         method_string=interp.LINEAR_METHOD_STRING, extrapolate=True
     )
 
+    if secondary_id_string == 'A4':
+        print(storm_object_table_1cell[[tracking_utils.VALID_TIME_COLUMN, STORM_CENTROID_X_COLUMN, STORM_CENTROID_Y_COLUMN]])
+
     absolute_time_diffs_sec = numpy.absolute(
         storm_object_table_1cell[tracking_utils.VALID_TIME_COLUMN].values -
         target_time_unix_sec
@@ -466,6 +475,8 @@ def _interp_storms_in_time(storm_object_table, target_time_unix_sec,
     interp_vertex_table.vertex_x_metres: x-coordinate of vertex.
     interp_vertex_table.vertex_y_metres: y-coordinate of vertex.
     """
+
+    # TODO(thunderhoser): Should not interpolate all storms for one target time.
 
     max_start_time_unix_sec = target_time_unix_sec + max_time_before_start_sec
     min_end_time_unix_sec = target_time_unix_sec - max_time_after_end_sec
