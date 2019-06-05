@@ -393,67 +393,88 @@ def _interp_one_storm_in_time(storm_object_table_1cell, secondary_id_string,
     interp_vertex_table_1object.vertex_y_metres: y-coordinate of vertex.
     """
 
-    sort_indices = numpy.argsort(
-        storm_object_table_1cell[tracking_utils.VALID_TIME_COLUMN].values
-    )
+    valid_times_unix_sec, orig_to_unique_indices = numpy.unique(
+        storm_object_table_1cell[tracking_utils.VALID_TIME_COLUMN].values,
+        return_inverse=True)
 
-    centroid_matrix = numpy.vstack((
-        storm_object_table_1cell[STORM_CENTROID_X_COLUMN].values[sort_indices],
-        storm_object_table_1cell[STORM_CENTROID_Y_COLUMN].values[sort_indices]
-    ))
+    num_times = len(valid_times_unix_sec)
+    x_centroids_metres = numpy.full(num_times, numpy.nan)
+    y_centroids_metres = numpy.full(num_times, numpy.nan)
+    x_vertices_by_time_metres = [numpy.array([], dtype=float)] * num_times
+    y_vertices_by_time_metres = [numpy.array([], dtype=float)] * num_times
+
+    for i in range(num_times):
+        these_orig_indices = numpy.where(orig_to_unique_indices == i)[0]
+
+        x_centroids_metres[i] = numpy.mean(
+            storm_object_table_1cell[STORM_CENTROID_X_COLUMN].values[
+                these_orig_indices]
+        )
+
+        y_centroids_metres[i] = numpy.mean(
+            storm_object_table_1cell[STORM_CENTROID_Y_COLUMN].values[
+                these_orig_indices]
+        )
+
+        for j in these_orig_indices:
+            this_x_offset_metres = (
+                x_centroids_metres[i] -
+                storm_object_table_1cell[STORM_CENTROID_X_COLUMN].values[j]
+            )
+
+            this_y_offset_metres = (
+                y_centroids_metres[i] -
+                storm_object_table_1cell[STORM_CENTROID_Y_COLUMN].values[j]
+            )
+
+            these_x_vertices_metres = (
+                this_x_offset_metres +
+                storm_object_table_1cell[STORM_VERTICES_X_COLUMN].values[j]
+            )
+
+            x_vertices_by_time_metres[i] = numpy.concatenate((
+                x_vertices_by_time_metres[i], these_x_vertices_metres
+            ))
+
+            these_y_vertices_metres = (
+                this_y_offset_metres +
+                storm_object_table_1cell[STORM_VERTICES_Y_COLUMN].values[j]
+            )
+
+            y_vertices_by_time_metres[i] = numpy.concatenate((
+                y_vertices_by_time_metres[i], these_y_vertices_metres
+            ))
+
+    centroid_matrix = numpy.vstack((x_centroids_metres, y_centroids_metres))
 
     interp_centroid_vector = interp.interp_in_time(
         input_matrix=centroid_matrix,
-        sorted_input_times_unix_sec=storm_object_table_1cell[
-            tracking_utils.VALID_TIME_COLUMN
-        ].values[sort_indices],
+        sorted_input_times_unix_sec=valid_times_unix_sec,
         query_times_unix_sec=numpy.array([target_time_unix_sec]),
-        method_string=interp.LINEAR_METHOD_STRING, extrapolate=True
-    )
-
-    if secondary_id_string == 'A4':
-        print(storm_object_table_1cell[[tracking_utils.VALID_TIME_COLUMN, STORM_CENTROID_X_COLUMN, STORM_CENTROID_Y_COLUMN]])
+        method_string=interp.LINEAR_METHOD_STRING, extrapolate=True)
 
     absolute_time_diffs_sec = numpy.absolute(
-        storm_object_table_1cell[tracking_utils.VALID_TIME_COLUMN].values -
-        target_time_unix_sec
+        valid_times_unix_sec - target_time_unix_sec
     )
     nearest_time_index = numpy.argmin(absolute_time_diffs_sec)
 
-    x_diff_metres = (
-        interp_centroid_vector[0] -
-        storm_object_table_1cell[STORM_CENTROID_X_COLUMN].values[
-            nearest_time_index]
+    new_x_vertices_metres = (
+        interp_centroid_vector[0] - x_centroids_metres[nearest_time_index] +
+        x_vertices_by_time_metres[nearest_time_index]
     )
 
-    y_diff_metres = (
-        interp_centroid_vector[1] -
-        storm_object_table_1cell[STORM_CENTROID_Y_COLUMN].values[
-            nearest_time_index]
+    new_y_vertices_metres = (
+        interp_centroid_vector[1] - y_centroids_metres[nearest_time_index] +
+        y_vertices_by_time_metres[nearest_time_index]
     )
 
-    new_x_coords_metres = (
-        x_diff_metres +
-        storm_object_table_1cell[STORM_VERTICES_X_COLUMN].values[
-            nearest_time_index]
-    )
-
-    new_y_coords_metres = (
-        y_diff_metres +
-        storm_object_table_1cell[STORM_VERTICES_Y_COLUMN].values[
-            nearest_time_index]
-    )
-
-    num_vertices = len(
-        storm_object_table_1cell[STORM_VERTICES_X_COLUMN].values[
-            nearest_time_index]
-    )
+    num_vertices = len(new_x_vertices_metres)
 
     return pandas.DataFrame.from_dict({
         tracking_utils.SECONDARY_ID_COLUMN:
             [secondary_id_string] * num_vertices,
-        STORM_VERTEX_X_COLUMN: new_x_coords_metres,
-        STORM_VERTEX_Y_COLUMN: new_y_coords_metres
+        STORM_VERTEX_X_COLUMN: new_x_vertices_metres,
+        STORM_VERTEX_Y_COLUMN: new_y_vertices_metres
     })
 
 
@@ -475,8 +496,6 @@ def _interp_storms_in_time(storm_object_table, target_time_unix_sec,
     interp_vertex_table.vertex_x_metres: x-coordinate of vertex.
     interp_vertex_table.vertex_y_metres: y-coordinate of vertex.
     """
-
-    # TODO(thunderhoser): Should not interpolate all storms for one target time.
 
     max_start_time_unix_sec = target_time_unix_sec + max_time_before_start_sec
     min_end_time_unix_sec = target_time_unix_sec - max_time_after_end_sec
@@ -690,6 +709,9 @@ def _find_nearest_storms(
             max_time_before_start_sec=max_time_before_storm_start_sec,
             max_time_after_end_sec=max_time_after_storm_end_sec)
 
+        if unique_interp_times_unix_sec[i] == 7:
+            print(this_interp_vertex_table)
+
         these_event_rows = numpy.where(orig_to_unique_indices == i)[0]
 
         these_nearest_id_strings, these_link_distances_metres = (
@@ -876,6 +898,10 @@ def _reverse_wind_linkages(storm_object_table, wind_to_storm_table):
             num_secondary_id_changes=1, return_all_on_path=True)
 
         for j in these_predecessor_rows:
+            if (storm_to_winds_table[tracking_utils.VALID_TIME_COLUMN].values[j]
+                    > this_wind_time_unix_sec):
+                continue
+
             storm_to_winds_table[WIND_STATION_IDS_COLUMN].values[j].append(
                 wind_to_storm_table[raw_wind_io.STATION_ID_COLUMN].values[k]
             )
@@ -1041,6 +1067,15 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
             num_secondary_id_changes=1, return_all_on_path=True)
 
         for j in these_predecessor_rows:
+            this_flag = (
+                storm_to_tornadoes_table[
+                    tracking_utils.VALID_TIME_COLUMN].values[j]
+                > this_tornado_time_unix_sec
+            )
+
+            if this_flag:
+                continue
+
             storm_to_tornadoes_table[EVENT_LATITUDES_COLUMN].values[j].append(
                 tornado_to_storm_table[EVENT_LATITUDE_COLUMN].values[k]
             )
@@ -1391,10 +1426,17 @@ def _share_linkages_between_periods(
         )
 
         for j in these_predecessor_rows:
+            if j == i:
+                continue
+
             these_relative_times_sec = (
                 these_event_times_unix_sec -
                 storm_to_events_table[
                     tracking_utils.VALID_TIME_COLUMN].values[j]
+            )
+
+            these_main_object_flags = numpy.full(
+                len(these_event_indices), False, dtype=bool
             )
 
             for this_column in columns_to_change:
@@ -1405,14 +1447,33 @@ def _share_linkages_between_periods(
                             these_relative_times_sec
                         ))
                     )
-                else:
+                elif this_column == MAIN_OBJECT_FLAGS_COLUMN:
                     storm_to_events_table[this_column].values[j] = (
                         numpy.concatenate((
                             storm_to_events_table[this_column].values[j],
-                            storm_to_events_table[this_column].values[i][
-                                these_event_indices]
+                            these_main_object_flags
                         ))
                     )
+                else:
+                    if isinstance(storm_to_events_table[this_column].values[i],
+                                  numpy.ndarray):
+                        storm_to_events_table[this_column].values[j] = (
+                            numpy.concatenate((
+                                storm_to_events_table[this_column].values[j],
+                                storm_to_events_table[this_column].values[i][
+                                    these_event_indices]
+                            ))
+                        )
+                    else:
+                        this_new_list = [
+                            storm_to_events_table[this_column].values[i][k]
+                            for k in these_event_indices
+                        ]
+
+                        storm_to_events_table[this_column].values[j] = (
+                            storm_to_events_table[this_column].values[j] +
+                            this_new_list
+                        )
 
     early_rows = numpy.linspace(
         0, num_early_storm_objects - 1, num=num_early_storm_objects, dtype=int)

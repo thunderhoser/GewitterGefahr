@@ -6,10 +6,10 @@ import numpy
 import pandas
 from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import linkage
-from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TOLERANCE = 1e-6
+LARGE_INTEGER = int(1e10)
 
 # The following constants are used for several unit tests.
 THESE_TIMES_UNIX_SEC = numpy.array([
@@ -292,13 +292,13 @@ EVENT_TABLE_IN_BOUNDING_BOX = EVENT_TABLE_FULL_DOMAIN.drop(
 INTERP_TIME_UNIX_SEC = 3
 
 THESE_CENTROID_ID_STRINGS = [
-    'A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'B5'
+    'A1', 'A2', 'A3', 'A4', 'A4', 'B1', 'B2', 'B3', 'B4', 'B5'
 ]
 THESE_CENTROID_X_COORDS = numpy.array(
-    [241.5, 241.5, 241.5, 241.5, 273, 273, 273, 273, 273]
+    [241.5, 241.5, 241.5, 241.5, 241.5, 273, 273, 273, 273, 273]
 )
 THESE_CENTROID_Y_COORDS = numpy.array(
-    [50, 49.5, 50.5, 50, 59.75, 60.5, 60.25, 60.25, 59.833333]
+    [50, 49.5, 50.5, 50, 50, 59.75, 60.5, 60.25, 60.25, 59.833333]
 )
 
 THESE_VERTEX_ID_STRINGS = []
@@ -325,182 +325,295 @@ INTERP_VERTEX_TABLE = pandas.DataFrame.from_dict({
 })
 
 # The following constants are used to test _find_nearest_storms_one_time.
-MAX_LINK_DISTANCE_METRES = 10000.
+MAX_LINK_DISTANCE_METRES = 12.
 
 EVENT_X_COORDS_1TIME_METRES = numpy.array(
-    [49000, 49000, 49000, 49000, -46500, -36500, -31500, 0], dtype=float
+    [231.5, 231.5, 231.5, 241.5, 251.5, 251.5, 251.5, 241.5]
 )
 EVENT_Y_COORDS_1TIME_METRES = numpy.array(
-    [55000, 50000, 45000, 0, -43625, -43625, -43625, -43625], dtype=float
+    [40, 50, 60, 60, 60, 50, 40, 40], dtype=float
 )
 
-NEAREST_PRIMARY_ID_STRINGS_1TIME = [
-    'bar', 'bar', 'bar', None, 'foo', 'foo', 'foo', None
-]
-LINK_DISTANCES_1TIME_METRES = numpy.array(
-    [0, 0, 5000, numpy.nan, 0, 0, 5000, numpy.nan]
-)
+NEAREST_SEC_ID_STRINGS_1TIME = [None, 'A1', None, 'A3', None, 'A1', None, 'A2']
+
+THIS_SHORT_DISTANCE_METRES = numpy.sqrt(9.25 ** 2 + 0.25 ** 2)
+THIS_LONG_DISTANCE_METRES = numpy.sqrt(9.75 ** 2 + 0.25 ** 2)
+
+LINK_DISTANCES_1TIME_METRES = numpy.array([
+    numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
+    numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES
+])
 
 # The following constants are used to test _find_nearest_storms.
-INTERP_TIME_RESOLUTION_SEC = 10
+INTERP_TIME_RESOLUTION_SEC = 1
 
 THESE_X_METRES = numpy.array([
-    49000, 49000, 49000, 49000, -46500, -36500, -31500, 0,
-    49000, 49000, 49000, 49000, -46000, -36000, -31000, 0
-], dtype=float)
+    231.5, 231.5, 231.5, 241.5, 251.5, 251.5, 251.5, 241.5,
+    267, 267, 267, 277, 287, 287, 287, 277
+])
 
 THESE_Y_METRES = numpy.array([
-    55000, 50000, 45000, 0, -43625, -43625, -43625, -43625,
-    55000, 50000, 45000, 0, -43500, -43500, -43500, -43500
+    40, 50, 60, 60, 60, 50, 40, 40,
+    50, 60, 70, 70, 70, 60, 50, 50
 ], dtype=float)
 
 THESE_TIMES_UNIX_SEC = numpy.array([
-    600, 600, 600, 600, 600, 600, 600, 600,
-    700, 700, 700, 700, 700, 700, 700, 700
-], dtype=int)
+    3, 3, 3, 3, 3, 3, 3, 3,
+    7, 7, 7, 7, 7, 7, 7, 7
+], dtype=float)
 
-THIS_DICT = {
+EVENT_TABLE_2TIMES = pandas.DataFrame.from_dict({
     linkage.EVENT_X_COLUMN: THESE_X_METRES,
     linkage.EVENT_Y_COLUMN: THESE_Y_METRES,
     linkage.EVENT_LONGITUDE_COLUMN: THESE_X_METRES,
     linkage.EVENT_LATITUDE_COLUMN: THESE_Y_METRES,
     linkage.EVENT_TIME_COLUMN: THESE_TIMES_UNIX_SEC
-}
-EVENT_TABLE_2TIMES = pandas.DataFrame.from_dict(THIS_DICT)
+})
 
-THESE_PRIMARY_ID_STRINGS = [
-    'bar', 'bar', 'bar', None, 'foo', 'foo', 'foo', None,
-    None, None, None, None, 'foo', 'foo', 'foo', None
+THIS_TINY_DISTANCE_METRES = numpy.sqrt(7.25 ** 2 + 0.25 ** 2)
+
+NEAREST_SECONDARY_ID_STRINGS = [
+    None, 'A1', None, 'A3', None, 'A1', None, 'A2',
+    None, 'B4', None, 'B2', None, 'B4', None, 'B3'
 ]
-THESE_LINK_DISTANCES_METRES = numpy.array([
-    0, 0, 5000, numpy.nan, 0, 0, 5000, numpy.nan,
-    numpy.nan, numpy.nan, numpy.nan, numpy.nan, 0, 0, 5000, numpy.nan
+
+LINKAGE_DISTANCES_METRES = numpy.array([
+    numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
+    numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
+    numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_TINY_DISTANCE_METRES,
+    numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_TINY_DISTANCE_METRES
 ])
 
-THIS_DICT = {
-    linkage.NEAREST_SECONDARY_ID_COLUMN: THESE_PRIMARY_ID_STRINGS,
-    linkage.LINKAGE_DISTANCE_COLUMN: THESE_LINK_DISTANCES_METRES
-}
-EVENT_TO_STORM_TABLE_SIMPLE = EVENT_TABLE_2TIMES.assign(**THIS_DICT)
+EVENT_TO_STORM_TABLE_SIMPLE = EVENT_TABLE_2TIMES.assign(**{
+    linkage.NEAREST_SECONDARY_ID_COLUMN: NEAREST_SECONDARY_ID_STRINGS,
+    linkage.LINKAGE_DISTANCE_COLUMN: LINKAGE_DISTANCES_METRES
+})
 
 # The following constants are used to test _reverse_wind_linkages.
-THESE_STATION_IDS = [
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'
+THESE_STATION_ID_STRINGS = [
+    'i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii',
+    'ix', 'x', 'xi', 'xii', 'xiii', 'xiv', 'xv', 'xvi'
 ]
-THESE_LATITUDES_DEG = numpy.array([
-    1, 2, 3, 4, 5, 6, 7, 8,
-    1, 2, 3, 4, 5, 6, 7, 8
-], dtype=float)
 
-THESE_LONGITUDES_DEG = THESE_LATITUDES_DEG + 0.
-THESE_U_WINDS_M_S01 = THESE_LATITUDES_DEG + 0.
-THESE_V_WINDS_M_S01 = THESE_LATITUDES_DEG + 0.
+THESE_U_WINDS_M_S01 = THESE_X_METRES + 0.
+THESE_V_WINDS_M_S01 = THESE_Y_METRES + 0.
 
-THIS_DICT = {
-    raw_wind_io.STATION_ID_COLUMN: THESE_STATION_IDS,
-    linkage.EVENT_LATITUDE_COLUMN: THESE_LATITUDES_DEG,
-    linkage.EVENT_LONGITUDE_COLUMN: THESE_LONGITUDES_DEG,
+WIND_TO_STORM_TABLE = EVENT_TO_STORM_TABLE_SIMPLE.assign(**{
+    raw_wind_io.STATION_ID_COLUMN: THESE_STATION_ID_STRINGS,
     raw_wind_io.U_WIND_COLUMN: THESE_U_WINDS_M_S01,
     raw_wind_io.V_WIND_COLUMN: THESE_V_WINDS_M_S01
+})
+
+STORM_TO_WINDS_TABLE = copy.deepcopy(MAIN_STORM_OBJECT_TABLE)
+
+THIS_NESTED_ARRAY = STORM_TO_WINDS_TABLE[[
+    tracking_utils.VALID_TIME_COLUMN, tracking_utils.VALID_TIME_COLUMN
+]].values.tolist()
+
+STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(**{
+    linkage.WIND_STATION_IDS_COLUMN: THIS_NESTED_ARRAY,
+    linkage.EVENT_LATITUDES_COLUMN: THIS_NESTED_ARRAY,
+    linkage.EVENT_LONGITUDES_COLUMN: THIS_NESTED_ARRAY,
+    linkage.U_WINDS_COLUMN: THIS_NESTED_ARRAY,
+    linkage.V_WINDS_COLUMN: THIS_NESTED_ARRAY,
+    linkage.LINKAGE_DISTANCES_COLUMN: THIS_NESTED_ARRAY,
+    linkage.RELATIVE_EVENT_TIMES_COLUMN: THIS_NESTED_ARRAY,
+    linkage.MAIN_OBJECT_FLAGS_COLUMN: THIS_NESTED_ARRAY
+})
+
+for k in range(len(STORM_TO_WINDS_TABLE.index)):
+    STORM_TO_WINDS_TABLE[linkage.WIND_STATION_IDS_COLUMN].values[k] = []
+    STORM_TO_WINDS_TABLE[linkage.EVENT_LATITUDES_COLUMN].values[k] = (
+        numpy.array([])
+    )
+    STORM_TO_WINDS_TABLE[linkage.EVENT_LONGITUDES_COLUMN].values[k] = (
+        numpy.array([])
+    )
+    STORM_TO_WINDS_TABLE[linkage.U_WINDS_COLUMN].values[k] = numpy.array([])
+    STORM_TO_WINDS_TABLE[linkage.V_WINDS_COLUMN].values[k] = numpy.array([])
+    STORM_TO_WINDS_TABLE[linkage.LINKAGE_DISTANCES_COLUMN].values[k] = (
+        numpy.array([])
+    )
+    STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[k] = (
+        numpy.array([], dtype=int)
+    )
+    STORM_TO_WINDS_TABLE[linkage.MAIN_OBJECT_FLAGS_COLUMN].values[k] = (
+        numpy.array([], dtype=bool)
+    )
+
+STORM_ROW_TO_STATION_ID_STRINGS = {
+    0: ['ii', 'iv', 'vi', 'viii'],
+    1: ['xvi'],
+    2: ['xii', 'xvi'],
+    3: ['ii', 'iv', 'vi', 'viii'],
+    4: ['xii', 'xvi'],
+    5: ['ii', 'iv', 'vi', 'viii'],
+    6: ['x', 'xiv', 'xvi'],
+    8: ['x', 'xiv'],
+    11: ['x', 'xiv'],
+    14: ['x', 'xiv']
 }
 
-WIND_TO_STORM_TABLE = EVENT_TO_STORM_TABLE_SIMPLE.assign(**THIS_DICT)
+STORM_ROW_TO_MAIN_OBJECT_FLAGS = {
+    0: [0, 0, 0, 0],
+    1: [0],
+    2: [0, 0],
+    3: [0, 0, 0, 0],
+    4: [1, 0],
+    5: [1, 0, 1, 0],
+    6: [0, 0, 1],
+    8: [0, 0],
+    11: [0, 0],
+    14: [1, 1]
+}
 
-# STORM_TO_WINDS_TABLE = copy.deepcopy(STORM_OBJECT_TABLE_2CELLS)
-# THIS_NESTED_ARRAY = STORM_TO_WINDS_TABLE[[
-#     tracking_utils.VALID_TIME_COLUMN, tracking_utils.VALID_TIME_COLUMN
-# ]].values.tolist()
-#
-# THIS_DICT = {
-#     linkage.WIND_STATION_IDS_COLUMN: THIS_NESTED_ARRAY,
-#     linkage.EVENT_LATITUDES_COLUMN: THIS_NESTED_ARRAY,
-#     linkage.EVENT_LONGITUDES_COLUMN: THIS_NESTED_ARRAY,
-#     linkage.U_WINDS_COLUMN: THIS_NESTED_ARRAY,
-#     linkage.V_WINDS_COLUMN: THIS_NESTED_ARRAY,
-#     linkage.LINKAGE_DISTANCES_COLUMN: THIS_NESTED_ARRAY,
-#     linkage.RELATIVE_EVENT_TIMES_COLUMN: THIS_NESTED_ARRAY
-# }
-#
-# STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(**THIS_DICT)
-#
-# THESE_STATION_IDS = ['e', 'f', 'g', 'e', 'f', 'g']
-# THESE_WIND_LATITUDES_DEG = numpy.array([5, 6, 7, 5, 6, 7], dtype=float)
-# THESE_WIND_LONGITUDES_DEG = numpy.array([5, 6, 7, 5, 6, 7], dtype=float)
-# THESE_U_WINDS_M_S01 = numpy.array([5, 6, 7, 5, 6, 7], dtype=float)
-# THESE_V_WINDS_M_S01 = numpy.array([5, 6, 7, 5, 6, 7], dtype=float)
-# THESE_LINK_DISTANCES_METRES = numpy.array([0, 0, 5000, 0, 0, 5000], dtype=float)
-#
-# FOO_ROWS = numpy.array([0, 2, 4], dtype=int)
-#
-# for this_row in FOO_ROWS:
-#     STORM_TO_WINDS_TABLE[linkage.WIND_STATION_IDS_COLUMN].values[this_row] = (
-#         THESE_STATION_IDS
-#     )
-#     STORM_TO_WINDS_TABLE[linkage.EVENT_LATITUDES_COLUMN].values[this_row] = (
-#         THESE_WIND_LATITUDES_DEG
-#     )
-#     STORM_TO_WINDS_TABLE[linkage.EVENT_LONGITUDES_COLUMN].values[this_row] = (
-#         THESE_WIND_LONGITUDES_DEG
-#     )
-#     STORM_TO_WINDS_TABLE[linkage.U_WINDS_COLUMN].values[this_row] = (
-#         THESE_U_WINDS_M_S01
-#     )
-#     STORM_TO_WINDS_TABLE[linkage.V_WINDS_COLUMN].values[this_row] = (
-#         THESE_V_WINDS_M_S01
-#     )
-#     STORM_TO_WINDS_TABLE[linkage.LINKAGE_DISTANCES_COLUMN].values[this_row] = (
-#         THESE_LINK_DISTANCES_METRES
-#     )
-#
-# STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[0] = (
-#     numpy.array([600, 600, 600, 700, 700, 700], dtype=int)
-# )
-# STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[2] = (
-#     numpy.array([300, 300, 300, 400, 400, 400], dtype=int)
-# )
-# STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[4] = (
-#     numpy.array([-100, -100, -100, 0, 0, 0], dtype=int)
-# )
-#
-# THESE_STATION_IDS = ['a', 'b', 'c']
-# THESE_WIND_LATITUDES_DEG = numpy.array([1, 2, 3], dtype=float)
-# THESE_WIND_LONGITUDES_DEG = numpy.array([1, 2, 3], dtype=float)
-# THESE_U_WINDS_M_S01 = numpy.array([1, 2, 3], dtype=float)
-# THESE_V_WINDS_M_S01 = numpy.array([1, 2, 3], dtype=float)
-# THESE_LINK_DISTANCES_METRES = numpy.array([0, 0, 5000], dtype=float)
-#
-# BAR_ROWS = numpy.array([1, 3, 5], dtype=int)
-#
-# for this_row in BAR_ROWS:
-#     STORM_TO_WINDS_TABLE[linkage.WIND_STATION_IDS_COLUMN].values[this_row] = (
-#         THESE_STATION_IDS
-#     )
-#     STORM_TO_WINDS_TABLE[linkage.EVENT_LATITUDES_COLUMN].values[this_row] = (
-#         THESE_WIND_LATITUDES_DEG
-#     )
-#     STORM_TO_WINDS_TABLE[linkage.EVENT_LONGITUDES_COLUMN].values[this_row] = (
-#         THESE_WIND_LONGITUDES_DEG
-#     )
-#     STORM_TO_WINDS_TABLE[linkage.U_WINDS_COLUMN].values[this_row] = (
-#         THESE_U_WINDS_M_S01
-#     )
-#     STORM_TO_WINDS_TABLE[linkage.V_WINDS_COLUMN].values[this_row] = (
-#         THESE_V_WINDS_M_S01
-#     )
-#     STORM_TO_WINDS_TABLE[linkage.LINKAGE_DISTANCES_COLUMN].values[this_row] = (
-#         THESE_LINK_DISTANCES_METRES
-#     )
-#
-# STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[1] = (
-#     numpy.array([600, 600, 600], dtype=int)
-# )
-# STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[3] = (
-#     numpy.array([300, 300, 300], dtype=int)
-# )
-# STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[5] = (
-#     numpy.array([0, 0, 0], dtype=int)
-# )
+for this_storm_row in STORM_ROW_TO_STATION_ID_STRINGS:
+    these_station_id_strings = STORM_ROW_TO_STATION_ID_STRINGS[this_storm_row]
+    these_main_object_flags = numpy.array(
+        STORM_ROW_TO_MAIN_OBJECT_FLAGS[this_storm_row], dtype=bool
+    )
+
+    these_event_rows = numpy.array([
+        WIND_TO_STORM_TABLE[
+            raw_wind_io.STATION_ID_COLUMN].values.tolist().index(s)
+        for s in these_station_id_strings
+    ], dtype=int)
+
+    STORM_TO_WINDS_TABLE[linkage.WIND_STATION_IDS_COLUMN].values[
+        this_storm_row
+    ] = these_station_id_strings
+
+    STORM_TO_WINDS_TABLE[linkage.EVENT_LATITUDES_COLUMN].values[
+        this_storm_row
+    ] = WIND_TO_STORM_TABLE[linkage.EVENT_LATITUDE_COLUMN].values[
+        these_event_rows]
+
+    STORM_TO_WINDS_TABLE[linkage.EVENT_LONGITUDES_COLUMN].values[
+        this_storm_row
+    ] = WIND_TO_STORM_TABLE[linkage.EVENT_LONGITUDE_COLUMN].values[
+        these_event_rows]
+
+    STORM_TO_WINDS_TABLE[linkage.U_WINDS_COLUMN].values[this_storm_row] = (
+        WIND_TO_STORM_TABLE[raw_wind_io.U_WIND_COLUMN].values[these_event_rows]
+    )
+
+    STORM_TO_WINDS_TABLE[linkage.V_WINDS_COLUMN].values[this_storm_row] = (
+        WIND_TO_STORM_TABLE[raw_wind_io.V_WIND_COLUMN].values[these_event_rows]
+    )
+
+    STORM_TO_WINDS_TABLE[linkage.LINKAGE_DISTANCES_COLUMN].values[
+        this_storm_row
+    ] = WIND_TO_STORM_TABLE[linkage.LINKAGE_DISTANCE_COLUMN].values[
+        these_event_rows]
+
+    these_relative_times_sec = (
+        WIND_TO_STORM_TABLE[linkage.EVENT_TIME_COLUMN].values[
+            these_event_rows] -
+        STORM_TO_WINDS_TABLE[tracking_utils.VALID_TIME_COLUMN].values[
+            this_storm_row]
+    )
+
+    STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[
+        this_storm_row
+    ] = these_relative_times_sec
+
+    STORM_TO_WINDS_TABLE[linkage.MAIN_OBJECT_FLAGS_COLUMN].values[
+        this_storm_row
+    ] = these_main_object_flags
+
+ROW_TO_EARLY_KEEP_FLAGS = {
+    0: [1, 1, 1, 1],
+    1: [1],
+    2: [1, 1],
+    3: [1, 1, 1, 1],
+    4: [1, 1],
+    5: [1, 1, 1, 1],
+    6: [0, 0, 1],
+    8: [0, 0],
+    11: [0, 0],
+    14: [0, 0]
+}
+
+ROW_TO_LATE_KEEP_FLAGS = {
+    0: [0, 0, 0, 0],
+    1: [0],
+    2: [0, 0],
+    3: [0, 0, 0, 0],
+    4: [0, 0],
+    5: [0, 0, 0, 0],
+    6: [1, 1, 0],
+    8: [1, 1],
+    11: [1, 1],
+    14: [1, 1]
+}
+
+EARLY_STORM_TO_WINDS_TABLE_PRELIM = copy.deepcopy(STORM_TO_WINDS_TABLE)
+LATE_STORM_TO_WINDS_TABLE_PRELIM = copy.deepcopy(STORM_TO_WINDS_TABLE)
+
+LINKAGE_ARRAY_COLUMNS = [
+    linkage.EVENT_LATITUDES_COLUMN, linkage.EVENT_LONGITUDES_COLUMN,
+    linkage.U_WINDS_COLUMN, linkage.V_WINDS_COLUMN,
+    linkage.LINKAGE_DISTANCES_COLUMN, linkage.RELATIVE_EVENT_TIMES_COLUMN,
+    linkage.MAIN_OBJECT_FLAGS_COLUMN
+]
+
+LINKAGE_LIST_COLUMNS = [linkage.WIND_STATION_IDS_COLUMN]
+
+for this_storm_row in ROW_TO_EARLY_KEEP_FLAGS:
+    these_indices = numpy.where(numpy.array(
+        ROW_TO_EARLY_KEEP_FLAGS[this_storm_row], dtype=bool
+    ))[0]
+
+    for this_column in LINKAGE_ARRAY_COLUMNS:
+        EARLY_STORM_TO_WINDS_TABLE_PRELIM[this_column].values[
+            this_storm_row
+        ] = (
+            EARLY_STORM_TO_WINDS_TABLE_PRELIM[
+                this_column].values[this_storm_row][these_indices]
+        )
+
+    for this_column in LINKAGE_LIST_COLUMNS:
+        EARLY_STORM_TO_WINDS_TABLE_PRELIM[this_column].values[
+            this_storm_row
+        ] = [
+            EARLY_STORM_TO_WINDS_TABLE_PRELIM[
+                this_column].values[this_storm_row][m]
+            for m in these_indices
+        ]
+
+for this_storm_row in ROW_TO_LATE_KEEP_FLAGS:
+    these_indices = numpy.where(numpy.array(
+        ROW_TO_LATE_KEEP_FLAGS[this_storm_row], dtype=bool
+    ))[0]
+
+    for this_column in LINKAGE_ARRAY_COLUMNS:
+        LATE_STORM_TO_WINDS_TABLE_PRELIM[this_column].values[this_storm_row] = (
+            LATE_STORM_TO_WINDS_TABLE_PRELIM[
+                this_column].values[this_storm_row][these_indices]
+        )
+
+    for this_column in LINKAGE_LIST_COLUMNS:
+        LATE_STORM_TO_WINDS_TABLE_PRELIM[this_column].values[this_storm_row] = [
+            LATE_STORM_TO_WINDS_TABLE_PRELIM[
+                this_column].values[this_storm_row][m]
+            for m in these_indices
+        ]
+
+EARLY_STORM_TO_WINDS_TABLE_PRELIM = EARLY_STORM_TO_WINDS_TABLE_PRELIM.loc[
+    EARLY_STORM_TO_WINDS_TABLE_PRELIM[tracking_utils.VALID_TIME_COLUMN] <= 5
+]
+
+LATE_STORM_TO_WINDS_TABLE_PRELIM = LATE_STORM_TO_WINDS_TABLE_PRELIM.loc[
+    LATE_STORM_TO_WINDS_TABLE_PRELIM[tracking_utils.VALID_TIME_COLUMN] > 5
+]
+
+EARLY_STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.loc[
+    STORM_TO_WINDS_TABLE[tracking_utils.VALID_TIME_COLUMN] <= 5
+]
+
+LATE_STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.loc[
+    STORM_TO_WINDS_TABLE[tracking_utils.VALID_TIME_COLUMN] > 5
+]
 
 # The following constants are used to test _remove_storms_near_start_of_period.
 THESE_PRIMARY_ID_STRINGS = [
@@ -573,218 +686,6 @@ STORM_OBJECT_TABLE_SANS_PERIOD_START = pandas.DataFrame.from_dict({
     tracking_utils.VALID_TIME_COLUMN: THESE_VALID_TIMES_UNIX_SEC,
     tracking_utils.TRACKING_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC
 })
-
-# The following constants are used to test _share_linkages_between_periods.
-THESE_EARLY_PRIMARY_ID_STRINGS = ['A', 'C', 'A', 'B', 'C']
-THESE_EARLY_SEC_ID_STRINGS = ['1', '2', '3', '4', '2']
-
-THESE_EARLY_FULL_ID_STRINGS = temporal_tracking.partial_to_full_ids(
-    primary_id_strings=THESE_EARLY_PRIMARY_ID_STRINGS,
-    secondary_id_strings=THESE_EARLY_SEC_ID_STRINGS)
-
-THESE_EARLY_TIMES_UNIX_SEC = numpy.array([0, 0, 1, 1, 1], dtype=int)
-
-THESE_EVENT_LATITUDES_DEG = [
-    numpy.array([53, 53]), numpy.array([55, 55]),
-    numpy.array([53, 53]), numpy.array([54, 54]), numpy.array([55, 55])
-]
-THESE_EVENT_LONGITUDES_DEG = [
-    numpy.array([246, 247]), numpy.array([246, 247]),
-    numpy.array([246, 247]), numpy.array([246, 247]), numpy.array([246, 247])
-]
-THESE_LINK_DIST_METRES = [
-    numpy.array([1000, 2000]), numpy.array([0, 0]),
-    numpy.array([1000, 2000]), numpy.array([5000, 10000]), numpy.array([0, 0])
-]
-THESE_RELATIVE_TIMES_UNIX_SEC = [
-    numpy.array([1, 2]), numpy.array([5, 6]),
-    numpy.array([0, 1]), numpy.array([2, 3]), numpy.array([4, 5])
-]
-THESE_FUJITA_RATINGS = [
-    ['F0', 'F1'], ['EF4', 'EF5'],
-    ['F0', 'F1'], ['EF2', 'EF3'], ['EF4', 'EF5']
-]
-
-for k in range(len(THESE_EARLY_PRIMARY_ID_STRINGS)):
-    THESE_EVENT_LATITUDES_DEG[k] = THESE_EVENT_LATITUDES_DEG[k].astype(float)
-    THESE_EVENT_LONGITUDES_DEG[k] = THESE_EVENT_LONGITUDES_DEG[k].astype(float)
-    THESE_LINK_DIST_METRES[k] = THESE_LINK_DIST_METRES[k].astype(float)
-    THESE_RELATIVE_TIMES_UNIX_SEC[k] = THESE_RELATIVE_TIMES_UNIX_SEC[k].astype(
-        int)
-
-THIS_DICT = {
-    tracking_utils.PRIMARY_ID_COLUMN: THESE_EARLY_PRIMARY_ID_STRINGS,
-    tracking_utils.SECONDARY_ID_COLUMN: THESE_EARLY_SEC_ID_STRINGS,
-    tracking_utils.FULL_ID_COLUMN: THESE_EARLY_FULL_ID_STRINGS,
-    tracking_utils.VALID_TIME_COLUMN: THESE_EARLY_TIMES_UNIX_SEC,
-    linkage.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
-    linkage.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
-    linkage.LINKAGE_DISTANCES_COLUMN: THESE_LINK_DIST_METRES,
-    linkage.RELATIVE_EVENT_TIMES_COLUMN: THESE_RELATIVE_TIMES_UNIX_SEC,
-    linkage.FUJITA_RATINGS_COLUMN: THESE_FUJITA_RATINGS
-}
-
-EARLY_STORM_TO_TORNADOES_TABLE_SANS_SHARING = pandas.DataFrame.from_dict(
-    THIS_DICT)
-
-THESE_LATE_PRIMARY_ID_STRINGS = ['B', 'C', 'D', 'C', 'D']
-THESE_LATE_SEC_ID_STRINGS = ['4', '2', '5', '2', '6']
-THESE_LATE_FULL_ID_STRINGS = temporal_tracking.partial_to_full_ids(
-    primary_id_strings=THESE_LATE_PRIMARY_ID_STRINGS,
-    secondary_id_strings=THESE_LATE_SEC_ID_STRINGS)
-
-THESE_LATE_TIMES_UNIX_SEC = numpy.array([2, 2, 2, 3, 3], dtype=int)
-
-THESE_EVENT_LATITUDES_DEG = [
-    numpy.array([53.5, 53.5]), numpy.array([54.5, 54.5]), numpy.array([70, 70]),
-    numpy.array([54.5, 54.5]), numpy.array([70, 70])
-]
-THESE_EVENT_LONGITUDES_DEG = [
-    numpy.array([246, 247]), numpy.array([246, 247]), numpy.array([246, 247]),
-    numpy.array([246, 247]), numpy.array([246, 247])
-]
-THESE_LINK_DIST_METRES = [
-    numpy.array([333, 666]), numpy.array([0, 1]), numpy.array([2, 3]),
-    numpy.array([0, 1]), numpy.array([2, 3])
-]
-THESE_RELATIVE_TIMES_UNIX_SEC = [
-    numpy.array([0, 2]), numpy.array([2, 4]), numpy.array([4, 6]),
-    numpy.array([1, 3]), numpy.array([3, 5])
-]
-THESE_FUJITA_RATINGS = [
-    ['f0', 'f1'], ['ef2', 'ef3'], ['ef4', 'ef5'],
-    ['ef2', 'ef3'], ['ef4', 'ef5']
-]
-
-for k in range(len(THESE_LATE_PRIMARY_ID_STRINGS)):
-    THESE_EVENT_LATITUDES_DEG[k] = THESE_EVENT_LATITUDES_DEG[k].astype(float)
-    THESE_EVENT_LONGITUDES_DEG[k] = THESE_EVENT_LONGITUDES_DEG[k].astype(float)
-    THESE_LINK_DIST_METRES[k] = THESE_LINK_DIST_METRES[k].astype(float)
-    THESE_RELATIVE_TIMES_UNIX_SEC[k] = THESE_RELATIVE_TIMES_UNIX_SEC[k].astype(
-        int)
-
-THIS_DICT = {
-    tracking_utils.PRIMARY_ID_COLUMN: THESE_LATE_PRIMARY_ID_STRINGS,
-    tracking_utils.SECONDARY_ID_COLUMN: THESE_LATE_SEC_ID_STRINGS,
-    tracking_utils.FULL_ID_COLUMN: THESE_LATE_FULL_ID_STRINGS,
-    tracking_utils.VALID_TIME_COLUMN: THESE_LATE_TIMES_UNIX_SEC,
-    linkage.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
-    linkage.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
-    linkage.LINKAGE_DISTANCES_COLUMN: THESE_LINK_DIST_METRES,
-    linkage.RELATIVE_EVENT_TIMES_COLUMN: THESE_RELATIVE_TIMES_UNIX_SEC,
-    linkage.FUJITA_RATINGS_COLUMN: THESE_FUJITA_RATINGS
-}
-
-LATE_STORM_TO_TORNADOES_TABLE_SANS_SHARING = pandas.DataFrame.from_dict(
-    THIS_DICT)
-
-THESE_EVENT_LATITUDES_DEG = [
-    numpy.array([53, 53]), numpy.array([54.5, 54.5, 55, 55]),
-    numpy.array([53, 53]), numpy.array([53.5, 53.5, 54, 54]),
-    numpy.array([54.5, 54.5, 55, 55])
-]
-THESE_EVENT_LONGITUDES_DEG = [
-    numpy.array([246, 247]), numpy.array([246, 247, 246, 247]),
-    numpy.array([246, 247]), numpy.array([246, 247, 246, 247]),
-    numpy.array([246, 247, 246, 247])
-]
-THESE_LINK_DIST_METRES = [
-    numpy.array([1000, 2000]), numpy.array([0, 1, 0, 0]),
-    numpy.array([1000, 2000]), numpy.array([333, 666, 5000, 10000]),
-    numpy.array([0, 1, 0, 0])
-]
-THESE_RELATIVE_TIMES_UNIX_SEC = [
-    numpy.array([1, 2]), numpy.array([4, 6, 5, 6]),
-    numpy.array([0, 1]), numpy.array([1, 3, 2, 3]),
-    numpy.array([3, 5, 4, 5])
-]
-THESE_FUJITA_RATINGS = [
-    ['F0', 'F1'], ['ef2', 'ef3', 'EF4', 'EF5'],
-    ['F0', 'F1'], ['f0', 'f1', 'EF2', 'EF3'],
-    ['ef2', 'ef3', 'EF4', 'EF5']
-]
-
-for k in range(len(THESE_EARLY_PRIMARY_ID_STRINGS)):
-    THESE_EVENT_LATITUDES_DEG[k] = THESE_EVENT_LATITUDES_DEG[k].astype(float)
-    THESE_EVENT_LONGITUDES_DEG[k] = THESE_EVENT_LONGITUDES_DEG[k].astype(float)
-    THESE_LINK_DIST_METRES[k] = THESE_LINK_DIST_METRES[k].astype(float)
-    THESE_RELATIVE_TIMES_UNIX_SEC[k] = THESE_RELATIVE_TIMES_UNIX_SEC[k].astype(
-        int)
-
-THIS_DICT = {
-    tracking_utils.PRIMARY_ID_COLUMN: THESE_EARLY_PRIMARY_ID_STRINGS,
-    tracking_utils.SECONDARY_ID_COLUMN: THESE_EARLY_SEC_ID_STRINGS,
-    tracking_utils.FULL_ID_COLUMN: THESE_EARLY_FULL_ID_STRINGS,
-    tracking_utils.VALID_TIME_COLUMN: THESE_EARLY_TIMES_UNIX_SEC,
-    linkage.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
-    linkage.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
-    linkage.LINKAGE_DISTANCES_COLUMN: THESE_LINK_DIST_METRES,
-    linkage.RELATIVE_EVENT_TIMES_COLUMN: THESE_RELATIVE_TIMES_UNIX_SEC,
-    linkage.FUJITA_RATINGS_COLUMN: THESE_FUJITA_RATINGS
-}
-
-EARLY_STORM_TO_TORNADOES_TABLE_WITH_SHARING = pandas.DataFrame.from_dict(
-    THIS_DICT)
-
-THESE_EVENT_LATITUDES_DEG = [
-    numpy.array([53.5, 53.5, 54, 54]), numpy.array([54.5, 54.5, 55, 55]),
-    numpy.array([70, 70]), numpy.array([54.5, 54.5, 55, 55]),
-    numpy.array([70, 70])
-]
-THESE_EVENT_LONGITUDES_DEG = [
-    numpy.array([246, 247, 246, 247]), numpy.array([246, 247, 246, 247]),
-    numpy.array([246, 247]), numpy.array([246, 247, 246, 247]),
-    numpy.array([246, 247])
-]
-THESE_LINK_DIST_METRES = [
-    numpy.array([333, 666, 5000, 10000]), numpy.array([0, 1, 0, 0]),
-    numpy.array([2, 3]), numpy.array([0, 1, 0, 0]),
-    numpy.array([2, 3])
-]
-THESE_RELATIVE_TIMES_UNIX_SEC = [
-    numpy.array([0, 2, 1, 2]), numpy.array([2, 4, 3, 4]),
-    numpy.array([4, 6]), numpy.array([1, 3, 2, 3]),
-    numpy.array([3, 5])
-]
-THESE_FUJITA_RATINGS = [
-    ['f0', 'f1', 'EF2', 'EF3'], ['ef2', 'ef3', 'EF4', 'EF5'],
-    ['ef4', 'ef5'], ['ef2', 'ef3', 'EF4', 'EF5'],
-    ['ef4', 'ef5']
-]
-
-for k in range(len(THESE_LATE_PRIMARY_ID_STRINGS)):
-    THESE_EVENT_LATITUDES_DEG[k] = THESE_EVENT_LATITUDES_DEG[k].astype(float)
-    THESE_EVENT_LONGITUDES_DEG[k] = THESE_EVENT_LONGITUDES_DEG[k].astype(float)
-    THESE_LINK_DIST_METRES[k] = THESE_LINK_DIST_METRES[k].astype(float)
-    THESE_RELATIVE_TIMES_UNIX_SEC[k] = THESE_RELATIVE_TIMES_UNIX_SEC[k].astype(
-        int)
-
-THIS_DICT = {
-    tracking_utils.PRIMARY_ID_COLUMN: THESE_LATE_PRIMARY_ID_STRINGS,
-    tracking_utils.SECONDARY_ID_COLUMN: THESE_LATE_SEC_ID_STRINGS,
-    tracking_utils.FULL_ID_COLUMN: THESE_LATE_FULL_ID_STRINGS,
-    tracking_utils.VALID_TIME_COLUMN: THESE_LATE_TIMES_UNIX_SEC,
-    linkage.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
-    linkage.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
-    linkage.LINKAGE_DISTANCES_COLUMN: THESE_LINK_DIST_METRES,
-    linkage.RELATIVE_EVENT_TIMES_COLUMN: THESE_RELATIVE_TIMES_UNIX_SEC,
-    linkage.FUJITA_RATINGS_COLUMN: THESE_FUJITA_RATINGS
-}
-
-LATE_STORM_TO_TORNADOES_TABLE_WITH_SHARING = pandas.DataFrame.from_dict(
-    THIS_DICT)
-
-STRING_COLUMNS = [
-    tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.SECONDARY_ID_COLUMN,
-    tracking_utils.FULL_ID_COLUMN
-]
-NON_FLOAT_ARRAY_COLUMNS = [
-    linkage.RELATIVE_EVENT_TIMES_COLUMN, linkage.FUJITA_RATINGS_COLUMN
-]
-FLOAT_ARRAY_COLUMNS = [
-    linkage.EVENT_LATITUDES_COLUMN, linkage.EVENT_LONGITUDES_COLUMN,
-    linkage.LINKAGE_DISTANCES_COLUMN
-]
 
 # The following constants are used to test find_linkage_file.
 TOP_DIRECTORY_NAME = 'linkage'
@@ -860,8 +761,13 @@ def _compare_storm_to_events_tables(first_table, second_table):
         tracking_utils.FULL_ID_COLUMN
     ]
     exact_array_columns = [
-        linkage.RELATIVE_EVENT_TIMES_COLUMN, linkage.WIND_STATION_IDS_COLUMN,
-        linkage.FUJITA_RATINGS_COLUMN
+        linkage.RELATIVE_EVENT_TIMES_COLUMN, linkage.MAIN_OBJECT_FLAGS_COLUMN,
+        linkage.WIND_STATION_IDS_COLUMN, linkage.FUJITA_RATINGS_COLUMN
+    ]
+    float_array_columns = [
+        linkage.EVENT_LATITUDES_COLUMN, linkage.EVENT_LONGITUDES_COLUMN,
+        linkage.U_WINDS_COLUMN, linkage.V_WINDS_COLUMN,
+        linkage.LINKAGE_DISTANCES_COLUMN
     ]
 
     num_rows = len(first_table.index)
@@ -878,7 +784,7 @@ def _compare_storm_to_events_tables(first_table, second_table):
                                          second_table[this_column].values[i]):
                     return False
 
-            else:
+            elif this_column in float_array_columns:
                 if not numpy.allclose(first_table[this_column].values[i],
                                       second_table[this_column].values[i],
                                       atol=TOLERANCE):
@@ -1021,58 +927,61 @@ class LinkageTests(unittest.TestCase):
             target_time_unix_sec=INTERP_TIME_UNIX_SEC,
             max_time_before_start_sec=10, max_time_after_end_sec=10)
 
-        print(INTERP_VERTEX_TABLE)
-        print('\n\n\n')
-        print(this_vertex_table)
-
         self.assertTrue(_compare_vertex_tables(
             this_vertex_table, INTERP_VERTEX_TABLE
         ))
 
-    # def test_find_nearest_storms_one_time(self):
-    #     """Ensures correct output from _find_nearest_storms_one_time."""
-    #
-    #     these_nearest_id_strings, these_link_distances_metres = (
-    #         linkage._find_nearest_storms_one_time(
-    #             interp_vertex_table=INTERP_VERTEX_TABLE_2OBJECTS,
-    #             event_x_coords_metres=EVENT_X_COORDS_1TIME_METRES,
-    #             event_y_coords_metres=EVENT_Y_COORDS_1TIME_METRES,
-    #             max_link_distance_metres=MAX_LINK_DISTANCE_METRES)
-    #     )
-    #
-    #     self.assertTrue(
-    #         these_nearest_id_strings == NEAREST_PRIMARY_ID_STRINGS_1TIME
-    #     )
-    #     self.assertTrue(numpy.allclose(
-    #         these_link_distances_metres, LINK_DISTANCES_1TIME_METRES,
-    #         equal_nan=True, atol=TOLERANCE
-    #     ))
-    #
-    # def test_find_nearest_storms(self):
-    #     """Ensures correct output from _find_nearest_storms."""
-    #
-    #     this_wind_to_storm_table = linkage._find_nearest_storms(
-    #         storm_object_table=STORM_OBJECT_TABLE_2CELLS,
-    #         event_table=EVENT_TABLE_2TIMES,
-    #         max_time_before_storm_start_sec=MAX_TIME_BEFORE_STORM_START_SEC,
-    #         max_time_after_storm_end_sec=MAX_TIME_AFTER_STORM_END_SEC,
-    #         max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
-    #         interp_time_resolution_sec=INTERP_TIME_RESOLUTION_SEC)
-    #
-    #     self.assertTrue(this_wind_to_storm_table.equals(
-    #         EVENT_TO_STORM_TABLE_SIMPLE
-    #     ))
-    #
-    # def test_reverse_wind_linkages(self):
-    #     """Ensures correct output from _reverse_wind_linkages."""
-    #
-    #     this_storm_to_winds_table = linkage._reverse_wind_linkages(
-    #         storm_object_table=STORM_OBJECT_TABLE_2CELLS,
-    #         wind_to_storm_table=WIND_TO_STORM_TABLE)
-    #
-    #     self.assertTrue(_compare_storm_to_events_tables(
-    #         this_storm_to_winds_table, STORM_TO_WINDS_TABLE
-    #     ))
+    def test_find_nearest_storms_one_time(self):
+        """Ensures correct output from _find_nearest_storms_one_time."""
+
+        these_nearest_id_strings, these_link_distances_metres = (
+            linkage._find_nearest_storms_one_time(
+                interp_vertex_table=INTERP_VERTEX_TABLE,
+                event_x_coords_metres=EVENT_X_COORDS_1TIME_METRES,
+                event_y_coords_metres=EVENT_Y_COORDS_1TIME_METRES,
+                max_link_distance_metres=MAX_LINK_DISTANCE_METRES)
+        )
+
+        self.assertTrue(
+            these_nearest_id_strings == NEAREST_SEC_ID_STRINGS_1TIME
+        )
+        self.assertTrue(numpy.allclose(
+            these_link_distances_metres, LINK_DISTANCES_1TIME_METRES,
+            equal_nan=True, atol=TOLERANCE
+        ))
+
+    def test_find_nearest_storms(self):
+        """Ensures correct output from _find_nearest_storms."""
+
+        this_wind_to_storm_table = linkage._find_nearest_storms(
+            storm_object_table=MAIN_STORM_OBJECT_TABLE,
+            event_table=EVENT_TABLE_2TIMES,
+            max_time_before_storm_start_sec=10,
+            max_time_after_storm_end_sec=10,
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+            interp_time_resolution_sec=INTERP_TIME_RESOLUTION_SEC)
+
+        self.assertTrue(
+            this_wind_to_storm_table[
+                linkage.NEAREST_SECONDARY_ID_COLUMN].values.tolist() ==
+            NEAREST_SECONDARY_ID_STRINGS
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_wind_to_storm_table[linkage.LINKAGE_DISTANCE_COLUMN].values,
+            LINKAGE_DISTANCES_METRES, equal_nan=True, atol=TOLERANCE
+        ))
+
+    def test_reverse_wind_linkages(self):
+        """Ensures correct output from _reverse_wind_linkages."""
+
+        this_storm_to_winds_table = linkage._reverse_wind_linkages(
+            storm_object_table=MAIN_STORM_OBJECT_TABLE,
+            wind_to_storm_table=WIND_TO_STORM_TABLE)
+
+        self.assertTrue(_compare_storm_to_events_tables(
+            this_storm_to_winds_table, STORM_TO_WINDS_TABLE
+        ))
 
     def test_remove_storms_near_start_of_period(self):
         """Ensures correct output from _remove_storms_near_start_of_period."""
@@ -1098,17 +1007,40 @@ class LinkageTests(unittest.TestCase):
         this_early_table, this_late_table = (
             linkage._share_linkages_between_periods(
                 early_storm_to_events_table=copy.deepcopy(
-                    EARLY_STORM_TO_TORNADOES_TABLE_SANS_SHARING),
+                    EARLY_STORM_TO_WINDS_TABLE_PRELIM),
                 late_storm_to_events_table=copy.deepcopy(
-                    LATE_STORM_TO_TORNADOES_TABLE_SANS_SHARING)
+                    LATE_STORM_TO_WINDS_TABLE_PRELIM)
             )
         )
 
+        for i in range(len(this_early_table.index)):
+            these_station_id_strings = (
+                this_early_table[linkage.WIND_STATION_IDS_COLUMN].values[i]
+            )
+
+            if len(these_station_id_strings) == 0:
+                continue
+
+            these_sort_indices = numpy.argsort(
+                numpy.array(these_station_id_strings)
+            )
+
+            for this_column in LINKAGE_ARRAY_COLUMNS:
+                this_early_table[this_column].values[i] = (
+                    this_early_table[this_column].values[i][these_sort_indices]
+                )
+
+            for this_column in LINKAGE_LIST_COLUMNS:
+                this_early_table[this_column].values[i] = [
+                    this_early_table[this_column].values[i][m]
+                    for m in these_sort_indices
+                ]
+
         self.assertTrue(_compare_storm_to_events_tables(
-            this_early_table, EARLY_STORM_TO_TORNADOES_TABLE_WITH_SHARING
+            this_early_table, EARLY_STORM_TO_WINDS_TABLE
         ))
         self.assertTrue(_compare_storm_to_events_tables(
-            this_late_table, LATE_STORM_TO_TORNADOES_TABLE_WITH_SHARING
+            this_late_table, LATE_STORM_TO_WINDS_TABLE
         ))
 
     def test_find_linkage_file_wind_one_time(self):
