@@ -33,11 +33,11 @@ from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
+LARGE_INTEGER = int(1e10)
+
 YEAR_FORMAT = '%Y'
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-
-LARGE_INTEGER = int(1e10)
 
 WIND_EVENT_STRING = 'wind'
 TORNADO_EVENT_STRING = 'tornado'
@@ -238,14 +238,13 @@ def _project_storms_latlng_to_xy(storm_object_table, projection_object):
         tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.PRIMARY_ID_COLUMN
     ]].values.tolist()
 
-    argument_dict = {
+    storm_object_table = storm_object_table.assign(**{
         STORM_CENTROID_X_COLUMN: centroids_x_metres,
         STORM_CENTROID_Y_COLUMN: centroids_y_metres,
         STORM_VERTICES_X_COLUMN: nested_array,
         STORM_VERTICES_Y_COLUMN: nested_array
-    }
+    })
 
-    storm_object_table = storm_object_table.assign(**argument_dict)
     num_storm_objects = len(storm_object_table.index)
 
     for i in range(num_storm_objects):
@@ -284,12 +283,10 @@ def _project_events_latlng_to_xy(event_table, projection_object):
         event_table[EVENT_LONGITUDE_COLUMN].values,
         projection_object=projection_object)
 
-    argument_dict = {
+    return event_table.assign(**{
         EVENT_X_COLUMN: x_coords_metres,
         EVENT_Y_COLUMN: y_coords_metres
-    }
-
-    return event_table.assign(**argument_dict)
+    })
 
 
 def _filter_events_by_bounding_box(
@@ -322,7 +319,8 @@ def _filter_events_by_bounding_box(
     )[0]
 
     return event_table.drop(
-        event_table.index[bad_row_indices], axis=0, inplace=False)
+        event_table.index[bad_row_indices], axis=0, inplace=False
+    )
 
 
 def _filter_storms_by_time(storm_object_table, max_start_time_unix_sec,
@@ -352,8 +350,10 @@ def _filter_storms_by_time(storm_object_table, max_start_time_unix_sec,
     ))
 
     bad_row_indices = numpy.where(bad_row_flags)[0]
+
     return storm_object_table.drop(
-        storm_object_table.index[bad_row_indices], axis=0, inplace=False)
+        storm_object_table.index[bad_row_indices], axis=0, inplace=False
+    )
 
 
 def _interp_one_storm_in_time(storm_object_table_1cell, secondary_id_string,
@@ -500,17 +500,14 @@ def _interp_storms_in_time(storm_object_table, target_time_unix_sec,
     max_start_time_unix_sec = target_time_unix_sec + max_time_before_start_sec
     min_end_time_unix_sec = target_time_unix_sec - max_time_after_end_sec
 
-    filtered_storm_object_table = _filter_storms_by_time(
-        storm_object_table=storm_object_table,
-        max_start_time_unix_sec=max_start_time_unix_sec,
-        min_end_time_unix_sec=min_end_time_unix_sec)
+    sorted_storm_object_table = copy.deepcopy(storm_object_table)
 
-    filtered_storm_object_table.sort_values(
+    sorted_storm_object_table.sort_values(
         tracking_utils.VALID_TIME_COLUMN, axis=0, ascending=True,
         inplace=True)
 
     unique_secondary_id_strings = numpy.unique(numpy.array(
-        filtered_storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values
+        sorted_storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values
     ))
 
     list_of_vertex_tables = []
@@ -518,30 +515,44 @@ def _interp_storms_in_time(storm_object_table, target_time_unix_sec,
 
     for j in range(num_storm_cells):
         these_main_rows = numpy.where(
-            filtered_storm_object_table[tracking_utils.SECONDARY_ID_COLUMN] ==
+            sorted_storm_object_table[tracking_utils.SECONDARY_ID_COLUMN] ==
             unique_secondary_id_strings[j]
         )[0]
 
         these_predecessor_rows = temporal_tracking.find_immediate_predecessors(
-            storm_object_table=filtered_storm_object_table,
+            storm_object_table=sorted_storm_object_table,
             target_row=these_main_rows[0]
         )
 
         these_successor_rows = temporal_tracking.find_immediate_successors(
-            storm_object_table=filtered_storm_object_table,
+            storm_object_table=sorted_storm_object_table,
             target_row=these_main_rows[-1]
         )
 
         these_rows = numpy.concatenate((
-            these_main_rows, these_predecessor_rows, these_successor_rows
+            these_predecessor_rows, these_main_rows, these_successor_rows
         ))
 
         if len(these_rows) == 1:
             continue
 
+        this_start_time_unix_sec = sorted_storm_object_table[
+            tracking_utils.VALID_TIME_COLUMN
+        ].values[these_main_rows[0]]
+
+        if this_start_time_unix_sec > max_start_time_unix_sec:
+            continue
+
+        this_end_time_unix_sec = sorted_storm_object_table[
+            tracking_utils.VALID_TIME_COLUMN
+        ].values[these_main_rows[-1]]
+
+        if this_end_time_unix_sec < min_end_time_unix_sec:
+            continue
+
         list_of_vertex_tables.append(
             _interp_one_storm_in_time(
-                storm_object_table_1cell=filtered_storm_object_table.iloc[
+                storm_object_table_1cell=sorted_storm_object_table.iloc[
                     these_rows],
                 secondary_id_string=unique_secondary_id_strings[j],
                 target_time_unix_sec=target_time_unix_sec)
@@ -708,9 +719,6 @@ def _find_nearest_storms(
             target_time_unix_sec=unique_interp_times_unix_sec[i],
             max_time_before_start_sec=max_time_before_storm_start_sec,
             max_time_after_end_sec=max_time_after_storm_end_sec)
-
-        if unique_interp_times_unix_sec[i] == 7:
-            print(this_interp_vertex_table)
 
         these_event_rows = numpy.where(orig_to_unique_indices == i)[0]
 
@@ -887,7 +895,6 @@ def _reverse_wind_linkages(storm_object_table, wind_to_storm_table):
         )
 
         these_time_diffs_unix_sec[these_time_diffs_unix_sec < 0] = LARGE_INTEGER
-
         this_main_object_row = this_storm_cell_rows[
             numpy.argmin(these_time_diffs_unix_sec)
         ]
@@ -1056,7 +1063,6 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
         )
 
         these_time_diffs_unix_sec[these_time_diffs_unix_sec < 0] = LARGE_INTEGER
-
         this_main_object_row = this_storm_cell_rows[
             numpy.argmin(these_time_diffs_unix_sec)
         ]
@@ -1171,7 +1177,8 @@ def _remove_storms_near_start_of_period(
     ))
 
     return storm_object_table.drop(
-        storm_object_table.index[bad_indices], axis=0, inplace=False)
+        storm_object_table.index[bad_indices], axis=0, inplace=False
+    )
 
 
 def _read_input_storm_tracks(tracking_file_names):
@@ -1362,10 +1369,10 @@ def _read_input_tornado_reports(
         tornado_table[EVENT_TIME_COLUMN].values <= max_tornado_time_unix_sec
     ))
     bad_row_indices = numpy.where(bad_row_flags)[0]
-    tornado_table.drop(
-        tornado_table.index[bad_row_indices], axis=0, inplace=True)
 
-    return tornado_table
+    return tornado_table.drop(
+        tornado_table.index[bad_row_indices], axis=0, inplace=False
+    )
 
 
 def _share_linkages_between_periods(
