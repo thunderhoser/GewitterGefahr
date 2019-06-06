@@ -392,6 +392,11 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
             ))[0]
 
             these_indices = these_indices[these_subindices]
+
+            # TODO(thunderhoser): This is a HACK.
+            if len(these_indices) == 0:
+                continue
+
             these_tornado_id_strings.append(
                 tornado_id_strings[these_indices[0]]
             )
