@@ -280,6 +280,13 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
     num_tornadoes = len(tornado_latitudes_deg)
     tornado_id_strings = [str(k) for k in range(num_tornadoes)]
 
+    for j in range(num_tornadoes):
+        print('Tornado ID = "{0:s}" ... time = {1:s}'.format(
+            tornado_id_strings[j],
+            time_conversion.unix_sec_to_string(
+                tornado_times_unix_sec[j], '%Y-%m-%d-%H%M%S')
+        ))
+
     _, axes_object, basemap_object = (
         plotting_utils.create_equidist_cylindrical_map(
             min_latitude_deg=min_plot_latitude_deg,
