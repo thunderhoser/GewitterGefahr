@@ -20,7 +20,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 SENTINEL_VALUE = -9999
 MAX_LINK_TIME_SECONDS = 3600
 
-FONT_SIZE = 20
+FONT_SIZE = 12
 TORNADO_MARKER_TYPE = 'o'
 TORNADO_MARKER_SIZE = 10
 TORNADO_MARKER_EDGE_WIDTH = 1
@@ -337,8 +337,8 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
     for j in range(num_tornadoes):
         axes_object.text(
             tornado_x_coords_metres[j], tornado_y_coords_metres[j],
-            tornado_id_strings[j], fontsize=FONT_SIZE, fontweight='bold',
-            color='k', horizontalalignment='left', verticalalignment='top')
+            tornado_id_strings[j], fontsize=FONT_SIZE, color='k',
+            horizontalalignment='left', verticalalignment='top')
 
     print('Plotting tornado IDs with storm objects...')
     num_storm_objects = len(storm_to_tornadoes_table.index)
@@ -403,7 +403,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
 
             axes_object.text(
                 this_x_metres, this_y_metres, this_label_string,
-                fontsize=FONT_SIZE, fontweight='bold', color='k',
+                fontsize=FONT_SIZE, color='k',
                 horizontalalignment='left', verticalalignment='top')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
