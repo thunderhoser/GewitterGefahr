@@ -18,6 +18,7 @@ from gewittergefahr.plotting import storm_plotting
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 SENTINEL_VALUE = -9999
+MAX_LINK_TIME_SECONDS = 3600
 
 FONT_SIZE = 20
 TORNADO_MARKER_TYPE = 'o'
@@ -319,15 +320,20 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         these_relative_times_sec = storm_to_tornadoes_table[
             linkage.RELATIVE_EVENT_TIMES_COLUMN].values[i]
 
+        these_event_indices = numpy.where(
+            these_relative_times_sec <= MAX_LINK_TIME_SECONDS
+        )[0]
+        these_relative_times_sec = these_relative_times_sec[these_event_indices]
+
         this_num_tornadoes = len(these_relative_times_sec)
-        if len(these_relative_times_sec) == 0:
+        if this_num_tornadoes == 0:
             continue
 
         these_latitudes_deg = storm_to_tornadoes_table[
-            linkage.EVENT_LATITUDES_COLUMN].values[i]
+            linkage.EVENT_LATITUDES_COLUMN].values[i][these_event_indices]
 
         these_longitudes_deg = storm_to_tornadoes_table[
-            linkage.EVENT_LONGITUDES_COLUMN].values[i]
+            linkage.EVENT_LONGITUDES_COLUMN].values[i][these_event_indices]
 
         for j in range(this_num_tornadoes):
             this_time_unix_sec = (
