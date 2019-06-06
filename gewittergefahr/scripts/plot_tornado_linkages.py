@@ -395,6 +395,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
             ]
 
             this_label_string = ','.join(these_tornado_id_strings)
+            print(this_label_string)
 
             this_x_metres, this_y_metres = basemap_object(
                 storm_to_tornadoes_table[
