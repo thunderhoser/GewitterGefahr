@@ -341,9 +341,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
             markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
                 tornado_colour_matrix[j, :-1]
             ),
-            markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
-                tornado_colour_matrix[j, :-1]
-            )
+            markeredgecolor='k'
         )
 
         axes_object.text(
@@ -418,6 +416,12 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
             storm_to_tornadoes_table[
                 tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
         )
+
+        axes_object.plot(
+            this_x_metres, this_y_metres, linestyle='None',
+            marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE / 3,
+            markeredgewidth=TORNADO_MARKER_EDGE_WIDTH / 3,
+            markerfacecolor='k', markeredgecolor='k')
 
         this_label_string = ','.join(these_tornado_id_strings)
         axes_object.text(
