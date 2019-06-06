@@ -374,8 +374,6 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         if this_num_tornadoes == 0:
             continue
 
-        print('Number of tornadoes for storm object = {0:d}'.format(this_num_tornadoes))
-
         these_latitudes_deg = storm_to_tornadoes_table[
             linkage.EVENT_LATITUDES_COLUMN].values[i][these_event_indices]
 
@@ -431,6 +429,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
             markerfacecolor='k', markeredgecolor='k')
 
         this_label_string = ','.join(these_tornado_id_strings)
+        print(this_label_string)
         axes_object.text(
             this_x_metres, this_y_metres, this_label_string,
             fontsize=FONT_SIZE, color='k',
