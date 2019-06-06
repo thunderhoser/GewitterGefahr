@@ -28,7 +28,6 @@ COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
 TORNADO_MARKER_TYPE = 'o'
 TORNADO_MARKER_SIZE = 10
 TORNADO_MARKER_EDGE_WIDTH = 1
-TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -490,7 +489,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         axes_object.text(
             tornado_x_coords_metres[j], tornado_y_coords_metres[j],
             tornado_table[TORNADO_ID_COLUMN].values[j], fontsize=FONT_SIZE,
-            color='k', horizontalalignment='left', verticalalignment='top')
+            color='k', horizontalalignment='center', verticalalignment='middle')
 
     print('Plotting tornado IDs with storm objects...')
     num_storm_objects = len(storm_to_tornadoes_table.index)
