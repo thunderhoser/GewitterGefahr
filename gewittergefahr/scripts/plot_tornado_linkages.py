@@ -15,9 +15,11 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import storm_plotting
 
+LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 SENTINEL_VALUE = -9999
+LATLNG_TOLERANCE_DEG = 0.001
 MAX_LINK_TIME_SECONDS = 3600
 
 FONT_SIZE = 12
@@ -33,6 +35,8 @@ NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = 0.5
 BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
+
+TORNADO_ID_COLUMN = 'tornado_id_string'
 
 LINKAGE_DIR_ARG_NAME = 'input_linkage_dir_name'
 TORNADO_DIR_ARG_NAME = 'input_tornado_dir_name'
@@ -112,6 +116,194 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
+
+
+def _read_tornado_reports(
+        tornado_dir_name, min_plot_latitude_deg, max_plot_latitude_deg,
+        min_plot_longitude_deg, max_plot_longitude_deg,
+        storm_to_tornadoes_table):
+    """Reads tornado reports.
+
+    :param tornado_dir_name: See documentation at top of file.
+    :param min_plot_latitude_deg: Same.
+    :param max_plot_latitude_deg: Same.
+    :param min_plot_longitude_deg: Same.
+    :param max_plot_longitude_deg: Same.
+    :param storm_to_tornadoes_table: pandas DataFrame returned by
+        `linkage.read_linkage_file`.
+    :return: tornado_table: pandas DataFrame with columns listed in
+        `tornado_io.write_processed_file`, plus the following columns.
+    tornado_table.tornado_id_string: Tornado ID.
+    """
+
+    # TODO(thunderhoser): Fix this "1200" hack.
+
+    first_time_unix_sec = -1200 + numpy.min(
+        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
+    last_time_unix_sec = 1200 + numpy.max(
+        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
+
+    first_year = int(
+        time_conversion.unix_sec_to_string(first_time_unix_sec, '%Y')
+    )
+    last_year = int(
+        time_conversion.unix_sec_to_string(last_time_unix_sec, '%Y')
+    )
+
+    list_of_tornado_tables = []
+
+    for this_year in range(first_year, last_year + 1):
+        this_file_name = tornado_io.find_processed_file(
+            directory_name=tornado_dir_name, year=this_year)
+
+        print('Reading tornado reports from: "{0:s}"...'.format(
+            this_file_name))
+
+        this_tornado_table = tornado_io.read_processed_file(this_file_name)
+
+        this_tornado_table = this_tornado_table.loc[
+            (this_tornado_table[tornado_io.START_TIME_COLUMN]
+             >= first_time_unix_sec)
+            & (this_tornado_table[tornado_io.START_TIME_COLUMN]
+               <= last_time_unix_sec)
+        ]
+
+        this_tornado_table = this_tornado_table.loc[
+            (this_tornado_table[tornado_io.START_LAT_COLUMN]
+             >= min_plot_latitude_deg)
+            & (this_tornado_table[tornado_io.START_LAT_COLUMN]
+               <= max_plot_latitude_deg)
+        ]
+
+        this_tornado_table = this_tornado_table.loc[
+            (this_tornado_table[tornado_io.START_LNG_COLUMN]
+             >= min_plot_longitude_deg)
+            & (this_tornado_table[tornado_io.START_LNG_COLUMN]
+               <= max_plot_longitude_deg)
+        ]
+
+        list_of_tornado_tables.append(this_tornado_table)
+        if len(list_of_tornado_tables) == 1:
+            continue
+
+        list_of_tornado_tables[-1] = list_of_tornado_tables[-1].align(
+            list_of_tornado_tables[0], axis=1
+        )[0]
+
+    tornado_table = pandas.concat(
+        list_of_tornado_tables, axis=0, ignore_index=True)
+
+    num_tornadoes = len(tornado_table.index)
+    tornado_id_strings = [str(j) for j in range(num_tornadoes)]
+
+    tornado_table = tornado_table.assign(**{
+        TORNADO_ID_COLUMN: tornado_id_strings
+    })
+
+    for j in range(num_tornadoes):
+        this_time_string = time_conversion.unix_sec_to_string(
+            tornado_table[tornado_io.START_TIME_COLUMN].values[j],
+            LOG_MESSAGE_TIME_FORMAT)
+
+        print('Tornado ID = "{0:s}" ... time = {1:s}'.format(
+            tornado_table[TORNADO_ID_COLUMN].values[j], this_time_string
+        ))
+
+    return tornado_table
+
+
+def _plot_linkages_one_storm_object(
+        storm_to_tornadoes_table, storm_object_index, tornado_table,
+        axes_object, basemap_object):
+    """Plots linkages for one storm object.
+
+    :param storm_to_tornadoes_table: pandas DataFrame returned by
+        `linkage.read_linkage_file`.
+    :param storm_object_index: Will plot linkages for the [k]th storm object, or
+        [k]th row of `storm_to_tornadoes_table`.
+    :param tornado_table: pandas DataFrame created by `_read_tornado_reports`.
+    :param axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param basemap_object: Basemap handle (instance of
+        `mpl_toolkits.basemap.Basemap`).
+    """
+
+    i = storm_object_index
+
+    linked_relative_times_sec = storm_to_tornadoes_table[
+        linkage.RELATIVE_EVENT_TIMES_COLUMN].values[i]
+
+    good_indices = numpy.where(
+        linked_relative_times_sec <= MAX_LINK_TIME_SECONDS
+    )[0]
+
+    if len(good_indices) == 0:
+        return
+
+    linked_relative_times_sec = linked_relative_times_sec[good_indices]
+    linked_times_unix_sec = (
+        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values[i] +
+        linked_relative_times_sec
+    )
+
+    linked_latitudes_deg = storm_to_tornadoes_table[
+        linkage.EVENT_LATITUDES_COLUMN].values[i][good_indices]
+
+    linked_longitudes_deg = storm_to_tornadoes_table[
+        linkage.EVENT_LONGITUDES_COLUMN].values[i][good_indices]
+
+    linked_id_strings = []
+    num_tornadoes = len(linked_latitudes_deg)
+
+    for j in range(num_tornadoes):
+        these_indices = numpy.where(
+            tornado_table[tornado_io.START_TIME_COLUMN].values ==
+            linked_times_unix_sec[j]
+        )[0]
+
+        these_latitude_diffs_deg = numpy.absolute(
+            linked_latitudes_deg[j] -
+            tornado_table[tornado_io.START_LAT_COLUMN].values[these_indices]
+        )
+        these_longitude_diffs_deg = numpy.absolute(
+            linked_longitudes_deg[j] -
+            tornado_table[tornado_io.START_LNG_COLUMN].values[these_indices]
+        )
+
+        these_subindices = numpy.where(numpy.logical_and(
+            these_latitude_diffs_deg <= LATLNG_TOLERANCE_DEG,
+            these_longitude_diffs_deg <= LATLNG_TOLERANCE_DEG
+        ))[0]
+
+        these_indices = these_indices[these_subindices]
+
+        # TODO(thunderhoser): This is kind of a HACK.
+        if len(these_indices) == 0:
+            continue
+
+        linked_id_strings.append(
+            tornado_table[TORNADO_ID_COLUMN].values[these_indices[0]]
+        )
+
+    x_coord_metres, y_coord_metres = basemap_object(
+        storm_to_tornadoes_table[
+            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i],
+        storm_to_tornadoes_table[
+            tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
+    )
+
+    axes_object.plot(
+        x_coord_metres, y_coord_metres, linestyle='None',
+        marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE / 3,
+        markeredgewidth=TORNADO_MARKER_EDGE_WIDTH / 3,
+        markerfacecolor='k', markeredgecolor='k')
+
+    axes_object.text(
+        x_coord_metres, y_coord_metres, ','.join(linked_id_strings),
+        fontsize=FONT_SIZE, color='k',
+        horizontalalignment='left', verticalalignment='top')
 
 
 def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
@@ -213,79 +405,13 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
            <= max_plot_longitude_deg)
     ]
 
-    # TODO(thunderhoser): Put this in a separate method.
-    first_time_unix_sec = -1200 + numpy.min(
-        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
-    )
-    last_time_unix_sec = 1200 + numpy.max(
-        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
-    )
-
-    first_year = int(
-        time_conversion.unix_sec_to_string(first_time_unix_sec, '%Y')
-    )
-    last_year = int(
-        time_conversion.unix_sec_to_string(last_time_unix_sec, '%Y')
-    )
-
-    tornado_latitudes_deg = numpy.array([])
-    tornado_longitudes_deg = numpy.array([])
-    tornado_times_unix_sec = numpy.array([], dtype=int)
-
-    for this_year in range(first_year, last_year + 1):
-        this_file_name = tornado_io.find_processed_file(
-            directory_name=tornado_dir_name, year=this_year)
-
-        print('Reading tornado reports from: "{0:s}"...'.format(
-            this_file_name))
-
-        this_tornado_table = tornado_io.read_processed_file(this_file_name)
-
-        this_tornado_table = this_tornado_table.loc[
-            (this_tornado_table[tornado_io.START_TIME_COLUMN]
-             >= first_time_unix_sec)
-            & (this_tornado_table[tornado_io.START_TIME_COLUMN]
-               <= last_time_unix_sec)
-        ]
-
-        this_tornado_table = this_tornado_table.loc[
-            (this_tornado_table[tornado_io.START_LAT_COLUMN]
-             >= min_plot_latitude_deg)
-            & (this_tornado_table[tornado_io.START_LAT_COLUMN]
-               <= max_plot_latitude_deg)
-        ]
-
-        this_tornado_table = this_tornado_table.loc[
-            (this_tornado_table[tornado_io.START_LNG_COLUMN]
-             >= min_plot_longitude_deg)
-            & (this_tornado_table[tornado_io.START_LNG_COLUMN]
-               <= max_plot_longitude_deg)
-        ]
-
-        tornado_latitudes_deg = numpy.concatenate((
-            tornado_latitudes_deg,
-            this_tornado_table[tornado_io.START_LAT_COLUMN].values
-        ))
-
-        tornado_longitudes_deg = numpy.concatenate((
-            tornado_longitudes_deg,
-            this_tornado_table[tornado_io.START_LNG_COLUMN].values
-        ))
-
-        tornado_times_unix_sec = numpy.concatenate((
-            tornado_times_unix_sec,
-            this_tornado_table[tornado_io.START_TIME_COLUMN].values
-        ))
-
-    num_tornadoes = len(tornado_latitudes_deg)
-    tornado_id_strings = [str(k) for k in range(num_tornadoes)]
-
-    for j in range(num_tornadoes):
-        print('Tornado ID = "{0:s}" ... time = {1:s}'.format(
-            tornado_id_strings[j],
-            time_conversion.unix_sec_to_string(
-                tornado_times_unix_sec[j], '%Y-%m-%d-%H%M%S')
-        ))
+    tornado_table = _read_tornado_reports(
+        tornado_dir_name=tornado_dir_name,
+        min_plot_latitude_deg=min_plot_latitude_deg,
+        max_plot_latitude_deg=max_plot_latitude_deg,
+        min_plot_longitude_deg=min_plot_longitude_deg,
+        max_plot_longitude_deg=max_plot_longitude_deg,
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
 
     _, axes_object, basemap_object = (
         plotting_utils.create_equidist_cylindrical_map(
@@ -321,23 +447,33 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         basemap_object=basemap_object, colour_map_object=COLOUR_MAP_OBJECT,
         start_marker_type=None, end_marker_type=None)
 
+    num_tornadoes = len(tornado_table.index)
+
     if num_tornadoes == 0:
         print('Saving figure to: "{0:s}"...'.format(output_file_name))
         pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
-
         pyplot.close()
         return
 
+    first_storm_time_unix_sec = numpy.min(
+        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
+    last_storm_time_unix_sec = numpy.max(
+        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
+
     colour_norm_object = pyplot.Normalize(
-        first_time_unix_sec, last_time_unix_sec)
+        first_storm_time_unix_sec, last_storm_time_unix_sec)
 
     tornado_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
-        tornado_times_unix_sec
+        tornado_table[tornado_io.START_TIME_COLUMN].values
     ))
 
     print('Plotting tornado markers...')
     tornado_x_coords_metres, tornado_y_coords_metres = basemap_object(
-        tornado_longitudes_deg, tornado_latitudes_deg)
+        tornado_table[tornado_io.START_LNG_COLUMN].values,
+        tornado_table[tornado_io.START_LAT_COLUMN].values
+    )
 
     for j in range(num_tornadoes):
         axes_object.plot(
@@ -353,87 +489,17 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
 
         axes_object.text(
             tornado_x_coords_metres[j], tornado_y_coords_metres[j],
-            tornado_id_strings[j], fontsize=FONT_SIZE, color='k',
-            horizontalalignment='left', verticalalignment='top')
+            tornado_table[TORNADO_ID_COLUMN].values[j], fontsize=FONT_SIZE,
+            color='k', horizontalalignment='left', verticalalignment='top')
 
     print('Plotting tornado IDs with storm objects...')
     num_storm_objects = len(storm_to_tornadoes_table.index)
 
     for i in range(num_storm_objects):
-
-        # TODO(thunderhoser): Put this in a method.
-        these_relative_times_sec = storm_to_tornadoes_table[
-            linkage.RELATIVE_EVENT_TIMES_COLUMN].values[i]
-
-        these_event_indices = numpy.where(
-            these_relative_times_sec <= MAX_LINK_TIME_SECONDS
-        )[0]
-        these_relative_times_sec = these_relative_times_sec[these_event_indices]
-
-        this_num_tornadoes = len(these_relative_times_sec)
-        if this_num_tornadoes == 0:
-            continue
-
-        these_latitudes_deg = storm_to_tornadoes_table[
-            linkage.EVENT_LATITUDES_COLUMN].values[i][these_event_indices]
-
-        these_longitudes_deg = storm_to_tornadoes_table[
-            linkage.EVENT_LONGITUDES_COLUMN].values[i][these_event_indices]
-
-        these_tornado_id_strings = []
-
-        for j in range(this_num_tornadoes):
-            this_time_unix_sec = (
-                storm_to_tornadoes_table[
-                    tracking_utils.VALID_TIME_COLUMN].values[i] +
-                these_relative_times_sec[j]
-            )
-
-            these_indices = numpy.where(
-                tornado_times_unix_sec == this_time_unix_sec
-            )[0]
-
-            these_latitude_diffs_deg = numpy.absolute(
-                these_latitudes_deg[j] - tornado_latitudes_deg[these_indices]
-            )
-            these_longitude_diffs_deg = numpy.absolute(
-                these_longitudes_deg[j] - tornado_longitudes_deg[these_indices]
-            )
-
-            these_subindices = numpy.where(numpy.logical_and(
-                these_latitude_diffs_deg <= 0.001,
-                these_longitude_diffs_deg <= 0.001
-            ))[0]
-
-            these_indices = these_indices[these_subindices]
-
-            # TODO(thunderhoser): This is a HACK.
-            if len(these_indices) == 0:
-                continue
-
-            these_tornado_id_strings.append(
-                tornado_id_strings[these_indices[0]]
-            )
-
-        this_x_metres, this_y_metres = basemap_object(
-            storm_to_tornadoes_table[
-                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i],
-            storm_to_tornadoes_table[
-                tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
-        )
-
-        axes_object.plot(
-            this_x_metres, this_y_metres, linestyle='None',
-            marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE / 3,
-            markeredgewidth=TORNADO_MARKER_EDGE_WIDTH / 3,
-            markerfacecolor='k', markeredgecolor='k')
-
-        this_label_string = ','.join(these_tornado_id_strings)
-        print(this_label_string)
-        axes_object.text(
-            this_x_metres, this_y_metres, this_label_string,
-            fontsize=FONT_SIZE, color='k',
-            horizontalalignment='left', verticalalignment='top')
+        _plot_linkages_one_storm_object(
+            storm_to_tornadoes_table=storm_to_tornadoes_table,
+            storm_object_index=i, tornado_table=tornado_table,
+            axes_object=axes_object, basemap_object=basemap_object)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
