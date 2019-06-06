@@ -196,6 +196,21 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
                 tracking_utils.CENTROID_LONGITUDE_COLUMN].values
         ) + LATLNG_BUFFER_DEG
 
+    # TODO(thunderhoser): Should maybe restrict this to an inner domain.
+    storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
+        (storm_to_tornadoes_table[tracking_utils.CENTROID_LATITUDE_COLUMN]
+         >= min_plot_latitude_deg)
+        & (storm_to_tornadoes_table[tracking_utils.CENTROID_LATITUDE_COLUMN]
+           <= max_plot_latitude_deg)
+    ]
+
+    storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
+        (storm_to_tornadoes_table[tracking_utils.CENTROID_LONGITUDE_COLUMN]
+         >= min_plot_longitude_deg)
+        & (storm_to_tornadoes_table[tracking_utils.CENTROID_LONGITUDE_COLUMN]
+           <= max_plot_longitude_deg)
+    ]
+
     # TODO(thunderhoser): Put this in a separate method.
     first_time_unix_sec = -1200 + numpy.min(
         storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
@@ -229,6 +244,20 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
              >= first_time_unix_sec)
             & (this_tornado_table[tornado_io.START_TIME_COLUMN]
                <= last_time_unix_sec)
+        ]
+
+        this_tornado_table = this_tornado_table.loc[
+            (this_tornado_table[tornado_io.START_LAT_COLUMN]
+             >= min_plot_latitude_deg)
+            & (this_tornado_table[tornado_io.START_LAT_COLUMN]
+               <= max_plot_latitude_deg)
+        ]
+
+        this_tornado_table = this_tornado_table.loc[
+            (this_tornado_table[tornado_io.START_LNG_COLUMN]
+             >= min_plot_longitude_deg)
+            & (this_tornado_table[tornado_io.START_LNG_COLUMN]
+               <= max_plot_longitude_deg)
         ]
 
         tornado_latitudes_deg = numpy.concatenate((
