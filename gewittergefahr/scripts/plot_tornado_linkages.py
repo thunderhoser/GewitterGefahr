@@ -366,6 +366,8 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         these_longitudes_deg = storm_to_tornadoes_table[
             linkage.EVENT_LONGITUDES_COLUMN].values[i][these_event_indices]
 
+        these_tornado_id_strings = []
+
         for j in range(this_num_tornadoes):
             this_time_unix_sec = (
                 storm_to_tornadoes_table[
@@ -390,25 +392,22 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
             ))[0]
 
             these_indices = these_indices[these_subindices]
-            these_tornado_id_strings = [
-                tornado_id_strings[k] for k in these_indices
-            ]
-
-            print(these_tornado_id_strings)
-            this_label_string = ','.join(these_tornado_id_strings)
-            print(this_label_string)
-
-            this_x_metres, this_y_metres = basemap_object(
-                storm_to_tornadoes_table[
-                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i],
-                storm_to_tornadoes_table[
-                    tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
+            these_tornado_id_strings.append(
+                tornado_id_strings[these_indices[0]]
             )
 
-            axes_object.text(
-                this_x_metres, this_y_metres, this_label_string,
-                fontsize=FONT_SIZE, color='k',
-                horizontalalignment='left', verticalalignment='top')
+        this_x_metres, this_y_metres = basemap_object(
+            storm_to_tornadoes_table[
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i],
+            storm_to_tornadoes_table[
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
+        )
+
+        this_label_string = ','.join(these_tornado_id_strings)
+        axes_object.text(
+            this_x_metres, this_y_metres, this_label_string,
+            fontsize=FONT_SIZE, color='k',
+            horizontalalignment='left', verticalalignment='top')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
