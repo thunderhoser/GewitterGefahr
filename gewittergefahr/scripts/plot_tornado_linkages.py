@@ -394,6 +394,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
                 tornado_id_strings[k] for k in these_indices
             ]
 
+            print(these_tornado_id_strings)
             this_label_string = ','.join(these_tornado_id_strings)
             print(this_label_string)
 
