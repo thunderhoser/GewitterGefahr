@@ -4,9 +4,13 @@ import copy
 import unittest
 import numpy
 import pandas
+from gewittergefahr.gg_io import tornado_io
 from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import linkage
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
+
+# TODO(thunderhoser): Add unit tests for tornado occurrence, as opposed to
+# tornadogenesis.
 
 TOLERANCE = 1e-6
 LARGE_INTEGER = int(1e10)
@@ -377,6 +381,11 @@ NEAREST_SECONDARY_ID_STRINGS = [
     None, 'B4', None, 'B2', None, 'B4', None, 'B3'
 ]
 
+NEAREST_STORM_TIMES_UNIX_SEC = numpy.array([
+    -1, 3, -1, 3, -1, 3, -1, 3,
+    -1, 7, -1, 7, -1, 7, -1, 7
+], dtype=int)
+
 LINKAGE_DISTANCES_METRES = numpy.array([
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
@@ -386,6 +395,7 @@ LINKAGE_DISTANCES_METRES = numpy.array([
 
 EVENT_TO_STORM_TABLE_SIMPLE = EVENT_TABLE_2TIMES.assign(**{
     linkage.NEAREST_SECONDARY_ID_COLUMN: NEAREST_SECONDARY_ID_STRINGS,
+    linkage.NEAREST_TIME_COLUMN: NEAREST_STORM_TIMES_UNIX_SEC,
     linkage.LINKAGE_DISTANCE_COLUMN: LINKAGE_DISTANCES_METRES
 })
 
@@ -687,6 +697,87 @@ STORM_OBJECT_TABLE_SANS_PERIOD_START = pandas.DataFrame.from_dict({
     tracking_utils.TRACKING_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC
 })
 
+# The following constants are used to test _create_tornado_id.
+TORNADO_START_TIME_UNIX_SEC = 1559857972  # 215252 UTC 6 Jun 2019
+TORNADO_START_LATITUDE_DEG = 53.526196
+TORNADO_START_LONGITUDE_DEG = 246.479111
+
+TORNADO_ID_STRING = '2019-06-06-215252_53.526N_246.479E'
+
+# The following constants are used to test _interp_tornadoes_along_tracks.
+THESE_START_TIMES_UNIX_SEC = numpy.array([0, 10, 20, 30, 40, 50], dtype=int)
+THESE_END_TIMES_UNIX_SEC = numpy.array([20, 40, 20, 80, 100, 120], dtype=int)
+
+THESE_START_LATITUDES_DEG = numpy.array([53.5, 53.5, 53.5, 53.5, 53.5, 53.5])
+THESE_END_LATITUDES_DEG = numpy.array([54.5, 52.5, 53.5, 53.5, 53.5, 52.5])
+
+THESE_START_LONGITUDES_DEG = numpy.array(
+    [246.5, 246.5, 246.5, 246.5, 246.5, 246.5]
+)
+THESE_END_LONGITUDES_DEG = numpy.array(
+    [247.5, 245.5, 246.5, 246.5, 247.5, 246.5]
+)
+
+TORNADO_TABLE_BEFORE_INTERP = pandas.DataFrame.from_dict({
+    tornado_io.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
+    tornado_io.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
+    tornado_io.START_LAT_COLUMN: THESE_START_LATITUDES_DEG,
+    tornado_io.END_LAT_COLUMN: THESE_END_LATITUDES_DEG,
+    tornado_io.START_LNG_COLUMN: THESE_START_LONGITUDES_DEG,
+    tornado_io.END_LNG_COLUMN: THESE_END_LONGITUDES_DEG
+})
+
+TORNADO_INTERP_TIME_RES_SEC = 10
+
+THESE_TIMES_UNIX_SEC = numpy.array([
+    0, 10, 20,
+    10, 20, 30, 40,
+    20,
+    30, 40, 50, 60, 70, 80,
+    40, 50, 60, 70, 80, 90, 100,
+    50, 60, 70, 80, 90, 100, 110, 120
+], dtype=int)
+
+THESE_LATITUDES_DEG = numpy.array([
+    53.5, 54, 54.5,
+    53.5, 53 + 1. / 6, 53 - 1. / 6, 52.5,
+    53.5,
+    53.5, 53.5, 53.5, 53.5, 53.5, 53.5,
+    53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 53.5,
+    53.5, 53.5 - 1. / 7, 53.5 - 2. / 7, 53.5 - 3. / 7,
+    53.5 - 4. / 7, 53.5 - 5. / 7, 53.5 - 6. / 7, 52.5
+])
+
+THESE_LONGITUDES_DEG = numpy.array([
+    246.5, 247, 247.5,
+    246.5, 246 + 1. / 6, 246 - 1. / 6, 245.5,
+    246.5,
+    246.5, 246.5, 246.5, 246.5, 246.5, 246.5,
+    246.5, 246 + 4. / 6, 246 + 5. / 6, 247, 247 + 1. / 6, 247 + 2. / 6, 247.5,
+    246.5, 246.5, 246.5, 246.5, 246.5, 246.5, 246.5, 246.5
+])
+
+THESE_UNIQUE_ID_STRINGS = [
+    linkage._create_tornado_id(
+        start_time_unix_sec=t, start_latitude_deg=y, start_longitude_deg=x
+    ) for t, x, y in
+    zip(THESE_START_TIMES_UNIX_SEC, THESE_START_LONGITUDES_DEG,
+        THESE_START_LATITUDES_DEG)
+]
+
+THESE_ID_STRINGS = (
+    [THESE_UNIQUE_ID_STRINGS[0]] * 3 + [THESE_UNIQUE_ID_STRINGS[1]] * 4 +
+    [THESE_UNIQUE_ID_STRINGS[2]] * 1 + [THESE_UNIQUE_ID_STRINGS[3]] * 6 +
+    [THESE_UNIQUE_ID_STRINGS[4]] * 7 + [THESE_UNIQUE_ID_STRINGS[5]] * 8
+)
+
+TORNADO_TABLE_AFTER_INTERP = pandas.DataFrame.from_dict({
+    linkage.EVENT_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    linkage.EVENT_LATITUDE_COLUMN: THESE_LATITUDES_DEG,
+    linkage.EVENT_LONGITUDE_COLUMN: THESE_LONGITUDES_DEG,
+    linkage.TORNADO_ID_COLUMN: THESE_ID_STRINGS
+})
+
 # The following constants are used to test find_linkage_file.
 TOP_DIRECTORY_NAME = 'linkage'
 FILE_TIME_UNIX_SEC = 1517523991  # 222631 1 Feb 2018
@@ -967,6 +1058,11 @@ class LinkageTests(unittest.TestCase):
             NEAREST_SECONDARY_ID_STRINGS
         )
 
+        self.assertTrue(numpy.array_equal(
+            this_wind_to_storm_table[linkage.NEAREST_TIME_COLUMN].values,
+            NEAREST_STORM_TIMES_UNIX_SEC
+        ))
+
         self.assertTrue(numpy.allclose(
             this_wind_to_storm_table[linkage.LINKAGE_DISTANCE_COLUMN].values,
             LINKAGE_DISTANCES_METRES, equal_nan=True, atol=TOLERANCE
@@ -1042,6 +1138,45 @@ class LinkageTests(unittest.TestCase):
         self.assertTrue(_compare_storm_to_events_tables(
             this_late_table, LATE_STORM_TO_WINDS_TABLE
         ))
+
+    def test_create_tornado_id(self):
+        """Ensures correct output from _create_tornado_id."""
+
+        this_id_string = linkage._create_tornado_id(
+            start_time_unix_sec=TORNADO_START_TIME_UNIX_SEC,
+            start_latitude_deg=TORNADO_START_LATITUDE_DEG,
+            start_longitude_deg=TORNADO_START_LONGITUDE_DEG)
+
+        self.assertTrue(this_id_string == TORNADO_ID_STRING)
+
+    def test_interp_tornadoes_along_tracks(self):
+        """Ensures correct output from _interp_tornadoes_along_tracks."""
+
+        this_tornado_table = linkage._interp_tornadoes_along_tracks(
+            tornado_table=copy.deepcopy(TORNADO_TABLE_BEFORE_INTERP),
+            interp_time_resolution_sec=TORNADO_INTERP_TIME_RES_SEC)
+
+        actual_columns = list(this_tornado_table)
+        expected_columns = list(TORNADO_TABLE_AFTER_INTERP)
+        self.assertTrue(set(actual_columns) == set(expected_columns))
+
+        actual_num_events = len(this_tornado_table.index)
+        expected_num_events = len(TORNADO_TABLE_AFTER_INTERP.index)
+        self.assertTrue(actual_num_events == expected_num_events)
+
+        for this_column in expected_columns:
+            if this_column in [linkage.EVENT_TIME_COLUMN,
+                               linkage.TORNADO_ID_COLUMN]:
+                self.assertTrue(numpy.array_equal(
+                    this_tornado_table[this_column].values,
+                    TORNADO_TABLE_AFTER_INTERP[this_column].values
+                ))
+            else:
+                self.assertTrue(numpy.allclose(
+                    this_tornado_table[this_column].values,
+                    TORNADO_TABLE_AFTER_INTERP[this_column].values,
+                    atol=TOLERANCE
+                ))
 
     def test_find_linkage_file_wind_one_time(self):
         """Ensures correct output from find_linkage_file.
