@@ -19,6 +19,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 SENTINEL_VALUE = -9999
 
+FONT_SIZE = 20
 TORNADO_MARKER_TYPE = 'o'
 TORNADO_MARKER_SIZE = 10
 TORNADO_MARKER_EDGE_WIDTH = 1
@@ -195,10 +196,10 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         ) + LATLNG_BUFFER_DEG
 
     # TODO(thunderhoser): Put this in a separate method.
-    first_time_unix_sec = numpy.min(
+    first_time_unix_sec = -1200 + numpy.min(
         storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
     )
-    last_time_unix_sec = numpy.max(
+    last_time_unix_sec = 1200 + numpy.max(
         storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
     )
 
@@ -211,6 +212,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
 
     tornado_latitudes_deg = numpy.array([])
     tornado_longitudes_deg = numpy.array([])
+    tornado_times_unix_sec = numpy.array([], dtype=int)
 
     for this_year in range(first_year, last_year + 1):
         this_file_name = tornado_io.find_processed_file(
@@ -237,6 +239,14 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
             tornado_longitudes_deg,
             this_tornado_table[tornado_io.START_LNG_COLUMN].values
         ))
+
+        tornado_times_unix_sec = numpy.concatenate((
+            tornado_times_unix_sec,
+            this_tornado_table[tornado_io.START_TIME_COLUMN].values
+        ))
+
+    num_tornadoes = len(tornado_latitudes_deg)
+    tornado_id_strings = [str(k) for k in range(num_tornadoes)]
 
     _, axes_object, basemap_object = (
         plotting_utils.create_equidist_cylindrical_map(
@@ -271,19 +281,91 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         basemap_object=basemap_object, colour_map_object='random',
         start_marker_type=None, end_marker_type=None)
 
-    if len(tornado_latitudes_deg) > 0:
-        tornado_x_coords_metres, tornado_y_coords_metres = basemap_object(
-            tornado_longitudes_deg, tornado_latitudes_deg)
+    if num_tornadoes == 0:
+        print('Saving figure to: "{0:s}"...'.format(output_file_name))
+        pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
 
-        axes_object.plot(
-            tornado_x_coords_metres, tornado_y_coords_metres, linestyle='None',
-            marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
-            markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
-            markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
-                TORNADO_MARKER_COLOUR),
-            markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
-                TORNADO_MARKER_COLOUR)
-        )
+        pyplot.close()
+        return
+
+    tornado_x_coords_metres, tornado_y_coords_metres = basemap_object(
+        tornado_longitudes_deg, tornado_latitudes_deg)
+
+    axes_object.plot(
+        tornado_x_coords_metres, tornado_y_coords_metres, linestyle='None',
+        marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
+        markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
+        markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
+            TORNADO_MARKER_COLOUR),
+        markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
+            TORNADO_MARKER_COLOUR)
+    )
+
+    for j in range(num_tornadoes):
+        axes_object.text(
+            tornado_x_coords_metres[j], tornado_y_coords_metres[j],
+            tornado_id_strings[j], fontsize=FONT_SIZE, fontweight='bold',
+            color='k', horizontalalignment='left', verticalalignment='top')
+
+    num_storm_objects = len(storm_to_tornadoes_table.index)
+
+    for i in range(num_storm_objects):
+
+        # TODO(thunderhoser): Put this in a method.
+        these_relative_times_sec = storm_to_tornadoes_table[
+            linkage.RELATIVE_EVENT_TIMES_COLUMN].values[i]
+
+        this_num_tornadoes = len(these_relative_times_sec)
+        if len(these_relative_times_sec) == 0:
+            continue
+
+        these_latitudes_deg = storm_to_tornadoes_table[
+            linkage.EVENT_LATITUDES_COLUMN].values[i]
+
+        these_longitudes_deg = storm_to_tornadoes_table[
+            linkage.EVENT_LONGITUDES_COLUMN].values[i]
+
+        for j in range(this_num_tornadoes):
+            this_time_unix_sec = (
+                storm_to_tornadoes_table[
+                    tracking_utils.VALID_TIME_COLUMN].values[i] +
+                these_relative_times_sec[j]
+            )
+
+            these_indices = numpy.where(
+                tornado_times_unix_sec == this_time_unix_sec
+            )[0]
+
+            these_latitude_diffs_deg = numpy.absolute(
+                these_latitudes_deg[j] - tornado_latitudes_deg[these_indices]
+            )
+            these_longitude_diffs_deg = numpy.absolute(
+                these_longitudes_deg[j] - tornado_longitudes_deg[these_indices]
+            )
+
+            these_subindices = numpy.where(numpy.logical_and(
+                these_latitude_diffs_deg <= 0.001,
+                these_longitude_diffs_deg <= 0.001
+            ))[0]
+
+            these_indices = these_indices[these_subindices]
+            these_tornado_id_strings = [
+                tornado_id_strings[k] for k in these_indices
+            ]
+
+            this_label_string = ','.join(these_tornado_id_strings)
+
+            this_x_metres, this_y_metres = basemap_object(
+                storm_to_tornadoes_table[
+                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values[i],
+                storm_to_tornadoes_table[
+                    tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
+            )
+
+            axes_object.text(
+                this_x_metres, this_y_metres, this_label_string,
+                fontsize=FONT_SIZE, fontweight='bold', color='k',
+                horizontalalignment='left', verticalalignment='top')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
