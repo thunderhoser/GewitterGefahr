@@ -276,6 +276,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         basemap_object=basemap_object, axes_object=axes_object,
         num_meridians=NUM_MERIDIANS)
 
+    print('Plotting storm tracks...')
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_to_tornadoes_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object='random',
@@ -288,6 +289,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         pyplot.close()
         return
 
+    print('Plotting tornado markers...')
     tornado_x_coords_metres, tornado_y_coords_metres = basemap_object(
         tornado_longitudes_deg, tornado_latitudes_deg)
 
@@ -301,12 +303,14 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
             TORNADO_MARKER_COLOUR)
     )
 
+    print('Plotting tornado ID with each report...')
     for j in range(num_tornadoes):
         axes_object.text(
             tornado_x_coords_metres[j], tornado_y_coords_metres[j],
             tornado_id_strings[j], fontsize=FONT_SIZE, fontweight='bold',
             color='k', horizontalalignment='left', verticalalignment='top')
 
+    print('Plotting tornado IDs with storm objects...')
     num_storm_objects = len(storm_to_tornadoes_table.index)
 
     for i in range(num_storm_objects):
