@@ -412,6 +412,8 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         max_plot_longitude_deg=max_plot_longitude_deg,
         storm_to_tornadoes_table=storm_to_tornadoes_table)
 
+    print(SEPARATOR_STRING)
+
     _, axes_object, basemap_object = (
         plotting_utils.create_equidist_cylindrical_map(
             min_latitude_deg=min_plot_latitude_deg,
@@ -489,7 +491,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         axes_object.text(
             tornado_x_coords_metres[j], tornado_y_coords_metres[j],
             tornado_table[TORNADO_ID_COLUMN].values[j], fontsize=FONT_SIZE,
-            color='k', horizontalalignment='center', verticalalignment='middle')
+            color='k', horizontalalignment='center', verticalalignment='center')
 
     print('Plotting tornado IDs with storm objects...')
     num_storm_objects = len(storm_to_tornadoes_table.index)
