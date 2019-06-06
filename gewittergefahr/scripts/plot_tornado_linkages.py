@@ -21,6 +21,8 @@ SENTINEL_VALUE = -9999
 MAX_LINK_TIME_SECONDS = 3600
 
 FONT_SIZE = 12
+COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
+
 TORNADO_MARKER_TYPE = 'o'
 TORNADO_MARKER_SIZE = 10
 TORNADO_MARKER_EDGE_WIDTH = 1
@@ -309,7 +311,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
     print('Plotting storm tracks...')
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_to_tornadoes_table, axes_object=axes_object,
-        basemap_object=basemap_object, colour_map_object='random',
+        basemap_object=basemap_object, colour_map_object=COLOUR_MAP_OBJECT,
         start_marker_type=None, end_marker_type=None)
 
     if num_tornadoes == 0:
@@ -319,22 +321,31 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         pyplot.close()
         return
 
+    colour_norm_object = pyplot.Normalize(
+        first_time_unix_sec, last_time_unix_sec)
+
+    tornado_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
+        tornado_times_unix_sec
+    ))
+
     print('Plotting tornado markers...')
     tornado_x_coords_metres, tornado_y_coords_metres = basemap_object(
         tornado_longitudes_deg, tornado_latitudes_deg)
 
-    axes_object.plot(
-        tornado_x_coords_metres, tornado_y_coords_metres, linestyle='None',
-        marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
-        markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
-        markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
-            TORNADO_MARKER_COLOUR),
-        markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
-            TORNADO_MARKER_COLOUR)
-    )
-
-    print('Plotting tornado ID with each report...')
     for j in range(num_tornadoes):
+        axes_object.plot(
+            tornado_x_coords_metres[j], tornado_y_coords_metres[j],
+            linestyle='None',
+            marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
+            markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
+            markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
+                tornado_colour_matrix[j, :-1]
+            ),
+            markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
+                tornado_colour_matrix[j, :-1]
+            )
+        )
+
         axes_object.text(
             tornado_x_coords_metres[j], tornado_y_coords_metres[j],
             tornado_id_strings[j], fontsize=FONT_SIZE, color='k',
