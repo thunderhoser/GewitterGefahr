@@ -1810,7 +1810,7 @@ def link_storms_to_winds(
             storm_object_table=storm_object_table, event_table=wind_table,
             max_time_before_storm_start_sec=max_time_before_storm_start_sec,
             max_time_after_storm_end_sec=max_time_after_storm_end_sec,
-            interp_time_interval_sec=interp_time_interval_sec,
+            interp_time_interval_sec=storm_interp_time_interval_sec,
             max_link_distance_metres=max_link_distance_metres)
         print(SEPARATOR_STRING)
 

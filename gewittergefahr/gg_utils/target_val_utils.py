@@ -232,7 +232,7 @@ def target_params_to_name(
             if wind_speed_cutoffs_kt is None
             else WIND_SPEED_CLASSIFN_PREFIX
         )
-        
+
         target_name += '_percentile={0:05.1f}'.format(
             wind_speed_percentile_level)
     else:
@@ -271,7 +271,7 @@ def target_name_to_params(target_name):
     """
 
     target_name_parts = target_name.split('_')
-    
+
     # Determine event type and learning goal (regression or classification).
     if target_name_parts[0] == WIND_SPEED_REGRESSION_PREFIX:
         goal_string = REGRESSION_STRING
@@ -397,7 +397,7 @@ def target_name_to_num_classes(target_name, include_dead_storms=False):
 
     target_param_dict = target_name_to_params(target_name)
     if target_param_dict[EVENT_TYPE_KEY] in [
-        linkage.TORNADO_EVENT_STRING, linkage.TORNADOGENESIS_EVENT_STRING
+            linkage.TORNADO_EVENT_STRING, linkage.TORNADOGENESIS_EVENT_STRING
     ]:
         return 2
 
@@ -477,7 +477,7 @@ def create_wind_regression_targets(
         these_good_indices = numpy.where(numpy.logical_and(
             these_good_time_flags, these_good_distance_flags
         ))[0]
-        
+
         if len(these_good_indices == 0):
             # labels_m_s01[i] = 0.
             labels_m_s01[i] = INVALID_STORM_INTEGER
