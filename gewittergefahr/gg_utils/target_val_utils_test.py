@@ -57,6 +57,9 @@ WIND_CLASSIFICATION_NAME = (
 TORNADO_TARGET_NAME = (
     'tornado_lead-time=0900-3600sec_distance=00001-05000m'
 )
+TORNADOGENESIS_TARGET_NAME = (
+    'tornadogenesis_lead-time=0900-3600sec_distance=00001-05000m'
+)
 WIND_CLASSIFICATION_NAME_0LEAD = (
     'wind-speed_percentile=097.5_lead-time=0000-3600sec_distance=00001-05000m'
     '_cutoffs=10-20-30-40-50kt'
@@ -91,6 +94,16 @@ TORNADO_PARAM_DICT = {
     target_val_utils.PERCENTILE_LEVEL_KEY: None,
     target_val_utils.WIND_SPEED_CUTOFFS_KEY: None,
     target_val_utils.EVENT_TYPE_KEY: linkage.TORNADO_EVENT_STRING
+}
+
+TORNADOGENESIS_PARAM_DICT = {
+    target_val_utils.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
+    target_val_utils.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
+    target_val_utils.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
+    target_val_utils.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    target_val_utils.PERCENTILE_LEVEL_KEY: None,
+    target_val_utils.WIND_SPEED_CUTOFFS_KEY: None,
+    target_val_utils.EVENT_TYPE_KEY: linkage.TORNADOGENESIS_EVENT_STRING
 }
 
 WIND_CLASSIFICATION_PARAM_DICT_0LEAD = {
@@ -141,13 +154,22 @@ THIS_DICT = {
 
 STORM_TO_TORNADOES_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
-TARGET_NAME = target_val_utils.target_params_to_name(
+MAIN_TORNADO_TARGET_NAME = target_val_utils.target_params_to_name(
     min_lead_time_sec=MIN_LEAD_TIME_SEC, max_lead_time_sec=MAX_LEAD_TIME_SEC,
     min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
-    max_link_distance_metres=MAX_LINK_DISTANCE_METRES)
+    max_link_distance_metres=MAX_LINK_DISTANCE_METRES, genesis_only=False)
 
 INVALID_STORM_INTEGER = target_val_utils.INVALID_STORM_INTEGER
-TARGET_VALUES = numpy.array(
+MAIN_TORNADO_TARGET_VALUES = numpy.array(
+    [1, 0, INVALID_STORM_INTEGER, 1, INVALID_STORM_INTEGER], dtype=int
+)
+
+MAIN_TORNADOGENESIS_TARGET_NAME = target_val_utils.target_params_to_name(
+    min_lead_time_sec=MIN_LEAD_TIME_SEC, max_lead_time_sec=MAX_LEAD_TIME_SEC,
+    min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
+    max_link_distance_metres=MAX_LINK_DISTANCE_METRES, genesis_only=True)
+
+MAIN_TORNADOGENESIS_TARGET_VALUES = numpy.array(
     [1, 0, INVALID_STORM_INTEGER, 1, INVALID_STORM_INTEGER], dtype=int
 )
 
@@ -262,6 +284,36 @@ class TargetValUtilsTests(unittest.TestCase):
 
         self.assertTrue(this_target_name == WIND_CLASSIFICATION_NAME)
 
+    def test_target_params_to_name_tornado(self):
+        """Ensures correct output from target_params_to_name.
+
+        In this case, target variable is based on tornado occurrence.
+        """
+
+        this_target_name = target_val_utils.target_params_to_name(
+            min_lead_time_sec=MIN_LEAD_TIME_SEC,
+            max_lead_time_sec=MAX_LEAD_TIME_SEC,
+            min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+            genesis_only=False)
+
+        self.assertTrue(this_target_name == TORNADO_TARGET_NAME)
+
+    def test_target_params_to_name_tornadogenesis(self):
+        """Ensures correct output from target_params_to_name.
+
+        In this case, target variable is based on tornadogenesis.
+        """
+
+        this_target_name = target_val_utils.target_params_to_name(
+            min_lead_time_sec=MIN_LEAD_TIME_SEC,
+            max_lead_time_sec=MAX_LEAD_TIME_SEC,
+            min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+            genesis_only=True)
+
+        self.assertTrue(this_target_name == TORNADOGENESIS_TARGET_NAME)
+
     def test_target_params_to_name_wind_classifn_0lead(self):
         """Ensures correct output from target_params_to_name.
 
@@ -278,20 +330,6 @@ class TargetValUtilsTests(unittest.TestCase):
             wind_speed_cutoffs_kt=WIND_SPEED_CUTOFFS_KT)
 
         self.assertTrue(this_target_name == WIND_CLASSIFICATION_NAME_0LEAD)
-
-    def test_target_params_to_name_tornado(self):
-        """Ensures correct output from target_params_to_name.
-
-        In this case, target variable is based on tornado occurrence.
-        """
-
-        this_target_name = target_val_utils.target_params_to_name(
-            min_lead_time_sec=MIN_LEAD_TIME_SEC,
-            max_lead_time_sec=MAX_LEAD_TIME_SEC,
-            min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
-            max_link_distance_metres=MAX_LINK_DISTANCE_METRES)
-
-        self.assertTrue(this_target_name == TORNADO_TARGET_NAME)
 
     def test_target_name_to_params_wind_regression(self):
         """Ensures correct output from target_name_to_params.
@@ -318,6 +356,31 @@ class TargetValUtilsTests(unittest.TestCase):
             this_dict, WIND_CLASSIFICATION_PARAM_DICT
         ))
 
+    def test_target_name_to_params_tornado(self):
+        """Ensures correct output from target_name_to_params.
+
+        In this case, target variable is based on tornado occurrence.
+        """
+
+        this_dict = target_val_utils.target_name_to_params(TORNADO_TARGET_NAME)
+
+        self.assertTrue(_compare_target_param_dicts(
+            this_dict, TORNADO_PARAM_DICT
+        ))
+
+    def test_target_name_to_params_tornadogenesis(self):
+        """Ensures correct output from target_name_to_params.
+
+        In this case, target variable is based on tornadogenesis.
+        """
+
+        this_dict = target_val_utils.target_name_to_params(
+            TORNADOGENESIS_TARGET_NAME)
+
+        self.assertTrue(_compare_target_param_dicts(
+            this_dict, TORNADOGENESIS_PARAM_DICT
+        ))
+
     def test_target_name_to_params_wind_classifn_0lead(self):
         """Ensures correct output from target_name_to_params.
 
@@ -332,30 +395,46 @@ class TargetValUtilsTests(unittest.TestCase):
             this_dict, WIND_CLASSIFICATION_PARAM_DICT_0LEAD
         ))
 
-    def test_target_name_to_params_tornado(self):
-        """Ensures correct output from target_name_to_params.
+    def test_create_tornado_targets_occurrence(self):
+        """Ensures correct output from create_tornado_targets.
 
-        In this case, target variable is based on tornado occurrence.
+        In this case, target value is based on tornado occurrence, not only on
+        tornadogenesis.
         """
-
-        this_dict = target_val_utils.target_name_to_params(TORNADO_TARGET_NAME)
-
-        self.assertTrue(_compare_target_param_dicts(
-            this_dict, TORNADO_PARAM_DICT
-        ))
-
-    def test_create_tornado_targets(self):
-        """Ensures correct output from create_tornado_targets."""
 
         this_storm_to_tornadoes_table = target_val_utils.create_tornado_targets(
             storm_to_tornadoes_table=copy.deepcopy(STORM_TO_TORNADOES_TABLE),
             min_lead_time_sec=MIN_LEAD_TIME_SEC,
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
-            max_link_distance_metres=MAX_LINK_DISTANCE_METRES)
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+            genesis_only=False)
 
-        these_target_values = this_storm_to_tornadoes_table[TARGET_NAME].values
-        self.assertTrue(numpy.array_equal(these_target_values, TARGET_VALUES))
+        self.assertTrue(numpy.array_equal(
+            this_storm_to_tornadoes_table[MAIN_TORNADO_TARGET_NAME].values,
+            MAIN_TORNADO_TARGET_VALUES
+        ))
+
+    def test_create_tornado_targets_genesis(self):
+        """Ensures correct output from create_tornado_targets.
+
+        In this case, target value is based on tornadogenesis only, not
+        occurrence.
+        """
+
+        this_storm_to_tornadoes_table = target_val_utils.create_tornado_targets(
+            storm_to_tornadoes_table=copy.deepcopy(STORM_TO_TORNADOES_TABLE),
+            min_lead_time_sec=MIN_LEAD_TIME_SEC,
+            max_lead_time_sec=MAX_LEAD_TIME_SEC,
+            min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+            genesis_only=True)
+
+        self.assertTrue(numpy.array_equal(
+            this_storm_to_tornadoes_table[
+                MAIN_TORNADOGENESIS_TARGET_NAME].values,
+            MAIN_TORNADOGENESIS_TARGET_VALUES
+        ))
 
     def test_find_target_file_wind_one_time(self):
         """Ensures correct output from find_target_file.

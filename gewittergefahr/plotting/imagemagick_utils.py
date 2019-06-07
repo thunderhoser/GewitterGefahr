@@ -90,6 +90,8 @@ def concatenate_images(
     command_string += ' -trim -bordercolor White -border {0:d} "{1:s}"'.format(
         border_width_pixels, output_file_name)
 
+    print(command_string)
+
     exit_code = os.system(command_string)
     if exit_code == 0:
         return

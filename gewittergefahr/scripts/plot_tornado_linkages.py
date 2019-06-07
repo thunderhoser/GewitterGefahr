@@ -15,6 +15,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import storm_plotting
 
+# TODO(thunderhoser): Allow events to be tornado occurrence, not just genesis.
+
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -26,7 +28,7 @@ FONT_SIZE = 12
 COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
 
 TORNADO_MARKER_TYPE = 'o'
-TORNADO_MARKER_SIZE = 10
+TORNADO_MARKER_SIZE = 16
 TORNADO_MARKER_EDGE_WIDTH = 1
 
 NUM_PARALLELS = 8

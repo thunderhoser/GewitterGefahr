@@ -154,6 +154,9 @@ def plot_tornado_linkages(
         accepted by `matplotlib.colors`).
     """
 
+    # TODO(thunderhoser): Use tornado IDs, so that I am not plotting multiple
+    # points for each tornado.
+
     error_checking.assert_is_boolean(plot_times)
 
     unique_primary_id_strings, object_to_cell_indices = numpy.unique(

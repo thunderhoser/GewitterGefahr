@@ -49,8 +49,6 @@ VALID_EVENT_TYPE_STRINGS = [
 DEFAULT_MAX_TIME_BEFORE_STORM_SEC = 300
 DEFAULT_MAX_TIME_AFTER_STORM_SEC = 300
 DEFAULT_BOUNDING_BOX_PADDING_METRES = 1e5
-DEFAULT_INTERP_TIME_RES_FOR_WIND_SEC = 10
-DEFAULT_INTERP_TIME_RES_FOR_TORNADO_SEC = 1
 DEFAULT_MAX_DISTANCE_FOR_WIND_METRES = 30000.
 DEFAULT_MAX_DISTANCE_FOR_TORNADO_METRES = 30000.
 
@@ -127,7 +125,7 @@ REQUIRED_TORNADO_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
 def _check_input_args(
         tracking_file_names, max_time_before_storm_start_sec,
         max_time_after_storm_end_sec, bounding_box_padding_metres,
-        interp_time_resolution_sec, max_link_distance_metres):
+        storm_interp_time_interval_sec, max_link_distance_metres):
     """Error-checks input arguments.
 
     :param tracking_file_names: 1-D list of paths to storm-tracking files
@@ -144,11 +142,11 @@ def _check_input_args(
         means that they cannot be linked to storms.  The purpose of the bounding
         box is to reduce the number of events that must be considered, thus
         reducing computing time.
-    :param interp_time_resolution_sec: Discretization time for interpolation of
-        storm positions.  Storms will be interpolated to each multiple of
-        `interp_time_resolution_sec` between the first and last event times.
-        Setting `interp_time_resolution_sec` > 1 reduces computing time, at the
-        cost of a slight decrease in accuracy.
+    :param storm_interp_time_interval_sec: Discretization time for
+        interpolation of storm positions.  Storms will be interpolated to each
+        multiple of `storm_interp_time_interval_sec` between the first and
+        last event times.  Setting `storm_interp_time_interval_sec` > 1
+        reduces computing time, at the cost of a slight decrease in accuracy.
     :param max_link_distance_metres: Max linkage distance.  If event E is >
         `max_link_distance_metres` from the edge of the nearest storm, it will
         not be linked to any storm.
@@ -164,8 +162,8 @@ def _check_input_args(
     error_checking.assert_is_integer(max_time_after_storm_end_sec)
     error_checking.assert_is_geq(max_time_after_storm_end_sec, 0)
 
-    error_checking.assert_is_integer(interp_time_resolution_sec)
-    error_checking.assert_is_greater(interp_time_resolution_sec, 0)
+    error_checking.assert_is_integer(storm_interp_time_interval_sec)
+    error_checking.assert_is_greater(storm_interp_time_interval_sec, 0)
 
     error_checking.assert_is_geq(max_link_distance_metres, 0.)
     error_checking.assert_is_geq(
@@ -674,7 +672,7 @@ def _find_nearest_storms_one_time(
 
 def _find_nearest_storms(
         storm_object_table, event_table, max_time_before_storm_start_sec,
-        max_time_after_storm_end_sec, interp_time_resolution_sec,
+        max_time_after_storm_end_sec, interp_time_interval_sec,
         max_link_distance_metres):
     """Finds nearest storm to each event.
 
@@ -686,7 +684,7 @@ def _find_nearest_storms(
         `_filter_events_by_bounding_box`.
     :param max_time_before_storm_start_sec: See doc for `_check_input_args`.
     :param max_time_after_storm_end_sec: Same.
-    :param interp_time_resolution_sec: Same.
+    :param interp_time_interval_sec: Same.
     :param max_link_distance_metres: Same.
 
     :return: event_to_storm_table: Same as input argument `event_table`, but
@@ -701,7 +699,7 @@ def _find_nearest_storms(
     """
 
     interp_times_unix_sec = number_rounding.round_to_nearest(
-        event_table[EVENT_TIME_COLUMN].values, interp_time_resolution_sec)
+        event_table[EVENT_TIME_COLUMN].values, interp_time_interval_sec)
     interp_times_unix_sec = numpy.round(interp_times_unix_sec).astype(int)
 
     unique_interp_times_unix_sec, orig_to_unique_indices = numpy.unique(
@@ -1363,12 +1361,12 @@ def _create_tornado_id(start_time_unix_sec, start_latitude_deg,
     )
 
 
-def _interp_tornadoes_along_tracks(tornado_table, interp_time_resolution_sec):
+def _interp_tornadoes_along_tracks(tornado_table, interp_time_interval_sec):
     """Interpolates each tornado to many points along its track.
 
     :param tornado_table: pandas DataFrame returned by
         `tornado_io.read_processed_file`.
-    :param interp_time_resolution_sec: Will interpolate at this time interval
+    :param interp_time_interval_sec: Will interpolate at this time interval
         between start and end points.
     :return: tornado_table: pandas DataFrame with the following columns.
     tornado_table.unix_time_sec: Valid time.
@@ -1392,7 +1390,7 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_resolution_sec):
 
         this_num_query_times = 1 + int(numpy.round(
             float(this_end_time_unix_sec - this_start_time_unix_sec) /
-            interp_time_resolution_sec
+            interp_time_interval_sec
         ))
 
         these_query_times_unix_sec = numpy.linspace(
@@ -1470,7 +1468,7 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_resolution_sec):
 def _read_input_tornado_reports(
         input_directory_name, storm_times_unix_sec,
         max_time_before_storm_start_sec, max_time_after_storm_end_sec,
-        genesis_only=True, interp_time_resolution_sec=60):
+        genesis_only=True, interp_time_interval_sec=None):
     """Reads tornado observations (input to linkage algorithm).
 
     :param input_directory_name: Name of directory with tornado observations.
@@ -1482,7 +1480,7 @@ def _read_input_tornado_reports(
     :param max_time_after_storm_end_sec: Same.
     :param genesis_only: Boolean flag.  If True, will return tornadogenesis
         points only.  If False, will return all points along each tornado track.
-    :param interp_time_resolution_sec: [used only if `genesis_only == False`]
+    :param interp_time_interval_sec: [used only if `genesis_only == False`]
         Time resolution for interpolating tornado location between start and end
         points.
 
@@ -1497,8 +1495,8 @@ def _read_input_tornado_reports(
     error_checking.assert_is_boolean(genesis_only)
 
     if not genesis_only:
-        error_checking.assert_is_integer(interp_time_resolution_sec)
-        error_checking.assert_is_greater(interp_time_resolution_sec, 0)
+        error_checking.assert_is_integer(interp_time_interval_sec)
+        error_checking.assert_is_greater(interp_time_interval_sec, 0)
 
     min_tornado_time_unix_sec = (
         numpy.min(storm_times_unix_sec) - max_time_before_storm_start_sec
@@ -1567,7 +1565,7 @@ def _read_input_tornado_reports(
     else:
         tornado_table = _interp_tornadoes_along_tracks(
             tornado_table=tornado_table,
-            interp_time_resolution_sec=interp_time_resolution_sec)
+            interp_time_interval_sec=interp_time_interval_sec)
 
     bad_time_flags = numpy.invert(numpy.logical_and(
         tornado_table[EVENT_TIME_COLUMN].values >= min_tornado_time_unix_sec,
@@ -1723,7 +1721,7 @@ def link_storms_to_winds(
         max_time_before_storm_start_sec=DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
         max_time_after_storm_end_sec=DEFAULT_MAX_TIME_AFTER_STORM_SEC,
         bounding_box_padding_metres=DEFAULT_BOUNDING_BOX_PADDING_METRES,
-        interp_time_resolution_sec=DEFAULT_INTERP_TIME_RES_FOR_WIND_SEC,
+        storm_interp_time_interval_sec=10,
         max_link_distance_metres=DEFAULT_MAX_DISTANCE_FOR_WIND_METRES):
     """Links each storm cell to zero or more wind observations.
 
@@ -1732,7 +1730,7 @@ def link_storms_to_winds(
     :param max_time_before_storm_start_sec: See doc for `_check_input_args`.
     :param max_time_after_storm_end_sec: Same.
     :param bounding_box_padding_metres: Same.
-    :param interp_time_resolution_sec: Same.
+    :param storm_interp_time_interval_sec: Same.
     :param max_link_distance_metres: Same.
     :return: storm_to_winds_table: pandas DataFrame created by
         `_reverse_wind_linkages`.
@@ -1743,7 +1741,7 @@ def link_storms_to_winds(
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec,
         bounding_box_padding_metres=bounding_box_padding_metres,
-        interp_time_resolution_sec=interp_time_resolution_sec,
+        storm_interp_time_interval_sec=storm_interp_time_interval_sec,
         max_link_distance_metres=max_link_distance_metres)
 
     storm_object_table = _read_input_storm_tracks(tracking_file_names)
@@ -1812,7 +1810,7 @@ def link_storms_to_winds(
             storm_object_table=storm_object_table, event_table=wind_table,
             max_time_before_storm_start_sec=max_time_before_storm_start_sec,
             max_time_after_storm_end_sec=max_time_after_storm_end_sec,
-            interp_time_resolution_sec=interp_time_resolution_sec,
+            interp_time_interval_sec=interp_time_interval_sec,
             max_link_distance_metres=max_link_distance_metres)
         print(SEPARATOR_STRING)
 
@@ -1825,8 +1823,9 @@ def link_storms_to_tornadoes(
         max_time_before_storm_start_sec=DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
         max_time_after_storm_end_sec=DEFAULT_MAX_TIME_AFTER_STORM_SEC,
         bounding_box_padding_metres=DEFAULT_BOUNDING_BOX_PADDING_METRES,
-        interp_time_resolution_sec=DEFAULT_INTERP_TIME_RES_FOR_TORNADO_SEC,
-        max_link_distance_metres=DEFAULT_MAX_DISTANCE_FOR_TORNADO_METRES):
+        storm_interp_time_interval_sec=1,
+        max_link_distance_metres=DEFAULT_MAX_DISTANCE_FOR_TORNADO_METRES,
+        genesis_only=True, tornado_interp_time_interval_sec=60):
     """Links each storm cell to zero or more tornadoes.
 
     :param tracking_file_names: See doc for `_check_input_args`.
@@ -1834,8 +1833,10 @@ def link_storms_to_tornadoes(
     :param max_time_before_storm_start_sec: See doc for `_check_input_args`.
     :param max_time_after_storm_end_sec: Same.
     :param bounding_box_padding_metres: Same.
-    :param interp_time_resolution_sec: Same.
+    :param storm_interp_time_interval_sec: Same.
     :param max_link_distance_metres: Same.
+    :param genesis_only: See doc for `_read_input_tornado_reports`.
+    :param tornado_interp_time_interval_sec: Same.
     :return: storm_to_tornadoes_table: pandas DataFrame created by
         `_reverse_tornado_linkages`.
     """
@@ -1845,7 +1846,7 @@ def link_storms_to_tornadoes(
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec,
         bounding_box_padding_metres=bounding_box_padding_metres,
-        interp_time_resolution_sec=interp_time_resolution_sec,
+        storm_interp_time_interval_sec=storm_interp_time_interval_sec,
         max_link_distance_metres=max_link_distance_metres)
 
     storm_object_table = _read_input_storm_tracks(tracking_file_names)
@@ -1870,7 +1871,10 @@ def link_storms_to_tornadoes(
         input_directory_name=tornado_directory_name,
         storm_times_unix_sec=these_times_unix_sec,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
-        max_time_after_storm_end_sec=max_time_after_storm_end_sec)
+        max_time_after_storm_end_sec=max_time_after_storm_end_sec,
+        genesis_only=genesis_only,
+        interp_time_interval_sec=tornado_interp_time_interval_sec)
+
     print(SEPARATOR_STRING)
 
     if num_storm_objects == 0:
@@ -1914,7 +1918,7 @@ def link_storms_to_tornadoes(
             storm_object_table=storm_object_table, event_table=tornado_table,
             max_time_before_storm_start_sec=max_time_before_storm_start_sec,
             max_time_after_storm_end_sec=max_time_after_storm_end_sec,
-            interp_time_resolution_sec=interp_time_resolution_sec,
+            interp_time_interval_sec=storm_interp_time_interval_sec,
             max_link_distance_metres=max_link_distance_metres)
         print(SEPARATOR_STRING)
 
