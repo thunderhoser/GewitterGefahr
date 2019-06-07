@@ -86,7 +86,6 @@ STORM_VERTICES_Y_COLUMN = 'vertices_y_metres'
 EVENT_TIME_COLUMN = 'unix_time_sec'
 EVENT_LATITUDE_COLUMN = 'latitude_deg'
 EVENT_LONGITUDE_COLUMN = 'longitude_deg'
-TORNADO_ID_COLUMN = 'tornado_id_string'
 EVENT_X_COLUMN = 'x_coord_metres'
 EVENT_Y_COLUMN = 'y_coord_metres'
 NEAREST_SECONDARY_ID_COLUMN = 'nearest_secondary_id_string'
@@ -748,7 +747,7 @@ def _find_nearest_storms(
                 max_link_distance_metres=max_link_distance_metres)
         )
 
-        if TORNADO_ID_COLUMN not in event_table:
+        if tornado_io.TORNADO_ID_COLUMN not in event_table:
             linkage_distances_metres[these_event_rows] = (
                 these_link_distances_metres
             )
@@ -765,8 +764,10 @@ def _find_nearest_storms(
 
         for j in range(len(these_event_rows)):
             these_same_id_rows = numpy.where(
-                event_table[TORNADO_ID_COLUMN].values ==
-                event_table[TORNADO_ID_COLUMN].values[these_event_rows[j]]
+                event_table[tornado_io.TORNADO_ID_COLUMN].values ==
+                event_table[tornado_io.TORNADO_ID_COLUMN].values[
+                    these_event_rows[j]
+                ]
             )[0]
 
             linkage_distances_metres[these_same_id_rows] = (
@@ -1140,7 +1141,7 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
             )
 
             storm_to_tornadoes_table[TORNADO_IDS_COLUMN].values[j].append(
-                tornado_to_storm_table[TORNADO_ID_COLUMN].values[k]
+                tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values[k]
             )
 
             storm_to_tornadoes_table[LINKAGE_DISTANCES_COLUMN].values[j].append(
@@ -1345,22 +1346,6 @@ def _read_input_wind_observations(
     return wind_table
 
 
-def _create_tornado_id(start_time_unix_sec, start_latitude_deg,
-                       start_longitude_deg):
-    """Creates tornado ID.
-
-    :param start_time_unix_sec: Start time.
-    :param start_latitude_deg: Start latitude (deg N).
-    :param start_longitude_deg: Start longitude (deg E).
-    :return: tornado_id_string: ID.
-    """
-
-    return '{0:s}_{1:6.3f}N_{2:7.3f}E'.format(
-        time_conversion.unix_sec_to_string(start_time_unix_sec, TIME_FORMAT),
-        start_latitude_deg, start_longitude_deg
-    )
-
-
 def _interp_tornadoes_along_tracks(tornado_table, interp_time_interval_sec):
     """Interpolates each tornado to many points along its track.
 
@@ -1447,7 +1432,7 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_interval_sec):
             tornado_longitudes_deg, this_query_coord_matrix[0, :]
         ))
 
-        this_id_string = _create_tornado_id(
+        this_id_string = tornado_io.create_tornado_id(
             start_time_unix_sec=these_input_times_unix_sec[0],
             start_latitude_deg=these_input_latitudes_deg[0],
             start_longitude_deg=these_input_longitudes_deg[0]
@@ -1461,7 +1446,7 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_interval_sec):
         EVENT_TIME_COLUMN: tornado_times_unix_sec,
         EVENT_LATITUDE_COLUMN: tornado_latitudes_deg,
         EVENT_LONGITUDE_COLUMN: tornado_longitudes_deg,
-        TORNADO_ID_COLUMN: tornado_id_strings
+        tornado_io.TORNADO_ID_COLUMN: tornado_id_strings
     })
 
 
@@ -1539,6 +1524,8 @@ def _read_input_tornado_reports(
         list_of_tornado_tables, axis=0, ignore_index=True)
 
     if genesis_only:
+        tornado_table = tornado_io.add_tornado_ids_to_table(tornado_table)
+
         column_dict_old_to_new = {
             tornado_io.START_TIME_COLUMN: EVENT_TIME_COLUMN,
             tornado_io.START_LAT_COLUMN: EVENT_LATITUDE_COLUMN,
@@ -1546,22 +1533,6 @@ def _read_input_tornado_reports(
         }
 
         tornado_table.rename(columns=column_dict_old_to_new, inplace=True)
-
-        num_tornadoes = len(tornado_table.index)
-        tornado_id_strings = [''] * num_tornadoes
-
-        for j in range(num_tornadoes):
-            tornado_id_strings[j] = _create_tornado_id(
-                start_time_unix_sec=tornado_table[EVENT_TIME_COLUMN].values[j],
-                start_latitude_deg=tornado_table[
-                    EVENT_LATITUDE_COLUMN].values[j],
-                start_longitude_deg=tornado_table[
-                    EVENT_LONGITUDE_COLUMN].values[j]
-            )
-
-        tornado_table = tornado_table.assign(**{
-            TORNADO_ID_COLUMN: tornado_id_strings
-        })
     else:
         tornado_table = _interp_tornadoes_along_tracks(
             tornado_table=tornado_table,

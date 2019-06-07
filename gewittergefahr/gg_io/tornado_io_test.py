@@ -23,6 +23,13 @@ EF_SCALE_RATING_TOO_MANY_LETTERS = 'EFF2'
 EF_SCALE_RATING_TOO_LOW = 'EF-1'
 EF_SCALE_RATING_TOO_HIGH = 'EF6'
 
+# The following constants are used to test create_tornado_id.
+TORNADO_START_TIME_UNIX_SEC = 1559857972  # 215252 UTC 6 Jun 2019
+TORNADO_START_LATITUDE_DEG = 53.526196
+TORNADO_START_LONGITUDE_DEG = 246.479111
+
+TORNADO_ID_STRING = '2019-06-06-215252_53.526N_246.479E'
+
 # The following constants are used to test remove_invalid_reports.
 LATITUDES_DEG = numpy.array([-800., 20., 25., 30., 35., 40., 45.])
 LONGITUDES_DEG = numpy.array([-100., -210., 270., -85., 280., -75., 290.])
@@ -69,7 +76,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertTrue(
-            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_ALL_CAPS))
+            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_ALL_CAPS)
+        )
 
     def test_is_valid_fujita_rating_f_no_caps(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -78,7 +86,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertTrue(
-            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_NO_CAPS))
+            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_NO_CAPS)
+        )
 
     def test_is_valid_fujita_rating_f_leading_zero(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -87,7 +96,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertTrue(
-            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_LEADING_ZERO))
+            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_LEADING_ZERO)
+        )
 
     def test_is_valid_fujita_rating_f_too_many_letters(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -96,7 +106,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertFalse(
-            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_TOO_MANY_LETTERS))
+            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_TOO_MANY_LETTERS)
+        )
 
     def test_is_valid_fujita_rating_f_too_low(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -105,7 +116,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertFalse(
-            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_TOO_LOW))
+            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_TOO_LOW)
+        )
 
     def test_is_valid_fujita_rating_f_too_high(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -114,7 +126,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertFalse(
-            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_TOO_HIGH))
+            tornado_io._is_valid_fujita_rating(F_SCALE_RATING_TOO_HIGH)
+        )
 
     def test_is_valid_fujita_rating_ef_all_caps(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -123,7 +136,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertTrue(
-            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_ALL_CAPS))
+            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_ALL_CAPS)
+        )
 
     def test_is_valid_fujita_rating_ef_some_caps(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -132,7 +146,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertTrue(
-            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_SOME_CAPS))
+            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_SOME_CAPS)
+        )
 
     def test_is_valid_fujita_rating_ef_no_caps(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -141,7 +156,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertTrue(
-            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_NO_CAPS))
+            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_NO_CAPS)
+        )
 
     def test_is_valid_fujita_rating_ef_leading_zero(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -150,7 +166,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertTrue(
-            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_LEADING_ZERO))
+            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_LEADING_ZERO)
+        )
 
     def test_is_valid_fujita_rating_ef_too_many_letters(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -159,7 +176,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertFalse(tornado_io._is_valid_fujita_rating(
-            EF_SCALE_RATING_TOO_MANY_LETTERS))
+            EF_SCALE_RATING_TOO_MANY_LETTERS
+        ))
 
     def test_is_valid_fujita_rating_ef_too_low(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -168,7 +186,8 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertFalse(
-            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_TOO_LOW))
+            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_TOO_LOW)
+        )
 
     def test_is_valid_fujita_rating_ef_too_high(self):
         """Ensures correct output from _is_valid_fujita_rating.
@@ -177,13 +196,26 @@ class TornadoIoTests(unittest.TestCase):
         """
 
         self.assertFalse(
-            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_TOO_HIGH))
+            tornado_io._is_valid_fujita_rating(EF_SCALE_RATING_TOO_HIGH)
+        )
+
+    def test_create_tornado_id(self):
+        """Ensures correct output from create_tornado_id."""
+
+        this_id_string = tornado_io.create_tornado_id(
+            start_time_unix_sec=TORNADO_START_TIME_UNIX_SEC,
+            start_latitude_deg=TORNADO_START_LATITUDE_DEG,
+            start_longitude_deg=TORNADO_START_LONGITUDE_DEG)
+
+        self.assertTrue(this_id_string == TORNADO_ID_STRING)
 
     def test_remove_invalid_reports(self):
         """Ensures correct output from remove_invalid_reports."""
 
-        this_orig_table = copy.deepcopy(TORNADO_TABLE_WITH_INVALID_ROWS)
-        this_new_table = tornado_io.remove_invalid_reports(this_orig_table)
+        this_new_table = tornado_io.remove_invalid_reports(
+            copy.deepcopy(TORNADO_TABLE_WITH_INVALID_ROWS)
+        )
+
         self.assertTrue(this_new_table.equals(TORNADO_TABLE_NO_INVALID_ROWS))
 
     def test_find_processed_file(self):
@@ -192,6 +224,7 @@ class TornadoIoTests(unittest.TestCase):
         this_file_name = tornado_io.find_processed_file(
             directory_name=TORNADO_DIRECTORY_NAME, year=YEAR,
             raise_error_if_missing=False)
+
         self.assertTrue(this_file_name == TORNADO_FILE_NAME)
 
 

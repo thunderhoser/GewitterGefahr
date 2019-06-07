@@ -2,10 +2,12 @@
 
 import os.path
 import argparse
+from itertools import chain
 import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_io import tornado_io
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import linkage
@@ -39,6 +41,7 @@ FIGURE_RESOLUTION_DPI = 300
 TORNADO_DIR_ARG_NAME = 'input_tornado_dir_name'
 LINKAGE_DIR_ARG_NAME = 'input_linkage_dir_name'
 MYRORSS_DIR_ARG_NAME = 'input_myrorss_dir_name'
+GENESIS_ONLY_ARG_NAME = 'genesis_only'
 SPC_DATE_ARG_NAME = 'spc_date_string'
 MAX_DISTANCE_ARG_NAME = 'max_link_distance_metres'
 RADAR_FIELD_ARG_NAME = 'radar_field_name'
@@ -48,45 +51,47 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 TORNADO_DIR_HELP_STRING = (
     'Name of directory with tornado reports.  Files therein will be found by '
     '`tornado_io.find_processed_file` and read by '
-    '`tornado_io.read_processed_file`.'
-)
+    '`tornado_io.read_processed_file`.')
+
 LINKAGE_DIR_HELP_STRING = (
     'Name of top-level directory with tornado linkages.  Files therein will be '
     'found by `linkage.find_linkage_file` and read by '
-    '`linkage.read_linkage_file`.'
-)
+    '`linkage.read_linkage_file`.')
+
 MYRORSS_DIR_HELP_STRING = (
     'Name of top-level directory with MYRORSS-formatted radar data.  Files '
     'therein will be found by `myrorss_and_mrms_io.find_raw_file` and read by '
-    '`myrorss_and_mrms_io.read_data_from_sparse_grid_file`.'
-)
+    '`myrorss_and_mrms_io.read_data_from_sparse_grid_file`.')
+
+GENESIS_ONLY_HELP_STRING = (
+    'Boolean flag.  Will be used only to find linkage files.  If 1, will find '
+    'linkage files for tornadogenesis.  If 0, will find linkage files for '
+    'tornado occurrence.')
+
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  Unlinked tornadoes will be found and '
-    'plotted for this date only.'
-)
+    'plotted for this date only.')
+
 MAX_DISTANCE_HELP_STRING = (
     'Max linkage distance.  Any tornado linked with greater distance will be '
     'considered unlinked.  To use the default max linkage distance (whatever '
-    'was used to create the files), leave this argument alone.'
-)
+    'was used to create the files), leave this argument alone.')
+
 RADAR_FIELD_HELP_STRING = (
     'Radar field to be plotted with unlinked tornadoes.  Must be accepted by '
-    '`radar_utils.check_field_name`.'
-)
+    '`radar_utils.check_field_name`.')
+
 RADAR_HEIGHT_HELP_STRING = (
     'Height of radar field (required only if field is "{0:s}").'
 ).format(radar_utils.REFL_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Figures will be saved here.'
-)
+    'Name of output directory.  Figures will be saved here.')
 
 DEFAULT_TORNADO_DIR_NAME = (
-    '/condo/swatwork/ralager/tornado_observations/processed'
-)
+    '/condo/swatwork/ralager/tornado_observations/processed')
 DEFAULT_MYRORSS_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format'
-)
+    '/condo/swatcommon/common/gridrad_final/myrorss_format')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -100,6 +105,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + MYRORSS_DIR_ARG_NAME, type=str, required=False,
     default=DEFAULT_MYRORSS_DIR_NAME, help=MYRORSS_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + GENESIS_ONLY_ARG_NAME, type=int, required=False, default=1,
+    help=GENESIS_ONLY_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + SPC_DATE_ARG_NAME, type=str, required=True,
@@ -267,6 +276,7 @@ def _plot_tornado_and_radar(
     title_string = (
         'Unlinked tornado at {0:s}, {1:.2f} deg N, {2:.2f} deg E'
     ).format(tornado_time_string, tornado_latitude_deg, tornado_longitude_deg)
+
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -278,8 +288,8 @@ def _plot_tornado_and_radar(
 
 
 def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
-         spc_date_string, max_link_distance_metres, radar_field_name,
-         radar_height_m_asl, output_dir_name):
+         genesis_only, spc_date_string, max_link_distance_metres,
+         radar_field_name, radar_height_m_asl, output_dir_name):
     """Plots tornado reports that could not be linked to a storm.
 
     This is effectively the main method.
@@ -287,12 +297,18 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
     :param tornado_dir_name: See documentation at top of file.
     :param top_linkage_dir_name: Same.
     :param top_myrorss_dir_name: Same.
+    :param genesis_only: Same.
     :param spc_date_string: Same.
     :param max_link_distance_metres: Same.
     :param radar_field_name: Same.
     :param radar_height_m_asl: Same.
     :param output_dir_name: Same.
     """
+
+    event_type_string = (
+        linkage.TORNADOGENESIS_EVENT_STRING if genesis_only
+        else linkage.TORNADO_EVENT_STRING
+    )
 
     if max_link_distance_metres <= 0.:
         max_link_distance_metres = numpy.inf
@@ -302,8 +318,7 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
 
     linkage_file_name = linkage.find_linkage_file(
         top_directory_name=top_linkage_dir_name,
-        event_type_string=linkage.TORNADO_EVENT_STRING,
-        spc_date_string=spc_date_string)
+        event_type_string=event_type_string, spc_date_string=spc_date_string)
 
     print('Reading data from: "{0:s}"...'.format(linkage_file_name))
     storm_to_tornadoes_table = linkage.read_linkage_file(linkage_file_name)
@@ -373,134 +388,20 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
         print('No tornadoes in bounding box.  There is nothing more to do!')
         return
 
-    print('Finding linked tornadoes...')
-
-    linked_tornado_times_unix_sec = numpy.array([], dtype=int)
-    linked_tornado_latitudes_deg = numpy.array([])
-    linked_tornado_longitudes_deg = numpy.array([])
-
-    for i in range(num_storm_objects):
-        this_num_tornadoes = len(
-            storm_to_tornadoes_table[linkage.EVENT_LATITUDES_COLUMN].values[i]
-        )
-
-        if this_num_tornadoes == 0:
-            continue
-
-        these_link_distances_metres = storm_to_tornadoes_table[
-            linkage.LINKAGE_DISTANCES_COLUMN].values[i]
-
-        these_good_indices = numpy.where(
-            these_link_distances_metres <= max_link_distance_metres
-        )[0]
-
-        these_times_unix_sec = (
-            storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values[i]
-            + storm_to_tornadoes_table[
-                linkage.RELATIVE_EVENT_TIMES_COLUMN
-            ].values[i][these_good_indices]
-        )
-
-        these_latitudes_deg = storm_to_tornadoes_table[
-            linkage.EVENT_LATITUDES_COLUMN
-        ].values[i][these_good_indices]
-
-        these_longitudes_deg = storm_to_tornadoes_table[
-            linkage.EVENT_LONGITUDES_COLUMN
-        ].values[i][these_good_indices]
-
-        linked_tornado_times_unix_sec = numpy.concatenate((
-            linked_tornado_times_unix_sec, these_times_unix_sec
-        ))
-
-        linked_tornado_latitudes_deg = numpy.concatenate((
-            linked_tornado_latitudes_deg, these_latitudes_deg
-        ))
-
-        linked_tornado_longitudes_deg = numpy.concatenate((
-            linked_tornado_longitudes_deg, these_longitudes_deg
-        ))
-
     print('Finding unlinked tornadoes...')
-    unlinked_indices = []
 
-    for j in range(num_tornadoes):
-        if len(linked_tornado_times_unix_sec) == 0:
-            this_tornado_time_string = time_conversion.unix_sec_to_string(
-                tornado_table[linkage.EVENT_TIME_COLUMN].values[j],
-                TIME_FORMAT)
+    tornado_table = tornado_io.add_tornado_ids_to_table(tornado_table)
 
-            print((
-                'Tornado at {0:s} was not linked.  Nearest linked tornado is '
-                'N/A, because no tornadoes were linked.'
-            ).format(this_tornado_time_string))
+    linked_tornado_id_strings = list(chain(
+        *storm_to_tornadoes_table[linkage.TORNADO_IDS_COLUMN].values
+    ))
 
-            unlinked_indices.append(j)
-            continue
+    unlinked_flags = numpy.array([
+        s not in linked_tornado_id_strings
+        for s in tornado_table[tornado_io.TORNADO_ID_COLUMN].values
+    ], dtype=bool)
 
-        these_time_diffs_sec = numpy.absolute(
-            linked_tornado_times_unix_sec -
-            tornado_table[linkage.EVENT_TIME_COLUMN].values[j]
-        )
-
-        these_indices = numpy.where(these_time_diffs_sec == 0)[0]
-
-        if len(these_indices) == 0:
-            this_tornado_time_string = time_conversion.unix_sec_to_string(
-                tornado_table[linkage.EVENT_TIME_COLUMN].values[j],
-                TIME_FORMAT)
-
-            this_nearest_index = numpy.argmin(these_time_diffs_sec)
-
-            this_nearest_time_string = time_conversion.unix_sec_to_string(
-                linked_tornado_times_unix_sec[this_nearest_index],
-                TIME_FORMAT)
-
-            print((
-                'Tornado at {0:s} was not linked.  Nearest linked tornado in '
-                'time is at {1:s}.'
-            ).format(this_tornado_time_string, this_nearest_time_string))
-
-            unlinked_indices.append(j)
-            continue
-
-        these_latitude_diffs_deg = numpy.absolute(
-            linked_tornado_latitudes_deg[these_indices] -
-            tornado_table[linkage.EVENT_LATITUDE_COLUMN].values[j]
-        )
-
-        these_longitude_diffs_deg = numpy.absolute(
-            linked_tornado_longitudes_deg[these_indices] -
-            tornado_table[linkage.EVENT_LONGITUDE_COLUMN].values[j]
-        )
-
-        these_subindices = numpy.where(numpy.logical_and(
-            these_latitude_diffs_deg <= LATLNG_TOLERANCE_DEG,
-            these_longitude_diffs_deg <= LATLNG_TOLERANCE_DEG
-        ))[0]
-
-        if len(these_subindices) > 0:
-            continue
-
-        this_nearest_subindex = numpy.argmin(numpy.sqrt(
-            these_latitude_diffs_deg ** 2 + these_longitude_diffs_deg ** 2
-        ))
-
-        this_nearest_index = these_indices[this_nearest_subindex]
-
-        print((
-            'Tornado at {0:.4f} deg N and {1:.4f} deg E was not linked.  '
-            'Nearest linked tornado in space is at {2:.4f} deg N and '
-            '{3:.4f} deg E.'
-        ).format(
-            tornado_table[linkage.EVENT_LATITUDE_COLUMN].values[j],
-            tornado_table[linkage.EVENT_LONGITUDE_COLUMN].values[j],
-            linked_tornado_latitudes_deg[this_nearest_index],
-            linked_tornado_longitudes_deg[this_nearest_index]
-        ))
-
-        unlinked_indices.append(j)
-
+    unlinked_indices = numpy.where(unlinked_flags)[0]
     if len(unlinked_indices) == 0:
         print('All tornadoes were linked.  Success!')
         return
@@ -531,8 +432,10 @@ if __name__ == '__main__':
         tornado_dir_name=getattr(INPUT_ARG_OBJECT, TORNADO_DIR_ARG_NAME),
         top_linkage_dir_name=getattr(INPUT_ARG_OBJECT, LINKAGE_DIR_ARG_NAME),
         top_myrorss_dir_name=getattr(INPUT_ARG_OBJECT, MYRORSS_DIR_ARG_NAME),
+        genesis_only=bool(getattr(INPUT_ARG_OBJECT, GENESIS_ONLY_ARG_NAME)),
         spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
-        max_link_distance_metres=getattr(INPUT_ARG_OBJECT, MAX_DISTANCE_ARG_NAME),
+        max_link_distance_metres=getattr(
+            INPUT_ARG_OBJECT, MAX_DISTANCE_ARG_NAME),
         radar_field_name=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_ARG_NAME),
         radar_height_m_asl=getattr(INPUT_ARG_OBJECT, RADAR_HEIGHT_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
