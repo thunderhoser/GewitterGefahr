@@ -1401,11 +1401,7 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_interval_sec):
         `tornado_io.read_processed_file`.
     :param interp_time_interval_sec: Will interpolate at this time interval
         between start and end points.
-    :return: tornado_table: pandas DataFrame with the following columns.
-    tornado_table.unix_time_sec: Valid time.
-    tornado_table.latitude_deg: Latitude (deg N).
-    tornado_table.longitude_deg: Longitude (deg E).
-    tornado_table.tornado_id_string: Tornado ID.
+    :return: tornado_table: See doc for `_read_input_tornado_reports`.
     """
 
     num_tornadoes = len(tornado_table.index)
@@ -1413,6 +1409,7 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_interval_sec):
     tornado_latitudes_deg = numpy.array([])
     tornado_longitudes_deg = numpy.array([])
     tornado_id_strings = []
+    fujita_rating_strings = []
 
     for j in range(num_tornadoes):
         this_start_time_unix_sec = tornado_table[
@@ -1489,12 +1486,17 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_interval_sec):
         tornado_id_strings += (
             [this_id_string] * len(these_query_times_unix_sec)
         )
+        fujita_rating_strings += (
+            [tornado_table[tornado_io.FUJITA_RATING_COLUMN].values[j]]
+            * len(these_query_times_unix_sec)
+        )
 
     return pandas.DataFrame.from_dict({
         EVENT_TIME_COLUMN: tornado_times_unix_sec,
         EVENT_LATITUDE_COLUMN: tornado_latitudes_deg,
         EVENT_LONGITUDE_COLUMN: tornado_longitudes_deg,
-        tornado_io.TORNADO_ID_COLUMN: tornado_id_strings
+        tornado_io.TORNADO_ID_COLUMN: tornado_id_strings,
+        tornado_io.FUJITA_RATING_COLUMN: fujita_rating_strings
     })
 
 
@@ -1590,8 +1592,6 @@ def _read_input_tornado_reports(
         tornado_table[EVENT_TIME_COLUMN].values <= max_tornado_time_unix_sec
     ))
     bad_time_rows = numpy.where(bad_time_flags)[0]
-
-    print(list(tornado_table))
 
     return tornado_table.drop(
         tornado_table.index[bad_time_rows], axis=0, inplace=False

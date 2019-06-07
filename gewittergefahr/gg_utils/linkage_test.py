@@ -705,6 +705,7 @@ THESE_START_LONGITUDES_DEG = numpy.array(
 THESE_END_LONGITUDES_DEG = numpy.array(
     [247.5, 245.5, 246.5, 246.5, 247.5, 246.5]
 )
+THESE_FUJITA_STRINGS = ['EF0', 'EF1', 'EF2', 'EF3', 'EF4', 'EF5']
 
 TORNADO_TABLE_BEFORE_INTERP = pandas.DataFrame.from_dict({
     tornado_io.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
@@ -712,7 +713,8 @@ TORNADO_TABLE_BEFORE_INTERP = pandas.DataFrame.from_dict({
     tornado_io.START_LAT_COLUMN: THESE_START_LATITUDES_DEG,
     tornado_io.END_LAT_COLUMN: THESE_END_LATITUDES_DEG,
     tornado_io.START_LNG_COLUMN: THESE_START_LONGITUDES_DEG,
-    tornado_io.END_LNG_COLUMN: THESE_END_LONGITUDES_DEG
+    tornado_io.END_LNG_COLUMN: THESE_END_LONGITUDES_DEG,
+    tornado_io.FUJITA_RATING_COLUMN: THESE_FUJITA_STRINGS
 })
 
 TORNADO_INTERP_TIME_INTERVAL_SEC = 10
@@ -759,11 +761,18 @@ THESE_ID_STRINGS = (
     [THESE_UNIQUE_ID_STRINGS[4]] * 7 + [THESE_UNIQUE_ID_STRINGS[5]] * 8
 )
 
+THESE_FUJITA_STRINGS = (
+    [THESE_FUJITA_STRINGS[0]] * 3 + [THESE_FUJITA_STRINGS[1]] * 4 +
+    [THESE_FUJITA_STRINGS[2]] * 1 + [THESE_FUJITA_STRINGS[3]] * 6 +
+    [THESE_FUJITA_STRINGS[4]] * 7 + [THESE_FUJITA_STRINGS[5]] * 8
+)
+
 TORNADO_TABLE_AFTER_INTERP = pandas.DataFrame.from_dict({
     linkage.EVENT_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     linkage.EVENT_LATITUDE_COLUMN: THESE_LATITUDES_DEG,
     linkage.EVENT_LONGITUDE_COLUMN: THESE_LONGITUDES_DEG,
-    tornado_io.TORNADO_ID_COLUMN: THESE_ID_STRINGS
+    tornado_io.TORNADO_ID_COLUMN: THESE_ID_STRINGS,
+    tornado_io.FUJITA_RATING_COLUMN: THESE_FUJITA_STRINGS
 })
 
 # The following constants are used to test find_linkage_file.
@@ -1144,7 +1153,8 @@ class LinkageTests(unittest.TestCase):
 
         for this_column in expected_columns:
             if this_column in [linkage.EVENT_TIME_COLUMN,
-                               tornado_io.TORNADO_ID_COLUMN]:
+                               tornado_io.TORNADO_ID_COLUMN,
+                               tornado_io.FUJITA_RATING_COLUMN]:
                 self.assertTrue(numpy.array_equal(
                     this_tornado_table[this_column].values,
                     TORNADO_TABLE_AFTER_INTERP[this_column].values
