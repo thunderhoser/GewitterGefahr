@@ -1591,6 +1591,8 @@ def _read_input_tornado_reports(
     ))
     bad_time_rows = numpy.where(bad_time_flags)[0]
 
+    print(list(tornado_table))
+
     return tornado_table.drop(
         tornado_table.index[bad_time_rows], axis=0, inplace=False
     )
