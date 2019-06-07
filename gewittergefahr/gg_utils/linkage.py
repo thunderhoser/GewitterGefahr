@@ -579,7 +579,7 @@ def _interp_storms_in_time(storm_object_table, target_time_unix_sec,
 
 def _find_nearest_storms_one_time(
         interp_vertex_table, event_x_coords_metres, event_y_coords_metres,
-        max_link_distance_metres):
+        max_link_distance_metres, max_polygon_attempt_distance_metres=30000.):
     """Finds nearest storm to each event.
 
     In this case all events are at the same time.
@@ -595,6 +595,8 @@ def _find_nearest_storms_one_time(
     :param max_link_distance_metres: Max linkage distance.  If the nearest storm
         edge to event E is > `max_link_distance_metres` away, event E will not
         be linked to any storm.
+    :param max_polygon_attempt_distance_metres: Max distance for attempting to
+        place event inside storm.
     :return: nearest_secondary_id_strings: length-N list, where
         nearest_secondary_id_strings[i] = secondary ID of nearest storm to [i]th
         event.  If nearest_secondary_id_strings[i] = None, no storm was linked
@@ -603,6 +605,15 @@ def _find_nearest_storms_one_time(
         distances.  If linkage_distances_metres[i] = NaN, [i]th event was not
         linked to any storm.
     """
+
+    max_polygon_attempt_distance_metres = max([
+        max_polygon_attempt_distance_metres, 2 * max_link_distance_metres
+    ])
+
+    unique_secondary_id_strings, orig_to_unique_indices = numpy.unique(
+        interp_vertex_table[tracking_utils.SECONDARY_ID_COLUMN].values,
+        return_inverse=True)
+    unique_secondary_id_strings = unique_secondary_id_strings.tolist()
 
     num_events = len(event_x_coords_metres)
     nearest_secondary_id_strings = [None] * num_events
@@ -619,35 +630,77 @@ def _find_nearest_storms_one_time(
             interp_vertex_table[STORM_VERTEX_Y_COLUMN].values
         )
 
-        these_good_vertex_flags = numpy.logical_and(
-            these_x_diffs_metres <= max_link_distance_metres,
-            these_y_diffs_metres <= max_link_distance_metres
-        )
+        these_vertex_indices = numpy.where(numpy.logical_and(
+            these_x_diffs_metres <= max_polygon_attempt_distance_metres,
+            these_y_diffs_metres <= max_polygon_attempt_distance_metres
+        ))[0]
 
-        if not numpy.any(these_good_vertex_flags):
+        if len(these_vertex_indices) == 0:
             continue
 
-        these_good_vertex_indices = numpy.where(these_good_vertex_flags)[0]
+        # Try placing event inside storm.
+        these_secondary_id_strings = numpy.unique(
+            interp_vertex_table[tracking_utils.SECONDARY_ID_COLUMN].values[
+                these_vertex_indices]
+        ).tolist()
+
+        for this_secondary_id_string in these_secondary_id_strings:
+            this_storm_indices = numpy.where(
+                orig_to_unique_indices ==
+                unique_secondary_id_strings.index(this_secondary_id_string)
+            )[0]
+
+            this_polygon_object = polygons.vertex_arrays_to_polygon_object(
+                exterior_x_coords=interp_vertex_table[
+                    STORM_VERTEX_X_COLUMN].values[this_storm_indices],
+                exterior_y_coords=interp_vertex_table[
+                    STORM_VERTEX_Y_COLUMN].values[this_storm_indices]
+            )
+
+            this_event_in_polygon = polygons.point_in_or_on_polygon(
+                polygon_object=this_polygon_object,
+                query_x_coordinate=event_x_coords_metres[k],
+                query_y_coordinate=event_y_coords_metres[k]
+            )
+
+            if not this_event_in_polygon:
+                continue
+
+            nearest_secondary_id_strings[k] = this_secondary_id_string
+            linkage_distances_metres[k] = 0.
+            break
+
+        if nearest_secondary_id_strings[k] is not None:
+            continue
+
+        # Try placing event near storm.
+        these_vertex_indices = numpy.where(numpy.logical_and(
+            these_x_diffs_metres <= max_link_distance_metres,
+            these_y_diffs_metres <= max_link_distance_metres
+        ))[0]
+
+        if len(these_vertex_indices) == 0:
+            continue
+
         these_distances_metres = numpy.sqrt(
-            these_x_diffs_metres[these_good_vertex_indices] ** 2 +
-            these_y_diffs_metres[these_good_vertex_indices] ** 2
+            these_x_diffs_metres[these_vertex_indices] ** 2 +
+            these_y_diffs_metres[these_vertex_indices] ** 2
         )
 
         if not numpy.any(these_distances_metres <= max_link_distance_metres):
             continue
 
-        this_min_index = these_good_vertex_indices[
+        this_min_index = these_vertex_indices[
             numpy.argmin(these_distances_metres)
         ]
         nearest_secondary_id_strings[k] = interp_vertex_table[
             tracking_utils.SECONDARY_ID_COLUMN
         ].values[this_min_index]
 
-        this_storm_flags = numpy.array([
-            s == nearest_secondary_id_strings[k] for s in
-            interp_vertex_table[tracking_utils.SECONDARY_ID_COLUMN].values
-        ])
-        this_storm_indices = numpy.where(this_storm_flags)[0]
+        this_storm_indices = numpy.where(
+            orig_to_unique_indices ==
+            unique_secondary_id_strings.index(nearest_secondary_id_strings[k])
+        )[0]
 
         this_polygon_object = polygons.vertex_arrays_to_polygon_object(
             exterior_x_coords=interp_vertex_table[STORM_VERTEX_X_COLUMN].values[

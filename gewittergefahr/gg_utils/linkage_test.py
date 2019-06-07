@@ -327,7 +327,7 @@ INTERP_VERTEX_TABLE = pandas.DataFrame.from_dict({
 MAX_LINK_DISTANCE_METRES = 12.
 
 EVENT_X_COORDS_1TIME_METRES = numpy.array(
-    [231.5, 231.5, 231.5, 241.5, 251.5, 251.5, 251.5, 241.5]
+    [231.5, 241.4, 231.5, 241.5, 251.5, 251.5, 251.5, 241.5]
 )
 EVENT_Y_COORDS_1TIME_METRES = numpy.array(
     [40, 50, 60, 60, 60, 50, 40, 40], dtype=float
@@ -339,7 +339,7 @@ THIS_SHORT_DISTANCE_METRES = numpy.sqrt(9.25 ** 2 + 0.25 ** 2)
 THIS_LONG_DISTANCE_METRES = numpy.sqrt(9.75 ** 2 + 0.25 ** 2)
 
 LINK_DISTANCES_1TIME_METRES = numpy.array([
-    numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
+    numpy.nan, 0, numpy.nan, THIS_SHORT_DISTANCE_METRES,
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES
 ])
 
@@ -347,7 +347,7 @@ LINK_DISTANCES_1TIME_METRES = numpy.array([
 INTERP_TIME_INTERVAL_SEC = 1
 
 THESE_X_METRES = numpy.array([
-    231.5, 231.5, 231.5, 241.5, 251.5, 251.5, 251.5, 241.5,
+    231.5, 241.4, 231.5, 241.5, 251.5, 251.5, 251.5, 241.5,
     267, 267, 267, 277, 287, 287, 287, 277
 ])
 
@@ -382,7 +382,7 @@ NEAREST_STORM_TIMES_UNIX_SEC = numpy.array([
 ], dtype=int)
 
 LINKAGE_DISTANCES_METRES = numpy.array([
-    numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
+    numpy.nan, 0, numpy.nan, THIS_SHORT_DISTANCE_METRES,
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_TINY_DISTANCE_METRES,
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_TINY_DISTANCE_METRES

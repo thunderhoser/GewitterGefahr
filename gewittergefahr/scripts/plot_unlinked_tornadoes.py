@@ -330,6 +330,25 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
 
         return
 
+    print('Removing linkages with distance > {0:.1f} metres...'.format(
+        max_link_distance_metres))
+
+    for i in range(num_storm_objects):
+        these_link_distance_metres = storm_to_tornadoes_table[
+            linkage.LINKAGE_DISTANCES_COLUMN].values[i]
+
+        if len(these_link_distance_metres) == 0:
+            continue
+
+        these_good_indices = numpy.where(
+            these_link_distance_metres <= max_link_distance_metres
+        )[0]
+
+        storm_to_tornadoes_table[linkage.TORNADO_IDS_COLUMN].values[i] = [
+            storm_to_tornadoes_table[linkage.TORNADO_IDS_COLUMN].values[i][k]
+            for k in these_good_indices
+        ]
+
     tornado_table = linkage._read_input_tornado_reports(
         input_directory_name=tornado_dir_name,
         storm_times_unix_sec=storm_to_tornadoes_table[
