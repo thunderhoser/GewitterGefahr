@@ -73,11 +73,6 @@ REQUIRED_WIND_COLUMNS = [
     raw_wind_io.U_WIND_COLUMN, raw_wind_io.V_WIND_COLUMN
 ]
 
-REQUIRED_TORNADO_COLUMNS = [
-    tornado_io.START_TIME_COLUMN, tornado_io.START_LAT_COLUMN,
-    tornado_io.START_LNG_COLUMN, tornado_io.FUJITA_RATING_COLUMN
-]
-
 STORM_CENTROID_X_COLUMN = 'centroid_x_metres'
 STORM_CENTROID_Y_COLUMN = 'centroid_y_metres'
 STORM_VERTICES_X_COLUMN = 'vertices_x_metres'
@@ -1562,8 +1557,7 @@ def _read_input_tornado_reports(
 
         print('Reading data from: "{0:s}"...'.format(this_file_name))
         list_of_tornado_tables.append(
-            tornado_io.read_processed_file(this_file_name)[
-                REQUIRED_TORNADO_COLUMNS]
+            tornado_io.read_processed_file(this_file_name)
         )
 
         if len(list_of_tornado_tables) == 1:
