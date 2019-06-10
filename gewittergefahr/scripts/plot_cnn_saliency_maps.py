@@ -17,7 +17,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
-# from gewittergefahr.plotting import sounding_plotting
+from gewittergefahr.plotting import sounding_plotting
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
@@ -468,9 +468,9 @@ def _plot_sounding_saliency(
 
         this_title_string = 'Storm "{0:s}" at {1:s}'.format(
             this_id_string, this_storm_time_string)
-        # sounding_plotting.plot_sounding(
-        #     sounding_dict_for_metpy=metpy_dict_by_example[i],
-        #     title_string=this_title_string)
+        sounding_plotting.plot_sounding(
+            sounding_dict_for_metpy=metpy_dict_by_example[i],
+            title_string=this_title_string)
 
         this_left_file_name = (
             '{0:s}/{1:s}_{2:s}_sounding-actual.jpg'
@@ -632,7 +632,7 @@ def _run(input_file_name, saliency_colour_map_name,
     #         colour_map_object=saliency_colour_map_object,
     #         max_colour_value_by_example=max_colour_value_by_example,
     #         output_dir_name=output_dir_name)
-    #     print SEPARATOR_STRING
+    #     print(SEPARATOR_STRING)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         _plot_saliency_for_2d3d_radar(

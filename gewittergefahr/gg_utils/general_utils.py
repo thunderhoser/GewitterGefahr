@@ -26,7 +26,9 @@ def find_nearest_value(sorted_input_values, test_value):
     subtract_one = nearest_index > 0 and (
         nearest_index == len(sorted_input_values) or
         math.fabs(test_value - sorted_input_values[nearest_index - 1]) <
-        math.fabs(test_value - sorted_input_values[nearest_index]))
+        math.fabs(test_value - sorted_input_values[nearest_index])
+    )
+
     if subtract_one:
         nearest_index -= 1
 
@@ -43,5 +45,8 @@ def split_array_by_nan(input_array):
 
     error_checking.assert_is_real_numpy_array(input_array)
     error_checking.assert_is_numpy_array(input_array, num_dimensions=1)
-    return [input_array[i] for i in
-            numpy.ma.clump_unmasked(numpy.ma.masked_invalid(input_array))]
+
+    return [
+        input_array[i] for i in
+        numpy.ma.clump_unmasked(numpy.ma.masked_invalid(input_array))
+    ]
