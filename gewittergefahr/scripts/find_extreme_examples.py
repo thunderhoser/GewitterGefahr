@@ -211,6 +211,12 @@ def _read_target_values(
             times_to_keep_unix_sec=storm_times_unix_sec[these_indices]
         )
 
+        print(storm_target_values.shape)
+        print(
+            this_target_value_dict[target_val_utils.TARGET_MATRIX_KEY][
+                these_indices, :].shape
+        )
+
         storm_target_values = numpy.concatenate((
             storm_target_values,
             this_target_value_dict[target_val_utils.TARGET_MATRIX_KEY][
