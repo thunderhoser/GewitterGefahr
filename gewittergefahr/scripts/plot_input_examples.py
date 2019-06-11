@@ -281,20 +281,25 @@ def _plot_3d_examples(
                     this_base_file_name, radar_field_names[j].replace('_', '-')
                 )
 
-                if not save_paneled_figs:
+                if save_paneled_figs:
+                    pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+                else:
                     this_height_m_agl = int(numpy.round(radar_heights_m_agl[k]))
-
-                    this_title_string += ' at {0:d} m AGL'.format(
-                        this_height_m_agl)
 
                     this_file_name = '{0:s}_{1:05d}m-agl.jpg'.format(
                         this_file_name[:-4], this_height_m_agl
                     )
 
-                pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+                    pyplot.axis('off')
+
                 print('Saving figure to: "{0:s}"...'.format(this_file_name))
                 pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
                 pyplot.close()
+
+                if not save_paneled_figs:
+                    imagemagick_utils.trim_whitespace(
+                        input_file_name=this_file_name,
+                        output_file_name=this_file_name, border_width_pixels=0)
 
 
 def _plot_2d3d_examples(
@@ -437,6 +442,8 @@ def _plot_2d3d_examples(
                 int(numpy.round(reflectivity_heights_m_agl[k]))
             )
 
+            pyplot.axis('off')
+
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -464,6 +471,8 @@ def _plot_2d3d_examples(
                 this_base_file_name,
                 azimuthal_shear_field_names[j].replace('_', '-')
             )
+
+            pyplot.axis('off')
 
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -597,6 +606,8 @@ def _plot_2d_examples(
                     field_name=field_name_by_panel[j],
                     axes_object=this_axes_object)
 
+                pyplot.axis('off')
+
                 this_file_name = '{0:s}_{1:s}.jpg'.format(
                     this_base_file_name, panel_names_sans_units[j]
                 )
@@ -604,6 +615,11 @@ def _plot_2d_examples(
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
+
+            if not save_paneled_figs:
+                imagemagick_utils.trim_whitespace(
+                    input_file_name=this_file_name,
+                    output_file_name=this_file_name, border_width_pixels=0)
 
 
 def plot_examples(
