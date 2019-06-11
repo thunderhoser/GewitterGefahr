@@ -41,6 +41,7 @@ TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 TORNADO_TIME_FORMAT = '%H%M%S'
 TORNADO_FONT_SIZE = 16
+TORNADO_FONT_COLOUR = numpy.full(3, 0.)
 
 TORNADO_MARKER_TYPE = '^'
 TORNADO_MARKER_SIZE = 16
@@ -244,6 +245,16 @@ def _plot_one_example_one_time(
         longitude_spacing_deg=numpy.diff(grid_point_longitudes_deg[:2])[0]
     )
 
+    colour_map_object, colour_norm_object = (
+        radar_plotting.get_default_colour_scheme(radar_field_name)
+    )
+
+    plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=radar_matrix,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object, orientation_string='horizontal',
+        extend_min=False, extend_max=True, fraction_of_axis_length=0.8)
+
     storm_plotting.plot_storm_outlines(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, line_width=2, line_colour='k')
@@ -274,7 +285,7 @@ def _plot_one_example_one_time(
         axes_object.text(
             tornado_longitudes_deg[j], tornado_latitudes_deg[j],
             tornado_time_strings[j], fontsize=TORNADO_FONT_SIZE,
-            color=TORNADO_MARKER_COLOUR,
+            color=TORNADO_FONT_COLOUR,
             horizontalalignment='left', verticalalignment='top')
 
 
@@ -430,7 +441,8 @@ def _plot_one_example(
         storm_time_unix_sec, TIME_FORMAT)
 
     # Create output directory for this example.
-    output_dir_name = '{0:s}/{1:s}'.format(top_output_dir_name, full_id_string)
+    output_dir_name = '{0:s}/{1:s}_{2:s}'.format(
+        top_output_dir_name, full_id_string, storm_time_string)
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
