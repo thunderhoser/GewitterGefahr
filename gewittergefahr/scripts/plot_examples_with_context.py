@@ -44,7 +44,7 @@ TORNADO_MARKER_SIZE = 16
 TORNADO_MARKER_EDGE_WIDTH = 1
 TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
 
-TITLE_FONT_SIZE = 16
+TITLE_FONT_SIZE = 12
 FONT_SIZE = 16
 
 NUM_PARALLELS = 8
@@ -60,7 +60,6 @@ RADAR_FIELD_ARG_NAME = 'radar_field_name'
 RADAR_HEIGHT_ARG_NAME = 'radar_height_m_asl'
 LATITUDE_BUFFER_ARG_NAME = 'latitude_buffer_deg'
 LONGITUDE_BUFFER_ARG_NAME = 'longitude_buffer_deg'
-TIME_BUFFER_ARG_NAME = 'time_buffer_seconds'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 ACTIVATION_FILE_HELP_STRING = (
@@ -97,10 +96,6 @@ LATITUDE_BUFFER_HELP_STRING = (
 LONGITUDE_BUFFER_HELP_STRING = (
     'Longitude buffer (deg E).  Will plot this much longitude around the edge '
     'of the storm object at each time step.')
-
-TIME_BUFFER_HELP_STRING = (
-    'Time buffer.  Will plot radar fields for this many seconds before and '
-    'after storm object.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
@@ -145,10 +140,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + LONGITUDE_BUFFER_ARG_NAME, type=float, required=False,
     default=0.5, help=LONGITUDE_BUFFER_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + TIME_BUFFER_ARG_NAME, type=int, required=False,
-    default=1800, help=TIME_BUFFER_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -364,18 +355,17 @@ def _plot_one_example_one_time(
 
 
 def _find_tracking_files_one_example(
-        valid_time_unix_sec, top_tracking_dir_name, time_buffer_seconds):
+        valid_time_unix_sec, top_tracking_dir_name):
     """Finds tracking files needed to make plots for one example.
 
     :param valid_time_unix_sec: Valid time for example.
     :param top_tracking_dir_name: See documentation at top of file.
-    :param time_buffer_seconds: Same.
     :return: tracking_file_names: 1-D list of paths to tracking files.
     :raises: ValueError: if no tracking files are found.
     """
 
-    first_time_unix_sec = valid_time_unix_sec - time_buffer_seconds
-    last_time_unix_sec = valid_time_unix_sec + time_buffer_seconds
+    first_time_unix_sec = valid_time_unix_sec - 0
+    last_time_unix_sec = valid_time_unix_sec + 3600
 
     first_spc_date_string = time_conversion.time_to_spc_date_string(
         first_time_unix_sec - TIME_INTERVAL_SECONDS)
@@ -438,7 +428,7 @@ def _plot_one_example(
         full_id_string, storm_time_unix_sec, forecast_probability,
         tornado_dir_name, top_tracking_dir_name, top_myrorss_dir_name,
         radar_field_name, radar_height_m_asl, latitude_buffer_deg,
-        longitude_buffer_deg, time_buffer_seconds, top_output_dir_name):
+        longitude_buffer_deg, top_output_dir_name):
     """Plots one example with surrounding context at several times.
 
     :param full_id_string: Full storm ID.
@@ -451,7 +441,6 @@ def _plot_one_example(
     :param radar_height_m_asl: Same.
     :param latitude_buffer_deg: Same.
     :param longitude_buffer_deg: Same.
-    :param time_buffer_seconds: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -468,12 +457,16 @@ def _plot_one_example(
 
     tracking_file_names = _find_tracking_files_one_example(
         valid_time_unix_sec=storm_time_unix_sec,
-        top_tracking_dir_name=top_tracking_dir_name,
-        time_buffer_seconds=time_buffer_seconds)
+        top_tracking_dir_name=top_tracking_dir_name)
 
     tracking_times_unix_sec = numpy.array([
         tracking_io.file_name_to_time(f) for f in tracking_file_names
     ], dtype=int)
+
+    tracking_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in tracking_times_unix_sec
+    ]
 
     # TODO(thunderhoser): Get rid of the "3600" hack.
     tornado_table = linkage._read_input_tornado_reports(
@@ -482,9 +475,9 @@ def _plot_one_example(
         max_time_before_storm_start_sec=0, max_time_after_storm_end_sec=3600,
         genesis_only=True)
 
-    for this_tracking_file_name in tracking_file_names:
-        print('Reading data from: "{0:s}"...'.format(this_tracking_file_name))
-        this_storm_object_table = tracking_io.read_file(this_tracking_file_name)
+    for i in range(len(tracking_file_names)):
+        print('Reading data from: "{0:s}"...'.format(tracking_file_names[i]))
+        this_storm_object_table = tracking_io.read_file(tracking_file_names[i])
 
         this_storm_object_table = this_storm_object_table.loc[
             this_storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
@@ -502,11 +495,12 @@ def _plot_one_example(
 
         this_title_string = (
             'Storm object "{0:s}" at {1:s} ... forecast prob = {2:.3f}'
-        ).format(full_id_string, storm_time_string, forecast_probability)
-        pyplot.title(this_title_string)
+        ).format(full_id_string, tracking_time_strings[i], forecast_probability)
+        pyplot.title(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_file_name = '{0:s}/{1:s}.jpg'.format(
-            output_dir_name, storm_time_string)
+            output_dir_name, tracking_time_strings[i]
+        )
 
         print('Saving figure to file: "{0:s}"...\n'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -518,8 +512,7 @@ def _plot_one_example(
 
 def _run(activation_file_name, tornado_dir_name, top_tracking_dir_name,
          top_myrorss_dir_name, radar_field_name, radar_height_m_asl,
-         latitude_buffer_deg, longitude_buffer_deg, time_buffer_seconds,
-         top_output_dir_name):
+         latitude_buffer_deg, longitude_buffer_deg, top_output_dir_name):
     """Plots examples (storm objects) with surrounding context.
 
     This is effectively the main method.
@@ -532,7 +525,6 @@ def _run(activation_file_name, tornado_dir_name, top_tracking_dir_name,
     :param radar_height_m_asl: Same.
     :param latitude_buffer_deg: Same.
     :param longitude_buffer_deg: Same.
-    :param time_buffer_seconds: Same.
     :param top_output_dir_name: Same.
     :raises: ValueError: if activation file contains activations of some
         intermediate model component, rather than final predictions.
@@ -596,7 +588,6 @@ def _run(activation_file_name, tornado_dir_name, top_tracking_dir_name,
             radar_height_m_asl=radar_height_m_asl,
             latitude_buffer_deg=latitude_buffer_deg,
             longitude_buffer_deg=longitude_buffer_deg,
-            time_buffer_seconds=time_buffer_seconds,
             top_output_dir_name=top_output_dir_name)
 
         if i != num_storm_objects - 1:
@@ -617,6 +608,5 @@ if __name__ == '__main__':
         latitude_buffer_deg=getattr(INPUT_ARG_OBJECT, LATITUDE_BUFFER_ARG_NAME),
         longitude_buffer_deg=getattr(
             INPUT_ARG_OBJECT, LONGITUDE_BUFFER_ARG_NAME),
-        time_buffer_seconds=getattr(INPUT_ARG_OBJECT, TIME_BUFFER_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
