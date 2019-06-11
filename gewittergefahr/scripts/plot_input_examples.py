@@ -13,6 +13,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import testing_io
+from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import model_activation
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
@@ -214,11 +215,6 @@ def _plot_3d_examples(
                 storm_activations[i]
             )
 
-        this_base_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
-            output_dir_name, full_id_strings[i].replace('_', '-'),
-            storm_time_strings[i]
-        )
-
         # if plot_soundings:
         #     sounding_plotting.plot_sounding(
         #         sounding_dict_for_metpy=list_of_metpy_dictionaries[i],
@@ -277,20 +273,20 @@ def _plot_3d_examples(
                 this_title_string = '{0:s}; {1:s}'.format(
                     this_base_title_string, radar_field_names[j]
                 )
-                this_file_name = '{0:s}_{1:s}.jpg'.format(
-                    this_base_file_name, radar_field_names[j].replace('_', '-')
-                )
 
                 if save_paneled_figs:
                     pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+                    this_height_m_agl = None
                 else:
-                    this_height_m_agl = int(numpy.round(radar_heights_m_agl[k]))
-
-                    this_file_name = '{0:s}_{1:05d}m-agl.jpg'.format(
-                        this_file_name[:-4], this_height_m_agl
-                    )
-
                     pyplot.axis('off')
+                    this_height_m_agl = radar_heights_m_agl[k]
+
+                this_file_name = metadata_to_radar_fig_file_name(
+                    output_dir_name=output_dir_name,
+                    full_storm_id_string=full_id_strings[i],
+                    storm_time_string=storm_time_strings[i],
+                    radar_field_name=radar_field_names[j],
+                    radar_height_m_agl=this_height_m_agl)
 
                 print('Saving figure to: "{0:s}"...'.format(this_file_name))
                 pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -341,11 +337,6 @@ def _plot_2d3d_examples(
                 storm_activations[i]
             )
 
-        this_base_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
-            output_dir_name, full_id_strings[i].replace('_', '-'),
-            storm_time_strings[i]
-        )
-
         if save_paneled_figs:
             this_reflectivity_matrix_dbz = numpy.flip(
                 reflectivity_matrix_dbz[i, ..., 0], axis=0
@@ -382,10 +373,14 @@ def _plot_2d3d_examples(
 
             this_title_string = '{0:s}; {1:s}'.format(
                 this_base_title_string, radar_utils.REFL_NAME)
-            this_file_name = '{0:s}_reflectivity.jpg'.format(
-                this_base_file_name)
-
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+
+            this_file_name = metadata_to_radar_fig_file_name(
+                output_dir_name=output_dir_name,
+                full_storm_id_string=full_id_strings[i],
+                storm_time_string=storm_time_strings[i],
+                radar_field_name='reflectivity')
+
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -416,7 +411,12 @@ def _plot_2d3d_examples(
 
             pyplot.suptitle(this_base_title_string, fontsize=TITLE_FONT_SIZE)
 
-            this_file_name = '{0:s}_shear.jpg'.format(this_base_file_name)
+            this_file_name = metadata_to_radar_fig_file_name(
+                output_dir_name=output_dir_name,
+                full_storm_id_string=full_id_strings[i],
+                storm_time_string=storm_time_strings[i],
+                radar_field_name='shear')
+
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -437,9 +437,12 @@ def _plot_2d3d_examples(
                 field_matrix=this_reflectivity_matrix_dbz,
                 field_name=radar_utils.REFL_NAME, axes_object=this_axes_object)
 
-            this_file_name = '{0:s}_reflectivity_{1:05d}m-agl.jpg'.format(
-                this_base_file_name,
-                int(numpy.round(reflectivity_heights_m_agl[k]))
+            this_file_name = metadata_to_radar_fig_file_name(
+                output_dir_name=output_dir_name,
+                full_storm_id_string=full_id_strings[i],
+                storm_time_string=storm_time_strings[i],
+                radar_field_name=radar_utils.REFL_NAME,
+                radar_height_m_agl=reflectivity_heights_m_agl[k]
             )
 
             pyplot.axis('off')
@@ -467,9 +470,11 @@ def _plot_2d3d_examples(
                 field_name=azimuthal_shear_field_names[j],
                 axes_object=this_axes_object)
 
-            this_file_name = '{0:s}_{1:s}.jpg'.format(
-                this_base_file_name,
-                azimuthal_shear_field_names[j].replace('_', '-')
+            this_file_name = metadata_to_radar_fig_file_name(
+                output_dir_name=output_dir_name,
+                full_storm_id_string=full_id_strings[i],
+                storm_time_string=storm_time_strings[i],
+                radar_field_name=azimuthal_shear_field_names[j]
             )
 
             pyplot.axis('off')
@@ -505,39 +510,18 @@ def _plot_2d_examples(
     if list_of_layer_operation_dicts is None:
         field_name_by_panel = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
 
-        panel_names_with_units = (
-            radar_plotting.radar_fields_and_heights_to_panel_names(
-                field_names=field_name_by_panel,
-                heights_m_agl=training_option_dict[
-                    trainval_io.RADAR_HEIGHTS_KEY],
-                include_units=True
-            )
-        )
-
-        panel_names_sans_units = (
-            radar_plotting.radar_fields_and_heights_to_panel_names(
-                field_names=field_name_by_panel,
-                heights_m_agl=training_option_dict[
-                    trainval_io.RADAR_HEIGHTS_KEY],
-                include_units=False
-            )
+        panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
+            field_names=field_name_by_panel,
+            heights_m_agl=training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
         )
 
         plot_colour_bar_by_panel = numpy.full(
             len(field_name_by_panel), True, dtype=bool
         )
     else:
-        field_name_by_panel, panel_names_with_units = (
+        field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
-                list_of_layer_operation_dicts=list_of_layer_operation_dicts,
-                include_units=True
-            )
-        )
-
-        _, panel_names_sans_units = (
-            radar_plotting.layer_ops_to_field_and_panel_names(
-                list_of_layer_operation_dicts=list_of_layer_operation_dicts,
-                include_units=False
+                list_of_layer_operation_dicts=list_of_layer_operation_dicts
             )
         )
 
@@ -545,11 +529,6 @@ def _plot_2d_examples(
             len(field_name_by_panel), False, dtype=bool
         )
         plot_colour_bar_by_panel[2::3] = True
-
-    for j in range(len(panel_names_sans_units)):
-        panel_names_sans_units[j] = panel_names_sans_units[
-            j
-        ].replace('\n', '').replace(' ', '_').replace('_', '-')
 
     radar_matrix = list_of_predictor_matrices[0]
     num_storm_objects = len(full_id_strings)
@@ -574,11 +553,6 @@ def _plot_2d_examples(
                 storm_activations[i]
             )
 
-        this_base_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
-            output_dir_name, full_id_strings[i].replace('_', '-'),
-            storm_time_strings[i]
-        )
-
         for j in range(j_max):
             if save_paneled_figs:
                 this_radar_matrix = numpy.flip(radar_matrix[i, ...], axis=0)
@@ -586,13 +560,18 @@ def _plot_2d_examples(
                 radar_plotting.plot_many_2d_grids_without_coords(
                     field_matrix=this_radar_matrix,
                     field_name_by_panel=field_name_by_panel,
-                    panel_names=panel_names_with_units,
+                    panel_names=panel_names,
                     num_panel_rows=num_panel_rows,
                     plot_colour_bar_by_panel=plot_colour_bar_by_panel,
                     font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
                 pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-                this_file_name = '{0:s}.jpg'.format(this_base_file_name)
+
+                this_file_name = metadata_to_radar_fig_file_name(
+                    output_dir_name=output_dir_name,
+                    full_storm_id_string=full_id_strings[i],
+                    storm_time_string=storm_time_strings[i]
+                )
             else:
                 this_radar_matrix = numpy.flip(radar_matrix[i, ..., j], axis=0)
 
@@ -608,8 +587,11 @@ def _plot_2d_examples(
 
                 pyplot.axis('off')
 
-                this_file_name = '{0:s}_{1:s}.jpg'.format(
-                    this_base_file_name, panel_names_sans_units[j]
+                this_file_name = metadata_to_radar_fig_file_name(
+                    output_dir_name=output_dir_name,
+                    full_storm_id_string=full_id_strings[i],
+                    storm_time_string=storm_time_strings[i],
+                    layer_operation_dict=list_of_layer_operation_dicts[j]
                 )
 
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
@@ -620,6 +602,59 @@ def _plot_2d_examples(
                 imagemagick_utils.trim_whitespace(
                     input_file_name=this_file_name,
                     output_file_name=this_file_name, border_width_pixels=0)
+
+
+def metadata_to_radar_fig_file_name(
+        output_dir_name, full_storm_id_string, storm_time_string,
+        radar_field_name=None, radar_height_m_agl=None,
+        layer_operation_dict=None):
+    """Creates name for figure file with radar data.
+
+    If `radar_field_name is None` and `layer_operation_dict is None`, will
+    assume that figure contains all radar data for one storm object.
+
+    :param output_dir_name: Name of output directory.
+    :param full_storm_id_string: Full storm ID.
+    :param storm_time_string: Storm time (format "yyyy-mm-dd-HHMMSS").
+    :param radar_field_name: Name of radar field.  May be None.
+    :param radar_height_m_agl: Radar height (metres above ground level).  May be
+        None.
+    :param layer_operation_dict: See doc for
+        `input_examples._check_layer_operation`.  May be None.
+    :return: output_file_name: Path to output file.
+    """
+
+    output_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
+        output_dir_name, full_storm_id_string.replace('_', '-'),
+        storm_time_string
+    )
+
+    if radar_field_name is None and layer_operation_dict is None:
+        return '{0:s}_radar.jpg'.format(output_file_name)
+
+    if radar_field_name is not None:
+        output_file_name += '_{0:s}'.format(
+            radar_field_name.replace('_', '-')
+        )
+
+        if radar_height_m_agl is None:
+            output_file_name += '.jpg'
+        else:
+            output_file_name += '_{0:05d}metres.jpg'.format(
+                int(numpy.round(radar_height_m_agl))
+            )
+
+        return output_file_name
+
+    radar_field_name = layer_operation_dict[input_examples.RADAR_FIELD_KEY]
+    operation_name = layer_operation_dict[input_examples.OPERATION_NAME_KEY]
+    min_height_m_agl = layer_operation_dict[input_examples.MIN_HEIGHT_KEY]
+    max_height_m_agl = layer_operation_dict[input_examples.MAX_HEIGHT_KEY]
+
+    return '{0:s}_{1:s}_{2:s}-{3:05d}-{4:05d}metres.jpg'.format(
+        output_file_name, radar_field_name.replace('_', '-'), operation_name,
+        int(numpy.round(min_height_m_agl)), int(numpy.round(max_height_m_agl))
+    )
 
 
 def plot_examples(
