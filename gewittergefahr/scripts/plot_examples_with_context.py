@@ -40,16 +40,16 @@ TIME_INTERVAL_SECONDS = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 TORNADO_TIME_FORMAT = '%H%M%S'
+TORNADO_FONT_SIZE = 16
+
 TORNADO_MARKER_TYPE = '^'
 TORNADO_MARKER_SIZE = 16
 TORNADO_MARKER_EDGE_WIDTH = 1
-TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
-
-TITLE_FONT_SIZE = 16
-FONT_SIZE = 16
+TORNADO_MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
+TITLE_FONT_SIZE = 16
 BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
@@ -145,56 +145,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
-
-
-def _get_plotting_limits(storm_object_table, latitude_buffer_deg,
-                         longitude_buffer_deg):
-    """Returns plotting limits (lat-long box).
-
-    :param storm_object_table: See doc for `_plot_one_example_one_time`.
-    :param latitude_buffer_deg: See documentation at top of file.
-    :param longitude_buffer_deg: Same.
-    :return: latitude_limits_deg: length-2 numpy array with [min, max]
-        latitudes in deg N.
-    :return: longitude_limits_deg: length-2 numpy array with [min, max]
-        longitudes in deg E.
-    """
-
-    vertex_latitudes_deg_2d_list = [
-        numpy.array(p.exterior.xy[1]) for p in
-        storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values
-    ]
-
-    vertex_longitudes_deg_2d_list = [
-        numpy.array(p.exterior.xy[0]) for p in
-        storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values
-    ]
-
-    vertex_latitudes_deg = numpy.concatenate(
-        tuple(vertex_latitudes_deg_2d_list)
-    )
-
-    vertex_longitudes_deg = numpy.concatenate(
-        tuple(vertex_longitudes_deg_2d_list)
-    )
-
-    min_plot_latitude_deg = (
-        numpy.min(vertex_latitudes_deg) - latitude_buffer_deg
-    )
-    max_plot_latitude_deg = (
-        numpy.max(vertex_latitudes_deg) + latitude_buffer_deg
-    )
-    min_plot_longitude_deg = (
-        numpy.min(vertex_longitudes_deg) - longitude_buffer_deg
-    )
-    max_plot_longitude_deg = (
-        numpy.max(vertex_longitudes_deg) + longitude_buffer_deg
-    )
-
-    return (
-        numpy.array([min_plot_latitude_deg, max_plot_latitude_deg]),
-        numpy.array([min_plot_longitude_deg, max_plot_longitude_deg])
-    )
 
 
 def _plot_one_example_one_time(
@@ -323,23 +273,30 @@ def _plot_one_example_one_time(
     for j in range(num_tornadoes):
         axes_object.text(
             tornado_longitudes_deg[j], tornado_latitudes_deg[j],
-            tornado_time_strings[j], fontsize=FONT_SIZE,
+            tornado_time_strings[j], fontsize=TORNADO_FONT_SIZE,
             color=TORNADO_MARKER_COLOUR,
             horizontalalignment='left', verticalalignment='top')
 
 
 def _find_tracking_files_one_example(
-        valid_time_unix_sec, top_tracking_dir_name):
+        top_tracking_dir_name, valid_time_unix_sec, target_name):
     """Finds tracking files needed to make plots for one example.
 
-    :param valid_time_unix_sec: Valid time for example.
     :param top_tracking_dir_name: See documentation at top of file.
+    :param valid_time_unix_sec: Valid time for example.
+    :param target_name: Name of target variable.
     :return: tracking_file_names: 1-D list of paths to tracking files.
     :raises: ValueError: if no tracking files are found.
     """
 
-    first_time_unix_sec = valid_time_unix_sec - 0
-    last_time_unix_sec = valid_time_unix_sec + 3600
+    target_param_dict = target_val_utils.target_name_to_params(target_name)
+    min_lead_time_seconds = target_param_dict[
+        target_val_utils.MIN_LEAD_TIME_KEY]
+    max_lead_time_seconds = target_param_dict[
+        target_val_utils.MAX_LEAD_TIME_KEY]
+
+    first_time_unix_sec = valid_time_unix_sec + min_lead_time_seconds
+    last_time_unix_sec = valid_time_unix_sec + max_lead_time_seconds
 
     first_spc_date_string = time_conversion.time_to_spc_date_string(
         first_time_unix_sec - TIME_INTERVAL_SECONDS)
@@ -398,8 +355,58 @@ def _find_tracking_files_one_example(
     return tracking_file_names[first_index:(last_index + 1)]
 
 
+def _get_plotting_limits(storm_object_table, latitude_buffer_deg,
+                         longitude_buffer_deg):
+    """Returns plotting limits (lat-long box).
+
+    :param storm_object_table: See doc for `_plot_one_example_one_time`.
+    :param latitude_buffer_deg: See documentation at top of file.
+    :param longitude_buffer_deg: Same.
+    :return: latitude_limits_deg: length-2 numpy array with [min, max]
+        latitudes in deg N.
+    :return: longitude_limits_deg: length-2 numpy array with [min, max]
+        longitudes in deg E.
+    """
+
+    vertex_latitudes_deg_2d_list = [
+        numpy.array(p.exterior.xy[1]) for p in
+        storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values
+    ]
+
+    vertex_longitudes_deg_2d_list = [
+        numpy.array(p.exterior.xy[0]) for p in
+        storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values
+    ]
+
+    vertex_latitudes_deg = numpy.concatenate(
+        tuple(vertex_latitudes_deg_2d_list)
+    )
+
+    vertex_longitudes_deg = numpy.concatenate(
+        tuple(vertex_longitudes_deg_2d_list)
+    )
+
+    min_plot_latitude_deg = (
+        numpy.min(vertex_latitudes_deg) - latitude_buffer_deg
+    )
+    max_plot_latitude_deg = (
+        numpy.max(vertex_latitudes_deg) + latitude_buffer_deg
+    )
+    min_plot_longitude_deg = (
+        numpy.min(vertex_longitudes_deg) - longitude_buffer_deg
+    )
+    max_plot_longitude_deg = (
+        numpy.max(vertex_longitudes_deg) + longitude_buffer_deg
+    )
+
+    return (
+        numpy.array([min_plot_latitude_deg, max_plot_latitude_deg]),
+        numpy.array([min_plot_longitude_deg, max_plot_longitude_deg])
+    )
+
+
 def _plot_one_example(
-        full_id_string, storm_time_unix_sec, forecast_probability,
+        full_id_string, storm_time_unix_sec, target_name, forecast_probability,
         tornado_dir_name, top_tracking_dir_name, top_myrorss_dir_name,
         radar_field_name, radar_height_m_asl, latitude_buffer_deg,
         longitude_buffer_deg, top_output_dir_name):
@@ -407,6 +414,7 @@ def _plot_one_example(
 
     :param full_id_string: Full storm ID.
     :param storm_time_unix_sec: Storm time.
+    :param target_name: Name of target variable.
     :param forecast_probability: Forecast tornado probability for this example.
     :param tornado_dir_name: See documentation at top of file.
     :param top_tracking_dir_name: Same.
@@ -421,17 +429,15 @@ def _plot_one_example(
     storm_time_string = time_conversion.unix_sec_to_string(
         storm_time_unix_sec, TIME_FORMAT)
 
-    primary_id_string = temporal_tracking.full_to_partial_ids(
-        [full_id_string]
-    )[0][0]
-
+    # Create output directory for this example.
     output_dir_name = '{0:s}/{1:s}'.format(top_output_dir_name, full_id_string)
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
+    # Find tracking files.
     tracking_file_names = _find_tracking_files_one_example(
         valid_time_unix_sec=storm_time_unix_sec,
-        top_tracking_dir_name=top_tracking_dir_name)
+        top_tracking_dir_name=top_tracking_dir_name, target_name=target_name)
 
     tracking_times_unix_sec = numpy.array([
         tracking_io.file_name_to_time(f) for f in tracking_file_names
@@ -442,25 +448,37 @@ def _plot_one_example(
         for t in tracking_times_unix_sec
     ]
 
+    # Read tracking files.
     storm_object_table = tracking_io.read_many_files(tracking_file_names)
     print('\n')
+
+    primary_id_string = temporal_tracking.full_to_partial_ids(
+        [full_id_string]
+    )[0][0]
 
     storm_object_table = storm_object_table.loc[
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
         primary_id_string
     ]
 
+    # Read tornado reports.
+    target_param_dict = target_val_utils.target_name_to_params(target_name)
+    min_lead_time_seconds = target_param_dict[
+        target_val_utils.MIN_LEAD_TIME_KEY]
+    max_lead_time_seconds = target_param_dict[
+        target_val_utils.MAX_LEAD_TIME_KEY]
+
+    tornado_table = linkage._read_input_tornado_reports(
+        input_directory_name=tornado_dir_name,
+        storm_times_unix_sec=numpy.array([storm_time_unix_sec], dtype=int),
+        max_time_before_storm_start_sec=-1 * min_lead_time_seconds,
+        max_time_after_storm_end_sec=max_lead_time_seconds,
+        genesis_only=True)
+
     latitude_limits_deg, longitude_limits_deg = _get_plotting_limits(
         storm_object_table=storm_object_table,
         latitude_buffer_deg=latitude_buffer_deg,
         longitude_buffer_deg=longitude_buffer_deg)
-
-    # TODO(thunderhoser): Get rid of the "3600" hack.
-    tornado_table = linkage._read_input_tornado_reports(
-        input_directory_name=tornado_dir_name,
-        storm_times_unix_sec=numpy.array([storm_time_unix_sec], dtype=int),
-        max_time_before_storm_start_sec=0, max_time_after_storm_end_sec=3600,
-        genesis_only=True)
 
     tornado_table = tornado_table.loc[
         (tornado_table[linkage.EVENT_LATITUDE_COLUMN] >= latitude_limits_deg[0])
@@ -582,6 +600,7 @@ def _run(activation_file_name, tornado_dir_name, top_tracking_dir_name,
             full_id_string=activation_dict[model_activation.FULL_IDS_KEY][i],
             storm_time_unix_sec=activation_dict[
                 model_activation.STORM_TIMES_KEY][i],
+            target_name=target_name,
             forecast_probability=forecast_probabilities[i],
             tornado_dir_name=tornado_dir_name,
             top_tracking_dir_name=top_tracking_dir_name,
