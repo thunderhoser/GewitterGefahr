@@ -141,8 +141,8 @@ def plot_storm_track(
 
 def plot_storm_outlines(
         storm_object_table, axes_object, basemap_object,
-        line_width=DEFAULT_POLYGON_WIDTH,
-        line_colour=DEFAULT_POLYGON_COLOUR):
+        line_width=DEFAULT_POLYGON_WIDTH, line_colour=DEFAULT_POLYGON_COLOUR,
+        line_style='solid'):
     """Plots all storm objects in the table (as unfilled polygons).
 
     :param storm_object_table: See doc for `storm_tracking_io.write_file`.
@@ -153,6 +153,7 @@ def plot_storm_outlines(
         coords.
     :param line_width: Width of each polygon.
     :param line_colour: Colour of each polygon.
+    :param line_style: Line style for each polygon.
     """
 
     line_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(line_colour)
@@ -170,7 +171,7 @@ def plot_storm_outlines(
 
         axes_object.plot(
             these_x_coords_metres, these_y_coords_metres,
-            color=line_colour_tuple, linestyle='solid', linewidth=line_width)
+            color=line_colour_tuple, linestyle=line_style, linewidth=line_width)
 
 
 def plot_storm_centroids(

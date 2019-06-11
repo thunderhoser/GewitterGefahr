@@ -39,9 +39,6 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 TIME_INTERVAL_SECONDS = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
-MAIN_STORM_OBJECT_COLOUR = numpy.full(3, 0.)
-AUX_STORM_OBJECT_COLOUR = numpy.full(3, 152. / 255)
-
 TORNADO_TIME_FORMAT = '%H%M%S'
 TORNADO_FONT_SIZE = 20
 TORNADO_FONT_COLOUR = numpy.full(3, 0.)
@@ -266,8 +263,8 @@ def _plot_one_example_one_time(
 
     storm_plotting.plot_storm_outlines(
         storm_object_table=this_storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, line_width=2,
-        line_colour=AUX_STORM_OBJECT_COLOUR)
+        basemap_object=basemap_object, line_width=2, line_colour='k',
+        line_style='dashed')
 
     this_storm_object_table = storm_object_table.loc[
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
@@ -276,8 +273,8 @@ def _plot_one_example_one_time(
 
     storm_plotting.plot_storm_outlines(
         storm_object_table=this_storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, line_width=2,
-        line_colour=MAIN_STORM_OBJECT_COLOUR)
+        basemap_object=basemap_object, line_width=2, line_colour='k',
+        line_style='solid')
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
     tornado_longitudes_deg = tornado_table[
