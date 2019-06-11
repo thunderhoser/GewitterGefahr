@@ -11,23 +11,97 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 IMAGE_FILE_KEY = 'orig_image_file_name'
-VERTEX_ROWS_KEY = 'vertex_rows'
-VERTEX_COLUMNS_KEY = 'vertex_columns'
-MASK_MATRIX_KEY = 'mask_matrix'
-POLYGON_OBJECTS_KEY = 'list_of_polygon_objects_rowcol'
+POSITIVE_VERTEX_ROWS_KEY = 'positive_vertex_rows'
+POSITIVE_VERTEX_COLUMNS_KEY = 'positive_vertex_columns'
+NEGATIVE_VERTEX_ROWS_KEY = 'negative_vertex_rows'
+NEGATIVE_VERTEX_COLUMNS_KEY = 'negative_vertex_columns'
+POSITIVE_MASK_MATRIX_KEY = 'positive_mask_matrix'
+POSITIVE_POLYGON_OBJECTS_KEY = 'positive_polygon_objects_rowcol'
+NEGATIVE_MASK_MATRIX_KEY = 'negative_mask_matrix'
+NEGATIVE_POLYGON_OBJECTS_KEY = 'negative_polygon_objects_rowcol'
 
 ROW_DIMENSION_KEY = 'grid_row'
 COLUMN_DIMENSION_KEY = 'grid_column'
-VERTEX_DIMENSION_KEY = 'polygon_vertex'
+POSITIVE_VERTEX_DIM_KEY = 'positive_polygon_vertex'
+NEGATIVE_VERTEX_DIM_KEY = 'negative_polygon_vertex'
 
 
-def capture_polygons(image_file_name):
+def _polygon_list_to_vertex_list(list_of_polygon_objects_rowcol):
+    """Converts list of polygons to list of vertices.
+
+    V = total number of vertices
+
+    :param list_of_polygon_objects_rowcol: List of polygons created by
+        `polygons_from_pixel_to_grid_coords`.
+    :return: vertex_rows: length-V numpy array of row coordinates.
+    :return: vertex_columns: length-V numpy array of column coordinates.
+    """
+
+    # TODO(thunderhoser): Write unit test.
+
+    error_checking.assert_is_list(list_of_polygon_objects_rowcol)
+    num_polygons = len(list_of_polygon_objects_rowcol)
+
+    if num_polygons > 0:
+        error_checking.assert_is_numpy_array(
+            numpy.array(list_of_polygon_objects_rowcol, dtype=object),
+            num_dimensions=1
+        )
+
+    vertex_rows = []
+    vertex_columns = []
+
+    for i in range(num_polygons):
+        vertex_rows += list_of_polygon_objects_rowcol[i].exterior.xy[1]
+        vertex_columns += list_of_polygon_objects_rowcol[i].exterior.xy[0]
+
+        if i == num_polygons - 1:
+            continue
+
+        vertex_rows += [numpy.nan]
+        vertex_columns += [numpy.nan]
+
+    return numpy.array(vertex_rows), numpy.array(vertex_columns)
+
+
+def _vertex_list_to_polygon_list(vertex_rows, vertex_columns):
+    """This method is the inverse of `_polygon_list_to_vertex_list`.
+
+    :param vertex_rows: See doc for `_polygon_list_to_vertex_list`.
+    :param vertex_columns: Same.
+    :return: list_of_polygon_objects_rowcol: Same.
+    """
+
+    # TODO(thunderhoser): Write unit test.
+
+    if len(vertex_rows) == 0:
+        return []
+
+    vertex_rows_by_polygon = general_utils.split_array_by_nan(vertex_rows)
+    vertex_columns_by_polygon = general_utils.split_array_by_nan(vertex_columns)
+
+    num_polygons = len(vertex_rows_by_polygon)
+    list_of_polygon_objects_rowcol = []
+
+    for i in range(num_polygons):
+        this_polygon_object = polygons.vertex_arrays_to_polygon_object(
+            exterior_x_coords=vertex_columns_by_polygon[i],
+            exterior_y_coords=vertex_rows_by_polygon[i]
+        )
+
+        list_of_polygon_objects_rowcol.append(this_polygon_object)
+
+    return list_of_polygon_objects_rowcol
+
+
+def capture_polygons(image_file_name, instruction_string=''):
     """This interactiv method allows you to draw polygons and captures vertices.
 
     N = number of polygons drawn
 
     :param image_file_name: Path to image file.  This method will display the
         image in a figure window and allow you to draw polygons on top.
+    :param instruction_string: String with instructions for the user.
     :return: list_of_polygon_objects_xy: length-N list of polygons (instances of
         `shapely.geometry.Polygon`), each containing vertices in pixel
         coordinates.
@@ -41,6 +115,7 @@ def capture_polygons(image_file_name):
     num_pixel_columns, num_pixel_rows = image_matrix.size
 
     pyplot.imshow(image_matrix)
+    pyplot.title(instruction_string)
     pyplot.show(block=False)
 
     multi_roi_object = MultiRoi()
@@ -216,46 +291,43 @@ def polygons_to_mask(list_of_polygon_objects_rowcol, num_grid_rows,
 
 
 def write_polygons(
-        output_file_name, orig_image_file_name, list_of_polygon_objects_rowcol,
-        mask_matrix):
+        output_file_name, orig_image_file_name, positive_polygon_objects_rowcol,
+        positive_mask_matrix, negative_polygon_objects_rowcol,
+        negative_mask_matrix):
     """Writes human polygons for one image to NetCDF file.
 
     :param output_file_name: Path to output (NetCDF) file.
     :param orig_image_file_name: Path to original image file (over which the
         polygons were drawn).
-    :param list_of_polygon_objects_rowcol: List of polygons created by
-        `polygons_from_pixel_to_grid_coords`.
-    :param mask_matrix: Mask matrix created by `polygons_to_mask`.
+    :param positive_polygon_objects_rowcol: List of polygons created by
+        `polygons_from_pixel_to_grid_coords`, containing positive regions of
+        interest.
+    :param positive_mask_matrix: Mask matrix created by `polygons_to_mask`,
+        corresponding to `positive_polygon_objects_rowcol`.
+    :param negative_polygon_objects_rowcol: List of polygons created by
+        `polygons_from_pixel_to_grid_coords`, containing negative regions of
+        interest.
+    :param negative_mask_matrix: Mask matrix created by `polygons_to_mask`,
+        corresponding to `negative_polygon_objects_rowcol`.
     """
 
     error_checking.assert_is_string(orig_image_file_name)
-    error_checking.assert_is_boolean_numpy_array(mask_matrix)
-    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+    error_checking.assert_is_boolean_numpy_array(positive_mask_matrix)
+    error_checking.assert_is_numpy_array(positive_mask_matrix, num_dimensions=2)
 
-    error_checking.assert_is_list(list_of_polygon_objects_rowcol)
-    num_polygons = len(list_of_polygon_objects_rowcol)
+    error_checking.assert_is_boolean_numpy_array(negative_mask_matrix)
+    error_checking.assert_is_numpy_array(
+        negative_mask_matrix,
+        exact_dimensions=numpy.array(positive_mask_matrix.shape, dtype=int)
+    )
 
-    if num_polygons > 0:
-        error_checking.assert_is_numpy_array(
-            numpy.array(list_of_polygon_objects_rowcol, dtype=object),
-            num_dimensions=1
-        )
+    positive_vertex_rows, positive_vertex_columns = (
+        _polygon_list_to_vertex_list(positive_polygon_objects_rowcol)
+    )
 
-    vertex_rows = []
-    vertex_columns = []
-
-    for i in range(num_polygons):
-        vertex_rows += list_of_polygon_objects_rowcol[i].exterior.xy[1]
-        vertex_columns += list_of_polygon_objects_rowcol[i].exterior.xy[0]
-
-        if i == num_polygons - 1:
-            continue
-
-        vertex_rows += [numpy.nan]
-        vertex_columns += [numpy.nan]
-
-    vertex_rows = numpy.array(vertex_rows)
-    vertex_columns = numpy.array(vertex_columns)
+    negative_vertex_rows, negative_vertex_columns = (
+        _polygon_list_to_vertex_list(negative_polygon_objects_rowcol)
+    )
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     dataset_object = netCDF4.Dataset(
@@ -263,26 +335,62 @@ def write_polygons(
 
     dataset_object.setncattr(IMAGE_FILE_KEY, orig_image_file_name)
 
-    dataset_object.createDimension(ROW_DIMENSION_KEY, mask_matrix.shape[0])
-    dataset_object.createDimension(COLUMN_DIMENSION_KEY, mask_matrix.shape[1])
-    dataset_object.createDimension(VERTEX_DIMENSION_KEY, len(vertex_rows))
-
-    dataset_object.createVariable(
-        VERTEX_ROWS_KEY, datatype=numpy.float32, dimensions=VERTEX_DIMENSION_KEY
+    dataset_object.createDimension(
+        ROW_DIMENSION_KEY, positive_mask_matrix.shape[0]
     )
-    dataset_object.variables[VERTEX_ROWS_KEY][:] = vertex_rows
-
-    dataset_object.createVariable(
-        VERTEX_COLUMNS_KEY, datatype=numpy.float32,
-        dimensions=VERTEX_DIMENSION_KEY
+    dataset_object.createDimension(
+        COLUMN_DIMENSION_KEY, positive_mask_matrix.shape[1]
     )
-    dataset_object.variables[VERTEX_COLUMNS_KEY][:] = vertex_columns
+    dataset_object.createDimension(
+        POSITIVE_VERTEX_DIM_KEY, len(positive_vertex_rows)
+    )
+    dataset_object.createDimension(
+        NEGATIVE_VERTEX_DIM_KEY, len(negative_vertex_rows)
+    )
 
     dataset_object.createVariable(
-        MASK_MATRIX_KEY, datatype=numpy.int32,
+        POSITIVE_VERTEX_ROWS_KEY, datatype=numpy.float32,
+        dimensions=POSITIVE_VERTEX_DIM_KEY
+    )
+    dataset_object.variables[POSITIVE_VERTEX_ROWS_KEY][:] = positive_vertex_rows
+
+    dataset_object.createVariable(
+        POSITIVE_VERTEX_COLUMNS_KEY, datatype=numpy.float32,
+        dimensions=POSITIVE_VERTEX_DIM_KEY
+    )
+    dataset_object.variables[POSITIVE_VERTEX_COLUMNS_KEY][:] = (
+        positive_vertex_columns
+    )
+
+    dataset_object.createVariable(
+        NEGATIVE_VERTEX_ROWS_KEY, datatype=numpy.float32,
+        dimensions=NEGATIVE_VERTEX_DIM_KEY
+    )
+    dataset_object.variables[NEGATIVE_VERTEX_ROWS_KEY][:] = negative_vertex_rows
+
+    dataset_object.createVariable(
+        NEGATIVE_VERTEX_COLUMNS_KEY, datatype=numpy.float32,
+        dimensions=NEGATIVE_VERTEX_DIM_KEY
+    )
+    dataset_object.variables[NEGATIVE_VERTEX_COLUMNS_KEY][:] = (
+        negative_vertex_columns
+    )
+
+    dataset_object.createVariable(
+        POSITIVE_MASK_MATRIX_KEY, datatype=numpy.int32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[MASK_MATRIX_KEY][:] = mask_matrix.astype(int)
+    dataset_object.variables[POSITIVE_MASK_MATRIX_KEY][:] = (
+        positive_mask_matrix.astype(int)
+    )
+
+    dataset_object.createVariable(
+        NEGATIVE_MASK_MATRIX_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[NEGATIVE_MASK_MATRIX_KEY][:] = (
+        negative_mask_matrix.astype(int)
+    )
 
     dataset_object.close()
 
@@ -293,8 +401,10 @@ def read_polygons(netcdf_file_name):
     :param netcdf_file_name: Path to input file.
     :return: polygon_dict: Dictionary with the following keys.
     polygon_dict['orig_image_file_name']: See input doc for `write_polygons`.
-    polygon_dict['list_of_polygon_objects_rowcol']: Same.
-    polygon_dict['mask_matrix']: Same.
+    polygon_dict['positive_polygon_objects_rowcol']: Same.
+    polygon_dict['positive_mask_matrix']: Same.
+    polygon_dict['negative_polygon_objects_rowcol']: Same.
+    polygon_dict['negative_mask_matrix']: Same.
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
@@ -302,38 +412,36 @@ def read_polygons(netcdf_file_name):
 
     polygon_dict = {
         IMAGE_FILE_KEY: str(getattr(dataset_object, IMAGE_FILE_KEY)),
-        MASK_MATRIX_KEY: numpy.array(
-            dataset_object.variables[MASK_MATRIX_KEY][:], dtype=bool
+        POSITIVE_MASK_MATRIX_KEY: numpy.array(
+            dataset_object.variables[POSITIVE_MASK_MATRIX_KEY][:], dtype=bool
+        ),
+        NEGATIVE_MASK_MATRIX_KEY: numpy.array(
+            dataset_object.variables[NEGATIVE_MASK_MATRIX_KEY][:], dtype=bool
         )
     }
 
-    vertex_rows = numpy.array(
-        dataset_object.variables[VERTEX_ROWS_KEY][:], dtype=float
-    )
-
-    if len(vertex_rows) == 0:
-        polygon_dict[POLYGON_OBJECTS_KEY] = []
-        return polygon_dict
-
-    vertex_columns = numpy.array(
-        dataset_object.variables[VERTEX_COLUMNS_KEY][:], dtype=float
-    )
-
-    vertex_rows_by_polygon = general_utils.split_array_by_nan(vertex_rows)
-    vertex_columns_by_polygon = general_utils.split_array_by_nan(vertex_columns)
-
-    num_polygons = len(vertex_rows_by_polygon)
-    list_of_polygon_objects_rowcol = []
-
-    for i in range(num_polygons):
-        this_polygon_object = polygons.vertex_arrays_to_polygon_object(
-            exterior_x_coords=vertex_columns_by_polygon[i],
-            exterior_y_coords=vertex_rows_by_polygon[i]
+    positive_polygon_objects_rowcol = _vertex_list_to_polygon_list(
+        vertex_rows=numpy.array(
+            dataset_object.variables[POSITIVE_VERTEX_ROWS_KEY][:], dtype=float
+        ),
+        vertex_columns=numpy.array(
+            dataset_object.variables[POSITIVE_VERTEX_COLUMNS_KEY][:],
+            dtype=float
         )
+    )
 
-        list_of_polygon_objects_rowcol.append(this_polygon_object)
+    negative_polygon_objects_rowcol = _vertex_list_to_polygon_list(
+        vertex_rows=numpy.array(
+            dataset_object.variables[NEGATIVE_VERTEX_ROWS_KEY][:], dtype=float
+        ),
+        vertex_columns=numpy.array(
+            dataset_object.variables[NEGATIVE_VERTEX_COLUMNS_KEY][:],
+            dtype=float
+        )
+    )
 
     dataset_object.close()
 
-    polygon_dict[POLYGON_OBJECTS_KEY] = list_of_polygon_objects_rowcol
+    polygon_dict[POSITIVE_POLYGON_OBJECTS_KEY] = positive_polygon_objects_rowcol
+    polygon_dict[NEGATIVE_POLYGON_OBJECTS_KEY] = negative_polygon_objects_rowcol
     return polygon_dict
