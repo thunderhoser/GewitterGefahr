@@ -7,7 +7,6 @@ and tornado reports for near-past and near-future times.
 import copy
 import os.path
 import argparse
-from itertools import chain
 import numpy
 import matplotlib
 matplotlib.use('agg')
@@ -35,16 +34,18 @@ from gewittergefahr.plotting import imagemagick_utils
 # TODO(thunderhoser): Deal with both tornado occurrence and genesis as target
 # variables.
 
-TIME_INTERVAL_SECONDS = 300
-TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+TIME_INTERVAL_SECONDS = 300
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+
+TORNADO_TIME_FORMAT = '%H%M%S'
 TORNADO_MARKER_TYPE = '^'
 TORNADO_MARKER_SIZE = 16
 TORNADO_MARKER_EDGE_WIDTH = 1
 TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
 
-TITLE_FONT_SIZE = 12
+TITLE_FONT_SIZE = 16
 FONT_SIZE = 16
 
 NUM_PARALLELS = 8
@@ -198,8 +199,8 @@ def _get_plotting_limits(storm_object_table, latitude_buffer_deg,
 
 def _plot_one_example_one_time(
         storm_object_table, tornado_table, top_myrorss_dir_name,
-        radar_field_name, radar_height_m_asl, latitude_buffer_deg,
-        longitude_buffer_deg):
+        radar_field_name, radar_height_m_asl, valid_time_unix_sec,
+        latitude_limits_deg, longitude_limits_deg):
     """Plots one example with surrounding context at one time.
 
     :param storm_object_table: pandas DataFrame, containing only storm objects
@@ -210,42 +211,15 @@ def _plot_one_example_one_time(
     :param top_myrorss_dir_name: See documentation at top of file.
     :param radar_field_name: Same.
     :param radar_height_m_asl: Same.
-    :param latitude_buffer_deg: Same.
-    :param longitude_buffer_deg: Same.
+    :param valid_time_unix_sec: Valid time.
+    :param latitude_limits_deg: See doc for `_get_plotting_limits`.
+    :param longitude_limits_deg: Same.
     """
-
-    latitude_limits_deg, longitude_limits_deg = _get_plotting_limits(
-        storm_object_table=storm_object_table,
-        latitude_buffer_deg=latitude_buffer_deg,
-        longitude_buffer_deg=longitude_buffer_deg)
 
     min_plot_latitude_deg = latitude_limits_deg[0]
     max_plot_latitude_deg = latitude_limits_deg[1]
     min_plot_longitude_deg = longitude_limits_deg[0]
     max_plot_longitude_deg = longitude_limits_deg[1]
-
-    valid_time_unix_sec = storm_object_table[
-        tracking_utils.VALID_TIME_COLUMN].values[0]
-
-    # TODO(thunderhoser): The "3600" is a HACK.
-    tornado_table = tornado_table.loc[
-        (tornado_table[linkage.EVENT_TIME_COLUMN] >= valid_time_unix_sec) &
-        (tornado_table[linkage.EVENT_TIME_COLUMN] <= valid_time_unix_sec + 3600)
-    ]
-
-    tornado_table = tornado_table.loc[
-        (tornado_table[linkage.EVENT_LATITUDE_COLUMN] >= min_plot_latitude_deg)
-        &
-        (tornado_table[linkage.EVENT_LATITUDE_COLUMN] <= max_plot_latitude_deg)
-    ]
-
-    tornado_table = tornado_table.loc[
-        (tornado_table[linkage.EVENT_LONGITUDE_COLUMN] >=
-         min_plot_longitude_deg)
-        &
-        (tornado_table[linkage.EVENT_LONGITUDE_COLUMN] <=
-         max_plot_longitude_deg)
-    ]
 
     radar_file_name = myrorss_and_mrms_io.find_raw_file(
         top_directory_name=top_myrorss_dir_name,
@@ -330,7 +304,7 @@ def _plot_one_example_one_time(
 
     tornado_times_unix_sec = tornado_table[linkage.EVENT_TIME_COLUMN].values
     tornado_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        time_conversion.unix_sec_to_string(t, TORNADO_TIME_FORMAT)
         for t in tornado_times_unix_sec
     ]
 
@@ -468,20 +442,44 @@ def _plot_one_example(
         for t in tracking_times_unix_sec
     ]
 
+    storm_object_table = tracking_io.read_many_files(tracking_file_names)
+    print('\n')
+
+    storm_object_table = storm_object_table.loc[
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
+        primary_id_string
+    ]
+
+    latitude_limits_deg, longitude_limits_deg = _get_plotting_limits(
+        storm_object_table=storm_object_table,
+        latitude_buffer_deg=latitude_buffer_deg,
+        longitude_buffer_deg=longitude_buffer_deg)
+
     # TODO(thunderhoser): Get rid of the "3600" hack.
     tornado_table = linkage._read_input_tornado_reports(
         input_directory_name=tornado_dir_name,
-        storm_times_unix_sec=tracking_times_unix_sec,
+        storm_times_unix_sec=numpy.array([storm_time_unix_sec], dtype=int),
         max_time_before_storm_start_sec=0, max_time_after_storm_end_sec=3600,
         genesis_only=True)
 
-    for i in range(len(tracking_file_names)):
-        print('Reading data from: "{0:s}"...'.format(tracking_file_names[i]))
-        this_storm_object_table = tracking_io.read_file(tracking_file_names[i])
+    tornado_table = tornado_table.loc[
+        (tornado_table[linkage.EVENT_LATITUDE_COLUMN] >= latitude_limits_deg[0])
+        &
+        (tornado_table[linkage.EVENT_LATITUDE_COLUMN] <= latitude_limits_deg[1])
+    ]
 
-        this_storm_object_table = this_storm_object_table.loc[
-            this_storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
-            primary_id_string
+    tornado_table = tornado_table.loc[
+        (tornado_table[linkage.EVENT_LONGITUDE_COLUMN] >=
+         longitude_limits_deg[0])
+        &
+        (tornado_table[linkage.EVENT_LONGITUDE_COLUMN] <=
+         longitude_limits_deg[1])
+    ]
+
+    for i in range(len(tracking_file_names)):
+        this_storm_object_table = storm_object_table.loc[
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN] ==
+            tracking_times_unix_sec[i]
         ]
 
         _plot_one_example_one_time(
@@ -490,12 +488,16 @@ def _plot_one_example(
             top_myrorss_dir_name=top_myrorss_dir_name,
             radar_field_name=radar_field_name,
             radar_height_m_asl=radar_height_m_asl,
-            latitude_buffer_deg=latitude_buffer_deg,
-            longitude_buffer_deg=longitude_buffer_deg)
+            valid_time_unix_sec=tracking_times_unix_sec[i],
+            latitude_limits_deg=latitude_limits_deg,
+            longitude_limits_deg=longitude_limits_deg)
 
         this_title_string = (
-            'Storm object "{0:s}" at {1:s} ... forecast prob = {2:.3f}'
-        ).format(full_id_string, tracking_time_strings[i], forecast_probability)
+            'Valid time = {0:s} ... forecast prob at {1:s} = {2:.3f}'
+        ).format(
+            tracking_time_strings[i], storm_time_string, forecast_probability
+        )
+
         pyplot.title(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_file_name = '{0:s}/{1:s}.jpg'.format(
