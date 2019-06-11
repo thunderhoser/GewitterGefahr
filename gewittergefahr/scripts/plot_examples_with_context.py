@@ -40,7 +40,7 @@ TIME_INTERVAL_SECONDS = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 TORNADO_TIME_FORMAT = '%H%M%S'
-TORNADO_FONT_SIZE = 16
+TORNADO_FONT_SIZE = 20
 TORNADO_FONT_COLOUR = numpy.full(3, 0.)
 
 TORNADO_MARKER_TYPE = '^'
@@ -149,20 +149,21 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_one_example_one_time(
-        storm_object_table, tornado_table, top_myrorss_dir_name,
-        radar_field_name, radar_height_m_asl, valid_time_unix_sec,
-        latitude_limits_deg, longitude_limits_deg):
+        storm_object_table, primary_id_string, valid_time_unix_sec,
+        tornado_table, top_myrorss_dir_name, radar_field_name,
+        radar_height_m_asl, latitude_limits_deg, longitude_limits_deg):
     """Plots one example with surrounding context at one time.
 
     :param storm_object_table: pandas DataFrame, containing only storm objects
         at one time with the relevant primary ID.  Columns are documented in
         `storm_tracking_io.write_file`.
+    :param primary_id_string: Primary ID of storm of interest.
+    :param valid_time_unix_sec: Valid time.
     :param tornado_table: pandas DataFrame created by
         `linkage._read_input_tornado_reports`.
     :param top_myrorss_dir_name: See documentation at top of file.
     :param radar_field_name: Same.
     :param radar_height_m_asl: Same.
-    :param valid_time_unix_sec: Valid time.
     :param latitude_limits_deg: See doc for `_get_plotting_limits`.
     :param longitude_limits_deg: Same.
     """
@@ -255,9 +256,24 @@ def _plot_one_example_one_time(
         colour_norm_object=colour_norm_object, orientation_string='horizontal',
         extend_min=False, extend_max=True, fraction_of_axis_length=0.8)
 
+    this_storm_object_table = storm_object_table.loc[
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] !=
+        primary_id_string
+    ]
+
     storm_plotting.plot_storm_outlines(
-        storm_object_table=storm_object_table, axes_object=axes_object,
+        storm_object_table=this_storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, line_width=2, line_colour='k')
+
+    this_storm_object_table = storm_object_table.loc[
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
+        primary_id_string
+    ]
+
+    storm_plotting.plot_storm_outlines(
+        storm_object_table=this_storm_object_table, axes_object=axes_object,
+        basemap_object=basemap_object, line_width=2,
+        line_colour=TORNADO_MARKER_COLOUR)
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
     tornado_longitudes_deg = tornado_table[
@@ -285,7 +301,7 @@ def _plot_one_example_one_time(
         axes_object.text(
             tornado_longitudes_deg[j], tornado_latitudes_deg[j],
             tornado_time_strings[j], fontsize=TORNADO_FONT_SIZE,
-            color=TORNADO_FONT_COLOUR,
+            color=TORNADO_FONT_COLOUR, fontweight='bold',
             horizontalalignment='left', verticalalignment='top')
 
 
@@ -468,10 +484,64 @@ def _plot_one_example(
         [full_id_string]
     )[0][0]
 
-    storm_object_table = storm_object_table.loc[
+    this_storm_object_table = storm_object_table.loc[
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
         primary_id_string
     ]
+
+    latitude_limits_deg, longitude_limits_deg = _get_plotting_limits(
+        storm_object_table=this_storm_object_table,
+        latitude_buffer_deg=latitude_buffer_deg,
+        longitude_buffer_deg=longitude_buffer_deg)
+
+    storm_min_latitudes_deg = numpy.array([
+        numpy.min(numpy.array(p.exterior.xy[1])) for p in
+        storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values
+    ])
+
+    storm_max_latitudes_deg = numpy.array([
+        numpy.max(numpy.array(p.exterior.xy[1])) for p in
+        storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values
+    ])
+
+    storm_min_longitudes_deg = numpy.array([
+        numpy.min(numpy.array(p.exterior.xy[0])) for p in
+        storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values
+    ])
+
+    storm_max_longitudes_deg = numpy.array([
+        numpy.max(numpy.array(p.exterior.xy[0])) for p in
+        storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values
+    ])
+
+    min_latitude_flags = numpy.logical_and(
+        storm_min_latitudes_deg >= latitude_limits_deg[0],
+        storm_min_latitudes_deg <= latitude_limits_deg[1]
+    )
+
+    max_latitude_flags = numpy.logical_and(
+        storm_max_latitudes_deg >= latitude_limits_deg[0],
+        storm_max_latitudes_deg <= latitude_limits_deg[1]
+    )
+
+    latitude_flags = numpy.logical_or(min_latitude_flags, max_latitude_flags)
+
+    min_longitude_flags = numpy.logical_and(
+        storm_min_longitudes_deg >= longitude_limits_deg[0],
+        storm_min_longitudes_deg <= longitude_limits_deg[1]
+    )
+
+    max_longitude_flags = numpy.logical_and(
+        storm_max_longitudes_deg >= longitude_limits_deg[0],
+        storm_max_longitudes_deg <= longitude_limits_deg[1]
+    )
+
+    longitude_flags = numpy.logical_or(min_longitude_flags, max_longitude_flags)
+    good_indices = numpy.where(
+        numpy.logical_and(latitude_flags, longitude_flags)
+    )[0]
+
+    storm_object_table = storm_object_table.iloc[good_indices]
 
     # Read tornado reports.
     target_param_dict = target_val_utils.target_name_to_params(target_name)
@@ -486,11 +556,6 @@ def _plot_one_example(
         max_time_before_storm_start_sec=-1 * min_lead_time_seconds,
         max_time_after_storm_end_sec=max_lead_time_seconds,
         genesis_only=True)
-
-    latitude_limits_deg, longitude_limits_deg = _get_plotting_limits(
-        storm_object_table=storm_object_table,
-        latitude_buffer_deg=latitude_buffer_deg,
-        longitude_buffer_deg=longitude_buffer_deg)
 
     tornado_table = tornado_table.loc[
         (tornado_table[linkage.EVENT_LATITUDE_COLUMN] >= latitude_limits_deg[0])
@@ -514,11 +579,12 @@ def _plot_one_example(
 
         _plot_one_example_one_time(
             storm_object_table=this_storm_object_table,
+            primary_id_string=primary_id_string,
+            valid_time_unix_sec=tracking_times_unix_sec[i],
             tornado_table=copy.deepcopy(tornado_table),
             top_myrorss_dir_name=top_myrorss_dir_name,
             radar_field_name=radar_field_name,
             radar_height_m_asl=radar_height_m_asl,
-            valid_time_unix_sec=tracking_times_unix_sec[i],
             latitude_limits_deg=latitude_limits_deg,
             longitude_limits_deg=longitude_limits_deg)
 
