@@ -169,20 +169,22 @@ def _get_plotting_limits(storm_object_table, latitude_buffer_deg,
     """
 
     vertex_latitudes_deg_2d_list = [
-        p.exterior.xy[1] for p in
+        numpy.array(p.exterior.xy[1]) for p in
         storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values
     ]
 
     vertex_longitudes_deg_2d_list = [
-        p.exterior.xy[0] for p in
+        numpy.array(p.exterior.xy[0]) for p in
         storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values
     ]
 
-    print(vertex_latitudes_deg_2d_list)
-    print(type(vertex_latitudes_deg_2d_list))
+    vertex_latitudes_deg = numpy.concatenate(
+        tuple(vertex_latitudes_deg_2d_list)
+    )
 
-    vertex_latitudes_deg = numpy.array(list(chain(vertex_latitudes_deg_2d_list)))
-    vertex_longitudes_deg = numpy.array(chain(vertex_longitudes_deg_2d_list))
+    vertex_longitudes_deg = numpy.concatenate(
+        tuple(vertex_longitudes_deg_2d_list)
+    )
 
     print(vertex_latitudes_deg)
     print(type(vertex_latitudes_deg))
