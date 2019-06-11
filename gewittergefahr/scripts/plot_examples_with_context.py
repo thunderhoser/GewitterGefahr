@@ -181,7 +181,7 @@ def _get_plotting_limits(storm_object_table, latitude_buffer_deg,
     print(vertex_latitudes_deg_2d_list)
     print(type(vertex_latitudes_deg_2d_list))
 
-    vertex_latitudes_deg = numpy.array(chain(vertex_latitudes_deg_2d_list))
+    vertex_latitudes_deg = numpy.array(list(chain(vertex_latitudes_deg_2d_list)))
     vertex_longitudes_deg = numpy.array(chain(vertex_longitudes_deg_2d_list))
 
     print(vertex_latitudes_deg)
