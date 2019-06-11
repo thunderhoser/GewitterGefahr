@@ -17,7 +17,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
-from gewittergefahr.plotting import sounding_plotting
+# from gewittergefahr.plotting import sounding_plotting
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
@@ -31,10 +31,14 @@ HALF_NUM_CONTOURS = 10
 TITLE_FONT_SIZE = 20
 FONT_SIZE_WITH_COLOUR_BARS = 16
 FONT_SIZE_SANS_COLOUR_BARS = 20
+
+FIGURE_WIDTH_INCHES = 15
+FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
 SOUNDING_IMAGE_SIZE_PX = int(5e6)
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
+SAVE_PANELED_ARG_NAME = 'save_paneled_figs'
 SALIENCY_CMAP_ARG_NAME = 'saliency_colour_map_name'
 MAX_SALIENCY_PRCTILE_ARG_NAME = 'max_colour_prctile_for_saliency'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -42,6 +46,11 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `saliency_maps.read_standard_file` or'
     ' `saliency_maps.read_pmm_file`.')
+
+SAVE_PANELED_HELP_STRING = (
+    'Boolean flag.  If 1, will save paneled figures, so there will be only a '
+    'few figures per example.  If 0, will save each panel individually, so '
+    'there will be one figure for each example and field.')
 
 SALIENCY_CMAP_HELP_STRING = (
     'Name of colour map.  Saliency for each predictor will be plotted with the '
@@ -62,6 +71,10 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
     help=INPUT_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + SAVE_PANELED_ARG_NAME, type=int, required=False, default=1,
+    help=SAVE_PANELED_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + SALIENCY_CMAP_ARG_NAME, type=str, required=False, default='Greys',
@@ -217,7 +230,8 @@ def _plot_saliency_for_2d3d_radar(
 def _plot_saliency_for_2d_radar(
         radar_matrix, radar_saliency_matrix, model_metadata_dict,
         saliency_colour_map_object, max_colour_value_by_example,
-        output_dir_name, full_id_strings=None, storm_times_unix_sec=None):
+        save_paneled_figs, output_dir_name, full_id_strings=None,
+        storm_times_unix_sec=None):
     """Plots saliency for 2-D radar fields.
 
     E = number of examples
@@ -236,6 +250,7 @@ def _plot_saliency_for_2d_radar(
     :param saliency_colour_map_object: See doc for
         `_plot_saliency_for_2d3d_radar`.
     :param max_colour_value_by_example: Same.
+    :param save_paneled_figs: Same.
     :param output_dir_name: Same.
     :param full_id_strings: Same.
     :param storm_times_unix_sec: Same.
@@ -259,8 +274,8 @@ def _plot_saliency_for_2d_radar(
         )
 
         plot_colour_bar_by_panel = numpy.full(
-            len(panel_names), True, dtype=bool)
-
+            len(panel_names), True, dtype=bool
+        )
     else:
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
@@ -268,57 +283,99 @@ def _plot_saliency_for_2d_radar(
         )
 
         plot_colour_bar_by_panel = numpy.full(
-            len(panel_names), False, dtype=bool)
+            len(panel_names), False, dtype=bool
+        )
         plot_colour_bar_by_panel[2::3] = True
 
     num_examples = radar_matrix.shape[0]
     num_panels = len(field_name_by_panel)
     num_panel_rows = int(numpy.floor(numpy.sqrt(num_panels)))
 
+    if save_paneled_figs:
+        j_max = 1
+        border_width_px = 10
+    else:
+        j_max = num_panels
+        border_width_px = 0
+
     for i in range(num_examples):
-        _, this_axes_object_matrix = (
-            radar_plotting.plot_many_2d_grids_without_coords(
-                field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
-                field_name_by_panel=field_name_by_panel,
-                panel_names=panel_names, num_panel_rows=num_panel_rows,
-                plot_colour_bar_by_panel=plot_colour_bar_by_panel,
-                font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
-        )
+        for j in range(j_max):
+            if save_paneled_figs:
+                _, this_axes_object_matrix = (
+                    radar_plotting.plot_many_2d_grids_without_coords(
+                        field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
+                        field_name_by_panel=field_name_by_panel,
+                        panel_names=panel_names, num_panel_rows=num_panel_rows,
+                        plot_colour_bar_by_panel=plot_colour_bar_by_panel,
+                        font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
+                )
 
-        this_contour_interval = (
-            max_colour_value_by_example[i] / HALF_NUM_CONTOURS
-        )
+                this_contour_interval = (
+                    max_colour_value_by_example[i] / HALF_NUM_CONTOURS
+                )
 
-        saliency_plotting.plot_many_2d_grids_with_contours(
-            saliency_matrix_3d=numpy.flip(
-                radar_saliency_matrix[i, ...], axis=0),
-            axes_object_matrix=this_axes_object_matrix,
-            colour_map_object=saliency_colour_map_object,
-            max_absolute_contour_level=max_colour_value_by_example[i],
-            contour_interval=this_contour_interval, row_major=False)
+                saliency_plotting.plot_many_2d_grids_with_contours(
+                    saliency_matrix_3d=numpy.flip(
+                        radar_saliency_matrix[i, ...], axis=0),
+                    axes_object_matrix=this_axes_object_matrix,
+                    colour_map_object=saliency_colour_map_object,
+                    max_absolute_contour_level=max_colour_value_by_example[i],
+                    contour_interval=this_contour_interval, row_major=False)
+            else:
+                this_axes_object = pyplot.subplots(
+                    1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+                )[-1]
 
-        if pmm_flag:
-            this_title_string = 'Probability-matched mean'
-            this_file_name = '{0:s}/saliency_pmm_radar.jpg'.format(
-                output_dir_name)
-        else:
-            this_storm_time_string = time_conversion.unix_sec_to_string(
-                storm_times_unix_sec[i], TIME_FORMAT)
+                radar_plotting.plot_2d_grid_without_coords(
+                    field_matrix=numpy.flip(radar_matrix[i, ..., j], axis=0),
+                    field_name=field_name_by_panel[j],
+                    axes_object=this_axes_object)
 
-            this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                full_id_strings[i], this_storm_time_string)
+                this_contour_interval = (
+                    max_colour_value_by_example[i] / HALF_NUM_CONTOURS
+                )
 
-            this_file_name = '{0:s}/saliency_{1:s}_{2:s}_radar.jpg'.format(
-                output_dir_name, full_id_strings[i].replace('_', '-'),
-                this_storm_time_string)
+                saliency_plotting.plot_2d_grid_with_contours(
+                    saliency_matrix_2d=numpy.flip(
+                        radar_saliency_matrix[i, ..., j], axis=0),
+                    axes_object=this_axes_object,
+                    colour_map_object=saliency_colour_map_object,
+                    max_absolute_contour_level=max_colour_value_by_example[i],
+                    contour_interval=this_contour_interval)
 
-        this_title_string += ' (max absolute saliency = {0:.3f})'.format(
-            max_colour_value_by_example[i])
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            if save_paneled_figs:
+                this_file_name_suffix = 'radar'
+            else:
+                this_file_name_suffix = field_name_by_panel[j].replace('_', '-')
 
-        print('Saving figure to file: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
+            if pmm_flag:
+                this_title_string = 'Probability-matched mean'
+                this_file_name = '{0:s}/saliency_pmm_{1:s}.jpg'.format(
+                    output_dir_name, this_file_name_suffix)
+            else:
+                this_storm_time_string = time_conversion.unix_sec_to_string(
+                    storm_times_unix_sec[i], TIME_FORMAT)
+
+                this_title_string = 'Storm "{0:s}" at {1:s}'.format(
+                    full_id_strings[i], this_storm_time_string)
+
+                this_file_name = '{0:s}/saliency_{1:s}_{2:s}_{3:s}.jpg'.format(
+                    output_dir_name, full_id_strings[i].replace('_', '-'),
+                    this_storm_time_string, this_file_name_suffix)
+
+            if save_paneled_figs:
+                this_title_string += (
+                    ' (max absolute saliency = {0:.3f})'
+                ).format(max_colour_value_by_example[i])
+                pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+
+            print('Saving figure to file: "{0:s}"...'.format(this_file_name))
+            pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+            pyplot.close()
+
+            imagemagick_utils.trim_whitespace(
+                input_file_name=this_file_name, output_file_name=this_file_name,
+                border_width_pixels=border_width_px)
 
 
 def _plot_saliency_for_3d_radar(
@@ -468,9 +525,9 @@ def _plot_sounding_saliency(
 
         this_title_string = 'Storm "{0:s}" at {1:s}'.format(
             this_id_string, this_storm_time_string)
-        sounding_plotting.plot_sounding(
-            sounding_dict_for_metpy=metpy_dict_by_example[i],
-            title_string=this_title_string)
+        # sounding_plotting.plot_sounding(
+        #     sounding_dict_for_metpy=metpy_dict_by_example[i],
+        #     title_string=this_title_string)
 
         this_left_file_name = (
             '{0:s}/{1:s}_{2:s}_sounding-actual.jpg'
@@ -538,13 +595,14 @@ def _plot_sounding_saliency(
         os.remove(this_right_file_name)
 
 
-def _run(input_file_name, saliency_colour_map_name,
+def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
          max_colour_prctile_for_saliency, output_dir_name):
     """Plots saliency maps for a CNN (convolutional neural network).
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
+    :param save_paneled_figs: Same.
     :param saliency_colour_map_name: Same.
     :param max_colour_prctile_for_saliency: Same.
     :param output_dir_name: Same.
@@ -580,9 +638,11 @@ def _run(input_file_name, saliency_colour_map_name,
 
         for i in range(len(list_of_input_matrices)):
             list_of_input_matrices[i] = numpy.expand_dims(
-                list_of_input_matrices[i], axis=0)
+                list_of_input_matrices[i], axis=0
+            )
             list_of_saliency_matrices[i] = numpy.expand_dims(
-                list_of_saliency_matrices[i], axis=0)
+                list_of_saliency_matrices[i], axis=0
+            )
 
         orig_saliency_file_name = saliency_dict[
             saliency_maps.STANDARD_FILE_NAME_KEY]
@@ -609,7 +669,8 @@ def _run(input_file_name, saliency_colour_map_name,
         )
         max_colour_value_by_example[i] = numpy.percentile(
             numpy.absolute(these_saliency_values),
-            max_colour_prctile_for_saliency)
+            max_colour_prctile_for_saliency
+        )
 
     model_file_name = saliency_metadata_dict[saliency_maps.MODEL_FILE_NAME_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
@@ -663,7 +724,8 @@ def _run(input_file_name, saliency_colour_map_name,
         model_metadata_dict=model_metadata_dict,
         saliency_colour_map_object=saliency_colour_map_object,
         max_colour_value_by_example=max_colour_value_by_example,
-        output_dir_name=output_dir_name, full_id_strings=full_id_strings,
+        output_dir_name=output_dir_name, save_paneled_figs=save_paneled_figs,
+        full_id_strings=full_id_strings,
         storm_times_unix_sec=storm_times_unix_sec)
 
 
@@ -672,6 +734,9 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
+        save_paneled_figs=bool(getattr(
+            INPUT_ARG_OBJECT, SAVE_PANELED_ARG_NAME
+        )),
         saliency_colour_map_name=getattr(
             INPUT_ARG_OBJECT, SALIENCY_CMAP_ARG_NAME),
         max_colour_prctile_for_saliency=getattr(
