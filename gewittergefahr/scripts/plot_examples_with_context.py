@@ -186,9 +186,6 @@ def _get_plotting_limits(storm_object_table, latitude_buffer_deg,
         tuple(vertex_longitudes_deg_2d_list)
     )
 
-    print(vertex_latitudes_deg)
-    print(type(vertex_latitudes_deg))
-
     min_plot_latitude_deg = (
         numpy.min(vertex_latitudes_deg) - latitude_buffer_deg
     )
@@ -336,9 +333,11 @@ def _plot_one_example_one_time(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, line_width=2, line_colour='k')
 
-    tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN]
-    tornado_longitudes_deg = tornado_table[linkage.EVENT_LONGITUDE_COLUMN]
-    tornado_times_unix_sec = tornado_table[linkage.EVENT_TIME_COLUMN]
+    tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
+    tornado_longitudes_deg = tornado_table[
+        linkage.EVENT_LONGITUDE_COLUMN].values
+
+    tornado_times_unix_sec = tornado_table[linkage.EVENT_TIME_COLUMN].values
     tornado_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT)
         for t in tornado_times_unix_sec
