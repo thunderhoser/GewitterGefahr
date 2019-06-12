@@ -4,6 +4,7 @@ import pickle
 import os.path
 import argparse
 import numpy
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.scripts import plot_input_examples
@@ -60,8 +61,10 @@ def _run(input_file_name, save_paneled_figs, plot_soundings, output_dir_name):
     :param output_dir_name: Same.
     """
 
-    print('Reading data from: "{0:s}"...'.format(input_file_name))
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
 
+    print('Reading data from: "{0:s}"...'.format(input_file_name))
     pickle_file_handle = open(input_file_name, 'rb')
     input_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
