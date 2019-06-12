@@ -25,7 +25,7 @@ METRES_TO_KM = 0.001
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 MARKER_TYPE = 'o'
-MARKER_SIZE = 20
+MARKER_SIZE = 15
 MARKER_EDGE_WIDTH = 1
 MARKER_COLOUR = numpy.full(3, 0.)
 
@@ -170,6 +170,9 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
     these_rows, these_columns = numpy.where(numpy.logical_and(
         flipped_machine_mask_matrix, flipped_human_mask_matrix
     ))
+
+    these_rows = these_rows + 0.5
+    these_columns = these_columns + 0.5
     
     if len(these_rows) > 0:
         marker_colour_as_tuple = plotting_utils.colour_from_numpy_to_tuple(
@@ -181,20 +184,28 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
             markerfacecolor=marker_colour_as_tuple,
             markeredgecolor=marker_colour_as_tuple)
 
-    # these_rows, these_columns = numpy.where(numpy.logical_and(
-    #     flipped_machine_mask_matrix, numpy.invert(flipped_human_mask_matrix)
-    # ))
-    #
-    # if len(these_rows) > 0:
-    #     axes_object.text(
-    #         these_columns, these_rows, MACHINE_STRING,
-    #         fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
-    #         fontweight='bold', horizontalalignment='center',
-    #         verticalalignment='center')
-    #
+    these_rows, these_columns = numpy.where(numpy.logical_and(
+        flipped_machine_mask_matrix, numpy.invert(flipped_human_mask_matrix)
+    ))
+
+    these_rows = these_rows + 0.5
+    these_columns = these_columns + 0.5
+
+    if len(these_rows) > 0:
+        these_strings = [MACHINE_STRING] * len(these_rows)
+
+        axes_object.text(
+            these_columns, these_rows, these_strings,
+            fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
+            fontweight='bold', horizontalalignment='center',
+            verticalalignment='center')
+
     # these_rows, these_columns = numpy.where(numpy.logical_and(
     #     numpy.invert(flipped_machine_mask_matrix), flipped_human_mask_matrix
     # ))
+    #
+    # these_rows = these_rows + 0.5
+    # these_columns = these_columns + 0.5
     #
     # if len(these_rows) > 0:
     #     axes_object.text(
