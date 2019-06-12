@@ -164,11 +164,10 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
 
     colour_bar_object.set_label(label_string)
 
-    flipped_machine_mask_matrix = numpy.flip(machine_mask_matrix, axis=0)
-    flipped_human_mask_matrix = numpy.flip(human_mask_matrix, axis=0)
+    machine_mask_matrix = numpy.flip(machine_mask_matrix, axis=0)
 
     these_rows, these_columns = numpy.where(numpy.logical_and(
-        flipped_machine_mask_matrix, flipped_human_mask_matrix
+        machine_mask_matrix, human_mask_matrix
     ))
 
     these_rows = these_rows + 0.5
@@ -185,7 +184,7 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
             markeredgecolor=marker_colour_as_tuple)
 
     these_rows, these_columns = numpy.where(numpy.logical_and(
-        flipped_machine_mask_matrix, numpy.invert(flipped_human_mask_matrix)
+        machine_mask_matrix, numpy.invert(human_mask_matrix)
     ))
 
     these_rows = these_rows + 0.5
@@ -199,7 +198,7 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
             verticalalignment='center')
 
     these_rows, these_columns = numpy.where(numpy.logical_and(
-        numpy.invert(flipped_machine_mask_matrix), flipped_human_mask_matrix
+        numpy.invert(machine_mask_matrix), human_mask_matrix
     ))
 
     these_rows = these_rows + 0.5
