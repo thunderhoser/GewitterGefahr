@@ -66,8 +66,12 @@ def _run(input_file_name, save_paneled_figs, plot_soundings, output_dir_name):
     pickle_file_handle.close()
 
     list_of_mean_input_matrices = input_dict[MEAN_INPUT_MATRICES_KEY]
-    model_file_name = input_dict[MODEL_FILE_KEY]
+    for i in range(len(list_of_input_matrices)):
+        list_of_input_matrices[i] = numpy.expand_dims(
+            list_of_input_matrices[i], axis=0
+        )
 
+    model_file_name = input_dict[MODEL_FILE_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )

@@ -248,6 +248,7 @@ def _run(input_human_file_name, input_machine_file_name,
         human_polygon_dict[human_polygons.IMAGE_FILE_KEY]
     )
 
+    pmm_flag = metadata_dict[plot_input_examples.PMM_FLAG_KEY]
     full_storm_id_string = metadata_dict[plot_input_examples.FULL_STORM_ID_KEY]
     storm_time_unix_sec = metadata_dict[plot_input_examples.STORM_TIME_KEY]
     radar_field_name = metadata_dict[plot_input_examples.RADAR_FIELD_KEY]
@@ -257,16 +258,29 @@ def _run(input_human_file_name, input_machine_file_name,
 
     print('Reading data from: "{0:s}"...'.format(input_machine_file_name))
 
-    if full_storm_id_string is None:
+    if pmm_flag:
         saliency_dict = saliency_maps.read_pmm_file(input_machine_file_name)
 
-        list_of_input_matrices = saliency_dict[
-            saliency_maps.MEAN_INPUT_MATRICES_KEY]
-        list_of_saliency_matrices = saliency_dict[
-            saliency_maps.MEAN_SALIENCY_MATRICES_KEY]
+        list_of_input_matrices = saliency_dict.pop(
+            saliency_maps.MEAN_INPUT_MATRICES_KEY)
+        list_of_saliency_matrices = saliency_dict.pop(
+            saliency_maps.MEAN_SALIENCY_MATRICES_KEY)
+
+        for i in range(len(list_of_input_matrices)):
+            list_of_input_matrices[i] = numpy.expand_dims(
+                list_of_input_matrices[i], axis=0
+            )
+            list_of_saliency_matrices[i] = numpy.expand_dims(
+                list_of_saliency_matrices[i], axis=0
+            )
     else:
         saliency_dict = saliency_maps.read_standard_file(
             input_machine_file_name)
+
+        list_of_input_matrices = saliency_dict.pop(
+            saliency_maps.INPUT_MATRICES_KEY)
+        list_of_saliency_matrices = saliency_dict.pop(
+            saliency_maps.SALIENCY_MATRICES_KEY)
 
         storm_object_index = tracking_utils.find_storm_objects(
             all_id_strings=saliency_dict[saliency_maps.FULL_IDS_KEY],
@@ -279,16 +293,13 @@ def _run(input_human_file_name, input_machine_file_name,
         )[0]
 
         list_of_input_matrices = [
-            a[storm_object_index, ...]
-            for a in saliency_dict[saliency_maps.INPUT_MATRICES_KEY]
+            a[storm_object_index, ...] for a in list_of_input_matrices
         ]
-
         list_of_saliency_matrices = [
-            a[storm_object_index, ...]
-            for a in saliency_dict[saliency_maps.SALIENCY_MATRICES_KEY]
+            a[storm_object_index, ...] for a in list_of_saliency_matrices
         ]
 
-    model_file_name = saliency_dict[saliency_maps.MODEL_FILE_NAME_KEY]
+    model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )
