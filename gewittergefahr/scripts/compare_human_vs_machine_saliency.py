@@ -99,7 +99,7 @@ def _compute_iou(machine_mask_matrix, human_mask_matrix):
 
 
 def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
-                     human_mask_matrix, output_file_name):
+                     human_mask_matrix, title_string, output_file_name):
     """Plots comparison between human and machine masks.
 
     M = number of rows in grid
@@ -116,6 +116,7 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
         of extreme saliency selon la machine.
     :param human_mask_matrix: M-by-N Boolean numpy array, representing areas of
         extreme saliency selon l'humain.
+    :param title_string: Title.
     :param output_file_name: Path to output file (figure will be saved here).
     """
 
@@ -208,6 +209,8 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
             fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
             fontweight='bold', horizontalalignment='center',
             verticalalignment='center')
+
+    pyplot.title(title_string)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -406,23 +409,27 @@ def _run(input_human_file_name, input_machine_file_name,
 
     print('IoU for negative saliency = {0:.3f}'.format(negative_iou))
 
-    positive_figure_file_name = '{0:s}/positive_comparison.jpg'.format(
-        output_dir_name)
+    this_title_string = (
+        'Positive saliency ... threshold = {0:.2e} ... IoU = {1:.3f}'
+    ).format(positive_saliency_threshold, positive_iou)
+    this_file_name = '{0:s}/positive_comparison.jpg'.format(output_dir_name)
 
     _plot_comparison(
         input_matrix=input_matrix, input_metadata_dict=metadata_dict,
         machine_mask_matrix=machine_positive_mask_matrix,
         human_mask_matrix=human_positive_mask_matrix,
-        output_file_name=positive_figure_file_name)
+        title_string=this_title_string, output_file_name=this_file_name)
 
-    negative_figure_file_name = '{0:s}/negative_comparison.jpg'.format(
-        output_dir_name)
+    this_title_string = (
+        'Negative saliency ... threshold = {0:.2e} ... IoU = {1:.3f}'
+    ).format(negative_saliency_threshold, negative_iou)
+    this_file_name = '{0:s}/negative_comparison.jpg'.format(output_dir_name)
 
     _plot_comparison(
         input_matrix=input_matrix, input_metadata_dict=metadata_dict,
         machine_mask_matrix=machine_negative_mask_matrix,
         human_mask_matrix=human_negative_mask_matrix,
-        output_file_name=negative_figure_file_name)
+        title_string=this_title_string, output_file_name=this_file_name)
 
 
 if __name__ == '__main__':
