@@ -33,6 +33,12 @@ SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL
 
 ACTIVATIONS_KEY = 'storm_activations'
 
+FULL_STORM_ID_KEY = 'full_storm_id_string'
+STORM_TIME_KEY = 'storm_time_unix_sec'
+RADAR_FIELD_KEY = 'radar_field_name'
+RADAR_HEIGHT_KEY = 'radar_height_m_agl'
+LAYER_OPERATION_KEY = 'layer_operation_dict'
+
 TITLE_FONT_SIZE = 20
 FONT_SIZE_WITH_COLOUR_BARS = 16
 FONT_SIZE_SANS_COLOUR_BARS = 20
@@ -655,6 +661,71 @@ def metadata_to_radar_fig_file_name(
         output_file_name, radar_field_name.replace('_', '-'), operation_name,
         int(numpy.round(min_height_m_agl)), int(numpy.round(max_height_m_agl))
     )
+
+
+def radar_fig_file_name_to_metadata(figure_file_name):
+    """Inverse of `metadata_to_radar_fig_file_name`.
+
+    :param figure_file_name: Path to figure file with radar data.
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict['full_storm_id_string']: See doc for
+        `metadata_to_radar_fig_file_name`.
+    metadata_dict['storm_time_unix_sec']: Same.
+    metadata_dict['radar_field_name']: Same.
+    metadata_dict['radar_height_m_agl']: Same.
+    metadata_dict['layer_operation_dict']: Same.
+    """
+
+    pathless_file_name = os.path.split(figure_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+
+    full_storm_id_string = extensionless_file_name.split('_')[0]
+    full_storm_id_string = (
+        full_storm_id_string.replace('storm=', '').replace('-', '_')
+    )
+
+    storm_time_unix_sec = time_conversion.string_to_unix_sec(
+        extensionless_file_name.split('_')[1], TIME_FORMAT
+    )
+
+    metadata_dict = {
+        FULL_STORM_ID_KEY: full_storm_id_string,
+        STORM_TIME_KEY: storm_time_unix_sec,
+        RADAR_FIELD_KEY: None,
+        RADAR_HEIGHT_KEY: None,
+        LAYER_OPERATION_KEY: None
+    }
+
+    radar_field_name = extensionless_file_name.split('_')[2]
+    radar_field_name = radar_field_name.replace('-', '_')
+
+    if extensionless_file_name.split('_')[2] == 'radar':
+        return metadata_dict
+
+    metadata_dict[RADAR_FIELD_KEY] = radar_field_name
+
+    try:
+        height_string = extensionless_file_name.split('_')[3]
+    except IndexError:
+        return metadata_dict
+
+    height_string = height_string.replace('metres', '')
+    height_string_parts = height_string.split('-')
+
+    if len(height_string_parts) == 1:
+        metadata_dict[RADAR_HEIGHT_KEY] = int(height_string)
+        return metadata_dict
+
+    metadata_dict[RADAR_FIELD_KEY] = None
+
+    metadata_dict[LAYER_OPERATION_KEY] = {
+        input_examples.RADAR_FIELD_KEY: radar_field_name,
+        input_examples.OPERATION_NAME_KEY: height_string_parts[0],
+        input_examples.MIN_HEIGHT_KEY: int(height_string_parts[1]),
+        input_examples.MAX_HEIGHT_KEY: int(height_string_parts[2])
+    }
+
+    return metadata_dict
 
 
 def plot_examples(
