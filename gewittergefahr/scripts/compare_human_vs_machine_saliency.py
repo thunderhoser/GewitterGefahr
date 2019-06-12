@@ -221,8 +221,11 @@ def _run(input_human_file_name, input_machine_file_name,
     )
 
     print(human_positive_mask_matrix.astype(int))
-    print('\n\n')
+    print('\n')
     print(machine_positive_mask_matrix.astype(int))
+    print('\n\n\n')
+    print(numpy.sum(human_positive_mask_matrix.astype(int)))
+    print(numpy.sum(machine_positive_mask_matrix.astype(int)))
 
 
 if __name__ == '__main__':
