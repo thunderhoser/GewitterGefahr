@@ -191,11 +191,9 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
     these_rows = these_rows + 0.5
     these_columns = these_columns + 0.5
 
-    if len(these_rows) > 0:
-        these_strings = [MACHINE_STRING] * len(these_rows)
-
+    for k in range(len(these_rows)):
         axes_object.text(
-            these_columns, these_rows, these_strings,
+            these_columns[k], these_rows[k], MACHINE_STRING,
             fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
             fontweight='bold', horizontalalignment='center',
             verticalalignment='center')
