@@ -11,6 +11,7 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import input_examples
@@ -35,6 +36,7 @@ SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL
 
 ACTIVATIONS_KEY = 'storm_activations'
 
+PMM_FLAG_KEY = 'pmm_flag'
 FULL_STORM_ID_KEY = 'full_storm_id_string'
 STORM_TIME_KEY = 'storm_time_unix_sec'
 RADAR_FIELD_KEY = 'radar_field_name'
@@ -165,23 +167,29 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_3d_examples(
-        list_of_predictor_matrices, full_id_strings, storm_time_strings,
-        model_metadata_dict, save_paneled_figs, output_dir_name,
-        storm_activations=None):
+        list_of_predictor_matrices, model_metadata_dict, save_paneled_figs,
+        output_dir_name, pmm_flag=False, full_id_strings=None,
+        storm_time_strings=None, storm_activations=None):
     """Plots examples with 3-D radar data.
 
     E = number of examples
 
     :param list_of_predictor_matrices: List created by
         `testing_io.read_specific_examples`, containing data to be plotted.
-    :param full_id_strings: length-E list of full storm IDs.
-    :param storm_time_strings: length-E list of valid times.
     :param model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     :param save_paneled_figs: See documentation at top of file.
     :param output_dir_name: Name of output directory.
-    :param storm_activations: length-E numpy array of storm activations (will be
-        included in figure titles).  If this is None, it will just be skipped.
+    :param pmm_flag: Boolean flag.  If True, this method will assume that input
+        contains a PMM (probability-matched mean) over many examples.  If False,
+        will assume that input contains many examples (storm objects).
+    :param full_id_strings: [used only if `pmm_flag == False`]
+        length-E list of full storm IDs.
+    :param storm_time_strings: [used only if `pmm_flag == False`]
+        length-E list of valid times.
+    :param storm_activations: [used only if `pmm_flag == False`]
+        length-E numpy array of storm activations (will be included in figure
+        titles).  If this is None, it will just be skipped.
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
@@ -189,6 +197,11 @@ def _plot_3d_examples(
     radar_matrix = list_of_predictor_matrices[0]
     radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+
+    if pmm_flag:
+        full_id_strings = [None]
+        storm_time_strings = [None]
+        storm_activations = None
 
     num_storm_objects = len(full_id_strings)
     num_radar_fields = len(radar_field_names)
@@ -214,9 +227,12 @@ def _plot_3d_examples(
     #     list_of_metpy_dictionaries = None
 
     for i in range(num_storm_objects):
-        this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
-            full_id_strings[i], storm_time_strings[i]
-        )
+        if pmm_flag:
+            this_base_title_string = 'PMM composite'
+        else:
+            this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
+                full_id_strings[i], storm_time_strings[i]
+            )
 
         if storm_activations is not None:
             this_base_title_string += ' (activation = {0:.3f})'.format(
@@ -290,7 +306,7 @@ def _plot_3d_examples(
                     this_height_m_agl = radar_heights_m_agl[k]
 
                 this_file_name = metadata_to_radar_fig_file_name(
-                    output_dir_name=output_dir_name,
+                    output_dir_name=output_dir_name, pmm_flag=pmm_flag,
                     full_storm_id_string=full_id_strings[i],
                     storm_time_string=storm_time_strings[i],
                     radar_field_name=radar_field_names[j],
@@ -307,17 +323,18 @@ def _plot_3d_examples(
 
 
 def _plot_2d3d_examples(
-        list_of_predictor_matrices, full_id_strings, storm_time_strings,
-        model_metadata_dict, save_paneled_figs, output_dir_name,
-        storm_activations=None):
+        list_of_predictor_matrices, model_metadata_dict, save_paneled_figs,
+        output_dir_name, pmm_flag=False, full_id_strings=None,
+        storm_time_strings=None, storm_activations=None):
     """Plots examples with 2-D and 3-D radar data.
 
     :param list_of_predictor_matrices: See doc for `_plot_3d_examples`.
-    :param full_id_strings: Same.
-    :param storm_time_strings: Same.
     :param model_metadata_dict: Same.
     :param save_paneled_figs: Same.
     :param output_dir_name: Same.
+    :param pmm_flag: Same.
+    :param full_id_strings: Same.
+    :param storm_time_strings: Same.
     :param storm_activations: Same.
     """
 
@@ -331,14 +348,22 @@ def _plot_2d3d_examples(
     reflectivity_heights_m_agl = training_option_dict[
         trainval_io.RADAR_HEIGHTS_KEY]
 
+    if pmm_flag:
+        full_id_strings = [None]
+        storm_time_strings = [None]
+        storm_activations = None
+
     num_storm_objects = len(full_id_strings)
     num_azimuthal_shear_fields = len(azimuthal_shear_field_names)
     num_reflectivity_heights = len(reflectivity_heights_m_agl)
 
     for i in range(num_storm_objects):
-        this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
-            full_id_strings[i], storm_time_strings[i]
-        )
+        if pmm_flag:
+            this_base_title_string = 'PMM composite'
+        else:
+            this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
+                full_id_strings[i], storm_time_strings[i]
+            )
 
         if storm_activations is not None:
             this_base_title_string += ' (activation = {0:.3f})'.format(
@@ -384,7 +409,7 @@ def _plot_2d3d_examples(
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
             this_file_name = metadata_to_radar_fig_file_name(
-                output_dir_name=output_dir_name,
+                output_dir_name=output_dir_name, pmm_flag=pmm_flag,
                 full_storm_id_string=full_id_strings[i],
                 storm_time_string=storm_time_strings[i],
                 radar_field_name='reflectivity')
@@ -420,7 +445,7 @@ def _plot_2d3d_examples(
             pyplot.suptitle(this_base_title_string, fontsize=TITLE_FONT_SIZE)
 
             this_file_name = metadata_to_radar_fig_file_name(
-                output_dir_name=output_dir_name,
+                output_dir_name=output_dir_name, pmm_flag=pmm_flag,
                 full_storm_id_string=full_id_strings[i],
                 storm_time_string=storm_time_strings[i],
                 radar_field_name='shear')
@@ -446,7 +471,7 @@ def _plot_2d3d_examples(
                 field_name=radar_utils.REFL_NAME, axes_object=this_axes_object)
 
             this_file_name = metadata_to_radar_fig_file_name(
-                output_dir_name=output_dir_name,
+                output_dir_name=output_dir_name, pmm_flag=pmm_flag,
                 full_storm_id_string=full_id_strings[i],
                 storm_time_string=storm_time_strings[i],
                 radar_field_name=radar_utils.REFL_NAME,
@@ -479,7 +504,7 @@ def _plot_2d3d_examples(
                 axes_object=this_axes_object)
 
             this_file_name = metadata_to_radar_fig_file_name(
-                output_dir_name=output_dir_name,
+                output_dir_name=output_dir_name, pmm_flag=pmm_flag,
                 full_storm_id_string=full_id_strings[i],
                 storm_time_string=storm_time_strings[i],
                 radar_field_name=azimuthal_shear_field_names[j]
@@ -497,17 +522,18 @@ def _plot_2d3d_examples(
 
 
 def _plot_2d_examples(
-        list_of_predictor_matrices, full_id_strings, storm_time_strings,
-        model_metadata_dict, save_paneled_figs, output_dir_name,
-        storm_activations=None):
+        list_of_predictor_matrices, model_metadata_dict, save_paneled_figs,
+        output_dir_name, pmm_flag=False, full_id_strings=None,
+        storm_time_strings=None, storm_activations=None):
     """Plots examples with 2-D radar data.
 
     :param list_of_predictor_matrices: See doc for `_plot_3d_examples`.
-    :param full_id_strings: Same.
-    :param storm_time_strings: Same.
     :param model_metadata_dict: Same.
     :param save_paneled_figs: Same.
     :param output_dir_name: Same.
+    :param pmm_flag: Same.
+    :param full_id_strings: Same.
+    :param storm_time_strings: Same.
     :param storm_activations: Same.
     """
 
@@ -539,6 +565,12 @@ def _plot_2d_examples(
         plot_colour_bar_by_panel[2::3] = True
 
     radar_matrix = list_of_predictor_matrices[0]
+
+    if pmm_flag:
+        full_id_strings = [None]
+        storm_time_strings = [None]
+        storm_activations = None
+
     num_storm_objects = len(full_id_strings)
     num_panels = len(field_name_by_panel)
 
@@ -552,9 +584,12 @@ def _plot_2d_examples(
         num_panel_rows = None
 
     for i in range(num_storm_objects):
-        this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-            full_id_strings[i], storm_time_strings[i]
-        )
+        if pmm_flag:
+            this_title_string = 'PMM composite'
+        else:
+            this_title_string = 'Storm "{0:s}" at {1:s}'.format(
+                full_id_strings[i], storm_time_strings[i]
+            )
 
         if storm_activations is not None:
             this_title_string += ' (activation = {0:.3f})'.format(
@@ -576,7 +611,7 @@ def _plot_2d_examples(
                 pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
                 this_file_name = metadata_to_radar_fig_file_name(
-                    output_dir_name=output_dir_name,
+                    output_dir_name=output_dir_name, pmm_flag=pmm_flag,
                     full_storm_id_string=full_id_strings[i],
                     storm_time_string=storm_time_strings[i]
                 )
@@ -596,7 +631,7 @@ def _plot_2d_examples(
                 pyplot.axis('off')
 
                 this_file_name = metadata_to_radar_fig_file_name(
-                    output_dir_name=output_dir_name,
+                    output_dir_name=output_dir_name, pmm_flag=pmm_flag,
                     full_storm_id_string=full_id_strings[i],
                     storm_time_string=storm_time_strings[i],
                     layer_operation_dict=list_of_layer_operation_dicts[j]
@@ -613,8 +648,8 @@ def _plot_2d_examples(
 
 
 def metadata_to_radar_fig_file_name(
-        output_dir_name, full_storm_id_string, storm_time_string,
-        radar_field_name=None, radar_height_m_agl=None,
+        output_dir_name, pmm_flag=False, full_storm_id_string=None,
+        storm_time_string=None, radar_field_name=None, radar_height_m_agl=None,
         layer_operation_dict=None):
     """Creates name for figure file with radar data.
 
@@ -622,8 +657,13 @@ def metadata_to_radar_fig_file_name(
     assume that figure contains all radar data for one storm object.
 
     :param output_dir_name: Name of output directory.
-    :param full_storm_id_string: Full storm ID.
-    :param storm_time_string: Storm time (format "yyyy-mm-dd-HHMMSS").
+    :param pmm_flag: Boolean flag.  If True, output file contains a PMM
+        (probability-matched mean) over many examples.  If False, contains one
+        example.
+    :param full_storm_id_string: [used only if `pmm_flag == False`]
+        Full storm ID.
+    :param storm_time_string: [used only if `pmm_flag == False`]
+        Storm time (format "yyyy-mm-dd-HHMMSS").
     :param radar_field_name: Name of radar field.  May be None.
     :param radar_height_m_agl: Radar height (metres above ground level).  May be
         None.
@@ -632,10 +672,16 @@ def metadata_to_radar_fig_file_name(
     :return: output_file_name: Path to output file.
     """
 
-    output_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
-        output_dir_name, full_storm_id_string.replace('_', '-'),
-        storm_time_string
-    )
+    error_checking.assert_is_string(output_dir_name)
+    error_checking.assert_is_boolean(pmm_flag)
+
+    if pmm_flag:
+        output_file_name = '{0:s}/pmm'.format(output_dir_name)
+    else:
+        output_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
+            output_dir_name, full_storm_id_string.replace('_', '-'),
+            storm_time_string
+        )
 
     if radar_field_name is None and layer_operation_dict is None:
         return '{0:s}_radar.jpg'.format(output_file_name)
@@ -670,8 +716,8 @@ def radar_fig_file_name_to_metadata(figure_file_name):
 
     :param figure_file_name: Path to figure file with radar data.
     :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['full_storm_id_string']: See doc for
-        `metadata_to_radar_fig_file_name`.
+    metadata_dict['pmm_flag']: See doc for `metadata_to_radar_fig_file_name`.
+    metadata_dict['full_storm_id_string']: Same.
     metadata_dict['storm_time_unix_sec']: Same.
     metadata_dict['radar_field_name']: Same.
     metadata_dict['radar_height_m_agl']: Same.
@@ -682,15 +728,22 @@ def radar_fig_file_name_to_metadata(figure_file_name):
     extensionless_file_name = os.path.splitext(pathless_file_name)[0]
 
     full_storm_id_string = extensionless_file_name.split('_')[0]
-    full_storm_id_string = (
-        full_storm_id_string.replace('storm=', '').replace('-', '_')
-    )
+    pmm_flag = full_storm_id_string == 'pmm'
 
-    storm_time_unix_sec = time_conversion.string_to_unix_sec(
-        extensionless_file_name.split('_')[1], TIME_FORMAT
-    )
+    if pmm_flag:
+        full_storm_id_string = None
+        storm_time_unix_sec = None
+    else:
+        full_storm_id_string = (
+            full_storm_id_string.replace('storm=', '').replace('-', '_')
+        )
+
+        storm_time_unix_sec = time_conversion.string_to_unix_sec(
+            extensionless_file_name.split('_')[1], TIME_FORMAT
+        )
 
     metadata_dict = {
+        PMM_FLAG_KEY: pmm_flag,
         FULL_STORM_ID_KEY: full_storm_id_string,
         STORM_TIME_KEY: storm_time_unix_sec,
         RADAR_FIELD_KEY: None,
@@ -731,28 +784,29 @@ def radar_fig_file_name_to_metadata(figure_file_name):
 
 
 def plot_examples(
-        list_of_predictor_matrices, full_id_strings, storm_time_strings,
-        model_metadata_dict, save_paneled_figs, output_dir_name,
-        storm_activations=None):
+        list_of_predictor_matrices, model_metadata_dict, save_paneled_figs,
+        output_dir_name, pmm_flag=False, full_id_strings=None,
+        storm_time_strings=None, storm_activations=None):
     """Plots examples.
 
     :param list_of_predictor_matrices: See doc for `_plot_3d_examples`.
-    :param full_id_strings: Same.
-    :param storm_time_strings: Same.
     :param model_metadata_dict: Same.
     :param save_paneled_figs: Same.
     :param output_dir_name: Same.
+    :param pmm_flag: Same.
+    :param full_id_strings: Same.
+    :param storm_time_strings: Same.
     :param storm_activations: Same.
     """
 
     if len(list_of_predictor_matrices) == 3:
         _plot_2d3d_examples(
             list_of_predictor_matrices=list_of_predictor_matrices,
-            full_id_strings=full_id_strings,
-            storm_time_strings=storm_time_strings,
             model_metadata_dict=model_metadata_dict,
             save_paneled_figs=save_paneled_figs,
-            output_dir_name=output_dir_name,
+            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+            full_id_strings=full_id_strings,
+            storm_time_strings=storm_time_strings,
             storm_activations=storm_activations)
 
         return
@@ -762,22 +816,22 @@ def plot_examples(
     if num_radar_dimensions == 3:
         _plot_3d_examples(
             list_of_predictor_matrices=list_of_predictor_matrices,
-            full_id_strings=full_id_strings,
-            storm_time_strings=storm_time_strings,
             model_metadata_dict=model_metadata_dict,
             save_paneled_figs=save_paneled_figs,
-            output_dir_name=output_dir_name,
+            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+            full_id_strings=full_id_strings,
+            storm_time_strings=storm_time_strings,
             storm_activations=storm_activations)
 
         return
 
     _plot_2d_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
-        full_id_strings=full_id_strings,
-        storm_time_strings=storm_time_strings,
         model_metadata_dict=model_metadata_dict,
         save_paneled_figs=save_paneled_figs,
-        output_dir_name=output_dir_name,
+        output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+        full_id_strings=full_id_strings,
+        storm_time_strings=storm_time_strings,
         storm_activations=storm_activations)
 
 
@@ -909,10 +963,9 @@ def _run(activation_file_name, storm_metafile_name, save_paneled_figs,
 
     plot_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
-        full_id_strings=full_id_strings,
-        storm_time_strings=storm_time_strings,
         model_metadata_dict=model_metadata_dict,
         save_paneled_figs=save_paneled_figs, output_dir_name=output_dir_name,
+        full_id_strings=full_id_strings, storm_time_strings=storm_time_strings,
         storm_activations=storm_activations)
 
 

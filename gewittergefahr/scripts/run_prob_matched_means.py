@@ -163,7 +163,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
 
         saliency_dict = saliency_maps.read_standard_file(
             input_saliency_file_name)
-        list_of_input_matrices = saliency_dict[gradcam.INPUT_MATRICES_KEY]
+        list_of_input_matrices = saliency_dict[saliency_maps.INPUT_MATRICES_KEY]
 
     elif input_gradcam_file_name is not None:
         print('Reading data from: "{0:s}"...'.format(input_gradcam_file_name))
@@ -240,6 +240,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
             list_of_mean_input_matrices=list_of_mean_input_matrices,
             list_of_mean_saliency_matrices=list_of_mean_saliency_matrices,
             threshold_count_matrix=threshold_count_matrix,
+            model_file_name=saliency_dict[saliency_maps.MODEL_FILE_KEY],
             standard_saliency_file_name=input_saliency_file_name,
             pmm_metadata_dict=pmm_metadata_dict)
 
@@ -273,6 +274,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
             mean_class_activation_matrix=mean_class_activation_matrix,
             mean_ggradcam_output_matrix=mean_ggradcam_output_matrix,
             threshold_count_matrix=threshold_count_matrix,
+            model_file_name=gradcam_dict[gradcam.MODEL_FILE_KEY],
             standard_gradcam_file_name=input_gradcam_file_name,
             pmm_metadata_dict=pmm_metadata_dict)
 
@@ -298,6 +300,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
             list_of_mean_input_matrices=list_of_mean_input_matrices,
             list_of_mean_optimized_matrices=list_of_mean_optimized_matrices,
             threshold_count_matrix=threshold_count_matrix,
+            model_file_name=bwo_dictionary[backwards_opt.MODEL_FILE_KEY],
             standard_bwo_file_name=input_bwo_file_name,
             pmm_metadata_dict=pmm_metadata_dict)
 

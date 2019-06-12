@@ -631,10 +631,10 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
 
     except ValueError:
         saliency_dict = saliency_maps.read_pmm_file(input_file_name)
-        list_of_input_matrices = saliency_dict[
-            saliency_maps.MEAN_INPUT_MATRICES_KEY]
-        list_of_saliency_matrices = saliency_dict[
-            saliency_maps.MEAN_SALIENCY_MATRICES_KEY]
+        list_of_input_matrices = saliency_dict.pop(
+            saliency_maps.MEAN_INPUT_MATRICES_KEY)
+        list_of_saliency_matrices = saliency_dict.pop(
+            saliency_maps.MEAN_SALIENCY_MATRICES_KEY)
 
         for i in range(len(list_of_input_matrices)):
             list_of_input_matrices[i] = numpy.expand_dims(
@@ -644,19 +644,7 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
                 list_of_saliency_matrices[i], axis=0
             )
 
-        orig_saliency_file_name = saliency_dict[
-            saliency_maps.STANDARD_FILE_NAME_KEY]
-
-        print('Reading metadata from: "{0:s}"...'.format(
-            orig_saliency_file_name))
-
-        orig_saliency_dict = saliency_maps.read_standard_file(
-            orig_saliency_file_name)
-
-        orig_saliency_dict.pop(saliency_maps.INPUT_MATRICES_KEY)
-        orig_saliency_dict.pop(saliency_maps.SALIENCY_MATRICES_KEY)
-        saliency_metadata_dict = orig_saliency_dict
-
+        saliency_metadata_dict = saliency_dict
         full_id_strings = None
         storm_times_unix_sec = None
 
@@ -672,7 +660,7 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
             max_colour_prctile_for_saliency
         )
 
-    model_file_name = saliency_metadata_dict[saliency_maps.MODEL_FILE_NAME_KEY]
+    model_file_name = saliency_metadata_dict[saliency_maps.MODEL_FILE_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )

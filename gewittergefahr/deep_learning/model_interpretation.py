@@ -23,6 +23,9 @@ FULL_IDS_KEY = 'full_storm_id_strings'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
 SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
+MODEL_FILE_KEY = 'model_file_name'
+MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
+
 
 def check_component_type(component_type_string):
     """Ensures that model-component type is valid.

@@ -22,6 +22,7 @@ from scipy.interpolate import (
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import model_interpretation
 
 BACKPROP_FUNCTION_NAME = 'GuidedBackProp'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -32,18 +33,18 @@ GUIDED_GRADCAM_KEY = 'ggradcam_output_matrix'
 
 FULL_IDS_KEY = tracking_io.FULL_IDS_KEY
 STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
-MODEL_FILE_NAME_KEY = 'model_file_name'
+MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 TARGET_CLASS_KEY = 'target_class'
 TARGET_LAYER_KEY = 'target_layer_name'
 SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
 STANDARD_FILE_KEYS = [
     INPUT_MATRICES_KEY, CLASS_ACTIVATIONS_KEY, GUIDED_GRADCAM_KEY,
-    FULL_IDS_KEY, STORM_TIMES_KEY, MODEL_FILE_NAME_KEY,
+    FULL_IDS_KEY, STORM_TIMES_KEY, MODEL_FILE_KEY,
     TARGET_CLASS_KEY, TARGET_LAYER_KEY, SOUNDING_PRESSURES_KEY
 ]
 
-MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
+MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
 MEAN_CLASS_ACTIVATIONS_KEY = 'mean_class_activation_matrix'
 MEAN_GUIDED_GRADCAM_KEY = 'mean_ggradcam_output_matrix'
 THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
@@ -52,8 +53,8 @@ PMM_METADATA_KEY = 'pmm_metadata_dict'
 
 PMM_FILE_KEYS = [
     MEAN_INPUT_MATRICES_KEY, MEAN_CLASS_ACTIVATIONS_KEY,
-    MEAN_GUIDED_GRADCAM_KEY, THRESHOLD_COUNTS_KEY, STANDARD_FILE_NAME_KEY,
-    PMM_METADATA_KEY
+    MEAN_GUIDED_GRADCAM_KEY, THRESHOLD_COUNTS_KEY, MODEL_FILE_KEY,
+    STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
 ]
 
 
@@ -465,7 +466,8 @@ def run_guided_gradcam(
 def write_pmm_file(
         pickle_file_name, list_of_mean_input_matrices,
         mean_class_activation_matrix, mean_ggradcam_output_matrix,
-        threshold_count_matrix, standard_gradcam_file_name, pmm_metadata_dict):
+        threshold_count_matrix, model_file_name, standard_gradcam_file_name,
+        pmm_metadata_dict):
     """Writes mean class-activation map to Pickle file.
 
     This is a mean over many examples, created by PMM (probability-matched
@@ -480,6 +482,8 @@ def write_pmm_file(
         to `write_standard_file`, but without the first axis.
     :param threshold_count_matrix: See doc for
         `prob_matched_means.run_pmm_many_variables`.
+    :param model_file_name: Path to file with trained CNN (readable by
+        `cnn.read_model`).
     :param standard_gradcam_file_name: Path to file with standard Grad-CAM
         output (readable by `read_standard_file`).
     :param pmm_metadata_dict: Dictionary created by
@@ -489,6 +493,7 @@ def write_pmm_file(
     # TODO(thunderhoser): This method currently does not deal with sounding
     # pressures.
 
+    error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_string(standard_gradcam_file_name)
 
     error_checking.assert_is_numpy_array_without_nan(
@@ -520,6 +525,7 @@ def write_pmm_file(
         MEAN_CLASS_ACTIVATIONS_KEY: mean_class_activation_matrix,
         MEAN_GUIDED_GRADCAM_KEY: mean_ggradcam_output_matrix,
         THRESHOLD_COUNTS_KEY: threshold_count_matrix,
+        MODEL_FILE_KEY: model_file_name,
         STANDARD_FILE_NAME_KEY: standard_gradcam_file_name,
         PMM_METADATA_KEY: pmm_metadata_dict
     }
@@ -540,6 +546,7 @@ def read_pmm_file(pickle_file_name):
     mean_gradcam_dict['mean_class_activation_matrix']: Same.
     mean_gradcam_dict['mean_ggradcam_output_matrix']: Same
     mean_gradcam_dict['threshold_count_matrix']: Same.
+    mean_gradcam_dict['model_file_name']: Same.
     mean_gradcam_dict['standard_gradcam_file_name']: Same.
     mean_gradcam_dict['pmm_metadata_dict']: Same.
 
@@ -653,7 +660,7 @@ def write_standard_file(
         INPUT_MATRICES_KEY: list_of_input_matrices,
         CLASS_ACTIVATIONS_KEY: class_activation_matrix,
         GUIDED_GRADCAM_KEY: ggradcam_output_matrix,
-        MODEL_FILE_NAME_KEY: model_file_name,
+        MODEL_FILE_KEY: model_file_name,
         FULL_IDS_KEY: full_id_strings,
         STORM_TIMES_KEY: storm_times_unix_sec,
         TARGET_CLASS_KEY: target_class,
