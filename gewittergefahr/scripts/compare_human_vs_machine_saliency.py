@@ -258,6 +258,8 @@ def _run(input_human_file_name, input_machine_file_name,
 
     print('Reading data from: "{0:s}"...'.format(input_machine_file_name))
 
+    print(pmm_flag)
+
     if pmm_flag:
         saliency_dict = saliency_maps.read_pmm_file(input_machine_file_name)
 
