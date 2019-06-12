@@ -24,6 +24,16 @@ TOLERANCE = 1e-6
 METRES_TO_KM = 0.001
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
+MARKER_TYPE = '0'
+MARKER_SIZE = 20
+MARKER_EDGE_WIDTH = 1
+MARKER_COLOUR = numpy.full(3, 0.)
+
+HUMAN_STRING = 'H'
+MACHINE_STRING = 'M'
+OVERLAY_FONT_SIZE = 20
+OVERLAY_FONT_COLOUR = numpy.full(3, 0.)
+
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
@@ -150,8 +160,49 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
             list_of_layer_operation_dicts=[layer_operation_dict]
         )[-1][0]
 
+        label_string = label_string.replace('\n', ', ')
+
     colour_bar_object.set_label(label_string)
+
+    flipped_machine_mask_matrix = numpy.flip(machine_mask_matrix, axis=0)
+    flipped_human_mask_matrix = numpy.flip(human_mask_matrix, axis=0)
     
+    these_rows, these_columns = numpy.where(numpy.logical_and(
+        flipped_machine_mask_matrix, flipped_human_mask_matrix
+    ))
+    
+    if len(these_rows) > 0:
+        marker_colour_as_tuple = plotting_utils.colour_from_numpy_to_tuple(
+            MARKER_COLOUR)
+        
+        axes_object.plot(
+            these_columns, these_rows, linestyle='None', marker=MARKER_TYPE,
+            markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+            markerfacecolor=marker_colour_as_tuple,
+            markeredgecolor=marker_colour_as_tuple)
+
+    these_rows, these_columns = numpy.where(numpy.logical_and(
+        flipped_machine_mask_matrix, numpy.invert(flipped_human_mask_matrix)
+    ))
+
+    if len(these_rows) > 0:
+        axes_object.text(
+            these_columns, these_rows, MACHINE_STRING,
+            fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
+            fontweight='bold', horizontalalignment='center',
+            verticalalignment='middle')
+
+    these_rows, these_columns = numpy.where(numpy.logical_and(
+        numpy.invert(flipped_machine_mask_matrix), flipped_human_mask_matrix
+    ))
+
+    if len(these_rows) > 0:
+        axes_object.text(
+            these_columns, these_rows, HUMAN_STRING,
+            fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
+            fontweight='bold', horizontalalignment='center',
+            verticalalignment='middle')
+
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
@@ -354,6 +405,15 @@ def _run(input_human_file_name, input_machine_file_name,
         machine_mask_matrix=machine_positive_mask_matrix,
         human_mask_matrix=human_positive_mask_matrix,
         output_file_name=positive_figure_file_name)
+
+    negative_figure_file_name = '{0:s}/negative_comparison.jpg'.format(
+        output_dir_name)
+
+    _plot_comparison(
+        input_matrix=input_matrix, input_metadata_dict=metadata_dict,
+        machine_mask_matrix=machine_negative_mask_matrix,
+        human_mask_matrix=human_negative_mask_matrix,
+        output_file_name=negative_figure_file_name)
 
 
 if __name__ == '__main__':
