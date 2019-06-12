@@ -181,27 +181,27 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
             markerfacecolor=marker_colour_as_tuple,
             markeredgecolor=marker_colour_as_tuple)
 
-    these_rows, these_columns = numpy.where(numpy.logical_and(
-        flipped_machine_mask_matrix, numpy.invert(flipped_human_mask_matrix)
-    ))
-
-    if len(these_rows) > 0:
-        axes_object.text(
-            these_columns, these_rows, MACHINE_STRING,
-            fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
-            fontweight='bold', horizontalalignment='center',
-            verticalalignment='center')
-
-    these_rows, these_columns = numpy.where(numpy.logical_and(
-        numpy.invert(flipped_machine_mask_matrix), flipped_human_mask_matrix
-    ))
-
-    if len(these_rows) > 0:
-        axes_object.text(
-            these_columns, these_rows, HUMAN_STRING,
-            fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
-            fontweight='bold', horizontalalignment='center',
-            verticalalignment='center')
+    # these_rows, these_columns = numpy.where(numpy.logical_and(
+    #     flipped_machine_mask_matrix, numpy.invert(flipped_human_mask_matrix)
+    # ))
+    #
+    # if len(these_rows) > 0:
+    #     axes_object.text(
+    #         these_columns, these_rows, MACHINE_STRING,
+    #         fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
+    #         fontweight='bold', horizontalalignment='center',
+    #         verticalalignment='center')
+    #
+    # these_rows, these_columns = numpy.where(numpy.logical_and(
+    #     numpy.invert(flipped_machine_mask_matrix), flipped_human_mask_matrix
+    # ))
+    #
+    # if len(these_rows) > 0:
+    #     axes_object.text(
+    #         these_columns, these_rows, HUMAN_STRING,
+    #         fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
+    #         fontweight='bold', horizontalalignment='center',
+    #         verticalalignment='center')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
