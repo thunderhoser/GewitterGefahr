@@ -123,6 +123,8 @@ def _run(input_human_file_name, input_machine_file_name,
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
+    # TODO(thunderhoser): The following code should go in a separate method (and
+    # probably a separate file).
     conv_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
     if conv_2d3d:
         num_radar_dimensions = None

@@ -21,6 +21,8 @@ from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import imagemagick_utils
 # from gewittergefahr.plotting import sounding_plotting
 
+# TODO(thunderhoser): Make this script deal with PMM composites.
+
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
