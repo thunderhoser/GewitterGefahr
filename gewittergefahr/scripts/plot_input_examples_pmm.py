@@ -3,6 +3,7 @@
 import pickle
 import os.path
 import argparse
+import numpy
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.scripts import plot_input_examples
@@ -66,9 +67,9 @@ def _run(input_file_name, save_paneled_figs, plot_soundings, output_dir_name):
     pickle_file_handle.close()
 
     list_of_mean_input_matrices = input_dict[MEAN_INPUT_MATRICES_KEY]
-    for i in range(len(list_of_input_matrices)):
-        list_of_input_matrices[i] = numpy.expand_dims(
-            list_of_input_matrices[i], axis=0
+    for i in range(len(list_of_mean_input_matrices)):
+        list_of_mean_input_matrices[i] = numpy.expand_dims(
+            list_of_mean_input_matrices[i], axis=0
         )
 
     model_file_name = input_dict[MODEL_FILE_KEY]
