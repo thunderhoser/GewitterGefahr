@@ -267,14 +267,6 @@ def _run(input_human_file_name, input_machine_file_name,
             saliency_maps.MEAN_INPUT_MATRICES_KEY)
         list_of_saliency_matrices = saliency_dict.pop(
             saliency_maps.MEAN_SALIENCY_MATRICES_KEY)
-
-        for i in range(len(list_of_input_matrices)):
-            list_of_input_matrices[i] = numpy.expand_dims(
-                list_of_input_matrices[i], axis=0
-            )
-            list_of_saliency_matrices[i] = numpy.expand_dims(
-                list_of_saliency_matrices[i], axis=0
-            )
     else:
         saliency_dict = saliency_maps.read_standard_file(
             input_machine_file_name)
