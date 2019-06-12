@@ -46,7 +46,7 @@ INPUT_ARG_PARSER.add_argument(
     help=MACHINE_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + THRESHOLD_ARG_NAME, type=float, required=False, default=80.,
+    '--' + THRESHOLD_ARG_NAME, type=float, required=False, default=90.,
     help=THRESHOLD_HELP_STRING)
 
 
@@ -219,6 +219,10 @@ def _run(input_human_file_name, input_machine_file_name,
     machine_positive_mask_matrix = (
         machine_saliency_matrix >= positive_saliency_threshold
     )
+
+    print(human_positive_mask_matrix.astype(int))
+    print('\n\n')
+    print(machine_positive_mask_matrix.astype(int))
 
 
 if __name__ == '__main__':
