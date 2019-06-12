@@ -134,8 +134,8 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
     )
 
     radar_plotting.plot_2d_grid_without_coords(
-        field_matrix=numpy.flip(input_matrix, axis=0),
-        field_name=radar_field_name, axes_object=axes_object)
+        field_matrix=input_matrix, field_name=radar_field_name,
+        axes_object=axes_object)
 
     colour_map_object, colour_norm_object = (
         radar_plotting.get_default_colour_scheme(radar_field_name)
@@ -163,8 +163,6 @@ def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
         label_string = label_string.replace('\n', ', ')
 
     colour_bar_object.set_label(label_string)
-
-    machine_mask_matrix = numpy.flip(machine_mask_matrix, axis=0)
 
     these_rows, these_columns = numpy.where(numpy.logical_and(
         machine_mask_matrix, human_mask_matrix
@@ -368,6 +366,9 @@ def _run(input_human_file_name, input_machine_file_name,
         input_matrix = list_of_input_matrices[0][..., height_index, field_index]
         machine_saliency_matrix = list_of_saliency_matrices[0][
             ..., height_index, field_index]
+
+    input_matrix = numpy.flip(input_matrix, axis=0)
+    machine_saliency_matrix = numpy.flip(machine_saliency_matrix, axis=0)
 
     if numpy.any(machine_saliency_matrix > 0):
         positive_saliency_threshold = numpy.percentile(
