@@ -161,6 +161,100 @@ def __find_predecessors(
     return numpy.array(predecessor_rows + rows_in_frontier.tolist(), dtype=int)
 
 
+def __find_successors(
+        storm_object_table, target_row, num_secondary_id_changes,
+        return_all_on_path):
+    """Finds all successors of one storm object.
+
+    :param storm_object_table: See doc for public method `find_successors`.
+    :param target_row: Same.
+    :param num_secondary_id_changes: Same.
+    :param return_all_on_path: Same.
+    :return: successor_rows: Same.
+    """
+
+    unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
+        return_inverse=True
+    )
+
+    target_time_unix_sec = storm_object_table[
+        tracking_utils.VALID_TIME_COLUMN].values[target_row]
+
+    this_time_index = numpy.where(
+        unique_times_unix_sec == target_time_unix_sec
+    )[0][0]
+
+    successor_rows = []
+    rows_in_frontier = numpy.array([target_row], dtype=int)
+    id_change_counts_in_frontier = numpy.array([0], dtype=int)
+
+    while this_time_index < len(unique_times_unix_sec):
+        these_current_rows = numpy.where(
+            orig_to_unique_indices == this_time_index
+        )[0]
+
+        old_rows_in_frontier = copy.deepcopy(rows_in_frontier)
+        old_id_change_counts = copy.deepcopy(id_change_counts_in_frontier)
+
+        rows_in_frontier = []
+        id_change_counts_in_frontier = []
+
+        for this_row, this_num_changes in zip(
+                old_rows_in_frontier, old_id_change_counts
+        ):
+            if this_row not in these_current_rows:
+                rows_in_frontier.append(this_row)
+                id_change_counts_in_frontier.append(this_num_changes)
+                continue
+
+            these_next_rows = __find_immediate_successors(
+                storm_object_table=storm_object_table, target_row=this_row)
+
+            these_change_flags = (
+                storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[
+                    these_next_rows] !=
+                storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[
+                    this_row]
+            )
+
+            these_next_num_changes = (
+                this_num_changes + these_change_flags.astype(int)
+            )
+
+            these_good_indices = numpy.where(
+                these_next_num_changes <= num_secondary_id_changes
+            )[0]
+
+            these_next_rows = these_next_rows[these_good_indices]
+            these_next_num_changes = these_next_num_changes[these_good_indices]
+
+            add_this_row = (
+                (len(these_next_rows) == 0 and this_row != target_row) or
+                return_all_on_path
+            )
+
+            if add_this_row:
+                successor_rows.append(this_row)
+
+            if len(these_next_rows) != 0:
+                rows_in_frontier += these_next_rows.tolist()
+                id_change_counts_in_frontier += these_next_num_changes.tolist()
+
+        this_time_index += 1
+
+        rows_in_frontier = numpy.array(rows_in_frontier, dtype=int)
+        id_change_counts_in_frontier = numpy.array(
+            id_change_counts_in_frontier, dtype=int)
+
+        rows_in_frontier, these_unique_indices = numpy.unique(
+            rows_in_frontier, return_index=True)
+        id_change_counts_in_frontier = id_change_counts_in_frontier[
+            these_unique_indices]
+
+    return numpy.array(successor_rows + rows_in_frontier.tolist(), dtype=int)
+
+
 def __find_immediate_predecessors(storm_object_table, target_row):
     """Finds immediate predecessors of one storm object.
 
@@ -1833,6 +1927,71 @@ def find_immediate_predecessors(
         target_row=target_subrow)
 
     return recent_rows[predecessor_subrows]
+
+
+def find_successors(
+        storm_object_table, target_row, num_seconds_forward,
+        num_secondary_id_changes=LARGE_INTEGER, return_all_on_path=False):
+    """Finds all successors of one storm object.
+
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.  Each row is one storm object.
+    storm_object_table.valid_time_unix_sec: Valid time.
+    storm_object_table.secondary_id_string: Secondary storm ID.
+    storm_object_table.first_next_secondary_id_string: Secondary ID of first
+        immediate successor.
+    storm_object_table.second_next_secondary_id_string: Secondary ID of second
+        immediate successor.
+
+    :param target_row: Will find successors for object in [k]th row of
+        `storm_object_table`, where k = `target_row`.
+    :param num_seconds_forward: Max time difference between target object and a
+        given successor.
+    :param num_secondary_id_changes: Max number of secondary-ID changes between
+        target object and a given successor.
+    :param return_all_on_path: Boolean flag.  If True, will return all
+        successors on path to earliest successors.  If False, will return
+        only earliest successors.
+    :return: successor_rows: 1-D numpy array with rows of successors.  These
+        are rows in `storm_object_table`.
+    """
+
+    error_checking.assert_is_integer(target_row)
+    error_checking.assert_is_geq(target_row, 0)
+    error_checking.assert_is_less_than(
+        target_row, len(storm_object_table.index)
+    )
+
+    error_checking.assert_is_integer(num_seconds_forward)
+    error_checking.assert_is_greater(num_seconds_forward, 0)
+    error_checking.assert_is_integer(num_secondary_id_changes)
+    error_checking.assert_is_geq(num_secondary_id_changes, 0)
+    error_checking.assert_is_boolean(return_all_on_path)
+
+    first_time_unix_sec = (
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[target_row]
+    )
+    last_time_unix_sec = (
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[target_row]
+        + num_seconds_forward
+    )
+
+    soon_rows = numpy.where(numpy.logical_and(
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values >=
+        first_time_unix_sec,
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values <=
+        last_time_unix_sec
+    ))[0]
+
+    target_subrow = numpy.where(soon_rows == target_row)[0][0]
+
+    successor_subrows = __find_successors(
+        storm_object_table=storm_object_table.iloc[soon_rows],
+        target_row=target_subrow,
+        num_secondary_id_changes=num_secondary_id_changes,
+        return_all_on_path=return_all_on_path)
+
+    return soon_rows[successor_subrows]
 
 
 def find_immediate_successors(
