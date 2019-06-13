@@ -1047,7 +1047,8 @@ class LinkageTests(unittest.TestCase):
             max_time_before_storm_start_sec=10,
             max_time_after_storm_end_sec=10,
             max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
-            interp_time_interval_sec=INTERP_TIME_INTERVAL_SEC)
+            interp_time_interval_sec=INTERP_TIME_INTERVAL_SEC,
+            event_type_string=linkage.WIND_EVENT_STRING)
 
         self.assertTrue(
             this_wind_to_storm_table[
