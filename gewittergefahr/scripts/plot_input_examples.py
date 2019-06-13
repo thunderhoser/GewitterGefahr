@@ -751,16 +751,15 @@ def radar_fig_file_name_to_metadata(figure_file_name):
         LAYER_OPERATION_KEY: None
     }
 
-    radar_field_name = extensionless_file_name.split('_')[2]
-    radar_field_name = radar_field_name.replace('-', '_')
-
-    if extensionless_file_name.split('_')[2] == 'radar':
+    radar_field_name = extensionless_file_name.split('_')[2 - int(pmm_flag)]
+    if radar_field_name == 'radar':
         return metadata_dict
 
+    radar_field_name = radar_field_name.replace('-', '_')
     metadata_dict[RADAR_FIELD_KEY] = radar_field_name
 
     try:
-        height_string = extensionless_file_name.split('_')[3]
+        height_string = extensionless_file_name.split('_')[3 - int(pmm_flag)]
     except IndexError:
         return metadata_dict
 
