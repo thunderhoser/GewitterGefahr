@@ -119,12 +119,8 @@ REQUIRED_WIND_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
     WIND_STATION_IDS_COLUMN, U_WINDS_COLUMN, V_WINDS_COLUMN
 ]
 
-# REQUIRED_TORNADO_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
-#     FUJITA_RATINGS_COLUMN, TORNADO_IDS_COLUMN
-# ]
-
 REQUIRED_TORNADO_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
-    FUJITA_RATINGS_COLUMN
+    FUJITA_RATINGS_COLUMN, TORNADO_IDS_COLUMN
 ]
 
 
@@ -760,11 +756,11 @@ def _find_nearest_storms(
             )
 
             for j in range(len(these_event_rows)):
-                k = these_event_rows[j]
-                nearest_secondary_id_strings[k] = these_nearest_id_strings[j]
-                if nearest_secondary_id_strings[k] is None:
+                if these_nearest_id_strings[j] is None:
                     continue
 
+                k = these_event_rows[j]
+                nearest_secondary_id_strings[k] = these_nearest_id_strings[j]
                 nearest_times_unix_sec[k] = unique_interp_times_unix_sec[i]
 
             continue
@@ -780,10 +776,10 @@ def _find_nearest_storms(
             )
 
             for k in these_same_id_rows:
-                nearest_secondary_id_strings[k] = these_nearest_id_strings[j]
-                if nearest_secondary_id_strings[k] is None:
+                if these_nearest_id_strings[j] is None:
                     continue
 
+                nearest_secondary_id_strings[k] = these_nearest_id_strings[j]
                 nearest_times_unix_sec[k] = unique_interp_times_unix_sec[i]
 
     unlinked_indices = numpy.where(numpy.isnan(linkage_distances_metres))[0]
