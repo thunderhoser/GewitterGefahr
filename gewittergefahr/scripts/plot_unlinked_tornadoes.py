@@ -511,17 +511,17 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
     tornado_table = tornado_table.iloc[unlinked_indices]
     num_tornadoes = len(tornado_table.index)
 
-    for j in range(num_tornadoes):
-        this_output_file_name = (
-            '{0:s}/unlinked_tornado_{1:s}_{2:03d}.jpg'
-        ).format(output_dir_name, spc_date_string, j)
-
-        _plot_tornado_and_radar(
-            top_myrorss_dir_name=top_myrorss_dir_name,
-            radar_field_name=radar_field_name,
-            radar_height_m_asl=radar_height_m_asl,
-            spc_date_string=spc_date_string, tornado_table=tornado_table,
-            tornado_row=j, output_file_name=this_output_file_name)
+    # for j in range(num_tornadoes):
+    #     this_output_file_name = (
+    #         '{0:s}/unlinked_tornado_{1:s}_{2:03d}.jpg'
+    #     ).format(output_dir_name, spc_date_string, j)
+    #
+    #     _plot_tornado_and_radar(
+    #         top_myrorss_dir_name=top_myrorss_dir_name,
+    #         radar_field_name=radar_field_name,
+    #         radar_height_m_asl=radar_height_m_asl,
+    #         spc_date_string=spc_date_string, tornado_table=tornado_table,
+    #         tornado_row=j, output_file_name=this_output_file_name)
 
 
 if __name__ == '__main__':
