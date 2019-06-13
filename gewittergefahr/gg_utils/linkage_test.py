@@ -343,7 +343,7 @@ LINK_DISTANCES_1TIME_METRES = numpy.array([
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES
 ])
 
-# The following constants are used to test _find_nearest_storms.
+# The following constants are used to test _find_nearest_storms for wind.
 INTERP_TIME_INTERVAL_SEC = 1
 
 THESE_X_METRES = numpy.array([
@@ -393,6 +393,111 @@ EVENT_TO_STORM_TABLE_SIMPLE = EVENT_TABLE_2TIMES.assign(**{
     linkage.NEAREST_TIME_COLUMN: NEAREST_STORM_TIMES_UNIX_SEC,
     linkage.LINKAGE_DISTANCE_COLUMN: LINKAGE_DISTANCES_METRES
 })
+
+# The following constants are used to test _interp_tornadoes_along_tracks.
+THESE_START_TIMES_UNIX_SEC = numpy.array([1, 5, 5, 5, 60], dtype=int)
+THESE_END_TIMES_UNIX_SEC = numpy.array([11, 10, 12, 14, 60], dtype=int)
+
+THESE_START_LATITUDES_DEG = numpy.array([59.5, 61, 51, 49, 89])
+THESE_END_LATITUDES_DEG = numpy.array([59.5, 66, 58, 58, 89])
+
+THESE_START_LONGITUDES_DEG = numpy.array([271, 275, 242.5, 242.5, 300])
+THESE_END_LONGITUDES_DEG = numpy.array([281, 275, 242.5, 242.5, 300])
+THESE_FUJITA_STRINGS = ['EF1', 'EF2', 'EF3', 'EF4', 'EF5']
+
+TORNADO_TABLE_BEFORE_INTERP = pandas.DataFrame.from_dict({
+    tornado_io.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
+    tornado_io.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
+    tornado_io.START_LAT_COLUMN: THESE_START_LATITUDES_DEG,
+    tornado_io.END_LAT_COLUMN: THESE_END_LATITUDES_DEG,
+    tornado_io.START_LNG_COLUMN: THESE_START_LONGITUDES_DEG,
+    tornado_io.END_LNG_COLUMN: THESE_END_LONGITUDES_DEG,
+    tornado_io.FUJITA_RATING_COLUMN: THESE_FUJITA_STRINGS
+})
+
+TORNADO_INTERP_TIME_INTERVAL_SEC = 1
+
+THESE_TIMES_UNIX_SEC = numpy.array([
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+    5, 6, 7, 8, 9, 10,
+    5, 6, 7, 8, 9, 10, 11, 12,
+    5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    60
+], dtype=int)
+
+THESE_LATITUDES_DEG = numpy.array([
+    59.5, 59.5, 59.5, 59.5, 59.5, 59.5, 59.5, 59.5, 59.5, 59.5, 59.5,
+    61, 62, 63, 64, 65, 66,
+    51, 52, 53, 54, 55, 56, 57, 58,
+    49, 50, 51, 52, 53, 54, 55, 56, 57, 58,
+    89
+])
+
+THESE_LONGITUDES_DEG = numpy.array([
+    271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281,
+    275, 275, 275, 275, 275, 275,
+    242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5,
+    242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5,
+    300
+])
+
+THESE_UNIQUE_ID_STRINGS = [
+    tornado_io.create_tornado_id(
+        start_time_unix_sec=t, start_latitude_deg=y, start_longitude_deg=x
+    ) for t, x, y in
+    zip(THESE_START_TIMES_UNIX_SEC, THESE_START_LONGITUDES_DEG,
+        THESE_START_LATITUDES_DEG)
+]
+
+THESE_ID_STRINGS = (
+    [THESE_UNIQUE_ID_STRINGS[0]] * 11 + [THESE_UNIQUE_ID_STRINGS[1]] * 6 +
+    [THESE_UNIQUE_ID_STRINGS[2]] * 8 + [THESE_UNIQUE_ID_STRINGS[3]] * 10 +
+    [THESE_UNIQUE_ID_STRINGS[4]] * 1
+)
+
+THESE_FUJITA_STRINGS = (
+    [THESE_FUJITA_STRINGS[0]] * 11 + [THESE_FUJITA_STRINGS[1]] * 6 +
+    [THESE_FUJITA_STRINGS[2]] * 8 + [THESE_FUJITA_STRINGS[3]] * 10 +
+    [THESE_FUJITA_STRINGS[4]] * 1
+)
+
+TORNADO_TABLE_AFTER_INTERP = pandas.DataFrame.from_dict({
+    linkage.EVENT_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    linkage.EVENT_LATITUDE_COLUMN: THESE_LATITUDES_DEG,
+    linkage.EVENT_LONGITUDE_COLUMN: THESE_LONGITUDES_DEG,
+    linkage.EVENT_Y_COLUMN: THESE_LATITUDES_DEG,
+    linkage.EVENT_X_COLUMN: THESE_LONGITUDES_DEG,
+    tornado_io.TORNADO_ID_COLUMN: THESE_ID_STRINGS,
+    tornado_io.FUJITA_RATING_COLUMN: THESE_FUJITA_STRINGS
+})
+
+# The following constants are used to test _find_nearest_storms for tornado
+# occurrence.
+NEAREST_SEC_ID_STRINGS_TORNADO = [
+    'B2', 'B2', 'B5', 'B5', 'B5', 'B5', 'B5', 'B5', 'B5', 'B5', 'B5',
+    5, 6, 7, 8, 9, 10,
+    5, 6, 7, 8, 9, 10, 11, 12,
+    5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    60
+]
+
+# NEAREST_STORM_TIMES_UNIX_SEC = numpy.array([
+#     -1, 3, -1, 3, -1, 3, -1, 3,
+#     -1, 7, -1, 7, -1, 7, -1, 7
+# ], dtype=int)
+#
+# LINKAGE_DISTANCES_METRES = numpy.array([
+#     numpy.nan, 0, numpy.nan, THIS_SHORT_DISTANCE_METRES,
+#     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
+#     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_TINY_DISTANCE_METRES,
+#     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_TINY_DISTANCE_METRES
+# ])
+#
+# TORNADO_TO_STORM_TABLE = EVENT_TABLE_2TIMES.assign(**{
+#     linkage.NEAREST_SECONDARY_ID_COLUMN: NEAREST_SEC_ID_STRINGS_TORNADO,
+#     linkage.NEAREST_TIME_COLUMN: NEAREST_STORM_TIMES_UNIX_SEC,
+#     linkage.LINKAGE_DISTANCE_COLUMN: LINKAGE_DISTANCES_METRES
+# })
 
 # The following constants are used to test _reverse_wind_linkages.
 THESE_STATION_ID_STRINGS = [
@@ -692,89 +797,6 @@ STORM_OBJECT_TABLE_SANS_PERIOD_START = pandas.DataFrame.from_dict({
     tracking_utils.TRACKING_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC
 })
 
-# The following constants are used to test _interp_tornadoes_along_tracks.
-THESE_START_TIMES_UNIX_SEC = numpy.array([0, 10, 20, 30, 40, 50], dtype=int)
-THESE_END_TIMES_UNIX_SEC = numpy.array([20, 40, 20, 80, 100, 120], dtype=int)
-
-THESE_START_LATITUDES_DEG = numpy.array([53.5, 53.5, 53.5, 53.5, 53.5, 53.5])
-THESE_END_LATITUDES_DEG = numpy.array([54.5, 52.5, 53.5, 53.5, 53.5, 52.5])
-
-THESE_START_LONGITUDES_DEG = numpy.array(
-    [246.5, 246.5, 246.5, 246.5, 246.5, 246.5]
-)
-THESE_END_LONGITUDES_DEG = numpy.array(
-    [247.5, 245.5, 246.5, 246.5, 247.5, 246.5]
-)
-THESE_FUJITA_STRINGS = ['EF0', 'EF1', 'EF2', 'EF3', 'EF4', 'EF5']
-
-TORNADO_TABLE_BEFORE_INTERP = pandas.DataFrame.from_dict({
-    tornado_io.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    tornado_io.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
-    tornado_io.START_LAT_COLUMN: THESE_START_LATITUDES_DEG,
-    tornado_io.END_LAT_COLUMN: THESE_END_LATITUDES_DEG,
-    tornado_io.START_LNG_COLUMN: THESE_START_LONGITUDES_DEG,
-    tornado_io.END_LNG_COLUMN: THESE_END_LONGITUDES_DEG,
-    tornado_io.FUJITA_RATING_COLUMN: THESE_FUJITA_STRINGS
-})
-
-TORNADO_INTERP_TIME_INTERVAL_SEC = 10
-
-THESE_TIMES_UNIX_SEC = numpy.array([
-    0, 10, 20,
-    10, 20, 30, 40,
-    20,
-    30, 40, 50, 60, 70, 80,
-    40, 50, 60, 70, 80, 90, 100,
-    50, 60, 70, 80, 90, 100, 110, 120
-], dtype=int)
-
-THESE_LATITUDES_DEG = numpy.array([
-    53.5, 54, 54.5,
-    53.5, 53 + 1. / 6, 53 - 1. / 6, 52.5,
-    53.5,
-    53.5, 53.5, 53.5, 53.5, 53.5, 53.5,
-    53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 53.5,
-    53.5, 53.5 - 1. / 7, 53.5 - 2. / 7, 53.5 - 3. / 7,
-    53.5 - 4. / 7, 53.5 - 5. / 7, 53.5 - 6. / 7, 52.5
-])
-
-THESE_LONGITUDES_DEG = numpy.array([
-    246.5, 247, 247.5,
-    246.5, 246 + 1. / 6, 246 - 1. / 6, 245.5,
-    246.5,
-    246.5, 246.5, 246.5, 246.5, 246.5, 246.5,
-    246.5, 246 + 4. / 6, 246 + 5. / 6, 247, 247 + 1. / 6, 247 + 2. / 6, 247.5,
-    246.5, 246.5, 246.5, 246.5, 246.5, 246.5, 246.5, 246.5
-])
-
-THESE_UNIQUE_ID_STRINGS = [
-    tornado_io.create_tornado_id(
-        start_time_unix_sec=t, start_latitude_deg=y, start_longitude_deg=x
-    ) for t, x, y in
-    zip(THESE_START_TIMES_UNIX_SEC, THESE_START_LONGITUDES_DEG,
-        THESE_START_LATITUDES_DEG)
-]
-
-THESE_ID_STRINGS = (
-    [THESE_UNIQUE_ID_STRINGS[0]] * 3 + [THESE_UNIQUE_ID_STRINGS[1]] * 4 +
-    [THESE_UNIQUE_ID_STRINGS[2]] * 1 + [THESE_UNIQUE_ID_STRINGS[3]] * 6 +
-    [THESE_UNIQUE_ID_STRINGS[4]] * 7 + [THESE_UNIQUE_ID_STRINGS[5]] * 8
-)
-
-THESE_FUJITA_STRINGS = (
-    [THESE_FUJITA_STRINGS[0]] * 3 + [THESE_FUJITA_STRINGS[1]] * 4 +
-    [THESE_FUJITA_STRINGS[2]] * 1 + [THESE_FUJITA_STRINGS[3]] * 6 +
-    [THESE_FUJITA_STRINGS[4]] * 7 + [THESE_FUJITA_STRINGS[5]] * 8
-)
-
-TORNADO_TABLE_AFTER_INTERP = pandas.DataFrame.from_dict({
-    linkage.EVENT_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    linkage.EVENT_LATITUDE_COLUMN: THESE_LATITUDES_DEG,
-    linkage.EVENT_LONGITUDE_COLUMN: THESE_LONGITUDES_DEG,
-    tornado_io.TORNADO_ID_COLUMN: THESE_ID_STRINGS,
-    tornado_io.FUJITA_RATING_COLUMN: THESE_FUJITA_STRINGS
-})
-
 # The following constants are used to test find_linkage_file.
 TOP_DIRECTORY_NAME = 'linkage'
 FILE_TIME_UNIX_SEC = 1517523991  # 222631 1 Feb 2018
@@ -1065,6 +1087,20 @@ class LinkageTests(unittest.TestCase):
             this_wind_to_storm_table[linkage.LINKAGE_DISTANCE_COLUMN].values,
             LINKAGE_DISTANCES_METRES, equal_nan=True, atol=TOLERANCE
         ))
+
+    def test_find_nearest_storms_tornado(self):
+        """Ensures correct output from _find_nearest_storms."""
+
+        this_tornado_to_storm_table = linkage._find_nearest_storms(
+            storm_object_table=MAIN_STORM_OBJECT_TABLE,
+            event_table=TORNADO_TABLE_AFTER_INTERP,
+            max_time_before_storm_start_sec=2,
+            max_time_after_storm_end_sec=2,
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+            interp_time_interval_sec=INTERP_TIME_INTERVAL_SEC,
+            event_type_string=linkage.TORNADO_EVENT_STRING)
+
+        print(this_tornado_to_storm_table[[linkage.EVENT_TIME_COLUMN, linkage.NEAREST_SECONDARY_ID_COLUMN]])
 
     def test_reverse_wind_linkages(self):
         """Ensures correct output from _reverse_wind_linkages."""

@@ -844,13 +844,17 @@ def _link_tornado_to_new_storm(
     )
     last_assigned_row = same_tornado_rows[last_assigned_subrow]
 
+    print('Row of last assigned tornado segment = {0:d}'.format(last_assigned_row))
+
     last_secondary_id_string = event_table[
         NEAREST_SECONDARY_ID_COLUMN].values[last_assigned_row]
+
+    print('Secondary storm ID for last assigned tornado segment = {0:s}'.format(last_secondary_id_string))
 
     same_storm_rows = numpy.where(
         storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values ==
         last_secondary_id_string
-    )[0][-1]
+    )[0]
 
     last_storm_subrow = numpy.argmax(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[
@@ -892,6 +896,8 @@ def _link_tornado_to_new_storm(
 
     if nearest_secondary_id_strings[0] is None:
         return event_table
+
+    print('Secondary storm ID for next assigned tornado segment = {0:s}'.format(nearest_secondary_id_strings[0]))
 
     return _finish_tornado_linkage(
         storm_object_table=storm_object_table,
