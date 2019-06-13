@@ -256,9 +256,10 @@ def _run(input_human_file_name, input_machine_file_name,
     layer_operation_dict = metadata_dict[
         plot_input_examples.LAYER_OPERATION_KEY]
 
-    print('Reading data from: "{0:s}"...'.format(input_machine_file_name))
+    print(metadata_dict)
+    print(layer_operation_dict)
 
-    print(pmm_flag)
+    print('Reading data from: "{0:s}"...'.format(input_machine_file_name))
 
     if pmm_flag:
         saliency_dict = saliency_maps.read_pmm_file(input_machine_file_name)
