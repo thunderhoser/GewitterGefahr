@@ -342,6 +342,30 @@ FIRST_SUCCESSOR_DICT_5SEC_0CHANGES = {
     19: []
 }
 
+FIRST_SUCCESSOR_DICT_5SEC_0SPLITS = {
+    0: [7], 1: [6], 2: [6],
+    3: [7], 4: [6],
+    5: [7], 6: [],
+    7: [], 8: [14],
+    9: [18], 10: [18], 11: [14], 12: [15],
+    13: [19], 14: [], 15: [],
+    16: [19], 17: [19],
+    18: [19],
+    19: []
+}
+
+FIRST_SUCCESSOR_DICT_5SEC_0MERGERS = {
+    0: [9, 10], 1: [], 2: [4],
+    3: [10, 13], 4: [],
+    5: [16, 17], 6: [14, 15],
+    7: [16, 17], 8: [14],
+    9: [16], 10: [17], 11: [14], 12: [15],
+    13: [16], 14: [], 15: [],
+    16: [], 17: [],
+    18: [19],
+    19: []
+}
+
 FIRST_PREDECESSOR_DICT_5SEC_ALL_1CHANGE = {
     0: [0], 1: [1], 2: [2],
     3: [0, 3], 4: [2, 4],
@@ -383,6 +407,30 @@ FIRST_SUCCESSOR_DICT_5SEC_ALL_0CHANGES = {
     3: [3, 5, 7], 4: [4],
     5: [5, 7], 6: [6],
     7: [7], 8: [8, 11, 14],
+    9: [9, 13, 16], 10: [10, 17], 11: [11, 14], 12: [12, 15],
+    13: [13, 16], 14: [14], 15: [15],
+    16: [16], 17: [17],
+    18: [18, 19],
+    19: [19]
+}
+
+FIRST_SUCCESSOR_DICT_5SEC_ALL_0SPLITS = {
+    0: [0, 3, 5, 7], 1: [1, 6], 2: [2, 4, 6],
+    3: [3, 5, 7], 4: [4, 6],
+    5: [5, 7], 6: [6],
+    7: [7], 8: [8, 11, 14],
+    9: [9, 13, 16, 18], 10: [10, 17, 18], 11: [11, 14], 12: [12, 15],
+    13: [13, 16, 18, 19], 14: [14], 15: [15],
+    16: [16, 18, 19], 17: [17, 18, 19],
+    18: [18, 19],
+    19: [19]
+}
+
+FIRST_SUCCESSOR_DICT_5SEC_ALL_0MERGERS = {
+    0: [0, 3, 5, 7, 9, 10], 1: [1], 2: [2, 4],
+    3: [3, 5, 7, 9, 10, 13], 4: [4],
+    5: [5, 7, 9, 10, 13, 16, 17], 6: [6, 8, 11, 12, 14, 15],
+    7: [7, 9, 10, 13, 16, 17], 8: [8, 11, 14],
     9: [9, 13, 16], 10: [10, 17], 11: [11, 14], 12: [12, 15],
     13: [13, 16], 14: [14], 15: [15],
     16: [16], 17: [17],
@@ -633,7 +681,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         for i in range(this_num_storm_objects):
             these_predecessor_rows = temporal_tracking.find_predecessors(
                 storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
-                num_seconds_back=5, num_secondary_id_changes=1)
+                num_seconds_back=5, max_num_sec_id_changes=1)
 
             these_predecessor_rows = numpy.sort(these_predecessor_rows)
             these_expected_rows = numpy.sort(numpy.array(
@@ -656,7 +704,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         for i in range(this_num_storm_objects):
             these_sucessor_rows = temporal_tracking.find_successors(
                 storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
-                num_seconds_forward=5, num_secondary_id_changes=1)
+                num_seconds_forward=5, max_num_sec_id_changes=1)
 
             these_sucessor_rows = numpy.sort(these_sucessor_rows)
             these_expected_rows = numpy.sort(numpy.array(
@@ -679,7 +727,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         for i in range(this_num_storm_objects):
             these_predecessor_rows = temporal_tracking.find_predecessors(
                 storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
-                num_seconds_back=5, num_secondary_id_changes=0)
+                num_seconds_back=5, max_num_sec_id_changes=0)
 
             these_predecessor_rows = numpy.sort(these_predecessor_rows)
             these_expected_rows = numpy.sort(numpy.array(
@@ -702,11 +750,59 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         for i in range(this_num_storm_objects):
             these_sucessor_rows = temporal_tracking.find_successors(
                 storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
-                num_seconds_forward=5, num_secondary_id_changes=0)
+                num_seconds_forward=5, max_num_sec_id_changes=0)
 
             these_sucessor_rows = numpy.sort(these_sucessor_rows)
             these_expected_rows = numpy.sort(numpy.array(
                 FIRST_SUCCESSOR_DICT_5SEC_0CHANGES[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_sucessor_rows, these_expected_rows
+            ))
+
+    def test_find_successors_first_5sec_0splits(self):
+        """Ensures correct output from find_successors.
+
+        In this case, working on the first table with max time difference =
+        5 seconds and max splits = 0.
+        """
+
+        this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
+
+        for i in range(this_num_storm_objects):
+            these_sucessor_rows = temporal_tracking.find_successors(
+                storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
+                num_seconds_forward=5, max_num_sec_id_changes=0,
+                change_type_string=temporal_tracking.SPLIT_STRING)
+
+            these_sucessor_rows = numpy.sort(these_sucessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                FIRST_SUCCESSOR_DICT_5SEC_0SPLITS[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_sucessor_rows, these_expected_rows
+            ))
+
+    def test_find_successors_first_5sec_0mergers(self):
+        """Ensures correct output from find_successors.
+
+        In this case, working on the first table with max time difference =
+        5 seconds and max mergers = 0.
+        """
+
+        this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
+
+        for i in range(this_num_storm_objects):
+            these_sucessor_rows = temporal_tracking.find_successors(
+                storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
+                num_seconds_forward=5, max_num_sec_id_changes=0,
+                change_type_string=temporal_tracking.MERGER_STRING)
+
+            these_sucessor_rows = numpy.sort(these_sucessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                FIRST_SUCCESSOR_DICT_5SEC_0MERGERS[i], dtype=int
             ))
 
             self.assertTrue(numpy.array_equal(
@@ -726,7 +822,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         for i in range(this_num_storm_objects):
             these_predecessor_rows = temporal_tracking.find_predecessors(
                 storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
-                num_seconds_back=5, num_secondary_id_changes=1,
+                num_seconds_back=5, max_num_sec_id_changes=1,
                 return_all_on_path=True)
 
             these_predecessor_rows = numpy.sort(these_predecessor_rows)
@@ -751,7 +847,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         for i in range(this_num_storm_objects):
             these_sucessor_rows = temporal_tracking.find_successors(
                 storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
-                num_seconds_forward=5, num_secondary_id_changes=1,
+                num_seconds_forward=5, max_num_sec_id_changes=1,
                 return_all_on_path=True)
 
             these_sucessor_rows = numpy.sort(these_sucessor_rows)
@@ -776,7 +872,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         for i in range(this_num_storm_objects):
             these_predecessor_rows = temporal_tracking.find_predecessors(
                 storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
-                num_seconds_back=5, num_secondary_id_changes=0,
+                num_seconds_back=5, max_num_sec_id_changes=0,
                 return_all_on_path=True)
 
             these_predecessor_rows = numpy.sort(these_predecessor_rows)
@@ -813,12 +909,64 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         for i in range(this_num_storm_objects):
             these_sucessor_rows = temporal_tracking.find_successors(
                 storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
-                num_seconds_forward=5, num_secondary_id_changes=0,
+                num_seconds_forward=5, max_num_sec_id_changes=0,
                 return_all_on_path=True)
 
             these_sucessor_rows = numpy.sort(these_sucessor_rows)
             these_expected_rows = numpy.sort(numpy.array(
                 FIRST_SUCCESSOR_DICT_5SEC_ALL_0CHANGES[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_sucessor_rows, these_expected_rows
+            ))
+
+    def test_find_successors_first_5sec_all_0splits(self):
+        """Ensures correct output from find_successors.
+
+        In this case, working on the first table with max time difference =
+        5 seconds and max splits = 0.  Looking for all successors on path to
+        earliest.
+        """
+
+        this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
+
+        for i in range(this_num_storm_objects):
+            these_sucessor_rows = temporal_tracking.find_successors(
+                storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
+                num_seconds_forward=5, max_num_sec_id_changes=0,
+                change_type_string=temporal_tracking.SPLIT_STRING,
+                return_all_on_path=True)
+
+            these_sucessor_rows = numpy.sort(these_sucessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                FIRST_SUCCESSOR_DICT_5SEC_ALL_0SPLITS[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_sucessor_rows, these_expected_rows
+            ))
+
+    def test_find_successors_first_5sec_all_0mergers(self):
+        """Ensures correct output from find_successors.
+
+        In this case, working on the first table with max time difference =
+        5 seconds and max mergers = 0.  Looking for all successors on path to
+        earliest.
+        """
+
+        this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
+
+        for i in range(this_num_storm_objects):
+            these_sucessor_rows = temporal_tracking.find_successors(
+                storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
+                num_seconds_forward=5, max_num_sec_id_changes=0,
+                change_type_string=temporal_tracking.MERGER_STRING,
+                return_all_on_path=True)
+
+            these_sucessor_rows = numpy.sort(these_sucessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                FIRST_SUCCESSOR_DICT_5SEC_ALL_0MERGERS[i], dtype=int
             ))
 
             self.assertTrue(numpy.array_equal(

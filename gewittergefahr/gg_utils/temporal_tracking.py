@@ -63,15 +63,23 @@ NEXT_SECONDARY_ID_COLUMNS = [
 DEFAULT_EAST_VELOCITY_M_S01 = 0.
 DEFAULT_NORTH_VELOCITY_M_S01 = 0.
 
+ANY_CHANGE_STRING = 'any'
+SPLIT_STRING = 'split'
+MERGER_STRING = 'merger'
+
+SECONDARY_ID_CHANGE_TYPE_STRINGS = [
+    ANY_CHANGE_STRING, SPLIT_STRING, MERGER_STRING
+]
+
 
 def __find_predecessors(
-        storm_object_table, target_row, num_secondary_id_changes,
+        storm_object_table, target_row, max_num_sec_id_changes,
         return_all_on_path):
     """Finds all predecessors of one storm object.
 
     :param storm_object_table: See doc for public method `find_predecessors`.
     :param target_row: Same.
-    :param num_secondary_id_changes: Same.
+    :param max_num_sec_id_changes: Same.
     :param return_all_on_path: Same.
     :return: predecessor_rows: Same.
     """
@@ -126,7 +134,7 @@ def __find_predecessors(
             )
 
             these_good_indices = numpy.where(
-                these_previous_num_changes <= num_secondary_id_changes
+                these_previous_num_changes <= max_num_sec_id_changes
             )[0]
 
             these_previous_rows = these_previous_rows[these_good_indices]
@@ -162,13 +170,14 @@ def __find_predecessors(
 
 
 def __find_successors(
-        storm_object_table, target_row, num_secondary_id_changes,
-        return_all_on_path):
+        storm_object_table, target_row, max_num_sec_id_changes,
+        change_type_string, return_all_on_path):
     """Finds all successors of one storm object.
 
     :param storm_object_table: See doc for public method `find_successors`.
     :param target_row: Same.
-    :param num_secondary_id_changes: Same.
+    :param max_num_sec_id_changes: Same.
+    :param change_type_string: Same.
     :param return_all_on_path: Same.
     :return: successor_rows: Same.
     """
@@ -218,12 +227,32 @@ def __find_successors(
                     this_row]
             )
 
+            if change_type_string == MERGER_STRING:
+                these_merger_flags = (
+                    storm_object_table[
+                        tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN
+                    ].values[these_next_rows] != ''
+                )
+
+                these_change_flags = numpy.logical_and(
+                    these_change_flags, these_merger_flags)
+
+            if change_type_string == SPLIT_STRING:
+                this_split_flag = (
+                    storm_object_table[
+                        tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN
+                    ].values[this_row] != ''
+                )
+
+                these_change_flags = numpy.logical_and(
+                    these_change_flags, this_split_flag)
+
             these_next_num_changes = (
                 this_num_changes + these_change_flags.astype(int)
             )
 
             these_good_indices = numpy.where(
-                these_next_num_changes <= num_secondary_id_changes
+                these_next_num_changes <= max_num_sec_id_changes
             )[0]
 
             these_next_rows = these_next_rows[these_good_indices]
@@ -1056,6 +1085,25 @@ def _get_storm_velocities_missing(
     })
 
 
+def _check_secondary_id_change_type(change_type_string):
+    """Error-checks type of secondary-ID change.
+
+    :param change_type_string: Type of change.
+    :raises: ValueError: if
+        `change_type_string not in SECONDARY_ID_CHANGE_TYPE_STRINGS`.
+    """
+
+    error_checking.assert_is_string(change_type_string)
+
+    if change_type_string not in SECONDARY_ID_CHANGE_TYPE_STRINGS:
+        error_string = (
+            '\n{0:s}\nValid secondary-ID-change types (listed above) do not '
+            'include "{1:s}".'
+        ).format(str(SECONDARY_ID_CHANGE_TYPE_STRINGS), change_type_string)
+
+        raise ValueError(error_string)
+
+
 def partial_to_full_ids(primary_id_strings, secondary_id_strings):
     """For each storm object, converts primary and secondary IDs to full ID.
 
@@ -1822,7 +1870,7 @@ def get_storm_ages(storm_object_table, tracking_start_times_unix_sec,
 
 def find_predecessors(
         storm_object_table, target_row, num_seconds_back,
-        num_secondary_id_changes=LARGE_INTEGER, return_all_on_path=False):
+        max_num_sec_id_changes=LARGE_INTEGER, return_all_on_path=False):
     """Finds all predecessors of one storm object.
 
     :param storm_object_table: pandas DataFrame with at least the following
@@ -1838,7 +1886,7 @@ def find_predecessors(
         `storm_object_table`, where k = `target_row`.
     :param num_seconds_back: Max time difference between target object and a
         given predecesssor.
-    :param num_secondary_id_changes: Max number of secondary-ID changes between
+    :param max_num_sec_id_changes: Max number of secondary-ID changes between
         target object and a given predecesssor.
     :param return_all_on_path: Boolean flag.  If True, will return all
         predecessors on path to earliest predecessors.  If False, will return
@@ -1855,8 +1903,8 @@ def find_predecessors(
 
     error_checking.assert_is_integer(num_seconds_back)
     error_checking.assert_is_greater(num_seconds_back, 0)
-    error_checking.assert_is_integer(num_secondary_id_changes)
-    error_checking.assert_is_geq(num_secondary_id_changes, 0)
+    error_checking.assert_is_integer(max_num_sec_id_changes)
+    error_checking.assert_is_geq(max_num_sec_id_changes, 0)
     error_checking.assert_is_boolean(return_all_on_path)
 
     last_time_unix_sec = (
@@ -1878,8 +1926,7 @@ def find_predecessors(
 
     predecessor_subrows = __find_predecessors(
         storm_object_table=storm_object_table.iloc[recent_rows],
-        target_row=target_subrow,
-        num_secondary_id_changes=num_secondary_id_changes,
+        target_row=target_subrow, max_num_sec_id_changes=max_num_sec_id_changes,
         return_all_on_path=return_all_on_path)
 
     return recent_rows[predecessor_subrows]
@@ -1931,7 +1978,8 @@ def find_immediate_predecessors(
 
 def find_successors(
         storm_object_table, target_row, num_seconds_forward,
-        num_secondary_id_changes=LARGE_INTEGER, return_all_on_path=False):
+        max_num_sec_id_changes=LARGE_INTEGER,
+        change_type_string=ANY_CHANGE_STRING, return_all_on_path=False):
     """Finds all successors of one storm object.
 
     :param storm_object_table: pandas DataFrame with at least the following
@@ -1947,8 +1995,11 @@ def find_successors(
         `storm_object_table`, where k = `target_row`.
     :param num_seconds_forward: Max time difference between target object and a
         given successor.
-    :param num_secondary_id_changes: Max number of secondary-ID changes between
+    :param max_num_sec_id_changes: Max number of secondary-ID changes between
         target object and a given successor.
+    :param change_type_string: Type of secondary-ID change for
+        `max_num_sec_id_changes`.  Must be accepted by
+        `_check_secondary_id_change_type`.
     :param return_all_on_path: Boolean flag.  If True, will return all
         successors on path to earliest successors.  If False, will return
         only earliest successors.
@@ -1964,9 +2015,11 @@ def find_successors(
 
     error_checking.assert_is_integer(num_seconds_forward)
     error_checking.assert_is_greater(num_seconds_forward, 0)
-    error_checking.assert_is_integer(num_secondary_id_changes)
-    error_checking.assert_is_geq(num_secondary_id_changes, 0)
+    error_checking.assert_is_integer(max_num_sec_id_changes)
+    error_checking.assert_is_geq(max_num_sec_id_changes, 0)
     error_checking.assert_is_boolean(return_all_on_path)
+
+    _check_secondary_id_change_type(change_type_string)
 
     first_time_unix_sec = (
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[target_row]
@@ -1987,8 +2040,8 @@ def find_successors(
 
     successor_subrows = __find_successors(
         storm_object_table=storm_object_table.iloc[soon_rows],
-        target_row=target_subrow,
-        num_secondary_id_changes=num_secondary_id_changes,
+        target_row=target_subrow, max_num_sec_id_changes=max_num_sec_id_changes,
+        change_type_string=change_type_string,
         return_all_on_path=return_all_on_path)
 
     return soon_rows[successor_subrows]

@@ -214,7 +214,8 @@ def _project_storms_latlng_to_xy(storm_object_table, projection_object):
 
     V = number of vertices in a given storm outline
 
-    :param storm_object_table: pandas DataFrame created by `_read_input_storm_tracks`.
+    :param storm_object_table: pandas DataFrame created by
+        `_read_input_storm_tracks`.
     :param projection_object: Instance of `pyproj.Proj`, defining an equidistant
         projection.
     :return: storm_object_table: Same as input, but with additional columns
@@ -720,92 +721,146 @@ def _find_nearest_storms_one_time(
 
 
 def _finish_tornado_linkage(
-        storm_object_table, event_table, event_row,
+        storm_object_table, tornado_to_storm_table, tornado_row,
         nearest_secondary_id_string, nearest_storm_time_unix_sec,
         nearest_distance_metres):
     """Finishes linking occurrence (not genesis) for one tornado to storm.
 
     :param storm_object_table: pandas DataFrame created by
         `_project_storms_latlng_to_xy`.
-    :param event_table: See output doc for `_find_nearest_storms`.
-    :param event_row: Index of tornado for which nearest storm was just found.
-        This is an index into the rows of `storm_object_table`.
+    :param tornado_to_storm_table: See output doc for `_find_nearest_storms`.
+    :param tornado_row: Row index into `tornado_to_storm_table`.  Will link
+        only this event (this tornado at this time).
     :param nearest_secondary_id_string: Secondary ID of nearest storm object.
     :param nearest_storm_time_unix_sec: Time of nearest storm object.
     :param nearest_distance_metres: Distance to nearest storm object.
     :return: event_table: Same as input but with different linkage values.
     """
 
-    storm_indices = numpy.where(
+    # Housekeeping.
+    event_time_unix_sec = tornado_to_storm_table[EVENT_TIME_COLUMN].values[
+        tornado_row]
+    tornado_id_string = tornado_to_storm_table[
+        tornado_io.TORNADO_ID_COLUMN].values[tornado_row]
+
+    # Find track segments of this tornado that have not yet been linked to a
+    # storm.
+    relevant_tornado_rows = numpy.where(numpy.logical_and(
+        tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+        tornado_id_string,
+        numpy.isnan(tornado_to_storm_table[LINKAGE_DISTANCE_COLUMN].values)
+    ))[0]
+
+    sort_indices = numpy.argsort(
+        tornado_to_storm_table[EVENT_TIME_COLUMN].values[relevant_tornado_rows]
+    )
+
+    relevant_tornado_rows = relevant_tornado_rows[sort_indices]
+    relevant_tornado_times_unix_sec = tornado_to_storm_table[
+        EVENT_TIME_COLUMN].values[relevant_tornado_rows]
+
+    # Find main storm object (to which one track segment was just linked).
+    storm_cell_rows = numpy.where(
         storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values ==
         nearest_secondary_id_string
     )[0]
 
-    storm_times_unix_sec = storm_object_table[
-        tracking_utils.VALID_TIME_COLUMN].values[storm_indices]
-    
-    event_time_unix_sec = event_table[EVENT_TIME_COLUMN].values[event_row]
-    tornado_id_string = event_table[tornado_io.TORNADO_ID_COLUMN].values[
-        event_row]
+    storm_cell_times_unix_sec = storm_object_table[
+        tracking_utils.VALID_TIME_COLUMN].values[storm_cell_rows]
+
+    this_subrow = numpy.argmin(numpy.absolute(
+        storm_cell_times_unix_sec - nearest_storm_time_unix_sec
+    ))
+
+    main_storm_object_row = storm_cell_rows[this_subrow]
+
+    # Find "relevant" storm objects (all non-splitting successors of main storm
+    # object).
+    these_rows = temporal_tracking.find_successors(
+        storm_object_table=storm_object_table, target_row=main_storm_object_row,
+        num_seconds_forward=LARGE_INTEGER, max_num_sec_id_changes=0,
+        change_type_string=temporal_tracking.SPLIT_STRING,
+        return_all_on_path=True)
+
+    relevant_storm_object_table = storm_object_table.iloc[these_rows]
+    these_times_unix_sec = relevant_storm_object_table[
+        tracking_utils.VALID_TIME_COLUMN].values
 
     first_good_time_unix_sec = min([
-        numpy.min(storm_times_unix_sec), event_time_unix_sec
+        numpy.min(these_times_unix_sec), event_time_unix_sec
     ])
     last_good_time_unix_sec = max([
-        numpy.max(storm_times_unix_sec), event_time_unix_sec
+        numpy.max(these_times_unix_sec), event_time_unix_sec
     ])
 
-    relevant_indices = numpy.where(numpy.logical_and(
-        event_table[tornado_io.TORNADO_ID_COLUMN].values == tornado_id_string,
-        numpy.isnan(event_table[LINKAGE_DISTANCE_COLUMN].values)
-    ))[0]
-
-    relevant_tornado_times_unix_sec = event_table[EVENT_TIME_COLUMN].values[
-        relevant_indices]
-
-    sort_indices = numpy.argsort(relevant_tornado_times_unix_sec)
-    relevant_indices = relevant_indices[sort_indices]
-    relevant_tornado_times_unix_sec = relevant_tornado_times_unix_sec[
-        sort_indices]
-
-    before_storm_subindices = numpy.where(
+    # Find first track segment that occurs <= first relevant storm time.
+    early_subrows = numpy.where(
         relevant_tornado_times_unix_sec <= first_good_time_unix_sec
     )[0]
 
-    if len(before_storm_subindices) == 0:
-        first_subindex = 0
+    if len(early_subrows) == 0:
+        first_subrow = 0
     else:
-        first_subindex = before_storm_subindices[-1]
+        first_subrow = early_subrows[-1]
 
-    after_storm_subindices = numpy.where(
+    # Find last track segment that occurs >= last relevant storm time.
+    late_subrows = numpy.where(
         relevant_tornado_times_unix_sec >= last_good_time_unix_sec
     )[0]
 
-    if len(after_storm_subindices) == 0:
-        last_subindex = len(relevant_indices) - 1
+    if len(late_subrows) == 0:
+        last_subrow = len(relevant_tornado_rows) - 1
     else:
-        last_subindex = after_storm_subindices[0]
+        last_subrow = late_subrows[0]
 
-    during_storm_indices = relevant_indices[first_subindex:(last_subindex + 1)]
+    # Link track segments to storm objects.
+    relevant_tornado_rows = relevant_tornado_rows[
+        first_subrow:(last_subrow + 1)
+    ]
 
-    event_table[LINKAGE_DISTANCE_COLUMN].values[
-        during_storm_indices] = nearest_distance_metres
+    tornado_to_storm_table[LINKAGE_DISTANCE_COLUMN].values[
+        relevant_tornado_rows
+    ] = nearest_distance_metres
 
-    for k in during_storm_indices:
-        event_table[NEAREST_TIME_COLUMN].values[k] = nearest_storm_time_unix_sec
-        event_table[NEAREST_SECONDARY_ID_COLUMN].values[
-            k] = nearest_secondary_id_string
+    for k in relevant_tornado_rows:
+        this_event_time_unix_sec = tornado_to_storm_table[
+            EVENT_TIME_COLUMN].values[k]
+
+        tornado_to_storm_table[NEAREST_TIME_COLUMN].values[k] = (
+            this_event_time_unix_sec
+        )
+
+        this_storm_object_row = numpy.argmin(numpy.absolute(
+            relevant_storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+            - this_event_time_unix_sec
+        ))
+
+        # tornado_to_storm_table[NEAREST_TIME_COLUMN].values[k] = (
+        #     nearest_storm_time_unix_sec
+        # )
+        #
+        # this_storm_object_row = numpy.argmin(numpy.absolute(
+        #     relevant_storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+        #     - tornado_to_storm_table[EVENT_TIME_COLUMN].values[k]
+        # ))
+
+        tornado_to_storm_table[NEAREST_SECONDARY_ID_COLUMN].values[k] = (
+            relevant_storm_object_table[
+                tracking_utils.SECONDARY_ID_COLUMN
+            ].values[this_storm_object_row]
+        )
 
     these_rows = numpy.where(
-        event_table[tornado_io.TORNADO_ID_COLUMN].values == tornado_id_string
+        tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+        tornado_id_string
     )[0]
-    event_table[TORNADO_ASSIGNED_COLUMN].values[these_rows] = True
 
-    return event_table
+    tornado_to_storm_table[TORNADO_ASSIGNED_COLUMN].values[these_rows] = True
+    return tornado_to_storm_table
 
 
 def _link_tornado_to_new_storm(
-        storm_object_table, event_table, event_row,
+        storm_object_table, tornado_to_storm_table, tornado_row,
         max_time_before_storm_start_sec, max_time_after_storm_end_sec):
     """Links one tornado to new storm.
 
@@ -813,65 +868,70 @@ def _link_tornado_to_new_storm(
 
     :param storm_object_table: pandas DataFrame created by
         `_project_storms_latlng_to_xy`.
-    :param event_table: See output doc for `_find_nearest_storms`.
-    :param event_row: Row index into `event_table`.  Will link this event (one
-        tornado at one time step).
+    :param tornado_to_storm_table: See output doc for `_find_nearest_storms`.
+    :param tornado_row: Row index into `tornado_to_storm_table`.  Will link
+        only this event (this tornado at this time).
     :param max_time_before_storm_start_sec: See doc for `_find_nearest_storms`.
     :param max_time_after_storm_end_sec: Same.
-    :return: event_table: Same as input but maybe with different linkage values.
+    :return: tornado_to_storm_table: Same as input but maybe with different
+        linkage values.
     """
 
-    event_time_unix_sec = event_table[EVENT_TIME_COLUMN].values[event_row]
+    # Housekeeping.
+    event_time_unix_sec = tornado_to_storm_table[
+        EVENT_TIME_COLUMN].values[tornado_row]
     event_time_string = time_conversion.unix_sec_to_string(
         event_time_unix_sec, TIME_FORMAT)
 
     print('Trying to link tornado at {0:s} to NEW storm...'.format(
         event_time_string))
 
-    event_assigned_flags = numpy.array([
+    # Find track segments of this tornado that have already been linked.
+    event_linked_flags = numpy.array([
         s is not None
-        for s in event_table[NEAREST_SECONDARY_ID_COLUMN].values
+        for s in tornado_to_storm_table[NEAREST_SECONDARY_ID_COLUMN].values
     ], dtype=bool)
 
-    same_tornado_rows = numpy.where(numpy.logical_and(
-        event_table[tornado_io.TORNADO_ID_COLUMN].values ==
-        event_table[tornado_io.TORNADO_ID_COLUMN].values[event_row],
-        event_assigned_flags
+    tornado_rows = numpy.where(numpy.logical_and(
+        tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+        tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values[
+            tornado_row],
+        event_linked_flags
     ))[0]
 
-    last_assigned_subrow = numpy.argmax(
-        event_table[EVENT_TIME_COLUMN].values[same_tornado_rows]
+    # Find *latest* segment of this tornado that has already been linked.
+    this_subrow = numpy.argmax(
+        tornado_to_storm_table[EVENT_TIME_COLUMN].values[tornado_rows]
     )
-    last_assigned_row = same_tornado_rows[last_assigned_subrow]
+    last_assigned_event_row = tornado_rows[this_subrow]
 
-    print('Row of last assigned tornado segment = {0:d}'.format(last_assigned_row))
+    # Find storm object (s*) to which this segment was linked.
+    last_assigned_sec_id_string = tornado_to_storm_table[
+        NEAREST_SECONDARY_ID_COLUMN].values[last_assigned_event_row]
 
-    last_secondary_id_string = event_table[
-        NEAREST_SECONDARY_ID_COLUMN].values[last_assigned_row]
-
-    print('Secondary storm ID for last assigned tornado segment = {0:s}'.format(last_secondary_id_string))
-
-    same_storm_rows = numpy.where(
+    last_assigned_cell_rows = numpy.where(
         storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values ==
-        last_secondary_id_string
+        last_assigned_sec_id_string
     )[0]
 
-    last_storm_subrow = numpy.argmax(
+    this_subrow = numpy.argmax(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[
-            same_storm_rows]
+            last_assigned_cell_rows]
     )
-    last_storm_row = same_storm_rows[last_storm_subrow]
+    last_assigned_object_row = last_assigned_cell_rows[this_subrow]
 
-    successor_rows = temporal_tracking.find_successors(
-        storm_object_table=storm_object_table, target_row=last_storm_row,
+    # Find successors of storm object s*.
+    relevant_object_rows = temporal_tracking.find_successors(
+        storm_object_table=storm_object_table,
+        target_row=last_assigned_object_row,
         num_seconds_forward=LARGE_INTEGER, return_all_on_path=True)
 
-    successor_2ary_id_strings = numpy.unique(
-        storm_object_table[
-            tracking_utils.SECONDARY_ID_COLUMN
-        ].values[successor_rows]
+    relevant_sec_id_strings = numpy.unique(
+        storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[
+            relevant_object_rows]
     )
 
+    # Try linking other segments of the tornado track only to successors of s*.
     interp_vertex_table = _interp_storms_in_time(
         storm_object_table=storm_object_table,
         target_time_unix_sec=event_time_unix_sec,
@@ -879,29 +939,26 @@ def _link_tornado_to_new_storm(
         max_time_after_end_sec=max_time_after_storm_end_sec)
 
     interp_vertex_table = interp_vertex_table.loc[
-        interp_vertex_table[
-            tracking_utils.SECONDARY_ID_COLUMN
-        ].isin(successor_2ary_id_strings)
+        interp_vertex_table[tracking_utils.SECONDARY_ID_COLUMN].isin(
+            relevant_sec_id_strings)
     ]
 
     nearest_secondary_id_strings, nearest_distances_metres = (
         _find_nearest_storms_one_time(
             interp_vertex_table=interp_vertex_table,
             event_x_coords_metres=
-            event_table[EVENT_X_COLUMN].values[[event_row]],
+            tornado_to_storm_table[EVENT_X_COLUMN].values[[tornado_row]],
             event_y_coords_metres=
-            event_table[EVENT_Y_COLUMN].values[[event_row]],
+            tornado_to_storm_table[EVENT_Y_COLUMN].values[[tornado_row]],
             max_link_distance_metres=LARGE_DISTANCE_METRES)
     )
 
     if nearest_secondary_id_strings[0] is None:
-        return event_table
-
-    print('Secondary storm ID for next assigned tornado segment = {0:s}'.format(nearest_secondary_id_strings[0]))
+        return tornado_to_storm_table
 
     return _finish_tornado_linkage(
         storm_object_table=storm_object_table,
-        event_table=event_table, event_row=event_row,
+        tornado_to_storm_table=tornado_to_storm_table, tornado_row=tornado_row,
         nearest_secondary_id_string=nearest_secondary_id_strings[0],
         nearest_storm_time_unix_sec=event_time_unix_sec,
         nearest_distance_metres=nearest_distances_metres[0]
@@ -1030,8 +1087,9 @@ def _find_nearest_storms(
                 continue
 
             event_table = _finish_tornado_linkage(
-                storm_object_table=storm_object_table, event_table=event_table,
-                event_row=these_event_rows[j],
+                storm_object_table=storm_object_table,
+                tornado_to_storm_table=event_table,
+                tornado_row=these_event_rows[j],
                 nearest_secondary_id_string=these_nearest_id_strings[j],
                 nearest_storm_time_unix_sec=unique_interp_times_unix_sec[i],
                 nearest_distance_metres=these_link_distances_metres[j]
@@ -1056,7 +1114,7 @@ def _find_nearest_storms(
             for j in these_event_rows:
                 event_table = _link_tornado_to_new_storm(
                     storm_object_table=storm_object_table,
-                    event_table=event_table, event_row=j,
+                    tornado_to_storm_table=event_table, tornado_row=j,
                     max_time_before_storm_start_sec=
                     max_time_before_storm_start_sec,
                     max_time_after_storm_end_sec=max_time_after_storm_end_sec)
@@ -1209,25 +1267,29 @@ def _reverse_wind_linkages(storm_object_table, wind_to_storm_table):
         this_nearest_time_unix_sec = wind_to_storm_table[
             NEAREST_TIME_COLUMN].values[k]
 
-        these_time_diffs_unix_sec = (
+        these_time_diffs_sec = (
             this_nearest_time_unix_sec -
             storm_to_winds_table[tracking_utils.VALID_TIME_COLUMN].values[
                 this_storm_cell_rows]
         )
 
-        these_time_diffs_unix_sec[these_time_diffs_unix_sec < 0] = LARGE_INTEGER
+        # these_time_diffs_sec[these_time_diffs_sec < 0] = LARGE_INTEGER
         this_main_object_row = this_storm_cell_rows[
-            numpy.argmin(these_time_diffs_unix_sec)
+            numpy.argmin(numpy.absolute(these_time_diffs_sec))
         ]
 
         these_predecessor_rows = temporal_tracking.find_predecessors(
             storm_object_table=storm_to_winds_table,
             target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
-            num_secondary_id_changes=1, return_all_on_path=True)
+            max_num_sec_id_changes=1, return_all_on_path=True)
 
         for j in these_predecessor_rows:
-            if (storm_to_winds_table[tracking_utils.VALID_TIME_COLUMN].values[j]
-                    > this_nearest_time_unix_sec):
+            this_flag = (
+                storm_to_winds_table[tracking_utils.VALID_TIME_COLUMN].values[j]
+                > wind_to_storm_table[EVENT_TIME_COLUMN].values[k]
+            )
+
+            if this_flag:
                 continue
 
             storm_to_winds_table[WIND_STATION_IDS_COLUMN].values[j].append(
@@ -1379,27 +1441,27 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
         this_nearest_time_unix_sec = tornado_to_storm_table[
             NEAREST_TIME_COLUMN].values[k]
 
-        these_time_diffs_unix_sec = (
+        these_time_diffs_sec = (
             this_nearest_time_unix_sec -
             storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values[
                 this_storm_cell_rows]
         )
 
-        these_time_diffs_unix_sec[these_time_diffs_unix_sec < 0] = LARGE_INTEGER
+        # these_time_diffs_sec[these_time_diffs_sec < 0] = LARGE_INTEGER
         this_main_object_row = this_storm_cell_rows[
-            numpy.argmin(these_time_diffs_unix_sec)
+            numpy.argmin(numpy.absolute(these_time_diffs_sec))
         ]
 
         these_predecessor_rows = temporal_tracking.find_predecessors(
             storm_object_table=storm_to_tornadoes_table,
             target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
-            num_secondary_id_changes=1, return_all_on_path=True)
+            max_num_sec_id_changes=1, return_all_on_path=True)
 
         for j in these_predecessor_rows:
             this_flag = (
                 storm_to_tornadoes_table[
                     tracking_utils.VALID_TIME_COLUMN].values[j]
-                > this_nearest_time_unix_sec
+                > tornado_to_storm_table[EVENT_TIME_COLUMN].values[k]
             )
 
             if this_flag:
@@ -1876,7 +1938,7 @@ def _share_linkages_between_periods(
 
         these_predecessor_rows = temporal_tracking.find_predecessors(
             storm_object_table=storm_to_events_table, target_row=i,
-            num_seconds_back=LARGE_INTEGER, num_secondary_id_changes=1,
+            num_seconds_back=LARGE_INTEGER, max_num_sec_id_changes=1,
             return_all_on_path=True)
 
         these_event_times_unix_sec = (
@@ -2024,7 +2086,8 @@ def link_storms_to_winds(
 
         wind_to_storm_table = wind_table.assign(**{
             NEAREST_SECONDARY_ID_COLUMN: [None] * num_wind_obs,
-            LINKAGE_DISTANCE_COLUMN: numpy.full(num_wind_obs, numpy.nan)
+            LINKAGE_DISTANCE_COLUMN: numpy.full(num_wind_obs, numpy.nan),
+            NEAREST_TIME_COLUMN: numpy.full(num_wind_obs, -1, dtype=int)
         })
     else:
         global_centroid_lat_deg, global_centroid_lng_deg = (
@@ -2061,7 +2124,8 @@ def link_storms_to_winds(
             max_time_before_storm_start_sec=max_time_before_storm_start_sec,
             max_time_after_storm_end_sec=max_time_after_storm_end_sec,
             interp_time_interval_sec=storm_interp_time_interval_sec,
-            max_link_distance_metres=max_link_distance_metres)
+            max_link_distance_metres=max_link_distance_metres,
+            event_type_string=WIND_EVENT_STRING)
         print(SEPARATOR_STRING)
 
     return _reverse_wind_linkages(storm_object_table=storm_object_table,
@@ -2132,7 +2196,8 @@ def link_storms_to_tornadoes(
 
         tornado_to_storm_table = tornado_table.assign(**{
             NEAREST_SECONDARY_ID_COLUMN: [None] * num_tornadoes,
-            LINKAGE_DISTANCE_COLUMN: numpy.full(num_tornadoes, numpy.nan)
+            LINKAGE_DISTANCE_COLUMN: numpy.full(num_tornadoes, numpy.nan),
+            NEAREST_TIME_COLUMN: numpy.full(num_tornadoes, -1, dtype=int)
         })
     else:
         global_centroid_lat_deg, global_centroid_lng_deg = (
@@ -2164,12 +2229,18 @@ def link_storms_to_tornadoes(
             event_table=tornado_table, x_limits_metres=tornado_x_limits_metres,
             y_limits_metres=tornado_y_limits_metres)
 
+        event_type_string = (
+            TORNADOGENESIS_EVENT_STRING if genesis_only
+            else TORNADO_EVENT_STRING
+        )
+
         tornado_to_storm_table = _find_nearest_storms(
             storm_object_table=storm_object_table, event_table=tornado_table,
             max_time_before_storm_start_sec=max_time_before_storm_start_sec,
             max_time_after_storm_end_sec=max_time_after_storm_end_sec,
             interp_time_interval_sec=storm_interp_time_interval_sec,
-            max_link_distance_metres=max_link_distance_metres)
+            max_link_distance_metres=max_link_distance_metres,
+            event_type_string=event_type_string)
         print(SEPARATOR_STRING)
 
     return _reverse_tornado_linkages(
