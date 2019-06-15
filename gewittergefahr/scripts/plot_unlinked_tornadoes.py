@@ -321,7 +321,9 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
         event_type_string=event_type_string, spc_date_string=spc_date_string)
 
     print('Reading data from: "{0:s}"...'.format(linkage_file_name))
-    storm_to_tornadoes_table = linkage.read_linkage_file(linkage_file_name)
+    storm_to_tornadoes_table, metadata_dict = linkage.read_linkage_file(
+        linkage_file_name
+    )[:2]
 
     num_storm_objects = len(storm_to_tornadoes_table.index)
     if num_storm_objects == 0:
@@ -349,13 +351,16 @@ def _run(tornado_dir_name, top_linkage_dir_name, top_myrorss_dir_name,
             for k in these_good_indices
         ]
 
+    # TODO(thunderhoser): Might be able to just read this from linkage file.
     tornado_table = linkage._read_input_tornado_reports(
         input_directory_name=tornado_dir_name,
         storm_times_unix_sec=storm_to_tornadoes_table[
             tracking_utils.VALID_TIME_COLUMN].values,
-        max_time_before_storm_start_sec=
-        linkage.DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
-        max_time_after_storm_end_sec=linkage.DEFAULT_MAX_TIME_AFTER_STORM_SEC)
+        max_time_before_storm_start_sec=metadata_dict[
+            linkage.MAX_TIME_BEFORE_START_KEY],
+        max_time_after_storm_end_sec=metadata_dict[
+            linkage.MAX_TIME_AFTER_END_KEY]
+    )
 
     num_tornadoes = len(tornado_table.index)
     if num_tornadoes == 0:

@@ -315,7 +315,8 @@ def _run(top_linkage_dir_name, first_spc_date_string, last_spc_date_string,
 
         print('Reading data from: "{0:s}"...'.format(this_linkage_file_name))
         this_storm_to_events_table = linkage.read_linkage_file(
-            this_linkage_file_name)
+            this_linkage_file_name
+        )[0]
 
         _compute_targets_one_day(
             storm_to_events_table=this_storm_to_events_table,

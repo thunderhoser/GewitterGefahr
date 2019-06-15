@@ -498,7 +498,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, genesis_only,
 
         print('Reading data from: "{0:s}"...'.format(this_file_name))
         list_of_tables.append(
-            linkage.read_linkage_file(this_file_name)
+            linkage.read_linkage_file(this_file_name)[0]
         )
 
         if len(list_of_tables) == 1:

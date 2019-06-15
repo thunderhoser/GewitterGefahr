@@ -524,7 +524,7 @@ for this_storm_row in STORM_ROW_TO_STATION_ID_STRINGS:
         this_storm_row
     ] = these_main_object_flags
 
-# The following constants are used to test _share_linkages_between_periods.
+# The following constants are used to test _share_linkages_with_predecessors.
 EARLY_STORM_TO_WINDS_TABLE_PRELIM = copy.deepcopy(STORM_TO_WINDS_TABLE)
 LATE_STORM_TO_WINDS_TABLE_PRELIM = copy.deepcopy(STORM_TO_WINDS_TABLE)
 
@@ -1047,11 +1047,11 @@ class LinkageTests(unittest.TestCase):
             STORM_OBJECT_TABLE_SANS_PERIOD_START[actual_columns]
         ))
 
-    def test_share_linkages_between_periods(self):
-        """Ensures correct output from _share_linkages_between_periods."""
+    def test_share_linkages_with_predecessors(self):
+        """Ensures correct output from _share_linkages_with_predecessors."""
 
         this_actual_early_table, this_actual_late_table = (
-            linkage._share_linkages_between_periods(
+            linkage._share_linkages_with_predecessors(
                 early_storm_to_events_table=copy.deepcopy(
                     EARLY_STORM_TO_WINDS_TABLE_PRELIM),
                 late_storm_to_events_table=copy.deepcopy(

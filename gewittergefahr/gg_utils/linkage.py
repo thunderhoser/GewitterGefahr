@@ -49,9 +49,9 @@ VALID_EVENT_TYPE_STRINGS = [
 
 DEFAULT_MAX_TIME_BEFORE_STORM_SEC = 300
 DEFAULT_MAX_TIME_AFTER_STORM_SEC = 300
-DEFAULT_BOUNDING_BOX_PADDING_METRES = 1e5
-DEFAULT_MAX_DISTANCE_FOR_WIND_METRES = 30000.
-DEFAULT_MAX_DISTANCE_FOR_TORNADO_METRES = 30000.
+DEFAULT_BBOX_PADDING_METRES = 1e5
+DEFAULT_MAX_WIND_DISTANCE_METRES = 30000.
+DEFAULT_MAX_TORNADO_DISTANCE_METRES = 30000.
 
 REQUIRED_STORM_COLUMNS = [
     tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.SECONDARY_ID_COLUMN,
@@ -109,15 +109,26 @@ THESE_COLUMNS = [
     EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN, MAIN_OBJECT_FLAGS_COLUMN
 ]
 
-REQUIRED_WIND_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
+WIND_LINKAGE_COLUMNS = THESE_COLUMNS + [
     WIND_STATION_IDS_COLUMN, U_WINDS_COLUMN, V_WINDS_COLUMN
 ]
 
-REQUIRED_TORNADO_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
+TORNADO_LINKAGE_COLUMNS = THESE_COLUMNS + [
     FUJITA_RATINGS_COLUMN, TORNADO_IDS_COLUMN
 ]
 
+REQUIRED_WIND_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + WIND_LINKAGE_COLUMNS
+REQUIRED_TORNADO_LINKAGE_COLUMNS = (
+    REQUIRED_STORM_COLUMNS + TORNADO_LINKAGE_COLUMNS
+)
+
 EARLY_FLAG_COLUMN = 'in_early_period'
+
+MAX_TIME_BEFORE_START_KEY = 'max_time_before_storm_start_sec'
+MAX_TIME_AFTER_END_KEY = 'max_time_after_storm_end_sec'
+STORM_INTERP_TIME_KEY = 'storm_interp_time_interval_sec'
+BBOX_PADDING_KEY = 'bounding_box_padding_metres'
+MAX_LINK_DISTANCE_KEY = 'max_link_distance_metres'
 
 
 def _check_input_args(
@@ -167,9 +178,17 @@ def _check_input_args(
     error_checking.assert_is_geq(
         bounding_box_padding_metres, max_link_distance_metres)
 
+    return {
+        MAX_TIME_BEFORE_START_KEY: max_time_before_storm_start_sec,
+        MAX_TIME_AFTER_END_KEY: max_time_after_storm_end_sec,
+        STORM_INTERP_TIME_KEY: storm_interp_time_interval_sec,
+        BBOX_PADDING_KEY: bounding_box_padding_metres,
+        MAX_LINK_DISTANCE_KEY: max_link_distance_metres
+    }
+
 
 def _get_bounding_box_for_storms(
-        storm_object_table, padding_metres=DEFAULT_BOUNDING_BOX_PADDING_METRES):
+        storm_object_table, padding_metres=DEFAULT_BBOX_PADDING_METRES):
     """Creates bounding box (with some padding) around all storm objects.
 
     :param storm_object_table: pandas DataFrame created by
@@ -2162,20 +2181,29 @@ def _share_tornado_linkages(
     return early_storm_to_tornadoes_table, late_storm_to_tornadoes_table
 
 
-def _share_linkages_between_periods(
-        early_storm_to_events_table, late_storm_to_events_table):
-    """Shares linkages between two periods.
+def _share_linkages_with_predecessors(early_storm_to_events_table,
+                                      late_storm_to_events_table):
+    """Shares events linked to each storm object with its predecessors.
 
-    The motivation behind this method is explained in the documentation for
-    `share_linkages_across_spc_dates`.
+    This task is done by `_reverse_wind_linkages` and
+    `_reverse_tornado_linkages` but only for one period at a time.  Use this
+    method to share linkages between successive periods.  In other words, the
+    workflow should be as follows:
+
+    [1] Run `_reverse_wind_linkages` or `_reverse_tornado_linkages` on the early
+        period.
+    [2] Run `_reverse_wind_linkages` or `_reverse_tornado_linkages` on the late
+        period.
+    [3] Run this method to "fill the gap" between the two periods.
 
     :param early_storm_to_events_table: pandas DataFrame created by
         `_reverse_wind_linkages` or `_reverse_tornado_linkages`.
-    :param late_storm_to_events_table: Same but for a later period.
-    :return: early_storm_to_events_table: Same as input but maybe with more
+    :param late_storm_to_events_table: Same.
+    :return: early_storm_to_events_table: Same as input but maybe with new
         linkages.
-    :return: late_storm_to_events_table: Same as input but maybe with more
-        linkages.
+    :return: late_storm_to_events_table: Same as input but maybe with new
+        linkages.  (Actually this should not change, but I have not yet verified
+        that.)
     """
 
     storm_to_events_table = pandas.concat(
@@ -2183,19 +2211,10 @@ def _share_linkages_between_periods(
         axis=0, ignore_index=True
     )
 
-    # TODO(thunderhoser: Need to change more?
-    columns_to_change = [
-        EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN,
-        LINKAGE_DISTANCES_COLUMN, RELATIVE_EVENT_TIMES_COLUMN,
-        MAIN_OBJECT_FLAGS_COLUMN
-    ]
-
-    if FUJITA_RATINGS_COLUMN in early_storm_to_events_table:
-        columns_to_change += [FUJITA_RATINGS_COLUMN, TORNADO_IDS_COLUMN]
+    if TORNADO_IDS_COLUMN in storm_to_events_table:
+        columns_to_change = TORNADO_LINKAGE_COLUMNS
     else:
-        columns_to_change += [
-            WIND_STATION_IDS_COLUMN, U_WINDS_COLUMN, V_WINDS_COLUMN
-        ]
+        columns_to_change = WIND_LINKAGE_COLUMNS
 
     num_early_storm_objects = len(early_storm_to_events_table.index)
     num_late_storm_objects = len(late_storm_to_events_table.index)
@@ -2250,7 +2269,7 @@ def _share_linkages_between_periods(
                         ))
                     )
                 else:
-                    if isinstance(storm_to_events_table[this_column].values[i],
+                    if isinstance(storm_to_events_table[this_column].values[j],
                                   numpy.ndarray):
                         storm_to_events_table[this_column].values[j] = (
                             numpy.concatenate((
@@ -2302,26 +2321,27 @@ def check_event_type(event_type_string):
 
 
 def link_storms_to_winds(
-        tracking_file_names, top_wind_directory_name,
+        top_wind_directory_name, tracking_file_names,
         max_time_before_storm_start_sec=DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
         max_time_after_storm_end_sec=DEFAULT_MAX_TIME_AFTER_STORM_SEC,
-        bounding_box_padding_metres=DEFAULT_BOUNDING_BOX_PADDING_METRES,
+        bounding_box_padding_metres=DEFAULT_BBOX_PADDING_METRES,
         storm_interp_time_interval_sec=10,
-        max_link_distance_metres=DEFAULT_MAX_DISTANCE_FOR_WIND_METRES):
-    """Links each storm cell to zero or more wind observations.
+        max_link_distance_metres=DEFAULT_MAX_WIND_DISTANCE_METRES):
+    """Links each storm to zero or more wind observations.
 
-    :param tracking_file_names: See doc for `_check_input_args`.
     :param top_wind_directory_name: See doc for `_read_input_wind_observations`.
-    :param max_time_before_storm_start_sec: See doc for `_check_input_args`.
+    :param tracking_file_names: See doc for `_check_input_args`.
+    :param max_time_before_storm_start_sec: Same.
     :param max_time_after_storm_end_sec: Same.
     :param bounding_box_padding_metres: Same.
     :param storm_interp_time_interval_sec: Same.
     :param max_link_distance_metres: Same.
     :return: storm_to_winds_table: pandas DataFrame created by
         `_reverse_wind_linkages`.
+    :return: metadata_dict: Dictionary created by `_check_input_args`.
     """
 
-    _check_input_args(
+    metadata_dict = _check_input_args(
         tracking_file_names=tracking_file_names,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec,
@@ -2401,34 +2421,47 @@ def link_storms_to_winds(
             event_type_string=WIND_EVENT_STRING)
         print(SEPARATOR_STRING)
 
-    return _reverse_wind_linkages(storm_object_table=storm_object_table,
-                                  wind_to_storm_table=wind_to_storm_table)
+    storm_to_winds_table = _reverse_wind_linkages(
+        storm_object_table=storm_object_table,
+        wind_to_storm_table=wind_to_storm_table)
+
+    return storm_to_winds_table, metadata_dict
 
 
 def link_storms_to_tornadoes(
-        tracking_file_names, tornado_directory_name,
+        tornado_directory_name, tracking_file_names,
         max_time_before_storm_start_sec=DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
         max_time_after_storm_end_sec=DEFAULT_MAX_TIME_AFTER_STORM_SEC,
-        bounding_box_padding_metres=DEFAULT_BOUNDING_BOX_PADDING_METRES,
+        bounding_box_padding_metres=DEFAULT_BBOX_PADDING_METRES,
         storm_interp_time_interval_sec=1,
-        max_link_distance_metres=DEFAULT_MAX_DISTANCE_FOR_TORNADO_METRES,
+        max_link_distance_metres=DEFAULT_MAX_TORNADO_DISTANCE_METRES,
         genesis_only=True, tornado_interp_time_interval_sec=60):
-    """Links each storm cell to zero or more tornadoes.
+    """Links each storm to zero or more tornadoes.
 
-    :param tracking_file_names: See doc for `_check_input_args`.
     :param tornado_directory_name: See doc for `_read_input_tornado_reports`.
-    :param max_time_before_storm_start_sec: See doc for `_check_input_args`.
+    :param tracking_file_names: See doc for `_check_input_args`.
+    :param max_time_before_storm_start_sec: Same.
     :param max_time_after_storm_end_sec: Same.
     :param bounding_box_padding_metres: Same.
     :param storm_interp_time_interval_sec: Same.
     :param max_link_distance_metres: Same.
-    :param genesis_only: See doc for `_read_input_tornado_reports`.
-    :param tornado_interp_time_interval_sec: Same.
+    :param genesis_only: Boolean flag.  If True, will link only tornadogenesis
+        events (the start point of each tornado).  If False, will link all
+        tornado occurrences (K-second track segments, where
+        K = `tornado_interp_time_interval_sec`).
+    :param tornado_interp_time_interval_sec:
+        [used only if `genesis_only` == False]
+        Interpolation time used to create tornado-track segments.  For each
+        tornado, will interpolate location between start and end time at this
+        interval.
     :return: storm_to_tornadoes_table: pandas DataFrame created by
         `_reverse_tornado_linkages`.
+    :return: tornado_to_storm_table: pandas DataFrame created by
+        `_find_nearest_storms`.
+    :return: metadata_dict: Dictionary created by `_check_input_args`.
     """
 
-    _check_input_args(
+    metadata_dict = _check_input_args(
         tracking_file_names=tracking_file_names,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec,
@@ -2516,32 +2549,31 @@ def link_storms_to_tornadoes(
             event_type_string=event_type_string)
         print(SEPARATOR_STRING)
 
-    return _reverse_tornado_linkages(
+    storm_to_tornadoes_table = _reverse_tornado_linkages(
         storm_object_table=storm_object_table,
         tornado_to_storm_table=tornado_to_storm_table)
 
+    return storm_to_tornadoes_table, tornado_to_storm_table, metadata_dict
 
-def share_linkages_across_spc_dates(
-        top_input_dir_name, first_spc_date_string, last_spc_date_string,
-        top_output_dir_name, event_type_string):
+
+def share_linkages(
+        top_input_dir_name, top_output_dir_name, first_spc_date_string,
+        last_spc_date_string, event_type_string):
     """Shares linkages across SPC dates.
 
-    This is important because linkage is usually done for one SPC date at a
-    time, using either `link_storms_to_winds` or `link_storms_to_tornadoes`.
-    These methods have no way of sharing info with the next or previous SPC
-    dates.  Thus, if event E is linked to storm cell S on day D, the files for
-    days D - 1 and D + 1 will not contain this linkage, even if storm cell S
-    exists on day D - 1 or D + 1.
+    This method stitches together results from `link_storms_to_winds` and
+    `link_storms_to_tornadoes`, which allows said methods to be run for one day
+    at a time, which allows massive parallelization.
 
     :param top_input_dir_name: Name of top-level input directory.  Files therein
         will be found by `find_linkage_file` and read by `read_linkage_file`.
-    :param first_spc_date_string: First SPC date (format "yyyymmdd").  Linkages
-        will be shared for all dates in the period `first_spc_date_string`...
-        `last_spc_date_string`.
+    :param top_output_dir_name: Name of top-level input directory.  Stitched
+        files will be written here by `write_linkage_file`, to exact locations
+        determined by `find_linkage_file`.
+    :param first_spc_date_string: First SPC date (format "yyyymmdd").  Results
+        will be stitched across SPC dates
+        `first_spc_date_string`...`last_spc_date_string`.
     :param last_spc_date_string: See above.
-    :param top_output_dir_name: Name of top-level output directory.  Files will
-        be written by `write_linkage_file` to locations therein, determined by
-        `find_linkage_file`.
     :param event_type_string: Event type (must be accepted by
         `check_event_type`).
     """
@@ -2551,71 +2583,80 @@ def share_linkages_across_spc_dates(
         last_spc_date_string=last_spc_date_string)
 
     num_spc_dates = len(spc_date_strings)
-    orig_linkage_file_names = [''] * num_spc_dates
+    old_linkage_file_names = [''] * num_spc_dates
     new_linkage_file_names = [''] * num_spc_dates
 
     for i in range(num_spc_dates):
-        orig_linkage_file_names[i] = find_linkage_file(
+        old_linkage_file_names[i] = find_linkage_file(
             top_directory_name=top_input_dir_name,
             event_type_string=event_type_string, raise_error_if_missing=True,
-            spc_date_string=spc_date_strings[i])
+            spc_date_string=spc_date_strings[i]
+        )
 
         new_linkage_file_names[i] = find_linkage_file(
             top_directory_name=top_output_dir_name,
             event_type_string=event_type_string, raise_error_if_missing=False,
-            spc_date_string=spc_date_strings[i])
+            spc_date_string=spc_date_strings[i]
+        )
 
     if num_spc_dates == 1:
         warning_string = (
-            'There is only one SPC date ("{0:s}"), so the method '
-            '`share_linkages_across_spc_dates` has nothing to do.'
+            'There is only one SPC date ("{0:s}"), so cannot share linkages '
+            'across SPC dates.'
         ).format(spc_date_strings[0])
 
         warnings.warn(warning_string)
 
-        if orig_linkage_file_names[0] == new_linkage_file_names[0]:
+        if top_input_dir_name == top_output_dir_name:
             return
 
         print('Copying file from "{0:s}" to "{1:s}"...'.format(
-            orig_linkage_file_names[0], new_linkage_file_names[0]
+            old_linkage_file_names[0], new_linkage_file_names[0]
         ))
 
         file_system_utils.mkdir_recursive_if_necessary(
             file_name=new_linkage_file_names[0]
         )
 
-        shutil.copyfile(orig_linkage_file_names[0], new_linkage_file_names[0])
+        shutil.copyfile(old_linkage_file_names[0], new_linkage_file_names[0])
         return
 
+    metadata_dict = None
     storm_to_events_table_by_date = [pandas.DataFrame()] * num_spc_dates
+    tornado_to_storm_table_by_date = [pandas.DataFrame()] * num_spc_dates
 
-    for i in range(num_spc_dates + 1):
-        if i == num_spc_dates:
+    for i in range(num_spc_dates):
+        if i == num_spc_dates - 1:
             for j in [num_spc_dates - 2, num_spc_dates - 1]:
                 print('Writing new linkages to: "{0:s}"...'.format(
                     new_linkage_file_names[j]
                 ))
 
                 write_linkage_file(
+                    pickle_file_name=new_linkage_file_names[j],
                     storm_to_events_table=storm_to_events_table_by_date[j],
-                    pickle_file_name=new_linkage_file_names[j]
+                    metadata_dict=metadata_dict,
+                    tornado_to_storm_table=tornado_to_storm_table_by_date[j]
                 )
 
             break
 
-        if i >= 2:
+        if i >= 1:
             print('Writing new linkages to: "{0:s}"...'.format(
-                new_linkage_file_names[i - 2]
+                new_linkage_file_names[i - 1]
             ))
 
             write_linkage_file(
-                storm_to_events_table=storm_to_events_table_by_date[i - 2],
-                pickle_file_name=new_linkage_file_names[i - 2]
+                pickle_file_name=new_linkage_file_names[i - 1],
+                storm_to_events_table=storm_to_events_table_by_date[i - 1],
+                metadata_dict=metadata_dict,
+                tornado_to_storm_table=tornado_to_storm_table_by_date[i - 1]
             )
 
             storm_to_events_table_by_date[i - 2] = pandas.DataFrame()
 
-        for j in [i - 1, i, i + 1]:
+        # for j in [i - 1, i, i + 1]:
+        for j in [i, i + 1]:
             if j < 0 or j >= num_spc_dates:
                 continue
 
@@ -2623,36 +2664,50 @@ def share_linkages_across_spc_dates(
                 continue
 
             print('Reading original linkages from: "{0:s}"...'.format(
-                orig_linkage_file_names[j]
+                old_linkage_file_names[j]
             ))
 
-            storm_to_events_table_by_date[j] = read_linkage_file(
-                orig_linkage_file_names[j]
-            )
+            (storm_to_events_table_by_date[j], metadata_dict,
+             tornado_to_storm_table_by_date[j]
+            ) = read_linkage_file(old_linkage_file_names[j])
 
-        if i != num_spc_dates - 1:
+        if event_type_string == TORNADO_EVENT_STRING:
             (storm_to_events_table_by_date[i],
              storm_to_events_table_by_date[i + 1]
-            ) = _share_linkages_between_periods(
-                early_storm_to_events_table=storm_to_events_table_by_date[i],
-                late_storm_to_events_table=storm_to_events_table_by_date[i + 1]
+            ) = _share_tornado_linkages(
+                early_tornado_to_storm_table=tornado_to_storm_table_by_date[i],
+                late_tornado_to_storm_table=
+                tornado_to_storm_table_by_date[i + 1],
+                early_storm_object_table=storm_to_events_table_by_date[i],
+                late_storm_object_table=storm_to_events_table_by_date[i + 1],
+                max_time_before_storm_start_sec=metadata_dict[
+                    MAX_TIME_BEFORE_START_KEY],
+                max_time_after_storm_end_sec=metadata_dict[
+                    MAX_TIME_AFTER_END_KEY]
             )
 
-            print(SEPARATOR_STRING)
+        (storm_to_events_table_by_date[i],
+         storm_to_events_table_by_date[i + 1]
+        ) = _share_linkages_with_predecessors(
+            early_storm_to_events_table=storm_to_events_table_by_date[i],
+            late_storm_to_events_table=storm_to_events_table_by_date[i + 1]
+        )
+
+        print(SEPARATOR_STRING)
 
 
-def find_linkage_file(
-        top_directory_name, event_type_string, spc_date_string,
-        raise_error_if_missing=True, unix_time_sec=None):
+def find_linkage_file(top_directory_name, event_type_string, spc_date_string,
+                      unix_time_sec=None, raise_error_if_missing=True):
     """Finds linkage file for either one time or one SPC date.
 
     :param top_directory_name: Name of top-level directory with linkage files.
     :param event_type_string: Event type (must be accepted by
         `check_event_type`).
     :param spc_date_string: SPC date (format "yyyymmdd").
+    :param unix_time_sec: Valid time.  If this is None, will look for one-day
+        file rather than one-time-step file.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
-    :param unix_time_sec: Valid time.
     :return: linkage_file_name: Path to linkage file.  If file is missing and
         `raise_error_if_missing = False`, this will be the *expected* path.
     :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
@@ -2663,17 +2718,17 @@ def find_linkage_file(
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     if event_type_string == WIND_EVENT_STRING:
-        pathless_file_name_prefix = 'storm_to_winds'
+        file_name_prefix = 'storm_to_winds'
     elif event_type_string == TORNADOGENESIS_EVENT_STRING:
-        pathless_file_name_prefix = 'storm_to_tornadogenesis'
+        file_name_prefix = 'storm_to_tornadogenesis'
     else:
-        pathless_file_name_prefix = 'storm_to_tornadoes'
+        file_name_prefix = 'storm_to_tornadoes'
 
     if unix_time_sec is None:
         time_conversion.spc_date_string_to_unix_sec(spc_date_string)
 
         linkage_file_name = '{0:s}/{1:s}/{2:s}_{3:s}.p'.format(
-            top_directory_name, spc_date_string[:4], pathless_file_name_prefix,
+            top_directory_name, spc_date_string[:4], file_name_prefix,
             spc_date_string
         )
     else:
@@ -2683,7 +2738,7 @@ def find_linkage_file(
 
         linkage_file_name = '{0:s}/{1:s}/{2:s}/{3:s}_{4:s}.p'.format(
             top_directory_name, spc_date_string[:4], spc_date_string,
-            pathless_file_name_prefix, valid_time_string
+            file_name_prefix, valid_time_string
         )
 
     if raise_error_if_missing and not os.path.isfile(linkage_file_name):
@@ -2694,13 +2749,28 @@ def find_linkage_file(
     return linkage_file_name
 
 
-def write_linkage_file(storm_to_events_table, pickle_file_name):
+def write_linkage_file(pickle_file_name, storm_to_events_table, metadata_dict,
+                       tornado_to_storm_table=None):
     """Writes linkages to Pickle file.
 
+    The input args `tornado_to_storm_table` and `storm_object_table` are used
+        only if the event type is tornado occurrence (not genesis).  Also, even
+        if the event type is tornado occurrence, these args can be left empty.
+
+    :param pickle_file_name: Path to output file.
     :param storm_to_events_table: pandas DataFrame created by
         `_reverse_wind_linkages` or `_reverse_tornado_linkages`.
-    :param pickle_file_name: Path to output file.
+    :param metadata_dict: Dictionary created by `_check_input_args`.
+    :param tornado_to_storm_table: pandas DataFrame created by
+        `_find_nearest_storms`.  This may be used in the future to share
+        linkages across SPC dates (see method
+        `share_linkages_across_spc_dates`).
     """
+
+    # :param storm_object_table: pandas DataFrame with storm-tracking data (see
+    # doc for `storm_tracking_io.write_file`).  This may be used in the future
+    # to share linkages across SPC dates (see method
+    # `share_linkages_across_spc_dates`).
 
     try:
         error_checking.assert_columns_in_dataframe(
@@ -2713,6 +2783,8 @@ def write_linkage_file(storm_to_events_table, pickle_file_name):
 
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(storm_to_events_table, pickle_file_handle)
+    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle.dump(tornado_to_storm_table, pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -2720,19 +2792,45 @@ def read_linkage_file(pickle_file_name):
     """Reads linkages from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: storm_to_events_table: pandas DataFrame created by
-        `_reverse_wind_linkages` or `_reverse_tornado_linkages`.
+    :return: storm_to_events_table: See doc for `write_linkage_file`.
+    :return: metadata_dict: Same.
+    :return: tornado_to_storm_table: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     storm_to_events_table = pickle.load(pickle_file_handle)
+
+    try:
+        metadata_dict = pickle.load(pickle_file_handle)
+        tornado_to_storm_table = pickle.load(pickle_file_handle)
+    except EOFError:
+        metadata_dict = None
+        tornado_to_storm_table = None
+
     pickle_file_handle.close()
 
     try:
         error_checking.assert_columns_in_dataframe(
             storm_to_events_table, REQUIRED_WIND_LINKAGE_COLUMNS)
+
+        tornado = False
     except:
         error_checking.assert_columns_in_dataframe(
             storm_to_events_table, REQUIRED_TORNADO_LINKAGE_COLUMNS)
 
-    return storm_to_events_table
+        tornado = True
+
+    max_link_distance_metres = (
+        DEFAULT_MAX_TORNADO_DISTANCE_METRES if tornado
+        else DEFAULT_MAX_WIND_DISTANCE_METRES
+    )
+
+    metadata_dict = {
+        MAX_TIME_BEFORE_START_KEY: DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
+        MAX_TIME_AFTER_END_KEY: DEFAULT_MAX_TIME_AFTER_STORM_SEC,
+        STORM_INTERP_TIME_KEY: 1 if tornado else 10,
+        BBOX_PADDING_KEY: DEFAULT_BBOX_PADDING_METRES,
+        MAX_LINK_DISTANCE_KEY: max_link_distance_metres
+    }
+
+    return storm_to_events_table, metadata_dict, tornado_to_storm_table
