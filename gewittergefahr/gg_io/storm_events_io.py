@@ -238,9 +238,10 @@ def read_thunderstorm_wind_reports(csv_file_name):
     error_checking.assert_file_exists(csv_file_name)
     storm_event_table = pandas.read_csv(csv_file_name, header=0, sep=',')
 
-    thunderstorm_wind_flags = numpy.array(
-        [_is_event_thunderstorm_wind(s)
-         for s in storm_event_table[EVENT_TYPE_COLUMN_ORIG].values])
+    thunderstorm_wind_flags = numpy.array([
+        _is_event_thunderstorm_wind(s)
+        for s in storm_event_table[EVENT_TYPE_COLUMN_ORIG].values
+    ], dtype=bool)
 
     bad_rows = numpy.where(numpy.invert(thunderstorm_wind_flags))[0]
     storm_event_table.drop(
@@ -304,9 +305,10 @@ def read_tornado_reports(csv_file_name):
     error_checking.assert_file_exists(csv_file_name)
     storm_event_table = pandas.read_csv(csv_file_name, header=0, sep=',')
 
-    tornado_flags = numpy.array(
-        [_is_event_tornado(s)
-         for s in storm_event_table[EVENT_TYPE_COLUMN_ORIG].values])
+    tornado_flags = numpy.array([
+        _is_event_tornado(s)
+        for s in storm_event_table[EVENT_TYPE_COLUMN_ORIG].values
+    ], dtype=bool)
 
     bad_rows = numpy.where(numpy.invert(tornado_flags))[0]
     storm_event_table.drop(

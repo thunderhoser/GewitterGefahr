@@ -15,6 +15,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import storm_plotting
 
+# TODO(thunderhoser): Put some of this code in linkage_plotting.py.
+
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -25,8 +27,9 @@ MAX_LINK_TIME_SECONDS = 3600
 FONT_SIZE = 12
 COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
 
-TORNADO_MARKER_TYPE = 'o'
-TORNADO_MARKER_SIZE = 10
+TORNADO_START_MARKER_TYPE = 'o'
+TORNADO_END_MARKER_TYPE = 's'
+TORNADO_MARKER_SIZE = 16
 TORNADO_MARKER_EDGE_WIDTH = 1
 
 NUM_PARALLELS = 8
@@ -35,10 +38,11 @@ LATLNG_BUFFER_DEG = 0.5
 BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
-TORNADO_ID_COLUMN = 'tornado_id_string'
+SHORT_TORNADO_ID_COLUMN = 'short_tornado_id_string'
 
 LINKAGE_DIR_ARG_NAME = 'input_linkage_dir_name'
 TORNADO_DIR_ARG_NAME = 'input_tornado_dir_name'
+GENESIS_ONLY_ARG_NAME = 'genesis_only'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 MIN_LATITUDE_ARG_NAME = 'min_plot_latitude_deg'
@@ -56,6 +60,10 @@ TORNADO_DIR_HELP_STRING = (
     'Name of directory with tornado observations.  Files therein will be found '
     'by `tornado_io.find_processed_file` and read by '
     '`tornado_io.read_processed_file`.')
+
+GENESIS_ONLY_HELP_STRING = (
+    'Boolean flag.  If 1, will plot linkages only to tornadogenesis events.  If'
+    ' 0, will plot linkages to tornado occurrences.')
 
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  Linkages will be plotted for the period '
@@ -89,6 +97,10 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_TORNADO_DIR_NAME, help=TORNADO_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + GENESIS_ONLY_ARG_NAME, type=int, required=False, default=1,
+    help=GENESIS_ONLY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
 
@@ -117,9 +129,33 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
+def _long_to_short_tornado_ids(long_id_strings):
+    """Converts long tornado IDs to short IDs.
+
+    N = number of IDs
+
+    :param long_id_strings: length-N list of long IDs.
+    :return: short_id_strings: length-N list of short IDs.
+    """
+
+    unique_long_id_strings, orig_to_unique_indices = numpy.unique(
+        numpy.array(long_id_strings), return_inverse=True
+    )
+
+    short_id_strings = [''] * len(long_id_strings)
+
+    for i in range(len(unique_long_id_strings)):
+        these_indices = numpy.where(orig_to_unique_indices == i)[0]
+
+        for j in range(these_indices):
+            short_id_strings[j] = '{0:d}'.format(i)
+
+    return short_id_strings
+
+
 def _read_tornado_reports(
         tornado_dir_name, min_plot_latitude_deg, max_plot_latitude_deg,
-        min_plot_longitude_deg, max_plot_longitude_deg,
+        min_plot_longitude_deg, max_plot_longitude_deg, genesis_only,
         storm_to_tornadoes_table):
     """Reads tornado reports.
 
@@ -128,6 +164,7 @@ def _read_tornado_reports(
     :param max_plot_latitude_deg: Same.
     :param min_plot_longitude_deg: Same.
     :param max_plot_longitude_deg: Same.
+    :param genesis_only: Same.
     :param storm_to_tornadoes_table: pandas DataFrame returned by
         `linkage.read_linkage_file`.
     :return: tornado_table: pandas DataFrame with columns listed in
@@ -137,23 +174,23 @@ def _read_tornado_reports(
 
     # TODO(thunderhoser): Fix this "1200" hack.
 
-    first_time_unix_sec = -1200 + numpy.min(
+    first_storm_time_unix_sec = -1200 + numpy.min(
         storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
     )
-    last_time_unix_sec = 1200 + numpy.max(
+    last_storm_time_unix_sec = 1200 + numpy.max(
         storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
     )
 
-    first_year = int(
-        time_conversion.unix_sec_to_string(first_time_unix_sec, '%Y')
+    first_storm_year = int(
+        time_conversion.unix_sec_to_string(first_storm_time_unix_sec, '%Y')
     )
-    last_year = int(
-        time_conversion.unix_sec_to_string(last_time_unix_sec, '%Y')
+    last_storm_year = int(
+        time_conversion.unix_sec_to_string(last_storm_time_unix_sec, '%Y')
     )
 
     list_of_tornado_tables = []
 
-    for this_year in range(first_year, last_year + 1):
+    for this_year in range(first_storm_year, last_storm_year + 1):
         this_file_name = tornado_io.find_processed_file(
             directory_name=tornado_dir_name, year=this_year)
 
@@ -162,26 +199,68 @@ def _read_tornado_reports(
 
         this_tornado_table = tornado_io.read_processed_file(this_file_name)
 
-        this_tornado_table = this_tornado_table.loc[
-            (this_tornado_table[tornado_io.START_TIME_COLUMN]
-             >= first_time_unix_sec)
-            & (this_tornado_table[tornado_io.START_TIME_COLUMN]
-               <= last_time_unix_sec)
-        ]
+        if genesis_only:
+            good_indices = numpy.where(numpy.logical_and(
+                this_tornado_table[tornado_io.START_TIME_COLUMN].values
+                >= first_storm_time_unix_sec,
+                this_tornado_table[tornado_io.START_TIME_COLUMN].values
+                <= last_storm_time_unix_sec
+            ))[0]
+        else:
+            good_indices = numpy.where(numpy.invert(numpy.logical_or(
+                this_tornado_table[tornado_io.END_TIME_COLUMN].values
+                < first_storm_time_unix_sec,
+                this_tornado_table[tornado_io.START_TIME_COLUMN].values
+                > last_storm_time_unix_sec
+            )))[0]
 
-        this_tornado_table = this_tornado_table.loc[
-            (this_tornado_table[tornado_io.START_LAT_COLUMN]
-             >= min_plot_latitude_deg)
-            & (this_tornado_table[tornado_io.START_LAT_COLUMN]
-               <= max_plot_latitude_deg)
-        ]
+        this_tornado_table = this_tornado_table.iloc[good_indices]
 
-        this_tornado_table = this_tornado_table.loc[
-            (this_tornado_table[tornado_io.START_LNG_COLUMN]
-             >= min_plot_longitude_deg)
-            & (this_tornado_table[tornado_io.START_LNG_COLUMN]
-               <= max_plot_longitude_deg)
-        ]
+        good_start_flags = numpy.logical_and(
+            this_tornado_table[tornado_io.START_LAT_COLUMN].values
+            >= min_plot_latitude_deg,
+            this_tornado_table[tornado_io.START_LAT_COLUMN].values
+            <= max_plot_latitude_deg
+        )
+
+        if genesis_only:
+            good_indices = numpy.where(good_start_flags)[0]
+        else:
+            good_end_flags = numpy.logical_and(
+                this_tornado_table[tornado_io.END_LAT_COLUMN].values
+                >= min_plot_latitude_deg,
+                this_tornado_table[tornado_io.END_LAT_COLUMN].values
+                <= max_plot_latitude_deg
+            )
+
+            good_indices = numpy.where(numpy.logical_and(
+                good_start_flags, good_end_flags
+            ))[0]
+
+        this_tornado_table = this_tornado_table.iloc[good_indices]
+
+        good_start_flags = numpy.logical_and(
+            this_tornado_table[tornado_io.START_LNG_COLUMN].values
+            >= min_plot_longitude_deg,
+            this_tornado_table[tornado_io.START_LNG_COLUMN].values
+            <= max_plot_longitude_deg
+        )
+
+        if genesis_only:
+            good_indices = numpy.where(good_start_flags)[0]
+        else:
+            good_end_flags = numpy.logical_and(
+                this_tornado_table[tornado_io.END_LNG_COLUMN].values
+                >= min_plot_longitude_deg,
+                this_tornado_table[tornado_io.END_LNG_COLUMN].values
+                <= max_plot_longitude_deg
+            )
+
+            good_indices = numpy.where(numpy.logical_and(
+                good_start_flags, good_end_flags
+            ))[0]
+
+        this_tornado_table = this_tornado_table.iloc[good_indices]
 
         list_of_tornado_tables.append(this_tornado_table)
         if len(list_of_tornado_tables) == 1:
@@ -194,23 +273,108 @@ def _read_tornado_reports(
     tornado_table = pandas.concat(
         list_of_tornado_tables, axis=0, ignore_index=True)
 
-    num_tornadoes = len(tornado_table.index)
-    tornado_id_strings = [str(j) for j in range(num_tornadoes)]
+    tornado_table = tornado_io.add_tornado_ids_to_table(tornado_table)
 
+    short_id_strings = _long_to_short_tornado_ids(
+        tornado_table[tornado_io.TORNADO_ID_COLUMN].values
+    )
     tornado_table = tornado_table.assign(**{
-        TORNADO_ID_COLUMN: tornado_id_strings
+        SHORT_TORNADO_ID_COLUMN: short_id_strings
     })
 
+    num_tornadoes = len(tornado_table.index)
     for j in range(num_tornadoes):
-        this_time_string = time_conversion.unix_sec_to_string(
+        this_start_time_string = time_conversion.unix_sec_to_string(
             tornado_table[tornado_io.START_TIME_COLUMN].values[j],
             LOG_MESSAGE_TIME_FORMAT)
 
-        print('Tornado ID = "{0:s}" ... time = {1:s}'.format(
-            tornado_table[TORNADO_ID_COLUMN].values[j], this_time_string
+        this_end_time_string = time_conversion.unix_sec_to_string(
+            tornado_table[tornado_io.END_TIME_COLUMN].values[j],
+            LOG_MESSAGE_TIME_FORMAT)
+
+        print((
+            'Tornado ID = "{0:s}" ... start time = {1:s} ... end time = {2:s}'
+        ).format(
+            tornado_table[tornado_io.TORNADO_ID_COLUMN].values[j],
+            this_start_time_string, this_end_time_string
         ))
 
     return tornado_table
+
+
+def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, axes_object,
+                    basemap_object):
+    """Plots start/end point of each tornado.
+
+    :param tornado_table: pandas DataFrame created by `_read_tornado_reports`.
+    :param storm_to_tornadoes_table: pandas DataFrame returned by
+        `linkage.read_linkage_file`.
+    :param axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param basemap_object: Basemap handle (instance of
+        `mpl_toolkits.basemap.Basemap`).
+    """
+
+    first_storm_time_unix_sec = numpy.min(
+        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
+    last_storm_time_unix_sec = numpy.max(
+        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
+    colour_norm_object = pyplot.Normalize(
+        first_storm_time_unix_sec, last_storm_time_unix_sec
+    )
+
+    start_time_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
+        tornado_table[tornado_io.START_TIME_COLUMN].values
+    ))
+    end_time_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
+        tornado_table[tornado_io.END_TIME_COLUMN].values
+    ))
+
+    start_x_coords_metres, start_y_coords_metres = basemap_object(
+        tornado_table[tornado_io.START_LNG_COLUMN].values,
+        tornado_table[tornado_io.START_LAT_COLUMN].values
+    )
+    end_x_coords_metres, end_y_coords_metres = basemap_object(
+        tornado_table[tornado_io.END_LNG_COLUMN].values,
+        tornado_table[tornado_io.END_LAT_COLUMN].values
+    )
+
+    num_tornadoes = len(tornado_table.index)
+    for j in range(num_tornadoes):
+        axes_object.plot(
+            start_x_coords_metres[j], start_y_coords_metres[j],
+            linestyle='None', marker=TORNADO_START_MARKER_TYPE,
+            markersize=TORNADO_MARKER_SIZE,
+            markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
+            markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
+                start_time_colour_matrix[j, :-1]
+            ),
+            markeredgecolor='k'
+        )
+
+        axes_object.text(
+            start_x_coords_metres[j], start_y_coords_metres[j],
+            tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
+            fontsize=FONT_SIZE, color='k', horizontalalignment='center',
+            verticalalignment='center')
+
+        axes_object.plot(
+            end_x_coords_metres[j], end_y_coords_metres[j], linestyle='None',
+            marker=TORNADO_END_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
+            markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
+            markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
+                end_time_colour_matrix[j, :-1]
+            ),
+            markeredgecolor='k'
+        )
+
+        axes_object.text(
+            end_x_coords_metres[j], end_y_coords_metres[j],
+            tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
+            fontsize=FONT_SIZE, color='k', horizontalalignment='center',
+            verticalalignment='center')
 
 
 def _plot_linkages_one_storm_object(
@@ -241,50 +405,26 @@ def _plot_linkages_one_storm_object(
     if len(good_indices) == 0:
         return
 
-    linked_relative_times_sec = linked_relative_times_sec[good_indices]
-    linked_times_unix_sec = (
-        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values[i] +
-        linked_relative_times_sec
-    )
+    linked_id_strings = storm_to_tornadoes_table[
+        linkage.TORNADO_IDS_COLUMN
+    ].values[i][good_indices]
 
-    linked_latitudes_deg = storm_to_tornadoes_table[
-        linkage.EVENT_LATITUDES_COLUMN].values[i][good_indices]
+    linked_short_id_strings = []
 
-    linked_longitudes_deg = storm_to_tornadoes_table[
-        linkage.EVENT_LONGITUDES_COLUMN].values[i][good_indices]
-
-    linked_id_strings = []
-    num_tornadoes = len(linked_latitudes_deg)
-
-    for j in range(num_tornadoes):
+    for this_id_string in linked_id_strings:
         these_indices = numpy.where(
-            tornado_table[tornado_io.START_TIME_COLUMN].values ==
-            linked_times_unix_sec[j]
+            tornado_table[tornado_io.TORNADO_ID_COLUMN].values == this_id_string
         )[0]
 
-        these_latitude_diffs_deg = numpy.absolute(
-            linked_latitudes_deg[j] -
-            tornado_table[tornado_io.START_LAT_COLUMN].values[these_indices]
-        )
-        these_longitude_diffs_deg = numpy.absolute(
-            linked_longitudes_deg[j] -
-            tornado_table[tornado_io.START_LNG_COLUMN].values[these_indices]
-        )
-
-        these_subindices = numpy.where(numpy.logical_and(
-            these_latitude_diffs_deg <= LATLNG_TOLERANCE_DEG,
-            these_longitude_diffs_deg <= LATLNG_TOLERANCE_DEG
-        ))[0]
-
-        these_indices = these_indices[these_subindices]
-
-        # TODO(thunderhoser): This is kind of a HACK.
         if len(these_indices) == 0:
             continue
 
-        linked_id_strings.append(
-            tornado_table[TORNADO_ID_COLUMN].values[these_indices[0]]
+        linked_short_id_strings.append(
+            tornado_table[SHORT_TORNADO_ID_COLUMN].values[these_indices[0]]
         )
+
+    if len(linked_short_id_strings) == 0:
+        return
 
     x_coord_metres, y_coord_metres = basemap_object(
         storm_to_tornadoes_table[
@@ -295,25 +435,27 @@ def _plot_linkages_one_storm_object(
 
     axes_object.plot(
         x_coord_metres, y_coord_metres, linestyle='None',
-        marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE / 3,
+        marker=TORNADO_START_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE / 3,
         markeredgewidth=TORNADO_MARKER_EDGE_WIDTH / 3,
         markerfacecolor='k', markeredgecolor='k')
 
     axes_object.text(
-        x_coord_metres, y_coord_metres, ','.join(linked_id_strings),
+        x_coord_metres, y_coord_metres, ','.join(linked_short_id_strings),
         fontsize=FONT_SIZE, color='k',
         horizontalalignment='left', verticalalignment='top')
 
 
-def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
-         last_spc_date_string, min_plot_latitude_deg, max_plot_latitude_deg,
-         min_plot_longitude_deg, max_plot_longitude_deg, output_file_name):
+def _run(top_linkage_dir_name, tornado_dir_name, genesis_only,
+         first_spc_date_string, last_spc_date_string, min_plot_latitude_deg,
+         max_plot_latitude_deg, min_plot_longitude_deg, max_plot_longitude_deg,
+         output_file_name):
     """Plots tornado reports, storm tracks, and linkages.
 
     This is effectively the main method.
 
     :param top_linkage_dir_name: See documentation at top of file.
     :param tornado_dir_name: Same.
+    :param genesis_only: Same.
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
     :param min_plot_latitude_deg: Same.
@@ -322,6 +464,11 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
     :param max_plot_longitude_deg: Same.
     :param output_file_name: Same.
     """
+
+    event_type_string = (
+        linkage.TORNADOGENESIS_EVENT_STRING if genesis_only
+        else linkage.TORNADO_EVENT_STRING
+    )
 
     if min_plot_latitude_deg <= SENTINEL_VALUE:
         min_plot_latitude_deg = None
@@ -343,7 +490,7 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
     for this_spc_date_string in spc_date_strings:
         this_file_name = linkage.find_linkage_file(
             top_directory_name=top_linkage_dir_name,
-            event_type_string=linkage.TORNADO_EVENT_STRING,
+            event_type_string=event_type_string,
             spc_date_string=this_spc_date_string, raise_error_if_missing=False)
 
         if not os.path.isfile(this_file_name):
@@ -410,7 +557,8 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         max_plot_latitude_deg=max_plot_latitude_deg,
         min_plot_longitude_deg=min_plot_longitude_deg,
         max_plot_longitude_deg=max_plot_longitude_deg,
-        storm_to_tornadoes_table=storm_to_tornadoes_table)
+        storm_to_tornadoes_table=storm_to_tornadoes_table,
+        genesis_only=genesis_only)
 
     print(SEPARATOR_STRING)
 
@@ -449,49 +597,17 @@ def _run(top_linkage_dir_name, tornado_dir_name, first_spc_date_string,
         start_marker_type=None, end_marker_type=None)
 
     num_tornadoes = len(tornado_table.index)
-
     if num_tornadoes == 0:
         print('Saving figure to: "{0:s}"...'.format(output_file_name))
         pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
         return
 
-    first_storm_time_unix_sec = numpy.min(
-        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
-    )
-    last_storm_time_unix_sec = numpy.max(
-        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
-    )
-
-    colour_norm_object = pyplot.Normalize(
-        first_storm_time_unix_sec, last_storm_time_unix_sec)
-
-    tornado_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
-        tornado_table[tornado_io.START_TIME_COLUMN].values
-    ))
-
     print('Plotting tornado markers...')
-    tornado_x_coords_metres, tornado_y_coords_metres = basemap_object(
-        tornado_table[tornado_io.START_LNG_COLUMN].values,
-        tornado_table[tornado_io.START_LAT_COLUMN].values
-    )
-
-    for j in range(num_tornadoes):
-        axes_object.plot(
-            tornado_x_coords_metres[j], tornado_y_coords_metres[j],
-            linestyle='None',
-            marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
-            markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
-            markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
-                tornado_colour_matrix[j, :-1]
-            ),
-            markeredgecolor='k'
-        )
-
-        axes_object.text(
-            tornado_x_coords_metres[j], tornado_y_coords_metres[j],
-            tornado_table[TORNADO_ID_COLUMN].values[j], fontsize=FONT_SIZE,
-            color='k', horizontalalignment='center', verticalalignment='center')
+    _plot_tornadoes(
+        tornado_table=tornado_table,
+        storm_to_tornadoes_table=storm_to_tornadoes_table,
+        axes_object=axes_object, basemap_object=basemap_object)
 
     print('Plotting tornado IDs with storm objects...')
     num_storm_objects = len(storm_to_tornadoes_table.index)
@@ -513,6 +629,7 @@ if __name__ == '__main__':
     _run(
         top_linkage_dir_name=getattr(INPUT_ARG_OBJECT, LINKAGE_DIR_ARG_NAME),
         tornado_dir_name=getattr(INPUT_ARG_OBJECT, TORNADO_DIR_ARG_NAME),
+        genesis_only=bool(getattr(INPUT_ARG_OBJECT, GENESIS_ONLY_HELP_STRING)),
         first_spc_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         min_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MIN_LATITUDE_ARG_NAME),

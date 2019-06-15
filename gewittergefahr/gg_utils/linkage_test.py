@@ -76,11 +76,6 @@ THESE_LONGITUDES_DEG = numpy.array([
     245.5
 ])
 
-# THESE_START_TIMES_UNIX_SEC = numpy.full(len(THESE_TIMES_UNIX_SEC), 0, dtype=int)
-# THESE_END_TIMES_UNIX_SEC = numpy.array(
-#     [11 if p == 'A' else 6 for p in THESE_PRIMARY_ID_STRINGS], dtype=int
-# )
-
 THESE_START_TIMES_UNIX_SEC = numpy.array([
     0, 0, 0,
     0, 0,
@@ -332,7 +327,7 @@ INTERP_VERTEX_TABLE = pandas.DataFrame.from_dict({
 MAX_LINK_DISTANCE_METRES = 12.
 
 EVENT_X_COORDS_1TIME_METRES = numpy.array(
-    [231.5, 231.5, 231.5, 241.5, 251.5, 251.5, 251.5, 241.5]
+    [231.5, 241.4, 231.5, 241.5, 251.5, 251.5, 251.5, 241.5]
 )
 EVENT_Y_COORDS_1TIME_METRES = numpy.array(
     [40, 50, 60, 60, 60, 50, 40, 40], dtype=float
@@ -344,15 +339,15 @@ THIS_SHORT_DISTANCE_METRES = numpy.sqrt(9.25 ** 2 + 0.25 ** 2)
 THIS_LONG_DISTANCE_METRES = numpy.sqrt(9.75 ** 2 + 0.25 ** 2)
 
 LINK_DISTANCES_1TIME_METRES = numpy.array([
-    numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
+    numpy.nan, 0, numpy.nan, THIS_SHORT_DISTANCE_METRES,
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES
 ])
 
 # The following constants are used to test _find_nearest_storms.
-INTERP_TIME_RESOLUTION_SEC = 1
+INTERP_TIME_INTERVAL_SEC = 1
 
 THESE_X_METRES = numpy.array([
-    231.5, 231.5, 231.5, 241.5, 251.5, 251.5, 251.5, 241.5,
+    231.5, 241.4, 231.5, 241.5, 251.5, 251.5, 251.5, 241.5,
     267, 267, 267, 277, 287, 287, 287, 277
 ])
 
@@ -387,7 +382,7 @@ NEAREST_STORM_TIMES_UNIX_SEC = numpy.array([
 ], dtype=int)
 
 LINKAGE_DISTANCES_METRES = numpy.array([
-    numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
+    numpy.nan, 0, numpy.nan, THIS_SHORT_DISTANCE_METRES,
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_SHORT_DISTANCE_METRES,
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_TINY_DISTANCE_METRES,
     numpy.nan, THIS_LONG_DISTANCE_METRES, numpy.nan, THIS_TINY_DISTANCE_METRES
@@ -697,13 +692,6 @@ STORM_OBJECT_TABLE_SANS_PERIOD_START = pandas.DataFrame.from_dict({
     tracking_utils.TRACKING_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC
 })
 
-# The following constants are used to test _create_tornado_id.
-TORNADO_START_TIME_UNIX_SEC = 1559857972  # 215252 UTC 6 Jun 2019
-TORNADO_START_LATITUDE_DEG = 53.526196
-TORNADO_START_LONGITUDE_DEG = 246.479111
-
-TORNADO_ID_STRING = '2019-06-06-215252_53.526N_246.479E'
-
 # The following constants are used to test _interp_tornadoes_along_tracks.
 THESE_START_TIMES_UNIX_SEC = numpy.array([0, 10, 20, 30, 40, 50], dtype=int)
 THESE_END_TIMES_UNIX_SEC = numpy.array([20, 40, 20, 80, 100, 120], dtype=int)
@@ -727,7 +715,7 @@ TORNADO_TABLE_BEFORE_INTERP = pandas.DataFrame.from_dict({
     tornado_io.END_LNG_COLUMN: THESE_END_LONGITUDES_DEG
 })
 
-TORNADO_INTERP_TIME_RES_SEC = 10
+TORNADO_INTERP_TIME_INTERVAL_SEC = 10
 
 THESE_TIMES_UNIX_SEC = numpy.array([
     0, 10, 20,
@@ -758,7 +746,7 @@ THESE_LONGITUDES_DEG = numpy.array([
 ])
 
 THESE_UNIQUE_ID_STRINGS = [
-    linkage._create_tornado_id(
+    tornado_io.create_tornado_id(
         start_time_unix_sec=t, start_latitude_deg=y, start_longitude_deg=x
     ) for t, x, y in
     zip(THESE_START_TIMES_UNIX_SEC, THESE_START_LONGITUDES_DEG,
@@ -775,7 +763,7 @@ TORNADO_TABLE_AFTER_INTERP = pandas.DataFrame.from_dict({
     linkage.EVENT_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     linkage.EVENT_LATITUDE_COLUMN: THESE_LATITUDES_DEG,
     linkage.EVENT_LONGITUDE_COLUMN: THESE_LONGITUDES_DEG,
-    linkage.TORNADO_ID_COLUMN: THESE_ID_STRINGS
+    tornado_io.TORNADO_ID_COLUMN: THESE_ID_STRINGS
 })
 
 # The following constants are used to test find_linkage_file.
@@ -1050,7 +1038,7 @@ class LinkageTests(unittest.TestCase):
             max_time_before_storm_start_sec=10,
             max_time_after_storm_end_sec=10,
             max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
-            interp_time_resolution_sec=INTERP_TIME_RESOLUTION_SEC)
+            interp_time_interval_sec=INTERP_TIME_INTERVAL_SEC)
 
         self.assertTrue(
             this_wind_to_storm_table[
@@ -1139,22 +1127,12 @@ class LinkageTests(unittest.TestCase):
             this_late_table, LATE_STORM_TO_WINDS_TABLE
         ))
 
-    def test_create_tornado_id(self):
-        """Ensures correct output from _create_tornado_id."""
-
-        this_id_string = linkage._create_tornado_id(
-            start_time_unix_sec=TORNADO_START_TIME_UNIX_SEC,
-            start_latitude_deg=TORNADO_START_LATITUDE_DEG,
-            start_longitude_deg=TORNADO_START_LONGITUDE_DEG)
-
-        self.assertTrue(this_id_string == TORNADO_ID_STRING)
-
     def test_interp_tornadoes_along_tracks(self):
         """Ensures correct output from _interp_tornadoes_along_tracks."""
 
         this_tornado_table = linkage._interp_tornadoes_along_tracks(
             tornado_table=copy.deepcopy(TORNADO_TABLE_BEFORE_INTERP),
-            interp_time_resolution_sec=TORNADO_INTERP_TIME_RES_SEC)
+            interp_time_interval_sec=TORNADO_INTERP_TIME_INTERVAL_SEC)
 
         actual_columns = list(this_tornado_table)
         expected_columns = list(TORNADO_TABLE_AFTER_INTERP)
@@ -1166,7 +1144,7 @@ class LinkageTests(unittest.TestCase):
 
         for this_column in expected_columns:
             if this_column in [linkage.EVENT_TIME_COLUMN,
-                               linkage.TORNADO_ID_COLUMN]:
+                               tornado_io.TORNADO_ID_COLUMN]:
                 self.assertTrue(numpy.array_equal(
                     this_tornado_table[this_column].values,
                     TORNADO_TABLE_AFTER_INTERP[this_column].values
