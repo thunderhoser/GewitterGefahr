@@ -1,6 +1,7 @@
 """Runs `linkage.link_tornadoes_to_storms`."""
 
 import argparse
+import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import echo_top_tracking
@@ -98,28 +99,59 @@ def _link_tornadoes_one_period(
     )
     print(SEPARATOR_STRING)
 
-    spc_date_string = time_conversion.time_to_spc_date_string(
-        tracking_io.file_name_to_time(tracking_file_names[0])
-    )
-
     event_type_string = (
         linkage.TORNADOGENESIS_EVENT_STRING if genesis_only
         else linkage.TORNADO_EVENT_STRING
     )
+    
+    spc_date_string_by_storm_object = [
+        time_conversion.time_to_spc_date_string(t) for t in
+        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
+    ]
+    
+    unique_spc_date_strings, orig_to_unique_indices = numpy.unique(
+        numpy.array(spc_date_string_by_storm_object), return_inverse=True
+    )
+    
+    for i in range(len(unique_spc_date_strings)):
+        this_output_file_name = linkage.find_linkage_file(
+            top_directory_name=top_output_dir_name,
+            event_type_string=event_type_string,
+            spc_date_string=unique_spc_date_strings[i],
+            raise_error_if_missing=False)
 
-    output_file_name = linkage.find_linkage_file(
-        top_directory_name=top_output_dir_name,
-        event_type_string=event_type_string,
-        spc_date_string=spc_date_string, raise_error_if_missing=False)
+        print('Writing linkages to: "{0:s}"...'.format(this_output_file_name))
+        
+        these_storm_object_rows = numpy.where(orig_to_unique_indices == i)[0]
+        these_storm_times_unix_sec = storm_to_tornadoes_table[
+            tracking_utils.VALID_TIME_COLUMN].values[these_storm_object_rows]
 
-    print('Writing linkages to: "{0:s}"...'.format(output_file_name))
+        # TODO(thunderhoser): Put temporal subsetting of tornadoes elsewhere.
+        this_min_time_unix_sec = (
+            numpy.min(these_storm_times_unix_sec) -
+            metadata_dict[linkage.MAX_TIME_BEFORE_START_KEY]
+        )
+        this_max_time_unix_sec = (
+            numpy.max(these_storm_times_unix_sec) +
+            metadata_dict[linkage.MAX_TIME_AFTER_END_KEY]
+        )
 
-    linkage.write_linkage_file(
-        pickle_file_name=output_file_name,
-        storm_to_events_table=storm_to_tornadoes_table,
-        metadata_dict=metadata_dict,
-        tornado_to_storm_table=tornado_to_storm_table)
-    print(SEPARATOR_STRING)
+        if genesis_only:
+            these_event_rows = numpy.where(numpy.logical_and(
+                tornado_to_storm_table[linkage.EVENT_TIME_COLUMN].values >=
+                this_min_time_unix_sec,
+                tornado_to_storm_table[linkage.EVENT_TIME_COLUMN].values <=
+                this_max_time_unix_sec
+            ))[0]
+
+        linkage.write_linkage_file(
+            pickle_file_name=this_output_file_name,
+            storm_to_events_table=storm_to_tornadoes_table.iloc[
+                these_storm_object_rows],
+            metadata_dict=metadata_dict,
+            tornado_to_storm_table=tornado_to_storm_table.iloc[these_event_rows]
+        )
+        print(SEPARATOR_STRING)
 
 
 def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,

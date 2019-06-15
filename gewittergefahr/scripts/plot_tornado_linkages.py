@@ -169,6 +169,8 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, axes_object,
     
     num_tornadoes = len(tornado_id_strings)
 
+    # TODO(thunderhoser): Plot end points only for occurrence.
+
     short_tornado_id_strings = [None] * num_tornadoes
     start_times_unix_sec = numpy.full(num_tornadoes, -1, dtype=int)
     start_latitudes_deg = numpy.full(num_tornadoes, numpy.nan)
