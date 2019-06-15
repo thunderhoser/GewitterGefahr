@@ -2124,32 +2124,6 @@ def _share_tornado_linkages(
         ))[0]
 
         for j in these_rows:
-            # Handle one-to-one successors.
-            #
-            # this_tornado_rows = numpy.where(numpy.logical_and(
-            #     tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
-            #     tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values[j],
-            #     numpy.invert(event_unassigned_flags)
-            # ))[0]
-            #
-            # this_subrow = numpy.argmax(
-            #     tornado_to_storm_table[EVENT_TIME_COLUMN].values[
-            #         this_tornado_rows]
-            # )
-            #
-            # k = this_tornado_rows[this_subrow]
-            #
-            # tornado_to_storm_table = _finish_tornado_linkage(
-            #     storm_object_table=storm_object_table,
-            #     tornado_to_storm_table=tornado_to_storm_table, tornado_row=k,
-            #     nearest_secondary_id_string=
-            #     tornado_to_storm_table[NEAREST_SECONDARY_ID_COLUMN].values[k],
-            #     nearest_storm_time_unix_sec=
-            #     tornado_to_storm_table[NEAREST_TIME_COLUMN].values[k],
-            #     nearest_distance_metres=
-            #     tornado_to_storm_table[LINKAGE_DISTANCE_COLUMN].values[k]
-            # )
-
             tornado_to_storm_table = _link_tornado_to_new_storm(
                 storm_object_table=storm_object_table,
                 tornado_to_storm_table=tornado_to_storm_table, tornado_row=j,
