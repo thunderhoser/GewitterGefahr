@@ -236,20 +236,20 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, axes_object,
             short_tornado_id_strings[j], fontsize=FONT_SIZE, color='k',
             horizontalalignment='center', verticalalignment='center')
 
-        axes_object.plot(
-            end_x_coords_metres[j], end_y_coords_metres[j], linestyle='None',
-            marker=TORNADO_END_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
-            markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
-            markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
-                end_time_colour_matrix[j, :-1]
-            ),
-            markeredgecolor='k'
-        )
-
-        axes_object.text(
-            end_x_coords_metres[j], end_y_coords_metres[j],
-            short_tornado_id_strings[j], fontsize=FONT_SIZE, color='k',
-            horizontalalignment='center', verticalalignment='center')
+        # axes_object.plot(
+        #     end_x_coords_metres[j], end_y_coords_metres[j], linestyle='None',
+        #     marker=TORNADO_END_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
+        #     markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
+        #     markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
+        #         end_time_colour_matrix[j, :-1]
+        #     ),
+        #     markeredgecolor='k'
+        # )
+        #
+        # axes_object.text(
+        #     end_x_coords_metres[j], end_y_coords_metres[j],
+        #     short_tornado_id_strings[j], fontsize=FONT_SIZE, color='k',
+        #     horizontalalignment='center', verticalalignment='center')
 
 
 def _plot_linkages_one_storm_object(
@@ -442,6 +442,9 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
            <= max_plot_longitude_deg)
     ]
 
+    # TODO(thunderhoser): This treats each track segment as an individual thing.
+    # Need to consider tornadoes as a whole.  Probably should write a method to
+    # convert from "events" to tornadoes.
     tornado_table = tornado_table.loc[
         (tornado_table[linkage.EVENT_LATITUDE_COLUMN] >= min_plot_latitude_deg)
         &
