@@ -162,24 +162,63 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, axes_object,
     colour_norm_object = pyplot.Normalize(
         first_storm_time_unix_sec, last_storm_time_unix_sec
     )
+    
+    tornado_id_strings, orig_to_unique_indices = numpy.unique(
+        tornado_table[tornado_io.TORNADO_ID_COLUMN].values, return_inverse=True
+    )
+    
+    num_tornadoes = len(tornado_id_strings)
+
+    short_tornado_id_strings = [None] * num_tornadoes
+    start_times_unix_sec = numpy.full(num_tornadoes, -1, dtype=int)
+    start_latitudes_deg = numpy.full(num_tornadoes, numpy.nan)
+    start_longitudes_deg = numpy.full(num_tornadoes, numpy.nan)
+    end_times_unix_sec = numpy.full(num_tornadoes, -1, dtype=int)
+    end_latitudes_deg = numpy.full(num_tornadoes, numpy.nan)
+    end_longitudes_deg = numpy.full(num_tornadoes, numpy.nan)
+    
+    for j in range(num_tornadoes):
+        these_indices = numpy.where(orig_to_unique_indices == j)[0]
+        short_tornado_id_strings[j] = tornado_table[
+            SHORT_TORNADO_ID_COLUMN
+        ].values[these_indices[0]]
+
+        this_subindex = numpy.argmin(
+            tornado_table[linkage.EVENT_TIME_COLUMN].values[these_indices]
+        )
+        this_start_index = these_indices[this_subindex]
+
+        start_times_unix_sec[j] = tornado_table[
+            linkage.EVENT_TIME_COLUMN].values[this_start_index]
+        start_latitudes_deg[j] = tornado_table[
+            linkage.EVENT_LATITUDE_COLUMN].values[this_start_index]
+        start_longitudes_deg[j] = tornado_table[
+            linkage.EVENT_LONGITUDE_COLUMN].values[this_start_index]
+
+        this_subindex = numpy.argmax(
+            tornado_table[linkage.EVENT_TIME_COLUMN].values[these_indices]
+        )
+        this_end_index = these_indices[this_subindex]
+
+        end_times_unix_sec[j] = tornado_table[
+            linkage.EVENT_TIME_COLUMN].values[this_end_index]
+        end_latitudes_deg[j] = tornado_table[
+            linkage.EVENT_LATITUDE_COLUMN].values[this_end_index]
+        end_longitudes_deg[j] = tornado_table[
+            linkage.EVENT_LONGITUDE_COLUMN].values[this_end_index]
 
     start_time_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
-        tornado_table[tornado_io.START_TIME_COLUMN].values
+        start_times_unix_sec
     ))
     end_time_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
-        tornado_table[tornado_io.END_TIME_COLUMN].values
+        end_times_unix_sec
     ))
 
     start_x_coords_metres, start_y_coords_metres = basemap_object(
-        tornado_table[tornado_io.START_LNG_COLUMN].values,
-        tornado_table[tornado_io.START_LAT_COLUMN].values
-    )
+        start_longitudes_deg, start_latitudes_deg)
     end_x_coords_metres, end_y_coords_metres = basemap_object(
-        tornado_table[tornado_io.END_LNG_COLUMN].values,
-        tornado_table[tornado_io.END_LAT_COLUMN].values
-    )
+        end_longitudes_deg, end_latitudes_deg)
 
-    num_tornadoes = len(tornado_table.index)
     for j in range(num_tornadoes):
         axes_object.plot(
             start_x_coords_metres[j], start_y_coords_metres[j],
@@ -194,9 +233,8 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, axes_object,
 
         axes_object.text(
             start_x_coords_metres[j], start_y_coords_metres[j],
-            tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
-            fontsize=FONT_SIZE, color='k', horizontalalignment='center',
-            verticalalignment='center')
+            short_tornado_id_strings[j], fontsize=FONT_SIZE, color='k',
+            horizontalalignment='center', verticalalignment='center')
 
         axes_object.plot(
             end_x_coords_metres[j], end_y_coords_metres[j], linestyle='None',
@@ -210,9 +248,8 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, axes_object,
 
         axes_object.text(
             end_x_coords_metres[j], end_y_coords_metres[j],
-            tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
-            fontsize=FONT_SIZE, color='k', horizontalalignment='center',
-            verticalalignment='center')
+            short_tornado_id_strings[j], fontsize=FONT_SIZE, color='k',
+            horizontalalignment='center', verticalalignment='center')
 
 
 def _plot_linkages_one_storm_object(
