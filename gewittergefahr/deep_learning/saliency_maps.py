@@ -15,7 +15,7 @@ SALIENCY_MATRICES_KEY = 'list_of_saliency_matrices'
 
 FULL_IDS_KEY = tracking_io.FULL_IDS_KEY
 STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
-MODEL_FILE_NAME_KEY = 'model_file_name'
+MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
 LAYER_NAME_KEY = 'layer_name'
@@ -26,12 +26,12 @@ SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
 STANDARD_FILE_KEYS = [
     INPUT_MATRICES_KEY, SALIENCY_MATRICES_KEY, FULL_IDS_KEY, STORM_TIMES_KEY,
-    MODEL_FILE_NAME_KEY, COMPONENT_TYPE_KEY, TARGET_CLASS_KEY, LAYER_NAME_KEY,
+    MODEL_FILE_KEY, COMPONENT_TYPE_KEY, TARGET_CLASS_KEY, LAYER_NAME_KEY,
     IDEAL_ACTIVATION_KEY, NEURON_INDICES_KEY, CHANNEL_INDEX_KEY,
     SOUNDING_PRESSURES_KEY
 ]
 
-MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
+MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
 MEAN_SALIENCY_MATRICES_KEY = 'list_of_mean_saliency_matrices'
 THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
 STANDARD_FILE_NAME_KEY = 'standard_saliency_file_name'
@@ -39,7 +39,7 @@ PMM_METADATA_KEY = 'pmm_metadata_dict'
 
 PMM_FILE_KEYS = [
     MEAN_INPUT_MATRICES_KEY, MEAN_SALIENCY_MATRICES_KEY, THRESHOLD_COUNTS_KEY,
-    STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
+    MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
 ]
 
 
@@ -291,7 +291,7 @@ def get_saliency_maps_for_channel_activation(
 
 def write_pmm_file(
         pickle_file_name, list_of_mean_input_matrices,
-        list_of_mean_saliency_matrices, threshold_count_matrix,
+        list_of_mean_saliency_matrices, threshold_count_matrix, model_file_name,
         standard_saliency_file_name, pmm_metadata_dict):
     """Writes mean saliency map to Pickle file.
 
@@ -306,6 +306,8 @@ def write_pmm_file(
         first axis.
     :param threshold_count_matrix: See doc for
         `prob_matched_means.run_pmm_many_variables`.
+    :param model_file_name: Path to file with trained model (readable by
+        `cnn.read_model`).
     :param standard_saliency_file_name: Path to file with standard saliency
         output (readable by `read_standard_file`).
     :param pmm_metadata_dict: Dictionary created by
@@ -317,6 +319,7 @@ def write_pmm_file(
     # TODO(thunderhoser): This method currently does not deal with sounding
     # pressures.
 
+    error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_string(standard_saliency_file_name)
     error_checking.assert_is_list(list_of_mean_input_matrices)
     error_checking.assert_is_list(list_of_mean_saliency_matrices)
@@ -357,6 +360,7 @@ def write_pmm_file(
         MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
         MEAN_SALIENCY_MATRICES_KEY: list_of_mean_saliency_matrices,
         THRESHOLD_COUNTS_KEY: threshold_count_matrix,
+        MODEL_FILE_KEY: model_file_name,
         STANDARD_FILE_NAME_KEY: standard_saliency_file_name,
         PMM_METADATA_KEY: pmm_metadata_dict
     }
@@ -376,6 +380,7 @@ def read_pmm_file(pickle_file_name):
         `write_pmm_file`.
     mean_saliency_dict['list_of_mean_saliency_matrices']: Same.
     mean_saliency_dict['threshold_count_matrix']: Same.
+    mean_saliency_dict['model_file_name']: Same.
     mean_saliency_dict['standard_saliency_file_name']: Same.
     mean_saliency_dict['pmm_metadata_dict']: Same.
 
@@ -490,7 +495,7 @@ def write_standard_file(
         SALIENCY_MATRICES_KEY: list_of_saliency_matrices,
         FULL_IDS_KEY: full_id_strings,
         STORM_TIMES_KEY: storm_times_unix_sec,
-        MODEL_FILE_NAME_KEY: model_file_name,
+        MODEL_FILE_KEY: model_file_name,
         COMPONENT_TYPE_KEY: saliency_metadata_dict[COMPONENT_TYPE_KEY],
         TARGET_CLASS_KEY: saliency_metadata_dict[TARGET_CLASS_KEY],
         LAYER_NAME_KEY: saliency_metadata_dict[LAYER_NAME_KEY],

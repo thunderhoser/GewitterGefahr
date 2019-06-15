@@ -1841,6 +1841,8 @@ def _read_input_tornado_reports(
     tornado_table.f_or_ef_rating: F-scale or EF-scale rating (string).
     """
 
+    # TODO(thunderhoser): Put most of this logic in tornado_io.py.
+
     error_checking.assert_is_boolean(genesis_only)
 
     if not genesis_only:

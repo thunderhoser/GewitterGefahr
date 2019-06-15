@@ -30,7 +30,7 @@ OPTIMIZED_MATRICES_KEY = 'list_of_optimized_matrices'
 FULL_IDS_KEY = tracking_io.FULL_IDS_KEY
 STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
 
-MODEL_FILE_NAME_KEY = 'model_file_name'
+MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 NUM_ITERATIONS_KEY = 'num_iterations'
 LEARNING_RATE_KEY = 'learning_rate'
 COMPONENT_TYPE_KEY = 'component_type_string'
@@ -41,13 +41,13 @@ NEURON_INDICES_KEY = 'neuron_indices'
 CHANNEL_INDEX_KEY = 'channel_index'
 
 STANDARD_FILE_KEYS = [
-    INIT_FUNCTION_KEY, OPTIMIZED_MATRICES_KEY, MODEL_FILE_NAME_KEY,
+    INIT_FUNCTION_KEY, OPTIMIZED_MATRICES_KEY, MODEL_FILE_KEY,
     NUM_ITERATIONS_KEY, LEARNING_RATE_KEY, COMPONENT_TYPE_KEY,
     TARGET_CLASS_KEY, LAYER_NAME_KEY, IDEAL_ACTIVATION_KEY, NEURON_INDICES_KEY,
     CHANNEL_INDEX_KEY, FULL_IDS_KEY, STORM_TIMES_KEY
 ]
 
-MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
+MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
 MEAN_OPTIMIZED_MATRICES_KEY = 'list_of_mean_optimized_matrices'
 THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
 STANDARD_FILE_NAME_KEY = 'standard_bwo_file_name'
@@ -55,7 +55,7 @@ PMM_METADATA_KEY = 'pmm_metadata_dict'
 
 PMM_FILE_KEYS = [
     MEAN_INPUT_MATRICES_KEY, MEAN_OPTIMIZED_MATRICES_KEY, THRESHOLD_COUNTS_KEY,
-    STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
+    MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
 ]
 
 GAUSSIAN_INIT_FUNCTION_NAME = 'gaussian'
@@ -705,7 +705,7 @@ def write_standard_file(
     optimization_dict = {
         INIT_FUNCTION_KEY: init_function_name_or_matrices,
         OPTIMIZED_MATRICES_KEY: list_of_optimized_matrices,
-        MODEL_FILE_NAME_KEY: model_file_name,
+        MODEL_FILE_KEY: model_file_name,
         NUM_ITERATIONS_KEY: num_iterations,
         LEARNING_RATE_KEY: learning_rate,
         COMPONENT_TYPE_KEY: component_type_string,
@@ -764,7 +764,7 @@ def read_standard_file(pickle_file_name):
 def write_pmm_file(
         pickle_file_name, list_of_mean_input_matrices,
         list_of_mean_optimized_matrices, threshold_count_matrix,
-        standard_bwo_file_name, pmm_metadata_dict):
+        model_file_name, standard_bwo_file_name, pmm_metadata_dict):
     """Writes mean backwards-optimized map to Pickle file.
 
     This is a mean over many examples, created by PMM (probability-matched
@@ -785,6 +785,8 @@ def write_pmm_file(
         `list_of_mean_optimized_matrices` contains the mean output.
     :param threshold_count_matrix: See doc for
         `prob_matched_means.run_pmm_many_variables`.
+    :param model_file_name: Path to file with trained model (readable by
+        `cnn.read_model`).
     :param standard_bwo_file_name: Path to file with standard
         backwards-optimization output (readable by `read_standard_file`).
     :param pmm_metadata_dict: Dictionary created by
@@ -793,6 +795,7 @@ def write_pmm_file(
         `list_of_mean_optimized_matrices` have different lengths.
     """
 
+    error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_string(standard_bwo_file_name)
     error_checking.assert_is_list(list_of_mean_input_matrices)
     error_checking.assert_is_list(list_of_mean_optimized_matrices)
@@ -833,6 +836,7 @@ def write_pmm_file(
         MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
         MEAN_OPTIMIZED_MATRICES_KEY: list_of_mean_optimized_matrices,
         THRESHOLD_COUNTS_KEY: threshold_count_matrix,
+        MODEL_FILE_KEY: model_file_name,
         STANDARD_FILE_NAME_KEY: standard_bwo_file_name,
         PMM_METADATA_KEY: pmm_metadata_dict
     }
@@ -852,6 +856,7 @@ def read_pmm_file(pickle_file_name):
         `write_pmm_file`.
     mean_optimization_dict['list_of_mean_optimized_matrices']: Same.
     mean_optimization_dict['threshold_count_matrix']: Same.
+    mean_optimization_dict['model_file_name']: Same.
     mean_optimization_dict['standard_bwo_file_name']: Same.
     mean_optimization_dict['pmm_metadata_dict']: Same.
 

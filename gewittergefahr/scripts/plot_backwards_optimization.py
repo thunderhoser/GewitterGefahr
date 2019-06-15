@@ -969,23 +969,11 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             list_of_optimized_matrices[i] = numpy.expand_dims(
                 list_of_optimized_matrices[i], axis=0)
 
-        original_bwo_file_name = backwards_opt_dict[
-            backwards_opt.STANDARD_FILE_NAME_KEY]
-
-        print('Reading metadata from: "{0:s}"...'.format(
-            original_bwo_file_name))
-
-        original_bwo_dict = backwards_opt.read_standard_file(
-            original_bwo_file_name)
-
-        original_bwo_dict.pop(backwards_opt.OPTIMIZED_MATRICES_KEY)
-        original_bwo_dict.pop(backwards_opt.INIT_FUNCTION_KEY)
-        bwo_metadata_dict = original_bwo_dict
-
+        bwo_metadata_dict = backwards_opt_dict
         full_id_strings = None
         storm_times_unix_sec = None
 
-    model_file_name = bwo_metadata_dict[backwards_opt.MODEL_FILE_NAME_KEY]
+    model_file_name = bwo_metadata_dict[backwards_opt.MODEL_FILE_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )

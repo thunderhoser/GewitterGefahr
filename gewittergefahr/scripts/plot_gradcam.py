@@ -407,16 +407,7 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
         ggradcam_output_matrix = numpy.expand_dims(
             ggradcam_output_matrix, axis=0)
 
-        orig_gradcam_file_name = gradcam_dict[gradcam.STANDARD_FILE_NAME_KEY]
-
-        print('Reading metadata from: "{0:s}"...'.format(orig_gradcam_file_name))
-        orig_gradcam_dict = gradcam.read_standard_file(orig_gradcam_file_name)
-
-        orig_gradcam_dict.pop(gradcam.INPUT_MATRICES_KEY)
-        orig_gradcam_dict.pop(gradcam.CLASS_ACTIVATIONS_KEY)
-        orig_gradcam_dict.pop(gradcam.GUIDED_GRADCAM_KEY)
-        gradcam_metadata_dict = orig_gradcam_dict
-
+        gradcam_metadata_dict = gradcam_dict
         full_id_strings = None
         storm_times_unix_sec = None
 
@@ -426,7 +417,7 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
                         'class-activation maps for soundings.')
 
     # Read metadata for CNN.
-    model_file_name = gradcam_metadata_dict[gradcam.MODEL_FILE_NAME_KEY]
+    model_file_name = gradcam_metadata_dict[gradcam.MODEL_FILE_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )
