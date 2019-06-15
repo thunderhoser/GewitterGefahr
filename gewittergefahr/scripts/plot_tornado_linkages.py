@@ -134,7 +134,7 @@ def _long_to_short_tornado_ids(long_id_strings):
     for i in range(len(unique_long_id_strings)):
         these_indices = numpy.where(orig_to_unique_indices == i)[0]
 
-        for j in range(these_indices):
+        for j in these_indices:
             short_id_strings[j] = '{0:d}'.format(i)
 
     return short_id_strings
