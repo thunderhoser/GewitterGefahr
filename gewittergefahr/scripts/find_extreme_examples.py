@@ -211,10 +211,13 @@ def _read_target_values(
             times_to_keep_unix_sec=storm_times_unix_sec[these_indices]
         )
 
-        storm_target_values = numpy.concatenate((
-            storm_target_values,
+        these_target_values = numpy.squeeze(
             this_target_value_dict[target_val_utils.TARGET_MATRIX_KEY][
                 these_indices, :]
+        )
+
+        storm_target_values = numpy.concatenate((
+            storm_target_values, these_target_values
         ))
 
     good_indices = numpy.where(

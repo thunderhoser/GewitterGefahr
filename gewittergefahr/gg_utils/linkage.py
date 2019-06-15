@@ -806,11 +806,11 @@ def _find_nearest_storms(
             )
 
             for j in range(len(these_event_rows)):
-                k = these_event_rows[j]
-                nearest_secondary_id_strings[k] = these_nearest_id_strings[j]
-                if nearest_secondary_id_strings[k] is None:
+                if these_nearest_id_strings[j] is None:
                     continue
 
+                k = these_event_rows[j]
+                nearest_secondary_id_strings[k] = these_nearest_id_strings[j]
                 nearest_times_unix_sec[k] = unique_interp_times_unix_sec[i]
 
             continue
@@ -828,10 +828,10 @@ def _find_nearest_storms(
             )
 
             for k in these_same_id_rows:
-                nearest_secondary_id_strings[k] = these_nearest_id_strings[j]
-                if nearest_secondary_id_strings[k] is None:
+                if these_nearest_id_strings[j] is None:
                     continue
 
+                nearest_secondary_id_strings[k] = these_nearest_id_strings[j]
                 nearest_times_unix_sec[k] = unique_interp_times_unix_sec[i]
 
     unlinked_indices = numpy.where(numpy.isnan(linkage_distances_metres))[0]
@@ -1529,6 +1529,8 @@ def _read_input_tornado_reports(
     tornado_table.tornado_id_string: Tornado ID.
     tornado_table.f_or_ef_rating: F-scale or EF-scale rating (string).
     """
+
+    # TODO(thunderhoser): Put most of this logic in tornado_io.py.
 
     error_checking.assert_is_boolean(genesis_only)
 
