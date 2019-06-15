@@ -1171,35 +1171,52 @@ def _find_nearest_storms(
 
         warnings.warn(warning_string)
 
-    latitude_in_box_flags = numpy.logical_and(
+    latitude_in_bbox_flags = numpy.logical_and(
         event_table[EVENT_LATITUDE_COLUMN].values[unlinked_indices] >=
         min_storm_latitude_deg,
         event_table[EVENT_LATITUDE_COLUMN].values[unlinked_indices] <=
         max_storm_latitude_deg
     )
 
-    longitude_in_box_flags = numpy.logical_and(
+    longitude_in_bbox_flags = numpy.logical_and(
         event_table[EVENT_LONGITUDE_COLUMN].values[unlinked_indices] >=
         min_storm_longitude_deg,
         event_table[EVENT_LONGITUDE_COLUMN].values[unlinked_indices] <=
         max_storm_longitude_deg
     )
 
-    in_box_flags = numpy.logical_and(
-        latitude_in_box_flags, longitude_in_box_flags)
+    in_bbox_flags = numpy.logical_and(
+        latitude_in_bbox_flags, longitude_in_bbox_flags)
 
     num_unlinked_events = len(unlinked_indices)
-    num_unlinked_events_in_box = numpy.sum(in_box_flags)
+    num_unlinked_events_in_bbox = numpy.sum(in_bbox_flags)
 
-    print((
-        'Number of events = {0:d} ... number of storm objects = {1:d} ... '
-        'number of unlinked events = {2:d} ... number of these in unbuffered '
-        'bounding box around storms = {3:d}'
+    log_string = (
+        'Num events = {0:d} ... storm objects = {1:d} ... unlinked events '
+        '(in storm bounding box) = {2:d} ({3:d})'
     ).format(
         len(event_table.index), len(storm_object_table.index),
-        num_unlinked_events, num_unlinked_events_in_box
-    ))
+        num_unlinked_events, num_unlinked_events_in_bbox
+    )
 
+    if tornado_io.TORNADO_ID_COLUMN in event_table:
+        unlinked_id_strings = numpy.unique(
+            event_table[tornado_io.TORNADO_ID_COLUMN].values[unlinked_indices]
+        )
+
+        unlinked_indices_in_bbox = unlinked_indices[in_bbox_flags]
+        unlinked_id_strings_in_bbox = numpy.unique(
+            event_table[tornado_io.TORNADO_ID_COLUMN].values[
+                unlinked_indices_in_bbox]
+        )
+
+        log_string += (
+            ' ... unlinked tornadoes (in storm bounding box) = {0:d} ({1:d})'
+        ).format(
+            len(unlinked_id_strings), len(unlinked_id_strings_in_bbox)
+        )
+
+    print(log_string)
     return event_table
 
 

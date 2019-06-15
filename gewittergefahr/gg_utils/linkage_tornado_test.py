@@ -257,7 +257,8 @@ for this_storm_row in STORM_ROW_TO_TORNADO_ROWS:
         this_storm_row
     ] = these_main_object_flags
 
-# The following constants are used to test _share_tornado_linkages.
+# The following constants are used to test _remove_redundant_tornado_linkages
+# and _share_tornado_linkages.
 EARLY_STORM_OBJECT_TABLE = STORM_OBJECT_TABLE.loc[
     STORM_OBJECT_TABLE[tracking_utils.VALID_TIME_COLUMN] <= 5
 ]
@@ -383,6 +384,51 @@ class LinkageTests(unittest.TestCase):
 
         self.assertTrue(linkage_test.compare_storm_to_events_tables(
             this_storm_to_tornadoes_table, STORM_TO_TORNADOES_TABLE
+        ))
+
+    def test_remove_redundant_tornado_linkages(self):
+        """Ensures correct output from _remove_redundant_tornado_linkages."""
+
+        early_tornado_to_storm_table = linkage._find_nearest_storms(
+            storm_object_table=EARLY_STORM_OBJECT_TABLE,
+            event_table=EARLY_TORNADO_TABLE,
+            max_time_before_storm_start_sec=MAX_EXTRAPOLATION_TIME_SEC,
+            max_time_after_storm_end_sec=MAX_EXTRAPOLATION_TIME_SEC,
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+            interp_time_interval_sec=INTERP_TIME_INTERVAL_SEC,
+            event_type_string=linkage.TORNADO_EVENT_STRING)
+
+        late_tornado_to_storm_table = linkage._find_nearest_storms(
+            storm_object_table=LATE_STORM_OBJECT_TABLE,
+            event_table=LATE_TORNADO_TABLE,
+            max_time_before_storm_start_sec=MAX_EXTRAPOLATION_TIME_SEC,
+            max_time_after_storm_end_sec=MAX_EXTRAPOLATION_TIME_SEC,
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+            interp_time_interval_sec=INTERP_TIME_INTERVAL_SEC,
+            event_type_string=linkage.TORNADO_EVENT_STRING)
+
+        early_tornado_to_storm_table, late_tornado_to_storm_table = (
+            linkage._remove_redundant_tornado_linkages(
+                early_tornado_to_storm_table=early_tornado_to_storm_table,
+                late_tornado_to_storm_table=late_tornado_to_storm_table)
+        )
+
+        tornado_to_storm_table = pandas.concat(
+            [early_tornado_to_storm_table, late_tornado_to_storm_table],
+            axis=0, ignore_index=True)
+
+        # These assertions only make sure that redundant tornado segments
+        # ("events") have been removed.  `test_share_tornado_linkages` makes
+        # sure that this leads to linkages being shared properly.
+
+        self.assertTrue(numpy.array_equal(
+            tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values,
+            TORNADO_TABLE[tornado_io.TORNADO_ID_COLUMN].values
+        ))
+
+        self.assertTrue(numpy.array_equal(
+            tornado_to_storm_table[linkage.EVENT_TIME_COLUMN].values,
+            TORNADO_TABLE[linkage.EVENT_TIME_COLUMN].values
         ))
 
     def test_share_tornado_linkages(self):

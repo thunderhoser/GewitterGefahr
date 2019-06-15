@@ -19,7 +19,8 @@ FIRST_METADATA_DICT = {
     plot_input_examples.STORM_TIME_KEY: STORM_TIME_UNIX_SEC,
     plot_input_examples.RADAR_FIELD_KEY: FIRST_RADAR_FIELD_NAME,
     plot_input_examples.RADAR_HEIGHT_KEY: FIRST_RADAR_HEIGHT_M_AGL,
-    plot_input_examples.LAYER_OPERATION_KEY: FIRST_LAYER_OPERATION_DICT
+    plot_input_examples.LAYER_OPERATION_KEY: FIRST_LAYER_OPERATION_DICT,
+    plot_input_examples.PMM_FLAG_KEY: False
 }
 
 SECOND_RADAR_FIELD_NAME = 'reflectivity_dbz'
@@ -33,7 +34,8 @@ SECOND_METADATA_DICT = {
     plot_input_examples.STORM_TIME_KEY: STORM_TIME_UNIX_SEC,
     plot_input_examples.RADAR_FIELD_KEY: SECOND_RADAR_FIELD_NAME,
     plot_input_examples.RADAR_HEIGHT_KEY: SECOND_RADAR_HEIGHT_M_AGL,
-    plot_input_examples.LAYER_OPERATION_KEY: SECOND_LAYER_OPERATION_DICT
+    plot_input_examples.LAYER_OPERATION_KEY: SECOND_LAYER_OPERATION_DICT,
+    plot_input_examples.PMM_FLAG_KEY: False
 }
 
 THIRD_RADAR_FIELD_NAME = 'reflectivity_dbz'
@@ -47,7 +49,8 @@ THIRD_METADATA_DICT = {
     plot_input_examples.STORM_TIME_KEY: STORM_TIME_UNIX_SEC,
     plot_input_examples.RADAR_FIELD_KEY: THIRD_RADAR_FIELD_NAME,
     plot_input_examples.RADAR_HEIGHT_KEY: THIRD_RADAR_HEIGHT_M_AGL,
-    plot_input_examples.LAYER_OPERATION_KEY: THIRD_LAYER_OPERATION_DICT
+    plot_input_examples.LAYER_OPERATION_KEY: THIRD_LAYER_OPERATION_DICT,
+    plot_input_examples.PMM_FLAG_KEY: False
 }
 
 FOURTH_RADAR_FIELD_NAME = None
@@ -68,7 +71,8 @@ FOURTH_METADATA_DICT = {
     plot_input_examples.STORM_TIME_KEY: STORM_TIME_UNIX_SEC,
     plot_input_examples.RADAR_FIELD_KEY: FOURTH_RADAR_FIELD_NAME,
     plot_input_examples.RADAR_HEIGHT_KEY: FOURTH_RADAR_HEIGHT_M_AGL,
-    plot_input_examples.LAYER_OPERATION_KEY: FOURTH_LAYER_OPERATION_DICT
+    plot_input_examples.LAYER_OPERATION_KEY: FOURTH_LAYER_OPERATION_DICT,
+    plot_input_examples.PMM_FLAG_KEY: False
 }
 
 
