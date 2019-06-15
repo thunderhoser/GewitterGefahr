@@ -205,7 +205,8 @@ def _compute_targets_one_day(
                         min_link_distance_metres=min_link_distances_metres[j],
                         max_link_distance_metres=max_link_distances_metres[j],
                         wind_speed_percentile_level=wind_speed_percentile_level,
-                        wind_speed_cutoffs_kt=list_of_cutoff_arrays_kt[k])
+                        wind_speed_cutoffs_kt=list_of_cutoff_arrays_kt[k]
+                    )
 
                     target_names.append(this_target_name)
 
@@ -223,14 +224,20 @@ def _compute_targets_one_day(
                             max_link_distance_metres=
                             max_link_distances_metres[j],
                             percentile_level=wind_speed_percentile_level,
-                            class_cutoffs_kt=list_of_cutoff_arrays_kt[k])
+                            class_cutoffs_kt=list_of_cutoff_arrays_kt[k]
+                        )
                     )
                 else:
+                    genesis_only = (
+                        event_type_string == linkage.TORNADOGENESIS_EVENT_STRING
+                    )
+
                     this_target_name = target_val_utils.target_params_to_name(
                         min_lead_time_sec=min_lead_times_sec[i],
                         max_lead_time_sec=max_lead_times_sec[i],
                         min_link_distance_metres=min_link_distances_metres[j],
-                        max_link_distance_metres=max_link_distances_metres[j])
+                        max_link_distance_metres=max_link_distances_metres[j],
+                        genesis_only=genesis_only)
 
                     target_names.append(this_target_name)
 
@@ -246,8 +253,8 @@ def _compute_targets_one_day(
                             min_link_distance_metres=
                             min_link_distances_metres[j],
                             max_link_distance_metres=
-                            max_link_distances_metres[j]
-                        )
+                            max_link_distances_metres[j],
+                            genesis_only=genesis_only)
                     )
 
     target_file_name = target_val_utils.find_target_file(
@@ -308,7 +315,8 @@ def _run(top_linkage_dir_name, first_spc_date_string, last_spc_date_string,
 
         print('Reading data from: "{0:s}"...'.format(this_linkage_file_name))
         this_storm_to_events_table = linkage.read_linkage_file(
-            this_linkage_file_name)
+            this_linkage_file_name
+        )[0]
 
         _compute_targets_one_day(
             storm_to_events_table=this_storm_to_events_table,

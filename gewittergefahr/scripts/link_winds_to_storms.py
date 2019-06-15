@@ -80,7 +80,7 @@ def _link_winds_one_period(
     :param top_output_dir_name: Same.
     """
 
-    storm_to_winds_table = linkage.link_storms_to_winds(
+    storm_to_winds_table, metadata_dict = linkage.link_storms_to_winds(
         tracking_file_names=tracking_file_names,
         top_wind_directory_name=top_wind_dir_name)
     print(SEPARATOR_STRING)
@@ -97,8 +97,8 @@ def _link_winds_one_period(
     print('Writing linkages to: "{0:s}"...'.format(output_file_name))
 
     linkage.write_linkage_file(
-        storm_to_events_table=storm_to_winds_table,
-        pickle_file_name=output_file_name)
+        pickle_file_name=output_file_name,
+        storm_to_events_table=storm_to_winds_table, metadata_dict=metadata_dict)
     print(SEPARATOR_STRING)
 
 

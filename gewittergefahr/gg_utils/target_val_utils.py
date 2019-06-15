@@ -41,9 +41,10 @@ REGRESSION_STRING = 'regression'
 CLASSIFICATION_STRING = 'classification'
 VALID_GOAL_STRINGS = [REGRESSION_STRING, CLASSIFICATION_STRING]
 
-WIND_SPEED_PREFIX_FOR_REGRESSION_NAME = 'wind-speed-m-s01'
-WIND_SPEED_PREFIX_FOR_CLASSIFN_NAME = 'wind-speed'
+WIND_SPEED_REGRESSION_PREFIX = 'wind-speed-m-s01'
+WIND_SPEED_CLASSIFN_PREFIX = 'wind-speed'
 TORNADO_PREFIX = 'tornado'
+TORNADOGENESIS_PREFIX = 'tornadogenesis'
 
 CHARACTER_DIMENSION_KEY = 'storm_id_character'
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
@@ -65,7 +66,7 @@ def _check_learning_goal(goal_string):
 
     if goal_string not in VALID_GOAL_STRINGS:
         error_string = (
-            '\n\n{0:s}\nValid learning goals (listed above) do not include '
+            '\n{0:s}\nValid learning goals (listed above) do not include '
             '"{1:s}".'
         ).format(str(VALID_GOAL_STRINGS), goal_string)
 
@@ -74,8 +75,8 @@ def _check_learning_goal(goal_string):
 
 def _check_target_params(
         min_lead_time_sec, max_lead_time_sec, min_link_distance_metres,
-        max_link_distance_metres, wind_speed_percentile_level=None,
-        wind_speed_cutoffs_kt=None):
+        max_link_distance_metres, genesis_only=None,
+        wind_speed_percentile_level=None, wind_speed_cutoffs_kt=None):
     """Error-checks parameters for target variable.
 
     :param min_lead_time_sec: Minimum lead time.  For a storm object at time t,
@@ -88,6 +89,8 @@ def _check_target_params(
         outside the storm cell.  If `min_link_distance_metres` = 0, events
         inside the storm cell will also be permitted.
     :param max_link_distance_metres: See above.
+    :param genesis_only: Boolean flag.  If True, labels are for tornadogenesis
+        only.  If False, labels are for tornado occurrence.
     :param wind_speed_percentile_level: Percentile level for wind speed.  For
         each storm object s, the target value will be based on the [q]th
         percentile, where q = `wind_speed_percentile_level`, of all wind speeds
@@ -117,23 +120,32 @@ def _check_target_params(
         max_link_distance_metres, LINKAGE_DISTANCE_PRECISION_METRES)
 
     error_checking.assert_is_geq(min_link_distance_metres, 0.)
-    error_checking.assert_is_geq(max_link_distance_metres,
-                                 min_link_distance_metres)
+    error_checking.assert_is_geq(
+        max_link_distance_metres, min_link_distance_metres)
 
-    if wind_speed_percentile_level is None:
-        wind_speed_cutoffs_kt = None
-    else:
-        wind_speed_percentile_level = number_rounding.round_to_nearest(
-            wind_speed_percentile_level, PERCENTILE_LEVEL_PRECISION)
+    if genesis_only is not None:
+        error_checking.assert_is_boolean(genesis_only)
 
-        error_checking.assert_is_geq(wind_speed_percentile_level, 0.)
-        error_checking.assert_is_leq(wind_speed_percentile_level, 100.)
+        return {
+            MIN_LINKAGE_DISTANCE_KEY: min_link_distance_metres,
+            MAX_LINKAGE_DISTANCE_KEY: max_link_distance_metres,
+            PERCENTILE_LEVEL_KEY: None,
+            WIND_SPEED_CUTOFFS_KEY: None
+        }
+
+    wind_speed_percentile_level = number_rounding.round_to_nearest(
+        wind_speed_percentile_level, PERCENTILE_LEVEL_PRECISION)
+
+    error_checking.assert_is_geq(wind_speed_percentile_level, 0.)
+    error_checking.assert_is_leq(wind_speed_percentile_level, 100.)
 
     if wind_speed_cutoffs_kt is not None:
         wind_speed_cutoffs_kt = number_rounding.round_to_nearest(
             wind_speed_cutoffs_kt, WIND_SPEED_CUTOFF_PRECISION_KT)
+
         wind_speed_cutoffs_kt = classifn_utils.classification_cutoffs_to_ranges(
-            wind_speed_cutoffs_kt, non_negative_only=True)[0]
+            wind_speed_cutoffs_kt, non_negative_only=True
+        )[0]
 
     return {
         MIN_LINKAGE_DISTANCE_KEY: min_link_distance_metres,
@@ -186,14 +198,15 @@ def _find_dead_storms(storm_to_events_table, min_lead_time_sec):
 
 def target_params_to_name(
         min_lead_time_sec, max_lead_time_sec, min_link_distance_metres,
-        max_link_distance_metres, wind_speed_percentile_level=None,
-        wind_speed_cutoffs_kt=None):
+        max_link_distance_metres, genesis_only=None,
+        wind_speed_percentile_level=None, wind_speed_cutoffs_kt=None):
     """Creates name for target variable.
 
     :param min_lead_time_sec: See doc for `_check_target_params`.
     :param max_lead_time_sec: Same.
     :param min_link_distance_metres: Same.
     :param max_link_distance_metres: Same.
+    :param genesis_only: Same.
     :param wind_speed_percentile_level: Same.
     :param wind_speed_cutoffs_kt: Same.
     :return: target_name: Name of target variable.
@@ -204,6 +217,7 @@ def target_params_to_name(
         max_lead_time_sec=max_lead_time_sec,
         min_link_distance_metres=min_link_distance_metres,
         max_link_distance_metres=max_link_distance_metres,
+        genesis_only=genesis_only,
         wind_speed_percentile_level=wind_speed_percentile_level,
         wind_speed_cutoffs_kt=wind_speed_cutoffs_kt)
 
@@ -212,16 +226,17 @@ def target_params_to_name(
     wind_speed_percentile_level = target_param_dict[PERCENTILE_LEVEL_KEY]
     wind_speed_cutoffs_kt = target_param_dict[WIND_SPEED_CUTOFFS_KEY]
 
-    if wind_speed_percentile_level is None:
-        target_name = TORNADO_PREFIX + ''
-    else:
-        if wind_speed_cutoffs_kt is None:
-            target_name = WIND_SPEED_PREFIX_FOR_REGRESSION_NAME + ''
-        else:
-            target_name = WIND_SPEED_PREFIX_FOR_CLASSIFN_NAME + ''
+    if genesis_only is None:
+        target_name = (
+            WIND_SPEED_REGRESSION_PREFIX
+            if wind_speed_cutoffs_kt is None
+            else WIND_SPEED_CLASSIFN_PREFIX
+        )
 
         target_name += '_percentile={0:05.1f}'.format(
             wind_speed_percentile_level)
+    else:
+        target_name = TORNADOGENESIS_PREFIX if genesis_only else TORNADO_PREFIX
 
     target_name += (
         '_lead-time={0:04d}-{1:04d}sec_distance={2:05d}-{3:05d}m'
@@ -257,14 +272,14 @@ def target_name_to_params(target_name):
 
     target_name_parts = target_name.split('_')
 
-    # Determine event type (wind or tornado) and goal (classifn or regression).
-    if target_name_parts[0] == WIND_SPEED_PREFIX_FOR_REGRESSION_NAME:
+    # Determine event type and learning goal (regression or classification).
+    if target_name_parts[0] == WIND_SPEED_REGRESSION_PREFIX:
         goal_string = REGRESSION_STRING
         event_type_string = linkage.WIND_EVENT_STRING
         if len(target_name_parts) != 4:
             return None
 
-    elif target_name_parts[0] == WIND_SPEED_PREFIX_FOR_CLASSIFN_NAME:
+    elif target_name_parts[0] == WIND_SPEED_CLASSIFN_PREFIX:
         goal_string = CLASSIFICATION_STRING
         event_type_string = linkage.WIND_EVENT_STRING
         if len(target_name_parts) != 5:
@@ -276,11 +291,18 @@ def target_name_to_params(target_name):
         if len(target_name_parts) != 3:
             return None
 
+    elif target_name_parts[0] == TORNADOGENESIS_PREFIX:
+        goal_string = CLASSIFICATION_STRING
+        event_type_string = linkage.TORNADOGENESIS_EVENT_STRING
+        if len(target_name_parts) != 3:
+            return None
+
     else:
         return None
 
     # Determine percentile level for wind speed.
     wind_speed_percentile_level = None
+
     if event_type_string == linkage.WIND_EVENT_STRING:
         if not target_name_parts[1].startswith('percentile='):
             return None
@@ -374,7 +396,9 @@ def target_name_to_num_classes(target_name, include_dead_storms=False):
     """
 
     target_param_dict = target_name_to_params(target_name)
-    if target_param_dict[EVENT_TYPE_KEY] == linkage.TORNADO_EVENT_STRING:
+    if target_param_dict[EVENT_TYPE_KEY] in [
+            linkage.TORNADO_EVENT_STRING, linkage.TORNADOGENESIS_EVENT_STRING
+    ]:
         return 2
 
     error_checking.assert_is_boolean(include_dead_storms)
@@ -438,29 +462,32 @@ def create_wind_regression_targets(
 
         these_relative_times_sec = storm_to_winds_table[
             linkage.RELATIVE_EVENT_TIMES_COLUMN].values[i]
+
         these_link_distances_metres = storm_to_winds_table[
             linkage.LINKAGE_DISTANCES_COLUMN].values[i]
 
         these_good_time_flags = numpy.logical_and(
             these_relative_times_sec >= min_lead_time_sec,
             these_relative_times_sec <= max_lead_time_sec)
+
         these_good_distance_flags = numpy.logical_and(
             these_link_distances_metres >= min_link_distance_metres,
             these_link_distances_metres <= max_link_distance_metres)
-        these_good_ob_flags = numpy.logical_and(
-            these_good_time_flags, these_good_distance_flags)
 
-        if not numpy.any(these_good_ob_flags):
+        these_good_indices = numpy.where(numpy.logical_and(
+            these_good_time_flags, these_good_distance_flags
+        ))[0]
+
+        if len(these_good_indices == 0):
             # labels_m_s01[i] = 0.
             labels_m_s01[i] = INVALID_STORM_INTEGER
             continue
 
-        these_good_ob_indices = numpy.where(these_good_ob_flags)[0]
         these_wind_speeds_m_s01 = numpy.sqrt(
             storm_to_winds_table[linkage.U_WINDS_COLUMN].values[i][
-                these_good_ob_indices] ** 2 +
+                these_good_indices] ** 2 +
             storm_to_winds_table[linkage.V_WINDS_COLUMN].values[i][
-                these_good_ob_indices] ** 2
+                these_good_indices] ** 2
         )
 
         labels_m_s01[i] = numpy.percentile(
@@ -474,7 +501,9 @@ def create_wind_regression_targets(
         wind_speed_percentile_level=percentile_level,
         wind_speed_cutoffs_kt=None)
 
-    return storm_to_winds_table.assign(**{target_name: labels_m_s01})
+    return storm_to_winds_table.assign(**{
+        target_name: labels_m_s01
+    })
 
 
 def create_wind_classification_targets(
@@ -559,7 +588,8 @@ def create_tornado_targets(
         storm_to_tornadoes_table, min_lead_time_sec=DEFAULT_MIN_LEAD_TIME_SEC,
         max_lead_time_sec=DEFAULT_MAX_LEAD_TIME_SEC,
         min_link_distance_metres=DEFAULT_MIN_LINK_DISTANCE_METRES,
-        max_link_distance_metres=DEFAULT_MAX_LINK_DISTANCE_METRES):
+        max_link_distance_metres=DEFAULT_MAX_LINK_DISTANCE_METRES,
+        genesis_only=True):
     """For each storm object, creates target based on tornado occurrence.
 
     :param storm_to_tornadoes_table: See doc for `linkage.read_linkage_file`.
@@ -567,6 +597,7 @@ def create_tornado_targets(
     :param max_lead_time_sec: Same.
     :param min_link_distance_metres: Same.
     :param max_link_distance_metres: Same.
+    :param genesis_only: Same.
     :return: storm_to_tornadoes_table: Same as input, but with additional column
         containing target values.  The name of this column is determined by
         `target_params_to_name`.
@@ -576,7 +607,8 @@ def create_tornado_targets(
         min_lead_time_sec=min_lead_time_sec,
         max_lead_time_sec=max_lead_time_sec,
         min_link_distance_metres=min_link_distance_metres,
-        max_link_distance_metres=max_link_distance_metres)
+        max_link_distance_metres=max_link_distance_metres,
+        genesis_only=genesis_only)
 
     min_link_distance_metres = target_param_dict[MIN_LINKAGE_DISTANCE_KEY]
     max_link_distance_metres = target_param_dict[MAX_LINKAGE_DISTANCE_KEY]
@@ -605,13 +637,15 @@ def create_tornado_targets(
         these_good_time_flags = numpy.logical_and(
             these_relative_times_sec >= min_lead_time_sec,
             these_relative_times_sec <= max_lead_time_sec)
+
         these_good_distance_flags = numpy.logical_and(
             these_link_distances_metres >= min_link_distance_metres,
             these_link_distances_metres <= max_link_distance_metres)
-        these_good_ob_flags = numpy.logical_and(
-            these_good_time_flags, these_good_distance_flags)
 
-        tornado_classes[i] = numpy.any(these_good_ob_flags)
+        tornado_classes[i] = numpy.any(numpy.logical_and(
+            these_good_time_flags, these_good_distance_flags
+        ))
+
         if i in end_of_period_indices and tornado_classes[i] == 0:
             tornado_classes[i] = INVALID_STORM_INTEGER
 
@@ -619,7 +653,8 @@ def create_tornado_targets(
         min_lead_time_sec=min_lead_time_sec,
         max_lead_time_sec=max_lead_time_sec,
         min_link_distance_metres=min_link_distance_metres,
-        max_link_distance_metres=max_link_distance_metres)
+        max_link_distance_metres=max_link_distance_metres,
+        genesis_only=genesis_only)
 
     print((
         'Number of storm objects = {0:d} ... number with positive "{1:s}" label'
@@ -652,34 +687,29 @@ def find_target_file(top_directory_name, event_type_string, spc_date_string,
     linkage.check_event_type(event_type_string)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
+    if event_type_string == linkage.WIND_EVENT_STRING:
+        pathless_file_name_prefix = 'wind_labels'
+    elif event_type_string == linkage.TORNADOGENESIS_EVENT_STRING:
+        pathless_file_name_prefix = 'tornadogenesis_labels'
+    else:
+        pathless_file_name_prefix = 'tornado_labels'
+
     if unix_time_sec is None:
         time_conversion.spc_date_string_to_unix_sec(spc_date_string)
 
-        if event_type_string == linkage.WIND_EVENT_STRING:
-            target_file_name = '{0:s}/{1:s}/wind_labels_{2:s}.nc'.format(
-                top_directory_name, spc_date_string[:4], spc_date_string
-            )
-        else:
-            target_file_name = '{0:s}/{1:s}/tornado_labels_{2:s}.nc'.format(
-                top_directory_name, spc_date_string[:4], spc_date_string
-            )
+        target_file_name = '{0:s}/{1:s}/{2:s}_{3:s}.nc'.format(
+            top_directory_name, spc_date_string[:4], pathless_file_name_prefix,
+            spc_date_string
+        )
     else:
         spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
         valid_time_string = time_conversion.unix_sec_to_string(
             unix_time_sec, TIME_FORMAT)
 
-        if event_type_string == linkage.WIND_EVENT_STRING:
-            target_file_name = '{0:s}/{1:s}/{2:s}/wind_labels_{3:s}.nc'.format(
-                top_directory_name, spc_date_string[:4], spc_date_string,
-                valid_time_string
-            )
-        else:
-            target_file_name = (
-                '{0:s}/{1:s}/{2:s}/tornado_labels_{3:s}.nc'
-            ).format(
-                top_directory_name, spc_date_string[:4], spc_date_string,
-                valid_time_string
-            )
+        target_file_name = '{0:s}/{1:s}/{2:s}/{3:s}_{4:s}.nc'.format(
+            top_directory_name, spc_date_string[:4], spc_date_string,
+            pathless_file_name_prefix, valid_time_string
+        )
 
     if raise_error_if_missing and not os.path.isfile(target_file_name):
         error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(

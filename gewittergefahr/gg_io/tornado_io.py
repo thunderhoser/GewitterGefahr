@@ -4,12 +4,14 @@ import re
 import os.path
 import numpy
 import pandas
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 START_TIME_COLUMN = 'start_time_unix_sec'
 END_TIME_COLUMN = 'end_time_unix_sec'
@@ -19,6 +21,7 @@ START_LNG_COLUMN = 'start_longitude_deg'
 END_LNG_COLUMN = 'end_longitude_deg'
 FUJITA_RATING_COLUMN = 'f_or_ef_rating'
 WIDTH_COLUMN = 'width_metres'
+TORNADO_ID_COLUMN = 'tornado_id_string'
 
 F_SCALE_RATING_PATTERN = '[fF][0-5]'
 EF_SCALE_RATING_PATTERN = '[eE][fF][0-5]'
@@ -54,6 +57,45 @@ def _is_valid_fujita_rating(fujita_rating_string):
         return True
 
     return False
+
+
+def create_tornado_id(start_time_unix_sec, start_latitude_deg,
+                      start_longitude_deg):
+    """Creates tornado ID.
+
+    :param start_time_unix_sec: Start time.
+    :param start_latitude_deg: Start latitude (deg N).
+    :param start_longitude_deg: Start longitude (deg E).
+    :return: tornado_id_string: ID.
+    """
+
+    return '{0:s}_{1:6.3f}N_{2:7.3f}E'.format(
+        time_conversion.unix_sec_to_string(start_time_unix_sec, TIME_FORMAT),
+        start_latitude_deg, start_longitude_deg
+    )
+
+
+def add_tornado_ids_to_table(tornado_table):
+    """Adds tornado IDs to table.
+
+    :param tornado_table: See doc for `write_processed_file`.
+    :return: tornado_table: Same as input but with one extra column.
+    tornado_table.tornado_id_string: Tornado ID.
+    """
+
+    tornado_id_strings = [
+        create_tornado_id(start_time_unix_sec=t, start_latitude_deg=y,
+                          start_longitude_deg=x)
+        for t, y, x in zip(
+            tornado_table[START_TIME_COLUMN].values,
+            tornado_table[START_LAT_COLUMN].values,
+            tornado_table[START_LNG_COLUMN].values
+        )
+    ]
+
+    return tornado_table.assign(**{
+        TORNADO_ID_COLUMN: tornado_id_strings,
+    })
 
 
 def remove_invalid_reports(

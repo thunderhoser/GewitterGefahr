@@ -34,6 +34,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 LARGE_INTEGER = int(1e10)
+LARGE_DISTANCE_METRES = float(1e12)
 
 YEAR_FORMAT = '%Y'
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -48,11 +49,9 @@ VALID_EVENT_TYPE_STRINGS = [
 
 DEFAULT_MAX_TIME_BEFORE_STORM_SEC = 300
 DEFAULT_MAX_TIME_AFTER_STORM_SEC = 300
-DEFAULT_BOUNDING_BOX_PADDING_METRES = 1e5
-DEFAULT_INTERP_TIME_RES_FOR_WIND_SEC = 10
-DEFAULT_INTERP_TIME_RES_FOR_TORNADO_SEC = 1
-DEFAULT_MAX_DISTANCE_FOR_WIND_METRES = 30000.
-DEFAULT_MAX_DISTANCE_FOR_TORNADO_METRES = 30000.
+DEFAULT_BBOX_PADDING_METRES = 1e5
+DEFAULT_MAX_WIND_DISTANCE_METRES = 30000.
+DEFAULT_MAX_TORNADO_DISTANCE_METRES = 30000.
 
 REQUIRED_STORM_COLUMNS = [
     tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.SECONDARY_ID_COLUMN,
@@ -75,11 +74,6 @@ REQUIRED_WIND_COLUMNS = [
     raw_wind_io.U_WIND_COLUMN, raw_wind_io.V_WIND_COLUMN
 ]
 
-REQUIRED_TORNADO_COLUMNS = [
-    tornado_io.START_TIME_COLUMN, tornado_io.START_LAT_COLUMN,
-    tornado_io.START_LNG_COLUMN, tornado_io.FUJITA_RATING_COLUMN
-]
-
 STORM_CENTROID_X_COLUMN = 'centroid_x_metres'
 STORM_CENTROID_Y_COLUMN = 'centroid_y_metres'
 STORM_VERTICES_X_COLUMN = 'vertices_x_metres'
@@ -88,12 +82,12 @@ STORM_VERTICES_Y_COLUMN = 'vertices_y_metres'
 EVENT_TIME_COLUMN = 'unix_time_sec'
 EVENT_LATITUDE_COLUMN = 'latitude_deg'
 EVENT_LONGITUDE_COLUMN = 'longitude_deg'
-TORNADO_ID_COLUMN = 'tornado_id_string'
 EVENT_X_COLUMN = 'x_coord_metres'
 EVENT_Y_COLUMN = 'y_coord_metres'
 NEAREST_SECONDARY_ID_COLUMN = 'nearest_secondary_id_string'
 NEAREST_TIME_COLUMN = 'nearest_storm_time_unix_sec'
 LINKAGE_DISTANCE_COLUMN = 'linkage_distance_metres'
+TORNADO_ASSIGNED_COLUMN = 'tornado_assigned_flag'
 
 STORM_VERTEX_X_COLUMN = 'vertex_x_metres'
 STORM_VERTEX_Y_COLUMN = 'vertex_y_metres'
@@ -115,19 +109,32 @@ THESE_COLUMNS = [
     EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN, MAIN_OBJECT_FLAGS_COLUMN
 ]
 
-REQUIRED_WIND_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
+WIND_LINKAGE_COLUMNS = THESE_COLUMNS + [
     WIND_STATION_IDS_COLUMN, U_WINDS_COLUMN, V_WINDS_COLUMN
 ]
 
-REQUIRED_TORNADO_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
+TORNADO_LINKAGE_COLUMNS = THESE_COLUMNS + [
     FUJITA_RATINGS_COLUMN, TORNADO_IDS_COLUMN
 ]
+
+REQUIRED_WIND_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + WIND_LINKAGE_COLUMNS
+REQUIRED_TORNADO_LINKAGE_COLUMNS = (
+    REQUIRED_STORM_COLUMNS + TORNADO_LINKAGE_COLUMNS
+)
+
+EARLY_FLAG_COLUMN = 'in_early_period'
+
+MAX_TIME_BEFORE_START_KEY = 'max_time_before_storm_start_sec'
+MAX_TIME_AFTER_END_KEY = 'max_time_after_storm_end_sec'
+STORM_INTERP_TIME_KEY = 'storm_interp_time_interval_sec'
+BBOX_PADDING_KEY = 'bounding_box_padding_metres'
+MAX_LINK_DISTANCE_KEY = 'max_link_distance_metres'
 
 
 def _check_input_args(
         tracking_file_names, max_time_before_storm_start_sec,
         max_time_after_storm_end_sec, bounding_box_padding_metres,
-        interp_time_resolution_sec, max_link_distance_metres):
+        storm_interp_time_interval_sec, max_link_distance_metres):
     """Error-checks input arguments.
 
     :param tracking_file_names: 1-D list of paths to storm-tracking files
@@ -144,11 +151,11 @@ def _check_input_args(
         means that they cannot be linked to storms.  The purpose of the bounding
         box is to reduce the number of events that must be considered, thus
         reducing computing time.
-    :param interp_time_resolution_sec: Discretization time for interpolation of
-        storm positions.  Storms will be interpolated to each multiple of
-        `interp_time_resolution_sec` between the first and last event times.
-        Setting `interp_time_resolution_sec` > 1 reduces computing time, at the
-        cost of a slight decrease in accuracy.
+    :param storm_interp_time_interval_sec: Discretization time for
+        interpolation of storm positions.  Storms will be interpolated to each
+        multiple of `storm_interp_time_interval_sec` between the first and
+        last event times.  Setting `storm_interp_time_interval_sec` > 1
+        reduces computing time, at the cost of a slight decrease in accuracy.
     :param max_link_distance_metres: Max linkage distance.  If event E is >
         `max_link_distance_metres` from the edge of the nearest storm, it will
         not be linked to any storm.
@@ -164,16 +171,24 @@ def _check_input_args(
     error_checking.assert_is_integer(max_time_after_storm_end_sec)
     error_checking.assert_is_geq(max_time_after_storm_end_sec, 0)
 
-    error_checking.assert_is_integer(interp_time_resolution_sec)
-    error_checking.assert_is_greater(interp_time_resolution_sec, 0)
+    error_checking.assert_is_integer(storm_interp_time_interval_sec)
+    error_checking.assert_is_greater(storm_interp_time_interval_sec, 0)
 
     error_checking.assert_is_geq(max_link_distance_metres, 0.)
     error_checking.assert_is_geq(
         bounding_box_padding_metres, max_link_distance_metres)
 
+    return {
+        MAX_TIME_BEFORE_START_KEY: max_time_before_storm_start_sec,
+        MAX_TIME_AFTER_END_KEY: max_time_after_storm_end_sec,
+        STORM_INTERP_TIME_KEY: storm_interp_time_interval_sec,
+        BBOX_PADDING_KEY: bounding_box_padding_metres,
+        MAX_LINK_DISTANCE_KEY: max_link_distance_metres
+    }
+
 
 def _get_bounding_box_for_storms(
-        storm_object_table, padding_metres=DEFAULT_BOUNDING_BOX_PADDING_METRES):
+        storm_object_table, padding_metres=DEFAULT_BBOX_PADDING_METRES):
     """Creates bounding box (with some padding) around all storm objects.
 
     :param storm_object_table: pandas DataFrame created by
@@ -220,7 +235,8 @@ def _project_storms_latlng_to_xy(storm_object_table, projection_object):
 
     V = number of vertices in a given storm outline
 
-    :param storm_object_table: pandas DataFrame created by `_read_input_storm_tracks`.
+    :param storm_object_table: pandas DataFrame created by
+        `_read_input_storm_tracks`.
     :param projection_object: Instance of `pyproj.Proj`, defining an equidistant
         projection.
     :return: storm_object_table: Same as input, but with additional columns
@@ -582,7 +598,7 @@ def _interp_storms_in_time(storm_object_table, target_time_unix_sec,
 
 def _find_nearest_storms_one_time(
         interp_vertex_table, event_x_coords_metres, event_y_coords_metres,
-        max_link_distance_metres):
+        max_link_distance_metres, max_polygon_attempt_distance_metres=30000.):
     """Finds nearest storm to each event.
 
     In this case all events are at the same time.
@@ -598,6 +614,8 @@ def _find_nearest_storms_one_time(
     :param max_link_distance_metres: Max linkage distance.  If the nearest storm
         edge to event E is > `max_link_distance_metres` away, event E will not
         be linked to any storm.
+    :param max_polygon_attempt_distance_metres: Max distance for attempting to
+        place event inside storm.
     :return: nearest_secondary_id_strings: length-N list, where
         nearest_secondary_id_strings[i] = secondary ID of nearest storm to [i]th
         event.  If nearest_secondary_id_strings[i] = None, no storm was linked
@@ -606,6 +624,15 @@ def _find_nearest_storms_one_time(
         distances.  If linkage_distances_metres[i] = NaN, [i]th event was not
         linked to any storm.
     """
+
+    max_polygon_attempt_distance_metres = max([
+        max_polygon_attempt_distance_metres, 2 * max_link_distance_metres
+    ])
+
+    unique_secondary_id_strings, orig_to_unique_indices = numpy.unique(
+        interp_vertex_table[tracking_utils.SECONDARY_ID_COLUMN].values,
+        return_inverse=True)
+    unique_secondary_id_strings = unique_secondary_id_strings.tolist()
 
     num_events = len(event_x_coords_metres)
     nearest_secondary_id_strings = [None] * num_events
@@ -622,35 +649,77 @@ def _find_nearest_storms_one_time(
             interp_vertex_table[STORM_VERTEX_Y_COLUMN].values
         )
 
-        these_good_vertex_flags = numpy.logical_and(
-            these_x_diffs_metres <= max_link_distance_metres,
-            these_y_diffs_metres <= max_link_distance_metres
-        )
+        these_vertex_indices = numpy.where(numpy.logical_and(
+            these_x_diffs_metres <= max_polygon_attempt_distance_metres,
+            these_y_diffs_metres <= max_polygon_attempt_distance_metres
+        ))[0]
 
-        if not numpy.any(these_good_vertex_flags):
+        if len(these_vertex_indices) == 0:
             continue
 
-        these_good_vertex_indices = numpy.where(these_good_vertex_flags)[0]
+        # Try placing event inside storm.
+        these_secondary_id_strings = numpy.unique(
+            interp_vertex_table[tracking_utils.SECONDARY_ID_COLUMN].values[
+                these_vertex_indices]
+        ).tolist()
+
+        for this_secondary_id_string in these_secondary_id_strings:
+            this_storm_indices = numpy.where(
+                orig_to_unique_indices ==
+                unique_secondary_id_strings.index(this_secondary_id_string)
+            )[0]
+
+            this_polygon_object = polygons.vertex_arrays_to_polygon_object(
+                exterior_x_coords=interp_vertex_table[
+                    STORM_VERTEX_X_COLUMN].values[this_storm_indices],
+                exterior_y_coords=interp_vertex_table[
+                    STORM_VERTEX_Y_COLUMN].values[this_storm_indices]
+            )
+
+            this_event_in_polygon = polygons.point_in_or_on_polygon(
+                polygon_object=this_polygon_object,
+                query_x_coordinate=event_x_coords_metres[k],
+                query_y_coordinate=event_y_coords_metres[k]
+            )
+
+            if not this_event_in_polygon:
+                continue
+
+            nearest_secondary_id_strings[k] = this_secondary_id_string
+            linkage_distances_metres[k] = 0.
+            break
+
+        if nearest_secondary_id_strings[k] is not None:
+            continue
+
+        # Try placing event near storm.
+        these_vertex_indices = numpy.where(numpy.logical_and(
+            these_x_diffs_metres <= max_link_distance_metres,
+            these_y_diffs_metres <= max_link_distance_metres
+        ))[0]
+
+        if len(these_vertex_indices) == 0:
+            continue
+
         these_distances_metres = numpy.sqrt(
-            these_x_diffs_metres[these_good_vertex_indices] ** 2 +
-            these_y_diffs_metres[these_good_vertex_indices] ** 2
+            these_x_diffs_metres[these_vertex_indices] ** 2 +
+            these_y_diffs_metres[these_vertex_indices] ** 2
         )
 
         if not numpy.any(these_distances_metres <= max_link_distance_metres):
             continue
 
-        this_min_index = these_good_vertex_indices[
+        this_min_index = these_vertex_indices[
             numpy.argmin(these_distances_metres)
         ]
         nearest_secondary_id_strings[k] = interp_vertex_table[
             tracking_utils.SECONDARY_ID_COLUMN
         ].values[this_min_index]
 
-        this_storm_flags = numpy.array([
-            s == nearest_secondary_id_strings[k] for s in
-            interp_vertex_table[tracking_utils.SECONDARY_ID_COLUMN].values
-        ])
-        this_storm_indices = numpy.where(this_storm_flags)[0]
+        this_storm_indices = numpy.where(
+            orig_to_unique_indices ==
+            unique_secondary_id_strings.index(nearest_secondary_id_strings[k])
+        )[0]
 
         this_polygon_object = polygons.vertex_arrays_to_polygon_object(
             exterior_x_coords=interp_vertex_table[STORM_VERTEX_X_COLUMN].values[
@@ -672,10 +741,256 @@ def _find_nearest_storms_one_time(
     return nearest_secondary_id_strings, linkage_distances_metres
 
 
+def _finish_tornado_linkage(
+        storm_object_table, tornado_to_storm_table, tornado_row,
+        nearest_secondary_id_string, nearest_storm_time_unix_sec,
+        nearest_distance_metres):
+    """Finishes linking occurrence (not genesis) for one tornado to storm.
+
+    :param storm_object_table: pandas DataFrame created by
+        `_project_storms_latlng_to_xy`.
+    :param tornado_to_storm_table: See output doc for `_find_nearest_storms`.
+    :param tornado_row: Row index into `tornado_to_storm_table`.  Will link
+        only this event (this tornado at this time).
+    :param nearest_secondary_id_string: Secondary ID of nearest storm object.
+    :param nearest_storm_time_unix_sec: Time of nearest storm object.
+    :param nearest_distance_metres: Distance to nearest storm object.
+    :return: event_table: Same as input but with different linkage values.
+    """
+
+    # Housekeeping.
+    event_time_unix_sec = tornado_to_storm_table[EVENT_TIME_COLUMN].values[
+        tornado_row]
+    tornado_id_string = tornado_to_storm_table[
+        tornado_io.TORNADO_ID_COLUMN].values[tornado_row]
+
+    # Find track segments of this tornado that have not yet been linked to a
+    # storm.
+    relevant_tornado_rows = numpy.where(numpy.logical_and(
+        tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+        tornado_id_string,
+        numpy.isnan(tornado_to_storm_table[LINKAGE_DISTANCE_COLUMN].values)
+    ))[0]
+
+    sort_indices = numpy.argsort(
+        tornado_to_storm_table[EVENT_TIME_COLUMN].values[relevant_tornado_rows]
+    )
+
+    relevant_tornado_rows = relevant_tornado_rows[sort_indices]
+    relevant_tornado_times_unix_sec = tornado_to_storm_table[
+        EVENT_TIME_COLUMN].values[relevant_tornado_rows]
+
+    # Find main storm object (to which one track segment was just linked).
+    storm_cell_rows = numpy.where(
+        storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values ==
+        nearest_secondary_id_string
+    )[0]
+
+    storm_cell_times_unix_sec = storm_object_table[
+        tracking_utils.VALID_TIME_COLUMN].values[storm_cell_rows]
+
+    this_subrow = numpy.argmin(numpy.absolute(
+        storm_cell_times_unix_sec - nearest_storm_time_unix_sec
+    ))
+
+    main_storm_object_row = storm_cell_rows[this_subrow]
+
+    # Find "relevant" storm objects (all non-splitting successors of main storm
+    # object).
+    these_rows = temporal_tracking.find_successors(
+        storm_object_table=storm_object_table, target_row=main_storm_object_row,
+        num_seconds_forward=LARGE_INTEGER, max_num_sec_id_changes=0,
+        change_type_string=temporal_tracking.SPLIT_STRING,
+        return_all_on_path=True)
+
+    relevant_storm_object_table = storm_object_table.iloc[these_rows]
+    these_times_unix_sec = relevant_storm_object_table[
+        tracking_utils.VALID_TIME_COLUMN].values
+
+    first_good_time_unix_sec = min([
+        numpy.min(these_times_unix_sec), event_time_unix_sec
+    ])
+    last_good_time_unix_sec = max([
+        numpy.max(these_times_unix_sec), event_time_unix_sec
+    ])
+
+    # Find first track segment that occurs <= first relevant storm time.
+    early_subrows = numpy.where(
+        relevant_tornado_times_unix_sec <= first_good_time_unix_sec
+    )[0]
+
+    if len(early_subrows) == 0:
+        first_subrow = 0
+    else:
+        first_subrow = early_subrows[-1]
+
+    # Find last track segment that occurs >= last relevant storm time.
+    late_subrows = numpy.where(
+        relevant_tornado_times_unix_sec >= last_good_time_unix_sec
+    )[0]
+
+    if len(late_subrows) == 0:
+        last_subrow = len(relevant_tornado_rows) - 1
+    else:
+        last_subrow = late_subrows[0]
+
+    # Link track segments to storm objects.
+    relevant_tornado_rows = relevant_tornado_rows[
+        first_subrow:(last_subrow + 1)
+    ]
+
+    tornado_to_storm_table[LINKAGE_DISTANCE_COLUMN].values[
+        relevant_tornado_rows
+    ] = nearest_distance_metres
+
+    for k in relevant_tornado_rows:
+        this_event_time_unix_sec = tornado_to_storm_table[
+            EVENT_TIME_COLUMN].values[k]
+
+        tornado_to_storm_table[NEAREST_TIME_COLUMN].values[k] = (
+            this_event_time_unix_sec
+        )
+
+        this_storm_object_row = numpy.argmin(numpy.absolute(
+            relevant_storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+            - this_event_time_unix_sec
+        ))
+
+        # tornado_to_storm_table[NEAREST_TIME_COLUMN].values[k] = (
+        #     nearest_storm_time_unix_sec
+        # )
+        #
+        # this_storm_object_row = numpy.argmin(numpy.absolute(
+        #     relevant_storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+        #     - tornado_to_storm_table[EVENT_TIME_COLUMN].values[k]
+        # ))
+
+        tornado_to_storm_table[NEAREST_SECONDARY_ID_COLUMN].values[k] = (
+            relevant_storm_object_table[
+                tracking_utils.SECONDARY_ID_COLUMN
+            ].values[this_storm_object_row]
+        )
+
+    these_rows = numpy.where(
+        tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+        tornado_id_string
+    )[0]
+
+    tornado_to_storm_table[TORNADO_ASSIGNED_COLUMN].values[these_rows] = True
+    return tornado_to_storm_table
+
+
+def _link_tornado_to_new_storm(
+        storm_object_table, tornado_to_storm_table, tornado_row,
+        max_time_before_storm_start_sec, max_time_after_storm_end_sec):
+    """Links one tornado to new storm.
+
+    In this case, previous time steps of the tornado have already been linked.
+
+    :param storm_object_table: pandas DataFrame created by
+        `_project_storms_latlng_to_xy`.
+    :param tornado_to_storm_table: See output doc for `_find_nearest_storms`.
+    :param tornado_row: Row index into `tornado_to_storm_table`.  Will link
+        only this event (this tornado at this time).
+    :param max_time_before_storm_start_sec: See doc for `_find_nearest_storms`.
+    :param max_time_after_storm_end_sec: Same.
+    :return: tornado_to_storm_table: Same as input but maybe with different
+        linkage values.
+    """
+
+    # Housekeeping.
+    event_time_unix_sec = tornado_to_storm_table[
+        EVENT_TIME_COLUMN].values[tornado_row]
+    event_time_string = time_conversion.unix_sec_to_string(
+        event_time_unix_sec, TIME_FORMAT)
+
+    print('Trying to link tornado at {0:s} to NEW storm...'.format(
+        event_time_string))
+
+    # Find track segments of this tornado that have already been linked.
+    event_linked_flags = numpy.array([
+        s is not None
+        for s in tornado_to_storm_table[NEAREST_SECONDARY_ID_COLUMN].values
+    ], dtype=bool)
+
+    tornado_rows = numpy.where(numpy.logical_and(
+        tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+        tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values[
+            tornado_row],
+        event_linked_flags
+    ))[0]
+
+    # Find *latest* segment of this tornado that has already been linked.
+    this_subrow = numpy.argmax(
+        tornado_to_storm_table[EVENT_TIME_COLUMN].values[tornado_rows]
+    )
+    last_assigned_event_row = tornado_rows[this_subrow]
+
+    # Find storm object (s*) to which this segment was linked.
+    last_assigned_sec_id_string = tornado_to_storm_table[
+        NEAREST_SECONDARY_ID_COLUMN].values[last_assigned_event_row]
+
+    last_assigned_cell_rows = numpy.where(
+        storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values ==
+        last_assigned_sec_id_string
+    )[0]
+
+    this_subrow = numpy.argmax(
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[
+            last_assigned_cell_rows]
+    )
+    last_assigned_object_row = last_assigned_cell_rows[this_subrow]
+
+    # Find successors of storm object s*.  Try simple successors first (useful
+    # when sharing linkages between two periods).
+    relevant_object_rows = temporal_tracking.find_successors(
+        storm_object_table=storm_object_table,
+        target_row=last_assigned_object_row,
+        num_seconds_forward=LARGE_INTEGER, return_all_on_path=True)
+
+    relevant_sec_id_strings = numpy.unique(
+        storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[
+            relevant_object_rows]
+    )
+
+    # Try linking other segments of the tornado track only to successors of s*.
+    interp_vertex_table = _interp_storms_in_time(
+        storm_object_table=storm_object_table,
+        target_time_unix_sec=event_time_unix_sec,
+        max_time_before_start_sec=max_time_before_storm_start_sec,
+        max_time_after_end_sec=max_time_after_storm_end_sec)
+
+    interp_vertex_table = interp_vertex_table.loc[
+        interp_vertex_table[tracking_utils.SECONDARY_ID_COLUMN].isin(
+            relevant_sec_id_strings)
+    ]
+
+    nearest_secondary_id_strings, nearest_distances_metres = (
+        _find_nearest_storms_one_time(
+            interp_vertex_table=interp_vertex_table,
+            event_x_coords_metres=
+            tornado_to_storm_table[EVENT_X_COLUMN].values[[tornado_row]],
+            event_y_coords_metres=
+            tornado_to_storm_table[EVENT_Y_COLUMN].values[[tornado_row]],
+            max_link_distance_metres=LARGE_DISTANCE_METRES)
+    )
+
+    if nearest_secondary_id_strings[0] is None:
+        return tornado_to_storm_table
+
+    return _finish_tornado_linkage(
+        storm_object_table=storm_object_table,
+        tornado_to_storm_table=tornado_to_storm_table, tornado_row=tornado_row,
+        nearest_secondary_id_string=nearest_secondary_id_strings[0],
+        nearest_storm_time_unix_sec=event_time_unix_sec,
+        nearest_distance_metres=nearest_distances_metres[0]
+    )
+
+
 def _find_nearest_storms(
         storm_object_table, event_table, max_time_before_storm_start_sec,
-        max_time_after_storm_end_sec, interp_time_resolution_sec,
-        max_link_distance_metres):
+        max_time_after_storm_end_sec, interp_time_interval_sec,
+        max_link_distance_metres, event_type_string):
     """Finds nearest storm to each event.
 
     In this case the events may be at different times.
@@ -686,8 +1001,10 @@ def _find_nearest_storms(
         `_filter_events_by_bounding_box`.
     :param max_time_before_storm_start_sec: See doc for `_check_input_args`.
     :param max_time_after_storm_end_sec: Same.
-    :param interp_time_resolution_sec: Same.
+    :param interp_time_interval_sec: Same.
     :param max_link_distance_metres: Same.
+    :param event_type_string: Event type (must be accepted by
+        `check_event_type`).
 
     :return: event_to_storm_table: Same as input argument `event_table`, but
         with the following additional columns.
@@ -700,32 +1017,50 @@ def _find_nearest_storms(
         is NaN.
     """
 
+    num_events = len(event_table.index)
+    event_table = event_table.assign(**{
+        NEAREST_SECONDARY_ID_COLUMN: [None] * num_events,
+        NEAREST_TIME_COLUMN: numpy.full(num_events, -1, dtype=int),
+        LINKAGE_DISTANCE_COLUMN: numpy.full(num_events, numpy.nan)
+    })
+
+    if event_type_string == TORNADO_EVENT_STRING:
+        event_table = event_table.assign(**{
+            TORNADO_ASSIGNED_COLUMN: numpy.full(num_events, False, dtype=bool)
+        })
+
     interp_times_unix_sec = number_rounding.round_to_nearest(
-        event_table[EVENT_TIME_COLUMN].values, interp_time_resolution_sec)
+        event_table[EVENT_TIME_COLUMN].values, interp_time_interval_sec
+    )
     interp_times_unix_sec = numpy.round(interp_times_unix_sec).astype(int)
 
     unique_interp_times_unix_sec, orig_to_unique_indices = numpy.unique(
-        interp_times_unix_sec, return_inverse=True)
+        interp_times_unix_sec, return_inverse=True
+    )
     unique_interp_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT)
         for t in unique_interp_times_unix_sec
     ]
 
     num_unique_interp_times = len(unique_interp_time_strings)
-    num_events = len(event_table.index)
-
-    nearest_secondary_id_strings = [None] * num_events
-    nearest_times_unix_sec = numpy.full(num_events, -1, dtype=int)
-    linkage_distances_metres = numpy.full(num_events, numpy.nan)
 
     for i in range(num_unique_interp_times):
-        these_unassigned_flags = numpy.array(
-            [s is None for s in nearest_secondary_id_strings], dtype=bool
-        )
+        if event_type_string == TORNADO_EVENT_STRING:
+            event_unassigned_flags = numpy.array([
+                s is None
+                for s in event_table[NEAREST_SECONDARY_ID_COLUMN].values
+            ], dtype=bool)
 
-        these_event_rows = numpy.where(numpy.logical_and(
-            orig_to_unique_indices == i, these_unassigned_flags
-        ))[0]
+            these_flags = numpy.logical_and(
+                event_unassigned_flags,
+                numpy.invert(event_table[TORNADO_ASSIGNED_COLUMN].values)
+            )
+
+            these_event_rows = numpy.where(numpy.logical_and(
+                orig_to_unique_indices == i, these_flags
+            ))[0]
+        else:
+            these_event_rows = numpy.where(orig_to_unique_indices == i)[0]
 
         if len(these_event_rows) == 0:
             continue
@@ -750,39 +1085,65 @@ def _find_nearest_storms(
                 max_link_distance_metres=max_link_distance_metres)
         )
 
-        if TORNADO_ID_COLUMN not in event_table:
-            linkage_distances_metres[these_event_rows] = (
-                these_link_distances_metres
-            )
+        if event_type_string != TORNADO_EVENT_STRING:
+            event_table[LINKAGE_DISTANCE_COLUMN].values[
+                these_event_rows] = these_link_distances_metres
 
             for j in range(len(these_event_rows)):
-                k = these_event_rows[j]
-                nearest_secondary_id_strings[k] = these_nearest_id_strings[j]
-                if nearest_secondary_id_strings[k] is None:
+                if these_nearest_id_strings[j] is None:
                     continue
 
-                nearest_times_unix_sec[k] = unique_interp_times_unix_sec[i]
+                k = these_event_rows[j]
+
+                event_table[NEAREST_SECONDARY_ID_COLUMN].values[k] = (
+                    these_nearest_id_strings[j]
+                )
+                event_table[NEAREST_TIME_COLUMN].values[k] = (
+                    unique_interp_times_unix_sec[i]
+                )
 
             continue
 
         for j in range(len(these_event_rows)):
-            these_same_id_rows = numpy.where(
-                event_table[TORNADO_ID_COLUMN].values ==
-                event_table[TORNADO_ID_COLUMN].values[these_event_rows[j]]
-            )[0]
+            if these_nearest_id_strings[j] is None:
+                continue
 
-            linkage_distances_metres[these_same_id_rows] = (
-                these_link_distances_metres[j]
+            event_table = _finish_tornado_linkage(
+                storm_object_table=storm_object_table,
+                tornado_to_storm_table=event_table,
+                tornado_row=these_event_rows[j],
+                nearest_secondary_id_string=these_nearest_id_strings[j],
+                nearest_storm_time_unix_sec=unique_interp_times_unix_sec[i],
+                nearest_distance_metres=these_link_distances_metres[j]
             )
 
-            for k in these_same_id_rows:
-                nearest_secondary_id_strings[k] = these_nearest_id_strings[j]
-                if nearest_secondary_id_strings[k] is None:
-                    continue
+    if event_type_string == TORNADO_EVENT_STRING:
+        for i in range(num_unique_interp_times):
+            event_unassigned_flags = numpy.array([
+                s is None
+                for s in event_table[NEAREST_SECONDARY_ID_COLUMN].values
+            ], dtype=bool)
 
-                nearest_times_unix_sec[k] = unique_interp_times_unix_sec[i]
+            these_flags = numpy.logical_and(
+                event_unassigned_flags,
+                event_table[TORNADO_ASSIGNED_COLUMN].values
+            )
 
-    unlinked_indices = numpy.where(numpy.isnan(linkage_distances_metres))[0]
+            these_event_rows = numpy.where(numpy.logical_and(
+                orig_to_unique_indices == i, these_flags
+            ))[0]
+
+            for j in these_event_rows:
+                event_table = _link_tornado_to_new_storm(
+                    storm_object_table=storm_object_table,
+                    tornado_to_storm_table=event_table, tornado_row=j,
+                    max_time_before_storm_start_sec=
+                    max_time_before_storm_start_sec,
+                    max_time_after_storm_end_sec=max_time_after_storm_end_sec)
+
+    unlinked_indices = numpy.where(
+        numpy.isnan(event_table[LINKAGE_DISTANCE_COLUMN].values)
+    )[0]
 
     min_storm_latitude_deg = numpy.min(
         storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
@@ -839,11 +1200,7 @@ def _find_nearest_storms(
         num_unlinked_events, num_unlinked_events_in_box
     ))
 
-    return event_table.assign(**{
-        NEAREST_SECONDARY_ID_COLUMN: nearest_secondary_id_strings,
-        NEAREST_TIME_COLUMN: nearest_times_unix_sec,
-        LINKAGE_DISTANCE_COLUMN: linkage_distances_metres
-    })
+    return event_table
 
 
 def _reverse_wind_linkages(storm_object_table, wind_to_storm_table):
@@ -932,25 +1289,29 @@ def _reverse_wind_linkages(storm_object_table, wind_to_storm_table):
         this_nearest_time_unix_sec = wind_to_storm_table[
             NEAREST_TIME_COLUMN].values[k]
 
-        these_time_diffs_unix_sec = (
+        these_time_diffs_sec = (
             this_nearest_time_unix_sec -
             storm_to_winds_table[tracking_utils.VALID_TIME_COLUMN].values[
                 this_storm_cell_rows]
         )
 
-        these_time_diffs_unix_sec[these_time_diffs_unix_sec < 0] = LARGE_INTEGER
+        # these_time_diffs_sec[these_time_diffs_sec < 0] = LARGE_INTEGER
         this_main_object_row = this_storm_cell_rows[
-            numpy.argmin(these_time_diffs_unix_sec)
+            numpy.argmin(numpy.absolute(these_time_diffs_sec))
         ]
 
         these_predecessor_rows = temporal_tracking.find_predecessors(
             storm_object_table=storm_to_winds_table,
             target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
-            num_secondary_id_changes=1, return_all_on_path=True)
+            max_num_sec_id_changes=1, return_all_on_path=True)
 
         for j in these_predecessor_rows:
-            if (storm_to_winds_table[tracking_utils.VALID_TIME_COLUMN].values[j]
-                    > this_nearest_time_unix_sec):
+            this_flag = (
+                storm_to_winds_table[tracking_utils.VALID_TIME_COLUMN].values[j]
+                > wind_to_storm_table[EVENT_TIME_COLUMN].values[k]
+            )
+
+            if this_flag:
                 continue
 
             storm_to_winds_table[WIND_STATION_IDS_COLUMN].values[j].append(
@@ -1102,27 +1463,27 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
         this_nearest_time_unix_sec = tornado_to_storm_table[
             NEAREST_TIME_COLUMN].values[k]
 
-        these_time_diffs_unix_sec = (
+        these_time_diffs_sec = (
             this_nearest_time_unix_sec -
             storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values[
                 this_storm_cell_rows]
         )
 
-        these_time_diffs_unix_sec[these_time_diffs_unix_sec < 0] = LARGE_INTEGER
+        # these_time_diffs_sec[these_time_diffs_sec < 0] = LARGE_INTEGER
         this_main_object_row = this_storm_cell_rows[
-            numpy.argmin(these_time_diffs_unix_sec)
+            numpy.argmin(numpy.absolute(these_time_diffs_sec))
         ]
 
         these_predecessor_rows = temporal_tracking.find_predecessors(
             storm_object_table=storm_to_tornadoes_table,
             target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
-            num_secondary_id_changes=1, return_all_on_path=True)
+            max_num_sec_id_changes=1, return_all_on_path=True)
 
         for j in these_predecessor_rows:
             this_flag = (
                 storm_to_tornadoes_table[
                     tracking_utils.VALID_TIME_COLUMN].values[j]
-                > this_nearest_time_unix_sec
+                > tornado_to_storm_table[EVENT_TIME_COLUMN].values[k]
             )
 
             if this_flag:
@@ -1142,7 +1503,7 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
             )
 
             storm_to_tornadoes_table[TORNADO_IDS_COLUMN].values[j].append(
-                tornado_to_storm_table[TORNADO_ID_COLUMN].values[k]
+                tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values[k]
             )
 
             storm_to_tornadoes_table[LINKAGE_DISTANCES_COLUMN].values[j].append(
@@ -1347,34 +1708,14 @@ def _read_input_wind_observations(
     return wind_table
 
 
-def _create_tornado_id(start_time_unix_sec, start_latitude_deg,
-                       start_longitude_deg):
-    """Creates tornado ID.
-
-    :param start_time_unix_sec: Start time.
-    :param start_latitude_deg: Start latitude (deg N).
-    :param start_longitude_deg: Start longitude (deg E).
-    :return: tornado_id_string: ID.
-    """
-
-    return '{0:s}_{1:6.3f}N_{2:7.3f}E'.format(
-        time_conversion.unix_sec_to_string(start_time_unix_sec, TIME_FORMAT),
-        start_latitude_deg, start_longitude_deg
-    )
-
-
-def _interp_tornadoes_along_tracks(tornado_table, interp_time_resolution_sec):
+def _interp_tornadoes_along_tracks(tornado_table, interp_time_interval_sec):
     """Interpolates each tornado to many points along its track.
 
     :param tornado_table: pandas DataFrame returned by
         `tornado_io.read_processed_file`.
-    :param interp_time_resolution_sec: Will interpolate at this time interval
+    :param interp_time_interval_sec: Will interpolate at this time interval
         between start and end points.
-    :return: tornado_table: pandas DataFrame with the following columns.
-    tornado_table.unix_time_sec: Valid time.
-    tornado_table.latitude_deg: Latitude (deg N).
-    tornado_table.longitude_deg: Longitude (deg E).
-    tornado_table.tornado_id_string: Tornado ID.
+    :return: tornado_table: See doc for `_read_input_tornado_reports`.
     """
 
     num_tornadoes = len(tornado_table.index)
@@ -1382,6 +1723,7 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_resolution_sec):
     tornado_latitudes_deg = numpy.array([])
     tornado_longitudes_deg = numpy.array([])
     tornado_id_strings = []
+    fujita_rating_strings = []
 
     for j in range(num_tornadoes):
         this_start_time_unix_sec = tornado_table[
@@ -1392,7 +1734,7 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_resolution_sec):
 
         this_num_query_times = 1 + int(numpy.round(
             float(this_end_time_unix_sec - this_start_time_unix_sec) /
-            interp_time_resolution_sec
+            interp_time_interval_sec
         ))
 
         these_query_times_unix_sec = numpy.linspace(
@@ -1449,7 +1791,7 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_resolution_sec):
             tornado_longitudes_deg, this_query_coord_matrix[0, :]
         ))
 
-        this_id_string = _create_tornado_id(
+        this_id_string = tornado_io.create_tornado_id(
             start_time_unix_sec=these_input_times_unix_sec[0],
             start_latitude_deg=these_input_latitudes_deg[0],
             start_longitude_deg=these_input_longitudes_deg[0]
@@ -1458,19 +1800,24 @@ def _interp_tornadoes_along_tracks(tornado_table, interp_time_resolution_sec):
         tornado_id_strings += (
             [this_id_string] * len(these_query_times_unix_sec)
         )
+        fujita_rating_strings += (
+            [tornado_table[tornado_io.FUJITA_RATING_COLUMN].values[j]]
+            * len(these_query_times_unix_sec)
+        )
 
     return pandas.DataFrame.from_dict({
         EVENT_TIME_COLUMN: tornado_times_unix_sec,
         EVENT_LATITUDE_COLUMN: tornado_latitudes_deg,
         EVENT_LONGITUDE_COLUMN: tornado_longitudes_deg,
-        TORNADO_ID_COLUMN: tornado_id_strings
+        tornado_io.TORNADO_ID_COLUMN: tornado_id_strings,
+        tornado_io.FUJITA_RATING_COLUMN: fujita_rating_strings
     })
 
 
 def _read_input_tornado_reports(
         input_directory_name, storm_times_unix_sec,
         max_time_before_storm_start_sec, max_time_after_storm_end_sec,
-        genesis_only=True, interp_time_resolution_sec=60):
+        genesis_only=True, interp_time_interval_sec=None):
     """Reads tornado observations (input to linkage algorithm).
 
     :param input_directory_name: Name of directory with tornado observations.
@@ -1482,7 +1829,7 @@ def _read_input_tornado_reports(
     :param max_time_after_storm_end_sec: Same.
     :param genesis_only: Boolean flag.  If True, will return tornadogenesis
         points only.  If False, will return all points along each tornado track.
-    :param interp_time_resolution_sec: [used only if `genesis_only == False`]
+    :param interp_time_interval_sec: [used only if `genesis_only == False`]
         Time resolution for interpolating tornado location between start and end
         points.
 
@@ -1497,8 +1844,8 @@ def _read_input_tornado_reports(
     error_checking.assert_is_boolean(genesis_only)
 
     if not genesis_only:
-        error_checking.assert_is_integer(interp_time_resolution_sec)
-        error_checking.assert_is_greater(interp_time_resolution_sec, 0)
+        error_checking.assert_is_integer(interp_time_interval_sec)
+        error_checking.assert_is_greater(interp_time_interval_sec, 0)
 
     min_tornado_time_unix_sec = (
         numpy.min(storm_times_unix_sec) - max_time_before_storm_start_sec
@@ -1526,8 +1873,7 @@ def _read_input_tornado_reports(
 
         print('Reading data from: "{0:s}"...'.format(this_file_name))
         list_of_tornado_tables.append(
-            tornado_io.read_processed_file(this_file_name)[
-                REQUIRED_TORNADO_COLUMNS]
+            tornado_io.read_processed_file(this_file_name)
         )
 
         if len(list_of_tornado_tables) == 1:
@@ -1541,6 +1887,20 @@ def _read_input_tornado_reports(
         list_of_tornado_tables, axis=0, ignore_index=True)
 
     if genesis_only:
+        invalid_flags = numpy.invert(numpy.logical_and(
+            tornado_table[tornado_io.START_TIME_COLUMN].values >=
+            min_tornado_time_unix_sec,
+            tornado_table[tornado_io.START_TIME_COLUMN].values <=
+            max_tornado_time_unix_sec
+        ))
+
+        invalid_rows = numpy.where(invalid_flags)[0]
+        tornado_table.drop(
+            tornado_table.index[invalid_rows], axis=0, inplace=True
+        )
+
+        tornado_table = tornado_io.add_tornado_ids_to_table(tornado_table)
+
         column_dict_old_to_new = {
             tornado_io.START_TIME_COLUMN: EVENT_TIME_COLUMN,
             tornado_io.START_LAT_COLUMN: EVENT_LATITUDE_COLUMN,
@@ -1548,52 +1908,302 @@ def _read_input_tornado_reports(
         }
 
         tornado_table.rename(columns=column_dict_old_to_new, inplace=True)
-
-        num_tornadoes = len(tornado_table.index)
-        tornado_id_strings = [''] * num_tornadoes
-
-        for j in range(num_tornadoes):
-            tornado_id_strings[j] = _create_tornado_id(
-                start_time_unix_sec=tornado_table[EVENT_TIME_COLUMN].values[j],
-                start_latitude_deg=tornado_table[
-                    EVENT_LATITUDE_COLUMN].values[j],
-                start_longitude_deg=tornado_table[
-                    EVENT_LONGITUDE_COLUMN].values[j]
-            )
-
-        tornado_table = tornado_table.assign(**{
-            TORNADO_ID_COLUMN: tornado_id_strings
-        })
     else:
+        good_start_flags = numpy.logical_and(
+            tornado_table[tornado_io.START_TIME_COLUMN].values >=
+            min_tornado_time_unix_sec,
+            tornado_table[tornado_io.START_TIME_COLUMN].values <=
+            max_tornado_time_unix_sec
+        )
+
+        good_end_flags = numpy.logical_and(
+            tornado_table[tornado_io.END_TIME_COLUMN].values >=
+            min_tornado_time_unix_sec,
+            tornado_table[tornado_io.END_TIME_COLUMN].values <=
+            max_tornado_time_unix_sec
+        )
+
+        invalid_flags = numpy.invert(numpy.logical_or(
+            good_start_flags, good_end_flags
+        ))
+
+        invalid_rows = numpy.where(invalid_flags)[0]
+        tornado_table.drop(
+            tornado_table.index[invalid_rows], axis=0, inplace=True
+        )
+
         tornado_table = _interp_tornadoes_along_tracks(
             tornado_table=tornado_table,
-            interp_time_resolution_sec=interp_time_resolution_sec)
+            interp_time_interval_sec=interp_time_interval_sec)
 
-    bad_time_flags = numpy.invert(numpy.logical_and(
-        tornado_table[EVENT_TIME_COLUMN].values >= min_tornado_time_unix_sec,
-        tornado_table[EVENT_TIME_COLUMN].values <= max_tornado_time_unix_sec
-    ))
-    bad_time_rows = numpy.where(bad_time_flags)[0]
+    return tornado_table
 
-    return tornado_table.drop(
-        tornado_table.index[bad_time_rows], axis=0, inplace=False
+
+def _remove_redundant_tornado_linkages(
+        early_tornado_to_storm_table, late_tornado_to_storm_table):
+    """Removes redundant tornado-occurrence linkages over two periods.
+
+    :param early_tornado_to_storm_table: pandas DataFrame (created by
+        `_find_nearest_storms`) for early period.
+    :param late_tornado_to_storm_table: Same but for late period.
+    :return: early_tornado_to_storm_table: Same as input but without redundant
+        linkages (those found in `late_tornado_to_storm_table`).
+    :return: late_tornado_to_storm_table: Same as input but without redundant
+        linkages (those found in `early_tornado_to_storm_table`).
+    :raises: ValueError: if any tornado appears in both tables with different
+        start times.
+    """
+
+    unique_tornado_id_strings = numpy.unique(numpy.concatenate((
+        early_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values,
+        late_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values
+    )))
+
+    for this_tornado_id_string in unique_tornado_id_strings:
+        these_early_rows = numpy.where(
+            early_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+            this_tornado_id_string
+        )[0]
+
+        if len(these_early_rows) == 0:
+            continue
+
+        these_late_rows = numpy.where(
+            late_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+            this_tornado_id_string
+        )[0]
+
+        if len(these_late_rows) == 0:
+            continue
+
+        this_subrow = numpy.argmin(
+            early_tornado_to_storm_table[EVENT_TIME_COLUMN].values[
+                these_early_rows]
+        )
+        this_early_row = these_early_rows[this_subrow]
+
+        this_subrow = numpy.argmin(
+            late_tornado_to_storm_table[EVENT_TIME_COLUMN].values[
+                these_late_rows]
+        )
+        this_late_row = these_late_rows[this_subrow]
+
+        this_early_start_unix_sec = early_tornado_to_storm_table[
+            EVENT_TIME_COLUMN].values[this_early_row]
+        this_late_start_unix_sec = late_tornado_to_storm_table[
+            EVENT_TIME_COLUMN].values[this_late_row]
+
+        if this_early_start_unix_sec != this_late_start_unix_sec:
+            error_string = (
+                'Tornado "{0:s}" appears in early table with start time {1:s} '
+                'and in late table with start time {2:s}.  The two start times '
+                'should be the same.'
+            ).format(
+                this_tornado_id_string,
+                time_conversion.unix_sec_to_string(
+                    this_early_start_unix_sec, TIME_FORMAT),
+                time_conversion.unix_sec_to_string(
+                    this_late_start_unix_sec, TIME_FORMAT)
+            )
+
+            raise ValueError(error_string)
+
+        this_early_sec_id_string = early_tornado_to_storm_table[
+            NEAREST_SECONDARY_ID_COLUMN].values[this_early_row]
+
+        if this_early_sec_id_string is None:
+            early_tornado_to_storm_table.drop(
+                early_tornado_to_storm_table.index[these_early_rows],
+                axis=0, inplace=True)
+
+            continue
+
+        this_late_sec_id_string = late_tornado_to_storm_table[
+            NEAREST_SECONDARY_ID_COLUMN].values[this_late_row]
+
+        if (this_late_sec_id_string is None and
+                this_early_sec_id_string is not None):
+            late_tornado_to_storm_table.drop(
+                late_tornado_to_storm_table.index[these_late_rows],
+                axis=0, inplace=True)
+
+            continue
+
+        this_early_distance_metres = early_tornado_to_storm_table[
+            LINKAGE_DISTANCE_COLUMN].values[this_early_row]
+        this_late_distance_metres = late_tornado_to_storm_table[
+            LINKAGE_DISTANCE_COLUMN].values[this_late_row]
+
+        if this_early_distance_metres <= this_late_distance_metres:
+            late_tornado_to_storm_table.drop(
+                late_tornado_to_storm_table.index[these_late_rows],
+                axis=0, inplace=True)
+
+            continue
+
+        early_tornado_to_storm_table.drop(
+            early_tornado_to_storm_table.index[these_early_rows],
+            axis=0, inplace=True)
+
+    return early_tornado_to_storm_table, late_tornado_to_storm_table
+
+
+def _share_tornado_linkages(
+        early_tornado_to_storm_table, late_tornado_to_storm_table,
+        early_storm_object_table, late_storm_object_table,
+        max_time_before_storm_start_sec, max_time_after_storm_end_sec):
+    """Shares tornado-occurrence linkages between two periods.
+
+    :param early_tornado_to_storm_table: pandas DataFrame (created by
+        `_find_nearest_storms`) for early period.
+    :param late_tornado_to_storm_table: Same but for late period.
+    :param early_storm_object_table: pandas DataFrame (created by
+        `_read_input_storm_tracks`) for early period.
+    :param late_storm_object_table: Same but for late period.
+    :param max_time_before_storm_start_sec: See doc for `_check_pnut_args`.
+    :param max_time_after_storm_end_sec: Same.
+    :return: early_storm_to_tornadoes_table: pandas DataFrame (created by
+        `_reverse_tornado_linkages`) for early period.
+    :return: late_storm_to_tornadoes_table: Same but for late period.
+    """
+
+    # Remove redundant tornado linkages.
+    orig_early_id_strings = numpy.unique(
+        early_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values
+    )
+    orig_late_id_strings = numpy.unique(
+        late_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values
     )
 
+    early_tornado_to_storm_table, late_tornado_to_storm_table = (
+        _remove_redundant_tornado_linkages(
+            early_tornado_to_storm_table=early_tornado_to_storm_table,
+            late_tornado_to_storm_table=late_tornado_to_storm_table)
+    )
 
-def _share_linkages_between_periods(
-        early_storm_to_events_table, late_storm_to_events_table):
-    """Shares linkages between two periods.
+    # Concatenate storm-object tables.
+    num_early_storm_objects = len(early_storm_object_table.index)
+    early_storm_object_table = early_storm_object_table.assign(**{
+        EARLY_FLAG_COLUMN: numpy.full(num_early_storm_objects, True, dtype=bool)
+    })
 
-    The motivation behind this method is explained in the documentation for
-    `share_linkages_across_spc_dates`.
+    num_late_storm_objects = len(late_storm_object_table.index)
+    late_storm_object_table = late_storm_object_table.assign(**{
+        EARLY_FLAG_COLUMN: numpy.full(num_late_storm_objects, False, dtype=bool)
+    })
+
+    storm_object_table = pandas.concat(
+        [early_storm_object_table, late_storm_object_table],
+        axis=0, ignore_index=True)
+
+    storm_object_table.drop_duplicates(
+        subset=[tracking_utils.SECONDARY_ID_COLUMN,
+                tracking_utils.VALID_TIME_COLUMN],
+        keep='first', inplace=True
+    )
+
+    # Concatenate relevant parts of tornado tables.
+    these_flags = early_tornado_to_storm_table[
+        tornado_io.TORNADO_ID_COLUMN
+    ].isin(orig_late_id_strings).values
+
+    relevant_early_rows = numpy.where(these_flags)[0]
+
+    these_flags = late_tornado_to_storm_table[
+        tornado_io.TORNADO_ID_COLUMN
+    ].isin(orig_early_id_strings).values
+
+    relevant_late_rows = numpy.where(these_flags)[0]
+
+    tornado_to_storm_table = pandas.concat([
+        early_tornado_to_storm_table.iloc[relevant_early_rows],
+        late_tornado_to_storm_table.iloc[relevant_late_rows]
+    ], axis=0, ignore_index=True)
+
+    # For each tornado with some linked track segments and some unlinked
+    # segments, try linking the unlinked segments.
+    unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
+        tornado_to_storm_table[EVENT_TIME_COLUMN].values, return_inverse=True
+    )
+    num_unique_times = len(unique_times_unix_sec)
+
+    for i in range(num_unique_times):
+        event_unassigned_flags = numpy.array([
+            s is None
+            for s in tornado_to_storm_table[NEAREST_SECONDARY_ID_COLUMN].values
+        ], dtype=bool)
+
+        these_flags = numpy.logical_and(
+            event_unassigned_flags,
+            tornado_to_storm_table[TORNADO_ASSIGNED_COLUMN].values
+        )
+
+        these_rows = numpy.where(numpy.logical_and(
+            orig_to_unique_indices == i, these_flags
+        ))[0]
+
+        for j in these_rows:
+            tornado_to_storm_table = _link_tornado_to_new_storm(
+                storm_object_table=storm_object_table,
+                tornado_to_storm_table=tornado_to_storm_table, tornado_row=j,
+                max_time_before_storm_start_sec=
+                max_time_before_storm_start_sec,
+                max_time_after_storm_end_sec=max_time_after_storm_end_sec)
+
+    # Add new linkages to early and late linkage tables.
+    early_tornado_to_storm_table.iloc[relevant_early_rows] = (
+        tornado_to_storm_table.iloc[:len(relevant_early_rows)]
+    )
+    late_tornado_to_storm_table.iloc[relevant_late_rows] = (
+        tornado_to_storm_table.iloc[len(relevant_early_rows):]
+    )
+
+    # Reverse linkages (currently tornado -> storm, but we want storm ->
+    # tornadoes).
+    tornado_to_storm_table = pandas.concat(
+        [early_tornado_to_storm_table, late_tornado_to_storm_table],
+        axis=0, ignore_index=True)
+
+    storm_to_tornadoes_table = _reverse_tornado_linkages(
+        storm_object_table=storm_object_table,
+        tornado_to_storm_table=tornado_to_storm_table)
+
+    early_storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
+        storm_to_tornadoes_table[EARLY_FLAG_COLUMN] == True
+    ]
+
+    late_storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
+        storm_to_tornadoes_table[EARLY_FLAG_COLUMN] == False
+    ]
+
+    early_storm_to_tornadoes_table.drop(EARLY_FLAG_COLUMN, axis=1, inplace=True)
+    late_storm_to_tornadoes_table.drop(EARLY_FLAG_COLUMN, axis=1, inplace=True)
+    return early_storm_to_tornadoes_table, late_storm_to_tornadoes_table
+
+
+def _share_linkages_with_predecessors(early_storm_to_events_table,
+                                      late_storm_to_events_table):
+    """Shares events linked to each storm object with its predecessors.
+
+    This task is done by `_reverse_wind_linkages` and
+    `_reverse_tornado_linkages` but only for one period at a time.  Use this
+    method to share linkages between successive periods.  In other words, the
+    workflow should be as follows:
+
+    [1] Run `_reverse_wind_linkages` or `_reverse_tornado_linkages` on the early
+        period.
+    [2] Run `_reverse_wind_linkages` or `_reverse_tornado_linkages` on the late
+        period.
+    [3] Run this method to "fill the gap" between the two periods.
 
     :param early_storm_to_events_table: pandas DataFrame created by
         `_reverse_wind_linkages` or `_reverse_tornado_linkages`.
-    :param late_storm_to_events_table: Same but for a later period.
-    :return: early_storm_to_events_table: Same as input but maybe with more
+    :param late_storm_to_events_table: Same.
+    :return: early_storm_to_events_table: Same as input but maybe with new
         linkages.
-    :return: late_storm_to_events_table: Same as input but maybe with more
-        linkages.
+    :return: late_storm_to_events_table: Same as input but maybe with new
+        linkages.  (Actually this should not change, but I have not yet verified
+        that.)
     """
 
     storm_to_events_table = pandas.concat(
@@ -1601,18 +2211,10 @@ def _share_linkages_between_periods(
         axis=0, ignore_index=True
     )
 
-    columns_to_change = [
-        EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN,
-        LINKAGE_DISTANCES_COLUMN, RELATIVE_EVENT_TIMES_COLUMN,
-        MAIN_OBJECT_FLAGS_COLUMN
-    ]
-
-    if FUJITA_RATINGS_COLUMN in early_storm_to_events_table:
-        columns_to_change += [FUJITA_RATINGS_COLUMN, TORNADO_IDS_COLUMN]
+    if TORNADO_IDS_COLUMN in storm_to_events_table:
+        columns_to_change = TORNADO_LINKAGE_COLUMNS
     else:
-        columns_to_change += [
-            WIND_STATION_IDS_COLUMN, U_WINDS_COLUMN, V_WINDS_COLUMN
-        ]
+        columns_to_change = WIND_LINKAGE_COLUMNS
 
     num_early_storm_objects = len(early_storm_to_events_table.index)
     num_late_storm_objects = len(late_storm_to_events_table.index)
@@ -1628,7 +2230,7 @@ def _share_linkages_between_periods(
 
         these_predecessor_rows = temporal_tracking.find_predecessors(
             storm_object_table=storm_to_events_table, target_row=i,
-            num_seconds_back=LARGE_INTEGER, num_secondary_id_changes=1,
+            num_seconds_back=LARGE_INTEGER, max_num_sec_id_changes=1,
             return_all_on_path=True)
 
         these_event_times_unix_sec = (
@@ -1667,7 +2269,7 @@ def _share_linkages_between_periods(
                         ))
                     )
                 else:
-                    if isinstance(storm_to_events_table[this_column].values[i],
+                    if isinstance(storm_to_events_table[this_column].values[j],
                                   numpy.ndarray):
                         storm_to_events_table[this_column].values[j] = (
                             numpy.concatenate((
@@ -1719,31 +2321,32 @@ def check_event_type(event_type_string):
 
 
 def link_storms_to_winds(
-        tracking_file_names, top_wind_directory_name,
+        top_wind_directory_name, tracking_file_names,
         max_time_before_storm_start_sec=DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
         max_time_after_storm_end_sec=DEFAULT_MAX_TIME_AFTER_STORM_SEC,
-        bounding_box_padding_metres=DEFAULT_BOUNDING_BOX_PADDING_METRES,
-        interp_time_resolution_sec=DEFAULT_INTERP_TIME_RES_FOR_WIND_SEC,
-        max_link_distance_metres=DEFAULT_MAX_DISTANCE_FOR_WIND_METRES):
-    """Links each storm cell to zero or more wind observations.
+        bounding_box_padding_metres=DEFAULT_BBOX_PADDING_METRES,
+        storm_interp_time_interval_sec=10,
+        max_link_distance_metres=DEFAULT_MAX_WIND_DISTANCE_METRES):
+    """Links each storm to zero or more wind observations.
 
-    :param tracking_file_names: See doc for `_check_input_args`.
     :param top_wind_directory_name: See doc for `_read_input_wind_observations`.
-    :param max_time_before_storm_start_sec: See doc for `_check_input_args`.
+    :param tracking_file_names: See doc for `_check_input_args`.
+    :param max_time_before_storm_start_sec: Same.
     :param max_time_after_storm_end_sec: Same.
     :param bounding_box_padding_metres: Same.
-    :param interp_time_resolution_sec: Same.
+    :param storm_interp_time_interval_sec: Same.
     :param max_link_distance_metres: Same.
     :return: storm_to_winds_table: pandas DataFrame created by
         `_reverse_wind_linkages`.
+    :return: metadata_dict: Dictionary created by `_check_input_args`.
     """
 
-    _check_input_args(
+    metadata_dict = _check_input_args(
         tracking_file_names=tracking_file_names,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec,
         bounding_box_padding_metres=bounding_box_padding_metres,
-        interp_time_resolution_sec=interp_time_resolution_sec,
+        storm_interp_time_interval_sec=storm_interp_time_interval_sec,
         max_link_distance_metres=max_link_distance_metres)
 
     storm_object_table = _read_input_storm_tracks(tracking_file_names)
@@ -1776,7 +2379,8 @@ def link_storms_to_winds(
 
         wind_to_storm_table = wind_table.assign(**{
             NEAREST_SECONDARY_ID_COLUMN: [None] * num_wind_obs,
-            LINKAGE_DISTANCE_COLUMN: numpy.full(num_wind_obs, numpy.nan)
+            LINKAGE_DISTANCE_COLUMN: numpy.full(num_wind_obs, numpy.nan),
+            NEAREST_TIME_COLUMN: numpy.full(num_wind_obs, -1, dtype=int)
         })
     else:
         global_centroid_lat_deg, global_centroid_lng_deg = (
@@ -1812,40 +2416,57 @@ def link_storms_to_winds(
             storm_object_table=storm_object_table, event_table=wind_table,
             max_time_before_storm_start_sec=max_time_before_storm_start_sec,
             max_time_after_storm_end_sec=max_time_after_storm_end_sec,
-            interp_time_resolution_sec=interp_time_resolution_sec,
-            max_link_distance_metres=max_link_distance_metres)
+            interp_time_interval_sec=storm_interp_time_interval_sec,
+            max_link_distance_metres=max_link_distance_metres,
+            event_type_string=WIND_EVENT_STRING)
         print(SEPARATOR_STRING)
 
-    return _reverse_wind_linkages(storm_object_table=storm_object_table,
-                                  wind_to_storm_table=wind_to_storm_table)
+    storm_to_winds_table = _reverse_wind_linkages(
+        storm_object_table=storm_object_table,
+        wind_to_storm_table=wind_to_storm_table)
+
+    return storm_to_winds_table, metadata_dict
 
 
 def link_storms_to_tornadoes(
-        tracking_file_names, tornado_directory_name,
+        tornado_directory_name, tracking_file_names,
         max_time_before_storm_start_sec=DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
         max_time_after_storm_end_sec=DEFAULT_MAX_TIME_AFTER_STORM_SEC,
-        bounding_box_padding_metres=DEFAULT_BOUNDING_BOX_PADDING_METRES,
-        interp_time_resolution_sec=DEFAULT_INTERP_TIME_RES_FOR_TORNADO_SEC,
-        max_link_distance_metres=DEFAULT_MAX_DISTANCE_FOR_TORNADO_METRES):
-    """Links each storm cell to zero or more tornadoes.
+        bounding_box_padding_metres=DEFAULT_BBOX_PADDING_METRES,
+        storm_interp_time_interval_sec=1,
+        max_link_distance_metres=DEFAULT_MAX_TORNADO_DISTANCE_METRES,
+        genesis_only=True, tornado_interp_time_interval_sec=60):
+    """Links each storm to zero or more tornadoes.
 
-    :param tracking_file_names: See doc for `_check_input_args`.
     :param tornado_directory_name: See doc for `_read_input_tornado_reports`.
-    :param max_time_before_storm_start_sec: See doc for `_check_input_args`.
+    :param tracking_file_names: See doc for `_check_input_args`.
+    :param max_time_before_storm_start_sec: Same.
     :param max_time_after_storm_end_sec: Same.
     :param bounding_box_padding_metres: Same.
-    :param interp_time_resolution_sec: Same.
+    :param storm_interp_time_interval_sec: Same.
     :param max_link_distance_metres: Same.
+    :param genesis_only: Boolean flag.  If True, will link only tornadogenesis
+        events (the start point of each tornado).  If False, will link all
+        tornado occurrences (K-second track segments, where
+        K = `tornado_interp_time_interval_sec`).
+    :param tornado_interp_time_interval_sec:
+        [used only if `genesis_only` == False]
+        Interpolation time used to create tornado-track segments.  For each
+        tornado, will interpolate location between start and end time at this
+        interval.
     :return: storm_to_tornadoes_table: pandas DataFrame created by
         `_reverse_tornado_linkages`.
+    :return: tornado_to_storm_table: pandas DataFrame created by
+        `_find_nearest_storms`.
+    :return: metadata_dict: Dictionary created by `_check_input_args`.
     """
 
-    _check_input_args(
+    metadata_dict = _check_input_args(
         tracking_file_names=tracking_file_names,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec,
         bounding_box_padding_metres=bounding_box_padding_metres,
-        interp_time_resolution_sec=interp_time_resolution_sec,
+        storm_interp_time_interval_sec=storm_interp_time_interval_sec,
         max_link_distance_metres=max_link_distance_metres)
 
     storm_object_table = _read_input_storm_tracks(tracking_file_names)
@@ -1870,7 +2491,10 @@ def link_storms_to_tornadoes(
         input_directory_name=tornado_directory_name,
         storm_times_unix_sec=these_times_unix_sec,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
-        max_time_after_storm_end_sec=max_time_after_storm_end_sec)
+        max_time_after_storm_end_sec=max_time_after_storm_end_sec,
+        genesis_only=genesis_only,
+        interp_time_interval_sec=tornado_interp_time_interval_sec)
+
     print(SEPARATOR_STRING)
 
     if num_storm_objects == 0:
@@ -1878,7 +2502,8 @@ def link_storms_to_tornadoes(
 
         tornado_to_storm_table = tornado_table.assign(**{
             NEAREST_SECONDARY_ID_COLUMN: [None] * num_tornadoes,
-            LINKAGE_DISTANCE_COLUMN: numpy.full(num_tornadoes, numpy.nan)
+            LINKAGE_DISTANCE_COLUMN: numpy.full(num_tornadoes, numpy.nan),
+            NEAREST_TIME_COLUMN: numpy.full(num_tornadoes, -1, dtype=int)
         })
     else:
         global_centroid_lat_deg, global_centroid_lng_deg = (
@@ -1910,40 +2535,45 @@ def link_storms_to_tornadoes(
             event_table=tornado_table, x_limits_metres=tornado_x_limits_metres,
             y_limits_metres=tornado_y_limits_metres)
 
+        event_type_string = (
+            TORNADOGENESIS_EVENT_STRING if genesis_only
+            else TORNADO_EVENT_STRING
+        )
+
         tornado_to_storm_table = _find_nearest_storms(
             storm_object_table=storm_object_table, event_table=tornado_table,
             max_time_before_storm_start_sec=max_time_before_storm_start_sec,
             max_time_after_storm_end_sec=max_time_after_storm_end_sec,
-            interp_time_resolution_sec=interp_time_resolution_sec,
-            max_link_distance_metres=max_link_distance_metres)
+            interp_time_interval_sec=storm_interp_time_interval_sec,
+            max_link_distance_metres=max_link_distance_metres,
+            event_type_string=event_type_string)
         print(SEPARATOR_STRING)
 
-    return _reverse_tornado_linkages(
+    storm_to_tornadoes_table = _reverse_tornado_linkages(
         storm_object_table=storm_object_table,
         tornado_to_storm_table=tornado_to_storm_table)
 
+    return storm_to_tornadoes_table, tornado_to_storm_table, metadata_dict
 
-def share_linkages_across_spc_dates(
-        top_input_dir_name, first_spc_date_string, last_spc_date_string,
-        top_output_dir_name, event_type_string):
+
+def share_linkages(
+        top_input_dir_name, top_output_dir_name, first_spc_date_string,
+        last_spc_date_string, event_type_string):
     """Shares linkages across SPC dates.
 
-    This is important because linkage is usually done for one SPC date at a
-    time, using either `link_storms_to_winds` or `link_storms_to_tornadoes`.
-    These methods have no way of sharing info with the next or previous SPC
-    dates.  Thus, if event E is linked to storm cell S on day D, the files for
-    days D - 1 and D + 1 will not contain this linkage, even if storm cell S
-    exists on day D - 1 or D + 1.
+    This method stitches together results from `link_storms_to_winds` and
+    `link_storms_to_tornadoes`, which allows said methods to be run for one day
+    at a time, which allows massive parallelization.
 
     :param top_input_dir_name: Name of top-level input directory.  Files therein
         will be found by `find_linkage_file` and read by `read_linkage_file`.
-    :param first_spc_date_string: First SPC date (format "yyyymmdd").  Linkages
-        will be shared for all dates in the period `first_spc_date_string`...
-        `last_spc_date_string`.
+    :param top_output_dir_name: Name of top-level input directory.  Stitched
+        files will be written here by `write_linkage_file`, to exact locations
+        determined by `find_linkage_file`.
+    :param first_spc_date_string: First SPC date (format "yyyymmdd").  Results
+        will be stitched across SPC dates
+        `first_spc_date_string`...`last_spc_date_string`.
     :param last_spc_date_string: See above.
-    :param top_output_dir_name: Name of top-level output directory.  Files will
-        be written by `write_linkage_file` to locations therein, determined by
-        `find_linkage_file`.
     :param event_type_string: Event type (must be accepted by
         `check_event_type`).
     """
@@ -1953,71 +2583,80 @@ def share_linkages_across_spc_dates(
         last_spc_date_string=last_spc_date_string)
 
     num_spc_dates = len(spc_date_strings)
-    orig_linkage_file_names = [''] * num_spc_dates
+    old_linkage_file_names = [''] * num_spc_dates
     new_linkage_file_names = [''] * num_spc_dates
 
     for i in range(num_spc_dates):
-        orig_linkage_file_names[i] = find_linkage_file(
+        old_linkage_file_names[i] = find_linkage_file(
             top_directory_name=top_input_dir_name,
             event_type_string=event_type_string, raise_error_if_missing=True,
-            spc_date_string=spc_date_strings[i])
+            spc_date_string=spc_date_strings[i]
+        )
 
         new_linkage_file_names[i] = find_linkage_file(
             top_directory_name=top_output_dir_name,
             event_type_string=event_type_string, raise_error_if_missing=False,
-            spc_date_string=spc_date_strings[i])
+            spc_date_string=spc_date_strings[i]
+        )
 
     if num_spc_dates == 1:
         warning_string = (
-            'There is only one SPC date ("{0:s}"), so the method '
-            '`share_linkages_across_spc_dates` has nothing to do.'
+            'There is only one SPC date ("{0:s}"), so cannot share linkages '
+            'across SPC dates.'
         ).format(spc_date_strings[0])
 
         warnings.warn(warning_string)
 
-        if orig_linkage_file_names[0] == new_linkage_file_names[0]:
+        if top_input_dir_name == top_output_dir_name:
             return
 
         print('Copying file from "{0:s}" to "{1:s}"...'.format(
-            orig_linkage_file_names[0], new_linkage_file_names[0]
+            old_linkage_file_names[0], new_linkage_file_names[0]
         ))
 
         file_system_utils.mkdir_recursive_if_necessary(
             file_name=new_linkage_file_names[0]
         )
 
-        shutil.copyfile(orig_linkage_file_names[0], new_linkage_file_names[0])
+        shutil.copyfile(old_linkage_file_names[0], new_linkage_file_names[0])
         return
 
+    metadata_dict = None
     storm_to_events_table_by_date = [pandas.DataFrame()] * num_spc_dates
+    tornado_to_storm_table_by_date = [pandas.DataFrame()] * num_spc_dates
 
-    for i in range(num_spc_dates + 1):
-        if i == num_spc_dates:
+    for i in range(num_spc_dates):
+        if i == num_spc_dates - 1:
             for j in [num_spc_dates - 2, num_spc_dates - 1]:
                 print('Writing new linkages to: "{0:s}"...'.format(
                     new_linkage_file_names[j]
                 ))
 
                 write_linkage_file(
+                    pickle_file_name=new_linkage_file_names[j],
                     storm_to_events_table=storm_to_events_table_by_date[j],
-                    pickle_file_name=new_linkage_file_names[j]
+                    metadata_dict=metadata_dict,
+                    tornado_to_storm_table=tornado_to_storm_table_by_date[j]
                 )
 
             break
 
-        if i >= 2:
+        if i >= 1:
             print('Writing new linkages to: "{0:s}"...'.format(
-                new_linkage_file_names[i - 2]
+                new_linkage_file_names[i - 1]
             ))
 
             write_linkage_file(
-                storm_to_events_table=storm_to_events_table_by_date[i - 2],
-                pickle_file_name=new_linkage_file_names[i - 2]
+                pickle_file_name=new_linkage_file_names[i - 1],
+                storm_to_events_table=storm_to_events_table_by_date[i - 1],
+                metadata_dict=metadata_dict,
+                tornado_to_storm_table=tornado_to_storm_table_by_date[i - 1]
             )
 
             storm_to_events_table_by_date[i - 2] = pandas.DataFrame()
 
-        for j in [i - 1, i, i + 1]:
+        # for j in [i - 1, i, i + 1]:
+        for j in [i, i + 1]:
             if j < 0 or j >= num_spc_dates:
                 continue
 
@@ -2025,36 +2664,50 @@ def share_linkages_across_spc_dates(
                 continue
 
             print('Reading original linkages from: "{0:s}"...'.format(
-                orig_linkage_file_names[j]
+                old_linkage_file_names[j]
             ))
 
-            storm_to_events_table_by_date[j] = read_linkage_file(
-                orig_linkage_file_names[j]
-            )
+            (storm_to_events_table_by_date[j], metadata_dict,
+             tornado_to_storm_table_by_date[j]
+            ) = read_linkage_file(old_linkage_file_names[j])
 
-        if i != num_spc_dates - 1:
+        if event_type_string == TORNADO_EVENT_STRING:
             (storm_to_events_table_by_date[i],
              storm_to_events_table_by_date[i + 1]
-            ) = _share_linkages_between_periods(
-                early_storm_to_events_table=storm_to_events_table_by_date[i],
-                late_storm_to_events_table=storm_to_events_table_by_date[i + 1]
+            ) = _share_tornado_linkages(
+                early_tornado_to_storm_table=tornado_to_storm_table_by_date[i],
+                late_tornado_to_storm_table=
+                tornado_to_storm_table_by_date[i + 1],
+                early_storm_object_table=storm_to_events_table_by_date[i],
+                late_storm_object_table=storm_to_events_table_by_date[i + 1],
+                max_time_before_storm_start_sec=metadata_dict[
+                    MAX_TIME_BEFORE_START_KEY],
+                max_time_after_storm_end_sec=metadata_dict[
+                    MAX_TIME_AFTER_END_KEY]
             )
 
-            print(SEPARATOR_STRING)
+        (storm_to_events_table_by_date[i],
+         storm_to_events_table_by_date[i + 1]
+        ) = _share_linkages_with_predecessors(
+            early_storm_to_events_table=storm_to_events_table_by_date[i],
+            late_storm_to_events_table=storm_to_events_table_by_date[i + 1]
+        )
+
+        print(SEPARATOR_STRING)
 
 
-def find_linkage_file(
-        top_directory_name, event_type_string, spc_date_string,
-        raise_error_if_missing=True, unix_time_sec=None):
+def find_linkage_file(top_directory_name, event_type_string, spc_date_string,
+                      unix_time_sec=None, raise_error_if_missing=True):
     """Finds linkage file for either one time or one SPC date.
 
     :param top_directory_name: Name of top-level directory with linkage files.
     :param event_type_string: Event type (must be accepted by
         `check_event_type`).
     :param spc_date_string: SPC date (format "yyyymmdd").
+    :param unix_time_sec: Valid time.  If this is None, will look for one-day
+        file rather than one-time-step file.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
-    :param unix_time_sec: Valid time.
     :return: linkage_file_name: Path to linkage file.  If file is missing and
         `raise_error_if_missing = False`, this will be the *expected* path.
     :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
@@ -2065,17 +2718,17 @@ def find_linkage_file(
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     if event_type_string == WIND_EVENT_STRING:
-        pathless_file_name_prefix = 'storm_to_winds'
+        file_name_prefix = 'storm_to_winds'
     elif event_type_string == TORNADOGENESIS_EVENT_STRING:
-        pathless_file_name_prefix = 'storm_to_tornadogenesis'
+        file_name_prefix = 'storm_to_tornadogenesis'
     else:
-        pathless_file_name_prefix = 'storm_to_tornadoes'
+        file_name_prefix = 'storm_to_tornadoes'
 
     if unix_time_sec is None:
         time_conversion.spc_date_string_to_unix_sec(spc_date_string)
 
         linkage_file_name = '{0:s}/{1:s}/{2:s}_{3:s}.p'.format(
-            top_directory_name, spc_date_string[:4], pathless_file_name_prefix,
+            top_directory_name, spc_date_string[:4], file_name_prefix,
             spc_date_string
         )
     else:
@@ -2085,7 +2738,7 @@ def find_linkage_file(
 
         linkage_file_name = '{0:s}/{1:s}/{2:s}/{3:s}_{4:s}.p'.format(
             top_directory_name, spc_date_string[:4], spc_date_string,
-            pathless_file_name_prefix, valid_time_string
+            file_name_prefix, valid_time_string
         )
 
     if raise_error_if_missing and not os.path.isfile(linkage_file_name):
@@ -2096,13 +2749,28 @@ def find_linkage_file(
     return linkage_file_name
 
 
-def write_linkage_file(storm_to_events_table, pickle_file_name):
+def write_linkage_file(pickle_file_name, storm_to_events_table, metadata_dict,
+                       tornado_to_storm_table=None):
     """Writes linkages to Pickle file.
 
+    The input args `tornado_to_storm_table` and `storm_object_table` are used
+        only if the event type is tornado occurrence (not genesis).  Also, even
+        if the event type is tornado occurrence, these args can be left empty.
+
+    :param pickle_file_name: Path to output file.
     :param storm_to_events_table: pandas DataFrame created by
         `_reverse_wind_linkages` or `_reverse_tornado_linkages`.
-    :param pickle_file_name: Path to output file.
+    :param metadata_dict: Dictionary created by `_check_input_args`.
+    :param tornado_to_storm_table: pandas DataFrame created by
+        `_find_nearest_storms`.  This may be used in the future to share
+        linkages across SPC dates (see method
+        `share_linkages_across_spc_dates`).
     """
+
+    # :param storm_object_table: pandas DataFrame with storm-tracking data (see
+    # doc for `storm_tracking_io.write_file`).  This may be used in the future
+    # to share linkages across SPC dates (see method
+    # `share_linkages_across_spc_dates`).
 
     try:
         error_checking.assert_columns_in_dataframe(
@@ -2115,6 +2783,8 @@ def write_linkage_file(storm_to_events_table, pickle_file_name):
 
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(storm_to_events_table, pickle_file_handle)
+    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle.dump(tornado_to_storm_table, pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -2122,19 +2792,45 @@ def read_linkage_file(pickle_file_name):
     """Reads linkages from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: storm_to_events_table: pandas DataFrame created by
-        `_reverse_wind_linkages` or `_reverse_tornado_linkages`.
+    :return: storm_to_events_table: See doc for `write_linkage_file`.
+    :return: metadata_dict: Same.
+    :return: tornado_to_storm_table: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     storm_to_events_table = pickle.load(pickle_file_handle)
+
+    try:
+        metadata_dict = pickle.load(pickle_file_handle)
+        tornado_to_storm_table = pickle.load(pickle_file_handle)
+    except EOFError:
+        metadata_dict = None
+        tornado_to_storm_table = None
+
     pickle_file_handle.close()
 
     try:
         error_checking.assert_columns_in_dataframe(
             storm_to_events_table, REQUIRED_WIND_LINKAGE_COLUMNS)
+
+        tornado = False
     except:
         error_checking.assert_columns_in_dataframe(
             storm_to_events_table, REQUIRED_TORNADO_LINKAGE_COLUMNS)
 
-    return storm_to_events_table
+        tornado = True
+
+    max_link_distance_metres = (
+        DEFAULT_MAX_TORNADO_DISTANCE_METRES if tornado
+        else DEFAULT_MAX_WIND_DISTANCE_METRES
+    )
+
+    metadata_dict = {
+        MAX_TIME_BEFORE_START_KEY: DEFAULT_MAX_TIME_BEFORE_STORM_SEC,
+        MAX_TIME_AFTER_END_KEY: DEFAULT_MAX_TIME_AFTER_STORM_SEC,
+        STORM_INTERP_TIME_KEY: 1 if tornado else 10,
+        BBOX_PADDING_KEY: DEFAULT_BBOX_PADDING_METRES,
+        MAX_LINK_DISTANCE_KEY: max_link_distance_metres
+    }
+
+    return storm_to_events_table, metadata_dict, tornado_to_storm_table

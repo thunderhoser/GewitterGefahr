@@ -12,6 +12,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 TORNADO_DIR_ARG_NAME = 'input_tornado_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 TRACKING_SCALE_ARG_NAME = 'tracking_scale_metres2'
+GENESIS_ONLY_ARG_NAME = 'genesis_only'
 FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -29,6 +30,10 @@ TRACKING_DIR_HELP_STRING = (
 TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum object area).  Used to find files in `{0:s}`.'
 ).format(TRACKING_DIR_ARG_NAME)
+
+GENESIS_ONLY_HELP_STRING = (
+    'Boolean flag.  If 1, will link only tornadogenesis events to storms.  If '
+    '0, will link all points of tornado occurrence to storms.')
 
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  This script will operate independently on'
@@ -58,6 +63,10 @@ INPUT_ARG_PARSER.add_argument(
     help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + GENESIS_ONLY_ARG_NAME, type=int, required=False, default=1,
+    help=GENESIS_ONLY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_ARG_NAME, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
 
@@ -71,39 +80,51 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _link_tornadoes_one_period(
-        tracking_file_names, tornado_dir_name, top_output_dir_name):
+        tracking_file_names, tornado_dir_name, genesis_only,
+        top_output_dir_name):
     """Links tornadoes to storms for one continuous period.
 
     :param tracking_file_names: 1-D list of paths to tracking files.  Each will
         be read by `storm_tracking_io.read_processed_file`.
     :param tornado_dir_name: See documentation at top of file.
+    :param genesis_only: Same.
     :param top_output_dir_name: Same.
     """
 
-    storm_to_tornadoes_table = linkage.link_storms_to_tornadoes(
-        tracking_file_names=tracking_file_names,
-        tornado_directory_name=tornado_dir_name)
+    storm_to_tornadoes_table, tornado_to_storm_table, metadata_dict = (
+        linkage.link_storms_to_tornadoes(
+            tracking_file_names=tracking_file_names,
+            tornado_directory_name=tornado_dir_name, genesis_only=genesis_only)
+    )
     print(SEPARATOR_STRING)
 
     spc_date_string = time_conversion.time_to_spc_date_string(
         tracking_io.file_name_to_time(tracking_file_names[0])
     )
 
+    event_type_string = (
+        linkage.TORNADOGENESIS_EVENT_STRING if genesis_only
+        else linkage.TORNADO_EVENT_STRING
+    )
+
     output_file_name = linkage.find_linkage_file(
         top_directory_name=top_output_dir_name,
-        event_type_string=linkage.TORNADO_EVENT_STRING,
+        event_type_string=event_type_string,
         spc_date_string=spc_date_string, raise_error_if_missing=False)
 
     print('Writing linkages to: "{0:s}"...'.format(output_file_name))
 
     linkage.write_linkage_file(
+        pickle_file_name=output_file_name,
         storm_to_events_table=storm_to_tornadoes_table,
-        pickle_file_name=output_file_name)
+        metadata_dict=metadata_dict,
+        tornado_to_storm_table=tornado_to_storm_table)
     print(SEPARATOR_STRING)
 
 
 def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
-         first_spc_date_string, last_spc_date_string, top_output_dir_name):
+         genesis_only, first_spc_date_string, last_spc_date_string,
+         top_output_dir_name):
     """Runs `linkage.link_tornadoes_to_storms`.
 
     This is effectively the main method.
@@ -111,6 +132,7 @@ def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
     :param tornado_dir_name: See documentation at top of file.
     :param top_tracking_dir_name: Same.
     :param tracking_scale_metres2: Same.
+    :param genesis_only: Same.
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
     :param top_output_dir_name: Same.
@@ -135,6 +157,7 @@ def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
                 _link_tornadoes_one_period(
                     tracking_file_names=tracking_file_names,
                     tornado_dir_name=tornado_dir_name,
+                    genesis_only=genesis_only,
                     top_output_dir_name=top_output_dir_name)
 
                 print(SEPARATOR_STRING)
@@ -147,6 +170,7 @@ def _run(tornado_dir_name, top_tracking_dir_name, tracking_scale_metres2,
     _link_tornadoes_one_period(
         tracking_file_names=tracking_file_names,
         tornado_dir_name=tornado_dir_name,
+        genesis_only=genesis_only,
         top_output_dir_name=top_output_dir_name)
 
 
@@ -158,6 +182,7 @@ if __name__ == '__main__':
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
         tracking_scale_metres2=getattr(
             INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME),
+        genesis_only=bool(getattr(INPUT_ARG_OBJECT, GENESIS_ONLY_ARG_NAME)),
         first_spc_date_string=getattr(
             INPUT_ARG_OBJECT, FIRST_SPC_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME),

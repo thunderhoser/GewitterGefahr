@@ -799,8 +799,7 @@ def _check_target_vars(target_names):
 
     if len(numpy.unique(event_type_strings)) != 1:
         error_string = (
-            'Target variables (listed below) have different event types (wind '
-            'vs. tornado).\n{0:s}'
+            'Target variables (listed below) have different event types.\n{0:s}'
         ).format(str(target_names))
 
         raise ValueError(error_string)

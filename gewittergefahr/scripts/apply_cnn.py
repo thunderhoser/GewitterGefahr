@@ -5,6 +5,7 @@ import argparse
 import numpy
 import keras.backend as K
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import linkage
 from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import testing_io
@@ -176,12 +177,20 @@ def _run(model_file_name, example_file_name, first_time_string,
         training_option_dict[trainval_io.TARGET_NAME_KEY]
     )
 
+    event_type_string = target_param_dict[target_val_utils.EVENT_TYPE_KEY]
+    if event_type_string == linkage.TORNADO_EVENT_STRING:
+        genesis_only = False
+    elif event_type_string == linkage.TORNADOGENESIS_EVENT_STRING:
+        genesis_only = True
+    else:
+        genesis_only = None
+
     target_name = target_val_utils.target_params_to_name(
         min_lead_time_sec=target_param_dict[target_val_utils.MIN_LEAD_TIME_KEY],
         max_lead_time_sec=target_param_dict[target_val_utils.MAX_LEAD_TIME_KEY],
         min_link_distance_metres=target_param_dict[
             target_val_utils.MIN_LINKAGE_DISTANCE_KEY],
-        max_link_distance_metres=10000.
+        max_link_distance_metres=10000., genesis_only=genesis_only
     )
 
     output_file_name = prediction_io.find_file(
