@@ -396,6 +396,12 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
     tornado_table = pandas.concat(
         list_of_tornado_tables, axis=0, ignore_index=True)
 
+    tornado_table = tornado_table.assign(**{
+        SHORT_TORNADO_ID_COLUMN: _long_to_short_tornado_ids(
+            tornado_table[tornado_io.TORNADO_ID_COLUMN].values
+        )
+    })
+
     if min_plot_latitude_deg is None:
         min_plot_latitude_deg = numpy.min(
             storm_to_tornadoes_table[
