@@ -315,6 +315,8 @@ def subset_tornadoes(
     :return: tornado_table: Same as input but maybe with fewer rows.
     """
 
+    # TODO(thunderhoser): Needs unit tests.
+
     if min_time_unix_sec is not None or max_time_unix_sec is not None:
         error_checking.assert_is_integer(min_time_unix_sec)
         error_checking.assert_is_integer(max_time_unix_sec)

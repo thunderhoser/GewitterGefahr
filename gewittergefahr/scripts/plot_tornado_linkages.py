@@ -349,6 +349,13 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
     tornado_table = pandas.concat(
         list_of_tornado_tables, axis=0, ignore_index=True)
 
+    column_dict_old_to_new = {
+        linkage.EVENT_TIME_COLUMN: tornado_io.TIME_COLUMN,
+        linkage.EVENT_LATITUDE_COLUMN: tornado_io.LATITUDE_COLUMN,
+        linkage.EVENT_LONGITUDE_COLUMN: tornado_io.LONGITUDE_COLUMN
+    }
+
+    tornado_table.rename(columns=column_dict_old_to_new, inplace=True)
     tornado_table = tornado_io.segments_to_tornadoes(tornado_table)
 
     tornado_table = tornado_table.assign(**{
