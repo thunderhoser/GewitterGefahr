@@ -281,9 +281,10 @@ def _plot_linkages_one_storm_object(
     if len(good_indices) == 0:
         return
 
-    linked_id_strings = storm_to_tornadoes_table[
-        linkage.TORNADO_IDS_COLUMN
-    ].values[i][good_indices]
+    linked_id_strings = [
+        storm_to_tornadoes_table[linkage.TORNADO_IDS_COLUMN].values[i][k]
+        for k in good_indices
+    ]
 
     linked_short_id_strings = []
 
