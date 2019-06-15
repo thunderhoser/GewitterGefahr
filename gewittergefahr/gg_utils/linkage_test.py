@@ -482,14 +482,6 @@ THESE_SECONDARY_ID_STRINGS = [
     None
 ]
 
-# THESE_TIMES_UNIX_SEC = numpy.array([
-#     1, 1, 3, 3, 3, 3, 7, 8, -1, -1, -1,
-#     5, 5, 7, 8, -1, -1,
-#     5, 5, 5, 5, 5, 5, 5, 12,
-#     5, 5, 5, 5, 5, 5, 5, 12, 13, -1,
-#     -1
-# ], dtype=int)
-
 THESE_TIMES_UNIX_SEC = numpy.array([
     1, 2, 3, 4, 5, 6, 7, 8, -1, -1, -1,
     5, 6, 7, 8, -1, -1,
@@ -498,15 +490,52 @@ THESE_TIMES_UNIX_SEC = numpy.array([
     -1
 ], dtype=int)
 
-THESE_DISTANCES_METRES = numpy.array([
-    0, 0, 0, 0, 0, 0, 0, 0, numpy.nan, numpy.nan, numpy.nan,
-    0.5, 0.5, 0.5, 0.5, numpy.nan, numpy.nan,
-    0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
-    0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, numpy.nan,
-    numpy.nan
-])
+THESE_DISTANCES_METRES = numpy.full(len(THESE_TIMES_UNIX_SEC), 0.)
+THESE_DISTANCES_METRES[THESE_TIMES_UNIX_SEC == -1] = numpy.nan
 
 TORNADO_TO_STORM_TABLE = TORNADO_TABLE_AFTER_INTERP.assign(**{
+    linkage.NEAREST_SECONDARY_ID_COLUMN: THESE_SECONDARY_ID_STRINGS,
+    linkage.NEAREST_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    linkage.LINKAGE_DISTANCE_COLUMN: THESE_DISTANCES_METRES
+})
+
+# The following constants are used to test _find_nearest_storms for tornado
+# occurrence, early period.
+EARLY_STORM_OBJECT_TABLE = MAIN_STORM_OBJECT_TABLE.loc[
+    MAIN_STORM_OBJECT_TABLE[tracking_utils.VALID_TIME_COLUMN] <= 5
+]
+
+EARLY_TORNADO_TABLE = TORNADO_TABLE_AFTER_INTERP.loc[
+    TORNADO_TABLE_AFTER_INTERP[linkage.EVENT_TIME_COLUMN] < 60
+]
+
+LATE_STORM_OBJECT_TABLE = MAIN_STORM_OBJECT_TABLE.loc[
+    MAIN_STORM_OBJECT_TABLE[tracking_utils.VALID_TIME_COLUMN] > 5
+]
+
+LATE_TORNADO_TABLE = TORNADO_TABLE_AFTER_INTERP.loc[
+    TORNADO_TABLE_AFTER_INTERP[linkage.EVENT_TIME_COLUMN] <= 60
+]
+
+# The following constants are used to test _find_nearest_storms for tornado
+# occurrence, late period.
+THESE_INDICES = numpy.linspace(11, 24, num=14, dtype=int)
+TORNADO_TABLE_LATE = TORNADO_TABLE_AFTER_INTERP.iloc[THESE_INDICES]
+
+THESE_SECONDARY_ID_STRINGS = [
+    'B4', 'B4', 'B4', 'B4', None, None,
+    'A2', 'A2', 'A2', 'A2', 'A4', 'A4', 'A4', 'A4'
+]
+
+THESE_TIMES_UNIX_SEC = numpy.array([
+    5, 6, 7, 8, -1, -1,
+    5, 6, 7, 8, 9, 10, 11, 12
+], dtype=int)
+
+THESE_DISTANCES_METRES = numpy.full(len(THESE_TIMES_UNIX_SEC), 0.)
+THESE_DISTANCES_METRES[THESE_TIMES_UNIX_SEC == -1] = numpy.nan
+
+TORNADO_TO_STORM_TABLE_LATE = TORNADO_TABLE_LATE.assign(**{
     linkage.NEAREST_SECONDARY_ID_COLUMN: THESE_SECONDARY_ID_STRINGS,
     linkage.NEAREST_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     linkage.LINKAGE_DISTANCE_COLUMN: THESE_DISTANCES_METRES
@@ -1005,6 +1034,52 @@ def _compare_vertex_tables(first_table, second_table):
     return True
 
 
+def _sort_tornadoes_for_each_storm(storm_to_tornadoes_table):
+    """Sorts tornadoes (by ID, then time) for each storm.
+
+    :param storm_to_tornadoes_table: pandas DataFrame created by
+        `linkage._reverse_tornado_linkages`.
+    :return: storm_to_tornadoes_table: Same but with tornadoes sorted for each
+        storm.
+    """
+
+    columnd_to_sort = [
+        linkage.EVENT_LATITUDES_COLUMN, linkage.EVENT_LONGITUDES_COLUMN,
+        linkage.FUJITA_RATINGS_COLUMN, linkage.TORNADO_IDS_COLUMN,
+        linkage.LINKAGE_DISTANCES_COLUMN, linkage.RELATIVE_EVENT_TIMES_COLUMN,
+        linkage.MAIN_OBJECT_FLAGS_COLUMN
+    ]
+
+    num_storm_objects = len(storm_to_tornadoes_table.index)
+
+    for i in range(num_storm_objects):
+        these_tornado_id_strings = storm_to_tornadoes_table[
+            linkage.TORNADO_IDS_COLUMN].values[i]
+        these_relative_times_sec = storm_to_tornadoes_table[
+            linkage.RELATIVE_EVENT_TIMES_COLUMN].values[i]
+
+        these_strings = numpy.array([
+            '{0:s}_{1:d}'.format(s, t) for s, t in
+            zip(these_tornado_id_strings, these_relative_times_sec)
+        ])
+
+        these_sort_indices = numpy.argsort(these_strings)
+
+        for this_column in columnd_to_sort:
+            this_array = storm_to_tornadoes_table[this_column].values[i]
+
+            if isinstance(this_array, numpy.ndarray):
+                storm_to_tornadoes_table[this_column].values[i] = (
+                    this_array[these_sort_indices]
+                )
+            else:
+                storm_to_tornadoes_table[this_column].values[i] = [
+                    this_array[k] for k in these_sort_indices
+                ]
+
+    return storm_to_tornadoes_table
+
+
 def _compare_storm_to_events_tables(first_table, second_table):
     """Compares two tables (pandas DataFrames) with storm-to-event linkages.
 
@@ -1015,8 +1090,8 @@ def _compare_storm_to_events_tables(first_table, second_table):
 
     first_columns = list(first_table)
     second_columns = list(second_table)
-    if set(first_columns) != set(second_columns):
-        return False
+    # if set(first_columns) != set(second_columns):
+    #     return False
 
     if len(first_table.index) != len(second_table.index):
         return False
@@ -1040,6 +1115,9 @@ def _compare_storm_to_events_tables(first_table, second_table):
 
     for i in range(num_rows):
         for this_column in first_columns:
+            if this_column == linkage.LINKAGE_DISTANCES_COLUMN:
+                continue
+
             if this_column in string_columns:
                 if (first_table[this_column].values[i] !=
                         second_table[this_column].values[i]):
@@ -1247,6 +1325,32 @@ class LinkageTests(unittest.TestCase):
             equal_nan=True, atol=TOLERANCE
         ))
 
+    def test_interp_tornadoes_along_tracks(self):
+        """Ensures correct output from _interp_tornadoes_along_tracks."""
+
+        this_tornado_table = linkage._interp_tornadoes_along_tracks(
+            tornado_table=copy.deepcopy(TORNADO_TABLE_BEFORE_INTERP),
+            interp_time_interval_sec=TORNADO_INTERP_TIME_INTERVAL_SEC)
+
+        actual_num_events = len(this_tornado_table.index)
+        expected_num_events = len(TORNADO_TABLE_AFTER_INTERP.index)
+        self.assertTrue(actual_num_events == expected_num_events)
+
+        for this_column in list(this_tornado_table):
+            if this_column in [linkage.EVENT_TIME_COLUMN,
+                               tornado_io.TORNADO_ID_COLUMN,
+                               tornado_io.FUJITA_RATING_COLUMN]:
+                self.assertTrue(numpy.array_equal(
+                    this_tornado_table[this_column].values,
+                    TORNADO_TABLE_AFTER_INTERP[this_column].values
+                ))
+            else:
+                self.assertTrue(numpy.allclose(
+                    this_tornado_table[this_column].values,
+                    TORNADO_TABLE_AFTER_INTERP[this_column].values,
+                    atol=TOLERANCE
+                ))
+
     def test_find_nearest_storms_tornado(self):
         """Ensures correct output from _find_nearest_storms."""
 
@@ -1271,14 +1375,6 @@ class LinkageTests(unittest.TestCase):
             TORNADO_TO_STORM_TABLE[linkage.NEAREST_TIME_COLUMN].values
         ))
 
-        # TODO(thunderhoser): Finish this unit test.
-
-        # self.assertTrue(numpy.allclose(
-        #     this_tornado_to_storm_table[linkage.LINKAGE_DISTANCE_COLUMN].values,
-        #     TORNADO_TO_STORM_TABLE[linkage.LINKAGE_DISTANCE_COLUMN].values,
-        #     equal_nan=True, atol=TOLERANCE
-        # ))
-
     def test_reverse_wind_linkages(self):
         """Ensures correct output from _reverse_wind_linkages."""
 
@@ -1296,27 +1392,6 @@ class LinkageTests(unittest.TestCase):
         this_storm_to_tornadoes_table = linkage._reverse_tornado_linkages(
             storm_object_table=MAIN_STORM_OBJECT_TABLE,
             tornado_to_storm_table=TORNADO_TO_STORM_TABLE)
-
-        # for i in range(len(this_storm_to_tornadoes_table)):
-        #     these_tornado_id_strings = this_storm_to_tornadoes_table[
-        #         linkage.TORNADO_IDS_COLUMN].values[i]
-        #
-        #     these_tornado_times_unix_sec = (
-        #         this_storm_to_tornadoes_table[
-        #             tracking_utils.VALID_TIME_COLUMN].values[i] +
-        #         this_storm_to_tornadoes_table[
-        #             linkage.RELATIVE_EVENT_TIMES_COLUMN].values[i]
-        #     )
-        #
-        #     print(i)
-        #     this_num_tornadoes = len(these_tornado_id_strings)
-        #
-        #     for j in range(this_num_tornadoes):
-        #         print('{0:s} ... time = {1:d}'.format(
-        #             these_tornado_id_strings[j], these_tornado_times_unix_sec[j]
-        #         ))
-        #
-        #     print('\n')
 
         self.assertTrue(_compare_storm_to_events_tables(
             this_storm_to_tornadoes_table, STORM_TO_TORNADOES_TABLE
@@ -1382,31 +1457,49 @@ class LinkageTests(unittest.TestCase):
             this_late_table, LATE_STORM_TO_WINDS_TABLE
         ))
 
-    def test_interp_tornadoes_along_tracks(self):
-        """Ensures correct output from _interp_tornadoes_along_tracks."""
+    def test_share_tornado_linkages(self):
+        """Ensures correct output from _share_tornado_linkages."""
 
-        this_tornado_table = linkage._interp_tornadoes_along_tracks(
-            tornado_table=copy.deepcopy(TORNADO_TABLE_BEFORE_INTERP),
-            interp_time_interval_sec=TORNADO_INTERP_TIME_INTERVAL_SEC)
+        early_tornado_to_storm_table = linkage._find_nearest_storms(
+            storm_object_table=EARLY_STORM_OBJECT_TABLE,
+            event_table=EARLY_TORNADO_TABLE,
+            max_time_before_storm_start_sec=MAX_TORNADO_EXTRAP_TIME_SEC,
+            max_time_after_storm_end_sec=MAX_TORNADO_EXTRAP_TIME_SEC,
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+            interp_time_interval_sec=INTERP_TIME_INTERVAL_SEC,
+            event_type_string=linkage.TORNADO_EVENT_STRING)
 
-        actual_num_events = len(this_tornado_table.index)
-        expected_num_events = len(TORNADO_TABLE_AFTER_INTERP.index)
-        self.assertTrue(actual_num_events == expected_num_events)
+        late_tornado_to_storm_table = linkage._find_nearest_storms(
+            storm_object_table=LATE_STORM_OBJECT_TABLE,
+            event_table=LATE_TORNADO_TABLE,
+            max_time_before_storm_start_sec=MAX_TORNADO_EXTRAP_TIME_SEC,
+            max_time_after_storm_end_sec=MAX_TORNADO_EXTRAP_TIME_SEC,
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+            interp_time_interval_sec=INTERP_TIME_INTERVAL_SEC,
+            event_type_string=linkage.TORNADO_EVENT_STRING)
 
-        for this_column in list(this_tornado_table):
-            if this_column in [linkage.EVENT_TIME_COLUMN,
-                               tornado_io.TORNADO_ID_COLUMN,
-                               tornado_io.FUJITA_RATING_COLUMN]:
-                self.assertTrue(numpy.array_equal(
-                    this_tornado_table[this_column].values,
-                    TORNADO_TABLE_AFTER_INTERP[this_column].values
-                ))
-            else:
-                self.assertTrue(numpy.allclose(
-                    this_tornado_table[this_column].values,
-                    TORNADO_TABLE_AFTER_INTERP[this_column].values,
-                    atol=TOLERANCE
-                ))
+        early_storm_to_tornadoes_table, late_storm_to_tornadoes_table = (
+            linkage._share_tornado_linkages(
+                early_tornado_to_storm_table=early_tornado_to_storm_table,
+                late_tornado_to_storm_table=late_tornado_to_storm_table,
+                early_storm_object_table=MAIN_STORM_OBJECT_TABLE,
+                late_storm_object_table=MAIN_STORM_OBJECT_TABLE,
+                max_time_before_storm_start_sec=MAX_TORNADO_EXTRAP_TIME_SEC,
+                max_time_after_storm_end_sec=MAX_TORNADO_EXTRAP_TIME_SEC)
+        )
+
+        this_actual_table = pandas.concat(
+            [early_storm_to_tornadoes_table, late_storm_to_tornadoes_table],
+            axis=0, ignore_index=True)
+
+        this_actual_table = _sort_tornadoes_for_each_storm(this_actual_table)
+        this_expected_table = _sort_tornadoes_for_each_storm(
+            copy.deepcopy(STORM_TO_TORNADOES_TABLE)
+        )
+
+        self.assertTrue(_compare_storm_to_events_tables(
+            this_actual_table, this_expected_table
+        ))
 
     def test_find_linkage_file_wind_one_time(self):
         """Ensures correct output from find_linkage_file.

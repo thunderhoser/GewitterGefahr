@@ -117,6 +117,8 @@ REQUIRED_TORNADO_LINKAGE_COLUMNS = REQUIRED_STORM_COLUMNS + THESE_COLUMNS + [
     FUJITA_RATINGS_COLUMN, TORNADO_IDS_COLUMN
 ]
 
+EARLY_FLAG_COLUMN = 'in_early_period'
+
 
 def _check_input_args(
         tracking_file_names, max_time_before_storm_start_sec,
@@ -920,7 +922,8 @@ def _link_tornado_to_new_storm(
     )
     last_assigned_object_row = last_assigned_cell_rows[this_subrow]
 
-    # Find successors of storm object s*.
+    # Find successors of storm object s*.  Try simple successors first (useful
+    # when sharing linkages between two periods).
     relevant_object_rows = temporal_tracking.find_successors(
         storm_object_table=storm_object_table,
         target_row=last_assigned_object_row,
@@ -1865,6 +1868,18 @@ def _read_input_tornado_reports(
         list_of_tornado_tables, axis=0, ignore_index=True)
 
     if genesis_only:
+        invalid_flags = numpy.invert(numpy.logical_and(
+            tornado_table[tornado_io.START_TIME_COLUMN].values >=
+            min_tornado_time_unix_sec,
+            tornado_table[tornado_io.START_TIME_COLUMN].values <=
+            max_tornado_time_unix_sec
+        ))
+
+        invalid_rows = numpy.where(invalid_flags)[0]
+        tornado_table.drop(
+            tornado_table.index[invalid_rows], axis=0, inplace=True
+        )
+
         tornado_table = tornado_io.add_tornado_ids_to_table(tornado_table)
 
         column_dict_old_to_new = {
@@ -1875,19 +1890,302 @@ def _read_input_tornado_reports(
 
         tornado_table.rename(columns=column_dict_old_to_new, inplace=True)
     else:
+        good_start_flags = numpy.logical_and(
+            tornado_table[tornado_io.START_TIME_COLUMN].values >=
+            min_tornado_time_unix_sec,
+            tornado_table[tornado_io.START_TIME_COLUMN].values <=
+            max_tornado_time_unix_sec
+        )
+
+        good_end_flags = numpy.logical_and(
+            tornado_table[tornado_io.END_TIME_COLUMN].values >=
+            min_tornado_time_unix_sec,
+            tornado_table[tornado_io.END_TIME_COLUMN].values <=
+            max_tornado_time_unix_sec
+        )
+
+        invalid_flags = numpy.invert(numpy.logical_or(
+            good_start_flags, good_end_flags
+        ))
+
+        invalid_rows = numpy.where(invalid_flags)[0]
+        tornado_table.drop(
+            tornado_table.index[invalid_rows], axis=0, inplace=True
+        )
+
         tornado_table = _interp_tornadoes_along_tracks(
             tornado_table=tornado_table,
             interp_time_interval_sec=interp_time_interval_sec)
 
-    bad_time_flags = numpy.invert(numpy.logical_and(
-        tornado_table[EVENT_TIME_COLUMN].values >= min_tornado_time_unix_sec,
-        tornado_table[EVENT_TIME_COLUMN].values <= max_tornado_time_unix_sec
-    ))
-    bad_time_rows = numpy.where(bad_time_flags)[0]
+    return tornado_table
 
-    return tornado_table.drop(
-        tornado_table.index[bad_time_rows], axis=0, inplace=False
+
+def _remove_redundant_tornado_linkages(
+        early_tornado_to_storm_table, late_tornado_to_storm_table):
+    """Removes redundant tornado-occurrence linkages over two periods.
+
+    :param early_tornado_to_storm_table: pandas DataFrame (created by
+        `_find_nearest_storms`) for early period.
+    :param late_tornado_to_storm_table: Same but for late period.
+    :return: early_tornado_to_storm_table: Same as input but without redundant
+        linkages (those found in `late_tornado_to_storm_table`).
+    :return: late_tornado_to_storm_table: Same as input but without redundant
+        linkages (those found in `early_tornado_to_storm_table`).
+    :raises: ValueError: if any tornado appears in both tables with different
+        start times.
+    """
+
+    unique_tornado_id_strings = numpy.unique(numpy.concatenate((
+        early_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values,
+        late_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values
+    )))
+
+    for this_tornado_id_string in unique_tornado_id_strings:
+        these_early_rows = numpy.where(
+            early_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+            this_tornado_id_string
+        )[0]
+
+        if len(these_early_rows) == 0:
+            continue
+
+        these_late_rows = numpy.where(
+            late_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+            this_tornado_id_string
+        )[0]
+
+        if len(these_late_rows) == 0:
+            continue
+
+        this_subrow = numpy.argmin(
+            early_tornado_to_storm_table[EVENT_TIME_COLUMN].values[
+                these_early_rows]
+        )
+        this_early_row = these_early_rows[this_subrow]
+
+        this_subrow = numpy.argmin(
+            late_tornado_to_storm_table[EVENT_TIME_COLUMN].values[
+                these_late_rows]
+        )
+        this_late_row = these_late_rows[this_subrow]
+
+        this_early_start_unix_sec = early_tornado_to_storm_table[
+            EVENT_TIME_COLUMN].values[this_early_row]
+        this_late_start_unix_sec = late_tornado_to_storm_table[
+            EVENT_TIME_COLUMN].values[this_late_row]
+
+        if this_early_start_unix_sec != this_late_start_unix_sec:
+            error_string = (
+                'Tornado "{0:s}" appears in early table with start time {1:s} '
+                'and in late table with start time {2:s}.  The two start times '
+                'should be the same.'
+            ).format(
+                this_tornado_id_string,
+                time_conversion.unix_sec_to_string(
+                    this_early_start_unix_sec, TIME_FORMAT),
+                time_conversion.unix_sec_to_string(
+                    this_late_start_unix_sec, TIME_FORMAT)
+            )
+
+            raise ValueError(error_string)
+
+        this_early_sec_id_string = early_tornado_to_storm_table[
+            NEAREST_SECONDARY_ID_COLUMN].values[this_early_row]
+
+        if this_early_sec_id_string is None:
+            early_tornado_to_storm_table.drop(
+                early_tornado_to_storm_table.index[these_early_rows],
+                axis=0, inplace=True)
+
+            continue
+
+        this_late_sec_id_string = late_tornado_to_storm_table[
+            NEAREST_SECONDARY_ID_COLUMN].values[this_late_row]
+
+        if (this_late_sec_id_string is None and
+                this_early_sec_id_string is not None):
+            late_tornado_to_storm_table.drop(
+                late_tornado_to_storm_table.index[these_late_rows],
+                axis=0, inplace=True)
+
+            continue
+
+        this_early_distance_metres = early_tornado_to_storm_table[
+            LINKAGE_DISTANCE_COLUMN].values[this_early_row]
+        this_late_distance_metres = late_tornado_to_storm_table[
+            LINKAGE_DISTANCE_COLUMN].values[this_late_row]
+
+        if this_early_distance_metres <= this_late_distance_metres:
+            late_tornado_to_storm_table.drop(
+                late_tornado_to_storm_table.index[these_late_rows],
+                axis=0, inplace=True)
+
+            continue
+
+        early_tornado_to_storm_table.drop(
+            early_tornado_to_storm_table.index[these_early_rows],
+            axis=0, inplace=True)
+
+    return early_tornado_to_storm_table, late_tornado_to_storm_table
+
+
+def _share_tornado_linkages(
+        early_tornado_to_storm_table, late_tornado_to_storm_table,
+        early_storm_object_table, late_storm_object_table,
+        max_time_before_storm_start_sec, max_time_after_storm_end_sec):
+    """Shares tornado-occurrence linkages between two periods.
+
+    :param early_tornado_to_storm_table: pandas DataFrame (created by
+        `_find_nearest_storms`) for early period.
+    :param late_tornado_to_storm_table: Same but for late period.
+    :param early_storm_object_table: pandas DataFrame (created by
+        `_read_input_storm_tracks`) for early period.
+    :param late_storm_object_table: Same but for late period.
+    :param max_time_before_storm_start_sec: See doc for `_check_pnut_args`.
+    :param max_time_after_storm_end_sec: Same.
+    :return: early_storm_to_tornadoes_table: pandas DataFrame (created by
+        `_reverse_tornado_linkages`) for early period.
+    :return: late_storm_to_tornadoes_table: Same but for late period.
+    """
+
+    # Remove redundant tornado linkages.
+    orig_early_id_strings = numpy.unique(
+        early_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values
     )
+    orig_late_id_strings = numpy.unique(
+        late_tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values
+    )
+
+    early_tornado_to_storm_table, late_tornado_to_storm_table = (
+        _remove_redundant_tornado_linkages(
+            early_tornado_to_storm_table=early_tornado_to_storm_table,
+            late_tornado_to_storm_table=late_tornado_to_storm_table)
+    )
+
+    # Concatenate storm-object tables.
+    num_early_storm_objects = len(early_storm_object_table.index)
+    early_storm_object_table = early_storm_object_table.assign(**{
+        EARLY_FLAG_COLUMN: numpy.full(num_early_storm_objects, True, dtype=bool)
+    })
+
+    num_late_storm_objects = len(late_storm_object_table.index)
+    late_storm_object_table = late_storm_object_table.assign(**{
+        EARLY_FLAG_COLUMN: numpy.full(num_late_storm_objects, False, dtype=bool)
+    })
+
+    storm_object_table = pandas.concat(
+        [early_storm_object_table, late_storm_object_table],
+        axis=0, ignore_index=True)
+
+    storm_object_table.drop_duplicates(
+        subset=[tracking_utils.SECONDARY_ID_COLUMN,
+                tracking_utils.VALID_TIME_COLUMN],
+        keep='first', inplace=True
+    )
+
+    # Concatenate relevant parts of tornado tables.
+    these_flags = early_tornado_to_storm_table[
+        tornado_io.TORNADO_ID_COLUMN
+    ].isin(orig_late_id_strings).values
+
+    relevant_early_rows = numpy.where(these_flags)[0]
+
+    these_flags = late_tornado_to_storm_table[
+        tornado_io.TORNADO_ID_COLUMN
+    ].isin(orig_early_id_strings).values
+
+    relevant_late_rows = numpy.where(these_flags)[0]
+
+    tornado_to_storm_table = pandas.concat([
+        early_tornado_to_storm_table.iloc[relevant_early_rows],
+        late_tornado_to_storm_table.iloc[relevant_late_rows]
+    ], axis=0, ignore_index=True)
+
+    # For each tornado with some linked track segments and some unlinked
+    # segments, try linking the unlinked segments.
+    unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
+        tornado_to_storm_table[EVENT_TIME_COLUMN].values, return_inverse=True
+    )
+    num_unique_times = len(unique_times_unix_sec)
+
+    for i in range(num_unique_times):
+        event_unassigned_flags = numpy.array([
+            s is None
+            for s in tornado_to_storm_table[NEAREST_SECONDARY_ID_COLUMN].values
+        ], dtype=bool)
+
+        these_flags = numpy.logical_and(
+            event_unassigned_flags,
+            tornado_to_storm_table[TORNADO_ASSIGNED_COLUMN].values
+        )
+
+        these_rows = numpy.where(numpy.logical_and(
+            orig_to_unique_indices == i, these_flags
+        ))[0]
+
+        for j in these_rows:
+            # Handle one-to-one successors.
+            #
+            # this_tornado_rows = numpy.where(numpy.logical_and(
+            #     tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values ==
+            #     tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].values[j],
+            #     numpy.invert(event_unassigned_flags)
+            # ))[0]
+            #
+            # this_subrow = numpy.argmax(
+            #     tornado_to_storm_table[EVENT_TIME_COLUMN].values[
+            #         this_tornado_rows]
+            # )
+            #
+            # k = this_tornado_rows[this_subrow]
+            #
+            # tornado_to_storm_table = _finish_tornado_linkage(
+            #     storm_object_table=storm_object_table,
+            #     tornado_to_storm_table=tornado_to_storm_table, tornado_row=k,
+            #     nearest_secondary_id_string=
+            #     tornado_to_storm_table[NEAREST_SECONDARY_ID_COLUMN].values[k],
+            #     nearest_storm_time_unix_sec=
+            #     tornado_to_storm_table[NEAREST_TIME_COLUMN].values[k],
+            #     nearest_distance_metres=
+            #     tornado_to_storm_table[LINKAGE_DISTANCE_COLUMN].values[k]
+            # )
+
+            tornado_to_storm_table = _link_tornado_to_new_storm(
+                storm_object_table=storm_object_table,
+                tornado_to_storm_table=tornado_to_storm_table, tornado_row=j,
+                max_time_before_storm_start_sec=
+                max_time_before_storm_start_sec,
+                max_time_after_storm_end_sec=max_time_after_storm_end_sec)
+
+    # Add new linkages to early and late linkage tables.
+    early_tornado_to_storm_table.iloc[relevant_early_rows] = (
+        tornado_to_storm_table.iloc[:len(relevant_early_rows)]
+    )
+    late_tornado_to_storm_table.iloc[relevant_late_rows] = (
+        tornado_to_storm_table.iloc[len(relevant_early_rows):]
+    )
+
+    # Reverse linkages (currently tornado -> storm, but we want storm ->
+    # tornadoes).
+    tornado_to_storm_table = pandas.concat(
+        [early_tornado_to_storm_table, late_tornado_to_storm_table],
+        axis=0, ignore_index=True)
+
+    storm_to_tornadoes_table = _reverse_tornado_linkages(
+        storm_object_table=storm_object_table,
+        tornado_to_storm_table=tornado_to_storm_table)
+
+    early_storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
+        storm_to_tornadoes_table[EARLY_FLAG_COLUMN] == True
+    ]
+
+    late_storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
+        storm_to_tornadoes_table[EARLY_FLAG_COLUMN] == False
+    ]
+
+    early_storm_to_tornadoes_table.drop(EARLY_FLAG_COLUMN, axis=1, inplace=True)
+    late_storm_to_tornadoes_table.drop(EARLY_FLAG_COLUMN, axis=1, inplace=True)
+    return early_storm_to_tornadoes_table, late_storm_to_tornadoes_table
 
 
 def _share_linkages_between_periods(
@@ -1911,6 +2209,7 @@ def _share_linkages_between_periods(
         axis=0, ignore_index=True
     )
 
+    # TODO(thunderhoser: Need to change more?
     columns_to_change = [
         EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN,
         LINKAGE_DISTANCES_COLUMN, RELATIVE_EVENT_TIMES_COLUMN,
