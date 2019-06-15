@@ -4,6 +4,7 @@ import re
 import os.path
 import numpy
 import pandas
+from gewittergefahr.gg_utils import interp
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
@@ -22,6 +23,10 @@ END_LNG_COLUMN = 'end_longitude_deg'
 FUJITA_RATING_COLUMN = 'f_or_ef_rating'
 WIDTH_COLUMN = 'width_metres'
 TORNADO_ID_COLUMN = 'tornado_id_string'
+
+TIME_COLUMN = 'valid_time_unix_sec'
+LATITUDE_COLUMN = 'latitude_deg'
+LONGITUDE_COLUMN = 'longitude_deg'
 
 F_SCALE_RATING_PATTERN = '[fF][0-5]'
 EF_SCALE_RATING_PATTERN = '[eE][fF][0-5]'
@@ -179,6 +184,275 @@ def remove_invalid_reports(
         tornado_table.drop(
             tornado_table.index[numpy.where(invalid_flags)[0]], axis=0,
             inplace=True)
+
+    return tornado_table
+
+
+def interp_tornadoes_along_tracks(tornado_table, interp_time_interval_sec):
+    """Interpolates each tornado to many points along its track.
+
+    :param tornado_table: See doc for `write_processed_file`.
+    :param interp_time_interval_sec: Will interpolate at this time interval
+        between start and end points.
+    :return: tornado_segment_table: pandas DataFrame with the following columns,
+        where each row is one tornado-track segment.
+    tornado_segment_table.valid_time_unix_sec: Valid time.
+    tornado_segment_table.latitude_deg: Latitude (deg N).
+    tornado_segment_table.longitude_deg: Longitude (deg E).
+    tornado_segment_table.tornado_id_string: Tornado ID.
+    tornado_segment_table.fujita_rating: F-scale or EF-scale rating (integer
+        from 0...5).
+    """
+
+    # TODO(thunderhoser): Return "width" column as well.
+
+    num_tornadoes = len(tornado_table.index)
+    tornado_times_unix_sec = numpy.array([], dtype=int)
+    tornado_latitudes_deg = numpy.array([])
+    tornado_longitudes_deg = numpy.array([])
+    tornado_id_strings = []
+    fujita_rating_strings = []
+
+    for j in range(num_tornadoes):
+        this_start_time_unix_sec = tornado_table[START_TIME_COLUMN].values[j]
+        this_end_time_unix_sec = tornado_table[END_TIME_COLUMN].values[j]
+
+        this_num_query_times = 1 + int(numpy.round(
+            float(this_end_time_unix_sec - this_start_time_unix_sec) /
+            interp_time_interval_sec
+        ))
+
+        these_query_times_unix_sec = numpy.linspace(
+            this_start_time_unix_sec, this_end_time_unix_sec,
+            num=this_num_query_times, dtype=float)
+
+        these_query_times_unix_sec = numpy.round(
+            these_query_times_unix_sec
+        ).astype(int)
+
+        these_input_latitudes_deg = numpy.array([
+            tornado_table[START_LAT_COLUMN].values[j],
+            tornado_table[END_LAT_COLUMN].values[j]
+        ])
+
+        these_input_longitudes_deg = numpy.array([
+            tornado_table[START_LNG_COLUMN].values[j],
+            tornado_table[END_LNG_COLUMN].values[j]
+        ])
+
+        these_input_times_unix_sec = numpy.array([
+            tornado_table[START_TIME_COLUMN].values[j],
+            tornado_table[END_TIME_COLUMN].values[j]
+        ], dtype=int)
+
+        if this_num_query_times == 1:
+            this_query_coord_matrix = numpy.array([
+                these_input_longitudes_deg[0], these_input_latitudes_deg[0]
+            ])
+
+            this_query_coord_matrix = numpy.reshape(
+                this_query_coord_matrix, (2, 1)
+            )
+        else:
+            this_input_coord_matrix = numpy.vstack((
+                these_input_longitudes_deg, these_input_latitudes_deg
+            ))
+
+            this_query_coord_matrix = interp.interp_in_time(
+                input_matrix=this_input_coord_matrix,
+                sorted_input_times_unix_sec=these_input_times_unix_sec,
+                query_times_unix_sec=these_query_times_unix_sec,
+                method_string=interp.LINEAR_METHOD_STRING, extrapolate=False)
+
+        tornado_times_unix_sec = numpy.concatenate((
+            tornado_times_unix_sec, these_query_times_unix_sec
+        ))
+
+        tornado_latitudes_deg = numpy.concatenate((
+            tornado_latitudes_deg, this_query_coord_matrix[1, :]
+        ))
+
+        tornado_longitudes_deg = numpy.concatenate((
+            tornado_longitudes_deg, this_query_coord_matrix[0, :]
+        ))
+
+        this_id_string = create_tornado_id(
+            start_time_unix_sec=these_input_times_unix_sec[0],
+            start_latitude_deg=these_input_latitudes_deg[0],
+            start_longitude_deg=these_input_longitudes_deg[0]
+        )
+
+        tornado_id_strings += (
+            [this_id_string] * len(these_query_times_unix_sec)
+        )
+        fujita_rating_strings += (
+            [tornado_table[FUJITA_RATING_COLUMN].values[j]]
+            * len(these_query_times_unix_sec)
+        )
+
+    return pandas.DataFrame.from_dict({
+        TIME_COLUMN: tornado_times_unix_sec,
+        LATITUDE_COLUMN: tornado_latitudes_deg,
+        LONGITUDE_COLUMN: tornado_longitudes_deg,
+        TORNADO_ID_COLUMN: tornado_id_strings,
+        FUJITA_RATING_COLUMN: fujita_rating_strings
+    })
+
+
+def subset_tornadoes(
+        tornado_table, min_time_unix_sec=None, max_time_unix_sec=None,
+        min_latitude_deg=None, max_latitude_deg=None, min_longitude_deg=None,
+        max_longitude_deg=None):
+    """Subsets tornadoes by time, latitude, and/or longitude.
+
+    :param tornado_table: See doc for `write_processed_file`.
+    :param min_time_unix_sec: Minimum time.
+    :param max_time_unix_sec: Max time.
+    :param min_latitude_deg: Minimum latitude (deg N).
+    :param max_latitude_deg: Max latitude (deg N).
+    :param min_longitude_deg: Minimum longitude (deg E).
+    :param max_longitude_deg: Max longitude (deg E).
+    :return: tornado_table: Same as input but maybe with fewer rows.
+    """
+
+    if min_time_unix_sec is not None or max_time_unix_sec is not None:
+        error_checking.assert_is_integer(min_time_unix_sec)
+        error_checking.assert_is_integer(max_time_unix_sec)
+        error_checking.assert_is_greater(max_time_unix_sec, min_time_unix_sec)
+
+        good_start_flags = numpy.logical_and(
+            tornado_table[START_TIME_COLUMN].values >= min_time_unix_sec,
+            tornado_table[START_TIME_COLUMN].values <= max_time_unix_sec
+        )
+
+        good_end_flags = numpy.logical_and(
+            tornado_table[END_TIME_COLUMN].values >= min_time_unix_sec,
+            tornado_table[END_TIME_COLUMN].values <= max_time_unix_sec
+        )
+
+        invalid_flags = numpy.invert(numpy.logical_or(
+            good_start_flags, good_end_flags
+        ))
+
+        invalid_rows = numpy.where(invalid_flags)[0]
+        tornado_table.drop(
+            tornado_table.index[invalid_rows], axis=0, inplace=True
+        )
+
+    if min_latitude_deg is not None or max_latitude_deg is not None:
+        error_checking.assert_is_valid_latitude(min_latitude_deg)
+        error_checking.assert_is_valid_latitude(max_latitude_deg)
+        error_checking.assert_is_greater(max_latitude_deg, min_latitude_deg)
+
+        good_start_flags = numpy.logical_and(
+            tornado_table[START_LAT_COLUMN].values >= min_latitude_deg,
+            tornado_table[START_LAT_COLUMN].values <= max_latitude_deg
+        )
+
+        good_end_flags = numpy.logical_and(
+            tornado_table[END_LAT_COLUMN].values >= min_latitude_deg,
+            tornado_table[END_LAT_COLUMN].values <= max_latitude_deg
+        )
+
+        invalid_flags = numpy.invert(numpy.logical_or(
+            good_start_flags, good_end_flags
+        ))
+
+        invalid_rows = numpy.where(invalid_flags)[0]
+        tornado_table.drop(
+            tornado_table.index[invalid_rows], axis=0, inplace=True
+        )
+
+    if min_longitude_deg is not None or max_longitude_deg is not None:
+        longitude_limits_deg = lng_conversion.convert_lng_positive_in_west(
+            longitudes_deg=numpy.array([min_longitude_deg, max_longitude_deg]),
+            allow_nan=False
+        )
+
+        min_longitude_deg = longitude_limits_deg[0]
+        max_longitude_deg = longitude_limits_deg[1]
+        error_checking.assert_is_greater(max_longitude_deg, min_longitude_deg)
+
+        good_start_flags = numpy.logical_and(
+            tornado_table[START_LNG_COLUMN].values >= min_longitude_deg,
+            tornado_table[START_LNG_COLUMN].values <= max_longitude_deg
+        )
+
+        good_end_flags = numpy.logical_and(
+            tornado_table[END_LNG_COLUMN].values >= min_longitude_deg,
+            tornado_table[END_LNG_COLUMN].values <= max_longitude_deg
+        )
+
+        invalid_flags = numpy.invert(numpy.logical_or(
+            good_start_flags, good_end_flags
+        ))
+
+        invalid_rows = numpy.where(invalid_flags)[0]
+        tornado_table.drop(
+            tornado_table.index[invalid_rows], axis=0, inplace=True
+        )
+
+    return tornado_table
+
+
+def segments_to_tornadoes(tornado_segment_table):
+    """Converts list of tornado segments to list of individual tornadoes.
+
+    :param tornado_segment_table: pandas DataFrame created by
+        `interp_tornadoes_along_tracks`.
+    :return: tornado_table: pandas DataFrame with columns listed in
+        `write_processed_file`, plus those listed below.
+    tornado_table.tornado_id_string: Tornado ID.
+    """
+
+    # TODO(thunderhoser): Add "width" to output columns.
+
+    unique_id_strings, orig_to_unique_indices = numpy.unique(
+        tornado_segment_table[TORNADO_ID_COLUMN].values, return_inverse=True
+    )
+
+    num_tornadoes = len(unique_id_strings)
+
+    tornado_table = pandas.DataFrame.from_dict({
+        TORNADO_ID_COLUMN: unique_id_strings,
+        START_TIME_COLUMN: numpy.full(num_tornadoes, -1, dtype=int),
+        START_LAT_COLUMN: numpy.full(num_tornadoes, numpy.nan),
+        START_LNG_COLUMN: numpy.full(num_tornadoes, numpy.nan),
+        END_TIME_COLUMN: numpy.full(num_tornadoes, -1, dtype=int),
+        END_LAT_COLUMN: numpy.full(num_tornadoes, numpy.nan),
+        END_LNG_COLUMN: numpy.full(num_tornadoes, numpy.nan),
+        FUJITA_RATING_COLUMN: [''] * num_tornadoes
+    })
+
+    for j in range(num_tornadoes):
+        these_indices = numpy.where(orig_to_unique_indices == j)[0]
+
+        this_subindex = numpy.argmin(
+            tornado_segment_table[TIME_COLUMN].values[these_indices]
+        )
+        this_start_index = these_indices[this_subindex]
+
+        tornado_table[START_TIME_COLUMN].values[j] = tornado_segment_table[
+            TIME_COLUMN].values[this_start_index]
+        tornado_table[START_LAT_COLUMN].values[j] = tornado_segment_table[
+            LATITUDE_COLUMN].values[this_start_index]
+        tornado_table[START_LNG_COLUMN].values[j] = tornado_segment_table[
+            LONGITUDE_COLUMN].values[this_start_index]
+
+        this_subindex = numpy.argmax(
+            tornado_segment_table[TIME_COLUMN].values[these_indices]
+        )
+        this_end_index = these_indices[this_subindex]
+
+        tornado_table[END_TIME_COLUMN].values[j] = tornado_segment_table[
+            TIME_COLUMN].values[this_end_index]
+        tornado_table[END_LAT_COLUMN].values[j] = tornado_segment_table[
+            LATITUDE_COLUMN].values[this_end_index]
+        tornado_table[END_LNG_COLUMN].values[j] = tornado_segment_table[
+            LONGITUDE_COLUMN].values[this_end_index]
+
+        tornado_table[FUJITA_RATING_COLUMN].values[j] = tornado_segment_table[
+            FUJITA_RATING_COLUMN].values[this_end_index]
 
     return tornado_table
 

@@ -1725,112 +1725,6 @@ def _read_input_wind_observations(
     return wind_table
 
 
-def _interp_tornadoes_along_tracks(tornado_table, interp_time_interval_sec):
-    """Interpolates each tornado to many points along its track.
-
-    :param tornado_table: pandas DataFrame returned by
-        `tornado_io.read_processed_file`.
-    :param interp_time_interval_sec: Will interpolate at this time interval
-        between start and end points.
-    :return: tornado_table: See doc for `_read_input_tornado_reports`.
-    """
-
-    num_tornadoes = len(tornado_table.index)
-    tornado_times_unix_sec = numpy.array([], dtype=int)
-    tornado_latitudes_deg = numpy.array([])
-    tornado_longitudes_deg = numpy.array([])
-    tornado_id_strings = []
-    fujita_rating_strings = []
-
-    for j in range(num_tornadoes):
-        this_start_time_unix_sec = tornado_table[
-            tornado_io.START_TIME_COLUMN].values[j]
-
-        this_end_time_unix_sec = tornado_table[
-            tornado_io.END_TIME_COLUMN].values[j]
-
-        this_num_query_times = 1 + int(numpy.round(
-            float(this_end_time_unix_sec - this_start_time_unix_sec) /
-            interp_time_interval_sec
-        ))
-
-        these_query_times_unix_sec = numpy.linspace(
-            this_start_time_unix_sec, this_end_time_unix_sec,
-            num=this_num_query_times, dtype=float)
-
-        these_query_times_unix_sec = numpy.round(
-            these_query_times_unix_sec
-        ).astype(int)
-
-        these_input_latitudes_deg = numpy.array([
-            tornado_table[tornado_io.START_LAT_COLUMN].values[j],
-            tornado_table[tornado_io.END_LAT_COLUMN].values[j]
-        ])
-
-        these_input_longitudes_deg = numpy.array([
-            tornado_table[tornado_io.START_LNG_COLUMN].values[j],
-            tornado_table[tornado_io.END_LNG_COLUMN].values[j]
-        ])
-
-        these_input_times_unix_sec = numpy.array([
-            tornado_table[tornado_io.START_TIME_COLUMN].values[j],
-            tornado_table[tornado_io.END_TIME_COLUMN].values[j]
-        ], dtype=int)
-
-        if this_num_query_times == 1:
-            this_query_coord_matrix = numpy.array([
-                these_input_longitudes_deg[0], these_input_latitudes_deg[0]
-            ])
-
-            this_query_coord_matrix = numpy.reshape(
-                this_query_coord_matrix, (2, 1)
-            )
-        else:
-            this_input_coord_matrix = numpy.vstack((
-                these_input_longitudes_deg, these_input_latitudes_deg
-            ))
-
-            this_query_coord_matrix = interp.interp_in_time(
-                input_matrix=this_input_coord_matrix,
-                sorted_input_times_unix_sec=these_input_times_unix_sec,
-                query_times_unix_sec=these_query_times_unix_sec,
-                method_string=interp.LINEAR_METHOD_STRING, extrapolate=False)
-
-        tornado_times_unix_sec = numpy.concatenate((
-            tornado_times_unix_sec, these_query_times_unix_sec
-        ))
-
-        tornado_latitudes_deg = numpy.concatenate((
-            tornado_latitudes_deg, this_query_coord_matrix[1, :]
-        ))
-
-        tornado_longitudes_deg = numpy.concatenate((
-            tornado_longitudes_deg, this_query_coord_matrix[0, :]
-        ))
-
-        this_id_string = tornado_io.create_tornado_id(
-            start_time_unix_sec=these_input_times_unix_sec[0],
-            start_latitude_deg=these_input_latitudes_deg[0],
-            start_longitude_deg=these_input_longitudes_deg[0]
-        )
-
-        tornado_id_strings += (
-            [this_id_string] * len(these_query_times_unix_sec)
-        )
-        fujita_rating_strings += (
-            [tornado_table[tornado_io.FUJITA_RATING_COLUMN].values[j]]
-            * len(these_query_times_unix_sec)
-        )
-
-    return pandas.DataFrame.from_dict({
-        EVENT_TIME_COLUMN: tornado_times_unix_sec,
-        EVENT_LATITUDE_COLUMN: tornado_latitudes_deg,
-        EVENT_LONGITUDE_COLUMN: tornado_longitudes_deg,
-        tornado_io.TORNADO_ID_COLUMN: tornado_id_strings,
-        tornado_io.FUJITA_RATING_COLUMN: fujita_rating_strings
-    })
-
-
 def _read_input_tornado_reports(
         input_directory_name, storm_times_unix_sec,
         max_time_before_storm_start_sec, max_time_after_storm_end_sec,
@@ -1928,32 +1822,22 @@ def _read_input_tornado_reports(
 
         tornado_table.rename(columns=column_dict_old_to_new, inplace=True)
     else:
-        good_start_flags = numpy.logical_and(
-            tornado_table[tornado_io.START_TIME_COLUMN].values >=
-            min_tornado_time_unix_sec,
-            tornado_table[tornado_io.START_TIME_COLUMN].values <=
-            max_tornado_time_unix_sec
-        )
+        tornado_table = tornado_io.subset_tornadoes(
+            tornado_table=tornado_table,
+            min_time_unix_sec=min_tornado_time_unix_sec,
+            max_time_unix_sec=max_tornado_time_unix_sec)
 
-        good_end_flags = numpy.logical_and(
-            tornado_table[tornado_io.END_TIME_COLUMN].values >=
-            min_tornado_time_unix_sec,
-            tornado_table[tornado_io.END_TIME_COLUMN].values <=
-            max_tornado_time_unix_sec
-        )
-
-        invalid_flags = numpy.invert(numpy.logical_or(
-            good_start_flags, good_end_flags
-        ))
-
-        invalid_rows = numpy.where(invalid_flags)[0]
-        tornado_table.drop(
-            tornado_table.index[invalid_rows], axis=0, inplace=True
-        )
-
-        tornado_table = _interp_tornadoes_along_tracks(
+        tornado_table = tornado_io.interp_tornadoes_along_tracks(
             tornado_table=tornado_table,
             interp_time_interval_sec=interp_time_interval_sec)
+
+        column_dict_old_to_new = {
+            tornado_io.TIME_COLUMN: EVENT_TIME_COLUMN,
+            tornado_io.LATITUDE_COLUMN: EVENT_LATITUDE_COLUMN,
+            tornado_io.LONGITUDE_COLUMN: EVENT_LONGITUDE_COLUMN
+        }
+
+        tornado_table.rename(columns=column_dict_old_to_new, inplace=True)
 
     return tornado_table
 

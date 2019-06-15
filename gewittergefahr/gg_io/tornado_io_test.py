@@ -7,6 +7,8 @@ import pandas
 from gewittergefahr.gg_io import tornado_io
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 
+TOLERANCE = 1e-6
+
 # The following constants are used to test _is_valid_fujita_rating.
 F_SCALE_RATING_ALL_CAPS = 'F5'
 F_SCALE_RATING_NO_CAPS = 'f4'
@@ -58,6 +60,81 @@ TORNADO_TABLE_NO_INVALID_ROWS = TORNADO_TABLE_NO_INVALID_ROWS.assign(**{
         TORNADO_TABLE_NO_INVALID_ROWS[tornado_io.START_LNG_COLUMN].values),
     tornado_io.END_LNG_COLUMN: lng_conversion.convert_lng_positive_in_west(
         TORNADO_TABLE_NO_INVALID_ROWS[tornado_io.END_LNG_COLUMN].values)
+})
+
+# The following constants are used to test interp_tornadoes_along_tracks.
+THESE_START_TIMES_UNIX_SEC = numpy.array([1, 5, 5, 5, 60], dtype=int)
+THESE_END_TIMES_UNIX_SEC = numpy.array([11, 10, 12, 14, 60], dtype=int)
+
+THESE_START_LATITUDES_DEG = numpy.array([59.5, 61, 51, 49, 89])
+THESE_END_LATITUDES_DEG = numpy.array([59.5, 66, 58, 58, 89])
+
+THESE_START_LONGITUDES_DEG = numpy.array([271, 275, 242.5, 242.5, 300])
+THESE_END_LONGITUDES_DEG = numpy.array([281, 275, 242.5, 242.5, 300])
+THESE_FUJITA_STRINGS = ['EF1', 'EF2', 'EF3', 'EF4', 'EF5']
+
+TORNADO_TABLE_BEFORE_INTERP = pandas.DataFrame.from_dict({
+    tornado_io.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
+    tornado_io.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
+    tornado_io.START_LAT_COLUMN: THESE_START_LATITUDES_DEG,
+    tornado_io.END_LAT_COLUMN: THESE_END_LATITUDES_DEG,
+    tornado_io.START_LNG_COLUMN: THESE_START_LONGITUDES_DEG,
+    tornado_io.END_LNG_COLUMN: THESE_END_LONGITUDES_DEG,
+    tornado_io.FUJITA_RATING_COLUMN: THESE_FUJITA_STRINGS
+})
+
+INTERP_TIME_INTERVAL_SEC = 1
+
+THESE_TIMES_UNIX_SEC = numpy.array([
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+    5, 6, 7, 8, 9, 10,
+    5, 6, 7, 8, 9, 10, 11, 12,
+    5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    60
+], dtype=int)
+
+THESE_LATITUDES_DEG = numpy.array([
+    59.5, 59.5, 59.5, 59.5, 59.5, 59.5, 59.5, 59.5, 59.5, 59.5, 59.5,
+    61, 62, 63, 64, 65, 66,
+    51, 52, 53, 54, 55, 56, 57, 58,
+    49, 50, 51, 52, 53, 54, 55, 56, 57, 58,
+    89
+])
+
+THESE_LONGITUDES_DEG = numpy.array([
+    271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281,
+    275, 275, 275, 275, 275, 275,
+    242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5,
+    242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5, 242.5,
+    300
+])
+
+THESE_UNIQUE_ID_STRINGS = [
+    tornado_io.create_tornado_id(
+        start_time_unix_sec=t, start_latitude_deg=y, start_longitude_deg=x
+    ) for t, x, y in
+    zip(THESE_START_TIMES_UNIX_SEC, THESE_START_LONGITUDES_DEG,
+        THESE_START_LATITUDES_DEG)
+]
+
+THESE_ID_STRINGS = (
+    [THESE_UNIQUE_ID_STRINGS[0]] * 11 + [THESE_UNIQUE_ID_STRINGS[1]] * 6 +
+    [THESE_UNIQUE_ID_STRINGS[2]] * 8 + [THESE_UNIQUE_ID_STRINGS[3]] * 10 +
+    [THESE_UNIQUE_ID_STRINGS[4]] * 1
+)
+
+THESE_FUJITA_STRINGS = (
+    [THESE_FUJITA_STRINGS[0]] * 11 + [THESE_FUJITA_STRINGS[1]] * 6 +
+    [THESE_FUJITA_STRINGS[2]] * 8 + [THESE_FUJITA_STRINGS[3]] * 10 +
+    [THESE_FUJITA_STRINGS[4]] * 1
+)
+
+TORNADO_TABLE_AFTER_INTERP = pandas.DataFrame.from_dict({
+    tornado_io.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tornado_io.LATITUDE_COLUMN: THESE_LATITUDES_DEG,
+    tornado_io.LONGITUDE_COLUMN: THESE_LONGITUDES_DEG,
+    tornado_io.TORNADO_ID_COLUMN: THESE_ID_STRINGS,
+    tornado_io.FUJITA_RATING_COLUMN: THESE_FUJITA_STRINGS
 })
 
 # The following constants are used to test find_processed_file.
@@ -217,6 +294,70 @@ class TornadoIoTests(unittest.TestCase):
         )
 
         self.assertTrue(this_new_table.equals(TORNADO_TABLE_NO_INVALID_ROWS))
+
+    def test_interp_tornadoes_along_tracks(self):
+        """Ensures correct output from interp_tornadoes_along_tracks."""
+
+        this_tornado_table = tornado_io.interp_tornadoes_along_tracks(
+            tornado_table=copy.deepcopy(TORNADO_TABLE_BEFORE_INTERP),
+            interp_time_interval_sec=INTERP_TIME_INTERVAL_SEC)
+
+        actual_columns = list(this_tornado_table)
+        expected_columns = list(TORNADO_TABLE_AFTER_INTERP)
+        self.assertTrue(set(actual_columns) == set(expected_columns))
+
+        exact_columns = [
+            tornado_io.TIME_COLUMN, tornado_io.TORNADO_ID_COLUMN,
+            tornado_io.FUJITA_RATING_COLUMN
+        ]
+
+        for this_column in actual_columns:
+            if this_column in exact_columns:
+                self.assertTrue(numpy.array_equal(
+                    this_tornado_table[this_column].values,
+                    TORNADO_TABLE_AFTER_INTERP[this_column].values
+                ))
+            else:
+                self.assertTrue(numpy.allclose(
+                    this_tornado_table[this_column].values,
+                    TORNADO_TABLE_AFTER_INTERP[this_column].values,
+                    atol=TOLERANCE
+                ))
+
+    def test_segments_to_tornadoes(self):
+        """Ensures correct output from segments_to_tornadoes."""
+
+        this_actual_table = tornado_io.segments_to_tornadoes(
+            TORNADO_TABLE_AFTER_INTERP)
+
+        this_actual_table.sort_values(
+            tornado_io.FUJITA_RATING_COLUMN, axis=0, ascending=True,
+            inplace=True)
+
+        this_expected_table = TORNADO_TABLE_BEFORE_INTERP.sort_values(
+            tornado_io.FUJITA_RATING_COLUMN, axis=0, ascending=True,
+            inplace=False)
+
+        actual_columns = set(list(this_actual_table))
+        expected_columns = set(list(this_expected_table))
+        self.assertTrue(expected_columns.issubset(actual_columns))
+
+        exact_columns = [
+            tornado_io.START_TIME_COLUMN, tornado_io.END_TIME_COLUMN,
+            tornado_io.FUJITA_RATING_COLUMN
+        ]
+
+        for this_column in expected_columns:
+            if this_column in exact_columns:
+                self.assertTrue(numpy.array_equal(
+                    this_actual_table[this_column].values,
+                    this_expected_table[this_column].values
+                ))
+            else:
+                self.assertTrue(numpy.allclose(
+                    this_actual_table[this_column].values,
+                    this_expected_table[this_column].values, atol=TOLERANCE
+                ))
 
     def test_find_processed_file(self):
         """Ensures correct output from find_processed_file."""

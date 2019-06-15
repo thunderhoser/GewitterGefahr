@@ -14,31 +14,20 @@ from gewittergefahr.gg_utils import linkage_test
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TOLERANCE = 1e-6
+INTERP_TIME_INTERVAL_SEC = 1
 
 STORM_OBJECT_TABLE = linkage_test.create_storm_objects()
 
-# The following constants are used to test _interp_tornadoes_along_tracks.
 THESE_START_TIMES_UNIX_SEC = numpy.array([1, 5, 5, 5, 60], dtype=int)
-THESE_END_TIMES_UNIX_SEC = numpy.array([11, 10, 12, 14, 60], dtype=int)
+# THESE_END_TIMES_UNIX_SEC = numpy.array([11, 10, 12, 14, 60], dtype=int)
 
 THESE_START_LATITUDES_DEG = numpy.array([59.5, 61, 51, 49, 89])
-THESE_END_LATITUDES_DEG = numpy.array([59.5, 66, 58, 58, 89])
+# THESE_END_LATITUDES_DEG = numpy.array([59.5, 66, 58, 58, 89])
 
 THESE_START_LONGITUDES_DEG = numpy.array([271, 275, 242.5, 242.5, 300])
-THESE_END_LONGITUDES_DEG = numpy.array([281, 275, 242.5, 242.5, 300])
+# THESE_END_LONGITUDES_DEG = numpy.array([281, 275, 242.5, 242.5, 300])
+
 THESE_FUJITA_STRINGS = ['EF1', 'EF2', 'EF3', 'EF4', 'EF5']
-
-TORNADO_TABLE_BEFORE_INTERP = pandas.DataFrame.from_dict({
-    tornado_io.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    tornado_io.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
-    tornado_io.START_LAT_COLUMN: THESE_START_LATITUDES_DEG,
-    tornado_io.END_LAT_COLUMN: THESE_END_LATITUDES_DEG,
-    tornado_io.START_LNG_COLUMN: THESE_START_LONGITUDES_DEG,
-    tornado_io.END_LNG_COLUMN: THESE_END_LONGITUDES_DEG,
-    tornado_io.FUJITA_RATING_COLUMN: THESE_FUJITA_STRINGS
-})
-
-INTERP_TIME_INTERVAL_SEC = 1
 
 THESE_TIMES_UNIX_SEC = numpy.array([
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
@@ -324,32 +313,6 @@ def _sort_tornadoes_for_each_storm(storm_to_tornadoes_table):
 
 class LinkageTests(unittest.TestCase):
     """Each method is a unit test for linkage.py."""
-
-    def test_interp_tornadoes_along_tracks(self):
-        """Ensures correct output from _interp_tornadoes_along_tracks."""
-
-        this_tornado_table = linkage._interp_tornadoes_along_tracks(
-            tornado_table=copy.deepcopy(TORNADO_TABLE_BEFORE_INTERP),
-            interp_time_interval_sec=INTERP_TIME_INTERVAL_SEC)
-
-        actual_num_events = len(this_tornado_table.index)
-        expected_num_events = len(TORNADO_TABLE.index)
-        self.assertTrue(actual_num_events == expected_num_events)
-
-        for this_column in list(this_tornado_table):
-            if this_column in [linkage.EVENT_TIME_COLUMN,
-                               tornado_io.TORNADO_ID_COLUMN,
-                               tornado_io.FUJITA_RATING_COLUMN]:
-                self.assertTrue(numpy.array_equal(
-                    this_tornado_table[this_column].values,
-                    TORNADO_TABLE[this_column].values
-                ))
-            else:
-                self.assertTrue(numpy.allclose(
-                    this_tornado_table[this_column].values,
-                    TORNADO_TABLE[this_column].values,
-                    atol=TOLERANCE
-                ))
 
     def test_find_nearest_storms(self):
         """Ensures correct output from _find_nearest_storms."""

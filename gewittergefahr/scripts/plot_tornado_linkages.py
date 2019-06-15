@@ -140,13 +140,14 @@ def _long_to_short_tornado_ids(long_id_strings):
     return short_id_strings
 
 
-def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, axes_object,
-                    basemap_object):
+def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, genesis_only,
+                    axes_object, basemap_object):
     """Plots start/end point of each tornado.
 
     :param tornado_table: pandas DataFrame returned by
         `linkage.read_linkage_file`.
     :param storm_to_tornadoes_table: Same.
+    :param genesis_only: See documentation at top of file.
     :param axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     :param basemap_object: Basemap handle (instance of
@@ -162,64 +163,25 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, axes_object,
     colour_norm_object = pyplot.Normalize(
         first_storm_time_unix_sec, last_storm_time_unix_sec
     )
-    
-    tornado_id_strings, orig_to_unique_indices = numpy.unique(
-        tornado_table[tornado_io.TORNADO_ID_COLUMN].values, return_inverse=True
-    )
-    
-    num_tornadoes = len(tornado_id_strings)
-
-    # TODO(thunderhoser): Plot end points only for occurrence.
-
-    short_tornado_id_strings = [None] * num_tornadoes
-    start_times_unix_sec = numpy.full(num_tornadoes, -1, dtype=int)
-    start_latitudes_deg = numpy.full(num_tornadoes, numpy.nan)
-    start_longitudes_deg = numpy.full(num_tornadoes, numpy.nan)
-    end_times_unix_sec = numpy.full(num_tornadoes, -1, dtype=int)
-    end_latitudes_deg = numpy.full(num_tornadoes, numpy.nan)
-    end_longitudes_deg = numpy.full(num_tornadoes, numpy.nan)
-    
-    for j in range(num_tornadoes):
-        these_indices = numpy.where(orig_to_unique_indices == j)[0]
-        short_tornado_id_strings[j] = tornado_table[
-            SHORT_TORNADO_ID_COLUMN
-        ].values[these_indices[0]]
-
-        this_subindex = numpy.argmin(
-            tornado_table[linkage.EVENT_TIME_COLUMN].values[these_indices]
-        )
-        this_start_index = these_indices[this_subindex]
-
-        start_times_unix_sec[j] = tornado_table[
-            linkage.EVENT_TIME_COLUMN].values[this_start_index]
-        start_latitudes_deg[j] = tornado_table[
-            linkage.EVENT_LATITUDE_COLUMN].values[this_start_index]
-        start_longitudes_deg[j] = tornado_table[
-            linkage.EVENT_LONGITUDE_COLUMN].values[this_start_index]
-
-        this_subindex = numpy.argmax(
-            tornado_table[linkage.EVENT_TIME_COLUMN].values[these_indices]
-        )
-        this_end_index = these_indices[this_subindex]
-
-        end_times_unix_sec[j] = tornado_table[
-            linkage.EVENT_TIME_COLUMN].values[this_end_index]
-        end_latitudes_deg[j] = tornado_table[
-            linkage.EVENT_LATITUDE_COLUMN].values[this_end_index]
-        end_longitudes_deg[j] = tornado_table[
-            linkage.EVENT_LONGITUDE_COLUMN].values[this_end_index]
 
     start_time_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
-        start_times_unix_sec
+        tornado_table[tornado_io.START_TIME_COLUMN].values
     ))
     end_time_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
-        end_times_unix_sec
+        tornado_table[tornado_io.END_TIME_COLUMN].values
     ))
 
     start_x_coords_metres, start_y_coords_metres = basemap_object(
-        start_longitudes_deg, start_latitudes_deg)
+        tornado_table[tornado_io.START_LNG_COLUMN].values,
+        tornado_table[tornado_io.START_LAT_COLUMN].values
+    )
+
     end_x_coords_metres, end_y_coords_metres = basemap_object(
-        end_longitudes_deg, end_latitudes_deg)
+        tornado_table[tornado_io.END_LNG_COLUMN].values,
+        tornado_table[tornado_io.END_LAT_COLUMN].values
+    )
+
+    num_tornadoes = len(tornado_table.index)
 
     for j in range(num_tornadoes):
         axes_object.plot(
@@ -235,36 +197,39 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, axes_object,
 
         axes_object.text(
             start_x_coords_metres[j], start_y_coords_metres[j],
-            short_tornado_id_strings[j], fontsize=FONT_SIZE, color='k',
-            horizontalalignment='center', verticalalignment='center')
+            tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
+            fontsize=FONT_SIZE, color='k', horizontalalignment='center',
+            verticalalignment='center')
 
-        # axes_object.plot(
-        #     end_x_coords_metres[j], end_y_coords_metres[j], linestyle='None',
-        #     marker=TORNADO_END_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
-        #     markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
-        #     markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
-        #         end_time_colour_matrix[j, :-1]
-        #     ),
-        #     markeredgecolor='k'
-        # )
-        #
-        # axes_object.text(
-        #     end_x_coords_metres[j], end_y_coords_metres[j],
-        #     short_tornado_id_strings[j], fontsize=FONT_SIZE, color='k',
-        #     horizontalalignment='center', verticalalignment='center')
+        if genesis_only:
+            continue
+
+        axes_object.plot(
+            end_x_coords_metres[j], end_y_coords_metres[j], linestyle='None',
+            marker=TORNADO_END_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
+            markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
+            markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
+                end_time_colour_matrix[j, :-1]
+            ),
+            markeredgecolor='k'
+        )
+
+        axes_object.text(
+            end_x_coords_metres[j], end_y_coords_metres[j],
+            tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
+            fontsize=FONT_SIZE, color='k', horizontalalignment='center',
+            verticalalignment='center')
 
 
 def _plot_linkages_one_storm_object(
-        storm_to_tornadoes_table, storm_object_index, tornado_table,
-        axes_object, basemap_object):
+        storm_to_tornadoes_table, storm_object_index, axes_object,
+        basemap_object):
     """Plots linkages for one storm object.
 
     :param storm_to_tornadoes_table: pandas DataFrame returned by
         `linkage.read_linkage_file`.
     :param storm_object_index: Will plot linkages for the [k]th storm object, or
         [k]th row of `storm_to_tornadoes_table`.
-    :param tornado_table: pandas DataFrame returned by
-        `linkage.read_linkage_file`.
     :param axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     :param basemap_object: Basemap handle (instance of
@@ -288,22 +253,7 @@ def _plot_linkages_one_storm_object(
         for k in good_indices
     ]
 
-    linked_short_id_strings = []
-
-    for this_id_string in linked_id_strings:
-        these_indices = numpy.where(
-            tornado_table[tornado_io.TORNADO_ID_COLUMN].values == this_id_string
-        )[0]
-
-        if len(these_indices) == 0:
-            continue
-
-        linked_short_id_strings.append(
-            tornado_table[SHORT_TORNADO_ID_COLUMN].values[these_indices[0]]
-        )
-
-    if len(linked_short_id_strings) == 0:
-        return
+    linked_short_id_strings = _long_to_short_tornado_ids(linked_id_strings)
 
     x_coord_metres, y_coord_metres = basemap_object(
         storm_to_tornadoes_table[
@@ -399,6 +349,8 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
     tornado_table = pandas.concat(
         list_of_tornado_tables, axis=0, ignore_index=True)
 
+    tornado_table = tornado_io.segments_to_tornadoes(tornado_table)
+
     tornado_table = tornado_table.assign(**{
         SHORT_TORNADO_ID_COLUMN: _long_to_short_tornado_ids(
             tornado_table[tornado_io.TORNADO_ID_COLUMN].values
@@ -444,21 +396,11 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
            <= max_plot_longitude_deg)
     ]
 
-    # TODO(thunderhoser): This treats each track segment as an individual thing.
-    # Need to consider tornadoes as a whole.  Probably should write a method to
-    # convert from "events" to tornadoes.
-    tornado_table = tornado_table.loc[
-        (tornado_table[linkage.EVENT_LATITUDE_COLUMN] >= min_plot_latitude_deg)
-        &
-        (tornado_table[linkage.EVENT_LATITUDE_COLUMN] <= max_plot_longitude_deg)
-    ]
-
-    tornado_table = tornado_table.loc[
-        (tornado_table[linkage.EVENT_LONGITUDE_COLUMN]
-         >= min_plot_longitude_deg)
-        & (tornado_table[linkage.EVENT_LONGITUDE_COLUMN]
-           <= max_plot_longitude_deg)
-    ]
+    tornado_io.subset_tornadoes(
+        tornado_table=tornado_table, min_latitude_deg=min_plot_latitude_deg,
+        max_latitude_deg=max_plot_latitude_deg,
+        min_longitude_deg=min_plot_longitude_deg,
+        max_longitude_deg=max_plot_longitude_deg)
 
     print(SEPARATOR_STRING)
 
@@ -507,7 +449,8 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
     _plot_tornadoes(
         tornado_table=tornado_table,
         storm_to_tornadoes_table=storm_to_tornadoes_table,
-        axes_object=axes_object, basemap_object=basemap_object)
+        genesis_only=genesis_only, axes_object=axes_object,
+        basemap_object=basemap_object)
 
     print('Plotting tornado IDs with storm objects...')
     num_storm_objects = len(storm_to_tornadoes_table.index)
@@ -515,8 +458,8 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
     for i in range(num_storm_objects):
         _plot_linkages_one_storm_object(
             storm_to_tornadoes_table=storm_to_tornadoes_table,
-            storm_object_index=i, tornado_table=tornado_table,
-            axes_object=axes_object, basemap_object=basemap_object)
+            storm_object_index=i, axes_object=axes_object,
+            basemap_object=basemap_object)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
