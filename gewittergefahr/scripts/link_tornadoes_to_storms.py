@@ -157,7 +157,7 @@ def _link_tornadoes_one_period(
                 columns=column_dict_old_to_new, inplace=False)
 
             this_tornado_table = tornado_io.segments_to_tornadoes(
-                tornado_to_storm_table)
+                this_tornado_table)
 
             this_tornado_table = tornado_io.subset_tornadoes(
                 tornado_table=this_tornado_table,
