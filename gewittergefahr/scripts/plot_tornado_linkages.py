@@ -222,14 +222,16 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, genesis_only,
 
 
 def _plot_linkages_one_storm_object(
-        storm_to_tornadoes_table, storm_object_index, axes_object,
-        basemap_object):
+        storm_to_tornadoes_table, storm_object_index, tornado_table,
+        axes_object, basemap_object):
     """Plots linkages for one storm object.
 
     :param storm_to_tornadoes_table: pandas DataFrame returned by
         `linkage.read_linkage_file`.
     :param storm_object_index: Will plot linkages for the [k]th storm object, or
         [k]th row of `storm_to_tornadoes_table`.
+    :param tornado_table: pandas DataFrame returned by
+        `linkage.read_linkage_file`.
     :param axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     :param basemap_object: Basemap handle (instance of
@@ -480,8 +482,8 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
     for i in range(num_storm_objects):
         _plot_linkages_one_storm_object(
             storm_to_tornadoes_table=storm_to_tornadoes_table,
-            storm_object_index=i, axes_object=axes_object,
-            basemap_object=basemap_object)
+            storm_object_index=i, tornado_table=tornado_table,
+            axes_object=axes_object, basemap_object=basemap_object)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
