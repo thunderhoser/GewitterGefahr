@@ -1,6 +1,7 @@
 """Runs `linkage.link_winds_to_storms`."""
 
 import argparse
+import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import echo_top_tracking
@@ -85,21 +86,32 @@ def _link_winds_one_period(
         top_wind_directory_name=top_wind_dir_name)
     print(SEPARATOR_STRING)
 
-    spc_date_string = time_conversion.time_to_spc_date_string(
-        tracking_io.file_name_to_time(tracking_file_names[0])
+    spc_date_string_by_storm_object = [
+        time_conversion.time_to_spc_date_string(t) for t in
+        storm_to_winds_table[tracking_utils.VALID_TIME_COLUMN].values
+    ]
+
+    unique_spc_date_strings, orig_to_unique_indices = numpy.unique(
+        numpy.array(spc_date_string_by_storm_object), return_inverse=True
     )
 
-    output_file_name = linkage.find_linkage_file(
-        top_directory_name=top_output_dir_name,
-        event_type_string=linkage.WIND_EVENT_STRING,
-        spc_date_string=spc_date_string, raise_error_if_missing=False)
+    for i in range(len(unique_spc_date_strings)):
+        this_output_file_name = linkage.find_linkage_file(
+            top_directory_name=top_output_dir_name,
+            event_type_string=linkage.WIND_EVENT_STRING,
+            spc_date_string=unique_spc_date_strings[i],
+            raise_error_if_missing=False)
 
-    print('Writing linkages to: "{0:s}"...'.format(output_file_name))
+        print('Writing linkages to: "{0:s}"...'.format(this_output_file_name))
 
-    linkage.write_linkage_file(
-        pickle_file_name=output_file_name,
-        storm_to_events_table=storm_to_winds_table, metadata_dict=metadata_dict)
-    print(SEPARATOR_STRING)
+        these_storm_object_rows = numpy.where(orig_to_unique_indices == i)[0]
+
+        linkage.write_linkage_file(
+            pickle_file_name=this_output_file_name,
+            storm_to_events_table=storm_to_winds_table.iloc[
+                these_storm_object_rows],
+            metadata_dict=metadata_dict)
+        print(SEPARATOR_STRING)
 
 
 def _run(top_wind_dir_name, top_tracking_dir_name, tracking_scale_metres2,

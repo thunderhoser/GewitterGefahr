@@ -2,6 +2,7 @@
 
 import argparse
 import numpy
+from gewittergefahr.gg_io import tornado_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import echo_top_tracking
@@ -103,16 +104,16 @@ def _link_tornadoes_one_period(
         linkage.TORNADOGENESIS_EVENT_STRING if genesis_only
         else linkage.TORNADO_EVENT_STRING
     )
-    
+
     spc_date_string_by_storm_object = [
         time_conversion.time_to_spc_date_string(t) for t in
         storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
     ]
-    
+
     unique_spc_date_strings, orig_to_unique_indices = numpy.unique(
         numpy.array(spc_date_string_by_storm_object), return_inverse=True
     )
-    
+
     for i in range(len(unique_spc_date_strings)):
         this_output_file_name = linkage.find_linkage_file(
             top_directory_name=top_output_dir_name,
@@ -121,12 +122,11 @@ def _link_tornadoes_one_period(
             raise_error_if_missing=False)
 
         print('Writing linkages to: "{0:s}"...'.format(this_output_file_name))
-        
+
         these_storm_object_rows = numpy.where(orig_to_unique_indices == i)[0]
         these_storm_times_unix_sec = storm_to_tornadoes_table[
             tracking_utils.VALID_TIME_COLUMN].values[these_storm_object_rows]
 
-        # TODO(thunderhoser): Put temporal subsetting of tornadoes elsewhere.
         this_min_time_unix_sec = (
             numpy.min(these_storm_times_unix_sec) -
             metadata_dict[linkage.MAX_TIME_BEFORE_START_KEY]
@@ -144,13 +144,31 @@ def _link_tornadoes_one_period(
                 this_max_time_unix_sec
             ))[0]
 
+            this_tornado_to_storm_table = tornado_to_storm_table.iloc[
+                these_event_rows]
+        else:
+            this_tornado_table = tornado_io.segments_to_tornadoes(
+                tornado_to_storm_table)
+
+            this_tornado_table = tornado_io.subset_tornadoes(
+                tornado_table=this_tornado_table,
+                min_time_unix_sec=this_min_time_unix_sec,
+                max_time_unix_sec=this_max_time_unix_sec)
+
+            these_tornado_id_strings = this_tornado_table[
+                tornado_io.TORNADO_ID_COLUMN].values
+
+            this_tornado_to_storm_table = tornado_to_storm_table.loc[
+                tornado_to_storm_table[tornado_io.TORNADO_ID_COLUMN].isin(
+                    these_tornado_id_strings)
+            ]
+
         linkage.write_linkage_file(
             pickle_file_name=this_output_file_name,
             storm_to_events_table=storm_to_tornadoes_table.iloc[
                 these_storm_object_rows],
             metadata_dict=metadata_dict,
-            tornado_to_storm_table=tornado_to_storm_table.iloc[these_event_rows]
-        )
+            tornado_to_storm_table=this_tornado_to_storm_table)
         print(SEPARATOR_STRING)
 
 
