@@ -285,10 +285,11 @@ def _plot_linkages_one_storm_object(
         markeredgewidth=TORNADO_MARKER_EDGE_WIDTH / 3,
         markerfacecolor='k', markeredgecolor='k')
 
+    label_string = ','.join(list(set(linked_short_id_strings)))
+
     axes_object.text(
-        x_coord_metres, y_coord_metres, ','.join(linked_short_id_strings),
-        fontsize=FONT_SIZE, color='k',
-        horizontalalignment='left', verticalalignment='top')
+        x_coord_metres, y_coord_metres, label_string, fontsize=FONT_SIZE,
+        color='k', horizontalalignment='left', verticalalignment='top')
 
 
 def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
