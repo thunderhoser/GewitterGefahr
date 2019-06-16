@@ -253,7 +253,22 @@ def _plot_linkages_one_storm_object(
         for k in good_indices
     ]
 
-    linked_short_id_strings = _long_to_short_tornado_ids(linked_id_strings)
+    linked_short_id_strings = []
+
+    for this_id_string in linked_id_strings:
+        these_indices = numpy.where(
+            tornado_table[tornado_io.TORNADO_ID_COLUMN].values == this_id_string
+        )[0]
+
+        if len(these_indices) == 0:
+            continue
+
+        linked_short_id_strings.append(
+            tornado_table[SHORT_TORNADO_ID_COLUMN].values[these_indices[0]]
+        )
+
+    if len(linked_short_id_strings) == 0:
+        return
 
     x_coord_metres, y_coord_metres = basemap_object(
         storm_to_tornadoes_table[
