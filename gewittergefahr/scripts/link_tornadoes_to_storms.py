@@ -147,6 +147,15 @@ def _link_tornadoes_one_period(
             this_tornado_to_storm_table = tornado_to_storm_table.iloc[
                 these_event_rows]
         else:
+            column_dict_old_to_new = {
+                linkage.EVENT_TIME_COLUMN: tornado_io.TIME_COLUMN,
+                linkage.EVENT_LATITUDE_COLUMN: tornado_io.LATITUDE_COLUMN,
+                linkage.EVENT_LONGITUDE_COLUMN: tornado_io.LONGITUDE_COLUMN
+            }
+
+            this_tornado_table = tornado_to_storm_table.rename(
+                columns=column_dict_old_to_new, inplace=False)
+
             this_tornado_table = tornado_io.segments_to_tornadoes(
                 tornado_to_storm_table)
 
