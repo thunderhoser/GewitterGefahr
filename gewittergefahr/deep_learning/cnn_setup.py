@@ -38,9 +38,7 @@ DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = 0.5
 DEFAULT_L1_WEIGHT = 0.
 DEFAULT_L2_WEIGHT = 0.001
 DEFAULT_USE_BATCH_NORM_FLAG = True
-DEFAULT_ACTIVATION_FUNCTION_STRING = (
-    architecture_utils.RELU_FUNCTION_STRING + ''
-)
+DEFAULT_ACTIVATION_FUNCTION_STRING = architecture_utils.RELU_FUNCTION_STRING
 
 VALID_NUMBERS_OF_SOUNDING_HEIGHTS = numpy.array([49], dtype=int)
 
@@ -52,23 +50,23 @@ DEFAULT_METRIC_FUNCTION_LIST = [
     keras_metrics.binary_focn
 ]
 
-# TODO(thunderhoser): Make padding an input option.
-
 
 def _create_sounding_layers(
         num_fields, num_heights, num_conv_layer_sets,
-        num_conv_layers_per_set, l1_weight, l2_weight, pooling_type_string,
-        activation_function_string, alpha_for_elu, alpha_for_relu,
-        use_batch_normalization, dropout_fraction, do_separable_conv,
-        first_num_filters=None, first_num_spatial_filters=None,
-        num_non_spatial_filters=None):
+        num_conv_layers_per_set, padding_type_string, l1_weight, l2_weight,
+        pooling_type_string, activation_function_string, alpha_for_elu,
+        alpha_for_relu, use_batch_normalization, dropout_fraction,
+        do_separable_conv, first_num_filters=None,
+        first_num_spatial_filters=None, num_non_spatial_filters=None):
     """Creates convolution and pooling layers to process sounding data.
 
     :param num_fields: See doc for `check_sounding_options`.
     :param num_heights: Same.
     :param num_conv_layer_sets: See doc for `check_radar_options`.
     :param num_conv_layers_per_set: Same.
-    :param l1_weight: Same.
+    :param padding_type_string: Padding type (see doc for
+        `architecture_utils._check_convolution_options`).
+    :param l1_weight: See doc for `check_radar_options`.
     :param l2_weight: Same.
     :param pooling_type_string: Same.
     :param activation_function_string: Same.
@@ -130,8 +128,7 @@ def _create_sounding_layers(
                         num_rows_per_stride=1,
                         num_spatial_filters=current_num_spatial_filters,
                         num_non_spatial_filters=num_non_spatial_filters,
-                        padding_type_string=
-                        architecture_utils.NO_PADDING_STRING,
+                        padding_type_string=padding_type_string,
                         weight_regularizer=regularizer_object
                     )(this_input_layer_object)
                 )
@@ -139,7 +136,7 @@ def _create_sounding_layers(
                 current_layer_object = architecture_utils.get_1d_conv_layer(
                     num_kernel_rows=NUM_CONV_KERNEL_HEIGHTS,
                     num_rows_per_stride=1, num_filters=current_num_filters,
-                    padding_type_string=architecture_utils.NO_PADDING_STRING,
+                    padding_type_string=padding_type_string,
                     weight_regularizer=regularizer_object
                 )(this_input_layer_object)
 
@@ -457,7 +454,7 @@ def check_sounding_options(
 
 def create_2d_cnn(
         num_radar_rows, num_radar_columns, num_radar_channels, num_classes,
-        num_sounding_fields, num_sounding_heights,
+        num_sounding_fields, num_sounding_heights, use_padding=False,
         pooling_type_string=architecture_utils.MAX_POOLING_STRING,
         num_conv_layer_sets=DEFAULT_NUM_CONV_LAYER_SETS,
         num_conv_layers_per_set=DEFAULT_NUM_CONV_LAYERS_PER_SET,
@@ -481,6 +478,9 @@ def create_2d_cnn(
     :param num_classes: Same.
     :param num_sounding_fields: See doc for `check_sounding_options`.
     :param num_sounding_heights: Same.
+    :param use_padding: Boolean flag.  If True, will use edge-padding so that
+        convolution does not change image size.  If False, will not use edge-
+        padding.
     :param pooling_type_string: Pooling type (see doc for
         `architecture_utils._check_pooling_options`).
     :param num_conv_layer_sets: See doc for `check_radar_options`.
@@ -500,6 +500,12 @@ def create_2d_cnn(
         report performance during training.
     :return: cnn_model_object: Untrained instance of `keras.models.Model`.
     """
+
+    error_checking.assert_is_boolean(use_padding)
+    padding_type_string = (
+        architecture_utils.YES_PADDING_STRING if use_padding
+        else architecture_utils.NO_PADDING_STRING
+    )
 
     error_checking.assert_is_integer(num_sounding_fields)
     error_checking.assert_is_integer(num_sounding_heights)
@@ -544,7 +550,7 @@ def create_2d_cnn(
                 num_kernel_rows=NUM_CONV_KERNEL_ROWS,
                 num_kernel_columns=NUM_CONV_KERNEL_COLUMNS,
                 num_rows_per_stride=1, num_columns_per_stride=1,
-                padding_type_string=architecture_utils.NO_PADDING_STRING,
+                padding_type_string=padding_type_string,
                 weight_regularizer=regularizer_object
             )(this_input_layer_object)
 
@@ -584,8 +590,8 @@ def create_2d_cnn(
             num_fields=num_sounding_fields, num_heights=num_sounding_heights,
             num_conv_layer_sets=num_conv_layer_sets,
             num_conv_layers_per_set=num_conv_layers_per_set,
-            l1_weight=l1_weight, l2_weight=l2_weight,
-            pooling_type_string=pooling_type_string,
+            padding_type_string=padding_type_string, l1_weight=l1_weight,
+            l2_weight=l2_weight, pooling_type_string=pooling_type_string,
             activation_function_string=activation_function_string,
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
             use_batch_normalization=use_batch_normalization,
@@ -629,7 +635,7 @@ def create_2d_cnn(
 
 def create_separable_2d_cnn(
         num_radar_rows, num_radar_columns, num_radar_channels, num_classes,
-        num_sounding_fields, num_sounding_heights,
+        num_sounding_fields, num_sounding_heights, use_padding=False,
         pooling_type_string=architecture_utils.MAX_POOLING_STRING,
         num_conv_layer_sets=DEFAULT_NUM_CONV_LAYER_SETS,
         num_conv_layers_per_set=DEFAULT_NUM_CONV_LAYERS_PER_SET,
@@ -656,6 +662,7 @@ def create_separable_2d_cnn(
     :param num_classes: Same.
     :param num_sounding_fields: See doc for `check_sounding_options`.
     :param num_sounding_heights: Same.
+    :param use_padding: See doc for `create_2d_cnn`.
     :param pooling_type_string: Pooling type (see doc for
         `architecture_utils._check_pooling_options`).
     :param num_conv_layer_sets: See doc for `check_radar_options`.
@@ -678,6 +685,12 @@ def create_separable_2d_cnn(
         report performance during training.
     :return: cnn_model_object: Untrained instance of `keras.models.Model`.
     """
+
+    error_checking.assert_is_boolean(use_padding)
+    padding_type_string = (
+        architecture_utils.YES_PADDING_STRING if use_padding
+        else architecture_utils.NO_PADDING_STRING
+    )
 
     error_checking.assert_is_integer(num_sounding_fields)
     error_checking.assert_is_integer(num_sounding_heights)
@@ -725,8 +738,7 @@ def create_separable_2d_cnn(
                 num_kernel_columns=NUM_CONV_KERNEL_COLUMNS,
                 num_rows_per_stride=1, num_columns_per_stride=1,
                 num_non_spatial_filters=num_non_spatial_radar_filters,
-                padding_type_string=
-                architecture_utils.NO_PADDING_STRING,
+                padding_type_string=padding_type_string,
                 weight_regularizer=regularizer_object
             )(this_input_layer_object)
 
@@ -766,8 +778,8 @@ def create_separable_2d_cnn(
             num_fields=num_sounding_fields, num_heights=num_sounding_heights,
             num_conv_layer_sets=num_conv_layer_sets,
             num_conv_layers_per_set=num_conv_layers_per_set,
-            l1_weight=l1_weight, l2_weight=l2_weight,
-            pooling_type_string=pooling_type_string,
+            padding_type_string=padding_type_string, l1_weight=l1_weight,
+            l2_weight=l2_weight, pooling_type_string=pooling_type_string,
             activation_function_string=activation_function_string,
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
             use_batch_normalization=use_batch_normalization,
@@ -813,6 +825,7 @@ def create_separable_2d_cnn(
 def create_3d_cnn(
         num_radar_rows, num_radar_columns, num_radar_heights, num_radar_fields,
         num_classes, num_sounding_fields, num_sounding_heights,
+        use_padding=False,
         pooling_type_string=architecture_utils.MAX_POOLING_STRING,
         num_conv_layer_sets=DEFAULT_NUM_CONV_LAYER_SETS,
         num_conv_layers_per_set=DEFAULT_NUM_CONV_LAYERS_PER_SET,
@@ -835,6 +848,7 @@ def create_3d_cnn(
     :param num_classes: Same.
     :param num_sounding_fields: See doc for `check_sounding_options`.
     :param num_sounding_heights: Same.
+    :param use_padding: See doc for `create_2d_cnn`.
     :param pooling_type_string: Pooling type (see doc for
         `architecture_utils._check_pooling_options`).
     :param num_conv_layer_sets: See doc for `check_radar_options`.
@@ -854,6 +868,12 @@ def create_3d_cnn(
         report performance during training.
     :return: cnn_model_object: Untrained instance of `keras.models.Model`.
     """
+
+    error_checking.assert_is_boolean(use_padding)
+    padding_type_string = (
+        architecture_utils.YES_PADDING_STRING if use_padding
+        else architecture_utils.NO_PADDING_STRING
+    )
 
     error_checking.assert_is_integer(num_sounding_fields)
     error_checking.assert_is_integer(num_sounding_heights)
@@ -901,7 +921,7 @@ def create_3d_cnn(
                 num_kernel_heights=NUM_CONV_KERNEL_HEIGHTS,
                 num_rows_per_stride=1, num_columns_per_stride=1,
                 num_heights_per_stride=1,
-                padding_type_string=architecture_utils.NO_PADDING_STRING,
+                padding_type_string=padding_type_string,
                 weight_regularizer=regularizer_object
             )(this_input_layer_object)
 
@@ -942,8 +962,8 @@ def create_3d_cnn(
             num_fields=num_sounding_fields, num_heights=num_sounding_heights,
             num_conv_layer_sets=num_conv_layer_sets,
             num_conv_layers_per_set=num_conv_layers_per_set,
-            l1_weight=l1_weight, l2_weight=l2_weight,
-            pooling_type_string=pooling_type_string,
+            padding_type_string=padding_type_string, l1_weight=l1_weight,
+            l2_weight=l2_weight, pooling_type_string=pooling_type_string,
             activation_function_string=activation_function_string,
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
             use_batch_normalization=use_batch_normalization,
@@ -987,15 +1007,17 @@ def create_3d_cnn(
 
 def _create_sounding_layers_resnet(
         num_fields, num_heights, num_conv_layer_sets,
-        num_conv_layers_per_set, l1_weight, l2_weight, pooling_type_string,
-        activation_function_string, alpha_for_elu, alpha_for_relu,
-        use_batch_normalization, dropout_fraction, first_num_filters):
+        num_conv_layers_per_set, padding_type_string, l1_weight, l2_weight,
+        pooling_type_string, activation_function_string, alpha_for_elu,
+        alpha_for_relu, use_batch_normalization, dropout_fraction,
+        first_num_filters):
     """Creates conv and pooling layers, with residual blocks, for sounding data.
 
     :param num_fields: See doc for `_create_sounding_layers`.
     :param num_heights: Same.
     :param num_conv_layer_sets: Same.
     :param num_conv_layers_per_set: Same.
+    :param padding_type_string: Same.
     :param l1_weight: Same.
     :param l2_weight: Same.
     :param pooling_type_string: Same.
@@ -1039,7 +1061,7 @@ def _create_sounding_layers_resnet(
         current_layer_object = architecture_utils.get_1d_conv_layer(
             num_kernel_rows=NUM_CONV_KERNEL_HEIGHTS,
             num_rows_per_stride=1, num_filters=current_num_filters,
-            padding_type_string=architecture_utils.YES_PADDING_STRING,
+            padding_type_string=padding_type_string,
             weight_regularizer=regularizer_object
         )(this_input_layer_object)
 
@@ -1068,7 +1090,7 @@ def _create_sounding_layers_resnet(
             new_layer_object = architecture_utils.get_1d_conv_layer(
                 num_kernel_rows=NUM_CONV_KERNEL_HEIGHTS,
                 num_rows_per_stride=1, num_filters=current_num_filters,
-                padding_type_string=architecture_utils.YES_PADDING_STRING,
+                padding_type_string=padding_type_string,
                 weight_regularizer=regularizer_object
             )(this_input_layer_object)
 
@@ -1108,6 +1130,7 @@ def _create_sounding_layers_resnet(
 def create_3d_resnet(
         num_radar_rows, num_radar_columns, num_radar_heights, num_radar_fields,
         num_classes, num_sounding_fields, num_sounding_heights,
+        use_padding=False,
         pooling_type_string=architecture_utils.MAX_POOLING_STRING,
         num_conv_layer_sets=DEFAULT_NUM_CONV_LAYER_SETS,
         num_conv_layers_per_set=DEFAULT_NUM_CONV_LAYERS_PER_SET,
@@ -1130,6 +1153,7 @@ def create_3d_resnet(
     :param num_classes: Same.
     :param num_sounding_fields: Same.
     :param num_sounding_heights: Same.
+    :param use_padding: Same.
     :param pooling_type_string: Same.
     :param num_conv_layer_sets: Same.
     :param num_conv_layers_per_set: Same.
@@ -1151,6 +1175,12 @@ def create_3d_resnet(
     # TODO(thunderhoser): This is my first attempt at res-nets.  I don't know
     # what the best architecture is, especially vis-a-vis where activation and
     # batch-norm layers should go.
+
+    error_checking.assert_is_boolean(use_padding)
+    padding_type_string = (
+        architecture_utils.YES_PADDING_STRING if use_padding
+        else architecture_utils.NO_PADDING_STRING
+    )
 
     error_checking.assert_is_integer(num_sounding_fields)
     error_checking.assert_is_integer(num_sounding_heights)
@@ -1196,8 +1226,7 @@ def create_3d_resnet(
             num_kernel_columns=NUM_CONV_KERNEL_COLUMNS,
             num_kernel_heights=NUM_CONV_KERNEL_HEIGHTS,
             num_rows_per_stride=1, num_columns_per_stride=1,
-            num_heights_per_stride=1,
-            padding_type_string=architecture_utils.YES_PADDING_STRING,
+            num_heights_per_stride=1, padding_type_string=padding_type_string,
             weight_regularizer=regularizer_object
         )(this_input_layer_object)
 
@@ -1230,7 +1259,7 @@ def create_3d_resnet(
                 num_kernel_heights=NUM_CONV_KERNEL_HEIGHTS,
                 num_rows_per_stride=1, num_columns_per_stride=1,
                 num_heights_per_stride=1,
-                padding_type_string=architecture_utils.YES_PADDING_STRING,
+                padding_type_string=padding_type_string,
                 weight_regularizer=regularizer_object
             )(this_input_layer_object)
 
@@ -1279,8 +1308,8 @@ def create_3d_resnet(
             num_fields=num_sounding_fields, num_heights=num_sounding_heights,
             num_conv_layer_sets=num_conv_layer_sets,
             num_conv_layers_per_set=num_conv_layers_per_set,
-            l1_weight=l1_weight, l2_weight=l2_weight,
-            pooling_type_string=pooling_type_string,
+            padding_type_string=padding_type_string, l1_weight=l1_weight,
+            l2_weight=l2_weight, pooling_type_string=pooling_type_string,
             activation_function_string=activation_function_string,
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
             use_batch_normalization=use_batch_normalization,
