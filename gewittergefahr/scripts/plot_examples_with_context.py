@@ -39,14 +39,15 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 TIME_INTERVAL_SECONDS = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
-TORNADO_TIME_FORMAT = '%H%M'
-TORNADO_FONT_SIZE = 20
-TORNADO_FONT_COLOUR = numpy.full(3, 0.)
+FONT_SIZE = 20
+FONT_COLOUR = numpy.full(3, 0.)
 
-TORNADO_MARKER_TYPE = '^'
+TORNADO_TIME_FORMAT = '%H%M'
+TORNADO_MARKER_TYPE = 'D'
 TORNADO_MARKER_SIZE = 16
 TORNADO_MARKER_EDGE_WIDTH = 1
-TORNADO_MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
+# TORNADO_MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -149,7 +150,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_one_example_one_time(
-        storm_object_table, primary_id_string, valid_time_unix_sec,
+        storm_object_table, full_id_string, valid_time_unix_sec,
         tornado_table, top_myrorss_dir_name, radar_field_name,
         radar_height_m_asl, latitude_limits_deg, longitude_limits_deg):
     """Plots one example with surrounding context at one time.
@@ -157,7 +158,7 @@ def _plot_one_example_one_time(
     :param storm_object_table: pandas DataFrame, containing only storm objects
         at one time with the relevant primary ID.  Columns are documented in
         `storm_tracking_io.write_file`.
-    :param primary_id_string: Primary ID of storm of interest.
+    :param full_id_string: Full ID of storm of interest.
     :param valid_time_unix_sec: Valid time.
     :param tornado_table: pandas DataFrame created by
         `linkage._read_input_tornado_reports`.
@@ -256,6 +257,13 @@ def _plot_one_example_one_time(
         colour_norm_object=colour_norm_object, orientation_string='horizontal',
         extend_min=False, extend_max=True, fraction_of_axis_length=0.8)
 
+    first_list, second_list = temporal_tracking.full_to_partial_ids(
+        [full_id_string]
+    )
+    primary_id_string = first_list[0]
+    secondary_id_string = second_list[0]
+
+    # Plot outlines of unrelated storms (with different primary IDs).
     this_storm_object_table = storm_object_table.loc[
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] !=
         primary_id_string
@@ -266,15 +274,52 @@ def _plot_one_example_one_time(
         basemap_object=basemap_object, line_width=2, line_colour='k',
         line_style='dashed')
 
+    # Plot outlines of related storms (with the same primary ID).
     this_storm_object_table = storm_object_table.loc[
-        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
-        primary_id_string
+        (storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
+         primary_id_string) &
+        (storm_object_table[tracking_utils.SECONDARY_ID_COLUMN] !=
+         secondary_id_string)
+    ]
+
+    this_num_storm_objects = len(this_storm_object_table.index)
+
+    if this_num_storm_objects > 0:
+        storm_plotting.plot_storm_outlines(
+            storm_object_table=this_storm_object_table, axes_object=axes_object,
+            basemap_object=basemap_object, line_width=2, line_colour='k',
+            line_style='solid')
+
+        axes_object.text(
+            this_storm_object_table[
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
+            this_storm_object_table[
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values,
+            ['s'] * this_num_storm_objects, fontsize=FONT_SIZE,
+            color=FONT_COLOUR, horizontalalignment='center',
+            verticalalignment='center')
+
+    # Plot outline of storm of interest (same secondary ID).
+    this_storm_object_table = storm_object_table.loc[
+        storm_object_table[tracking_utils.SECONDARY_ID_COLUMN] ==
+        secondary_id_string
     ]
 
     storm_plotting.plot_storm_outlines(
         storm_object_table=this_storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, line_width=2, line_colour='k',
+        basemap_object=basemap_object, line_width=4, line_colour='k',
         line_style='solid')
+
+    this_num_storm_objects = len(this_storm_object_table.index)
+
+    axes_object.text(
+        this_storm_object_table[
+            tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
+        this_storm_object_table[
+            tracking_utils.CENTROID_LATITUDE_COLUMN].values,
+        ['S'] * this_num_storm_objects, fontsize=FONT_SIZE,
+        color=FONT_COLOUR, horizontalalignment='center',
+        verticalalignment='center')
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
     tornado_longitudes_deg = tornado_table[
@@ -300,9 +345,9 @@ def _plot_one_example_one_time(
 
     for j in range(num_tornadoes):
         axes_object.text(
-            tornado_longitudes_deg[j], tornado_latitudes_deg[j],
-            tornado_time_strings[j], fontsize=TORNADO_FONT_SIZE,
-            color=TORNADO_FONT_COLOUR, fontweight='bold',
+            tornado_longitudes_deg[j] + 0.02, tornado_latitudes_deg[j] - 0.02,
+            tornado_time_strings[j], fontsize=FONT_SIZE,
+            color=FONT_COLOUR, fontweight='bold',
             horizontalalignment='left', verticalalignment='top')
 
 
@@ -580,7 +625,7 @@ def _plot_one_example(
 
         _plot_one_example_one_time(
             storm_object_table=this_storm_object_table,
-            primary_id_string=primary_id_string,
+            full_id_string=full_id_string,
             valid_time_unix_sec=tracking_times_unix_sec[i],
             tornado_table=copy.deepcopy(tornado_table),
             top_myrorss_dir_name=top_myrorss_dir_name,
