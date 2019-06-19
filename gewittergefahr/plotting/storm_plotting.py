@@ -545,5 +545,5 @@ def plot_storm_tracks(
 
     print(tick_time_strings)
 
-    colour_bar_object.set_ticks(tick_times_unix_sec)
+    colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_time_strings)
