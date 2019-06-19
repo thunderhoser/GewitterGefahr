@@ -29,7 +29,7 @@ COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
 
 TORNADO_START_MARKER_TYPE = 'o'
 TORNADO_END_MARKER_TYPE = 's'
-TORNADO_MARKER_SIZE = 16
+TORNADO_MARKER_SIZE = 20
 TORNADO_MARKER_EDGE_WIDTH = 1
 
 NUM_PARALLELS = 8
@@ -287,9 +287,21 @@ def _plot_linkages_one_storm_object(
 
     label_string = ','.join(list(set(linked_short_id_strings)))
 
+    bounding_box_dict = {
+        'facecolor': 'white',
+        'alpha': 0.5,
+        'edgecolor': 'black',
+        'linewidth': 2
+    }
+
     axes_object.text(
         x_coord_metres, y_coord_metres, label_string, fontsize=FONT_SIZE,
-        color='k', horizontalalignment='left', verticalalignment='top')
+        color='k', bbox=bounding_box_dict, horizontalalignment='center',
+        verticalalignment='center', zorder=1e10)
+
+    # axes_object.text(
+    #     x_coord_metres, y_coord_metres, label_string, fontsize=FONT_SIZE,
+    #     color='k', horizontalalignment='left', verticalalignment='top')
 
 
 def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
