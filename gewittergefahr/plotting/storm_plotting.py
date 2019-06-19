@@ -538,14 +538,14 @@ def plot_storm_tracks(
         colour_norm_object.inverse(tick_values)
     ).astype(int)
 
-    intercept_unix_sec = tick_times_unix_sec[0] - first_time_unix_sec
     slope_sec_per_sec = (
         float(last_time_unix_sec - first_time_unix_sec) /
         (tick_times_unix_sec[-1] - tick_times_unix_sec[0])
     )
 
     tick_times_unix_sec = numpy.round(
-        intercept_unix_sec + slope_sec_per_sec * tick_times_unix_sec
+        first_time_unix_sec +
+        slope_sec_per_sec * (tick_times_unix_sec - tick_times_unix_sec[0])
     ).astype(int)
 
     tick_time_strings = [
