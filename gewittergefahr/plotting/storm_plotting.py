@@ -363,9 +363,6 @@ def plot_storm_tracks(
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
         )
 
-        print(first_time_unix_sec)
-        print(last_time_unix_sec)
-
         colour_norm_object = pyplot.Normalize(
             first_time_unix_sec, last_time_unix_sec)
 
@@ -540,6 +537,10 @@ def plot_storm_tracks(
     tick_times_unix_sec = numpy.round(
         colour_norm_object.inverse(tick_values)
     ).astype(int)
+
+    tick_times_unix_sec = (
+        tick_times_unix_sec - (tick_times_unix_sec[0] - first_time_unix_sec)
+    )
 
     tick_time_strings = [
         time_conversion.unix_sec_to_string(t, '%Y-%m-%d-%H%M%S')
