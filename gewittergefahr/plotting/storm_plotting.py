@@ -539,6 +539,13 @@ def plot_storm_tracks(
     ).astype(int)
 
     tick_time_strings = [
+        time_conversion.unix_sec_to_string(t, '%Y-%m-%d-%H%M%S')
+        for t in tick_times_unix_sec
+    ]
+
+    print(tick_time_strings)
+
+    tick_time_strings = [
         time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
         for t in tick_times_unix_sec
     ]
