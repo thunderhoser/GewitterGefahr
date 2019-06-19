@@ -24,7 +24,8 @@ SENTINEL_VALUE = -9999
 LATLNG_TOLERANCE_DEG = 0.001
 MAX_LINK_TIME_SECONDS = 3600
 
-FONT_SIZE = 12
+TORNADO_FONT_SIZE = 12
+LINKAGE_FONT_SIZE = 8
 COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
 
 TORNADO_START_MARKER_TYPE = 'o'
@@ -198,7 +199,7 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, genesis_only,
         axes_object.text(
             start_x_coords_metres[j], start_y_coords_metres[j],
             tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
-            fontsize=FONT_SIZE, color='k', horizontalalignment='center',
+            fontsize=TORNADO_FONT_SIZE, color='k', horizontalalignment='center',
             verticalalignment='center')
 
         if genesis_only:
@@ -217,8 +218,8 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, genesis_only,
         axes_object.text(
             end_x_coords_metres[j], end_y_coords_metres[j],
             tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
-            fontsize=FONT_SIZE, color='k', horizontalalignment='center',
-            verticalalignment='center')
+            fontsize=TORNADO_FONT_SIZE, fontweight='bold', color='k',
+            horizontalalignment='center', verticalalignment='center')
 
 
 def _plot_linkages_one_storm_object(
@@ -279,29 +280,29 @@ def _plot_linkages_one_storm_object(
             tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
     )
 
-    axes_object.plot(
-        x_coord_metres, y_coord_metres, linestyle='None',
-        marker=TORNADO_START_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE / 3,
-        markeredgewidth=TORNADO_MARKER_EDGE_WIDTH / 3,
-        markerfacecolor='k', markeredgecolor='k')
-
     label_string = ','.join(list(set(linked_short_id_strings)))
+
+    # axes_object.plot(
+    #     x_coord_metres, y_coord_metres, linestyle='None',
+    #     marker=TORNADO_START_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE / 3,
+    #     markeredgewidth=TORNADO_MARKER_EDGE_WIDTH / 3,
+    #     markerfacecolor='k', markeredgecolor='k')
+    #
+    # axes_object.text(
+    #     x_coord_metres, y_coord_metres, label_string, fontsize=LINKAGE_FONT_SIZE,
+    #     color='k', horizontalalignment='left', verticalalignment='top')
 
     bounding_box_dict = {
         'facecolor': 'white',
-        'alpha': 0.5,
+        'alpha': 0.25,
         'edgecolor': 'black',
-        'linewidth': 2
+        'linewidth': 1
     }
 
     axes_object.text(
-        x_coord_metres, y_coord_metres, label_string, fontsize=FONT_SIZE,
-        color='k', bbox=bounding_box_dict, horizontalalignment='center',
-        verticalalignment='center', zorder=1e10)
-
-    # axes_object.text(
-    #     x_coord_metres, y_coord_metres, label_string, fontsize=FONT_SIZE,
-    #     color='k', horizontalalignment='left', verticalalignment='top')
+        x_coord_metres, y_coord_metres, label_string,
+        fontsize=LINKAGE_FONT_SIZE, color='k', bbox=bounding_box_dict,
+        horizontalalignment='center', verticalalignment='center', zorder=1e10)
 
 
 def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
