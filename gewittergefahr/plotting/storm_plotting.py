@@ -363,6 +363,9 @@ def plot_storm_tracks(
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
         )
 
+        print(first_time_unix_sec)
+        print(last_time_unix_sec)
+
         colour_norm_object = pyplot.Normalize(
             first_time_unix_sec, last_time_unix_sec)
 
