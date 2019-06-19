@@ -860,18 +860,13 @@ def plot_many_2d_grids_without_coords(
             k, (num_panel_rows, num_panel_columns), order=order_string
         )
 
-        if plot_colour_bar_by_panel[k]:
-            this_annotation_string = None
-        else:
-            this_annotation_string = panel_names[k]
-
         this_colour_map_object, this_colour_norm_object = (
             plot_2d_grid_without_coords(
                 field_matrix=field_matrix[..., k],
                 field_name=field_name_by_panel[k],
                 axes_object=axes_object_matrix[
                     this_panel_row, this_panel_column],
-                annotation_string=this_annotation_string, font_size=font_size,
+                annotation_string=panel_names[k], font_size=font_size,
                 colour_map_object=colour_map_object_by_panel[k],
                 colour_norm_object=colour_norm_object_by_panel[k]
             )
@@ -892,9 +887,9 @@ def plot_many_2d_grids_without_coords(
             extend_min=this_extend_min_flag, extend_max=True,
             fraction_of_axis_length=0.9, font_size=font_size)
 
-        axes_object_matrix[this_panel_row, this_panel_column].set_xlabel(
-            panel_names[k], fontsize=font_size
-        )
+        # axes_object_matrix[this_panel_row, this_panel_column].set_xlabel(
+        #     panel_names[k], fontsize=font_size
+        # )
 
     for k in range(num_panel_rows * num_panel_columns):
         if k < num_panels:
