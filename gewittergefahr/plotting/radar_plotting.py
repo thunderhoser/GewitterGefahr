@@ -885,7 +885,7 @@ def plot_many_2d_grids_without_coords(
             colour_norm_object=this_colour_norm_object,
             orientation_string='vertical',
             extend_min=this_extend_min_flag, extend_max=True,
-            fraction_of_axis_length=0.9, font_size=font_size)
+            fraction_of_axis_length=0.7, font_size=font_size)
 
         # axes_object_matrix[this_panel_row, this_panel_column].set_xlabel(
         #     panel_names[k], fontsize=font_size
