@@ -209,7 +209,7 @@ def create_paneled_figure(
         )
 
     pyplot.subplots_adjust(
-        left=0.02, bottom=0.02, right=0.98, top=0.95, hspace=0, wspace=0.05
+        left=0.02, bottom=0.02, right=0.98, top=0.95, hspace=0, wspace=0.1
     )
 
     if not keep_aspect_ratio:
