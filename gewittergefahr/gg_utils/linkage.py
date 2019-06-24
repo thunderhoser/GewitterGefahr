@@ -130,6 +130,9 @@ STORM_INTERP_TIME_KEY = 'storm_interp_time_interval_sec'
 BBOX_PADDING_KEY = 'bounding_box_padding_metres'
 MAX_LINK_DISTANCE_KEY = 'max_link_distance_metres'
 
+SECONDARY_START_TIME_COLUMN = 'secondary_cell_start_time_unix_sec'
+SECONDARY_END_TIME_COLUMN = 'secondary_cell_end_time_unix_sec'
+
 
 def _check_input_args(
         tracking_file_names, max_time_before_storm_start_sec,
@@ -500,6 +503,63 @@ def _interp_one_storm_in_time(storm_object_table_1cell, secondary_id_string,
     })
 
 
+def _find_secondary_start_end_times(storm_object_table):
+    """Finds start/end times for each secondary storm ID.
+
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.
+    storm_object_table['valid_time_unix_sec']: Valid time.
+    storm_object_table['secondary_id_string']: Secondary ID.
+
+    :return: storm_object_table: Same as input but with the following new
+        columns.
+    storm_object_table['secondary_cell_start_time_unix_sec']: Start time for
+        secondary ID.
+    storm_object_table['secondary_cell_end_time_unix_sec']: End time for
+        secondary ID.
+    """
+
+    # TODO(thunderhoser): This could use a unit test.
+
+    if SECONDARY_START_TIME_COLUMN in list(storm_object_table):
+        return storm_object_table
+
+    unique_secondary_id_strings, orig_to_unique_indices = numpy.unique(
+        storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values,
+        return_inverse=True
+    )
+
+    num_objects = len(storm_object_table.index)
+    storm_object_table = storm_object_table.assign(**{
+        SECONDARY_START_TIME_COLUMN: numpy.full(num_objects, -1, dtype=int),
+        SECONDARY_END_TIME_COLUMN: numpy.full(num_objects, -1, dtype=int)
+    })
+
+    num_secondary_cells = len(unique_secondary_id_strings)
+    for j in range(num_secondary_cells):
+        these_object_indices = numpy.where(orig_to_unique_indices == j)[0]
+
+        this_start_time_unix_sec = numpy.min(
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[
+                these_object_indices]
+        )
+
+        this_end_time_unix_sec = numpy.max(
+            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[
+                these_object_indices]
+        )
+
+        storm_object_table[SECONDARY_START_TIME_COLUMN].values[
+            these_object_indices
+        ] = this_start_time_unix_sec
+
+        storm_object_table[SECONDARY_END_TIME_COLUMN].values[
+            these_object_indices
+        ] = this_end_time_unix_sec
+
+    return storm_object_table
+
+
 def _interp_storms_in_time(storm_object_table, target_time_unix_sec,
                            max_time_before_start_sec, max_time_after_end_sec):
     """Interpolates each storm cell in time.
@@ -519,12 +579,17 @@ def _interp_storms_in_time(storm_object_table, target_time_unix_sec,
     interp_vertex_table.vertex_y_metres: y-coordinate of vertex.
     """
 
-    # TODO(thunderhoser): This is very slow when there are many storm objects.
+    storm_object_table = _find_secondary_start_end_times(storm_object_table)
 
     max_start_time_unix_sec = target_time_unix_sec + max_time_before_start_sec
     min_end_time_unix_sec = target_time_unix_sec - max_time_after_end_sec
 
-    sorted_storm_object_table = copy.deepcopy(storm_object_table)
+    sorted_storm_object_table = storm_object_table.loc[
+        (storm_object_table[SECONDARY_START_TIME_COLUMN]
+         <= max_start_time_unix_sec + 1800) &
+        (storm_object_table[SECONDARY_END_TIME_COLUMN] >=
+         min_end_time_unix_sec - 1800)
+    ]
 
     sorted_storm_object_table.sort_values(
         tracking_utils.VALID_TIME_COLUMN, axis=0, ascending=True,
