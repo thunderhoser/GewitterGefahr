@@ -204,29 +204,45 @@ def _get_bounding_box_for_storms(
         of bounding box.
     """
 
-    all_x_coords_metres = numpy.array([])
-    all_y_coords_metres = numpy.array([])
+    x_min_metres = numpy.inf
+    x_max_metres = -numpy.inf
+    y_min_metres = numpy.inf
+    y_max_metres = -numpy.inf
+
     num_storms = len(storm_object_table.index)
 
     for i in range(num_storms):
-        all_x_coords_metres = numpy.concatenate((
-            all_x_coords_metres,
-            storm_object_table[STORM_VERTICES_X_COLUMN].values[i]
-        ))
+        if numpy.mod(i, 1000) == 0:
+            print(i)
 
-        all_y_coords_metres = numpy.concatenate((
-            all_y_coords_metres,
-            storm_object_table[STORM_VERTICES_Y_COLUMN].values[i]
-        ))
+        x_min_metres = min([
+            x_min_metres,
+            numpy.min(storm_object_table[STORM_VERTICES_X_COLUMN].values[i])
+        ])
+
+        x_max_metres = max([
+            x_max_metres,
+            numpy.max(storm_object_table[STORM_VERTICES_X_COLUMN].values[i])
+        ])
+
+        y_min_metres = min([
+            y_min_metres,
+            numpy.min(storm_object_table[STORM_VERTICES_Y_COLUMN].values[i])
+        ])
+
+        y_max_metres = max([
+            y_max_metres,
+            numpy.max(storm_object_table[STORM_VERTICES_Y_COLUMN].values[i])
+        ])
 
     x_limits_metres = numpy.array([
-        numpy.min(all_x_coords_metres) - padding_metres,
-        numpy.max(all_x_coords_metres) + padding_metres
+        x_min_metres - padding_metres,
+        x_max_metres + padding_metres
     ])
 
     y_limits_metres = numpy.array([
-        numpy.min(all_y_coords_metres) - padding_metres,
-        numpy.max(all_y_coords_metres) + padding_metres
+        y_min_metres - padding_metres,
+        y_max_metres + padding_metres
     ])
 
     return x_limits_metres, y_limits_metres
