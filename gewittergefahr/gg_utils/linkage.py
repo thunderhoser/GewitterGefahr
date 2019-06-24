@@ -519,6 +519,8 @@ def _interp_storms_in_time(storm_object_table, target_time_unix_sec,
     interp_vertex_table.vertex_y_metres: y-coordinate of vertex.
     """
 
+    # TODO(thunderhoser): This is very slow when there are many storm objects.
+
     max_start_time_unix_sec = target_time_unix_sec + max_time_before_start_sec
     min_end_time_unix_sec = target_time_unix_sec - max_time_after_end_sec
 

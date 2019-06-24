@@ -26,7 +26,7 @@ MAX_LINK_TIME_SECONDS = 3600
 
 TORNADO_FONT_SIZE = 12
 LINKAGE_FONT_SIZE = 8
-COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
+COLOUR_MAP_NAME = 'YlOrRd'
 
 TORNADO_START_MARKER_TYPE = 'o'
 TORNADO_END_MARKER_TYPE = 's'
@@ -45,6 +45,7 @@ LINKAGE_DIR_ARG_NAME = 'input_linkage_dir_name'
 GENESIS_ONLY_ARG_NAME = 'genesis_only'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
+NUM_COLOURS_ARG_NAME = 'num_colours'
 MIN_LATITUDE_ARG_NAME = 'min_plot_latitude_deg'
 MAX_LATITUDE_ARG_NAME = 'max_plot_latitude_deg'
 MIN_LONGITUDE_ARG_NAME = 'min_plot_longitude_deg'
@@ -64,6 +65,10 @@ SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  Linkages will be plotted for the period '
     '`{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
+
+NUM_COLOURS_HELP_STRING = (
+    'Number of colours in colour scheme (tornado reports and storm-track '
+    'segments are coloured by time).')
 
 LATITUDE_HELP_STRING = (
     'Latitude (deg N, in range -90...90).  Plotting area will be '
@@ -95,6 +100,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_COLOURS_ARG_NAME, type=int, required=False, default=12,
+    help=NUM_COLOURS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_LATITUDE_ARG_NAME, type=float, required=False,
@@ -141,13 +150,16 @@ def _long_to_short_tornado_ids(long_id_strings):
     return short_id_strings
 
 
-def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, genesis_only,
-                    axes_object, basemap_object):
+def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
+                    genesis_only, axes_object, basemap_object):
     """Plots start/end point of each tornado.
 
     :param tornado_table: pandas DataFrame returned by
         `linkage.read_linkage_file`.
-    :param storm_to_tornadoes_table: Same.
+    :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
+        Tornado markers will be coloured by time.
+    :param colour_norm_object: Colour-normalizer (instance of
+        `matplotlib.colors.Normalize`).  Used to convert from time to colour.
     :param genesis_only: See documentation at top of file.
     :param axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
@@ -155,21 +167,8 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, genesis_only,
         `mpl_toolkits.basemap.Basemap`).
     """
 
-    first_storm_time_unix_sec = numpy.min(
-        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
-    )
-    last_storm_time_unix_sec = numpy.max(
-        storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
-    )
-    colour_norm_object = pyplot.Normalize(
-        first_storm_time_unix_sec, last_storm_time_unix_sec
-    )
-
-    start_time_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
+    start_time_colour_matrix = colour_map_object(colour_norm_object(
         tornado_table[tornado_io.START_TIME_COLUMN].values
-    ))
-    end_time_colour_matrix = COLOUR_MAP_OBJECT(colour_norm_object(
-        tornado_table[tornado_io.END_TIME_COLUMN].values
     ))
 
     start_x_coords_metres, start_y_coords_metres = basemap_object(
@@ -177,10 +176,19 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, genesis_only,
         tornado_table[tornado_io.START_LAT_COLUMN].values
     )
 
-    end_x_coords_metres, end_y_coords_metres = basemap_object(
-        tornado_table[tornado_io.END_LNG_COLUMN].values,
-        tornado_table[tornado_io.END_LAT_COLUMN].values
-    )
+    if genesis_only:
+        end_time_colour_matrix = None
+        end_x_coords_metres = None
+        end_y_coords_metres = None
+    else:
+        end_time_colour_matrix = colour_map_object(colour_norm_object(
+            tornado_table[tornado_io.END_TIME_COLUMN].values
+        ))
+
+        end_x_coords_metres, end_y_coords_metres = basemap_object(
+            tornado_table[tornado_io.END_LNG_COLUMN].values,
+            tornado_table[tornado_io.END_LAT_COLUMN].values
+        )
 
     num_tornadoes = len(tornado_table.index)
 
@@ -224,7 +232,7 @@ def _plot_tornadoes(tornado_table, storm_to_tornadoes_table, genesis_only,
 
 def _plot_linkages_one_storm_object(
         storm_to_tornadoes_table, storm_object_index, tornado_table,
-        axes_object, basemap_object):
+        colour_map_object, colour_norm_object, axes_object, basemap_object):
     """Plots linkages for one storm object.
 
     :param storm_to_tornadoes_table: pandas DataFrame returned by
@@ -233,6 +241,10 @@ def _plot_linkages_one_storm_object(
         [k]th row of `storm_to_tornadoes_table`.
     :param tornado_table: pandas DataFrame returned by
         `linkage.read_linkage_file`.
+    :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
+        Text boxes will be coloured by time.
+    :param colour_norm_object: Colour-normalizer (instance of
+        `matplotlib.colors.Normalize`).  Used to convert from time to colour.
     :param axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     :param basemap_object: Basemap handle (instance of
@@ -280,24 +292,20 @@ def _plot_linkages_one_storm_object(
             tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
     )
 
-    label_string = ','.join(list(set(linked_short_id_strings)))
-
-    # axes_object.plot(
-    #     x_coord_metres, y_coord_metres, linestyle='None',
-    #     marker=TORNADO_START_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE / 3,
-    #     markeredgewidth=TORNADO_MARKER_EDGE_WIDTH / 3,
-    #     markerfacecolor='k', markeredgecolor='k')
-    #
-    # axes_object.text(
-    #     x_coord_metres, y_coord_metres, label_string, fontsize=LINKAGE_FONT_SIZE,
-    #     color='k', horizontalalignment='left', verticalalignment='top')
+    colour_array = colour_map_object(colour_norm_object(
+        storm_to_tornadoes_table[
+            tracking_utils.VALID_TIME_COLUMN].values[i]
+    ))
+    colour_tuple = plotting_utils.colour_from_numpy_to_tuple(colour_array[:-1])
 
     bounding_box_dict = {
         'facecolor': 'white',
         'alpha': 0.25,
-        'edgecolor': 'black',
+        'edgecolor': colour_tuple,
         'linewidth': 1
     }
+
+    label_string = ','.join(list(set(linked_short_id_strings)))
 
     axes_object.text(
         x_coord_metres, y_coord_metres, label_string,
@@ -306,8 +314,9 @@ def _plot_linkages_one_storm_object(
 
 
 def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
-         last_spc_date_string, min_plot_latitude_deg, max_plot_latitude_deg,
-         min_plot_longitude_deg, max_plot_longitude_deg, output_file_name):
+         last_spc_date_string, num_colours, min_plot_latitude_deg,
+         max_plot_latitude_deg, min_plot_longitude_deg, max_plot_longitude_deg,
+         output_file_name):
     """Plots tornado reports, storm tracks, and linkages.
 
     This is effectively the main method.
@@ -316,12 +325,15 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
     :param genesis_only: Same.
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
+    :param num_colours: Same.
     :param min_plot_latitude_deg: Same.
     :param max_plot_latitude_deg: Same.
     :param min_plot_longitude_deg: Same.
     :param max_plot_longitude_deg: Same.
     :param output_file_name: Same.
     """
+
+    colour_map_object = pyplot.cm.get_cmap(name='YlOrRd', lut=num_colours)
 
     event_type_string = (
         linkage.TORNADOGENESIS_EVENT_STRING if genesis_only
@@ -473,7 +485,7 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
     print('Plotting storm tracks...')
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_to_tornadoes_table, axes_object=axes_object,
-        basemap_object=basemap_object, colour_map_object=COLOUR_MAP_OBJECT,
+        basemap_object=basemap_object, colour_map_object=colour_map_object,
         start_marker_type=None, end_marker_type=None)
 
     num_tornadoes = len(tornado_table.index)
@@ -483,12 +495,20 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
         pyplot.close()
         return
 
+    colour_norm_object = pyplot.Normalize(
+        numpy.min(
+            storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
+        ),
+        numpy.max(
+            storm_to_tornadoes_table[tracking_utils.VALID_TIME_COLUMN].values
+        )
+    )
+
     print('Plotting tornado markers...')
     _plot_tornadoes(
-        tornado_table=tornado_table,
-        storm_to_tornadoes_table=storm_to_tornadoes_table,
-        genesis_only=genesis_only, axes_object=axes_object,
-        basemap_object=basemap_object)
+        tornado_table=tornado_table, colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object, genesis_only=genesis_only,
+        axes_object=axes_object, basemap_object=basemap_object)
 
     print('Plotting tornado IDs with storm objects...')
     num_storm_objects = len(storm_to_tornadoes_table.index)
@@ -497,7 +517,9 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
         _plot_linkages_one_storm_object(
             storm_to_tornadoes_table=storm_to_tornadoes_table,
             storm_object_index=i, tornado_table=tornado_table,
-            axes_object=axes_object, basemap_object=basemap_object)
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object, axes_object=axes_object,
+            basemap_object=basemap_object)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -512,6 +534,7 @@ if __name__ == '__main__':
         genesis_only=bool(getattr(INPUT_ARG_OBJECT, GENESIS_ONLY_ARG_NAME)),
         first_spc_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        num_colours=getattr(INPUT_ARG_OBJECT, NUM_COLOURS_ARG_NAME),
         min_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MIN_LATITUDE_ARG_NAME),
         max_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MAX_LATITUDE_ARG_NAME),
         min_plot_longitude_deg=getattr(
