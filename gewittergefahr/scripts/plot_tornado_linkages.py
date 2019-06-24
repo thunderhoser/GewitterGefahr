@@ -322,44 +322,6 @@ def _plot_linkages_one_storm_object(
         horizontalalignment='center', verticalalignment='center', zorder=1e10)
 
 
-def _subset_storms_by_time(
-        storm_to_tornadoes_table, min_time_unix_sec, max_time_unix_sec):
-    """Subsets storms by time.
-
-    :param storm_to_tornadoes_table: pandas DataFrame returned by
-        `linkage.read_linkage_file`.
-    :param min_time_unix_sec: Minimum time.
-    :param max_time_unix_sec: Max time.
-    :return: storm_to_tornadoes_table: Same as input but maybe with fewer rows.
-    """
-
-    # TODO(thunderhoser): Put this method somewhere more general.
-
-    good_start_flags = numpy.logical_and(
-        storm_to_tornadoes_table[tracking_utils.CELL_START_TIME_COLUMN].values
-        >= min_time_unix_sec,
-        storm_to_tornadoes_table[tracking_utils.CELL_START_TIME_COLUMN].values
-        <= max_time_unix_sec
-    )
-
-    good_end_flags = numpy.logical_and(
-        storm_to_tornadoes_table[tracking_utils.CELL_END_TIME_COLUMN].values
-        >= min_time_unix_sec,
-        storm_to_tornadoes_table[tracking_utils.CELL_END_TIME_COLUMN].values
-        <= max_time_unix_sec
-    )
-
-    invalid_flags = numpy.invert(numpy.logical_or(
-        good_start_flags, good_end_flags
-    ))
-
-    invalid_rows = numpy.where(invalid_flags)[0]
-
-    return storm_to_tornadoes_table.drop(
-        storm_to_tornadoes_table.index[invalid_rows], axis=0, inplace=False
-    )
-
-
 def _subset_linkages_by_distance(storm_to_tornadoes_table,
                                  max_link_distance_metres):
     """Throws out long-distance linkages.
@@ -369,6 +331,8 @@ def _subset_linkages_by_distance(storm_to_tornadoes_table,
     :param max_link_distance_metres: Max linkage distance.
     :return: storm_to_tornadoes_table: Same as input but maybe with fewer rows.
     """
+
+    # TODO(thunderhoser): Put this method somewhere more general.
 
     num_storm_objects = len(storm_to_tornadoes_table.index)
 
@@ -504,6 +468,33 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
             tornado_table[tornado_io.TORNADO_ID_COLUMN].values
         )
     })
+
+    # TODO(thunderhoser): Make this temporal subsetting optional.
+    storm_to_tornadoes_table = linkage._find_secondary_start_end_times(
+        storm_to_tornadoes_table)
+
+    max_start_time_unix_sec = (
+        numpy.min(tornado_table[tornado_io.START_TIME_COLUMN].values) -
+        linkage_metadata_dict[linkage.MAX_TIME_BEFORE_START_KEY]
+    )
+
+    if genesis_only:
+        min_end_time_unix_sec = (
+            numpy.max(tornado_table[tornado_io.START_TIME_COLUMN].values) -
+            linkage_metadata_dict[linkage.MAX_TIME_AFTER_END_KEY]
+        )
+    else:
+        min_end_time_unix_sec = (
+            numpy.max(tornado_table[tornado_io.END_TIME_COLUMN].values) -
+            linkage_metadata_dict[linkage.MAX_TIME_AFTER_END_KEY]
+        )
+
+    storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
+        (storm_to_tornadoes_table[linkage.SECONDARY_START_TIME_COLUMN]
+         <= max_start_time_unix_sec) &
+        (storm_to_tornadoes_table[linkage.SECONDARY_END_TIME_COLUMN] >=
+         min_end_time_unix_sec)
+    ]
 
     if min_plot_latitude_deg is None:
         min_plot_latitude_deg = numpy.min(
