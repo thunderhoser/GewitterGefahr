@@ -370,6 +370,9 @@ def _subset_linkages_by_distance(storm_to_tornadoes_table,
     :return: storm_to_tornadoes_table: Same as input but maybe with fewer rows.
     """
 
+    print('Throwing out linkages with distance > {0:.1f} metres...'.format(
+        max_link_distance_metres))
+
     num_storm_objects = len(storm_to_tornadoes_table.index)
 
     for i in range(num_storm_objects):
