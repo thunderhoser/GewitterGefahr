@@ -22,7 +22,8 @@ from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import imagemagick_utils
 # from gewittergefahr.plotting import sounding_plotting
 
-# TODO(thunderhoser): Make this script deal with PMM composites.
+# TODO(thunderhoser): This is a HACK.
+DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -886,6 +887,7 @@ def _run(activation_file_name, storm_metafile_name, save_paneled_figs,
         training_option_dict[trainval_io.NUM_ROWS_KEY] = num_radar_rows
         training_option_dict[trainval_io.NUM_COLUMNS_KEY] = num_radar_columns
         training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY] = None
+        training_option_dict[trainval_io.TARGET_NAME_KEY] = DUMMY_TARGET_NAME
         training_option_dict[trainval_io.BINARIZE_TARGET_KEY] = False
         training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
         training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
