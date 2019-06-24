@@ -43,6 +43,7 @@ SHORT_TORNADO_ID_COLUMN = 'short_tornado_id_string'
 
 LINKAGE_DIR_ARG_NAME = 'input_linkage_dir_name'
 GENESIS_ONLY_ARG_NAME = 'genesis_only'
+MAX_DISTANCE_ARG_NAME = 'max_link_distance_metres'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 NUM_COLOURS_ARG_NAME = 'num_colours'
@@ -60,6 +61,10 @@ LINKAGE_DIR_HELP_STRING = (
 GENESIS_ONLY_HELP_STRING = (
     'Boolean flag.  If 1, will plot linkages only to tornadogenesis events.  If'
     ' 0, will plot linkages to tornado occurrences.')
+
+MAX_DISTANCE_HELP_STRING = (
+    'Max linkage distance.  Will not show linkages with greater distance.  To '
+    'plot all linkages, leave this alone.')
 
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  Linkages will be plotted for the period '
@@ -92,6 +97,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + GENESIS_ONLY_ARG_NAME, type=int, required=False, default=1,
     help=GENESIS_ONLY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_DISTANCE_ARG_NAME, type=float, required=False, default=-1,
+    help=MAX_DISTANCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True,
@@ -313,16 +322,95 @@ def _plot_linkages_one_storm_object(
         horizontalalignment='center', verticalalignment='center', zorder=1e10)
 
 
-def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
-         last_spc_date_string, num_colours, min_plot_latitude_deg,
-         max_plot_latitude_deg, min_plot_longitude_deg, max_plot_longitude_deg,
-         output_file_name):
+def _subset_storms_by_time(
+        storm_to_tornadoes_table, min_time_unix_sec, max_time_unix_sec):
+    """Subsets storms by time.
+
+    :param storm_to_tornadoes_table: pandas DataFrame returned by
+        `linkage.read_linkage_file`.
+    :param min_time_unix_sec: Minimum time.
+    :param max_time_unix_sec: Max time.
+    :return: storm_to_tornadoes_table: Same as input but maybe with fewer rows.
+    """
+
+    # TODO(thunderhoser): Put this method somewhere more general.
+
+    good_start_flags = numpy.logical_and(
+        storm_to_tornadoes_table[tracking_utils.CELL_START_TIME_COLUMN].values
+        >= min_time_unix_sec,
+        storm_to_tornadoes_table[tracking_utils.CELL_START_TIME_COLUMN].values
+        <= max_time_unix_sec
+    )
+
+    good_end_flags = numpy.logical_and(
+        storm_to_tornadoes_table[tracking_utils.CELL_END_TIME_COLUMN].values
+        >= min_time_unix_sec,
+        storm_to_tornadoes_table[tracking_utils.CELL_END_TIME_COLUMN].values
+        <= max_time_unix_sec
+    )
+
+    invalid_flags = numpy.invert(numpy.logical_or(
+        good_start_flags, good_end_flags
+    ))
+
+    invalid_rows = numpy.where(invalid_flags)[0]
+
+    return storm_to_tornadoes_table.drop(
+        storm_to_tornadoes_table.index[invalid_rows], axis=0, inplace=False
+    )
+
+
+def _subset_linkages_by_distance(storm_to_tornadoes_table,
+                                 max_link_distance_metres):
+    """Throws out long-distance linkages.
+
+    :param storm_to_tornadoes_table: pandas DataFrame returned by
+        `linkage.read_linkage_file`.
+    :param max_link_distance_metres: Max linkage distance.
+    :return: storm_to_tornadoes_table: Same as input but maybe with fewer rows.
+    """
+
+    num_storm_objects = len(storm_to_tornadoes_table.index)
+
+    for i in range(num_storm_objects):
+        these_distances_metres = storm_to_tornadoes_table[
+            linkage.LINKAGE_DISTANCES_COLUMN].values[i]
+
+        if len(these_distances_metres) == 0:
+            continue
+
+        these_good_indices = numpy.where(
+            these_distances_metres <= max_link_distance_metres
+        )[0]
+
+        if numpy.all(these_good_indices):
+            continue
+
+        for this_column in linkage.TORNADO_LINKAGE_COLUMNS:
+            this_array = storm_to_tornadoes_table[this_column].values[i]
+
+            if isinstance(this_array, list):
+                storm_to_tornadoes_table[this_column].values[i] = [
+                    this_array[k] for k in these_good_indices
+                ]
+            else:
+                storm_to_tornadoes_table[this_column].values[i] = this_array[
+                    these_good_indices]
+
+    return storm_to_tornadoes_table
+
+
+def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
+         first_spc_date_string, last_spc_date_string, num_colours,
+         min_plot_latitude_deg, max_plot_latitude_deg,
+         min_plot_longitude_deg, max_plot_longitude_deg, output_file_name):
     """Plots tornado reports, storm tracks, and linkages.
 
     This is effectively the main method.
 
     :param top_linkage_dir_name: See documentation at top of file.
     :param genesis_only: Same.
+    :param max_link_distance_metres: Same.
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
     :param num_colours: Same.
@@ -332,6 +420,9 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
     :param max_plot_longitude_deg: Same.
     :param output_file_name: Same.
     """
+
+    if max_link_distance_metres < 0:
+        max_link_distance_metres = None
 
     colour_map_object = pyplot.cm.get_cmap(name='YlOrRd', lut=num_colours)
 
@@ -357,6 +448,7 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
 
     list_of_linkage_tables = []
     list_of_tornado_tables = []
+    linkage_metadata_dict = None
 
     for this_spc_date_string in spc_date_strings:
         this_file_name = linkage.find_linkage_file(
@@ -368,8 +460,14 @@ def _run(top_linkage_dir_name, genesis_only, first_spc_date_string,
             continue
 
         print('Reading data from: "{0:s}"...'.format(this_file_name))
-        this_linkage_table, _, this_tornado_table = linkage.read_linkage_file(
-            this_file_name)
+        this_linkage_table, linkage_metadata_dict, this_tornado_table = (
+            linkage.read_linkage_file(this_file_name)
+        )
+
+        if max_link_distance_metres is not None:
+            this_linkage_table = _subset_linkages_by_distance(
+                storm_to_tornadoes_table=this_linkage_table,
+                max_link_distance_metres=max_link_distance_metres)
 
         list_of_linkage_tables.append(this_linkage_table)
         list_of_tornado_tables.append(this_tornado_table)
@@ -532,6 +630,8 @@ if __name__ == '__main__':
     _run(
         top_linkage_dir_name=getattr(INPUT_ARG_OBJECT, LINKAGE_DIR_ARG_NAME),
         genesis_only=bool(getattr(INPUT_ARG_OBJECT, GENESIS_ONLY_ARG_NAME)),
+        max_link_distance_metres=getattr(
+            INPUT_ARG_OBJECT, MAX_DISTANCE_ARG_NAME),
         first_spc_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         num_colours=getattr(INPUT_ARG_OBJECT, NUM_COLOURS_ARG_NAME),
