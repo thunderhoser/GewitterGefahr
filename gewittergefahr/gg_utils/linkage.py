@@ -12,7 +12,6 @@ will use S to denote a storm cell.
 I will use s to denote a storm object.
 """
 
-import time
 import copy
 import pickle
 import shutil
@@ -212,9 +211,6 @@ def _get_bounding_box_for_storms(
     num_storms = len(storm_object_table.index)
 
     for i in range(num_storms):
-        if numpy.mod(i, 1000) == 0:
-            print(i)
-
         x_min_metres = min([
             x_min_metres,
             numpy.min(storm_object_table[STORM_VERTICES_X_COLUMN].values[i])
@@ -2493,9 +2489,6 @@ def link_storms_to_tornadoes(
             NEAREST_TIME_COLUMN: numpy.full(num_tornadoes, -1, dtype=int)
         })
     else:
-        print('Finding centroid of all storms...')
-        exec_start_time_unix_sec = time.time()
-
         global_centroid_lat_deg, global_centroid_lng_deg = (
             geodetic_utils.get_latlng_centroid(
                 latitudes_deg=storm_object_table[
@@ -2504,40 +2497,16 @@ def link_storms_to_tornadoes(
                     tracking_utils.CENTROID_LONGITUDE_COLUMN].values)
         )
 
-        exec_time_seconds = time.time() - exec_start_time_unix_sec
-        print('Took {0:.1f} seconds.'.format(exec_time_seconds))
-
-        print('Creating azimuthal equidistant proj with this centroid...')
-        exec_start_time_unix_sec = time.time()
-
         projection_object = projections.init_azimuthal_equidistant_projection(
             central_latitude_deg=global_centroid_lat_deg,
             central_longitude_deg=global_centroid_lng_deg)
-
-        exec_time_seconds = time.time() - exec_start_time_unix_sec
-        print('Took {0:.1f} seconds.'.format(exec_time_seconds))
-
-        print('Projecting storm objects...')
-        exec_start_time_unix_sec = time.time()
 
         storm_object_table = _project_storms_latlng_to_xy(
             storm_object_table=storm_object_table,
             projection_object=projection_object)
 
-        exec_time_seconds = time.time() - exec_start_time_unix_sec
-        print('Took {0:.1f} seconds.'.format(exec_time_seconds))
-
-        print('Projecting tornado reports...')
-        exec_start_time_unix_sec = time.time()
-
         tornado_table = _project_events_latlng_to_xy(
             event_table=tornado_table, projection_object=projection_object)
-
-        exec_time_seconds = time.time() - exec_start_time_unix_sec
-        print('Took {0:.1f} seconds.'.format(exec_time_seconds))
-
-        print('Finding bounding box around storm objects...')
-        exec_start_time_unix_sec = time.time()
 
         tornado_x_limits_metres, tornado_y_limits_metres = (
             _get_bounding_box_for_storms(
@@ -2545,18 +2514,9 @@ def link_storms_to_tornadoes(
                 padding_metres=bounding_box_padding_metres)
         )
 
-        exec_time_seconds = time.time() - exec_start_time_unix_sec
-        print('Took {0:.1f} seconds.'.format(exec_time_seconds))
-
-        print('Filtering tornadoes by bounding box...')
-        exec_start_time_unix_sec = time.time()
-
         tornado_table = _filter_events_by_bounding_box(
             event_table=tornado_table, x_limits_metres=tornado_x_limits_metres,
             y_limits_metres=tornado_y_limits_metres)
-
-        exec_time_seconds = time.time() - exec_start_time_unix_sec
-        print('Took {0:.1f} seconds.'.format(exec_time_seconds))
 
         event_type_string = (
             TORNADOGENESIS_EVENT_STRING if genesis_only
