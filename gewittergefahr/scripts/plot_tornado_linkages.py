@@ -15,7 +15,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import storm_plotting
 
-# TODO(thunderhoser): Put some of this code in linkage_plotting.py.
+# TODO(thunderhoser): Maybe put some of this code in linkage_plotting.py.
+#  Either way, methods need unit tests.
 
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -309,7 +310,7 @@ def _plot_linkages_one_storm_object(
 
     bounding_box_dict = {
         'facecolor': 'white',
-        'alpha': 0.25,
+        'alpha': 0.5,
         'edgecolor': colour_tuple,
         'linewidth': 1
     }
@@ -396,20 +397,30 @@ def _subset_storms_by_time(storm_to_tornadoes_table, tornado_table,
             linkage_metadata_dict[linkage.MAX_TIME_AFTER_END_KEY]
         )
 
-    max_start_time_string = time_conversion.unix_sec_to_string(
-        max_start_time_unix_sec, LOG_MESSAGE_TIME_FORMAT)
+    # max_start_time_string = time_conversion.unix_sec_to_string(
+    #     max_start_time_unix_sec, LOG_MESSAGE_TIME_FORMAT)
+    #
+    # min_end_time_string = time_conversion.unix_sec_to_string(
+    #     min_end_time_unix_sec, LOG_MESSAGE_TIME_FORMAT)
+    #
+    # print('Max start time = {0:s} ... min end time = {1:s}'.format(
+    #     max_start_time_string, min_end_time_string))
 
-    min_end_time_string = time_conversion.unix_sec_to_string(
-        min_end_time_unix_sec, LOG_MESSAGE_TIME_FORMAT)
+    good_indices = numpy.where(numpy.logical_and(
+        storm_to_tornadoes_table[linkage.SECONDARY_START_TIME_COLUMN]
+        <= max_start_time_unix_sec,
+        storm_to_tornadoes_table[linkage.SECONDARY_END_TIME_COLUMN] >=
+        min_end_time_unix_sec
+    ))[0]
 
-    print('Max start time = {0:s} ... min end time = {1:s}'.format(
-        max_start_time_string, min_end_time_string))
+    good_primary_id_strings = numpy.unique(
+        storm_to_tornadoes_table[tracking_utils.PRIMARY_ID_COLUMN].values[
+            good_indices]
+    )
 
     return storm_to_tornadoes_table.loc[
-        (storm_to_tornadoes_table[linkage.SECONDARY_START_TIME_COLUMN]
-         <= max_start_time_unix_sec) &
-        (storm_to_tornadoes_table[linkage.SECONDARY_END_TIME_COLUMN] >=
-         min_end_time_unix_sec)
+        storm_to_tornadoes_table[tracking_utils.PRIMARY_ID_COLUMN].isin(
+            good_primary_id_strings)
     ]
 
 
@@ -564,7 +575,7 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
         max_longitude_deg=max_plot_longitude_deg)
 
     # TODO(thunderhoser): Make this subsetting optional.
-    _subset_storms_by_time(
+    storm_to_tornadoes_table = _subset_storms_by_time(
         storm_to_tornadoes_table=storm_to_tornadoes_table,
         tornado_table=tornado_table,
         linkage_metadata_dict=linkage_metadata_dict, genesis_only=genesis_only)
