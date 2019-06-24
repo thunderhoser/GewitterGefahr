@@ -23,7 +23,6 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 SENTINEL_VALUE = -9999
 LATLNG_TOLERANCE_DEG = 0.001
-MAX_LINK_TIME_SECONDS = 3600
 
 TORNADO_FONT_SIZE = 12
 LINKAGE_FONT_SIZE = 8
@@ -242,7 +241,8 @@ def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
 
 def _plot_linkages_one_storm_object(
         storm_to_tornadoes_table, storm_object_index, tornado_table,
-        colour_map_object, colour_norm_object, axes_object, basemap_object):
+        colour_map_object, colour_norm_object, axes_object, basemap_object,
+        max_link_distance_metres=None):
     """Plots linkages for one storm object.
 
     :param storm_to_tornadoes_table: pandas DataFrame returned by
@@ -259,15 +259,16 @@ def _plot_linkages_one_storm_object(
         `matplotlib.axes._subplots.AxesSubplot`).
     :param basemap_object: Basemap handle (instance of
         `mpl_toolkits.basemap.Basemap`).
+    :param max_link_distance_metres: See documentation at top of file.
     """
 
     i = storm_object_index
 
-    linked_relative_times_sec = storm_to_tornadoes_table[
-        linkage.RELATIVE_EVENT_TIMES_COLUMN].values[i]
+    linkage_distances_metres = storm_to_tornadoes_table[
+        linkage.LINKAGE_DISTANCES_COLUMN].values[i]
 
     good_indices = numpy.where(
-        linked_relative_times_sec <= MAX_LINK_TIME_SECONDS
+        linkage_distances_metres <= max_link_distance_metres
     )[0]
 
     if len(good_indices) == 0:
@@ -321,48 +322,6 @@ def _plot_linkages_one_storm_object(
         x_coord_metres, y_coord_metres, label_string,
         fontsize=LINKAGE_FONT_SIZE, color='k', bbox=bounding_box_dict,
         horizontalalignment='center', verticalalignment='center', zorder=1e10)
-
-
-def _subset_linkages_by_distance(storm_to_tornadoes_table,
-                                 max_link_distance_metres):
-    """Throws out long-distance linkages.
-
-    :param storm_to_tornadoes_table: pandas DataFrame returned by
-        `linkage.read_linkage_file`.
-    :param max_link_distance_metres: Max linkage distance.
-    :return: storm_to_tornadoes_table: Same as input but maybe with fewer rows.
-    """
-
-    # TODO(thunderhoser): Put this method somewhere more general.
-
-    num_storm_objects = len(storm_to_tornadoes_table.index)
-
-    for i in range(num_storm_objects):
-        these_distances_metres = storm_to_tornadoes_table[
-            linkage.LINKAGE_DISTANCES_COLUMN].values[i]
-
-        if len(these_distances_metres) == 0:
-            continue
-
-        these_good_indices = numpy.where(
-            these_distances_metres <= max_link_distance_metres
-        )[0]
-
-        if numpy.all(these_good_indices):
-            continue
-
-        for this_column in linkage.TORNADO_LINKAGE_COLUMNS:
-            this_array = storm_to_tornadoes_table[this_column].values[i]
-
-            if isinstance(this_array, list):
-                storm_to_tornadoes_table[this_column].values[i] = [
-                    this_array[k] for k in these_good_indices
-                ]
-            else:
-                storm_to_tornadoes_table[this_column].values[i] = this_array[
-                    these_good_indices]
-
-    return storm_to_tornadoes_table
 
 
 def _subset_storms_by_time(storm_to_tornadoes_table, tornado_table,
@@ -487,11 +446,6 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
         this_linkage_table, linkage_metadata_dict, this_tornado_table = (
             linkage.read_linkage_file(this_file_name)
         )
-
-        if max_link_distance_metres is not None:
-            this_linkage_table = _subset_linkages_by_distance(
-                storm_to_tornadoes_table=this_linkage_table,
-                max_link_distance_metres=max_link_distance_metres)
 
         list_of_linkage_tables.append(this_linkage_table)
         list_of_tornado_tables.append(this_tornado_table)
@@ -647,7 +601,8 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
             storm_object_index=i, tornado_table=tornado_table,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object, axes_object=axes_object,
-            basemap_object=basemap_object)
+            basemap_object=basemap_object,
+            max_link_distance_metres=max_link_distance_metres)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
