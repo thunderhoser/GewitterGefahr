@@ -364,6 +364,55 @@ def _subset_linkages_by_distance(storm_to_tornadoes_table,
     return storm_to_tornadoes_table
 
 
+def _subset_storms_by_time(storm_to_tornadoes_table, tornado_table,
+                           linkage_metadata_dict, genesis_only):
+    """Subsets storms by time.
+
+    :param storm_to_tornadoes_table: pandas DataFrame returned by
+        `linkage.read_linkage_file`.
+    :param tornado_table: Same.
+    :param linkage_metadata_dict: Dictionary returned by
+        `linkage.read_linkage_file`.
+    :param genesis_only: See documentation at top of file.
+    :return: storm_to_tornadoes_table: Same as input but maybe with fewer rows.
+    """
+
+    storm_to_tornadoes_table = linkage._find_secondary_start_end_times(
+        storm_to_tornadoes_table)
+
+    max_start_time_unix_sec = (
+        numpy.max(tornado_table[tornado_io.START_TIME_COLUMN].values) +
+        linkage_metadata_dict[linkage.MAX_TIME_BEFORE_START_KEY]
+    )
+
+    if genesis_only:
+        min_end_time_unix_sec = (
+            numpy.min(tornado_table[tornado_io.START_TIME_COLUMN].values) -
+            linkage_metadata_dict[linkage.MAX_TIME_AFTER_END_KEY]
+        )
+    else:
+        min_end_time_unix_sec = (
+            numpy.min(tornado_table[tornado_io.END_TIME_COLUMN].values) -
+            linkage_metadata_dict[linkage.MAX_TIME_AFTER_END_KEY]
+        )
+
+    max_start_time_string = time_conversion.unix_sec_to_string(
+        max_start_time_unix_sec, LOG_MESSAGE_TIME_FORMAT)
+
+    min_end_time_string = time_conversion.unix_sec_to_string(
+        min_end_time_unix_sec, LOG_MESSAGE_TIME_FORMAT)
+
+    print('Max start time = {0:s} ... min end time = {1:s}'.format(
+        max_start_time_string, min_end_time_string))
+
+    return storm_to_tornadoes_table.loc[
+        (storm_to_tornadoes_table[linkage.SECONDARY_START_TIME_COLUMN]
+         <= max_start_time_unix_sec) &
+        (storm_to_tornadoes_table[linkage.SECONDARY_END_TIME_COLUMN] >=
+         min_end_time_unix_sec)
+    ]
+
+
 def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
          first_spc_date_string, last_spc_date_string, num_colours,
          min_plot_latitude_deg, max_plot_latitude_deg,
@@ -469,33 +518,6 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
         )
     })
 
-    # TODO(thunderhoser): Make this temporal subsetting optional.
-    storm_to_tornadoes_table = linkage._find_secondary_start_end_times(
-        storm_to_tornadoes_table)
-
-    max_start_time_unix_sec = (
-        numpy.min(tornado_table[tornado_io.START_TIME_COLUMN].values) -
-        linkage_metadata_dict[linkage.MAX_TIME_BEFORE_START_KEY]
-    )
-
-    if genesis_only:
-        min_end_time_unix_sec = (
-            numpy.max(tornado_table[tornado_io.START_TIME_COLUMN].values) -
-            linkage_metadata_dict[linkage.MAX_TIME_AFTER_END_KEY]
-        )
-    else:
-        min_end_time_unix_sec = (
-            numpy.max(tornado_table[tornado_io.END_TIME_COLUMN].values) -
-            linkage_metadata_dict[linkage.MAX_TIME_AFTER_END_KEY]
-        )
-
-    storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
-        (storm_to_tornadoes_table[linkage.SECONDARY_START_TIME_COLUMN]
-         <= max_start_time_unix_sec) &
-        (storm_to_tornadoes_table[linkage.SECONDARY_END_TIME_COLUMN] >=
-         min_end_time_unix_sec)
-    ]
-
     if min_plot_latitude_deg is None:
         min_plot_latitude_deg = numpy.min(
             storm_to_tornadoes_table[
@@ -540,6 +562,12 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
         max_latitude_deg=max_plot_latitude_deg,
         min_longitude_deg=min_plot_longitude_deg,
         max_longitude_deg=max_plot_longitude_deg)
+
+    # TODO(thunderhoser): Make this subsetting optional.
+    _subset_storms_by_time(
+        storm_to_tornadoes_table=storm_to_tornadoes_table,
+        tornado_table=tornado_table,
+        linkage_metadata_dict=linkage_metadata_dict, genesis_only=genesis_only)
 
     print(SEPARATOR_STRING)
 
