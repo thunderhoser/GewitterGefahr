@@ -306,14 +306,14 @@ def _plot_one_example_one_time(
             basemap_object=basemap_object, line_width=2, line_colour='k',
             line_style='solid')
 
-        axes_object.text(
-            this_storm_object_table[
-                tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
-            this_storm_object_table[
-                tracking_utils.CENTROID_LATITUDE_COLUMN].values,
-            ['P'] * this_num_storm_objects, fontsize=FONT_SIZE,
-            fontweight='bold', color=FONT_COLOUR, horizontalalignment='center',
-            verticalalignment='center')
+        for j in range(len(this_storm_object_table)):
+            axes_object.text(
+                this_storm_object_table[
+                    tracking_utils.CENTROID_LONGITUDE_COLUMN].values[j],
+                this_storm_object_table[
+                    tracking_utils.CENTROID_LATITUDE_COLUMN].values[j],
+                'P', fontsize=FONT_SIZE, color=FONT_COLOUR, fontweight='bold',
+                horizontalalignment='center', verticalalignment='center')
 
     # Plot outline of storm of interest (same secondary ID).
     this_storm_object_table = storm_object_table.loc[
@@ -341,6 +341,9 @@ def _plot_one_example_one_time(
             numpy.array(this_polygon_object_latlng.exterior.xy[1])
         )
 
+        this_longitude_deg = this_storm_object_table[
+            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[0]
+
         label_string = 'Prob = {0:.3f}\nat {1:s}'.format(
             this_storm_object_table[FORECAST_PROBABILITY_COLUMN].values[0],
             time_conversion.unix_sec_to_string(
@@ -356,6 +359,13 @@ def _plot_one_example_one_time(
             'edgecolor': colour_tuple,
             'linewidth': 1
         }
+
+        print((
+            'Latitude = {0:.4f} deg N ... longitude = {1:.4f} deg E ... '
+            'label = "{2:s}"'
+        ).format(
+            this_latitude_deg, this_longitude_deg, str(label_string)
+        ))
 
         axes_object.text(
             this_storm_object_table[
@@ -388,6 +398,14 @@ def _plot_one_example_one_time(
     num_tornadoes = len(tornado_latitudes_deg)
 
     for j in range(num_tornadoes):
+        print((
+            'Latitude = {0:.4f} deg N ... longitude = {1:.4f} deg E ... '
+            'label = "{2:s}"'
+        ).format(
+            tornado_latitudes_deg[j] - 0.02, tornado_longitudes_deg[j] + 0.02,
+            str(tornado_time_strings[j])
+        ))
+
         axes_object.text(
             tornado_longitudes_deg[j] + 0.02, tornado_latitudes_deg[j] - 0.02,
             tornado_time_strings[j], fontsize=FONT_SIZE,
