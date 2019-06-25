@@ -360,13 +360,6 @@ def _plot_one_example_one_time(
             'linewidth': 1
         }
 
-        print((
-            'Latitude = {0:.4f} deg N ... longitude = {1:.4f} deg E ... '
-            'label = "{2:s}"'
-        ).format(
-            this_latitude_deg, this_longitude_deg, str(label_string)
-        ))
-
         axes_object.text(
             this_storm_object_table[
                 tracking_utils.CENTROID_LONGITUDE_COLUMN].values[0],
@@ -398,14 +391,6 @@ def _plot_one_example_one_time(
     num_tornadoes = len(tornado_latitudes_deg)
 
     for j in range(num_tornadoes):
-        print((
-            'Latitude = {0:.4f} deg N ... longitude = {1:.4f} deg E ... '
-            'label = "{2:s}"'
-        ).format(
-            tornado_latitudes_deg[j] - 0.02, tornado_longitudes_deg[j] + 0.02,
-            str(tornado_time_strings[j])
-        ))
-
         axes_object.text(
             tornado_longitudes_deg[j] + 0.02, tornado_latitudes_deg[j] - 0.02,
             tornado_time_strings[j], fontsize=FONT_SIZE,
@@ -827,7 +812,7 @@ def _run(main_activation_file_name, aux_activation_file_name, tornado_dir_name,
 
     print(SEPARATOR_STRING)
 
-    for i in range(15, num_storm_objects):
+    for i in range(num_storm_objects):
         _plot_one_example(
             full_id_string=activation_dict[model_activation.FULL_IDS_KEY][i],
             storm_time_unix_sec=activation_dict[
