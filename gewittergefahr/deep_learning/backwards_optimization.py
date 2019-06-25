@@ -89,7 +89,7 @@ def _check_input_args(num_iterations, learning_rate, ideal_activation=None):
 
 def _do_gradient_descent(
         model_object, loss_tensor, init_function_or_matrices, num_iterations,
-        learning_rate):
+        learning_rate, l2_weight=0.001):
     """Does gradient descent (the nitty-gritty part of backwards optimization).
 
     :param model_object: Trained instance of `keras.models.Model` or
@@ -112,6 +112,9 @@ def _do_gradient_descent(
     :param learning_rate: Learning rate.  At each iteration, each input value x
         will be decremented by `learning_rate * gradient`, where `gradient` is
         the gradient of the loss function with respect to x.
+    :param l2_weight: L2-regularization weight.  This will penalize the squared
+        Euclidean distance between the original and synthetic (optimized) input
+        tensors.
     :return: list_of_optimized_matrices: length-T list of optimized input
         matrices (numpy arrays), where T = number of input tensors to the model.
         If the input arg `init_function_or_matrices` is a list of numpy arrays
@@ -126,18 +129,6 @@ def _do_gradient_descent(
 
     num_input_tensors = len(list_of_input_tensors)
 
-    list_of_gradient_tensors = K.gradients(loss_tensor, list_of_input_tensors)
-    for i in range(num_input_tensors):
-        list_of_gradient_tensors[i] /= K.maximum(
-            K.sqrt(K.mean(list_of_gradient_tensors[i] ** 2)),
-            K.epsilon()
-        )
-
-    inputs_to_loss_and_gradients = K.function(
-        list_of_input_tensors + [K.learning_phase()],
-        ([loss_tensor] + list_of_gradient_tensors)
-    )
-
     if isinstance(init_function_or_matrices, list):
         list_of_optimized_matrices = init_function_or_matrices + []
     else:
@@ -151,9 +142,33 @@ def _do_gradient_descent(
             list_of_optimized_matrices[i] = init_function_or_matrices(
                 these_dimensions)
 
+    if l2_weight is not None:
+        for i in range(num_input_tensors):
+            print(model_object.layers[0].input)
+            print('\n\n\n*******\n\n\n')
+            print(model_object.layers[0].output)
+
+            loss_tensor += l2_weight * K.sum(
+                (model_object.layers[0].output[i] -
+                 list_of_optimized_matrices[i]) ** 2
+            )
+
+    list_of_gradient_tensors = K.gradients(loss_tensor, list_of_input_tensors)
+    for i in range(num_input_tensors):
+        list_of_gradient_tensors[i] /= K.maximum(
+            K.sqrt(K.mean(list_of_gradient_tensors[i] ** 2)),
+            K.epsilon()
+        )
+
+    inputs_to_loss_and_gradients = K.function(
+        list_of_input_tensors + [K.learning_phase()],
+        ([loss_tensor] + list_of_gradient_tensors)
+    )
+
     for j in range(num_iterations):
         these_outputs = inputs_to_loss_and_gradients(
-            list_of_optimized_matrices + [0])
+            list_of_optimized_matrices + [0]
+        )
 
         if numpy.mod(j, 100) == 0:
             print('Loss after {0:d} of {1:d} iterations: {2:.2e}'.format(
