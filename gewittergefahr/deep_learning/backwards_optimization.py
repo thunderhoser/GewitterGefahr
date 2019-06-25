@@ -20,9 +20,11 @@ from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
-DEFAULT_IDEAL_ACTIVATION = 2.
 DEFAULT_LEARNING_RATE = 0.0025
-DEFAULT_NUM_ITERATIONS = 100
+DEFAULT_NUM_ITERATIONS = 200
+DEFAULT_L2_WEIGHT = None
+
+DEFAULT_IDEAL_ACTIVATION = 2.
 
 INIT_FUNCTION_KEY = 'init_function_name_or_matrices'
 OPTIMIZED_MATRICES_KEY = 'list_of_optimized_matrices'
@@ -33,6 +35,7 @@ STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 NUM_ITERATIONS_KEY = 'num_iterations'
 LEARNING_RATE_KEY = 'learning_rate'
+L2_WEIGHT_KEY = 'l2_weight'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
 LAYER_NAME_KEY = 'layer_name'
@@ -42,7 +45,7 @@ CHANNEL_INDEX_KEY = 'channel_index'
 
 STANDARD_FILE_KEYS = [
     INIT_FUNCTION_KEY, OPTIMIZED_MATRICES_KEY, MODEL_FILE_KEY,
-    NUM_ITERATIONS_KEY, LEARNING_RATE_KEY, COMPONENT_TYPE_KEY,
+    NUM_ITERATIONS_KEY, LEARNING_RATE_KEY, L2_WEIGHT_KEY, COMPONENT_TYPE_KEY,
     TARGET_CLASS_KEY, LAYER_NAME_KEY, IDEAL_ACTIVATION_KEY, NEURON_INDICES_KEY,
     CHANNEL_INDEX_KEY, FULL_IDS_KEY, STORM_TIMES_KEY
 ]
@@ -69,11 +72,13 @@ VALID_INIT_FUNCTION_NAMES = [
 ]
 
 
-def _check_input_args(num_iterations, learning_rate, ideal_activation=None):
+def _check_input_args(num_iterations, learning_rate, l2_weight=None,
+                      ideal_activation=None):
     """Error-checks input args for backwards optimization.
 
     :param num_iterations: See doc for `_do_gradient_descent`.
     :param learning_rate: Same.
+    :param l2_weight: Same.
     :param ideal_activation: See doc for `optimize_input_for_neuron_activation`
         or `optimize_input_for_channel_activation`.
     """
@@ -83,13 +88,16 @@ def _check_input_args(num_iterations, learning_rate, ideal_activation=None):
     error_checking.assert_is_greater(learning_rate, 0.)
     error_checking.assert_is_less_than(learning_rate, 1.)
 
+    if l2_weight is not None:
+        error_checking.assert_is_greater(l2_weight, 0.)
+
     if ideal_activation is not None:
         error_checking.assert_is_greater(ideal_activation, 0.)
 
 
 def _do_gradient_descent(
         model_object, loss_tensor, init_function_or_matrices, num_iterations,
-        learning_rate, l2_weight=1e-4):
+        learning_rate, l2_weight=None):
     """Does gradient descent (the nitty-gritty part of backwards optimization).
 
     :param model_object: Trained instance of `keras.models.Model` or
@@ -449,7 +457,7 @@ def create_climo_initializer(
 def optimize_input_for_class(
         model_object, target_class, init_function_or_matrices,
         num_iterations=DEFAULT_NUM_ITERATIONS,
-        learning_rate=DEFAULT_LEARNING_RATE):
+        learning_rate=DEFAULT_LEARNING_RATE, l2_weight=DEFAULT_L2_WEIGHT):
     """Creates synthetic input example to maximize probability of target class.
 
     :param model_object: Trained instance of `keras.models.Model` or
@@ -459,6 +467,7 @@ def optimize_input_for_class(
     :param init_function_or_matrices: See doc for `_do_gradient_descent`.
     :param num_iterations: Same.
     :param learning_rate: Same.
+    :param l2_weight: Same.
     :return: list_of_optimized_matrices: Same.
     """
 
@@ -467,7 +476,8 @@ def optimize_input_for_class(
         target_class=target_class)
 
     _check_input_args(
-        num_iterations=num_iterations, learning_rate=learning_rate)
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        l2_weight=l2_weight)
 
     num_output_neurons = (
         model_object.layers[-1].output.get_shape().as_list()[-1]
@@ -494,13 +504,14 @@ def optimize_input_for_class(
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
         init_function_or_matrices=init_function_or_matrices,
-        num_iterations=num_iterations, learning_rate=learning_rate)
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        l2_weight=l2_weight)
 
 
 def optimize_input_for_neuron(
         model_object, layer_name, neuron_indices, init_function_or_matrices,
         num_iterations=DEFAULT_NUM_ITERATIONS,
-        learning_rate=DEFAULT_LEARNING_RATE,
+        learning_rate=DEFAULT_LEARNING_RATE, l2_weight=DEFAULT_L2_WEIGHT,
         ideal_activation=DEFAULT_IDEAL_ACTIVATION):
     """Creates synthetic input example to maximize activation of neuron.
 
@@ -514,6 +525,7 @@ def optimize_input_for_neuron(
     :param init_function_or_matrices: See doc for `_do_gradient_descent`.
     :param num_iterations: Same.
     :param learning_rate: Same.
+    :param l2_weight: Same.
     :param ideal_activation: If this value is specified, the loss function will
         be (neuron_activation - ideal_activation)^2.
 
@@ -529,7 +541,7 @@ def optimize_input_for_neuron(
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
-        ideal_activation=ideal_activation)
+        l2_weight=l2_weight, ideal_activation=ideal_activation)
 
     neuron_indices_as_tuple = (0,) + tuple(neuron_indices)
 
@@ -552,14 +564,15 @@ def optimize_input_for_neuron(
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
         init_function_or_matrices=init_function_or_matrices,
-        num_iterations=num_iterations, learning_rate=learning_rate)
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        l2_weight=l2_weight)
 
 
 def optimize_input_for_channel(
         model_object, layer_name, channel_index, init_function_or_matrices,
         stat_function_for_neuron_activations,
         num_iterations=DEFAULT_NUM_ITERATIONS,
-        learning_rate=DEFAULT_LEARNING_RATE,
+        learning_rate=DEFAULT_LEARNING_RATE, l2_weight=DEFAULT_L2_WEIGHT,
         ideal_activation=DEFAULT_IDEAL_ACTIVATION):
     """Creates synthetic input example to maxx activation of neurons in channel.
 
@@ -579,6 +592,7 @@ def optimize_input_for_channel(
 
     :param num_iterations: See doc for `_do_gradient_descent`.
     :param learning_rate: Same.
+    :param l2_weight: Same.
     :param ideal_activation: If this value is specified, the loss function will
         be abs[stat_function_for_neuron_activations(neuron_activations) -
                ideal_activation].
@@ -597,7 +611,7 @@ def optimize_input_for_channel(
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
-        ideal_activation=ideal_activation)
+        l2_weight=l2_weight, ideal_activation=ideal_activation)
 
     if ideal_activation is None:
         loss_tensor = -K.abs(stat_function_for_neuron_activations(
@@ -616,13 +630,14 @@ def optimize_input_for_channel(
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
         init_function_or_matrices=init_function_or_matrices,
-        num_iterations=num_iterations, learning_rate=learning_rate)
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        l2_weight=l2_weight)
 
 
 def write_standard_file(
         pickle_file_name, init_function_name_or_matrices,
         list_of_optimized_matrices, model_file_name, num_iterations,
-        learning_rate, component_type_string, target_class=None,
+        learning_rate, component_type_string, l2_weight=None, target_class=None,
         layer_name=None, neuron_indices=None, channel_index=None,
         ideal_activation=None, full_id_strings=None, storm_times_unix_sec=None):
     """Writes optimized learning examples to Pickle file.
@@ -641,7 +656,9 @@ def write_standard_file(
     :param learning_rate: Same.
     :param component_type_string: See doc for
         `model_interpretation.check_component_metadata`.
-    :param target_class: Same.
+    :param l2_weight: See doc for `_do_gradient_descent`.
+    :param target_class: See doc for
+        `model_interpretation.check_component_metadata`.
     :param layer_name: Same.
     :param neuron_indices: Same.
     :param channel_index: Same.
@@ -664,7 +681,7 @@ def write_standard_file(
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
-        ideal_activation=ideal_activation)
+        l2_weight=l2_weight, ideal_activation=ideal_activation)
 
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_list(list_of_optimized_matrices)
@@ -725,6 +742,7 @@ def write_standard_file(
         MODEL_FILE_KEY: model_file_name,
         NUM_ITERATIONS_KEY: num_iterations,
         LEARNING_RATE_KEY: learning_rate,
+        L2_WEIGHT_KEY: l2_weight,
         COMPONENT_TYPE_KEY: component_type_string,
         TARGET_CLASS_KEY: target_class,
         LAYER_NAME_KEY: layer_name,
@@ -752,6 +770,7 @@ def read_standard_file(pickle_file_name):
     optimization_dict['model_file_name']: Same.
     optimization_dict['num_iterations']: Same.
     optimization_dict['learning_rate']: Same.
+    optimization_dict['l2_weight']: Same.
     optimization_dict['component_type_string']: Same.
     optimization_dict['target_class']: Same.
     optimization_dict['layer_name']: Same.
