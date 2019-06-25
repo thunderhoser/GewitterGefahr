@@ -20,9 +20,9 @@ from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
-DEFAULT_LEARNING_RATE = 0.0025
+DEFAULT_LEARNING_RATE = 0.001
 DEFAULT_NUM_ITERATIONS = 200
-DEFAULT_L2_WEIGHT = None
+DEFAULT_L2_WEIGHT = 0.0001
 
 DEFAULT_IDEAL_ACTIVATION = 2.
 
@@ -158,10 +158,17 @@ def _do_gradient_descent(
                  list_of_optimized_matrices[i][0, ...]) ** 2
             )
 
-            # loss_tensor += l2_weight * K.sum(
-            #     (model_object.layers[0].output[i] -
-            #      list_of_optimized_matrices[i]) ** 2
-            # )
+    # TODO(thunderhoser): The following is a HACK to deal with layer operations.
+    greater_indices = numpy.array([1, 2, 4, 5, 7, 8, 10, 11], dtype=int)
+    less_indices = numpy.array([0, 1, 3, 4, 6, 7, 9, 10], dtype=int)
+
+    for k in range(len(greater_indices)):
+        this_difference_tensor = (
+            list_of_input_tensors[0][0, ..., less_indices[k]] -
+            list_of_input_tensors[0][0, ..., greater_indices[k]]
+        )
+
+        loss_tensor += 1e10 * K.sum(K.maximum(this_difference_tensor, 0.))
 
     list_of_gradient_tensors = K.gradients(loss_tensor, list_of_input_tensors)
     for i in range(num_input_tensors):
