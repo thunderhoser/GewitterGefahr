@@ -38,7 +38,9 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TIME_INTERVAL_SECONDS = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+
 FORECAST_PROBABILITY_COLUMN = 'forecast_probability'
+FORECAST_PROBABILITY_COLOUR = numpy.full(3, 152. / 255)
 
 FONT_SIZE = 20
 FONT_COLOUR = numpy.full(3, 0.)
@@ -335,12 +337,9 @@ def _plot_one_example_one_time(
         this_polygon_object_latlng = this_storm_object_table[
             tracking_utils.LATLNG_POLYGON_COLUMN].values[0]
 
-        this_latitude_deg = numpy.max(
+        this_latitude_deg = numpy.min(
             numpy.array(this_polygon_object_latlng.exterior.xy[1])
         )
-
-        this_longitude_deg = this_storm_object_table[
-            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[0]
 
         label_string = 'Prob = {0:.3f}\nat {1:s}'.format(
             this_storm_object_table[FORECAST_PROBABILITY_COLUMN].values[0],
@@ -348,14 +347,23 @@ def _plot_one_example_one_time(
                 valid_time_unix_sec, TORNADO_TIME_FORMAT)
         )
 
+        colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
+            FORECAST_PROBABILITY_COLOUR)
+
+        bounding_box_dict = {
+            'facecolor': 'white',
+            'alpha': 0.5,
+            'edgecolor': colour_tuple,
+            'linewidth': 1
+        }
+
         axes_object.text(
             this_storm_object_table[
                 tracking_utils.CENTROID_LONGITUDE_COLUMN].values[0],
-            this_storm_object_table[
-                tracking_utils.CENTROID_LATITUDE_COLUMN].values[0],
-            label_string, fontsize=FONT_SIZE, color=FONT_COLOUR,
-            fontweight='bold', horizontalalignment='center',
-            verticalalignment='center')
+            this_latitude_deg,
+            label_string, fontsize=FONT_SIZE, color=colour_tuple,
+            fontweight='bold', bbox=bounding_box_dict,
+            horizontalalignment='center', verticalalignment='top')
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
     tornado_longitudes_deg = tornado_table[
