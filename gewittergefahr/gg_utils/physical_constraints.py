@@ -144,7 +144,8 @@ def _find_constrained_radar_channels(list_of_layer_operation_dicts):
 def _normalize_minima_and_maxima(
         list_of_input_tensors, cnn_metadata_dict, normalization_file_name,
         normalization_type_string, min_normalized_value=0.,
-        max_normalized_value=1.):
+        max_normalized_value=1., test_mode=False,
+        radar_normalization_table=None, sounding_normalization_table=None):
     """Converts min and max for each physical variable to normalized units.
 
     T = number of input tensors to the CNN
@@ -158,6 +159,9 @@ def _normalize_minima_and_maxima(
         `deep_learning_utils.normalize_soundings`.
     :param min_normalized_value: Same.
     :param max_normalized_value: Same.
+    :param test_mode: Leave this alone.
+    :param radar_normalization_table: Leave this alone.
+    :param sounding_normalization_table: Leave this alone.
     :return: min_values_by_tensor: length-T list of numpy arrays.  Length of
         [i]th array = length of last axis (channel axis) in [i]th input tensor.
     :return: max_values_by_tensor: Same.
@@ -165,29 +169,28 @@ def _normalize_minima_and_maxima(
 
     # TODO(thunderhoser): Modularize this.
     # TODO(thunderhoser): Check normalization params.
+
+    error_checking.assert_is_boolean(test_mode)
+
     training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     num_input_tensors = len(list_of_input_tensors)
-    min_values_by_tensor = [] * num_input_tensors
-    max_values_by_tensor = [] * num_input_tensors
+    min_values_by_tensor = [numpy.array([])] * num_input_tensors
+    max_values_by_tensor = [numpy.array([])] * num_input_tensors
 
     if cnn_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        num_refl_heights = list_of_input_tensors[0].get_shape().as_list()[-2]
         num_az_shear_fields = list_of_input_tensors[1].get_shape().as_list()[-1]
+
+        min_values_by_tensor[1] = numpy.full(num_az_shear_fields, numpy.nan)
+        max_values_by_tensor[1] = numpy.full(num_az_shear_fields, numpy.nan)
 
         if (normalization_type_string ==
                 dl_utils.MINMAX_NORMALIZATION_TYPE_STRING):
 
-            min_values_by_tensor[0] = numpy.full(
-                num_refl_heights, min_normalized_value)
-            max_values_by_tensor[0] = numpy.full(
-                num_refl_heights, max_normalized_value)
-
-            min_values_by_tensor[1] = numpy.full(
-                num_az_shear_fields, min_normalized_value)
-            max_values_by_tensor[1] = numpy.full(
-                num_az_shear_fields, max_normalized_value)
-
+            min_values_by_tensor[0] = numpy.array([min_normalized_value])
+            max_values_by_tensor[0] = numpy.array([numpy.nan])
+            min_values_by_tensor[1][:] = numpy.nan
+            max_values_by_tensor[1][:] = numpy.nan
         else:
             if radar_utils.REFL_NAME in RADAR_TO_MINIMUM_DICT:
                 this_min_value = RADAR_TO_MINIMUM_DICT[radar_utils.REFL_NAME]
@@ -199,15 +202,81 @@ def _normalize_minima_and_maxima(
                     normalization_type_string=normalization_type_string,
                     normalization_param_file_name=normalization_file_name,
                     min_normalized_value=min_normalized_value,
-                    max_normalized_value=max_normalized_value)
+                    max_normalized_value=max_normalized_value,
+                    test_mode=test_mode,
+                    normalization_table=radar_normalization_table)
 
                 this_min_value = numpy.ravel(this_min_matrix)[0]
             else:
                 this_min_value = numpy.nan
 
-            min_values_by_tensor[0] = numpy.full(
-                num_refl_heights, this_min_value)
-            max_values_by_tensor[0] = numpy.full(num_refl_heights, numpy.nan)
+            min_values_by_tensor[0] = numpy.array([this_min_value])
+
+            if radar_utils.REFL_NAME in RADAR_TO_MAX_DICT:
+                this_max_value = RADAR_TO_MAX_DICT[radar_utils.REFL_NAME]
+                this_max_matrix = numpy.full((1, 1, 1, 1), this_max_value)
+
+                this_max_matrix = dl_utils.normalize_radar_images(
+                    radar_image_matrix=this_max_matrix,
+                    field_names=[radar_utils.REFL_NAME],
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value,
+                    test_mode=test_mode,
+                    normalization_table=radar_normalization_table)
+
+                this_max_value = numpy.ravel(this_max_matrix)[0]
+            else:
+                this_max_value = numpy.nan
+
+            max_values_by_tensor[0] = numpy.array([this_max_value])
+
+            az_shear_field_names = training_option_dict[
+                trainval_io.RADAR_FIELDS_KEY]
+
+            for j in range(num_az_shear_fields):
+                if az_shear_field_names[j] in RADAR_TO_MINIMUM_DICT:
+                    this_min_value = RADAR_TO_MINIMUM_DICT[
+                        az_shear_field_names[j]
+                    ]
+                    this_min_matrix = numpy.full((1, 1, 1, 1), this_min_value)
+
+                    this_min_matrix = dl_utils.normalize_radar_images(
+                        radar_image_matrix=this_min_matrix,
+                        field_names=[az_shear_field_names[j]],
+                        normalization_type_string=normalization_type_string,
+                        normalization_param_file_name=normalization_file_name,
+                        min_normalized_value=min_normalized_value,
+                        max_normalized_value=max_normalized_value,
+                        test_mode=test_mode,
+                        normalization_table=radar_normalization_table)
+
+                    this_min_value = numpy.ravel(this_min_matrix)[0]
+                else:
+                    this_min_value = numpy.nan
+
+                min_values_by_tensor[1][j] = this_min_value
+
+                if az_shear_field_names[j] in RADAR_TO_MAX_DICT:
+                    this_max_value = RADAR_TO_MAX_DICT[az_shear_field_names[j]]
+                    this_max_matrix = numpy.full((1, 1, 1, 1), this_max_value)
+
+                    this_max_matrix = dl_utils.normalize_radar_images(
+                        radar_image_matrix=this_max_matrix,
+                        field_names=[az_shear_field_names[j]],
+                        normalization_type_string=normalization_type_string,
+                        normalization_param_file_name=normalization_file_name,
+                        min_normalized_value=min_normalized_value,
+                        max_normalized_value=max_normalized_value,
+                        test_mode=test_mode,
+                        normalization_table=radar_normalization_table)
+
+                    this_max_value = numpy.ravel(this_max_matrix)[0]
+                else:
+                    this_max_value = numpy.nan
+
+                max_values_by_tensor[1][j] = this_max_value
     else:
         list_of_layer_operation_dicts = cnn_metadata_dict[
             cnn.LAYER_OPERATIONS_KEY]
@@ -253,7 +322,9 @@ def _normalize_minima_and_maxima(
                     normalization_type_string=normalization_type_string,
                     normalization_param_file_name=normalization_file_name,
                     min_normalized_value=min_normalized_value,
-                    max_normalized_value=max_normalized_value)
+                    max_normalized_value=max_normalized_value,
+                    test_mode=test_mode,
+                    normalization_table=radar_normalization_table)
 
                 this_min_value = numpy.ravel(this_min_matrix)[0]
             else:
@@ -271,7 +342,9 @@ def _normalize_minima_and_maxima(
                     normalization_type_string=normalization_type_string,
                     normalization_param_file_name=normalization_file_name,
                     min_normalized_value=min_normalized_value,
-                    max_normalized_value=max_normalized_value)
+                    max_normalized_value=max_normalized_value,
+                    test_mode=test_mode,
+                    normalization_table=radar_normalization_table)
 
                 this_max_value = numpy.ravel(this_max_matrix)[0]
             else:
@@ -315,7 +388,9 @@ def _normalize_minima_and_maxima(
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_file_name,
                 min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value)
+                max_normalized_value=max_normalized_value,
+                test_mode=test_mode,
+                normalization_table=sounding_normalization_table)
 
             this_min_value = numpy.ravel(this_min_matrix)[0]
         else:
@@ -333,7 +408,9 @@ def _normalize_minima_and_maxima(
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_file_name,
                 min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value)
+                max_normalized_value=max_normalized_value,
+                test_mode=test_mode,
+                normalization_table=sounding_normalization_table)
 
             this_max_value = numpy.ravel(this_max_matrix)[0]
         else:
