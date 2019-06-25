@@ -579,12 +579,16 @@ def _plot_one_example(
                 tracking_utils.FULL_ID_COLUMN].values.tolist(),
             times_to_keep_unix_sec=storm_object_table[
                 tracking_utils.VALID_TIME_COLUMN].values,
-            allow_missing=False
+            allow_missing=True
         )
 
+        storm_object_probs = numpy.array([
+            aux_forecast_probabilities[k] if k >= 0 else numpy.nan
+            for k in these_indices
+        ])
+
         storm_object_table = storm_object_table.assign(**{
-            FORECAST_PROBABILITY_COLUMN:
-                aux_forecast_probabilities[these_indices]
+            FORECAST_PROBABILITY_COLUMN: storm_object_probs
         })
 
     primary_id_string = temporal_tracking.full_to_partial_ids(
