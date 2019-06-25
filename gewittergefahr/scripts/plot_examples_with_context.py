@@ -827,7 +827,7 @@ def _run(main_activation_file_name, aux_activation_file_name, tornado_dir_name,
 
     print(SEPARATOR_STRING)
 
-    for i in range(num_storm_objects):
+    for i in range(15, num_storm_objects):
         _plot_one_example(
             full_id_string=activation_dict[model_activation.FULL_IDS_KEY][i],
             storm_time_unix_sec=activation_dict[
