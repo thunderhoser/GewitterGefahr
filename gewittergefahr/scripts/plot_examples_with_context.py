@@ -295,7 +295,7 @@ def _plot_one_example_one_time(
                 tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
             this_storm_object_table[
                 tracking_utils.CENTROID_LATITUDE_COLUMN].values,
-            ['s'] * this_num_storm_objects, fontsize=FONT_SIZE,
+            ['P'] * this_num_storm_objects, fontsize=FONT_SIZE,
             color=FONT_COLOUR, horizontalalignment='center',
             verticalalignment='center')
 
@@ -320,6 +320,25 @@ def _plot_one_example_one_time(
         ['S'] * this_num_storm_objects, fontsize=FONT_SIZE,
         color=FONT_COLOUR, horizontalalignment='center',
         verticalalignment='center')
+
+    this_polygon_object_latlng = this_storm_object_table[
+        tracking_utils.LATLNG_POLYGON_COLUMN].values[0]
+
+    this_latitude_deg = 0.02 + numpy.max(
+        numpy.array(this_polygon_object_latlng.exterior.xy[1])
+    )
+
+    this_longitude_deg = 0.02 + numpy.max(
+        numpy.array(this_polygon_object_latlng.exterior.xy[0])
+    )
+
+    valid_time_string = time_conversion.unix_sec_to_string(
+        valid_time_unix_sec, TORNADO_TIME_FORMAT)
+
+    axes_object.text(
+        this_longitude_deg, this_latitude_deg, valid_time_string,
+        fontsize=FONT_SIZE, color=FONT_COLOUR, horizontalalignment='left',
+        verticalalignment='bottom')
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
     tornado_longitudes_deg = tornado_table[
@@ -634,13 +653,13 @@ def _plot_one_example(
             latitude_limits_deg=latitude_limits_deg,
             longitude_limits_deg=longitude_limits_deg)
 
-        this_title_string = (
-            'Valid time = {0:s} ... forecast prob at {1:s} = {2:.3f}'
-        ).format(
-            tracking_time_strings[i], storm_time_string, forecast_probability
-        )
-
-        pyplot.title(this_title_string, fontsize=TITLE_FONT_SIZE)
+        # this_title_string = (
+        #     'Valid time = {0:s} ... forecast prob at {1:s} = {2:.3f}'
+        # ).format(
+        #     tracking_time_strings[i], storm_time_string, forecast_probability
+        # )
+        #
+        # pyplot.title(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_file_name = '{0:s}/{1:s}.jpg'.format(
             output_dir_name, tracking_time_strings[i]
