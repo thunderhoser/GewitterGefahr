@@ -89,7 +89,7 @@ def _check_input_args(num_iterations, learning_rate, ideal_activation=None):
 
 def _do_gradient_descent(
         model_object, loss_tensor, init_function_or_matrices, num_iterations,
-        learning_rate, l2_weight=0.001):
+        learning_rate, l2_weight=1e-4):
     """Does gradient descent (the nitty-gritty part of backwards optimization).
 
     :param model_object: Trained instance of `keras.models.Model` or
