@@ -168,7 +168,7 @@ def _do_gradient_descent(
             list_of_input_tensors[0][0, ..., greater_indices[k]]
         )
 
-        loss_tensor += 1e10 * K.sum(K.maximum(this_difference_tensor, 0.))
+        loss_tensor += K.sum(K.maximum(this_difference_tensor, 0.))
 
     list_of_gradient_tensors = K.gradients(loss_tensor, list_of_input_tensors)
     for i in range(num_input_tensors):
