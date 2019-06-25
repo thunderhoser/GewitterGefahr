@@ -37,6 +37,7 @@ MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 NUM_ITERATIONS_KEY = 'num_iterations'
 LEARNING_RATE_KEY = 'learning_rate'
 L2_WEIGHT_KEY = 'l2_weight'
+RADAR_CONSTRAINT_WEIGHT_KEY = 'radar_constraint_weight'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
 LAYER_NAME_KEY = 'layer_name'
@@ -698,9 +699,10 @@ def optimize_input_for_channel(
 def write_standard_file(
         pickle_file_name, init_function_name_or_matrices,
         list_of_optimized_matrices, model_file_name, num_iterations,
-        learning_rate, component_type_string, l2_weight=None, target_class=None,
-        layer_name=None, neuron_indices=None, channel_index=None,
-        ideal_activation=None, full_id_strings=None, storm_times_unix_sec=None):
+        learning_rate, component_type_string, l2_weight=None,
+        radar_constraint_weight=None, target_class=None, layer_name=None,
+        neuron_indices=None, channel_index=None, ideal_activation=None,
+        full_id_strings=None, storm_times_unix_sec=None):
     """Writes optimized learning examples to Pickle file.
 
     E = number of examples (storm objects)
@@ -718,6 +720,7 @@ def write_standard_file(
     :param component_type_string: See doc for
         `model_interpretation.check_component_metadata`.
     :param l2_weight: See doc for `_do_gradient_descent`.
+    :param radar_constraint_weight: See doc for `_radar_constraints_to_loss_fn`.
     :param target_class: See doc for
         `model_interpretation.check_component_metadata`.
     :param layer_name: Same.
@@ -734,6 +737,9 @@ def write_standard_file(
     :raises: ValueError: if `init_function_name_or_matrices` is a list of numpy
         arrays and has a different length than `list_of_optimized_matrices`.
     """
+
+    if radar_constraint_weight is not None:
+        error_checking.assert_is_greater(radar_constraint_weight, 0.)
 
     model_interpretation.check_component_metadata(
         component_type_string=component_type_string,
@@ -804,6 +810,7 @@ def write_standard_file(
         NUM_ITERATIONS_KEY: num_iterations,
         LEARNING_RATE_KEY: learning_rate,
         L2_WEIGHT_KEY: l2_weight,
+        RADAR_CONSTRAINT_WEIGHT_KEY: radar_constraint_weight,
         COMPONENT_TYPE_KEY: component_type_string,
         TARGET_CLASS_KEY: target_class,
         LAYER_NAME_KEY: layer_name,
@@ -832,6 +839,7 @@ def read_standard_file(pickle_file_name):
     optimization_dict['num_iterations']: Same.
     optimization_dict['learning_rate']: Same.
     optimization_dict['l2_weight']: Same.
+    optimization_dict['radar_constraint_weight']: Same.
     optimization_dict['component_type_string']: Same.
     optimization_dict['target_class']: Same.
     optimization_dict['layer_name']: Same.
@@ -845,6 +853,9 @@ def read_standard_file(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     optimization_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    if RADAR_CONSTRAINT_WEIGHT_KEY not in optimization_dict:
+        optimization_dict[RADAR_CONSTRAINT_WEIGHT_KEY] = None
 
     missing_keys = list(set(STANDARD_FILE_KEYS) - set(optimization_dict.keys()))
     if len(missing_keys) == 0:
