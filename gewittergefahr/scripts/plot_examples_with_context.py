@@ -38,6 +38,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TIME_INTERVAL_SECONDS = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+FORECAST_PROBABILITY_COLUMN = 'forecast_probability'
 
 FONT_SIZE = 20
 FONT_COLOUR = numpy.full(3, 0.)
@@ -55,7 +56,8 @@ TITLE_FONT_SIZE = 16
 BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
-ACTIVATION_FILE_ARG_NAME = 'input_activation_file_name'
+MAIN_ACTIVATION_FILE_ARG_NAME = 'input_main_activn_file_name'
+AUX_ACTIVATION_FILE_ARG_NAME = 'input_aux_activn_file_name'
 TORNADO_DIR_ARG_NAME = 'input_tornado_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 MYRORSS_DIR_ARG_NAME = 'input_myrorss_dir_name'
@@ -65,9 +67,17 @@ LATITUDE_BUFFER_ARG_NAME = 'latitude_buffer_deg'
 LONGITUDE_BUFFER_ARG_NAME = 'longitude_buffer_deg'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-ACTIVATION_FILE_HELP_STRING = (
-    'Path to activation file, containing model predictions for one or more '
-    'examples (storm objects).  Will be read by `model_activation.read_file`.')
+MAIN_ACTIVATION_FILE_HELP_STRING = (
+    'Path to main activation file (to be read by `model_activation.read_file`),'
+    ' containing model predictions for one or more examples (storm objects).  '
+    'Each storm object in this file will be plotted.')
+
+AUX_ACTIVATION_FILE_HELP_STRING = (
+    'Path to auxiliary activation file.  Must contain all examples in `{0:s}` '
+    'and more.  Will be used to plot forecast probability next to each example.'
+    '  If you do not want to plot forecast prob next to each example, leave '
+    'this argument alone.'
+).format(MAIN_ACTIVATION_FILE_ARG_NAME)
 
 TORNADO_DIR_HELP_STRING = (
     'Name of directory with tornado reports.  Files therein will be found by '
@@ -113,8 +123,12 @@ DEFAULT_MYRORSS_DIR_NAME = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + ACTIVATION_FILE_ARG_NAME, type=str, required=True,
-    help=ACTIVATION_FILE_HELP_STRING)
+    '--' + MAIN_ACTIVATION_FILE_ARG_NAME, type=str, required=True,
+    help=MAIN_ACTIVATION_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + AUX_ACTIVATION_FILE_ARG_NAME, type=str, required=False, default='',
+    help=AUX_ACTIVATION_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TORNADO_DIR_ARG_NAME, type=str, required=False,
@@ -305,14 +319,19 @@ def _plot_one_example_one_time(
         secondary_id_string
     ]
 
+    storm_plotting.plot_storm_outlines(
+        storm_object_table=this_storm_object_table, axes_object=axes_object,
+        basemap_object=basemap_object, line_width=4, line_colour='k',
+        line_style='solid')
+
     this_num_storm_objects = len(this_storm_object_table.index)
 
-    if this_num_storm_objects > 0:
-        storm_plotting.plot_storm_outlines(
-            storm_object_table=this_storm_object_table, axes_object=axes_object,
-            basemap_object=basemap_object, line_width=4, line_colour='k',
-            line_style='solid')
+    plot_forecast = (
+        this_num_storm_objects > 0 and
+        FORECAST_PROBABILITY_COLUMN in list(this_storm_object_table)
+    )
 
+    if plot_forecast:
         this_polygon_object_latlng = this_storm_object_table[
             tracking_utils.LATLNG_POLYGON_COLUMN].values[0]
 
@@ -323,13 +342,20 @@ def _plot_one_example_one_time(
         this_longitude_deg = this_storm_object_table[
             tracking_utils.CENTROID_LONGITUDE_COLUMN].values[0]
 
-        valid_time_string = time_conversion.unix_sec_to_string(
-            valid_time_unix_sec, TORNADO_TIME_FORMAT)
+        label_string = 'Prob = {0:.3f}\nat {1:s}'.format(
+            this_storm_object_table[FORECAST_PROBABILITY_COLUMN].values[0],
+            time_conversion.unix_sec_to_string(
+                valid_time_unix_sec, TORNADO_TIME_FORMAT)
+        )
 
         axes_object.text(
-            this_longitude_deg, this_latitude_deg, valid_time_string,
-            fontsize=FONT_SIZE, color=FONT_COLOUR, fontweight='bold',
-            horizontalalignment='center', verticalalignment='bottom')
+            this_storm_object_table[
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[0],
+            this_storm_object_table[
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values[0],
+            label_string, fontsize=FONT_SIZE, color=FONT_COLOUR,
+            fontweight='bold', horizontalalignment='center',
+            verticalalignment='center')
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
     tornado_longitudes_deg = tornado_table[
@@ -492,8 +518,11 @@ def _plot_one_example(
         full_id_string, storm_time_unix_sec, target_name, forecast_probability,
         tornado_dir_name, top_tracking_dir_name, top_myrorss_dir_name,
         radar_field_name, radar_height_m_asl, latitude_buffer_deg,
-        longitude_buffer_deg, top_output_dir_name):
+        longitude_buffer_deg, top_output_dir_name,
+        aux_forecast_probabilities=None, aux_activation_dict=None):
     """Plots one example with surrounding context at several times.
+
+    N = number of storm objects read from auxiliary activation file
 
     :param full_id_string: Full storm ID.
     :param storm_time_unix_sec: Storm time.
@@ -507,6 +536,11 @@ def _plot_one_example(
     :param latitude_buffer_deg: Same.
     :param longitude_buffer_deg: Same.
     :param top_output_dir_name: Same.
+    :param aux_forecast_probabilities: length-N numpy array of forecast
+        probabilities.  If this is None, will not plot forecast probs in maps.
+    :param aux_activation_dict: Dictionary returned by
+        `model_activation.read_file` from auxiliary file.  If this is None, will
+        not plot forecast probs in maps.
     """
 
     storm_time_string = time_conversion.unix_sec_to_string(
@@ -535,6 +569,23 @@ def _plot_one_example(
     # Read tracking files.
     storm_object_table = tracking_io.read_many_files(tracking_file_names)
     print('\n')
+
+    if aux_activation_dict is not None:
+        these_indices = tracking_utils.find_storm_objects(
+            all_id_strings=aux_activation_dict[model_activation.FULL_IDS_KEY],
+            all_times_unix_sec=aux_activation_dict[
+                model_activation.STORM_TIMES_KEY],
+            id_strings_to_keep=storm_object_table[
+                tracking_utils.FULL_ID_COLUMN].values.tolist(),
+            times_to_keep_unix_sec=storm_object_table[
+                tracking_utils.VALID_TIME_COLUMN].values,
+            allow_missing=False
+        )
+
+        storm_object_table = storm_object_table.assign(**{
+            FORECAST_PROBABILITY_COLUMN:
+                aux_forecast_probabilities[these_indices]
+        })
 
     primary_id_string = temporal_tracking.full_to_partial_ids(
         [full_id_string]
@@ -644,13 +695,15 @@ def _plot_one_example(
             latitude_limits_deg=latitude_limits_deg,
             longitude_limits_deg=longitude_limits_deg)
 
-        # this_title_string = (
-        #     'Valid time = {0:s} ... forecast prob at {1:s} = {2:.3f}'
-        # ).format(
-        #     tracking_time_strings[i], storm_time_string, forecast_probability
-        # )
-        #
-        # pyplot.title(this_title_string, fontsize=TITLE_FONT_SIZE)
+        if aux_activation_dict is None:
+            this_title_string = (
+                'Valid time = {0:s} ... forecast prob at {1:s} = {2:.3f}'
+            ).format(
+                tracking_time_strings[i], storm_time_string,
+                forecast_probability
+            )
+
+            pyplot.title(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_file_name = '{0:s}/{1:s}.jpg'.format(
             output_dir_name, tracking_time_strings[i]
@@ -664,14 +717,16 @@ def _plot_one_example(
             input_file_name=this_file_name, output_file_name=this_file_name)
 
 
-def _run(activation_file_name, tornado_dir_name, top_tracking_dir_name,
-         top_myrorss_dir_name, radar_field_name, radar_height_m_asl,
-         latitude_buffer_deg, longitude_buffer_deg, top_output_dir_name):
+def _run(main_activation_file_name, aux_activation_file_name, tornado_dir_name,
+         top_tracking_dir_name, top_myrorss_dir_name, radar_field_name,
+         radar_height_m_asl, latitude_buffer_deg, longitude_buffer_deg,
+         top_output_dir_name):
     """Plots examples (storm objects) with surrounding context.
 
     This is effectively the main method.
 
-    :param activation_file_name: See documentation at top of file.
+    :param main_activation_file_name: See documentation at top of file.
+    :param aux_activation_file_name: Same.
     :param tornado_dir_name: Same.
     :param top_tracking_dir_name: Same.
     :param top_myrorss_dir_name: Same.
@@ -685,9 +740,12 @@ def _run(activation_file_name, tornado_dir_name, top_tracking_dir_name,
     :raises: ValueError: if target variable is not related to tornadogenesis.
     """
 
-    print('Reading data from: "{0:s}"...'.format(activation_file_name))
+    if aux_activation_file_name in ['', 'None']:
+        aux_activation_file_name = None
+
+    print('Reading data from: "{0:s}"...'.format(main_activation_file_name))
     activation_matrix, activation_dict = model_activation.read_file(
-        activation_file_name)
+        main_activation_file_name)
 
     component_type_string = activation_dict[model_activation.COMPONENT_TYPE_KEY]
 
@@ -727,6 +785,16 @@ def _run(activation_file_name, tornado_dir_name, top_tracking_dir_name,
 
         raise ValueError(error_string)
 
+    if aux_activation_file_name is None:
+        aux_forecast_probabilities = None
+        aux_activation_dict = None
+    else:
+        print('Reading data from: "{0:s}"...'.format(aux_activation_file_name))
+        this_matrix, aux_activation_dict = model_activation.read_file(
+            aux_activation_file_name)
+
+        aux_forecast_probabilities = numpy.squeeze(this_matrix)
+
     print(SEPARATOR_STRING)
 
     for i in range(num_storm_objects):
@@ -743,7 +811,9 @@ def _run(activation_file_name, tornado_dir_name, top_tracking_dir_name,
             radar_height_m_asl=radar_height_m_asl,
             latitude_buffer_deg=latitude_buffer_deg,
             longitude_buffer_deg=longitude_buffer_deg,
-            top_output_dir_name=top_output_dir_name)
+            top_output_dir_name=top_output_dir_name,
+            aux_forecast_probabilities=aux_forecast_probabilities,
+            aux_activation_dict=aux_activation_dict)
 
         if i != num_storm_objects - 1:
             print(SEPARATOR_STRING)
@@ -753,8 +823,10 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        activation_file_name=getattr(
-            INPUT_ARG_OBJECT, ACTIVATION_FILE_ARG_NAME),
+        main_activation_file_name=getattr(
+            INPUT_ARG_OBJECT, MAIN_ACTIVATION_FILE_ARG_NAME),
+        aux_activation_file_name=getattr(
+            INPUT_ARG_OBJECT, AUX_ACTIVATION_FILE_ARG_NAME),
         tornado_dir_name=getattr(INPUT_ARG_OBJECT, TORNADO_DIR_ARG_NAME),
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
         top_myrorss_dir_name=getattr(INPUT_ARG_OBJECT, MYRORSS_DIR_ARG_NAME),
