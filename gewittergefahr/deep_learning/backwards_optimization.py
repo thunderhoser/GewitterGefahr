@@ -12,6 +12,7 @@ import numpy
 from keras import backend as K
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import physical_constraints
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -158,18 +159,6 @@ def _do_gradient_descent(
                  list_of_optimized_matrices[i][0, ...]) ** 2
             )
 
-    # TODO(thunderhoser): The following is a HACK to deal with layer operations.
-    greater_indices = numpy.array([1, 2, 4, 5, 7, 8, 10, 11], dtype=int)
-    less_indices = numpy.array([0, 1, 3, 4, 6, 7, 9, 10], dtype=int)
-
-    for k in range(len(greater_indices)):
-        this_difference_tensor = (
-            list_of_input_tensors[0][0, ..., less_indices[k]] -
-            list_of_input_tensors[0][0, ..., greater_indices[k]]
-        )
-
-        loss_tensor += 0.001 * K.sum(K.maximum(this_difference_tensor, 0.) ** 2)
-
     list_of_gradient_tensors = K.gradients(loss_tensor, list_of_input_tensors)
     for i in range(num_input_tensors):
         list_of_gradient_tensors[i] /= K.maximum(
@@ -202,6 +191,41 @@ def _do_gradient_descent(
     ))
 
     return list_of_optimized_matrices
+
+
+def _radar_constraints_to_loss_fn(model_object, model_metadata_dict, weight):
+    """Converts radar constraints to loss function.
+
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
+    :param weight: Weight used to multiply this part of the loss function.
+    :param model_metadata_dict:
+        [used only if `radar_constraint_weight is not None`]
+        Dictionary returned by `cnn.read_model_metadata`.
+    :return: loss_tensor: Keras tensor defining the loss function.  This may be
+        None.
+    """
+
+    if weight is None:
+        return
+
+    list_of_layer_operation_dicts = model_metadata_dict[
+        cnn.LAYER_OPERATIONS_KEY]
+
+    if list_of_layer_operation_dicts is None:
+        return
+
+    error_checking.assert_is_greater(weight, 0.)
+
+    if isinstance(model_object.input, list):
+        radar_tensor = model_object.input[0]
+    else:
+        radar_tensor = model_object.input
+
+    return weight * physical_constraints.radar_constraints_to_loss_fn(
+        radar_tensor=radar_tensor,
+        list_of_layer_operation_dicts=list_of_layer_operation_dicts
+    )
 
 
 def check_init_function(init_function_name):
@@ -464,7 +488,8 @@ def create_climo_initializer(
 def optimize_input_for_class(
         model_object, target_class, init_function_or_matrices,
         num_iterations=DEFAULT_NUM_ITERATIONS,
-        learning_rate=DEFAULT_LEARNING_RATE, l2_weight=DEFAULT_L2_WEIGHT):
+        learning_rate=DEFAULT_LEARNING_RATE, l2_weight=DEFAULT_L2_WEIGHT,
+        radar_constraint_weight=None, model_metadata_dict=None):
     """Creates synthetic input example to maximize probability of target class.
 
     :param model_object: Trained instance of `keras.models.Model` or
@@ -475,12 +500,18 @@ def optimize_input_for_class(
     :param num_iterations: Same.
     :param learning_rate: Same.
     :param l2_weight: Same.
+    :param radar_constraint_weight: See doc for `_radar_constraints_to_loss_fn`.
+    :param model_metadata_dict: Same.
     :return: list_of_optimized_matrices: Same.
     """
 
     model_interpretation.check_component_metadata(
         component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
         target_class=target_class)
+
+    radar_constraint_loss_tensor = _radar_constraints_to_loss_fn(
+        model_object=model_object, model_metadata_dict=model_metadata_dict,
+        weight=radar_constraint_weight)
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
@@ -508,6 +539,9 @@ def optimize_input_for_class(
             (model_object.layers[-1].output[..., target_class] - 1) ** 2
         )
 
+    if radar_constraint_loss_tensor is not None:
+        loss_tensor += radar_constraint_loss_tensor
+
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
         init_function_or_matrices=init_function_or_matrices,
@@ -519,7 +553,8 @@ def optimize_input_for_neuron(
         model_object, layer_name, neuron_indices, init_function_or_matrices,
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE, l2_weight=DEFAULT_L2_WEIGHT,
-        ideal_activation=DEFAULT_IDEAL_ACTIVATION):
+        ideal_activation=DEFAULT_IDEAL_ACTIVATION,
+        radar_constraint_weight=None, model_metadata_dict=None):
     """Creates synthetic input example to maximize activation of neuron.
 
     :param model_object: Trained instance of `keras.models.Model` or
@@ -539,12 +574,18 @@ def optimize_input_for_neuron(
         If this value is None, the loss function will be
         -sign(neuron_activation) * neuron_activation^2.
 
+    :param radar_constraint_weight: See doc for `_radar_constraints_to_loss_fn`.
+    :param model_metadata_dict: Same.
     :return: list_of_optimized_matrices: See doc for `_do_gradient_descent`.
     """
 
     model_interpretation.check_component_metadata(
         component_type_string=model_interpretation.NEURON_COMPONENT_TYPE_STRING,
         layer_name=layer_name, neuron_indices=neuron_indices)
+
+    radar_constraint_loss_tensor = _radar_constraints_to_loss_fn(
+        model_object=model_object, model_metadata_dict=model_metadata_dict,
+        weight=radar_constraint_weight)
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
@@ -568,6 +609,9 @@ def optimize_input_for_neuron(
             ideal_activation
         ) ** 2
 
+    if radar_constraint_loss_tensor is not None:
+        loss_tensor += radar_constraint_loss_tensor
+
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
         init_function_or_matrices=init_function_or_matrices,
@@ -580,7 +624,8 @@ def optimize_input_for_channel(
         stat_function_for_neuron_activations,
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE, l2_weight=DEFAULT_L2_WEIGHT,
-        ideal_activation=DEFAULT_IDEAL_ACTIVATION):
+        ideal_activation=DEFAULT_IDEAL_ACTIVATION,
+        radar_constraint_weight=None, model_metadata_dict=None):
     """Creates synthetic input example to maxx activation of neurons in channel.
 
     :param model_object: Trained instance of `keras.models.Model` or
@@ -607,6 +652,8 @@ def optimize_input_for_channel(
     If this value is None, loss function will be
     -abs[stat_function_for_neuron_activations(neuron_activations)].
 
+    :param radar_constraint_weight: See doc for `_radar_constraints_to_loss_fn`.
+    :param model_metadata_dict: Same.
     :return: list_of_optimized_matrices: See doc for `_do_gradient_descent`.
     """
 
@@ -615,6 +662,10 @@ def optimize_input_for_channel(
         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
         layer_name=layer_name, channel_index=channel_index
     )
+
+    radar_constraint_loss_tensor = _radar_constraints_to_loss_fn(
+        model_object=model_object, model_metadata_dict=model_metadata_dict,
+        weight=radar_constraint_weight)
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
@@ -633,6 +684,9 @@ def optimize_input_for_channel(
                     0, ..., channel_index]
             ) - ideal_activation
         )
+
+    if radar_constraint_loss_tensor is not None:
+        loss_tensor += radar_constraint_loss_tensor
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
