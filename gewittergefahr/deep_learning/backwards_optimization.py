@@ -137,16 +137,18 @@ def _do_gradient_descent(
         for i in range(num_input_tensors):
             these_dimensions = numpy.array(
                 [1] + list_of_input_tensors[i].get_shape().as_list()[1:],
-                dtype=int)
+                dtype=int
+            )
 
             list_of_optimized_matrices[i] = init_function_or_matrices(
                 these_dimensions)
 
     if l2_weight is not None:
         for i in range(num_input_tensors):
+            print(list_of_input_tensors[i])
             print(model_object.layers[0].input)
-            print('\n\n\n*******\n\n\n')
             print(model_object.layers[0].output)
+            print('\n\n\n*******\n\n\n')
 
             loss_tensor += l2_weight * K.sum(
                 (model_object.layers[0].output[i] -
