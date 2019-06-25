@@ -296,14 +296,14 @@ def _plot_one_example_one_time(
             this_storm_object_table[
                 tracking_utils.CENTROID_LATITUDE_COLUMN].values,
             ['P'] * this_num_storm_objects, fontsize=FONT_SIZE,
-            color=FONT_COLOUR, horizontalalignment='center',
+            fontweight='bold', color=FONT_COLOUR, horizontalalignment='center',
             verticalalignment='center')
 
     # Plot outline of storm of interest (same secondary ID).
     this_storm_object_table = storm_object_table.loc[
         storm_object_table[tracking_utils.SECONDARY_ID_COLUMN] ==
         secondary_id_string
-        ]
+    ]
 
     this_num_storm_objects = len(this_storm_object_table.index)
 
@@ -313,32 +313,23 @@ def _plot_one_example_one_time(
             basemap_object=basemap_object, line_width=4, line_colour='k',
             line_style='solid')
 
-        axes_object.text(
-            this_storm_object_table[
-                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[0],
-            this_storm_object_table[
-                tracking_utils.CENTROID_LATITUDE_COLUMN].values[0],
-            'S', fontsize=FONT_SIZE, color=FONT_COLOUR,
-            horizontalalignment='center', verticalalignment='center')
-
         this_polygon_object_latlng = this_storm_object_table[
             tracking_utils.LATLNG_POLYGON_COLUMN].values[0]
 
-        this_latitude_deg = 0.02 + numpy.max(
+        this_latitude_deg = numpy.max(
             numpy.array(this_polygon_object_latlng.exterior.xy[1])
         )
 
-        this_longitude_deg = 0.02 + numpy.max(
-            numpy.array(this_polygon_object_latlng.exterior.xy[0])
-        )
+        this_longitude_deg = this_storm_object_table[
+            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[0]
 
         valid_time_string = time_conversion.unix_sec_to_string(
             valid_time_unix_sec, TORNADO_TIME_FORMAT)
 
         axes_object.text(
             this_longitude_deg, this_latitude_deg, valid_time_string,
-            fontsize=FONT_SIZE, color=FONT_COLOUR, horizontalalignment='left',
-            verticalalignment='bottom')
+            fontsize=FONT_SIZE, color=FONT_COLOUR, fontweight='bold',
+            horizontalalignment='center', verticalalignment='bottom')
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
     tornado_longitudes_deg = tornado_table[
