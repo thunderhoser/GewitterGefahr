@@ -6,6 +6,7 @@ import numpy
 import pandas
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_io import tornado_io
 from gewittergefahr.gg_utils import linkage
@@ -28,7 +29,7 @@ COLOUR_MAP_NAME = 'YlOrRd'
 
 LINKAGE_FONT_SIZE = 8
 LINKAGE_FONT_COLOUR = numpy.full(3, 0.)
-LINKAGE_BACKGROUND_OPACITY = 0.75
+LINKAGE_BACKGROUND_OPACITY = 0.5
 
 TORNADO_FONT_SIZE = 12
 TORNADO_START_MARKER_TYPE = 'o'
@@ -160,6 +161,34 @@ def _long_to_short_tornado_ids(long_id_strings):
             short_id_strings[j] = '{0:d}'.format(i)
 
     return short_id_strings
+
+
+def _truncate_colour_map(
+        orig_colour_map_object, num_colours, min_normalized_value=0.25,
+        max_normalized_value=1.):
+    """Truncates colour map.
+
+    :param orig_colour_map_object: Original colour map (instance of
+        `matplotlib.pyplot.cm`).
+    :param num_colours: Number of colours in new map.
+    :param min_normalized_value: Minimum normalized value for new map (in range
+        0...1).
+    :param max_normalized_value: Max normalized value for new map (in range
+        0...1).
+    :return: colour_map_object: New colour map (instance of
+        `matplotlib.pyplot.cm`).
+    """
+
+    normalized_values = numpy.linspace(
+        min_normalized_value, max_normalized_value, num=num_colours)
+    colour_matrix = orig_colour_map_object(normalized_values)
+
+    colour_map_name = 'trunc({0:s}, {1:f}, {2:f})'.format(
+        orig_colour_map_object.name, min_normalized_value, max_normalized_value
+    )
+
+    return matplotlib.colors.LinearSegmentedColormap.from_list(
+        name=colour_map_name, colors=colour_matrix)
 
 
 def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
@@ -412,7 +441,10 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
     if max_link_distance_metres < 0:
         max_link_distance_metres = None
 
-    colour_map_object = pyplot.cm.get_cmap(name='YlOrRd', lut=num_colours)
+    colour_map_object = _truncate_colour_map(
+        orig_colour_map_object=pyplot.cm.get_cmap('YlOrRd'),
+        num_colours=num_colours
+    )
 
     event_type_string = (
         linkage.TORNADOGENESIS_EVENT_STRING if genesis_only
