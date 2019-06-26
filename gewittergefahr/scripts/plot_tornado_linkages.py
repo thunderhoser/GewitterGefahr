@@ -187,10 +187,8 @@ def _truncate_colour_map(
         orig_colour_map_object.name, min_normalized_value, max_normalized_value
     )
 
-    print(colour_matrix.shape)
-
     return matplotlib.colors.LinearSegmentedColormap.from_list(
-        name=colour_map_name, colors=colour_matrix)
+        name=colour_map_name, colors=colour_matrix, N=num_colours)
 
 
 def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
