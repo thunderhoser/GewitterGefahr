@@ -367,7 +367,7 @@ def _plot_one_example_one_time(
             color=plotting_utils.colour_from_numpy_to_tuple(
                 PROBABILITY_FONT_COLOUR),
             fontweight='bold', bbox=bounding_box_dict,
-            horizontalalignment='center', verticalalignment='top')
+            horizontalalignment='center', verticalalignment='top', zorder=1e10)
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
     tornado_longitudes_deg = tornado_table[

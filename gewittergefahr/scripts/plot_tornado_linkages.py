@@ -24,10 +24,13 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 SENTINEL_VALUE = -9999
 LATLNG_TOLERANCE_DEG = 0.001
 
-TORNADO_FONT_SIZE = 12
-LINKAGE_FONT_SIZE = 8
 COLOUR_MAP_NAME = 'YlOrRd'
 
+LINKAGE_FONT_SIZE = 8
+LINKAGE_FONT_COLOUR = numpy.full(3, 0.)
+LINKAGE_BACKGROUND_OPACITY = 0.75
+
+TORNADO_FONT_SIZE = 12
 TORNADO_START_MARKER_TYPE = 'o'
 TORNADO_END_MARKER_TYPE = 's'
 TORNADO_MARKER_SIZE = 20
@@ -303,16 +306,17 @@ def _plot_linkages_one_storm_object(
             tracking_utils.CENTROID_LATITUDE_COLUMN].values[i]
     )
 
-    colour_array = colour_map_object(colour_norm_object(
+    bg_colour_numpy = colour_map_object(colour_norm_object(
         storm_to_tornadoes_table[
             tracking_utils.VALID_TIME_COLUMN].values[i]
     ))
-    colour_tuple = plotting_utils.colour_from_numpy_to_tuple(colour_array[:-1])
 
     bounding_box_dict = {
-        'facecolor': 'white',
-        'alpha': 0.5,
-        'edgecolor': colour_tuple,
+        'facecolor': plotting_utils.colour_from_numpy_to_tuple(
+            bg_colour_numpy[:-1]
+        ),
+        'alpha': LINKAGE_BACKGROUND_OPACITY,
+        'edgecolor': 'k',
         'linewidth': 1
     }
 
@@ -320,8 +324,9 @@ def _plot_linkages_one_storm_object(
 
     axes_object.text(
         x_coord_metres, y_coord_metres, label_string,
-        fontsize=LINKAGE_FONT_SIZE, color='k', bbox=bounding_box_dict,
-        horizontalalignment='center', verticalalignment='center', zorder=1e10)
+        fontsize=LINKAGE_FONT_SIZE, color=LINKAGE_FONT_COLOUR,
+        bbox=bounding_box_dict, horizontalalignment='center',
+        verticalalignment='center', zorder=1e10)
 
 
 def _subset_storms_by_time(storm_to_tornadoes_table, tornado_table,
