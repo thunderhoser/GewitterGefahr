@@ -42,7 +42,8 @@ FORECAST_PROBABILITY_COLUMN = 'forecast_probability'
 
 PROBABILITY_BACKGROUND_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 PROBABILITY_BACKGROUND_OPACITY = 0.75
-PROBABILITY_FONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+PROBABILITY_FONT_COLOUR = numpy.full(3, 0.)
+# PROBABILITY_FONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 
 FONT_SIZE = 20
 FONT_COLOUR = numpy.full(3, 0.)
