@@ -887,14 +887,7 @@ def plot_many_2d_grids_without_coords(
             extend_min=this_extend_min_flag, extend_max=True,
             fraction_of_axis_length=0.9, font_size=font_size)
 
-        if colour_map_object_by_panel[k] is None:
-            continue
-
         tick_values = this_colour_bar_object.ax.get_xticks()
-        tick_values = numpy.linspace(
-            numpy.min(tick_values), numpy.max(tick_values), num=9
-        )
-
         this_colour_bar_object.set_ticks(tick_values)
         this_colour_bar_object.set_ticklabels(tick_values)
 
