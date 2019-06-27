@@ -228,34 +228,40 @@ def _run(model_file_name, init_function_name, component_type_string,
     if component_type_string == CLASS_COMPONENT_TYPE_STRING:
         print('Optimizing image for target class {0:d}...'.format(target_class))
 
-        list_of_optimized_matrices = backwards_opt.optimize_input_for_class(
-            model_object=model_object, target_class=target_class,
-            init_function_or_matrices=init_function,
-            num_iterations=num_iterations, learning_rate=learning_rate)
+        list_of_optimized_matrices, initial_activation, final_activation = (
+            backwards_opt.optimize_input_for_class(
+                model_object=model_object, target_class=target_class,
+                init_function_or_matrices=init_function,
+                num_iterations=num_iterations, learning_rate=learning_rate)
+        )
 
     elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
         print('Optimizing image for neuron {0:s} in layer "{1:s}"...'.format(
             str(neuron_indices), layer_name
         ))
 
-        list_of_optimized_matrices = backwards_opt.optimize_input_for_neuron(
-            model_object=model_object, layer_name=layer_name,
-            neuron_indices=neuron_indices,
-            init_function_or_matrices=init_function,
-            num_iterations=num_iterations, learning_rate=learning_rate,
-            ideal_activation=ideal_activation)
+        list_of_optimized_matrices, initial_activation, final_activation = (
+            backwards_opt.optimize_input_for_neuron(
+                model_object=model_object, layer_name=layer_name,
+                neuron_indices=neuron_indices,
+                init_function_or_matrices=init_function,
+                num_iterations=num_iterations, learning_rate=learning_rate,
+                ideal_activation=ideal_activation)
+        )
 
     else:
         print('Optimizing image for channel {0:d} in layer "{1:s}"...'.format(
             channel_index, layer_name))
 
-        list_of_optimized_matrices = backwards_opt.optimize_input_for_channel(
-            model_object=model_object, layer_name=layer_name,
-            channel_index=channel_index,
-            init_function_or_matrices=init_function,
-            stat_function_for_neuron_activations=K.max,
-            num_iterations=num_iterations, learning_rate=learning_rate,
-            ideal_activation=ideal_activation)
+        list_of_optimized_matrices, initial_activation, final_activation = (
+            backwards_opt.optimize_input_for_channel(
+                model_object=model_object, layer_name=layer_name,
+                channel_index=channel_index,
+                init_function_or_matrices=init_function,
+                stat_function_for_neuron_activations=K.max,
+                num_iterations=num_iterations, learning_rate=learning_rate,
+                ideal_activation=ideal_activation)
+        )
 
     print(SEPARATOR_STRING)
 
@@ -268,7 +274,8 @@ def _run(model_file_name, init_function_name, component_type_string,
     backwards_opt.write_standard_file(
         pickle_file_name=output_file_name,
         list_of_optimized_matrices=list_of_optimized_matrices,
-        model_file_name=model_file_name,
+        initial_activation=initial_activation,
+        final_activation=final_activation, model_file_name=model_file_name,
         init_function_name_or_matrices=init_function_name,
         num_iterations=num_iterations, learning_rate=learning_rate,
         component_type_string=component_type_string, target_class=target_class,

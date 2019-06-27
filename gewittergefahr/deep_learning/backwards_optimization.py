@@ -45,23 +45,30 @@ LAYER_NAME_KEY = 'layer_name'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
 NEURON_INDICES_KEY = 'neuron_indices'
 CHANNEL_INDEX_KEY = 'channel_index'
+INITIAL_ACTIVATION_KEY = 'initial_activation'
+FINAL_ACTIVATION_KEY = 'final_activation'
 
 STANDARD_FILE_KEYS = [
     INIT_FUNCTION_KEY, OPTIMIZED_MATRICES_KEY, MODEL_FILE_KEY,
     NUM_ITERATIONS_KEY, LEARNING_RATE_KEY, L2_WEIGHT_KEY, COMPONENT_TYPE_KEY,
     TARGET_CLASS_KEY, LAYER_NAME_KEY, IDEAL_ACTIVATION_KEY, NEURON_INDICES_KEY,
-    CHANNEL_INDEX_KEY, FULL_IDS_KEY, STORM_TIMES_KEY
+    CHANNEL_INDEX_KEY, FULL_IDS_KEY, STORM_TIMES_KEY, INITIAL_ACTIVATION_KEY,
+    FINAL_ACTIVATION_KEY
 ]
 
 MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
 MEAN_OPTIMIZED_MATRICES_KEY = 'list_of_mean_optimized_matrices'
+MEAN_INITIAL_ACTIVATION_KEY = 'mean_initial_activation'
+MEAN_FINAL_ACTIVATION_KEY = 'mean_final_activation'
 THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
 STANDARD_FILE_NAME_KEY = 'standard_bwo_file_name'
 PMM_METADATA_KEY = 'pmm_metadata_dict'
 
 PMM_FILE_KEYS = [
-    MEAN_INPUT_MATRICES_KEY, MEAN_OPTIMIZED_MATRICES_KEY, THRESHOLD_COUNTS_KEY,
-    MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
+    MEAN_INPUT_MATRICES_KEY, MEAN_OPTIMIZED_MATRICES_KEY,
+    MEAN_INITIAL_ACTIVATION_KEY, MEAN_FINAL_ACTIVATION_KEY,
+    THRESHOLD_COUNTS_KEY, MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY,
+    PMM_METADATA_KEY
 ]
 
 GAUSSIAN_INIT_FUNCTION_NAME = 'gaussian'
@@ -99,12 +106,14 @@ def _check_input_args(num_iterations, learning_rate, l2_weight=None,
 
 
 def _do_gradient_descent(
-        model_object, loss_tensor, init_function_or_matrices, num_iterations,
-        learning_rate, l2_weight=None):
+        model_object, activation_tensor, loss_tensor, init_function_or_matrices,
+        num_iterations, learning_rate, l2_weight=None):
     """Does gradient descent (the nitty-gritty part of backwards optimization).
 
     :param model_object: Trained instance of `keras.models.Model` or
         `keras.models.Sequential`.
+    :param activation_tensor: Keras tensor, defining the activation of the
+        relevant model component.
     :param loss_tensor: Keras tensor, defining the loss function to be
         minimized.
     :param init_function_or_matrices: Either a function or list of numpy arrays.
@@ -131,6 +140,10 @@ def _do_gradient_descent(
         If the input arg `init_function_or_matrices` is a list of numpy arrays
         (rather than a function), `list_of_optimized_matrices` will have
         the exact same shape, just with different values.
+    :return: initial_activation: Initial activation of relevant model component
+        (before backwards optimization).
+    :return: final_activation: Final activation of relevant model component
+        (after backwards optimization).
     """
 
     if isinstance(model_object.input, list):
@@ -168,31 +181,43 @@ def _do_gradient_descent(
             K.epsilon()
         )
 
-    inputs_to_loss_and_gradients = K.function(
+    inputs_to_act_loss_grad = K.function(
         list_of_input_tensors + [K.learning_phase()],
-        ([loss_tensor] + list_of_gradient_tensors)
+        ([activation_tensor, loss_tensor] + list_of_gradient_tensors)
     )
 
+    initial_activation = None
+
     for j in range(num_iterations):
-        these_outputs = inputs_to_loss_and_gradients(
+        these_outputs = inputs_to_act_loss_grad(
             list_of_optimized_matrices + [0]
         )
 
+        if j == 0:
+            initial_activation = these_outputs[0]
+
         if numpy.mod(j, 100) == 0:
-            print('Loss after {0:d} of {1:d} iterations: {2:.2e}'.format(
-                j, num_iterations, these_outputs[0]
+            print((
+                'Loss after {0:d} of {1:d} iterations = {2:.2e} ... '
+                'activation = {3:.2e}'
+            ).format(
+                j, num_iterations, these_outputs[1], these_outputs[0]
             ))
 
         for i in range(num_input_tensors):
             list_of_optimized_matrices[i] -= (
-                these_outputs[i + 1] * learning_rate
+                these_outputs[i + 2] * learning_rate
             )
 
-    print('Loss after {0:d} iterations: {1:.2e}'.format(
-        num_iterations, these_outputs[0]
+    print((
+        'Loss after {0:d} iterations = {1:.2e} ... activation = {2:.2e}'
+    ).format(
+        num_iterations, these_outputs[1], these_outputs[0]
     ))
 
-    return list_of_optimized_matrices
+    final_activation = these_outputs[0]
+
+    return list_of_optimized_matrices, initial_activation, final_activation
 
 
 def _radar_constraints_to_loss_fn(model_object, model_metadata_dict, weight):
@@ -530,6 +555,8 @@ def optimize_input_for_class(
         `_minmax_constraints_to_loss_fn`.
     :param model_metadata_dict: Same.
     :return: list_of_optimized_matrices: Same.
+    :return: initial_activation: Same.
+    :return: final_activation: Same.
     """
 
     model_interpretation.check_component_metadata(
@@ -554,21 +581,18 @@ def optimize_input_for_class(
 
     if num_output_neurons == 1:
         error_checking.assert_is_leq(target_class, 1)
+        
+        activation_tensor = model_object.layers[-1].output[..., 0]
 
         if target_class == 1:
-            loss_tensor = K.mean(
-                (model_object.layers[-1].output[..., 0] - 1) ** 2
-            )
+            loss_tensor = K.mean((activation_tensor - 1) ** 2)
         else:
-            loss_tensor = K.mean(
-                model_object.layers[-1].output[..., 0] ** 2
-            )
+            loss_tensor = K.mean(activation_tensor ** 2)
     else:
         error_checking.assert_is_less_than(target_class, num_output_neurons)
-
-        loss_tensor = K.mean(
-            (model_object.layers[-1].output[..., target_class] - 1) ** 2
-        )
+        
+        activation_tensor = model_object.layers[-1].output[..., target_class]
+        loss_tensor = K.mean((activation_tensor - 1) ** 2)
 
     if radar_constraint_loss_tensor is not None:
         loss_tensor += radar_constraint_loss_tensor
@@ -576,7 +600,8 @@ def optimize_input_for_class(
         loss_tensor += minmax_constraint_loss_tensor
 
     return _do_gradient_descent(
-        model_object=model_object, loss_tensor=loss_tensor,
+        model_object=model_object, activation_tensor=activation_tensor,
+        loss_tensor=loss_tensor,
         init_function_or_matrices=init_function_or_matrices,
         num_iterations=num_iterations, learning_rate=learning_rate,
         l2_weight=l2_weight)
@@ -613,6 +638,8 @@ def optimize_input_for_neuron(
         `_minmax_constraints_to_loss_fn`.
     :param model_metadata_dict: Same.
     :return: list_of_optimized_matrices: See doc for `_do_gradient_descent`.
+    :return: initial_activation: Same.
+    :return: final_activation: Same.
     """
 
     model_interpretation.check_component_metadata(
@@ -632,22 +659,13 @@ def optimize_input_for_neuron(
         l2_weight=l2_weight, ideal_activation=ideal_activation)
 
     neuron_indices_as_tuple = (0,) + tuple(neuron_indices)
+    activation_tensor = model_object.get_layer(name=layer_name).output[
+        neuron_indices_as_tuple]
 
     if ideal_activation is None:
-        loss_tensor = -(
-            K.sign(
-                model_object.get_layer(name=layer_name).output[
-                    neuron_indices_as_tuple]
-            ) *
-            model_object.get_layer(name=layer_name).output[
-                neuron_indices_as_tuple] ** 2
-        )
+        loss_tensor = -K.sign(activation_tensor) * activation_tensor ** 2
     else:
-        loss_tensor = (
-            model_object.get_layer(name=layer_name).output[
-                neuron_indices_as_tuple] -
-            ideal_activation
-        ) ** 2
+        loss_tensor = (activation_tensor - ideal_activation) ** 2
 
     if radar_constraint_loss_tensor is not None:
         loss_tensor += radar_constraint_loss_tensor
@@ -655,7 +673,8 @@ def optimize_input_for_neuron(
         loss_tensor += minmax_constraint_loss_tensor
 
     return _do_gradient_descent(
-        model_object=model_object, loss_tensor=loss_tensor,
+        model_object=model_object, activation_tensor=activation_tensor,
+        loss_tensor=loss_tensor,
         init_function_or_matrices=init_function_or_matrices,
         num_iterations=num_iterations, learning_rate=learning_rate,
         l2_weight=l2_weight)
@@ -700,6 +719,8 @@ def optimize_input_for_channel(
         `_minmax_constraints_to_loss_fn`.
     :param model_metadata_dict: Same.
     :return: list_of_optimized_matrices: See doc for `_do_gradient_descent`.
+    :return: initial_activation: Same.
+    :return: final_activation: Same.
     """
 
     model_interpretation.check_component_metadata(
@@ -719,20 +740,15 @@ def optimize_input_for_channel(
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
         l2_weight=l2_weight, ideal_activation=ideal_activation)
+    
+    activation_tensor = stat_function_for_neuron_activations(
+        model_object.get_layer(name=layer_name).output[0, ..., channel_index]
+    )
 
     if ideal_activation is None:
-        loss_tensor = -K.abs(stat_function_for_neuron_activations(
-            model_object.get_layer(name=layer_name).output[
-                0, ..., channel_index]
-        ))
+        loss_tensor = -K.sign(activation_tensor) * activation_tensor ** 2
     else:
-        error_checking.assert_is_greater(ideal_activation, 0.)
-        loss_tensor = K.abs(
-            stat_function_for_neuron_activations(
-                model_object.get_layer(name=layer_name).output[
-                    0, ..., channel_index]
-            ) - ideal_activation
-        )
+        loss_tensor = (activation_tensor - ideal_activation) ** 2
 
     if radar_constraint_loss_tensor is not None:
         loss_tensor += radar_constraint_loss_tensor
@@ -740,7 +756,8 @@ def optimize_input_for_channel(
         loss_tensor += minmax_constraint_loss_tensor
 
     return _do_gradient_descent(
-        model_object=model_object, loss_tensor=loss_tensor,
+        model_object=model_object, activation_tensor=activation_tensor,
+        loss_tensor=loss_tensor,
         init_function_or_matrices=init_function_or_matrices,
         num_iterations=num_iterations, learning_rate=learning_rate,
         l2_weight=l2_weight)
@@ -749,11 +766,11 @@ def optimize_input_for_channel(
 def write_standard_file(
         pickle_file_name, init_function_name_or_matrices,
         list_of_optimized_matrices, model_file_name, num_iterations,
-        learning_rate, component_type_string, l2_weight=None,
-        radar_constraint_weight=None, minmax_constraint_weight=None,
-        target_class=None, layer_name=None, neuron_indices=None,
-        channel_index=None, ideal_activation=None, full_id_strings=None,
-        storm_times_unix_sec=None):
+        learning_rate, component_type_string, initial_activation,
+        final_activation, l2_weight=None, radar_constraint_weight=None,
+        minmax_constraint_weight=None, target_class=None, layer_name=None,
+        neuron_indices=None, channel_index=None, ideal_activation=None,
+        full_id_strings=None, storm_times_unix_sec=None):
     """Writes optimized learning examples to Pickle file.
 
     E = number of examples (storm objects)
@@ -770,6 +787,10 @@ def write_standard_file(
     :param learning_rate: Same.
     :param component_type_string: See doc for
         `model_interpretation.check_component_metadata`.
+    :param initial_activation: Initial activation of relevant model component
+        (before backwards optimization).
+    :param final_activation: Final activation of relevant model component
+        (after backwards optimization).
     :param l2_weight: See doc for `_do_gradient_descent`.
     :param radar_constraint_weight: See doc for `_radar_constraints_to_loss_fn`.
     :param minmax_constraint_weight: See doc for
@@ -868,6 +889,8 @@ def write_standard_file(
         RADAR_CONSTRAINT_WEIGHT_KEY: radar_constraint_weight,
         MINMAX_CONSTRAINT_WEIGHT_KEY: minmax_constraint_weight,
         COMPONENT_TYPE_KEY: component_type_string,
+        INITIAL_ACTIVATION_KEY: initial_activation,
+        FINAL_ACTIVATION_KEY: final_activation,
         TARGET_CLASS_KEY: target_class,
         LAYER_NAME_KEY: layer_name,
         IDEAL_ACTIVATION_KEY: ideal_activation,
@@ -898,6 +921,8 @@ def read_standard_file(pickle_file_name):
     optimization_dict['radar_constraint_weight']: Same.
     optimization_dict['minmax_constraint_weight']: Same.
     optimization_dict['component_type_string']: Same.
+    optimization_dict['initial_activation']: Same.
+    optimization_dict['final_activation']: Same.
     optimization_dict['target_class']: Same.
     optimization_dict['layer_name']: Same.
     optimization_dict['ideal_activation']: Same.
@@ -930,8 +955,9 @@ def read_standard_file(pickle_file_name):
 
 def write_pmm_file(
         pickle_file_name, list_of_mean_input_matrices,
-        list_of_mean_optimized_matrices, threshold_count_matrix,
-        model_file_name, standard_bwo_file_name, pmm_metadata_dict):
+        list_of_mean_optimized_matrices, mean_initial_activation,
+        mean_final_activation, threshold_count_matrix, model_file_name,
+        standard_bwo_file_name, pmm_metadata_dict):
     """Writes mean backwards-optimized map to Pickle file.
 
     This is a mean over many examples, created by PMM (probability-matched
@@ -950,6 +976,10 @@ def write_pmm_file(
         optimized learning examples.  In other words,
         `list_of_mean_input_matrices` contains the mean input and
         `list_of_mean_optimized_matrices` contains the mean output.
+    :param mean_initial_activation: Mean initial activation of relevant model
+        component (before backwards optimization).
+    :param mean_fimal_activation: Mean final activation of relevant model
+        component (after backwards optimization).
     :param threshold_count_matrix: See doc for
         `prob_matched_means.run_pmm_many_variables`.
     :param model_file_name: Path to file with trained model (readable by
@@ -1002,6 +1032,8 @@ def write_pmm_file(
     mean_optimization_dict = {
         MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
         MEAN_OPTIMIZED_MATRICES_KEY: list_of_mean_optimized_matrices,
+        MEAN_INITIAL_ACTIVATION_KEY: mean_initial_activation,
+        MEAN_FINAL_ACTIVATION_KEY: mean_final_activation,
         THRESHOLD_COUNTS_KEY: threshold_count_matrix,
         MODEL_FILE_KEY: model_file_name,
         STANDARD_FILE_NAME_KEY: standard_bwo_file_name,
@@ -1022,6 +1054,8 @@ def read_pmm_file(pickle_file_name):
     mean_optimization_dict['list_of_mean_input_matrices']: See doc for
         `write_pmm_file`.
     mean_optimization_dict['list_of_mean_optimized_matrices']: Same.
+    mean_optimization_dict['mean_initial_activation']: Same.
+    mean_optimization_dict['mean_final_activation']: Same.
     mean_optimization_dict['threshold_count_matrix']: Same.
     mean_optimization_dict['model_file_name']: Same.
     mean_optimization_dict['standard_bwo_file_name']: Same.
