@@ -41,6 +41,7 @@ NUM_ITERATIONS_ARG_NAME = 'num_iterations'
 LEARNING_RATE_ARG_NAME = 'learning_rate'
 L2_WEIGHT_ARG_NAME = 'l2_weight'
 RADAR_CONSTRAINT_WEIGHT_ARG_NAME = 'radar_constraint_weight'
+MINMAX_CONSTRAINT_WEIGHT_ARG_NAME = 'minmax_constraint_weight'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -93,8 +94,13 @@ RADAR_CONSTRAINT_WEIGHT_HELP_STRING = (
     'Weight for radar constraints.  Used only if the CNN was trained with '
     'reduced 2-D radar data (created by column operations).  Ensures that '
     'column values are consistent (e.g., min reflectivity in layer cannot be > '
-    'max refl in same layer).  If you do not want this weight, leave this '
-    'argument alone.')
+    'max refl in same layer).  If you do not want to enforce radar constraints,'
+    ' leave this argument alone.')
+
+MINMAX_CONSTRAINT_WEIGHT_HELP_STRING = (
+    'Weight for min-max constraints.  Forces physical variables to have '
+    'realistic values.  If you do not want to enforce min-max constraints, '
+    'leave this argument alone.')
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by '
@@ -165,6 +171,10 @@ INPUT_ARG_PARSER.add_argument(
     default=-1., help=RADAR_CONSTRAINT_WEIGHT_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + MINMAX_CONSTRAINT_WEIGHT_ARG_NAME, type=float, required=False,
+    default=-1., help=MINMAX_CONSTRAINT_WEIGHT_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
@@ -230,7 +240,8 @@ def _create_initializer(init_function_name, model_metadata_dict):
 def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
          top_example_dir_name, component_type_string, target_class, layer_name,
          neuron_indices, channel_index, num_iterations, ideal_activation,
-         learning_rate, l2_weight, radar_constraint_weight, output_file_name):
+         learning_rate, l2_weight, radar_constraint_weight,
+         minmax_constraint_weight, output_file_name):
     """Runs backwards optimization on a trained CNN.
 
     This is effectively the main method.
@@ -250,6 +261,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
     :param learning_rate: Same.
     :param l2_weight: Same.
     :param radar_constraint_weight: Same.
+    :param minmax_constraint_weight: Same.
     :param output_file_name: Same.
     """
 
@@ -257,6 +269,8 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         l2_weight = None
     if radar_constraint_weight <= 0:
         radar_constraint_weight = None
+    if minmax_constraint_weight <= 0:
+        minmax_constraint_weight = None
     if ideal_activation <= 0:
         ideal_activation = None
     if init_function_name in ['', 'None']:
@@ -325,6 +339,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 num_iterations=num_iterations, learning_rate=learning_rate,
                 l2_weight=l2_weight,
                 radar_constraint_weight=radar_constraint_weight,
+                minmax_constraint_weight=minmax_constraint_weight,
                 model_metadata_dict=model_metadata_dict)
 
         elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
@@ -340,6 +355,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 num_iterations=num_iterations, learning_rate=learning_rate,
                 l2_weight=l2_weight, ideal_activation=ideal_activation,
                 radar_constraint_weight=radar_constraint_weight,
+                minmax_constraint_weight=minmax_constraint_weight,
                 model_metadata_dict=model_metadata_dict)
 
         else:
@@ -356,6 +372,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 num_iterations=num_iterations, learning_rate=learning_rate,
                 l2_weight=l2_weight, ideal_activation=ideal_activation,
                 radar_constraint_weight=radar_constraint_weight,
+                minmax_constraint_weight=minmax_constraint_weight,
                 model_metadata_dict=model_metadata_dict)
 
         if list_of_optimized_matrices is None:
@@ -366,10 +383,9 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
             if list_of_optimized_matrices[k] is None:
                 list_of_optimized_matrices[k] = these_optimized_matrices[k] + 0.
             else:
-                list_of_optimized_matrices[k] = numpy.concatenate(
-                    (list_of_optimized_matrices[k],
-                     these_optimized_matrices[k]),
-                    axis=0)
+                list_of_optimized_matrices[k] = numpy.concatenate((
+                    list_of_optimized_matrices[k], these_optimized_matrices[k]
+                ), axis=0)
 
     print(SEPARATOR_STRING)
 
@@ -396,6 +412,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         init_function_name_or_matrices=this_init_arg,
         num_iterations=num_iterations, learning_rate=learning_rate,
         l2_weight=l2_weight, radar_constraint_weight=radar_constraint_weight,
+        minmax_constraint_weight=minmax_constraint_weight,
         component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, neuron_indices=neuron_indices,
         channel_index=channel_index, ideal_activation=ideal_activation,
@@ -425,5 +442,7 @@ if __name__ == '__main__':
         l2_weight=getattr(INPUT_ARG_OBJECT, L2_WEIGHT_ARG_NAME),
         radar_constraint_weight=getattr(
             INPUT_ARG_OBJECT, RADAR_CONSTRAINT_WEIGHT_ARG_NAME),
+        minmax_constraint_weight=getattr(
+            INPUT_ARG_OBJECT, MINMAX_CONSTRAINT_WEIGHT_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

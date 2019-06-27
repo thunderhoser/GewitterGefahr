@@ -38,6 +38,7 @@ NUM_ITERATIONS_KEY = 'num_iterations'
 LEARNING_RATE_KEY = 'learning_rate'
 L2_WEIGHT_KEY = 'l2_weight'
 RADAR_CONSTRAINT_WEIGHT_KEY = 'radar_constraint_weight'
+MINMAX_CONSTRAINT_WEIGHT_KEY = 'minmax_constraint_weight'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
 LAYER_NAME_KEY = 'layer_name'
@@ -227,6 +228,28 @@ def _radar_constraints_to_loss_fn(model_object, model_metadata_dict, weight):
         radar_tensor=radar_tensor,
         list_of_layer_operation_dicts=list_of_layer_operation_dicts
     )
+
+
+def _minmax_constraints_to_loss_fn(model_object, model_metadata_dict, weight):
+    """Converts min-max constraints to loss function.
+
+    :param model_object: See doc for `_radar_constraints_to_loss_fn`.
+    :param weight: Same.
+    :param model_metadata_dict: Same.
+    :return: loss_tensor: Same.
+    """
+
+    if weight is None:
+        return
+
+    if isinstance(model_object.input, list):
+        list_of_input_tensors = model_object.input
+    else:
+        list_of_input_tensors = [model_object.input]
+
+    return weight * physical_constraints.minima_and_maxima_to_loss_fn(
+        list_of_input_tensors=list_of_input_tensors,
+        cnn_metadata_dict=model_metadata_dict)
 
 
 def check_init_function(init_function_name):
@@ -490,7 +513,8 @@ def optimize_input_for_class(
         model_object, target_class, init_function_or_matrices,
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE, l2_weight=DEFAULT_L2_WEIGHT,
-        radar_constraint_weight=None, model_metadata_dict=None):
+        radar_constraint_weight=None, minmax_constraint_weight=None,
+        model_metadata_dict=None):
     """Creates synthetic input example to maximize probability of target class.
 
     :param model_object: Trained instance of `keras.models.Model` or
@@ -502,6 +526,8 @@ def optimize_input_for_class(
     :param learning_rate: Same.
     :param l2_weight: Same.
     :param radar_constraint_weight: See doc for `_radar_constraints_to_loss_fn`.
+    :param minmax_constraint_weight: See doc for
+        `_minmax_constraints_to_loss_fn`.
     :param model_metadata_dict: Same.
     :return: list_of_optimized_matrices: Same.
     """
@@ -513,6 +539,10 @@ def optimize_input_for_class(
     radar_constraint_loss_tensor = _radar_constraints_to_loss_fn(
         model_object=model_object, model_metadata_dict=model_metadata_dict,
         weight=radar_constraint_weight)
+
+    minmax_constraint_loss_tensor = _minmax_constraints_to_loss_fn(
+        model_object=model_object, model_metadata_dict=model_metadata_dict,
+        weight=minmax_constraint_weight)
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
@@ -542,6 +572,8 @@ def optimize_input_for_class(
 
     if radar_constraint_loss_tensor is not None:
         loss_tensor += radar_constraint_loss_tensor
+    if minmax_constraint_loss_tensor is not None:
+        loss_tensor += minmax_constraint_loss_tensor
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
@@ -555,7 +587,8 @@ def optimize_input_for_neuron(
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE, l2_weight=DEFAULT_L2_WEIGHT,
         ideal_activation=DEFAULT_IDEAL_ACTIVATION,
-        radar_constraint_weight=None, model_metadata_dict=None):
+        radar_constraint_weight=None, minmax_constraint_weight=None,
+        model_metadata_dict=None):
     """Creates synthetic input example to maximize activation of neuron.
 
     :param model_object: Trained instance of `keras.models.Model` or
@@ -576,6 +609,8 @@ def optimize_input_for_neuron(
         -sign(neuron_activation) * neuron_activation^2.
 
     :param radar_constraint_weight: See doc for `_radar_constraints_to_loss_fn`.
+    :param minmax_constraint_weight: See doc for
+        `_minmax_constraints_to_loss_fn`.
     :param model_metadata_dict: Same.
     :return: list_of_optimized_matrices: See doc for `_do_gradient_descent`.
     """
@@ -587,6 +622,10 @@ def optimize_input_for_neuron(
     radar_constraint_loss_tensor = _radar_constraints_to_loss_fn(
         model_object=model_object, model_metadata_dict=model_metadata_dict,
         weight=radar_constraint_weight)
+
+    minmax_constraint_loss_tensor = _minmax_constraints_to_loss_fn(
+        model_object=model_object, model_metadata_dict=model_metadata_dict,
+        weight=minmax_constraint_weight)
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
@@ -612,6 +651,8 @@ def optimize_input_for_neuron(
 
     if radar_constraint_loss_tensor is not None:
         loss_tensor += radar_constraint_loss_tensor
+    if minmax_constraint_loss_tensor is not None:
+        loss_tensor += minmax_constraint_loss_tensor
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
@@ -626,7 +667,8 @@ def optimize_input_for_channel(
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE, l2_weight=DEFAULT_L2_WEIGHT,
         ideal_activation=DEFAULT_IDEAL_ACTIVATION,
-        radar_constraint_weight=None, model_metadata_dict=None):
+        radar_constraint_weight=None, minmax_constraint_weight=None,
+        model_metadata_dict=None):
     """Creates synthetic input example to maxx activation of neurons in channel.
 
     :param model_object: Trained instance of `keras.models.Model` or
@@ -654,6 +696,8 @@ def optimize_input_for_channel(
     -abs[stat_function_for_neuron_activations(neuron_activations)].
 
     :param radar_constraint_weight: See doc for `_radar_constraints_to_loss_fn`.
+    :param minmax_constraint_weight: See doc for
+        `_minmax_constraints_to_loss_fn`.
     :param model_metadata_dict: Same.
     :return: list_of_optimized_matrices: See doc for `_do_gradient_descent`.
     """
@@ -667,6 +711,10 @@ def optimize_input_for_channel(
     radar_constraint_loss_tensor = _radar_constraints_to_loss_fn(
         model_object=model_object, model_metadata_dict=model_metadata_dict,
         weight=radar_constraint_weight)
+
+    minmax_constraint_loss_tensor = _minmax_constraints_to_loss_fn(
+        model_object=model_object, model_metadata_dict=model_metadata_dict,
+        weight=minmax_constraint_weight)
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
@@ -688,6 +736,8 @@ def optimize_input_for_channel(
 
     if radar_constraint_loss_tensor is not None:
         loss_tensor += radar_constraint_loss_tensor
+    if minmax_constraint_loss_tensor is not None:
+        loss_tensor += minmax_constraint_loss_tensor
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
@@ -700,9 +750,10 @@ def write_standard_file(
         pickle_file_name, init_function_name_or_matrices,
         list_of_optimized_matrices, model_file_name, num_iterations,
         learning_rate, component_type_string, l2_weight=None,
-        radar_constraint_weight=None, target_class=None, layer_name=None,
-        neuron_indices=None, channel_index=None, ideal_activation=None,
-        full_id_strings=None, storm_times_unix_sec=None):
+        radar_constraint_weight=None, minmax_constraint_weight=None,
+        target_class=None, layer_name=None, neuron_indices=None,
+        channel_index=None, ideal_activation=None, full_id_strings=None,
+        storm_times_unix_sec=None):
     """Writes optimized learning examples to Pickle file.
 
     E = number of examples (storm objects)
@@ -721,6 +772,8 @@ def write_standard_file(
         `model_interpretation.check_component_metadata`.
     :param l2_weight: See doc for `_do_gradient_descent`.
     :param radar_constraint_weight: See doc for `_radar_constraints_to_loss_fn`.
+    :param minmax_constraint_weight: See doc for
+        `_minmax_constraints_to_loss_fn`.
     :param target_class: See doc for
         `model_interpretation.check_component_metadata`.
     :param layer_name: Same.
@@ -740,6 +793,8 @@ def write_standard_file(
 
     if radar_constraint_weight is not None:
         error_checking.assert_is_greater(radar_constraint_weight, 0.)
+    if minmax_constraint_weight is not None:
+        error_checking.assert_is_greater(minmax_constraint_weight, 0.)
 
     model_interpretation.check_component_metadata(
         component_type_string=component_type_string,
@@ -811,6 +866,7 @@ def write_standard_file(
         LEARNING_RATE_KEY: learning_rate,
         L2_WEIGHT_KEY: l2_weight,
         RADAR_CONSTRAINT_WEIGHT_KEY: radar_constraint_weight,
+        MINMAX_CONSTRAINT_WEIGHT_KEY: minmax_constraint_weight,
         COMPONENT_TYPE_KEY: component_type_string,
         TARGET_CLASS_KEY: target_class,
         LAYER_NAME_KEY: layer_name,
@@ -840,6 +896,7 @@ def read_standard_file(pickle_file_name):
     optimization_dict['learning_rate']: Same.
     optimization_dict['l2_weight']: Same.
     optimization_dict['radar_constraint_weight']: Same.
+    optimization_dict['minmax_constraint_weight']: Same.
     optimization_dict['component_type_string']: Same.
     optimization_dict['target_class']: Same.
     optimization_dict['layer_name']: Same.
@@ -856,6 +913,8 @@ def read_standard_file(pickle_file_name):
 
     if RADAR_CONSTRAINT_WEIGHT_KEY not in optimization_dict:
         optimization_dict[RADAR_CONSTRAINT_WEIGHT_KEY] = None
+    if MINMAX_CONSTRAINT_WEIGHT_KEY not in optimization_dict:
+        optimization_dict[MINMAX_CONSTRAINT_WEIGHT_KEY] = None
 
     missing_keys = list(set(STANDARD_FILE_KEYS) - set(optimization_dict.keys()))
     if len(missing_keys) == 0:

@@ -49,22 +49,32 @@ SOUNDING_TO_MAX_DICT = {
 
 
 def __normalize_minmax_for_radar_field(
-        field_name, normalization_file_name, normalization_type_string,
-        min_normalized_value=0., max_normalized_value=1., test_mode=False,
+        field_name, cnn_metadata_dict, test_mode=False,
         normalization_table=None):
     """Converts min and max for radar field to normalized units.
 
     :param field_name: Name of radar field (must be accepted by
         `radar_utils.check_field_name`).
-    :param normalization_file_name: See doc for `_normalize_minima_and_maxima`.
-    :param normalization_type_string: Same.
-    :param min_normalized_value: Same.
-    :param max_normalized_value: Same.
+    :param cnn_metadata_dict: See doc for `_normalize_minima_and_maxima`.
     :param test_mode: Same.
     :param normalization_table: Same.
     :return: min_normalized_value: Minimum value in normalized units.
     :return: max_normalized_value: Max value in normalized units.
     """
+
+    training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    normalization_type_string = training_option_dict[
+        trainval_io.NORMALIZATION_TYPE_KEY]
+    min_normalized_value = training_option_dict[
+        trainval_io.MIN_NORMALIZED_VALUE_KEY]
+    max_normalized_value = training_option_dict[
+        trainval_io.MAX_NORMALIZED_VALUE_KEY]
+
+    if test_mode:
+        normalization_file_name = None
+    else:
+        normalization_file_name = training_option_dict[
+            trainval_io.NORMALIZATION_FILE_KEY]
 
     if field_name in RADAR_TO_MINIMUM_DICT:
         if normalization_type_string == dl_utils.Z_NORMALIZATION_TYPE_STRING:
@@ -104,22 +114,32 @@ def __normalize_minmax_for_radar_field(
 
 
 def __normalize_minmax_for_sounding_field(
-        field_name, normalization_file_name, normalization_type_string,
-        min_normalized_value=0., max_normalized_value=1., test_mode=False,
+        field_name, cnn_metadata_dict, test_mode=False,
         normalization_table=None):
     """Converts min and max for sounding field to normalized units.
 
     :param field_name: Name of sounding field (must be accepted by
         `soundings.check_field_name`).
-    :param normalization_file_name: See doc for `_normalize_minima_and_maxima`.
-    :param normalization_type_string: Same.
-    :param min_normalized_value: Same.
-    :param max_normalized_value: Same.
+    :param cnn_metadata_dict: See doc for `_normalize_minima_and_maxima`.
     :param test_mode: Same.
     :param normalization_table: Same.
     :return: min_normalized_value: Minimum value in normalized units.
     :return: max_normalized_value: Max value in normalized units.
     """
+
+    training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    normalization_type_string = training_option_dict[
+        trainval_io.NORMALIZATION_TYPE_KEY]
+    min_normalized_value = training_option_dict[
+        trainval_io.MIN_NORMALIZED_VALUE_KEY]
+    max_normalized_value = training_option_dict[
+        trainval_io.MAX_NORMALIZED_VALUE_KEY]
+
+    if test_mode:
+        normalization_file_name = None
+    else:
+        normalization_file_name = training_option_dict[
+            trainval_io.NORMALIZATION_FILE_KEY]
 
     if field_name in SOUNDING_TO_MINIMUM_DICT:
         if normalization_type_string == dl_utils.Z_NORMALIZATION_TYPE_STRING:
@@ -252,9 +272,7 @@ def _find_constrained_radar_channels(list_of_layer_operation_dicts):
 
 
 def _normalize_minima_and_maxima(
-        list_of_input_tensors, cnn_metadata_dict, normalization_file_name,
-        normalization_type_string, min_normalized_value=0.,
-        max_normalized_value=1., test_mode=False,
+        list_of_input_tensors, cnn_metadata_dict, test_mode=False,
         radar_normalization_table=None, sounding_normalization_table=None):
     """Converts min and max for each physical variable to normalized units.
 
@@ -262,13 +280,6 @@ def _normalize_minima_and_maxima(
 
     :param list_of_input_tensors: length-T list of Keras tensors.
     :param cnn_metadata_dict: Dictionary returned by `cnn.read_model_metadata`.
-    :param normalization_file_name: Path to normalization file.  Will be read by
-        `deep_learning_utils.read_normalization_params_from_file`.
-    :param normalization_type_string: See doc for
-        `deep_learning_utils.normalize_radar_images` or
-        `deep_learning_utils.normalize_soundings`.
-    :param min_normalized_value: Same.
-    :param max_normalized_value: Same.
     :param test_mode: Leave this alone.
     :param radar_normalization_table: Leave this alone.
     :param sounding_normalization_table: Leave this alone.
@@ -276,8 +287,6 @@ def _normalize_minima_and_maxima(
         [i]th array = length of last axis (channel axis) in [i]th input tensor.
     :return: max_values_by_tensor: Same.
     """
-
-    # TODO(thunderhoser): Check normalization params.
 
     error_checking.assert_is_boolean(test_mode)
 
@@ -290,10 +299,7 @@ def _normalize_minima_and_maxima(
     if cnn_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         this_min_value, this_max_value = __normalize_minmax_for_radar_field(
             field_name=radar_utils.REFL_NAME,
-            normalization_file_name=normalization_file_name,
-            normalization_type_string=normalization_type_string,
-            min_normalized_value=min_normalized_value,
-            max_normalized_value=max_normalized_value, test_mode=test_mode,
+            cnn_metadata_dict=cnn_metadata_dict, test_mode=test_mode,
             normalization_table=radar_normalization_table)
 
         min_values_by_tensor[0] = numpy.array([this_min_value])
@@ -310,11 +316,7 @@ def _normalize_minima_and_maxima(
             min_values_by_tensor[1][j], max_values_by_tensor[1][j] = (
                 __normalize_minmax_for_radar_field(
                     field_name=az_shear_field_names[j],
-                    normalization_file_name=normalization_file_name,
-                    normalization_type_string=normalization_type_string,
-                    min_normalized_value=min_normalized_value,
-                    max_normalized_value=max_normalized_value,
-                    test_mode=test_mode,
+                    cnn_metadata_dict=cnn_metadata_dict, test_mode=test_mode,
                     normalization_table=radar_normalization_table)
             )
     else:
@@ -338,11 +340,7 @@ def _normalize_minima_and_maxima(
             min_values_by_tensor[0][j], max_values_by_tensor[0][j] = (
                 __normalize_minmax_for_radar_field(
                     field_name=radar_field_names[j],
-                    normalization_file_name=normalization_file_name,
-                    normalization_type_string=normalization_type_string,
-                    min_normalized_value=min_normalized_value,
-                    max_normalized_value=max_normalized_value,
-                    test_mode=test_mode,
+                    cnn_metadata_dict=cnn_metadata_dict, test_mode=test_mode,
                     normalization_table=radar_normalization_table)
             )
 
@@ -358,10 +356,7 @@ def _normalize_minima_and_maxima(
         min_values_by_tensor[-1][j], max_values_by_tensor[-1][j] = (
             __normalize_minmax_for_sounding_field(
                 field_name=sounding_field_names[j],
-                normalization_file_name=normalization_file_name,
-                normalization_type_string=normalization_type_string,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value, test_mode=test_mode,
+                cnn_metadata_dict=cnn_metadata_dict, test_mode=test_mode,
                 normalization_table=sounding_normalization_table)
         )
 
@@ -416,28 +411,18 @@ def radar_constraints_to_loss_fn(radar_tensor, list_of_layer_operation_dicts):
 
 
 def minima_and_maxima_to_loss_fn(
-        list_of_input_tensors, cnn_metadata_dict, normalization_file_name,
-        normalization_type_string, min_normalized_value=0.,
-        max_normalized_value=1.):
+        list_of_input_tensors, cnn_metadata_dict):
     """Converts minima and maxima to loss functions.
 
     :param list_of_input_tensors: See doc for `_normalize_minima_and_maxima`.
     :param cnn_metadata_dict: Same.
-    :param normalization_file_name: Same.
-    :param normalization_type_string: Same.
-    :param min_normalized_value: Same.
-    :param max_normalized_value: Same.
     :return: loss_tensor: Keras tensor defining loss function.  If there is no
         constrained predictor, this will be None.
     """
 
     min_values_by_tensor, max_values_by_tensor = _normalize_minima_and_maxima(
         list_of_input_tensors=list_of_input_tensors,
-        cnn_metadata_dict=cnn_metadata_dict,
-        normalization_file_name=normalization_file_name,
-        normalization_type_string=normalization_type_string,
-        min_normalized_value=min_normalized_value,
-        max_normalized_value=max_normalized_value)
+        cnn_metadata_dict=cnn_metadata_dict)
 
     loss_tensor = None
     num_input_tensors = len(list_of_input_tensors)

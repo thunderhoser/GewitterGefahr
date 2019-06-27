@@ -233,7 +233,9 @@ FIRST_METADATA_DICT = {
     cnn.LAYER_OPERATIONS_KEY: None,
     cnn.TRAINING_OPTION_DICT_KEY: {
         trainval_io.RADAR_FIELDS_KEY: AZ_SHEAR_FIELD_NAMES,
-        trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES
+        trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES,
+        trainval_io.MIN_NORMALIZED_VALUE_KEY: MIN_NORMALIZED_VALUE,
+        trainval_io.MAX_NORMALIZED_VALUE_KEY: MAX_NORMALIZED_VALUE
     }
 }
 
@@ -268,7 +270,9 @@ SECOND_METADATA_DICT = {
     cnn.LAYER_OPERATIONS_KEY: None,
     cnn.TRAINING_OPTION_DICT_KEY: {
         trainval_io.RADAR_FIELDS_KEY: AZ_SHEAR_FIELD_NAMES,
-        trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES
+        trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES,
+        trainval_io.MIN_NORMALIZED_VALUE_KEY: MIN_NORMALIZED_VALUE,
+        trainval_io.MAX_NORMALIZED_VALUE_KEY: MAX_NORMALIZED_VALUE
     }
 }
 
@@ -307,7 +311,9 @@ THIRD_METADATA_DICT = {
     cnn.USE_2D3D_CONVOLUTION_KEY: False,
     cnn.LAYER_OPERATIONS_KEY: THIS_LIST_OF_OPERATION_DICTS,
     cnn.TRAINING_OPTION_DICT_KEY: {
-        trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES
+        trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES,
+        trainval_io.MIN_NORMALIZED_VALUE_KEY: MIN_NORMALIZED_VALUE,
+        trainval_io.MAX_NORMALIZED_VALUE_KEY: MAX_NORMALIZED_VALUE
     }
 }
 
@@ -337,7 +343,9 @@ FOURTH_METADATA_DICT = {
     cnn.USE_2D3D_CONVOLUTION_KEY: False,
     cnn.LAYER_OPERATIONS_KEY: THIS_LIST_OF_OPERATION_DICTS,
     cnn.TRAINING_OPTION_DICT_KEY: {
-        trainval_io.SOUNDING_FIELDS_KEY: None
+        trainval_io.SOUNDING_FIELDS_KEY: None,
+        trainval_io.MIN_NORMALIZED_VALUE_KEY: MIN_NORMALIZED_VALUE,
+        trainval_io.MAX_NORMALIZED_VALUE_KEY: MAX_NORMALIZED_VALUE
     }
 }
 
@@ -539,12 +547,14 @@ class PhysicalConstraintsTests(unittest.TestCase):
         In this case, using first set of inputs and z-score normalization.
         """
 
+        FIRST_METADATA_DICT[cnn.TRAINING_OPTION_DICT_KEY][
+            trainval_io.NORMALIZATION_TYPE_KEY
+        ] = dl_utils.Z_NORMALIZATION_TYPE_STRING
+
         these_min_values_by_tensor, these_max_values_by_tensor = (
             physical_constraints._normalize_minima_and_maxima(
                 list_of_input_tensors=FIRST_LIST_OF_INPUT_TENSORS,
-                cnn_metadata_dict=FIRST_METADATA_DICT,
-                test_mode=True, normalization_file_name=None,
-                normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
+                cnn_metadata_dict=FIRST_METADATA_DICT, test_mode=True,
                 radar_normalization_table=RADAR_NORMALIZATION_TABLE,
                 sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
         )
@@ -562,15 +572,14 @@ class PhysicalConstraintsTests(unittest.TestCase):
         In this case, using first set of inputs and minmax normalization.
         """
 
+        FIRST_METADATA_DICT[cnn.TRAINING_OPTION_DICT_KEY][
+            trainval_io.NORMALIZATION_TYPE_KEY
+        ] = dl_utils.MINMAX_NORMALIZATION_TYPE_STRING
+
         these_min_values_by_tensor, these_max_values_by_tensor = (
             physical_constraints._normalize_minima_and_maxima(
                 list_of_input_tensors=FIRST_LIST_OF_INPUT_TENSORS,
-                cnn_metadata_dict=FIRST_METADATA_DICT,
-                test_mode=True, normalization_file_name=None,
-                normalization_type_string=
-                dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
-                min_normalized_value=MIN_NORMALIZED_VALUE,
-                max_normalized_value=MAX_NORMALIZED_VALUE,
+                cnn_metadata_dict=FIRST_METADATA_DICT, test_mode=True,
                 radar_normalization_table=RADAR_NORMALIZATION_TABLE,
                 sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
         )
@@ -588,12 +597,14 @@ class PhysicalConstraintsTests(unittest.TestCase):
         In this case, using second set of inputs and z-score normalization.
         """
 
+        SECOND_METADATA_DICT[cnn.TRAINING_OPTION_DICT_KEY][
+            trainval_io.NORMALIZATION_TYPE_KEY
+        ] = dl_utils.Z_NORMALIZATION_TYPE_STRING
+
         these_min_values_by_tensor, these_max_values_by_tensor = (
             physical_constraints._normalize_minima_and_maxima(
                 list_of_input_tensors=SECOND_LIST_OF_INPUT_TENSORS,
-                cnn_metadata_dict=SECOND_METADATA_DICT,
-                test_mode=True, normalization_file_name=None,
-                normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
+                cnn_metadata_dict=SECOND_METADATA_DICT, test_mode=True,
                 radar_normalization_table=RADAR_NORMALIZATION_TABLE,
                 sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
         )
@@ -611,15 +622,14 @@ class PhysicalConstraintsTests(unittest.TestCase):
         In this case, using second set of inputs and minmax normalization.
         """
 
+        SECOND_METADATA_DICT[cnn.TRAINING_OPTION_DICT_KEY][
+            trainval_io.NORMALIZATION_TYPE_KEY
+        ] = dl_utils.MINMAX_NORMALIZATION_TYPE_STRING
+
         these_min_values_by_tensor, these_max_values_by_tensor = (
             physical_constraints._normalize_minima_and_maxima(
                 list_of_input_tensors=SECOND_LIST_OF_INPUT_TENSORS,
-                cnn_metadata_dict=SECOND_METADATA_DICT,
-                test_mode=True, normalization_file_name=None,
-                normalization_type_string=
-                dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
-                min_normalized_value=MIN_NORMALIZED_VALUE,
-                max_normalized_value=MAX_NORMALIZED_VALUE,
+                cnn_metadata_dict=SECOND_METADATA_DICT, test_mode=True,
                 radar_normalization_table=RADAR_NORMALIZATION_TABLE,
                 sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
         )
@@ -637,12 +647,14 @@ class PhysicalConstraintsTests(unittest.TestCase):
         In this case, using third set of inputs and z-score normalization.
         """
 
+        THIRD_METADATA_DICT[cnn.TRAINING_OPTION_DICT_KEY][
+            trainval_io.NORMALIZATION_TYPE_KEY
+        ] = dl_utils.Z_NORMALIZATION_TYPE_STRING
+
         these_min_values_by_tensor, these_max_values_by_tensor = (
             physical_constraints._normalize_minima_and_maxima(
                 list_of_input_tensors=THIRD_LIST_OF_INPUT_TENSORS,
-                cnn_metadata_dict=THIRD_METADATA_DICT,
-                test_mode=True, normalization_file_name=None,
-                normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
+                cnn_metadata_dict=THIRD_METADATA_DICT, test_mode=True,
                 radar_normalization_table=RADAR_NORMALIZATION_TABLE,
                 sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
         )
@@ -660,15 +672,14 @@ class PhysicalConstraintsTests(unittest.TestCase):
         In this case, using third set of inputs and minmax normalization.
         """
 
+        THIRD_METADATA_DICT[cnn.TRAINING_OPTION_DICT_KEY][
+            trainval_io.NORMALIZATION_TYPE_KEY
+        ] = dl_utils.MINMAX_NORMALIZATION_TYPE_STRING
+
         these_min_values_by_tensor, these_max_values_by_tensor = (
             physical_constraints._normalize_minima_and_maxima(
                 list_of_input_tensors=THIRD_LIST_OF_INPUT_TENSORS,
-                cnn_metadata_dict=THIRD_METADATA_DICT,
-                test_mode=True, normalization_file_name=None,
-                normalization_type_string=
-                dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
-                min_normalized_value=MIN_NORMALIZED_VALUE,
-                max_normalized_value=MAX_NORMALIZED_VALUE,
+                cnn_metadata_dict=THIRD_METADATA_DICT, test_mode=True,
                 radar_normalization_table=RADAR_NORMALIZATION_TABLE,
                 sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
         )
@@ -686,12 +697,14 @@ class PhysicalConstraintsTests(unittest.TestCase):
         In this case, using fourth set of inputs and z-score normalization.
         """
 
+        FOURTH_METADATA_DICT[cnn.TRAINING_OPTION_DICT_KEY][
+            trainval_io.NORMALIZATION_TYPE_KEY
+        ] = dl_utils.Z_NORMALIZATION_TYPE_STRING
+
         these_min_values_by_tensor, these_max_values_by_tensor = (
             physical_constraints._normalize_minima_and_maxima(
                 list_of_input_tensors=FOURTH_LIST_OF_INPUT_TENSORS,
-                cnn_metadata_dict=FOURTH_METADATA_DICT,
-                test_mode=True, normalization_file_name=None,
-                normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
+                cnn_metadata_dict=FOURTH_METADATA_DICT, test_mode=True,
                 radar_normalization_table=RADAR_NORMALIZATION_TABLE,
                 sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
         )
@@ -709,15 +722,14 @@ class PhysicalConstraintsTests(unittest.TestCase):
         In this case, using fourth set of inputs and minmax normalization.
         """
 
+        FOURTH_METADATA_DICT[cnn.TRAINING_OPTION_DICT_KEY][
+            trainval_io.NORMALIZATION_TYPE_KEY
+        ] = dl_utils.MINMAX_NORMALIZATION_TYPE_STRING
+
         these_min_values_by_tensor, these_max_values_by_tensor = (
             physical_constraints._normalize_minima_and_maxima(
                 list_of_input_tensors=FOURTH_LIST_OF_INPUT_TENSORS,
-                cnn_metadata_dict=FOURTH_METADATA_DICT,
-                test_mode=True, normalization_file_name=None,
-                normalization_type_string=
-                dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
-                min_normalized_value=MIN_NORMALIZED_VALUE,
-                max_normalized_value=MAX_NORMALIZED_VALUE,
+                cnn_metadata_dict=FOURTH_METADATA_DICT, test_mode=True,
                 radar_normalization_table=RADAR_NORMALIZATION_TABLE,
                 sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
         )
