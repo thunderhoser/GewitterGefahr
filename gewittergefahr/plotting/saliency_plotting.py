@@ -59,7 +59,9 @@ def _saliency_to_colour_and_size(
         `saliency_matrix`).
     """
 
-    error_checking.assert_is_greater(max_absolute_colour_value, 0.)
+    error_checking.assert_is_geq(max_absolute_colour_value, 0.)
+    max_absolute_colour_value = max([max_absolute_colour_value, 0.001])
+
     error_checking.assert_is_greater(min_font_size, 0.)
     error_checking.assert_is_greater(max_font_size, min_font_size)
 
@@ -101,6 +103,9 @@ def plot_saliency_for_sounding(
     :param min_font_size: Same.
     :param max_font_size: Same.
     """
+
+    error_checking.assert_is_geq(max_absolute_colour_value, 0.)
+    max_absolute_colour_value = max([max_absolute_colour_value, 0.001])
 
     error_checking.assert_is_greater_numpy_array(pressure_levels_mb, 0.)
     error_checking.assert_is_numpy_array(pressure_levels_mb, num_dimensions=1)
@@ -255,10 +260,14 @@ def plot_2d_grid_with_contours(
     :param line_width: Width of contour lines.
     """
 
+    error_checking.assert_is_geq(max_absolute_contour_level, 0.)
+    max_absolute_contour_level = max([max_absolute_contour_level, 0.001])
+
+    error_checking.assert_is_geq(contour_interval, 0.)
+    contour_interval = max([contour_interval, 0.0001])
+
     error_checking.assert_is_numpy_array_without_nan(saliency_matrix_2d)
     error_checking.assert_is_numpy_array(saliency_matrix_2d, num_dimensions=2)
-    error_checking.assert_is_greater(max_absolute_contour_level, 0.)
-    error_checking.assert_is_greater(contour_interval, 0.)
     error_checking.assert_is_less_than(
         contour_interval, max_absolute_contour_level)
 

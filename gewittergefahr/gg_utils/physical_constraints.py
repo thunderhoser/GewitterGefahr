@@ -141,6 +141,66 @@ def _find_constrained_radar_channels(list_of_layer_operation_dicts):
     return greater_indices, less_indices
 
 
+def __normalize_minmax_for_radar_field(
+        field_name, normalization_file_name, normalization_type_string,
+        min_normalized_value=0., max_normalized_value=1., test_mode=False,
+        radar_normalization_table=None, sounding_normalization_table=None):
+    """Converts min and max for radar field to normalized units.
+
+    :param field_name: Name of radar field (must be accepted by
+        `radar_utils.check_field_name`).
+    :param normalization_file_name: Same.
+    :param normalization_type_string: Same.
+    :param min_normalized_value: Same.
+    :param max_normalized_value: Same.
+    :param test_mode: Same.
+    :param radar_normalization_table: Same.
+    :param sounding_normalization_table: Same.
+    :return: min_norm_radar_value: Minimum value in normalized units.
+    :return: max_norm_radar_value: Max value in normalized units.
+    """
+
+    if field_name in RADAR_TO_MINIMUM_DICT:
+        this_min_value = RADAR_TO_MINIMUM_DICT[field_name]
+        this_min_matrix = numpy.full((1, 1, 1, 1), this_min_value)
+
+        this_min_matrix = dl_utils.normalize_radar_images(
+            radar_image_matrix=this_min_matrix,
+            field_names=[field_name],
+            normalization_type_string=normalization_type_string,
+            normalization_param_file_name=normalization_file_name,
+            min_normalized_value=min_normalized_value,
+            max_normalized_value=max_normalized_value,
+            test_mode=test_mode,
+            normalization_table=radar_normalization_table)
+
+        this_min_value = numpy.ravel(this_min_matrix)[0]
+    else:
+        this_min_value = numpy.nan
+
+    min_values_by_tensor[0] = numpy.array([this_min_value])
+
+    if field_name in RADAR_TO_MAX_DICT:
+        this_max_value = RADAR_TO_MAX_DICT[field_name]
+        this_max_matrix = numpy.full((1, 1, 1, 1), this_max_value)
+
+        this_max_matrix = dl_utils.normalize_radar_images(
+            radar_image_matrix=this_max_matrix,
+            field_names=[field_name],
+            normalization_type_string=normalization_type_string,
+            normalization_param_file_name=normalization_file_name,
+            min_normalized_value=min_normalized_value,
+            max_normalized_value=max_normalized_value,
+            test_mode=test_mode,
+            normalization_table=radar_normalization_table)
+
+        this_max_value = numpy.ravel(this_max_matrix)[0]
+    else:
+        this_max_value = numpy.nan
+
+    max_values_by_tensor[0] = numpy.array([this_max_value])
+
+
 def _normalize_minima_and_maxima(
         list_of_input_tensors, cnn_metadata_dict, normalization_file_name,
         normalization_type_string, min_normalized_value=0.,
