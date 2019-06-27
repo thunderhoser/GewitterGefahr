@@ -6,6 +6,7 @@ CNN = convolutional neural network
 import os.path
 import argparse
 import numpy
+import keras.models
 from keras import backend as K
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import file_system_utils
@@ -20,6 +21,9 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 )))
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+CONV_LAYER_TYPE_STRINGS = ['Conv1D', 'Conv2D', 'Conv3D']
+DENSE_LAYER_TYPE_STRINGS = ['Dense']
 
 CLASS_COMPONENT_TYPE_STRING = model_interpretation.CLASS_COMPONENT_TYPE_STRING
 NEURON_COMPONENT_TYPE_STRING = model_interpretation.NEURON_COMPONENT_TYPE_STRING
@@ -36,6 +40,8 @@ CHANNEL_INDEX_ARG_NAME = 'channel_index'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
+RANDOMIZE_ARG_NAME = 'randomize_weights'
+CASCADING_ARG_NAME = 'cascading_random'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -93,6 +99,20 @@ NUM_EXAMPLES_HELP_STRING = (
     'read all examples, make this non-positive.'
 ).format(STORM_METAFILE_ARG_NAME)
 
+RANDOMIZE_HELP_STRING = (
+    'Boolean flag.  If 1, will randomize weights in each convolutional and '
+    'dense layer before producing saliency maps.  This allows the '
+    'model-parameter-randomization test from Adebayo et al. (2018) to be '
+    'carried out.')
+
+CASCADING_HELP_STRING = (
+    '[used only if `{0:s}` = 1] Boolean flag.  If 1, will randomize weights in '
+    'a cascading manner, going from the deepest to shallowest layer.  In this '
+    'case, when weights for layer L are randomized, weights for all deeper '
+    'layers are randomized as well.  If 0, will do non-cascading randomization,'
+    ' where weights for only one layer are randomized at a time.'
+).format(RANDOMIZE_ARG_NAME)
+
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by '
     '`saliency_maps.write_standard_file`).')
@@ -140,13 +160,51 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + RANDOMIZE_ARG_NAME, type=int, required=False, default=0,
+    help=RANDOMIZE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + CASCADING_ARG_NAME, type=int, required=False, default=0,
+    help=CASCADING_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
 
+def _find_conv_and_dense_layers(model_object):
+    """Finds convolutional and dense layers in model object.
+
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
+    :return: layer_names: 1-D list with names of convolutional and dense layers.
+    """
+
+    layer_names = [type(l).__name__ for l in model_object.layers]
+
+    return [
+        n for n in layer_names
+        if n in CONV_LAYER_TYPE_STRINGS + DENSE_LAYER_TYPE_STRINGS
+    ]
+
+
+def _reset_weights_in_layer(model_object, layer_name):
+    """Resets (or "reinitializes" or "randomizes") weights in one layer.
+
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
+    :param layer_name: Name of layer in which to reset weights.
+    """
+
+    session_object = K.get_session()
+    layer_object = model_object.get_layer(name=layer_name)
+    layer_object.kernel.initializer.run(session=session_object)
+
+
 def _run(model_file_name, component_type_string, target_class, layer_name,
          ideal_activation, neuron_indices, channel_index, top_example_dir_name,
-         storm_metafile_name, num_examples, output_file_name):
+         storm_metafile_name, num_examples, randomize_weights, cascading_random,
+         output_file_name):
     """Computes saliency map for each storm object and each model component.
 
     This is effectively the main method.
@@ -161,6 +219,8 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
     :param top_example_dir_name: Same.
     :param storm_metafile_name: Same.
     :param num_examples: Same.
+    :param randomize_weights: Same.
+    :param cascading_random: Same.
     :param output_file_name: Same.
     """
 
@@ -204,64 +264,116 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
 
     print(SEPARATOR_STRING)
 
-    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-        print('Computing saliency maps for target class {0:d}...'.format(
-            target_class))
-
-        list_of_saliency_matrices = (
-            saliency_maps.get_saliency_maps_for_class_activation(
-                model_object=model_object, target_class=target_class,
-                list_of_input_matrices=list_of_input_matrices)
-        )
-
-    elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
-        print((
-            'Computing saliency maps for neuron {0:s} in layer "{1:s}"...'
-        ).format(str(neuron_indices), layer_name))
-
-        list_of_saliency_matrices = (
-            saliency_maps.get_saliency_maps_for_neuron_activation(
-                model_object=model_object, layer_name=layer_name,
-                neuron_indices=neuron_indices,
-                list_of_input_matrices=list_of_input_matrices,
-                ideal_activation=ideal_activation)
-        )
-
-    else:
-        print((
-            'Computing saliency maps for channel {0:d} in layer "{1:s}"...'
-        ).format(channel_index, layer_name))
-
-        list_of_saliency_matrices = (
-            saliency_maps.get_saliency_maps_for_channel_activation(
-                model_object=model_object, layer_name=layer_name,
-                channel_index=channel_index,
-                list_of_input_matrices=list_of_input_matrices,
-                stat_function_for_neuron_activations=K.max,
-                ideal_activation=ideal_activation)
-        )
-
     print('Denormalizing model inputs...')
-    list_of_input_matrices = model_interpretation.denormalize_data(
+    list_of_input_matrices_denorm = model_interpretation.denormalize_data(
         list_of_input_matrices=list_of_input_matrices,
         model_metadata_dict=model_metadata_dict)
+    print(SEPARATOR_STRING)
 
-    print('Writing saliency maps to file: "{0:s}"...'.format(output_file_name))
+    output_dir_name, pathless_output_file_name = os.path.split(output_file_name)
+    extensionless_output_file_name, output_file_extension = os.path.splitext(
+        pathless_output_file_name)
 
-    saliency_metadata_dict = saliency_maps.check_metadata(
-        component_type_string=component_type_string, target_class=target_class,
-        layer_name=layer_name, ideal_activation=ideal_activation,
-        neuron_indices=neuron_indices, channel_index=channel_index)
+    if randomize_weights:
+        conv_dense_layer_names = _find_conv_and_dense_layers(model_object)
+        conv_dense_layer_names.reverse()
+        num_sets = len(conv_dense_layer_names)
+    else:
+        conv_dense_layer_names = []
+        num_sets = 1
 
-    saliency_maps.write_standard_file(
-        pickle_file_name=output_file_name,
-        list_of_input_matrices=list_of_input_matrices,
-        list_of_saliency_matrices=list_of_saliency_matrices,
-        full_id_strings=full_id_strings,
-        storm_times_unix_sec=storm_times_unix_sec,
-        model_file_name=model_file_name,
-        saliency_metadata_dict=saliency_metadata_dict,
-        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)
+    for k in range(num_sets):
+        if randomize_weights:
+            if cascading_random:
+                _reset_weights_in_layer(
+                    model_object=model_object,
+                    layer_name=conv_dense_layer_names[k]
+                )
+
+                this_model_object = model_object
+
+                this_output_file_name = (
+                    '{0:s}/{1:s}_cascading-random_{2:s}{3:s}'
+                ).format(
+                    output_dir_name, extensionless_output_file_name,
+                    conv_dense_layer_names[k].replace('_', '-'),
+                    output_file_extension
+                )
+            else:
+                this_model_object = keras.models.Model.from_config(
+                    model_object.get_config()
+                )
+                this_model_object.set_weights(model_object.get_weights())
+
+                _reset_weights_in_layer(
+                    model_object=this_model_object,
+                    layer_name=conv_dense_layer_names[k]
+                )
+
+                this_output_file_name = '{0:s}/{1:s}_random_{2:s}{3:s}'.format(
+                    output_dir_name, extensionless_output_file_name,
+                    conv_dense_layer_names[k].replace('_', '-'),
+                    output_file_extension
+                )
+        else:
+            this_model_object = model_object
+            this_output_file_name = output_file_name
+
+        if component_type_string == CLASS_COMPONENT_TYPE_STRING:
+            print('Computing saliency maps for target class {0:d}...'.format(
+                target_class))
+
+            list_of_saliency_matrices = (
+                saliency_maps.get_saliency_maps_for_class_activation(
+                    model_object=this_model_object, target_class=target_class,
+                    list_of_input_matrices=list_of_input_matrices)
+            )
+
+        elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
+            print((
+                'Computing saliency maps for neuron {0:s} in layer "{1:s}"...'
+            ).format(str(neuron_indices), layer_name))
+
+            list_of_saliency_matrices = (
+                saliency_maps.get_saliency_maps_for_neuron_activation(
+                    model_object=this_model_object, layer_name=layer_name,
+                    neuron_indices=neuron_indices,
+                    list_of_input_matrices=list_of_input_matrices,
+                    ideal_activation=ideal_activation)
+            )
+
+        else:
+            print((
+                'Computing saliency maps for channel {0:d} in layer "{1:s}"...'
+            ).format(channel_index, layer_name))
+
+            list_of_saliency_matrices = (
+                saliency_maps.get_saliency_maps_for_channel_activation(
+                    model_object=this_model_object, layer_name=layer_name,
+                    channel_index=channel_index,
+                    list_of_input_matrices=list_of_input_matrices,
+                    stat_function_for_neuron_activations=K.max,
+                    ideal_activation=ideal_activation)
+            )
+
+        print('Writing saliency maps to file: "{0:s}"...'.format(
+            this_output_file_name))
+
+        saliency_metadata_dict = saliency_maps.check_metadata(
+            component_type_string=component_type_string,
+            target_class=target_class, layer_name=layer_name,
+            ideal_activation=ideal_activation, neuron_indices=neuron_indices,
+            channel_index=channel_index)
+
+        saliency_maps.write_standard_file(
+            pickle_file_name=this_output_file_name,
+            list_of_input_matrices=list_of_input_matrices_denorm,
+            list_of_saliency_matrices=list_of_saliency_matrices,
+            full_id_strings=full_id_strings,
+            storm_times_unix_sec=storm_times_unix_sec,
+            model_file_name=model_file_name,
+            saliency_metadata_dict=saliency_metadata_dict,
+            sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)
 
 
 if __name__ == '__main__':
@@ -280,5 +392,7 @@ if __name__ == '__main__':
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
+        randomize_weights=bool(getattr(INPUT_ARG_OBJECT, RANDOMIZE_ARG_NAME)),
+        cascading_random=bool(getattr(INPUT_ARG_OBJECT, CASCADING_ARG_NAME)),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
