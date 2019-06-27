@@ -180,12 +180,15 @@ def _find_conv_and_dense_layers(model_object):
     :return: layer_names: 1-D list with names of convolutional and dense layers.
     """
 
-    layer_names = [type(l).__name__ for l in model_object.layers]
+    layer_names = [l.name for l in model_object.layers]
+    layer_type_strings = [type(l).__name__ for l in model_object.layers]
 
-    return [
-        n for n in layer_names
-        if n in CONV_LAYER_TYPE_STRINGS + DENSE_LAYER_TYPE_STRINGS
-    ]
+    conv_or_dense_flags = numpy.array([
+        t in CONV_LAYER_TYPE_STRINGS + DENSE_LAYER_TYPE_STRINGS
+        for t in layer_type_strings
+    ], dtype=bool)
+
+    return layer_names[numpy.where(conv_or_dense_flags)[0]]
 
 
 def _reset_weights_in_layer(model_object, layer_name):
@@ -241,6 +244,18 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
+    output_dir_name, pathless_output_file_name = os.path.split(output_file_name)
+    extensionless_output_file_name, output_file_extension = os.path.splitext(
+        pathless_output_file_name)
+
+    if randomize_weights:
+        conv_dense_layer_names = _find_conv_and_dense_layers(model_object)
+        conv_dense_layer_names.reverse()
+        num_sets = len(conv_dense_layer_names)
+    else:
+        conv_dense_layer_names = []
+        num_sets = 1
+
     print('Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name))
     full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
         storm_metafile_name)
@@ -269,18 +284,6 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
         list_of_input_matrices=list_of_input_matrices,
         model_metadata_dict=model_metadata_dict)
     print(SEPARATOR_STRING)
-
-    output_dir_name, pathless_output_file_name = os.path.split(output_file_name)
-    extensionless_output_file_name, output_file_extension = os.path.splitext(
-        pathless_output_file_name)
-
-    if randomize_weights:
-        conv_dense_layer_names = _find_conv_and_dense_layers(model_object)
-        conv_dense_layer_names.reverse()
-        num_sets = len(conv_dense_layer_names)
-    else:
-        conv_dense_layer_names = []
-        num_sets = 1
 
     for k in range(num_sets):
         if randomize_weights:
