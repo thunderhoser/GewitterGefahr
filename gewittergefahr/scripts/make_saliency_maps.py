@@ -188,7 +188,8 @@ def _find_conv_and_dense_layers(model_object):
         for t in layer_type_strings
     ], dtype=bool)
 
-    return layer_names[numpy.where(conv_or_dense_flags)[0]]
+    conv_or_dense_indices = numpy.where(conv_or_dense_flags)[0]
+    return [layer_names[k] for k in conv_or_dense_indices]
 
 
 def _reset_weights_in_layer(model_object, layer_name):
