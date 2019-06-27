@@ -182,7 +182,7 @@ def _plot_saliency_for_2d3d_radar(
                 this_storm_time_string
             )
 
-        this_title_string += ' (max absolute saliency = {0:.3f})'.format(
+        this_title_string += ' (max absolute saliency = {0:.2e})'.format(
             max_colour_value_by_example[i])
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
@@ -365,7 +365,7 @@ def _plot_saliency_for_2d_radar(
 
             if save_paneled_figs:
                 this_title_string += (
-                    ' (max absolute saliency = {0:.3f})'
+                    ' (max absolute saliency = {0:.2e})'
                 ).format(max_colour_value_by_example[i])
                 pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
@@ -465,7 +465,7 @@ def _plot_saliency_for_3d_radar(
                     this_storm_time_string, this_field_name.replace('_', '-')
                 )
 
-            this_title_string += ' (max absolute saliency = {0:.3f})'.format(
+            this_title_string += ' (max absolute saliency = {0:.2e})'.format(
                 max_colour_value_by_example[i])
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
