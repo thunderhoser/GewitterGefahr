@@ -323,6 +323,8 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
             this_model_object = model_object
             this_output_file_name = output_file_name
 
+        print(K.eval(model_object.get_layer(name='dense_3').weights[0]))
+
         if component_type_string == CLASS_COMPONENT_TYPE_STRING:
             print('Computing saliency maps for target class {0:d}...'.format(
                 target_class))
