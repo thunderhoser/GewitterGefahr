@@ -178,7 +178,7 @@ def __normalize_minmax_for_radar_field(
     else:
         this_min_value = numpy.nan
 
-    min_values_by_tensor[0] = numpy.array([this_min_value])
+    # min_values_by_tensor[0] = numpy.array([this_min_value])
 
     if field_name in RADAR_TO_MAX_DICT:
         this_max_value = RADAR_TO_MAX_DICT[field_name]
@@ -198,7 +198,9 @@ def __normalize_minmax_for_radar_field(
     else:
         this_max_value = numpy.nan
 
-    max_values_by_tensor[0] = numpy.array([this_max_value])
+    # max_values_by_tensor[0] = numpy.array([this_max_value])
+
+    return this_min_value, this_max_value
 
 
 def _normalize_minima_and_maxima(
