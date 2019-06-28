@@ -205,19 +205,15 @@ def _do_gradient_descent(
             list_of_optimized_matrices + [0]
         )
 
-        print(these_outputs)
-        print(these_outputs[0])
-        print(these_outputs[1])
-
         if j == 0:
-            initial_activation = these_outputs[0]
+            initial_activation = these_outputs[0][0]
 
         if numpy.mod(j, 100) == 0:
             print((
                 'Loss after {0:d} of {1:d} iterations = {2:.2e} ... '
                 'activation = {3:.2e}'
             ).format(
-                j, num_iterations, these_outputs[1], these_outputs[0]
+                j, num_iterations, these_outputs[1], these_outputs[0][0]
             ))
 
         for i in range(num_input_tensors):
@@ -228,10 +224,10 @@ def _do_gradient_descent(
     print((
         'Loss after {0:d} iterations = {1:.2e} ... activation = {2:.2e}'
     ).format(
-        num_iterations, these_outputs[1], these_outputs[0]
+        num_iterations, these_outputs[1], these_outputs[0][0]
     ))
 
-    final_activation = these_outputs[0]
+    final_activation = these_outputs[0][0]
 
     return list_of_optimized_matrices, initial_activation, final_activation
 
