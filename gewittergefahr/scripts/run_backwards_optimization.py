@@ -321,6 +321,8 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
     model_object = cnn.read_model(model_file_name)
 
     list_of_optimized_matrices = None
+    initial_activations = numpy.full(num_examples, numpy.nan)
+    final_activations = numpy.full(num_examples, numpy.nan)
 
     for i in range(num_examples):
         if init_function_name is None:
@@ -335,16 +337,17 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 i + 1, num_examples, target_class
             ))
 
-            these_optimized_matrices, initial_activation, final_activation = (
-                backwards_opt.optimize_input_for_class(
-                    model_object=model_object, target_class=target_class,
-                    init_function_or_matrices=this_init_arg,
-                    num_iterations=num_iterations, learning_rate=learning_rate,
-                    l2_weight=l2_weight,
-                    radar_constraint_weight=radar_constraint_weight,
-                    minmax_constraint_weight=minmax_constraint_weight,
-                    model_metadata_dict=model_metadata_dict)
-            )
+            (these_optimized_matrices, initial_activations[i],
+             final_activations[i]
+            ) = backwards_opt.optimize_input_for_class(
+                model_object=model_object, target_class=target_class,
+                init_function_or_matrices=this_init_arg,
+                num_iterations=num_iterations, learning_rate=learning_rate,
+                l2_weight=l2_weight,
+                radar_constraint_weight=radar_constraint_weight,
+                minmax_constraint_weight=minmax_constraint_weight,
+                model_metadata_dict=model_metadata_dict)
+
         elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
             print((
                 '\nOptimizing {0:d}th of {1:d} images for neuron {2:s} in layer'
@@ -353,17 +356,18 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 i + 1, num_examples, str(neuron_indices), layer_name
             ))
 
-            these_optimized_matrices, initial_activation, final_activation = (
-                backwards_opt.optimize_input_for_neuron(
-                    model_object=model_object, layer_name=layer_name,
-                    neuron_indices=neuron_indices,
-                    init_function_or_matrices=this_init_arg,
-                    num_iterations=num_iterations, learning_rate=learning_rate,
-                    l2_weight=l2_weight, ideal_activation=ideal_activation,
-                    radar_constraint_weight=radar_constraint_weight,
-                    minmax_constraint_weight=minmax_constraint_weight,
-                    model_metadata_dict=model_metadata_dict)
-            )
+            (these_optimized_matrices, initial_activations[i],
+             final_activations[i]
+            ) = backwards_opt.optimize_input_for_neuron(
+                model_object=model_object, layer_name=layer_name,
+                neuron_indices=neuron_indices,
+                init_function_or_matrices=this_init_arg,
+                num_iterations=num_iterations, learning_rate=learning_rate,
+                l2_weight=l2_weight, ideal_activation=ideal_activation,
+                radar_constraint_weight=radar_constraint_weight,
+                minmax_constraint_weight=minmax_constraint_weight,
+                model_metadata_dict=model_metadata_dict)
+
         else:
             print((
                 '\nOptimizing {0:d}th of {1:d} images for channel {2:d} in '
@@ -372,19 +376,18 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 i + 1, num_examples, channel_index, layer_name
             ))
 
-            # TODO(thunderhoser): Put activations in array.
-            these_optimized_matrices, initial_activation, final_activation = (
-                backwards_opt.optimize_input_for_channel(
-                    model_object=model_object, layer_name=layer_name,
-                    channel_index=channel_index,
-                    init_function_or_matrices=this_init_arg,
-                    stat_function_for_neuron_activations=K.max,
-                    num_iterations=num_iterations, learning_rate=learning_rate,
-                    l2_weight=l2_weight, ideal_activation=ideal_activation,
-                    radar_constraint_weight=radar_constraint_weight,
-                    minmax_constraint_weight=minmax_constraint_weight,
-                    model_metadata_dict=model_metadata_dict)
-            )
+            (these_optimized_matrices, initial_activations[i],
+             final_activations[i]
+            ) = backwards_opt.optimize_input_for_channel(
+                model_object=model_object, layer_name=layer_name,
+                channel_index=channel_index,
+                init_function_or_matrices=this_init_arg,
+                stat_function_for_neuron_activations=K.max,
+                num_iterations=num_iterations, learning_rate=learning_rate,
+                l2_weight=l2_weight, ideal_activation=ideal_activation,
+                radar_constraint_weight=radar_constraint_weight,
+                minmax_constraint_weight=minmax_constraint_weight,
+                model_metadata_dict=model_metadata_dict)
 
         if list_of_optimized_matrices is None:
             num_matrices = len(these_optimized_matrices)
@@ -419,7 +422,8 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
     backwards_opt.write_standard_file(
         pickle_file_name=output_file_name,
         list_of_optimized_matrices=list_of_optimized_matrices,
-        model_file_name=model_file_name,
+        initial_activations=initial_activations,
+        final_activations=final_activations, model_file_name=model_file_name,
         init_function_name_or_matrices=this_init_arg,
         num_iterations=num_iterations, learning_rate=learning_rate,
         l2_weight=l2_weight, radar_constraint_weight=radar_constraint_weight,

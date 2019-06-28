@@ -294,11 +294,20 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
                 max_percentile_level=max_percentile_level
             )[0]
 
+        mean_initial_activation = numpy.mean(
+            bwo_dictionary[backwards_opt.INITIAL_ACTIVATIONS_KEY]
+        )
+        mean_final_activation = numpy.mean(
+            bwo_dictionary[backwards_opt.FINAL_ACTIVATIONS_KEY]
+        )
+
         print('Writing output to: "{0:s}"...'.format(output_file_name))
         backwards_opt.write_pmm_file(
             pickle_file_name=output_file_name,
             list_of_mean_input_matrices=list_of_mean_input_matrices,
             list_of_mean_optimized_matrices=list_of_mean_optimized_matrices,
+            mean_initial_activation=mean_initial_activation,
+            mean_final_activation=mean_final_activation,
             threshold_count_matrix=threshold_count_matrix,
             model_file_name=bwo_dictionary[backwards_opt.MODEL_FILE_KEY],
             standard_bwo_file_name=input_bwo_file_name,

@@ -45,15 +45,15 @@ LAYER_NAME_KEY = 'layer_name'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
 NEURON_INDICES_KEY = 'neuron_indices'
 CHANNEL_INDEX_KEY = 'channel_index'
-INITIAL_ACTIVATION_KEY = 'initial_activation'
-FINAL_ACTIVATION_KEY = 'final_activation'
+INITIAL_ACTIVATIONS_KEY = 'initial_activations'
+FINAL_ACTIVATIONS_KEY = 'final_activations'
 
 STANDARD_FILE_KEYS = [
     INIT_FUNCTION_KEY, OPTIMIZED_MATRICES_KEY, MODEL_FILE_KEY,
     NUM_ITERATIONS_KEY, LEARNING_RATE_KEY, L2_WEIGHT_KEY, COMPONENT_TYPE_KEY,
     TARGET_CLASS_KEY, LAYER_NAME_KEY, IDEAL_ACTIVATION_KEY, NEURON_INDICES_KEY,
-    CHANNEL_INDEX_KEY, FULL_IDS_KEY, STORM_TIMES_KEY, INITIAL_ACTIVATION_KEY,
-    FINAL_ACTIVATION_KEY
+    CHANNEL_INDEX_KEY, FULL_IDS_KEY, STORM_TIMES_KEY, INITIAL_ACTIVATIONS_KEY,
+    FINAL_ACTIVATIONS_KEY
 ]
 
 MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
@@ -82,13 +82,21 @@ VALID_INIT_FUNCTION_NAMES = [
 ]
 
 
-def _check_input_args(num_iterations, learning_rate, l2_weight=None,
-                      ideal_activation=None):
+def _check_input_args(
+        num_iterations, learning_rate, l2_weight=None,
+        radar_constraint_weight=None, minmax_constraint_weight=None,
+        ideal_activation=None):
     """Error-checks input args for backwards optimization.
 
     :param num_iterations: See doc for `_do_gradient_descent`.
     :param learning_rate: Same.
     :param l2_weight: Same.
+    :param radar_constraint_weight: Weight used to multiply part of loss
+        function with radar constraints (see doc for
+        `_radar_constraints_to_loss_fn`).
+    :param minmax_constraint_weight: Weight used to multiply part of loss
+        function with min-max constraints (see doc for
+        `_minmax_constraints_to_loss_fn`).
     :param ideal_activation: See doc for `optimize_input_for_neuron_activation`
         or `optimize_input_for_channel_activation`.
     """
@@ -100,6 +108,10 @@ def _check_input_args(num_iterations, learning_rate, l2_weight=None,
 
     if l2_weight is not None:
         error_checking.assert_is_greater(l2_weight, 0.)
+    if radar_constraint_weight is not None:
+        error_checking.assert_is_greater(radar_constraint_weight, 0.)
+    if minmax_constraint_weight is not None:
+        error_checking.assert_is_greater(minmax_constraint_weight, 0.)
 
     if ideal_activation is not None:
         error_checking.assert_is_greater(ideal_activation, 0.)
@@ -234,13 +246,13 @@ def _radar_constraints_to_loss_fn(model_object, model_metadata_dict, weight):
     """
 
     if weight is None:
-        return
+        return None
 
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
 
     if list_of_layer_operation_dicts is None:
-        return
+        return None
 
     error_checking.assert_is_greater(weight, 0.)
 
@@ -265,7 +277,7 @@ def _minmax_constraints_to_loss_fn(model_object, model_metadata_dict, weight):
     """
 
     if weight is None:
-        return
+        return None
 
     if isinstance(model_object.input, list):
         list_of_input_tensors = model_object.input
@@ -563,6 +575,11 @@ def optimize_input_for_class(
         component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
         target_class=target_class)
 
+    _check_input_args(
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        l2_weight=l2_weight, radar_constraint_weight=radar_constraint_weight,
+        minmax_constraint_weight=minmax_constraint_weight)
+
     radar_constraint_loss_tensor = _radar_constraints_to_loss_fn(
         model_object=model_object, model_metadata_dict=model_metadata_dict,
         weight=radar_constraint_weight)
@@ -571,17 +588,13 @@ def optimize_input_for_class(
         model_object=model_object, model_metadata_dict=model_metadata_dict,
         weight=minmax_constraint_weight)
 
-    _check_input_args(
-        num_iterations=num_iterations, learning_rate=learning_rate,
-        l2_weight=l2_weight)
-
     num_output_neurons = (
         model_object.layers[-1].output.get_shape().as_list()[-1]
     )
 
     if num_output_neurons == 1:
         error_checking.assert_is_leq(target_class, 1)
-        
+
         activation_tensor = model_object.layers[-1].output[..., 0]
 
         if target_class == 1:
@@ -590,7 +603,7 @@ def optimize_input_for_class(
             loss_tensor = K.mean(activation_tensor ** 2)
     else:
         error_checking.assert_is_less_than(target_class, num_output_neurons)
-        
+
         activation_tensor = model_object.layers[-1].output[..., target_class]
         loss_tensor = K.mean((activation_tensor - 1) ** 2)
 
@@ -646,6 +659,11 @@ def optimize_input_for_neuron(
         component_type_string=model_interpretation.NEURON_COMPONENT_TYPE_STRING,
         layer_name=layer_name, neuron_indices=neuron_indices)
 
+    _check_input_args(
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        l2_weight=l2_weight, radar_constraint_weight=radar_constraint_weight,
+        minmax_constraint_weight=minmax_constraint_weight)
+
     radar_constraint_loss_tensor = _radar_constraints_to_loss_fn(
         model_object=model_object, model_metadata_dict=model_metadata_dict,
         weight=radar_constraint_weight)
@@ -653,10 +671,6 @@ def optimize_input_for_neuron(
     minmax_constraint_loss_tensor = _minmax_constraints_to_loss_fn(
         model_object=model_object, model_metadata_dict=model_metadata_dict,
         weight=minmax_constraint_weight)
-
-    _check_input_args(
-        num_iterations=num_iterations, learning_rate=learning_rate,
-        l2_weight=l2_weight, ideal_activation=ideal_activation)
 
     neuron_indices_as_tuple = (0,) + tuple(neuron_indices)
     activation_tensor = model_object.get_layer(name=layer_name).output[
@@ -729,6 +743,11 @@ def optimize_input_for_channel(
         layer_name=layer_name, channel_index=channel_index
     )
 
+    _check_input_args(
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        l2_weight=l2_weight, radar_constraint_weight=radar_constraint_weight,
+        minmax_constraint_weight=minmax_constraint_weight)
+
     radar_constraint_loss_tensor = _radar_constraints_to_loss_fn(
         model_object=model_object, model_metadata_dict=model_metadata_dict,
         weight=radar_constraint_weight)
@@ -737,10 +756,6 @@ def optimize_input_for_channel(
         model_object=model_object, model_metadata_dict=model_metadata_dict,
         weight=minmax_constraint_weight)
 
-    _check_input_args(
-        num_iterations=num_iterations, learning_rate=learning_rate,
-        l2_weight=l2_weight, ideal_activation=ideal_activation)
-    
     activation_tensor = stat_function_for_neuron_activations(
         model_object.get_layer(name=layer_name).output[0, ..., channel_index]
     )
@@ -766,8 +781,8 @@ def optimize_input_for_channel(
 def write_standard_file(
         pickle_file_name, init_function_name_or_matrices,
         list_of_optimized_matrices, model_file_name, num_iterations,
-        learning_rate, component_type_string, initial_activation,
-        final_activation, l2_weight=None, radar_constraint_weight=None,
+        learning_rate, component_type_string, initial_activations,
+        final_activations, l2_weight=None, radar_constraint_weight=None,
         minmax_constraint_weight=None, target_class=None, layer_name=None,
         neuron_indices=None, channel_index=None, ideal_activation=None,
         full_id_strings=None, storm_times_unix_sec=None):
@@ -787,10 +802,10 @@ def write_standard_file(
     :param learning_rate: Same.
     :param component_type_string: See doc for
         `model_interpretation.check_component_metadata`.
-    :param initial_activation: Initial activation of relevant model component
+    :param initial_activations: length-E numpy array of initial activations
         (before backwards optimization).
-    :param final_activation: Final activation of relevant model component
-        (after backwards optimization).
+    :param final_activations: length-E numpy array of final activations (after
+        backwards optimization).
     :param l2_weight: See doc for `_do_gradient_descent`.
     :param radar_constraint_weight: See doc for `_radar_constraints_to_loss_fn`.
     :param minmax_constraint_weight: See doc for
@@ -812,11 +827,6 @@ def write_standard_file(
         arrays and has a different length than `list_of_optimized_matrices`.
     """
 
-    if radar_constraint_weight is not None:
-        error_checking.assert_is_greater(radar_constraint_weight, 0.)
-    if minmax_constraint_weight is not None:
-        error_checking.assert_is_greater(minmax_constraint_weight, 0.)
-
     model_interpretation.check_component_metadata(
         component_type_string=component_type_string,
         target_class=target_class, layer_name=layer_name,
@@ -824,13 +834,14 @@ def write_standard_file(
 
     _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
-        l2_weight=l2_weight, ideal_activation=ideal_activation)
+        l2_weight=l2_weight, radar_constraint_weight=radar_constraint_weight,
+        minmax_constraint_weight=minmax_constraint_weight)
 
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_list(list_of_optimized_matrices)
 
     if isinstance(init_function_name_or_matrices, str):
-        num_storm_objects = None
+        num_examples = 1
     else:
         num_init_matrices = len(init_function_name_or_matrices)
         num_optimized_matrices = len(list_of_optimized_matrices)
@@ -847,12 +858,18 @@ def write_standard_file(
         error_checking.assert_is_numpy_array(
             numpy.array(full_id_strings), num_dimensions=1)
 
-        num_storm_objects = len(full_id_strings)
-        these_expected_dim = numpy.array([num_storm_objects], dtype=int)
+        num_examples = len(full_id_strings)
+        these_expected_dim = numpy.array([num_examples], dtype=int)
 
         error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
         error_checking.assert_is_numpy_array(
             storm_times_unix_sec, exact_dimensions=these_expected_dim)
+
+    these_expected_dim = numpy.array([num_examples], dtype=int)
+    error_checking.assert_is_numpy_array(
+        initial_activations, exact_dimensions=these_expected_dim)
+    error_checking.assert_is_numpy_array(
+        final_activations, exact_dimensions=these_expected_dim)
 
     num_matrices = len(list_of_optimized_matrices)
 
@@ -860,13 +877,14 @@ def write_standard_file(
         error_checking.assert_is_numpy_array_without_nan(
             list_of_optimized_matrices[i])
 
-        if num_storm_objects is not None:
-            these_expected_dim = numpy.array(
-                (num_storm_objects,) + list_of_optimized_matrices[i].shape[1:],
-                dtype=int)
-            error_checking.assert_is_numpy_array(
-                list_of_optimized_matrices[i],
-                exact_dimensions=these_expected_dim)
+        these_expected_dim = numpy.array(
+            (num_examples,) + list_of_optimized_matrices[i].shape[1:],
+            dtype=int
+        )
+
+        error_checking.assert_is_numpy_array(
+            list_of_optimized_matrices[i],
+            exact_dimensions=these_expected_dim)
 
         if not isinstance(init_function_name_or_matrices, str):
             error_checking.assert_is_numpy_array_without_nan(
@@ -889,8 +907,8 @@ def write_standard_file(
         RADAR_CONSTRAINT_WEIGHT_KEY: radar_constraint_weight,
         MINMAX_CONSTRAINT_WEIGHT_KEY: minmax_constraint_weight,
         COMPONENT_TYPE_KEY: component_type_string,
-        INITIAL_ACTIVATION_KEY: initial_activation,
-        FINAL_ACTIVATION_KEY: final_activation,
+        INITIAL_ACTIVATIONS_KEY: initial_activations,
+        FINAL_ACTIVATIONS_KEY: final_activations,
         TARGET_CLASS_KEY: target_class,
         LAYER_NAME_KEY: layer_name,
         IDEAL_ACTIVATION_KEY: ideal_activation,
@@ -921,8 +939,8 @@ def read_standard_file(pickle_file_name):
     optimization_dict['radar_constraint_weight']: Same.
     optimization_dict['minmax_constraint_weight']: Same.
     optimization_dict['component_type_string']: Same.
-    optimization_dict['initial_activation']: Same.
-    optimization_dict['final_activation']: Same.
+    optimization_dict['initial_activations']: Same.
+    optimization_dict['final_activations']: Same.
     optimization_dict['target_class']: Same.
     optimization_dict['layer_name']: Same.
     optimization_dict['ideal_activation']: Same.
