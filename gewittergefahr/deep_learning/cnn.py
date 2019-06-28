@@ -18,6 +18,7 @@ C = number of radar field/height pairs
 
 import copy
 import pickle
+import os.path
 import numpy
 import netCDF4
 import keras.losses
@@ -333,6 +334,16 @@ def read_model_metadata(pickle_file_name):
 
     if LAYER_OPERATIONS_KEY not in metadata_dict:
         metadata_dict[LAYER_OPERATIONS_KEY] = None
+
+    # TODO(thunderhoser): This is a HACK.
+    normalization_file_name = metadata_dict[TRAINING_OPTION_DICT_KEY][
+        trainval_io.NORMALIZATION_FILE_KEY]
+
+    if not os.path.isfile(normalization_file_name):
+        normalization_file_name = (
+            '/glade/scratch/ryanlage/gridrad_final/myrorss_format/new_tracks/'
+            'reanalyzed/tornado_occurrence/downsampled/learning_examples/'
+            'shuffled/single_pol_2011-2015')
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
