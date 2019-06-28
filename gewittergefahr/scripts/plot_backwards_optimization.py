@@ -75,9 +75,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_bwo_for_2d3d_radar(
         list_of_optimized_matrices, training_option_dict,
-        diff_colour_map_object, max_colour_percentile_for_diff,
-        top_output_dir_name, pmm_flag, list_of_input_matrices=None,
-        full_id_strings=None, storm_times_unix_sec=None):
+        diff_colour_map_object, max_colour_percentile_for_diff, pmm_flag,
+        bwo_metadata_dict, top_output_dir_name, list_of_input_matrices=None):
     """Plots BWO results for 2-D azimuthal-shear and 3-D reflectivity fields.
 
     E = number of examples (storm objects)
@@ -89,16 +88,14 @@ def _plot_bwo_for_2d3d_radar(
     :param training_option_dict: See doc for `cnn.read_model_metadata`.
     :param diff_colour_map_object: See documentation at top of file.
     :param max_colour_percentile_for_diff: Same.
-    :param top_output_dir_name: Path to top-level output directory (figures will
-        be saved here).
     :param pmm_flag: Boolean flag.  If True, `list_of_predictor_matrices`
         contains probability-matched means.
+    :param bwo_metadata_dict: Dictionary with metadata for backwards
+        optimization (returned by `backwards_optimization.read_standard_file`).
+    :param top_output_dir_name: Path to top-level output directory (figures will
+        be saved here).
     :param list_of_input_matrices: Same as `list_of_optimized_matrices` but with
         non-optimized input matrices.
-    :param full_id_strings: [optional and used only if `pmm_flag = False`]
-        length-E list of full storm IDs.
-    :param storm_times_unix_sec: [optional and used only if `pmm_flag = False`]
-        length-E numpy array of storm times.
     """
 
     before_optimization_dir_name = '{0:s}/before_optimization'.format(
@@ -115,12 +112,27 @@ def _plot_bwo_for_2d3d_radar(
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=difference_dir_name)
 
+    full_id_strings = bwo_metadata_dict[backwards_opt.FULL_IDS_KEY]
+    storm_times_unix_sec = bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY]
+
     if pmm_flag:
         have_storm_ids = False
+
+        initial_activations = numpy.array([
+            bwo_metadata_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
+        ])
+        final_activations = numpy.array([
+            bwo_metadata_dict[backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
+        ])
     else:
         have_storm_ids = not (
             full_id_strings is None or storm_times_unix_sec is None
         )
+
+        initial_activations = bwo_metadata_dict[
+            backwards_opt.INITIAL_ACTIVATIONS_KEY]
+        final_activations = bwo_metadata_dict[
+            backwards_opt.FINAL_ACTIVATIONS_KEY]
 
     az_shear_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     num_az_shear_fields = len(az_shear_field_names)
@@ -177,8 +189,9 @@ def _plot_bwo_for_2d3d_radar(
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', extend_min=True, extend_max=True)
 
-        this_title_string = '{0:s} (after optimization)'.format(
-            this_base_title_string)
+        this_title_string = '{0:s} (AFTER; {1:.2e})'.format(
+            this_base_title_string, final_activations[i]
+        )
 
         this_file_name = (
             '{0:s}/{1:s}_after-optimization_reflectivity.jpg'
@@ -213,9 +226,6 @@ def _plot_bwo_for_2d3d_radar(
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', extend_min=True, extend_max=True)
-
-        this_title_string = '{0:s} (after optimization)'.format(
-            this_base_title_string)
 
         this_file_name = (
             '{0:s}/{1:s}_after-optimization_azimuthal-shear.jpg'
@@ -252,8 +262,9 @@ def _plot_bwo_for_2d3d_radar(
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', extend_min=True, extend_max=True)
 
-        this_title_string = '{0:s} (before optimization)'.format(
-            this_base_title_string)
+        this_title_string = '{0:s} (BEFORE; {1:.2e})'.format(
+            this_base_title_string, initial_activations[i]
+        )
 
         this_file_name = (
             '{0:s}/{1:s}_before-optimization_reflectivity.jpg'
@@ -288,9 +299,6 @@ def _plot_bwo_for_2d3d_radar(
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', extend_min=True, extend_max=True)
-
-        this_title_string = '{0:s} (before optimization)'.format(
-            this_base_title_string)
 
         this_file_name = (
             '{0:s}/{1:s}_before-optimization_azimuthal-shear.jpg'
@@ -333,7 +341,7 @@ def _plot_bwo_for_2d3d_radar(
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', extend_min=True, extend_max=True)
 
-        this_title_string = '{0:s} (after minus before optimization)'.format(
+        this_title_string = '{0:s} (after minus before)'.format(
             this_base_title_string)
 
         this_file_name = (
@@ -380,7 +388,7 @@ def _plot_bwo_for_2d3d_radar(
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', extend_min=True, extend_max=True)
 
-        this_title_string = '{0:s} (after minus before optimization)'.format(
+        this_title_string = '{0:s} (after minus before)'.format(
             this_base_title_string)
 
         this_file_name = (
@@ -396,9 +404,8 @@ def _plot_bwo_for_2d3d_radar(
 
 def _plot_bwo_for_3d_radar(
         optimized_radar_matrix, training_option_dict, diff_colour_map_object,
-        max_colour_percentile_for_diff, top_output_dir_name, pmm_flag,
-        input_radar_matrix=None, full_id_strings=None,
-        storm_times_unix_sec=None):
+        max_colour_percentile_for_diff, pmm_flag, bwo_metadata_dict,
+        top_output_dir_name, input_radar_matrix=None):
     """Plots BWO results for 3-D radar fields.
 
     E = number of examples (storm objects)
@@ -412,12 +419,11 @@ def _plot_bwo_for_3d_radar(
     :param training_option_dict: See doc for `_plot_bwo_for_2d3d_radar`.
     :param diff_colour_map_object: Same.
     :param max_colour_percentile_for_diff: Same.
-    :param top_output_dir_name: Same.
     :param pmm_flag: Same.
+    :param bwo_metadata_dict: Same.
+    :param top_output_dir_name: Same.
     :param input_radar_matrix: Same as `optimized_radar_matrix` but with
         non-optimized input.
-    :param full_id_strings: See doc for `_plot_bwo_for_2d3d_radar`.
-    :param storm_times_unix_sec: Same.
     """
 
     before_optimization_dir_name = '{0:s}/before_optimization'.format(
@@ -434,12 +440,27 @@ def _plot_bwo_for_3d_radar(
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=difference_dir_name)
 
+    full_id_strings = bwo_metadata_dict[backwards_opt.FULL_IDS_KEY]
+    storm_times_unix_sec = bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY]
+
     if pmm_flag:
         have_storm_ids = False
+
+        initial_activations = numpy.array([
+            bwo_metadata_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
+        ])
+        final_activations = numpy.array([
+            bwo_metadata_dict[backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
+        ])
     else:
         have_storm_ids = not (
             full_id_strings is None or storm_times_unix_sec is None
         )
+
+        initial_activations = bwo_metadata_dict[
+            backwards_opt.INITIAL_ACTIVATIONS_KEY]
+        final_activations = bwo_metadata_dict[
+            backwards_opt.FINAL_ACTIVATIONS_KEY]
 
     radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
@@ -496,8 +517,9 @@ def _plot_bwo_for_3d_radar(
                 orientation_string='horizontal', extend_min=True,
                 extend_max=True)
 
-            this_title_string = '{0:s} (after optimization)'.format(
-                this_base_title_string)
+            this_title_string = '{0:s} (AFTER; {1:.2e})'.format(
+                this_base_title_string, final_activations[i]
+            )
 
             this_file_name = (
                 '{0:s}/{1:s}_after-optimization_{2:s}.jpg'
@@ -538,8 +560,9 @@ def _plot_bwo_for_3d_radar(
                 orientation_string='horizontal', extend_min=True,
                 extend_max=True)
 
-            this_title_string = '{0:s} (before optimization)'.format(
-                this_base_title_string)
+            this_title_string = '{0:s} (BEFORE; {1:.2e})'.format(
+                this_base_title_string, initial_activations[i]
+            )
 
             this_file_name = (
                 '{0:s}/{1:s}_before-optimization_{2:s}.jpg'
@@ -585,9 +608,8 @@ def _plot_bwo_for_3d_radar(
                 orientation_string='horizontal', extend_min=True,
                 extend_max=True)
 
-            this_title_string = (
-                '{0:s} (after minus before optimization)'
-            ).format(this_base_title_string)
+            this_title_string = '{0:s} (after minus before)'.format(
+                this_base_title_string)
 
             this_file_name = (
                 '{0:s}/{1:s}_optimization-diff_{2:s}.jpg'
@@ -605,9 +627,8 @@ def _plot_bwo_for_3d_radar(
 
 def _plot_bwo_for_2d_radar(
         optimized_radar_matrix, model_metadata_dict, diff_colour_map_object,
-        max_colour_percentile_for_diff, top_output_dir_name, pmm_flag,
-        input_radar_matrix=None, full_id_strings=None,
-        storm_times_unix_sec=None):
+        max_colour_percentile_for_diff, pmm_flag, bwo_metadata_dict,
+        top_output_dir_name, input_radar_matrix=None):
     """Plots BWO results for 2-D radar fields.
 
     E = number of examples (storm objects)
@@ -621,12 +642,11 @@ def _plot_bwo_for_2d_radar(
         `cnn.read_model_metadata`.
     :param diff_colour_map_object: See doc for `_plot_bwo_for_2d3d_radar`.
     :param max_colour_percentile_for_diff: Same.
-    :param top_output_dir_name: Same.
     :param pmm_flag: Same.
+    :param bwo_metadata_dict: Same.
+    :param top_output_dir_name: Same.
     :param input_radar_matrix: Same as `optimized_radar_matrix` but with
         non-optimized input.
-    :param full_id_strings: See doc for `_plot_bwo_for_2d3d_radar`.
-    :param storm_times_unix_sec: Same.
     """
 
     before_optimization_dir_name = '{0:s}/before_optimization'.format(
@@ -647,12 +667,27 @@ def _plot_bwo_for_2d_radar(
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
 
+    full_id_strings = bwo_metadata_dict[backwards_opt.FULL_IDS_KEY]
+    storm_times_unix_sec = bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY]
+
     if pmm_flag:
         have_storm_ids = False
+
+        initial_activations = numpy.array([
+            bwo_metadata_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
+        ])
+        final_activations = numpy.array([
+            bwo_metadata_dict[backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
+        ])
     else:
         have_storm_ids = not (
             full_id_strings is None or storm_times_unix_sec is None
         )
+
+        initial_activations = bwo_metadata_dict[
+            backwards_opt.INITIAL_ACTIVATIONS_KEY]
+        final_activations = bwo_metadata_dict[
+            backwards_opt.FINAL_ACTIVATIONS_KEY]
 
     if list_of_layer_operation_dicts is None:
         field_name_by_panel = training_option_dict[
@@ -715,8 +750,10 @@ def _plot_bwo_for_2d_radar(
             plot_colour_bar_by_panel=plot_colour_bar_by_panel,
             font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
-        this_title_string = '{0:s} (after optimization)'.format(
-            this_base_title_string)
+        this_title_string = '{0:s} (AFTER; activation = {1:.2e})'.format(
+            this_base_title_string, final_activations[i]
+        )
+
         this_file_name = '{0:s}/{1:s}_after-optimization_radar.jpg'.format(
             after_optimization_dir_name, this_base_pathless_file_name)
 
@@ -736,8 +773,10 @@ def _plot_bwo_for_2d_radar(
             plot_colour_bar_by_panel=plot_colour_bar_by_panel,
             font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
-        this_title_string = '{0:s} (before optimization)'.format(
-            this_base_title_string)
+        this_title_string = '{0:s} (BEFORE; activation = {1:.2e})'.format(
+            this_base_title_string, initial_activations[i]
+        )
+
         this_file_name = '{0:s}/{1:s}_before-optimization_radar.jpg'.format(
             before_optimization_dir_name, this_base_pathless_file_name)
 
@@ -801,7 +840,7 @@ def _plot_bwo_for_2d_radar(
             plot_colour_bar_by_panel=plot_colour_bar_by_panel,
             font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
-        this_title_string = '{0:s} (after minus before optimization)'.format(
+        this_title_string = '{0:s} (after minus before)'.format(
             this_base_title_string)
         this_file_name = '{0:s}/{1:s}_optimization-diff_radar.jpg'.format(
             difference_dir_name, this_base_pathless_file_name)
@@ -814,9 +853,8 @@ def _plot_bwo_for_2d_radar(
 
 
 def _plot_bwo_for_soundings(
-        optimized_sounding_matrix, training_option_dict, top_output_dir_name,
-        pmm_flag, input_sounding_matrix=None, full_id_strings=None,
-        storm_times_unix_sec=None):
+        optimized_sounding_matrix, training_option_dict, pmm_flag,
+        bwo_metadata_dict, top_output_dir_name, input_sounding_matrix=None):
     """Plots BWO results for soundings.
 
     E = number of examples (storm objects)
@@ -826,12 +864,11 @@ def _plot_bwo_for_soundings(
     :param optimized_sounding_matrix: E-by-H-by-F numpy array of sounding values
         (predictors).
     :param training_option_dict: See doc for `_plot_bwo_for_2d3d_radar`.
-    :param top_output_dir_name: Same.
     :param pmm_flag: Same.
+    :param bwo_metadata_dict: Same.
+    :param top_output_dir_name: Same.
     :param input_sounding_matrix: Same as `optimized_sounding_matrix` but with
         non-optimized input.
-    :param full_id_strings: See doc for `_plot_bwo_for_2d3d_radar`.
-    :param storm_times_unix_sec: Same.
     """
 
     before_optimization_dir_name = '{0:s}/before_optimization'.format(
@@ -844,21 +881,37 @@ def _plot_bwo_for_soundings(
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=after_optimization_dir_name)
 
+    full_id_strings = bwo_metadata_dict[backwards_opt.FULL_IDS_KEY]
+    storm_times_unix_sec = bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY]
+
     if pmm_flag:
         have_storm_ids = False
+
+        initial_activations = numpy.array([
+            bwo_metadata_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
+        ])
+        final_activations = numpy.array([
+            bwo_metadata_dict[backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
+        ])
     else:
         have_storm_ids = not (
             full_id_strings is None or storm_times_unix_sec is None
         )
 
-    num_storms = optimized_sounding_matrix.shape[0]
+        initial_activations = bwo_metadata_dict[
+            backwards_opt.INITIAL_ACTIVATIONS_KEY]
+        final_activations = bwo_metadata_dict[
+            backwards_opt.FINAL_ACTIVATIONS_KEY]
+
+    num_examples = optimized_sounding_matrix.shape[0]
 
     list_of_optimized_metpy_dicts = dl_utils.soundings_to_metpy_dictionaries(
         sounding_matrix=optimized_sounding_matrix,
         field_names=training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
         height_levels_m_agl=training_option_dict[
             trainval_io.SOUNDING_HEIGHTS_KEY],
-        storm_elevations_m_asl=numpy.zeros(num_storms))
+        storm_elevations_m_asl=numpy.zeros(num_examples)
+    )
 
     if input_sounding_matrix is None:
         list_of_input_metpy_dicts = None
@@ -868,9 +921,10 @@ def _plot_bwo_for_soundings(
             field_names=training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
             height_levels_m_agl=training_option_dict[
                 trainval_io.SOUNDING_HEIGHTS_KEY],
-            storm_elevations_m_asl=numpy.zeros(num_storms))
+            storm_elevations_m_asl=numpy.zeros(num_examples)
+        )
 
-    for i in range(num_storms):
+    for i in range(num_examples):
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
             this_base_pathless_file_name = 'pmm'
@@ -885,13 +939,14 @@ def _plot_bwo_for_soundings(
                 this_base_pathless_file_name = '{0:s}_{1:s}'.format(
                     full_id_strings[i].replace('_', '-'),
                     this_storm_time_string)
-
             else:
                 this_base_title_string = 'Example {0:d}'.format(i + 1)
                 this_base_pathless_file_name = 'example{0:06d}'.format(i)
 
-        this_title_string = '{0:s} (after optimization)'.format(
-            this_base_title_string)
+        this_title_string = '{0:s} (AFTER; activation = {1:.2e})'.format(
+            this_base_title_string, final_activations[i]
+        )
+
         this_file_name = '{0:s}/{1:s}_after-optimization_sounding.jpg'.format(
             after_optimization_dir_name, this_base_pathless_file_name)
 
@@ -906,8 +961,10 @@ def _plot_bwo_for_soundings(
         if input_sounding_matrix is None:
             continue
 
-        this_title_string = '{0:s} (before optimization)'.format(
-            this_base_title_string)
+        this_title_string = '{0:s} (BEFORE; activation = {1:.2e})'.format(
+            this_base_title_string, initial_activations[i]
+        )
+
         this_file_name = '{0:s}/{1:s}_before-optimization_sounding.jpg'.format(
             before_optimization_dir_name, this_base_pathless_file_name)
 
@@ -951,8 +1008,6 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             list_of_input_matrices = None
 
         bwo_metadata_dict = backwards_opt_dict
-        full_id_strings = bwo_metadata_dict[backwards_opt.FULL_IDS_KEY]
-        storm_times_unix_sec = bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY]
 
     except ValueError:
         pmm_flag = True
@@ -970,8 +1025,8 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
                 list_of_optimized_matrices[i], axis=0)
 
         bwo_metadata_dict = backwards_opt_dict
-        full_id_strings = None
-        storm_times_unix_sec = None
+        bwo_metadata_dict[backwards_opt.FULL_IDS_KEY] = None
+        bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY] = None
 
     model_file_name = bwo_metadata_dict[backwards_opt.MODEL_FILE_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
@@ -992,12 +1047,11 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             this_input_matrix = list_of_input_matrices[-1]
 
         _plot_bwo_for_soundings(
-            optimized_sounding_matrix=list_of_optimized_matrices[-1],
-            training_option_dict=training_option_dict,
-            top_output_dir_name=top_output_dir_name, pmm_flag=pmm_flag,
             input_sounding_matrix=this_input_matrix,
-            full_id_strings=full_id_strings,
-            storm_times_unix_sec=storm_times_unix_sec)
+            optimized_sounding_matrix=list_of_optimized_matrices[-1],
+            training_option_dict=training_option_dict, pmm_flag=pmm_flag,
+            bwo_metadata_dict=bwo_metadata_dict,
+            top_output_dir_name=top_output_dir_name)
         print(SEPARATOR_STRING)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
@@ -1006,10 +1060,9 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             training_option_dict=training_option_dict,
             diff_colour_map_object=diff_colour_map_object,
             max_colour_percentile_for_diff=max_colour_percentile_for_diff,
-            top_output_dir_name=top_output_dir_name, pmm_flag=pmm_flag,
-            list_of_input_matrices=list_of_input_matrices,
-            full_id_strings=full_id_strings,
-            storm_times_unix_sec=storm_times_unix_sec)
+            pmm_flag=pmm_flag, bwo_metadata_dict=bwo_metadata_dict,
+            top_output_dir_name=top_output_dir_name,
+            list_of_input_matrices=list_of_input_matrices)
         return
 
     if list_of_input_matrices is None:
@@ -1024,10 +1077,9 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             training_option_dict=training_option_dict,
             diff_colour_map_object=diff_colour_map_object,
             max_colour_percentile_for_diff=max_colour_percentile_for_diff,
-            top_output_dir_name=top_output_dir_name, pmm_flag=pmm_flag,
-            input_radar_matrix=this_input_matrix,
-            full_id_strings=full_id_strings,
-            storm_times_unix_sec=storm_times_unix_sec)
+            pmm_flag=pmm_flag, bwo_metadata_dict=bwo_metadata_dict,
+            top_output_dir_name=top_output_dir_name,
+            input_radar_matrix=this_input_matrix)
         return
 
     _plot_bwo_for_2d_radar(
@@ -1035,10 +1087,9 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         model_metadata_dict=model_metadata_dict,
         diff_colour_map_object=diff_colour_map_object,
         max_colour_percentile_for_diff=max_colour_percentile_for_diff,
-        top_output_dir_name=top_output_dir_name, pmm_flag=pmm_flag,
-        input_radar_matrix=this_input_matrix,
-        full_id_strings=full_id_strings,
-        storm_times_unix_sec=storm_times_unix_sec)
+        pmm_flag=pmm_flag, bwo_metadata_dict=bwo_metadata_dict,
+        top_output_dir_name=top_output_dir_name,
+        input_radar_matrix=this_input_matrix)
 
 
 if __name__ == '__main__':
