@@ -23,7 +23,7 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 DEFAULT_LEARNING_RATE = 0.001
 DEFAULT_NUM_ITERATIONS = 200
-DEFAULT_L2_WEIGHT = 0.0001
+DEFAULT_L2_WEIGHT = 1.2533
 
 DEFAULT_IDEAL_ACTIVATION = 2.
 
@@ -181,7 +181,7 @@ def _do_gradient_descent(
 
     if l2_weight is not None:
         for i in range(num_input_tensors):
-            loss_tensor += l2_weight * K.sum(
+            loss_tensor += l2_weight * K.mean(
                 (list_of_input_tensors[i][0, ...] -
                  list_of_optimized_matrices[i][0, ...]) ** 2
             )

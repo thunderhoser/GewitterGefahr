@@ -403,9 +403,9 @@ def radar_constraints_to_loss_fn(radar_tensor, list_of_layer_operation_dicts):
         )
 
         if loss_tensor is None:
-            loss_tensor = K.sum(K.maximum(this_difference_tensor, 0.) ** 2)
+            loss_tensor = K.mean(K.maximum(this_difference_tensor, 0.) ** 2)
         else:
-            loss_tensor += K.sum(K.maximum(this_difference_tensor, 0.) ** 2)
+            loss_tensor += K.mean(K.maximum(this_difference_tensor, 0.) ** 2)
 
     return loss_tensor
 
@@ -440,9 +440,11 @@ def minima_and_maxima_to_loss_fn(
             )
 
             if loss_tensor is None:
-                loss_tensor = K.sum(K.maximum(this_difference_tensor, 0.) ** 2)
+                loss_tensor = K.mean(K.maximum(this_difference_tensor, 0.) ** 2)
             else:
-                loss_tensor += K.sum(K.maximum(this_difference_tensor, 0.) ** 2)
+                loss_tensor += K.mean(
+                    K.maximum(this_difference_tensor, 0.) ** 2
+                )
 
         for j in range(this_num_channels):
             if numpy.isnan(max_values_by_tensor[i][j]):
@@ -454,8 +456,10 @@ def minima_and_maxima_to_loss_fn(
             )
 
             if loss_tensor is None:
-                loss_tensor = K.sum(K.maximum(this_difference_tensor, 0.) ** 2)
+                loss_tensor = K.mean(K.maximum(this_difference_tensor, 0.) ** 2)
             else:
-                loss_tensor += K.sum(K.maximum(this_difference_tensor, 0.) ** 2)
+                loss_tensor += K.mean(
+                    K.maximum(this_difference_tensor, 0.) ** 2
+                )
 
     return loss_tensor
