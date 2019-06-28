@@ -345,7 +345,7 @@ def read_model_metadata(pickle_file_name):
         ] = (
             '/glade/scratch/ryanlage/gridrad_final/myrorss_format/new_tracks/'
             'reanalyzed/tornado_occurrence/downsampled/learning_examples/'
-            'shuffled/single_pol_2011-2015'
+            'shuffled/single_pol_2011-2015/normalization_params_hacky.p'
         )
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
