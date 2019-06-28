@@ -205,6 +205,10 @@ def _do_gradient_descent(
             list_of_optimized_matrices + [0]
         )
 
+        print(these_outputs)
+        print(these_outputs[0])
+        print(these_outputs[1])
+
         if j == 0:
             initial_activation = these_outputs[0]
 
