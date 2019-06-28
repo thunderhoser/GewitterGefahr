@@ -340,10 +340,13 @@ def read_model_metadata(pickle_file_name):
         trainval_io.NORMALIZATION_FILE_KEY]
 
     if not os.path.isfile(normalization_file_name):
-        normalization_file_name = (
+        metadata_dict[TRAINING_OPTION_DICT_KEY][
+            trainval_io.NORMALIZATION_FILE_KEY
+        ] = (
             '/glade/scratch/ryanlage/gridrad_final/myrorss_format/new_tracks/'
             'reanalyzed/tornado_occurrence/downsampled/learning_examples/'
-            'shuffled/single_pol_2011-2015')
+            'shuffled/single_pol_2011-2015'
+        )
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
