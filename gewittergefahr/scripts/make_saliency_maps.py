@@ -331,9 +331,11 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
 
             list_of_saliency_matrices = (
                 saliency_maps.get_saliency_maps_for_class_activation(
-                    model_object=this_model_object, target_class=target_class,
+                    model_object=model_object, target_class=target_class,
                     list_of_input_matrices=list_of_input_matrices)
             )
+
+            print(list_of_saliency_matrices[0])
 
         elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
             print((
