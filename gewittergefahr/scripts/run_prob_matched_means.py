@@ -234,6 +234,8 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
                 max_percentile_level=max_percentile_level
             )[0]
 
+            print(list_of_mean_saliency_matrices[i])
+
         print('Writing output to: "{0:s}"...'.format(output_file_name))
         saliency_maps.write_pmm_file(
             pickle_file_name=output_file_name,
