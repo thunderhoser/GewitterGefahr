@@ -336,8 +336,6 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
                     list_of_input_matrices=list_of_input_matrices)
             )
 
-            print(list_of_saliency_matrices[0])
-
         elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
             print((
                 'Computing saliency maps for neuron {0:s} in layer "{1:s}"...'

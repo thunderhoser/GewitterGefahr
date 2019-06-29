@@ -229,17 +229,10 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
         list_of_mean_saliency_matrices = [None] * num_input_matrices
 
         for i in range(num_input_matrices):
-            print(list_of_saliency_matrices[i])
-            print(max_percentile_level)
-            print('\n********\n')
-
             list_of_mean_saliency_matrices[i] = pmm.run_pmm_many_variables(
                 input_matrix=list_of_saliency_matrices[i],
                 max_percentile_level=max_percentile_level
             )[0]
-
-            print(list_of_mean_saliency_matrices[i])
-            print('\n\n\n************************\n\n\n')
 
         print('Writing output to: "{0:s}"...'.format(output_file_name))
         saliency_maps.write_pmm_file(
