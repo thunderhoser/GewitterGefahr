@@ -3,6 +3,7 @@
 CNN = convolutional neural network
 """
 
+import copy
 import os.path
 import argparse
 import numpy
@@ -282,7 +283,7 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
 
     print('Denormalizing model inputs...')
     list_of_input_matrices_denorm = model_interpretation.denormalize_data(
-        list_of_input_matrices=list_of_input_matrices,
+        list_of_input_matrices=copy.deepcopy(list_of_input_matrices),
         model_metadata_dict=model_metadata_dict)
     print(SEPARATOR_STRING)
 
@@ -331,7 +332,7 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
 
             list_of_saliency_matrices = (
                 saliency_maps.get_saliency_maps_for_class_activation(
-                    model_object=model_object, target_class=target_class,
+                    model_object=this_model_object, target_class=target_class,
                     list_of_input_matrices=list_of_input_matrices)
             )
 
