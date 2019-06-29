@@ -534,7 +534,7 @@ def _plot_sounding_saliency(
     if saliency_maps.STORM_TIMES_KEY in saliency_metadata_dict:
         storm_times_unix_sec = saliency_metadata_dict[
             saliency_maps.STORM_TIMES_KEY]
-        
+
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     for i in range(num_examples):

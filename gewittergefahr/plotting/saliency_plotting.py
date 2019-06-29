@@ -166,7 +166,7 @@ def plot_saliency_for_sounding(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
 
-    axes_object.set_axis_bgcolor(
+    axes_object.set_facecolor(
         plotting_utils.colour_from_numpy_to_tuple(
             SOUNDING_SALIENCY_BACKGROUND_COLOUR)
     )
