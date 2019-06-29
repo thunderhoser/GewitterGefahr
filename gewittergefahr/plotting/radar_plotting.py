@@ -893,6 +893,8 @@ def plot_many_2d_grids_without_coords(
         # TODO(thunderhoser): This is a HACK for difference plots created by
         # backwards optimization.
         tick_values = this_colour_bar_object.ax.get_xticks()
+        print(tick_values)
+
         this_colour_bar_object.set_ticks(tick_values)
         this_colour_bar_object.set_ticklabels(tick_values)
 
