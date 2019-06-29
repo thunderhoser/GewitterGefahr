@@ -183,7 +183,8 @@ def _plot_saliency_for_2d3d_radar(
             )
 
         this_title_string += ' (max absolute saliency = {0:.2e})'.format(
-            max_colour_value_by_example[i])
+            max_colour_value_by_example[i]
+        )
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         print('Saving figure to file: "{0:s}"...'.format(this_file_name))
@@ -367,6 +368,7 @@ def _plot_saliency_for_2d_radar(
                 this_title_string += (
                     ' (max absolute saliency = {0:.2e})'
                 ).format(max_colour_value_by_example[i])
+
                 pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
             print('Saving figure to file: "{0:s}"...'.format(this_file_name))
@@ -523,8 +525,16 @@ def _plot_sounding_saliency(
             storm_elevations_m_asl=numpy.full(num_examples, 0.)
         )
 
-    full_id_strings = saliency_metadata_dict[saliency_maps.FULL_IDS_KEY]
-    storm_times_unix_sec = saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY]
+    full_id_strings = None
+    storm_times_unix_sec = None
+
+    if saliency_maps.FULL_IDS_KEY in saliency_metadata_dict:
+        full_id_strings = saliency_metadata_dict[saliency_maps.FULL_IDS_KEY]
+
+    if saliency_maps.STORM_TIMES_KEY in saliency_metadata_dict:
+        storm_times_unix_sec = saliency_metadata_dict[
+            saliency_maps.STORM_TIMES_KEY]
+        
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     for i in range(num_examples):
@@ -710,6 +720,8 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
             storm_times_unix_sec=storm_times_unix_sec)
         return
 
+    # TODO(thunderhoser): Argument `save_paneled_figs` should apply to
+    #  everything, not just 2-D radar fields.
     _plot_saliency_for_2d_radar(
         radar_matrix=list_of_input_matrices[0],
         radar_saliency_matrix=list_of_saliency_matrices[0],
