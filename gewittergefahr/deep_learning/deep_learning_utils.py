@@ -798,10 +798,13 @@ def soundings_to_metpy_dictionaries(
             num_height_levels=num_height_levels)
 
         height_matrix_m_asl = numpy.full(
-            (num_examples, num_height_levels), numpy.nan)
+            (num_examples, num_height_levels), numpy.nan
+        )
+
         for i in range(num_examples):
             height_matrix_m_asl[i, ...] = (
-                height_levels_m_agl + storm_elevations_m_asl[i])
+                height_levels_m_agl + storm_elevations_m_asl[i]
+            )
 
         pressure_matrix_pascals = standard_atmo.height_to_pressure(
             height_matrix_m_asl)

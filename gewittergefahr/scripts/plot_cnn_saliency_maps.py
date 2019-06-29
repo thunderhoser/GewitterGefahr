@@ -466,7 +466,8 @@ def _plot_saliency_for_3d_radar(
                 )
 
             this_title_string += ' (max absolute saliency = {0:.2e})'.format(
-                max_colour_value_by_example[i])
+                max_colour_value_by_example[i]
+            )
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
             print('Saving figure to file: "{0:s}"...'.format(this_file_name))
@@ -475,7 +476,7 @@ def _plot_saliency_for_3d_radar(
 
 
 def _plot_sounding_saliency(
-        sounding_matrix, sounding_saliency_matrix, sounding_field_names,
+        sounding_matrix, sounding_saliency_matrix, model_metadata_dict,
         saliency_metadata_dict, colour_map_object, max_colour_value_by_example,
         output_dir_name):
     """Plots soundings along with their saliency maps.
@@ -487,7 +488,7 @@ def _plot_sounding_saliency(
     :param sounding_matrix: E-by-H-by-F numpy array of sounding values.
     :param sounding_saliency_matrix: E-by-H-by-F numpy array of corresponding
         saliency values.
-    :param sounding_field_names: length-F list of field names.
+    :param model_metadata_dict: See doc for `cnn.read_model_metadata`.
     :param saliency_metadata_dict: Dictionary returned by
         `saliency_maps.read_standard_file`.
     :param colour_map_object: See doc for `_plot_2d3d_radar_saliency`.
@@ -496,15 +497,14 @@ def _plot_sounding_saliency(
         here).
     """
 
-    # TODO(thunderhoser): Generalize this method to deal with
-    # probability-matched means.
-
     num_examples = sounding_matrix.shape[0]
 
-    try:
-        metpy_dict_by_example = dl_utils.soundings_to_metpy_dictionaries(
-            sounding_matrix=sounding_matrix, field_names=sounding_field_names)
-    except:
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = training_option_dict[
+        trainval_io.SOUNDING_HEIGHTS_KEY]
+
+    if saliency_maps.SOUNDING_PRESSURES_KEY in saliency_metadata_dict:
         sounding_pressure_matrix_pa = numpy.expand_dims(
             saliency_metadata_dict[saliency_maps.SOUNDING_PRESSURES_KEY],
             axis=-1)
@@ -516,29 +516,43 @@ def _plot_sounding_saliency(
             sounding_matrix=this_sounding_matrix,
             field_names=sounding_field_names + [soundings.PRESSURE_NAME]
         )
+    else:
+        metpy_dict_by_example = dl_utils.soundings_to_metpy_dictionaries(
+            sounding_matrix=sounding_matrix, field_names=sounding_field_names,
+            height_levels_m_agl=sounding_heights_m_agl,
+            storm_elevations_m_asl=numpy.full(num_examples, 0.)
+        )
+
+    full_id_strings = saliency_metadata_dict[saliency_maps.FULL_IDS_KEY]
+    storm_times_unix_sec = saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY]
+    pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     for i in range(num_examples):
-        this_id_string = saliency_metadata_dict[saliency_maps.FULL_IDS_KEY][i]
-        this_storm_time_string = time_conversion.unix_sec_to_string(
-            saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY][i],
-            TIME_FORMAT)
+        if pmm_flag:
+            this_title_string = 'Probability-matched mean'
+            this_base_file_name = '{0:s}/saliency_pmm'.format(output_dir_name)
+        else:
+            this_storm_time_string = time_conversion.unix_sec_to_string(
+                storm_times_unix_sec[i], TIME_FORMAT)
 
-        this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-            this_id_string, this_storm_time_string)
+            this_title_string = 'Storm "{0:s}" at {1:s}'.format(
+                full_id_strings[i], this_storm_time_string)
+
+            this_base_file_name = '{0:s}/saliency_{1:s}_{2:s}'.format(
+                output_dir_name, full_id_strings[i].replace('_', '-'),
+                this_storm_time_string
+            )
+
         sounding_plotting.plot_sounding(
             sounding_dict_for_metpy=metpy_dict_by_example[i],
             title_string=this_title_string)
 
-        this_left_file_name = (
-            '{0:s}/{1:s}_{2:s}_sounding-actual.jpg'
-        ).format(
-            output_dir_name, this_id_string.replace('_', '-'),
-            this_storm_time_string
-        )
+        this_left_file_name = '{0:s}_sounding-actual.jpg'.format(
+            this_base_file_name)
 
         print('Saving figure to file: "{0:s}"...'.format(
-            this_left_file_name))
-
+            this_left_file_name
+        ))
         pyplot.savefig(this_left_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -554,16 +568,12 @@ def _plot_sounding_saliency(
             colour_map_object=colour_map_object,
             max_absolute_colour_value=max_colour_value_by_example[i])
 
-        this_right_file_name = (
-            '{0:s}/{1:s}_{2:s}_sounding-saliency.jpg'
-        ).format(
-            output_dir_name, this_id_string.replace('_', '-'),
-            this_storm_time_string
-        )
+        this_right_file_name = '{0:s}_sounding-saliency.jpg'.format(
+            this_base_file_name)
 
         print('Saving figure to file: "{0:s}"...'.format(
-            this_right_file_name))
-
+            this_right_file_name
+        ))
         pyplot.savefig(this_right_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -571,13 +581,7 @@ def _plot_sounding_saliency(
             input_file_name=this_right_file_name,
             output_file_name=this_right_file_name)
 
-        this_file_name = (
-            '{0:s}/saliency_{1:s}_{2:s}_sounding.jpg'
-        ).format(
-            output_dir_name, this_id_string.replace('_', '-'),
-            this_storm_time_string
-        )
-
+        this_file_name = '{0:s}_sounding.jpg'.format(this_base_file_name)
         print('Concatenating panels into file: "{0:s}"...\n'.format(
             this_file_name))
 
@@ -676,7 +680,7 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
         _plot_sounding_saliency(
             sounding_matrix=list_of_input_matrices[-1],
             sounding_saliency_matrix=list_of_saliency_matrices[-1],
-            sounding_field_names=sounding_field_names,
+            model_metadata_dict=model_metadata_dict,
             saliency_metadata_dict=saliency_metadata_dict,
             colour_map_object=saliency_colour_map_object,
             max_colour_value_by_example=max_colour_value_by_example,
