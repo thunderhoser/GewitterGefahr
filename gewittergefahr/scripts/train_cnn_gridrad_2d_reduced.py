@@ -180,10 +180,16 @@ def _run(input_model_file_name, radar_field_name_by_channel,
     last_training_time_unix_sec = time_conversion.string_to_unix_sec(
         last_training_time_string, TIME_FORMAT)
 
-    first_validation_time_unix_sec = time_conversion.string_to_unix_sec(
-        first_validation_time_string, TIME_FORMAT)
-    last_validation_time_unix_sec = time_conversion.string_to_unix_sec(
-        last_validation_time_string, TIME_FORMAT)
+    if top_validation_dir_name in ['', 'None']:
+        top_validation_dir_name = None
+        num_validation_batches_per_epoch = 0
+        first_validation_time_unix_sec = 0
+        last_validation_time_unix_sec = 0
+    else:
+        first_validation_time_unix_sec = time_conversion.string_to_unix_sec(
+            first_validation_time_string, TIME_FORMAT)
+        last_validation_time_unix_sec = time_conversion.string_to_unix_sec(
+            last_validation_time_string, TIME_FORMAT)
 
     if sounding_field_names[0] in ['', 'None']:
         sounding_field_names = None
@@ -244,10 +250,14 @@ def _run(input_model_file_name, radar_field_name_by_channel,
         first_batch_number=FIRST_BATCH_NUMBER,
         last_batch_number=LAST_BATCH_NUMBER, raise_error_if_any_missing=False)
 
-    validation_file_names = input_examples.find_many_example_files(
-        top_directory_name=top_validation_dir_name, shuffled=True,
-        first_batch_number=FIRST_BATCH_NUMBER,
-        last_batch_number=LAST_BATCH_NUMBER, raise_error_if_any_missing=False)
+    if top_validation_dir_name is None:
+        validation_file_names = []
+    else:
+        validation_file_names = input_examples.find_many_example_files(
+            top_directory_name=top_validation_dir_name, shuffled=True,
+            first_batch_number=FIRST_BATCH_NUMBER,
+            last_batch_number=LAST_BATCH_NUMBER,
+            raise_error_if_any_missing=False)
 
     # Read architecture.
     print('Reading architecture from: "{0:s}"...'.format(input_model_file_name))

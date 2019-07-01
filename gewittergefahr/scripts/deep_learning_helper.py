@@ -137,12 +137,14 @@ TRAINING_TIME_HELP_STRING = (
 ).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME)
 
 VALIDATION_DIR_HELP_STRING = (
-    'Same as `{0:s}` but for on-the-fly validation.'
+    'Same as `{0:s}` but for on-the-fly validation.  If you do not want '
+    'validation, leave this alone.'
 ).format(TRAINING_DIR_ARG_NAME)
 
 VALIDATION_TIME_HELP_STRING = (
     'Time (format "yyyy-mm-dd-HHMMSS").  Only examples from the period '
-    '`{0:s}`...`{1:s}` will be used for validation.'
+    '`{0:s}`...`{1:s}` will be used for validation.  If you do not want '
+    'validation, leave this alone.'
 ).format(FIRST_VALIDATION_TIME_ARG_NAME, LAST_VALIDATION_TIME_ARG_NAME)
 
 NUM_EX_PER_BATCH_HELP_STRING = (
@@ -284,16 +286,16 @@ def add_input_args(argument_parser):
         help=TRAINING_TIME_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + VALIDATION_DIR_ARG_NAME, type=str, required=True,
+        '--' + VALIDATION_DIR_ARG_NAME, type=str, required=False, default='',
         help=VALIDATION_DIR_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + FIRST_VALIDATION_TIME_ARG_NAME, type=str, required=True,
-        help=VALIDATION_TIME_HELP_STRING)
+        '--' + FIRST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
+        default='', help=VALIDATION_TIME_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + LAST_VALIDATION_TIME_ARG_NAME, type=str, required=True,
-        help=VALIDATION_TIME_HELP_STRING)
+        '--' + LAST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
+        default='', help=VALIDATION_TIME_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + NUM_EX_PER_BATCH_ARG_NAME, type=int, required=False,

@@ -150,7 +150,7 @@ def create_gif(input_file_names, output_file_name, num_seconds_per_frame,
     error_checking.assert_file_exists(convert_exe_name)
 
     error_checking.assert_is_greater(num_seconds_per_frame, 0.)
-    error_checking.assert_is_leq(num_seconds_per_frame, 2.)
+    error_checking.assert_is_leq(num_seconds_per_frame, 10.)
     error_checking.assert_is_geq(resize_factor, 0.2)
     error_checking.assert_is_leq(resize_factor, 1.)
 
