@@ -32,7 +32,6 @@ from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-NUM_EPOCHS_FOR_PLATEAU = 3
 NUM_EPOCHS_FOR_EARLY_STOPPING = 6
 MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING = 0.005
 
@@ -335,6 +334,13 @@ def read_model_metadata(pickle_file_name):
     if LAYER_OPERATIONS_KEY not in metadata_dict:
         metadata_dict[LAYER_OPERATIONS_KEY] = None
 
+    if (trainval_io.SHUFFLE_TARGET_KEY not in
+            metadata_dict[TRAINING_OPTION_DICT_KEY]
+       ):
+        metadata_dict[TRAINING_OPTION_DICT_KEY][
+            trainval_io.SHUFFLE_TARGET_KEY
+        ] = False
+
     # TODO(thunderhoser): This is a HACK.
     normalization_file_name = metadata_dict[TRAINING_OPTION_DICT_KEY][
         trainval_io.NORMALIZATION_FILE_KEY]
@@ -410,19 +416,15 @@ def train_cnn_2d_or_3d(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
         use_validation=num_validation_batches_per_epoch is not None)
 
-    early_stopping_object = keras.callbacks.EarlyStopping(
-        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
-        patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
-
-    plateau_object = keras.callbacks.ReduceLROnPlateau(
-        monitor='val_loss', factor=0.2, patience=NUM_EPOCHS_FOR_PLATEAU,
-        verbose=1, mode='min')
-
-    list_of_callback_objects = [
-        checkpoint_object, history_object, early_stopping_object, plateau_object
-    ]
+    list_of_callback_objects = [history_object, checkpoint_object]
 
     if num_validation_batches_per_epoch > 0:
+        early_stopping_object = keras.callbacks.EarlyStopping(
+            monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+            patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+
+        list_of_callback_objects.append(early_stopping_object)
+
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
             trainval_io.EXAMPLE_FILES_KEY] = validation_file_names
@@ -488,19 +490,15 @@ def train_cnn_2d3d_myrorss(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
         use_validation=num_validation_batches_per_epoch is not None)
 
-    early_stopping_object = keras.callbacks.EarlyStopping(
-        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
-        patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
-
-    plateau_object = keras.callbacks.ReduceLROnPlateau(
-        monitor='val_loss', factor=0.2, patience=NUM_EPOCHS_FOR_PLATEAU,
-        verbose=1, mode='min')
-
-    list_of_callback_objects = [
-        checkpoint_object, history_object, early_stopping_object, plateau_object
-    ]
+    list_of_callback_objects = [history_object, checkpoint_object]
 
     if num_validation_batches_per_epoch > 0:
+        early_stopping_object = keras.callbacks.EarlyStopping(
+            monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+            patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+
+        list_of_callback_objects.append(early_stopping_object)
+
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
             trainval_io.EXAMPLE_FILES_KEY] = validation_file_names
@@ -573,15 +571,15 @@ def train_cnn_gridrad_2d_reduced(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
         use_validation=num_validation_batches_per_epoch is not None)
 
-    early_stopping_object = keras.callbacks.EarlyStopping(
-        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
-        patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
-
-    list_of_callback_objects = [
-        checkpoint_object, history_object, early_stopping_object
-    ]
+    list_of_callback_objects = [history_object, checkpoint_object]
 
     if num_validation_batches_per_epoch > 0:
+        early_stopping_object = keras.callbacks.EarlyStopping(
+            monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+            patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+
+        list_of_callback_objects.append(early_stopping_object)
+
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
             trainval_io.EXAMPLE_FILES_KEY] = validation_file_names

@@ -44,6 +44,7 @@ MAX_NORMALIZED_VALUE_KEY = 'max_normalized_value'
 
 TARGET_NAME_KEY = 'target_name'
 BINARIZE_TARGET_KEY = 'binarize_target'
+SHUFFLE_TARGET_KEY = 'shuffle_target'
 LOOP_ONCE_KEY = 'loop_thru_files_once'
 REFLECTIVITY_MASK_KEY = 'refl_masking_threshold_dbz'
 SAMPLING_FRACTIONS_KEY = 'class_to_sampling_fraction_dict'
@@ -61,6 +62,7 @@ DEFAULT_OPTION_DICT = {
     MIN_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
     MAX_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
     BINARIZE_TARGET_KEY: False,
+    SHUFFLE_TARGET_KEY: False,
     LOOP_ONCE_KEY: False,
     REFLECTIVITY_MASK_KEY: dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
     SAMPLING_FRACTIONS_KEY: None,
@@ -462,6 +464,7 @@ def check_generator_args(option_dict):
     error_checking.assert_is_integer(option_dict[NUM_EXAMPLES_PER_BATCH_KEY])
     error_checking.assert_is_geq(option_dict[NUM_EXAMPLES_PER_BATCH_KEY], 32)
     error_checking.assert_is_boolean(option_dict[BINARIZE_TARGET_KEY])
+    error_checking.assert_is_boolean(option_dict[SHUFFLE_TARGET_KEY])
     error_checking.assert_is_boolean(option_dict[LOOP_ONCE_KEY])
 
     return option_dict
@@ -485,6 +488,8 @@ def generator_2d_or_3d(option_dict):
         be binarized, where the highest class becomes 1 and all other classes
         become 0.  If False, the original classes will be kept, in which case
         the prediction task may be binary or multiclass.
+    option_dict['shuffle_target']: Boolean flag.  If True, will shuffle
+        (randomize) target values over all examples.
     option_dict['loop_thru_files_once']: Boolean flag.  If True, this generator
         will read only once from each file.  If False, once this generator has
         reached the last file, it will start over at the first file.
@@ -572,6 +577,7 @@ def generator_2d_or_3d(option_dict):
 
     target_name = option_dict[TARGET_NAME_KEY]
     binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    shuffle_target = option_dict[SHUFFLE_TARGET_KEY]
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     refl_masking_threshold_dbz = option_dict[REFLECTIVITY_MASK_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
@@ -719,6 +725,9 @@ def generator_2d_or_3d(option_dict):
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value).astype('float32')
 
+        if shuffle_target:
+            numpy.random.shuffle(target_values)
+
         list_of_predictor_matrices, target_array = _select_batch(
             list_of_predictor_matrices=[radar_image_matrix, sounding_matrix],
             target_values=target_values,
@@ -761,6 +770,7 @@ def myrorss_generator_2d3d(option_dict):
     option_dict['example_file_names']: See doc for `generator_2d_or_3d`.
     option_dict['num_examples_per_batch']: Same.
     option_dict['binarize_target']: Same.
+    option_dict['shuffle_target']: Same.
     option_dict['loop_thru_files_once']: Same.
     option_dict['radar_field_names']: 1-D list of azimuthal-shear fields.  See
         `input_examples.read_example_file` for details.
@@ -821,6 +831,7 @@ def myrorss_generator_2d3d(option_dict):
 
     target_name = option_dict[TARGET_NAME_KEY]
     binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    shuffle_target = option_dict[SHUFFLE_TARGET_KEY]
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
 
@@ -977,6 +988,9 @@ def myrorss_generator_2d3d(option_dict):
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value).astype('float32')
 
+        if shuffle_target:
+            numpy.random.shuffle(target_values)
+
         list_of_predictor_matrices, target_array = _select_batch(
             list_of_predictor_matrices=[
                 reflectivity_image_matrix_dbz, az_shear_image_matrix_s01,
@@ -1061,6 +1075,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     option_dict['example_file_names']: See doc for `generator_2d_or_3d`.
     option_dict['num_examples_per_batch']: Same.
     option_dict['binarize_target']: Same.
+    option_dict['shuffle_target']: Same.
     option_dict['loop_thru_files_once']: Same.
     option_dict['sounding_field_names']: Same.
     option_dict['sounding_heights_m_agl']: Same.
@@ -1114,6 +1129,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
 
     target_name = option_dict[TARGET_NAME_KEY]
     binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    shuffle_target = option_dict[SHUFFLE_TARGET_KEY]
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
 
@@ -1260,6 +1276,9 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value).astype('float32')
+
+        if shuffle_target:
+            numpy.random.shuffle(target_values)
 
         list_of_predictor_matrices, target_array = _select_batch(
             list_of_predictor_matrices=[radar_image_matrix, sounding_matrix],

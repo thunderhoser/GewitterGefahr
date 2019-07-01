@@ -17,6 +17,7 @@ MIN_NORM_VALUE_ARG_NAME = 'min_normalized_value'
 MAX_NORM_VALUE_ARG_NAME = 'max_normalized_value'
 
 TARGET_NAME_ARG_NAME = 'target_name'
+SHUFFLE_TARGET_ARG_NAME = 'shuffle_target'
 DOWNSAMPLING_CLASSES_ARG_NAME = 'downsampling_classes'
 DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
 MONITOR_ARG_NAME = 'monitor_string'
@@ -74,6 +75,10 @@ MAX_NORM_VALUE_HELP_STRING = (
     '`deep_learning_utils.normalize_soundings`.')
 
 TARGET_NAME_HELP_STRING = 'Name of target variable.'
+
+SHUFFLE_TARGET_HELP_STRING = (
+    'Boolean flag.  If 1, will randomly shuffle target values over all '
+    'examples.')
 
 DOWNSAMPLING_CLASSES_HELP_STRING = (
     'List of classes (integer labels) for downsampling.  If you do not want '
@@ -225,6 +230,10 @@ def add_input_args(argument_parser):
     argument_parser.add_argument(
         '--' + TARGET_NAME_ARG_NAME, type=str, required=True,
         help=TARGET_NAME_HELP_STRING)
+
+    argument_parser.add_argument(
+        '--' + SHUFFLE_TARGET_ARG_NAME, type=int, required=False, default=0,
+        help=SHUFFLE_TARGET_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + DOWNSAMPLING_CLASSES_ARG_NAME, type=int, nargs='+',

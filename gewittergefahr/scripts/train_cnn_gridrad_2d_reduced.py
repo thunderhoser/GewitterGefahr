@@ -126,15 +126,15 @@ def _run(input_model_file_name, radar_field_name_by_channel,
          max_height_by_channel_m_agl, sounding_field_names,
          normalization_type_string, normalization_param_file_name,
          min_normalized_value, max_normalized_value, target_name,
-         downsampling_classes, downsampling_fractions, monitor_string,
-         weight_loss_function, x_translations_pixels, y_translations_pixels,
-         ccw_rotation_angles_deg, noise_standard_deviation, num_noisings,
-         flip_in_x, flip_in_y, top_training_dir_name,
-         first_training_time_string, last_training_time_string,
-         top_validation_dir_name, first_validation_time_string,
-         last_validation_time_string, num_examples_per_batch, num_epochs,
-         num_training_batches_per_epoch, num_validation_batches_per_epoch,
-         output_dir_name):
+         shuffle_target, downsampling_classes, downsampling_fractions,
+         monitor_string, weight_loss_function, x_translations_pixels,
+         y_translations_pixels, ccw_rotation_angles_deg,
+         noise_standard_deviation, num_noisings, flip_in_x, flip_in_y,
+         top_training_dir_name, first_training_time_string,
+         last_training_time_string, top_validation_dir_name,
+         first_validation_time_string, last_validation_time_string,
+         num_examples_per_batch, num_epochs, num_training_batches_per_epoch,
+         num_validation_batches_per_epoch, output_dir_name):
     """Trains CNN with 2-D GridRad images.
 
     This is effectively the main method.
@@ -150,6 +150,7 @@ def _run(input_model_file_name, radar_field_name_by_channel,
     :param min_normalized_value: Same.
     :param max_normalized_value: Same.
     :param target_name: Same.
+    :param shuffle_target: Same.
     :param downsampling_classes: Same.
     :param downsampling_fractions: Same.
     :param monitor_string: Same.
@@ -297,6 +298,7 @@ def _run(input_model_file_name, radar_field_name_by_channel,
     training_option_dict = {
         trainval_io.EXAMPLE_FILES_KEY: training_file_names,
         trainval_io.TARGET_NAME_KEY: target_name,
+        trainval_io.SHUFFLE_TARGET_KEY: shuffle_target,
         trainval_io.FIRST_STORM_TIME_KEY: first_training_time_unix_sec,
         trainval_io.LAST_STORM_TIME_KEY: last_training_time_unix_sec,
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
@@ -369,6 +371,8 @@ if __name__ == '__main__':
         max_normalized_value=getattr(
             INPUT_ARG_OBJECT, dl_helper.MAX_NORM_VALUE_ARG_NAME),
         target_name=getattr(INPUT_ARG_OBJECT, dl_helper.TARGET_NAME_ARG_NAME),
+        shuffle_target=bool(getattr(
+            INPUT_ARG_OBJECT, dl_helper.SHUFFLE_TARGET_ARG_NAME)),
         downsampling_classes=numpy.array(
             getattr(INPUT_ARG_OBJECT, dl_helper.DOWNSAMPLING_CLASSES_ARG_NAME),
             dtype=int
