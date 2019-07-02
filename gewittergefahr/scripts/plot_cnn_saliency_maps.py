@@ -363,9 +363,9 @@ def _plot_saliency_for_2d_radar(
                     this_axes_object_matrix[
                         this_panel_row, this_panel_column
                     ].plot(
-                        less_columns, less_rows, linestyle='None', marker='d',
+                        less_columns, less_rows, linestyle='None', marker='.',
                         markerfacecolor='k', markeredgecolor='k',
-                        markersize=12, markeredgewidth=1
+                        markersize=6, markeredgewidth=1
                     )
 
                     greater_rows, greater_columns = numpy.where(
