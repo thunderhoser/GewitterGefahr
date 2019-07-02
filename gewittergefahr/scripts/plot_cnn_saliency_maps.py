@@ -687,6 +687,11 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
 
     except ValueError:
         saliency_dict = saliency_maps.read_pmm_file(input_file_name)
+        print('\n\n\n*************\n\n\n')
+        print(saliency_dict[saliency_maps.MONTE_CARLO_DICT_KEY][
+                  monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
+        print('\n\n\n*************\n\n\n')
+
         list_of_input_matrices = saliency_dict.pop(
             saliency_maps.MEAN_INPUT_MATRICES_KEY)
         list_of_saliency_matrices = saliency_dict.pop(
