@@ -420,10 +420,6 @@ def read_pmm_file(pickle_file_name):
     if MONTE_CARLO_DICT_KEY not in mean_saliency_dict:
         mean_saliency_dict[MONTE_CARLO_DICT_KEY] = None
 
-    print('\n\n\n*************\n\n\n')
-    print(mean_saliency_dict[MONTE_CARLO_DICT_KEY][monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
-    print('\n\n\n*************\n\n\n')
-
     missing_keys = list(set(PMM_FILE_KEYS) - set(mean_saliency_dict.keys()))
     if len(missing_keys) == 0:
         return mean_saliency_dict

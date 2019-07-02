@@ -302,10 +302,6 @@ def _plot_saliency_for_2d_radar(
         j_max = num_panels
         border_width_px = 0
 
-    print('\n\n\n*************\n\n\n')
-    print(monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
-    print('\n\n\n*************\n\n\n')
-
     for i in range(num_examples):
         for j in range(j_max):
             if save_paneled_figs:
@@ -353,9 +349,6 @@ def _plot_saliency_for_2d_radar(
 
             if monte_carlo_dict is not None:
                 for k in range(len(field_name_by_panel)):
-                    print(monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
-                    print(monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0].shape)
-
                     less_rows, less_columns = numpy.where(
                         monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][
                             0][..., k] <
@@ -691,10 +684,6 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
 
     except ValueError:
         saliency_dict = saliency_maps.read_pmm_file(input_file_name)
-        print('\n\n\n*************\n\n\n')
-        print(saliency_dict[saliency_maps.MONTE_CARLO_DICT_KEY][
-                  monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
-        print('\n\n\n*************\n\n\n')
 
         list_of_input_matrices = saliency_dict.pop(
             saliency_maps.MEAN_INPUT_MATRICES_KEY)
@@ -712,11 +701,6 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
         saliency_metadata_dict = saliency_dict
         full_id_strings = None
         storm_times_unix_sec = None
-
-        print('\n\n\n*************\n\n\n')
-        print(saliency_metadata_dict[saliency_maps.MONTE_CARLO_DICT_KEY][
-                  monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
-        print('\n\n\n*************\n\n\n')
 
     num_examples = list_of_input_matrices[0].shape[0]
     max_colour_value_by_example = numpy.full(num_examples, numpy.nan)
@@ -778,12 +762,6 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
 
     # TODO(thunderhoser): Argument `save_paneled_figs` should apply to
     #  everything, not just 2-D radar fields.
-    monte_carlo_dict = saliency_metadata_dict[saliency_maps.MONTE_CARLO_DICT_KEY]
-
-    print('\n\n\n*************\n\n\n')
-    print(monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
-    print('\n\n\n*************\n\n\n')
-
     _plot_saliency_for_2d_radar(
         radar_matrix=list_of_input_matrices[0],
         radar_saliency_matrix=list_of_saliency_matrices[0],
@@ -793,7 +771,9 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
         output_dir_name=output_dir_name, save_paneled_figs=save_paneled_figs,
         full_id_strings=full_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
-        monte_carlo_dict=monte_carlo_dict)
+        monte_carlo_dict=saliency_metadata_dict[
+            saliency_maps.MONTE_CARLO_DICT_KEY]
+    )
 
 
 if __name__ == '__main__':
