@@ -349,6 +349,9 @@ def _plot_saliency_for_2d_radar(
 
             if monte_carlo_dict is not None:
                 for k in range(len(field_name_by_panel)):
+                    print(monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
+                    print(monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0].shape)
+
                     less_rows, less_columns = numpy.where(
                         monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][
                             0][..., k] <
