@@ -183,6 +183,21 @@ def _run(baseline_saliency_file_name, trial_saliency_file_name,
             max_percentile_level=max_pmm_percentile_level
         )[0]
 
+        this_num_smaller = numpy.sum(
+            trial_pmm_saliency_matrices[j] < min_saliency_matrices[j]
+        )
+        this_num_larger = numpy.sum(
+            trial_pmm_saliency_matrices[j] > max_saliency_matrices[j]
+        )
+
+        print((
+            'Number of elements in {0:d}th matrix = {1:d} ... num significant '
+            'on low end = {2:d} ... num significant on high end = {3:d}'
+        ).format(
+            j + 1, trial_pmm_saliency_matrices[j].size, this_num_smaller,
+            this_num_larger
+        ))
+
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
