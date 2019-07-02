@@ -379,8 +379,8 @@ def _plot_saliency_for_2d_radar(
                         this_panel_row, this_panel_column
                     ].plot(
                         greater_columns, greater_rows, linestyle='None',
-                        marker='d', markerfacecolor='k', markeredgecolor='k',
-                        markersize=12, markeredgewidth=1
+                        marker='.', markerfacecolor='k', markeredgecolor='k',
+                        markersize=6, markeredgewidth=1
                     )
 
             if save_paneled_figs:
