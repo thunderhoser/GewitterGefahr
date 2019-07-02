@@ -9,6 +9,7 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -232,7 +233,7 @@ def _plot_saliency_for_2d_radar(
         radar_matrix, radar_saliency_matrix, model_metadata_dict,
         saliency_colour_map_object, max_colour_value_by_example,
         save_paneled_figs, output_dir_name, full_id_strings=None,
-        storm_times_unix_sec=None):
+        storm_times_unix_sec=None, monte_carlo_dict=None):
     """Plots saliency for 2-D radar fields.
 
     E = number of examples
@@ -256,6 +257,8 @@ def _plot_saliency_for_2d_radar(
     :param full_id_strings: Same.
     :param storm_times_unix_sec: Same.
     """
+
+    # TODO(thunderhoser): Put Monte Carlo shit somewhere else.
 
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
@@ -343,6 +346,42 @@ def _plot_saliency_for_2d_radar(
                     colour_map_object=saliency_colour_map_object,
                     max_absolute_contour_level=max_colour_value_by_example[i],
                     contour_interval=this_contour_interval)
+
+            if monte_carlo_dict is not None:
+                for k in range(len(field_name_by_panel)):
+                    less_rows, less_columns = numpy.where(
+                        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][
+                            0][..., k] <
+                        monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][
+                            0][..., k]
+                    )
+
+                    this_panel_row, this_panel_column = numpy.unravel_index(
+                        k, this_axes_object_matrix.shape, order='F'
+                    )
+
+                    this_axes_object_matrix[
+                        this_panel_row, this_panel_column
+                    ].plot(
+                        less_columns, less_rows, linestyle='None', marker='d',
+                        markerfacecolor='k', markeredgecolor='k',
+                        markersize=12, markeredgewidth=1
+                    )
+
+                    greater_rows, greater_columns = numpy.where(
+                        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][
+                            0][..., k] >
+                        monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][
+                            0][..., k]
+                    )
+
+                    this_axes_object_matrix[
+                        this_panel_row, this_panel_column
+                    ].plot(
+                        greater_columns, greater_rows, linestyle='None',
+                        marker='d', markerfacecolor='k', markeredgecolor='k',
+                        markersize=12, markeredgewidth=1
+                    )
 
             if save_paneled_figs:
                 this_file_name_suffix = 'radar'
@@ -730,7 +769,10 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
         max_colour_value_by_example=max_colour_value_by_example,
         output_dir_name=output_dir_name, save_paneled_figs=save_paneled_figs,
         full_id_strings=full_id_strings,
-        storm_times_unix_sec=storm_times_unix_sec)
+        storm_times_unix_sec=storm_times_unix_sec,
+        monte_carlo_dict=saliency_metadata_dict[
+            saliency_maps.MONTE_CARLO_DICT_KEY]
+    )
 
 
 if __name__ == '__main__':
