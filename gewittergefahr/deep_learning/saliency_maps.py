@@ -4,10 +4,12 @@ import pickle
 import numpy
 from keras import backend as K
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_interpretation
 
+TOLERANCE = 1e-6
 DEFAULT_IDEAL_ACTIVATION = 2.
 
 INPUT_MATRICES_KEY = 'list_of_input_matrices'
@@ -36,10 +38,12 @@ MEAN_SALIENCY_MATRICES_KEY = 'list_of_mean_saliency_matrices'
 THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
 STANDARD_FILE_NAME_KEY = 'standard_saliency_file_name'
 PMM_METADATA_KEY = 'pmm_metadata_dict'
+MONTE_CARLO_DICT_KEY = 'monte_carlo_dict'
 
 PMM_FILE_KEYS = [
     MEAN_INPUT_MATRICES_KEY, MEAN_SALIENCY_MATRICES_KEY, THRESHOLD_COUNTS_KEY,
-    MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
+    MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY,
+    MONTE_CARLO_DICT_KEY
 ]
 
 
@@ -292,7 +296,7 @@ def get_saliency_maps_for_channel_activation(
 def write_pmm_file(
         pickle_file_name, list_of_mean_input_matrices,
         list_of_mean_saliency_matrices, threshold_count_matrix, model_file_name,
-        standard_saliency_file_name, pmm_metadata_dict):
+        standard_saliency_file_name, pmm_metadata_dict, monte_carlo_dict=None):
     """Writes mean saliency map to Pickle file.
 
     This is a mean over many examples, created by PMM (probability-matched
@@ -312,6 +316,13 @@ def write_pmm_file(
         output (readable by `read_standard_file`).
     :param pmm_metadata_dict: Dictionary created by
         `prob_matched_means.check_input_args`.
+    :param monte_carlo_dict: Dictionary with results of Monte Carlo significance
+        test.  Must contain keys listed in `monte_carlo.check_output`, plus the
+        following.
+    monte_carlo_dict['baseline_file_name']: Path to saliency file for baseline
+        set (readable by `read_standard_file`), against which the trial set
+        (contained in `standard_saliency_file_name`) was compared.
+
     :raises: ValueError: if `list_of_mean_input_matrices` and
         `list_of_mean_saliency_matrices` have different lengths.
     """
@@ -356,13 +367,26 @@ def write_pmm_file(
         error_checking.assert_is_numpy_array(
             threshold_count_matrix, exact_dimensions=spatial_dimensions)
 
+    if monte_carlo_dict is not None:
+        monte_carlo.check_output(monte_carlo_dict)
+        error_checking.assert_is_string(
+            monte_carlo_dict[monte_carlo.BASELINE_FILE_KEY]
+        )
+
+        for i in range(num_input_matrices):
+            assert numpy.allclose(
+                list_of_mean_saliency_matrices[i],
+                monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i],
+                atol=TOLERANCE)
+
     mean_saliency_dict = {
         MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
         MEAN_SALIENCY_MATRICES_KEY: list_of_mean_saliency_matrices,
         THRESHOLD_COUNTS_KEY: threshold_count_matrix,
         MODEL_FILE_KEY: model_file_name,
         STANDARD_FILE_NAME_KEY: standard_saliency_file_name,
-        PMM_METADATA_KEY: pmm_metadata_dict
+        PMM_METADATA_KEY: pmm_metadata_dict,
+        MONTE_CARLO_DICT_KEY: monte_carlo_dict
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -383,6 +407,7 @@ def read_pmm_file(pickle_file_name):
     mean_saliency_dict['model_file_name']: Same.
     mean_saliency_dict['standard_saliency_file_name']: Same.
     mean_saliency_dict['pmm_metadata_dict']: Same.
+    mean_saliency_dict['monte_carlo_dict']: Same.
 
     :raises: ValueError: if any of the aforelisted keys are missing from the
         dictionary.
@@ -391,6 +416,9 @@ def read_pmm_file(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     mean_saliency_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    if MONTE_CARLO_DICT_KEY not in mean_saliency_dict:
+        mean_saliency_dict[MONTE_CARLO_DICT_KEY] = None
 
     missing_keys = list(set(PMM_FILE_KEYS) - set(mean_saliency_dict.keys()))
     if len(missing_keys) == 0:

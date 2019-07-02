@@ -1,7 +1,7 @@
 """Runs Monte Carlo significance test for saliency maps."""
 
 import argparse
-import numpy
+from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import prob_matched_means as pmm
 from gewittergefahr.deep_learning import saliency_maps
 
@@ -12,6 +12,7 @@ TRIAL_FILE_ARG_NAME = 'trial_saliency_file_name'
 MAX_PERCENTILE_ARG_NAME = 'max_pmm_percentile_level'
 NUM_ITERATIONS_ARG_NAME = 'num_iterations'
 CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
+OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 BASELINE_FILE_HELP_STRING = (
     'Path to file with saliency maps for baseline set.  Will be read by '
@@ -37,6 +38,10 @@ CONFIDENCE_LEVEL_HELP_STRING = (
     'saliency is outside the [2.5th, 97.5th] percentiles from Monte Carlo '
     'iterations.')
 
+OUTPUT_FILE_HELP_STRING = (
+    'Path to output file.  Results will be written here by '
+    '`saliency_maps.write_pmm_file`.')
+
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + BASELINE_FILE_ARG_NAME, type=str, required=True,
@@ -58,9 +63,14 @@ INPUT_ARG_PARSER.add_argument(
     '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
     help=CONFIDENCE_LEVEL_HELP_STRING)
 
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
+    help=OUTPUT_FILE_HELP_STRING)
+
 
 def _run(baseline_saliency_file_name, trial_saliency_file_name,
-         max_pmm_percentile_level, num_iterations, confidence_level):
+         max_pmm_percentile_level, num_iterations, confidence_level,
+         output_file_name):
     """Runs Monte Carlo significance test for saliency maps.
 
     This is effectively the main method.
@@ -70,6 +80,7 @@ def _run(baseline_saliency_file_name, trial_saliency_file_name,
     :param max_pmm_percentile_level: Same.
     :param num_iterations: Same.
     :param confidence_level: Same.
+    :param output_file_name: Same.
     :raises: ValueError: if number of baseline matrices (input tensors to model)
         != number of trial matrices.
     :raises: ValueError: if number of baseline examples != number of trial
@@ -77,126 +88,58 @@ def _run(baseline_saliency_file_name, trial_saliency_file_name,
     """
 
     print('Reading baseline set from: "{0:s}"...'.format(
-        baseline_saliency_file_name))
-
+        baseline_saliency_file_name
+    ))
     baseline_saliency_dict = saliency_maps.read_standard_file(
         baseline_saliency_file_name)
-
-    baseline_saliency_matrices = baseline_saliency_dict[
-        saliency_maps.SALIENCY_MATRICES_KEY]
 
     print('Reading trial set from: "{0:s}"...'.format(trial_saliency_file_name))
     trial_saliency_dict = saliency_maps.read_standard_file(
         trial_saliency_file_name)
-    trial_saliency_matrices = trial_saliency_dict[
-        saliency_maps.SALIENCY_MATRICES_KEY]
 
-    num_baseline_matrices = len(baseline_saliency_matrices)
-    num_trial_matrices = len(trial_saliency_matrices)
+    monte_carlo_dict = monte_carlo.run_monte_carlo_test(
+        list_of_baseline_matrices=baseline_saliency_dict[
+            saliency_maps.SALIENCY_MATRICES_KEY],
+        list_of_trial_matrices=trial_saliency_dict[
+            saliency_maps.SALIENCY_MATRICES_KEY],
+        max_pmm_percentile_level=max_pmm_percentile_level,
+        num_iterations=num_iterations, confidence_level=confidence_level)
 
-    if num_baseline_matrices != num_trial_matrices:
-        error_string = (
-            'Number of baseline matrices ({0:d}) should = number of trial '
-            'matrices ({1:d}).'
-        ).format(num_baseline_matrices, num_trial_matrices)
-
-        raise ValueError(error_string)
-
-    num_baseline_examples = baseline_saliency_matrices[0].shape[0]
-    num_trial_examples = trial_saliency_matrices[0].shape[0]
-
-    if num_baseline_examples != num_trial_examples:
-        error_string = (
-            'Number of baseline examples ({0:d}) should = number of trial '
-            'examples ({1:d}).'
-        ).format(num_baseline_examples, num_trial_examples)
-
-        raise ValueError(error_string)
-
-    num_examples_per_set = num_baseline_examples
-    example_indices = numpy.linspace(
-        0, 2 * num_examples_per_set - 1, num=2 * num_examples_per_set,
-        dtype=int)
-
-    num_matrices = num_trial_matrices
-    random_pmm_saliency_matrices = [None] * num_matrices
     print(SEPARATOR_STRING)
 
-    for i in range(num_iterations):
-        if numpy.mod(i, 25) == 0:
-            print('Have run {0:d} of {1:d} Monte Carlo iterations...'.format(
-                i, num_iterations
-            ))
+    monte_carlo_dict[
+        monte_carlo.BASELINE_FILE_KEY
+    ] = baseline_saliency_file_name
 
-        these_indices = numpy.random.choice(
-            example_indices, size=num_trial_examples, replace=False)
+    list_of_input_matrices = trial_saliency_dict[
+        saliency_maps.INPUT_MATRICES_KEY]
 
-        these_baseline_indices = these_indices[
-            these_indices < num_examples_per_set]
+    num_matrices = len(list_of_input_matrices)
+    list_of_mean_input_matrices = [None] * num_matrices
 
-        these_trial_indices = (
-            these_indices[these_indices >= num_examples_per_set] -
-            num_examples_per_set
-        )
-
-        for j in range(num_matrices):
-            this_saliency_matrix = numpy.concatenate((
-                baseline_saliency_matrices[j][these_baseline_indices, ...],
-                trial_saliency_matrices[j][these_trial_indices, ...]
-            ))
-
-            this_saliency_matrix = pmm.run_pmm_many_variables(
-                input_matrix=this_saliency_matrix,
-                max_percentile_level=max_pmm_percentile_level
-            )[0]
-
-            this_saliency_matrix = numpy.expand_dims(
-                this_saliency_matrix, axis=0)
-
-            if random_pmm_saliency_matrices[j] is None:
-                random_pmm_saliency_matrices[j] = this_saliency_matrix + 0.
-            else:
-                random_pmm_saliency_matrices[j] = numpy.concatenate((
-                    random_pmm_saliency_matrices[j], this_saliency_matrix
-                ))
-
-    print('Have run all {0:d} Monte Carlo iterations!'.format(num_iterations))
-    print(SEPARATOR_STRING)
-
-    min_saliency_matrices = [None] * num_matrices
-    max_saliency_matrices = [None] * num_matrices
-    trial_pmm_saliency_matrices = [None] * num_matrices
-
-    for j in range(num_matrices):
-        min_saliency_matrices[j] = numpy.percentile(
-            a=random_pmm_saliency_matrices[j], q=50. * (1 - confidence_level),
-            axis=0
-        )
-
-        max_saliency_matrices[j] = numpy.percentile(
-            a=random_pmm_saliency_matrices[j], q=50. * (1 + confidence_level),
-            axis=0
-        )
-
-        trial_pmm_saliency_matrices[j] = pmm.run_pmm_many_variables(
-            input_matrix=trial_saliency_matrices[j],
+    for i in range(num_matrices):
+        list_of_mean_input_matrices[i] = pmm.run_pmm_many_variables(
+            input_matrix=list_of_input_matrices[i],
             max_percentile_level=max_pmm_percentile_level
         )[0]
 
-        this_num_smaller = numpy.sum(
-            trial_pmm_saliency_matrices[j] < min_saliency_matrices[j]
-        )
-        this_num_larger = numpy.sum(
-            trial_pmm_saliency_matrices[j] > max_saliency_matrices[j]
-        )
+    pmm_metadata_dict = pmm.check_input_args(
+        input_matrix=list_of_input_matrices[0],
+        max_percentile_level=max_pmm_percentile_level,
+        threshold_var_index=None, threshold_value=None,
+        threshold_type_string=None)
 
-        print((
-            'Number of elements in {0:d}th matrix = {1:d} ... num significant '
-            'on low end = {2:d} ... num significant on high end = {3:d}'
-        ).format(
-            j + 1, trial_pmm_saliency_matrices[j].size, this_num_smaller,
-            this_num_larger
-        ))
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
+
+    saliency_maps.write_pmm_file(
+        pickle_file_name=output_file_name,
+        list_of_mean_input_matrices=list_of_mean_input_matrices,
+        list_of_mean_saliency_matrices=monte_carlo_dict[
+            monte_carlo.TRIAL_PMM_MATRICES_KEY],
+        threshold_count_matrix=None,
+        model_file_name=trial_saliency_dict[saliency_maps.MODEL_FILE_KEY],
+        standard_saliency_file_name=trial_saliency_file_name,
+        pmm_metadata_dict=pmm_metadata_dict, monte_carlo_dict=monte_carlo_dict)
 
 
 if __name__ == '__main__':
@@ -209,5 +152,6 @@ if __name__ == '__main__':
         max_pmm_percentile_level=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
-        confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME)
+        confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
+        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME),
     )
