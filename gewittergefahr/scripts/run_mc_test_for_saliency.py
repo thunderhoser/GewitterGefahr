@@ -1,5 +1,6 @@
 """Runs Monte Carlo significance test for saliency maps."""
 
+import copy
 import argparse
 from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import prob_matched_means as pmm
@@ -134,8 +135,9 @@ def _run(baseline_saliency_file_name, trial_saliency_file_name,
     saliency_maps.write_pmm_file(
         pickle_file_name=output_file_name,
         list_of_mean_input_matrices=list_of_mean_input_matrices,
-        list_of_mean_saliency_matrices=monte_carlo_dict[
-            monte_carlo.TRIAL_PMM_MATRICES_KEY],
+        list_of_mean_saliency_matrices=copy.deepcopy(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY]
+        ),
         threshold_count_matrix=None,
         model_file_name=trial_saliency_dict[saliency_maps.MODEL_FILE_KEY],
         standard_saliency_file_name=trial_saliency_file_name,

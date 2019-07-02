@@ -713,6 +713,11 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
         full_id_strings = None
         storm_times_unix_sec = None
 
+        print('\n\n\n*************\n\n\n')
+        print(saliency_metadata_dict[saliency_maps.MONTE_CARLO_DICT_KEY][
+                  monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
+        print('\n\n\n*************\n\n\n')
+
     num_examples = list_of_input_matrices[0].shape[0]
     max_colour_value_by_example = numpy.full(num_examples, numpy.nan)
 
