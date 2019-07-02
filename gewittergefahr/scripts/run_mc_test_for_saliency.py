@@ -163,9 +163,9 @@ def _run(baseline_saliency_file_name, trial_saliency_file_name,
     print('Have run all {0:d} Monte Carlo iterations!'.format(num_iterations))
     print(SEPARATOR_STRING)
 
-    min_saliency_matrices = [] * num_matrices
-    max_saliency_matrices = [] * num_matrices
-    trial_pmm_saliency_matrices = [] * num_matrices
+    min_saliency_matrices = [None] * num_matrices
+    max_saliency_matrices = [None] * num_matrices
+    trial_pmm_saliency_matrices = [None] * num_matrices
 
     for j in range(num_matrices):
         min_saliency_matrices[j] = numpy.percentile(
