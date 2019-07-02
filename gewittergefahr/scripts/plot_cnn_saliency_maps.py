@@ -773,9 +773,10 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
 
     # TODO(thunderhoser): Argument `save_paneled_figs` should apply to
     #  everything, not just 2-D radar fields.
+    monte_carlo_dict = saliency_metadata_dict[saliency_maps.MONTE_CARLO_DICT_KEY]
+
     print('\n\n\n*************\n\n\n')
-    print(saliency_dict[saliency_maps.MONTE_CARLO_DICT_KEY][
-              monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
+    print(monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0].shape)
     print('\n\n\n*************\n\n\n')
 
     _plot_saliency_for_2d_radar(
@@ -787,9 +788,7 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
         output_dir_name=output_dir_name, save_paneled_figs=save_paneled_figs,
         full_id_strings=full_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
-        monte_carlo_dict=saliency_metadata_dict[
-            saliency_maps.MONTE_CARLO_DICT_KEY]
-    )
+        monte_carlo_dict=monte_carlo_dict)
 
 
 if __name__ == '__main__':
