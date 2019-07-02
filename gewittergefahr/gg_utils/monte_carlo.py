@@ -104,7 +104,7 @@ def check_output(monte_carlo_dict):
         )
 
         these_expected_dim = numpy.array(
-            monte_carlo_dict[TRIAL_PMM_MATRICES_KEY][i], dtype=int
+            monte_carlo_dict[TRIAL_PMM_MATRICES_KEY][i].shape, dtype=int
         )
 
         error_checking.assert_is_numpy_array(
