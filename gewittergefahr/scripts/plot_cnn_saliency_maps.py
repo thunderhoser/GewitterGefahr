@@ -20,6 +20,7 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
 from gewittergefahr.plotting import saliency_plotting
+from gewittergefahr.plotting import significance_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
 # TODO(thunderhoser): Use threshold counts at some point.
@@ -39,7 +40,7 @@ FIGURE_RESOLUTION_DPI = 300
 SOUNDING_IMAGE_SIZE_PX = int(5e6)
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
-SAVE_PANELED_ARG_NAME = 'save_paneled_figs'
+PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 SALIENCY_CMAP_ARG_NAME = 'saliency_colour_map_name'
 MAX_SALIENCY_PRCTILE_ARG_NAME = 'max_colour_prctile_for_saliency'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -48,10 +49,10 @@ INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `saliency_maps.read_standard_file` or'
     ' `saliency_maps.read_pmm_file`.')
 
-SAVE_PANELED_HELP_STRING = (
-    'Boolean flag.  If 1, will save paneled figures, so there will be only a '
-    'few figures per example.  If 0, will save each panel individually, so '
-    'there will be one figure for each example and field.')
+PLOT_SIGNIFICANCE_HELP_STRING = (
+    'Boolean flag.  If 1, will plot stippling for significance.  This applies '
+    'only if the saliency map contains PMM (proability-matched means) and '
+    'results of a Monte Carlo comparison.')
 
 SALIENCY_CMAP_HELP_STRING = (
     'Name of colour map.  Saliency for each predictor will be plotted with the '
@@ -74,8 +75,8 @@ INPUT_ARG_PARSER.add_argument(
     help=INPUT_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SAVE_PANELED_ARG_NAME, type=int, required=False, default=1,
-    help=SAVE_PANELED_HELP_STRING)
+    '--' + PLOT_SIGNIFICANCE_ARG_NAME, type=int, required=False, default=0,
+    help=PLOT_SIGNIFICANCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + SALIENCY_CMAP_ARG_NAME, type=str, required=False, default='Greys',
@@ -94,7 +95,7 @@ def _plot_saliency_for_2d3d_radar(
         list_of_input_matrices, list_of_saliency_matrices,
         training_option_dict, saliency_colour_map_object,
         max_colour_value_by_example, output_dir_name, full_id_strings=None,
-        storm_times_unix_sec=None):
+        storm_times_unix_sec=None, monte_carlo_dict=None):
     """Plots saliency for 2-D azimuthal-shear and 3-D reflectivity fields.
 
     E = number of examples (storm objects)
@@ -116,14 +117,31 @@ def _plot_saliency_for_2d3d_radar(
         here).
     :param full_id_strings: length-E list of storm IDs (strings).
     :param storm_times_unix_sec: length-E numpy array of storm times.
+    :param monte_carlo_dict: See doc for `monte_carlo.check_output`.  If this is
+        None, will *not* plot stippling for significance.
     """
 
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     reflectivity_matrix_dbz = list_of_input_matrices[0]
-    reflectivity_saliency_matrix = list_of_saliency_matrices[0]
+    refl_saliency_matrix = list_of_saliency_matrices[0]
     az_shear_matrix_s01 = list_of_input_matrices[1]
     az_shear_saliency_matrix = list_of_saliency_matrices[1]
+
+    if monte_carlo_dict is not None:
+        refl_significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+        )
+
+        az_shear_significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][1] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][1],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][1] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][1]
+        )
 
     num_examples = reflectivity_matrix_dbz.shape[0]
     num_reflectivity_heights = len(
@@ -147,12 +165,24 @@ def _plot_saliency_for_2d3d_radar(
             num_panel_rows=num_panel_rows_for_reflectivity,
             font_size=FONT_SIZE_SANS_COLOUR_BARS)
 
-        saliency_plotting.plot_many_2d_grids_with_pm_signs(
+        this_contour_interval = (
+            max_colour_value_by_example[i] / HALF_NUM_CONTOURS
+        )
+
+        saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=numpy.flip(
-                reflectivity_saliency_matrix[i, ..., 0], axis=0),
+                refl_saliency_matrix[i, ..., 0], axis=0),
             axes_object_matrix=this_axes_object_matrix,
             colour_map_object=saliency_colour_map_object,
-            max_absolute_colour_value=max_colour_value_by_example[i])
+            max_absolute_contour_level=max_colour_value_by_example[i],
+            contour_interval=this_contour_interval)
+
+        if monte_carlo_dict is not None:
+            significance_plotting.plot_many_2d_grids_without_coords(
+                significance_matrix=numpy.flip(
+                    refl_significance_matrix[i, ..., 0], axis=0),
+                axes_object_matrix=this_axes_object_matrix
+            )
 
         this_colour_map_object, this_colour_norm_object = (
             radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
@@ -201,12 +231,20 @@ def _plot_saliency_for_2d3d_radar(
                 font_size=FONT_SIZE_SANS_COLOUR_BARS)
         )
 
-        saliency_plotting.plot_many_2d_grids_with_pm_signs(
+        saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=numpy.flip(
                 az_shear_saliency_matrix[i, ...], axis=0),
             axes_object_matrix=this_axes_object_matrix,
             colour_map_object=saliency_colour_map_object,
-            max_absolute_colour_value=max_colour_value_by_example[i])
+            max_absolute_contour_level=max_colour_value_by_example[i],
+            contour_interval=this_contour_interval)
+
+        if monte_carlo_dict is not None:
+            significance_plotting.plot_many_2d_grids_without_coords(
+                significance_matrix=numpy.flip(
+                    az_shear_significance_matrix[i, ...], axis=0),
+                axes_object_matrix=this_axes_object_matrix
+            )
 
         this_colour_map_object, this_colour_norm_object = (
             radar_plotting.get_default_colour_scheme(
@@ -232,8 +270,8 @@ def _plot_saliency_for_2d3d_radar(
 def _plot_saliency_for_2d_radar(
         radar_matrix, radar_saliency_matrix, model_metadata_dict,
         saliency_colour_map_object, max_colour_value_by_example,
-        save_paneled_figs, output_dir_name, full_id_strings=None,
-        storm_times_unix_sec=None, monte_carlo_dict=None):
+        output_dir_name, full_id_strings=None, storm_times_unix_sec=None,
+        monte_carlo_dict=None):
     """Plots saliency for 2-D radar fields.
 
     E = number of examples
@@ -252,18 +290,24 @@ def _plot_saliency_for_2d_radar(
     :param saliency_colour_map_object: See doc for
         `_plot_saliency_for_2d3d_radar`.
     :param max_colour_value_by_example: Same.
-    :param save_paneled_figs: Same.
     :param output_dir_name: Same.
     :param full_id_strings: Same.
     :param storm_times_unix_sec: Same.
+    :param monte_carlo_dict: Same.
     """
-
-    # TODO(thunderhoser): Put Monte Carlo shit somewhere else.
 
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
+
+    if monte_carlo_dict is not None:
+        significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+        )
 
     if list_of_layer_operation_dicts is None:
         field_name_by_panel = training_option_dict[
@@ -293,136 +337,73 @@ def _plot_saliency_for_2d_radar(
 
     num_examples = radar_matrix.shape[0]
     num_panels = len(field_name_by_panel)
-    num_panel_rows = int(numpy.floor(numpy.sqrt(num_panels)))
-
-    if save_paneled_figs:
-        j_max = 1
-        border_width_px = 10
-    else:
-        j_max = num_panels
-        border_width_px = 0
+    num_panel_rows = int(numpy.floor(
+        numpy.sqrt(num_panels)
+    ))
 
     for i in range(num_examples):
-        for j in range(j_max):
-            if save_paneled_figs:
-                _, this_axes_object_matrix = (
-                    radar_plotting.plot_many_2d_grids_without_coords(
-                        field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
-                        field_name_by_panel=field_name_by_panel,
-                        panel_names=panel_names, num_panel_rows=num_panel_rows,
-                        plot_colour_bar_by_panel=plot_colour_bar_by_panel,
-                        font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
-                )
+        _, this_axes_object_matrix = (
+            radar_plotting.plot_many_2d_grids_without_coords(
+                field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
+                field_name_by_panel=field_name_by_panel,
+                panel_names=panel_names, num_panel_rows=num_panel_rows,
+                plot_colour_bar_by_panel=plot_colour_bar_by_panel,
+                font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
+        )
 
-                this_contour_interval = (
-                    max_colour_value_by_example[i] / HALF_NUM_CONTOURS
-                )
+        this_contour_interval = (
+            max_colour_value_by_example[i] / HALF_NUM_CONTOURS
+        )
 
-                saliency_plotting.plot_many_2d_grids_with_contours(
-                    saliency_matrix_3d=numpy.flip(
-                        radar_saliency_matrix[i, ...], axis=0),
-                    axes_object_matrix=this_axes_object_matrix,
-                    colour_map_object=saliency_colour_map_object,
-                    max_absolute_contour_level=max_colour_value_by_example[i],
-                    contour_interval=this_contour_interval, row_major=False)
-            else:
-                this_axes_object = pyplot.subplots(
-                    1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
-                )[-1]
+        saliency_plotting.plot_many_2d_grids_with_contours(
+            saliency_matrix_3d=numpy.flip(
+                radar_saliency_matrix[i, ...], axis=0),
+            axes_object_matrix=this_axes_object_matrix,
+            colour_map_object=saliency_colour_map_object,
+            max_absolute_contour_level=max_colour_value_by_example[i],
+            contour_interval=this_contour_interval, row_major=False)
 
-                radar_plotting.plot_2d_grid_without_coords(
-                    field_matrix=numpy.flip(radar_matrix[i, ..., j], axis=0),
-                    field_name=field_name_by_panel[j],
-                    axes_object=this_axes_object)
+        if monte_carlo_dict is not None:
+            significance_plotting.plot_many_2d_grids_without_coords(
+                significance_matrix=numpy.flip(
+                    significance_matrix[i, ...], axis=0),
+                axes_object_matrix=this_axes_object_matrix,
+                row_major=False
+            )
 
-                this_contour_interval = (
-                    max_colour_value_by_example[i] / HALF_NUM_CONTOURS
-                )
+        if pmm_flag:
+            this_title_string = 'Probability-matched mean'
+            this_file_name = '{0:s}/saliency_pmm_radar.jpg'.format(
+                output_dir_name)
+        else:
+            this_storm_time_string = time_conversion.unix_sec_to_string(
+                storm_times_unix_sec[i], TIME_FORMAT)
 
-                saliency_plotting.plot_2d_grid_with_contours(
-                    saliency_matrix_2d=numpy.flip(
-                        radar_saliency_matrix[i, ..., j], axis=0),
-                    axes_object=this_axes_object,
-                    colour_map_object=saliency_colour_map_object,
-                    max_absolute_contour_level=max_colour_value_by_example[i],
-                    contour_interval=this_contour_interval)
+            this_title_string = 'Storm "{0:s}" at {1:s}'.format(
+                full_id_strings[i], this_storm_time_string)
 
-            if monte_carlo_dict is not None:
-                for k in range(len(field_name_by_panel)):
-                    less_rows, less_columns = numpy.where(
-                        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][
-                            0][..., k] <
-                        monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][
-                            0][..., k]
-                    )
+            this_file_name = '{0:s}/saliency_{1:s}_{2:s}_radar.jpg'.format(
+                output_dir_name, full_id_strings[i].replace('_', '-'),
+                this_storm_time_string)
 
-                    this_panel_row, this_panel_column = numpy.unravel_index(
-                        k, this_axes_object_matrix.shape, order='F'
-                    )
+        this_title_string += ' (max absolute saliency = {0:.2e})'.format(
+            max_colour_value_by_example[i]
+        )
+        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-                    this_axes_object_matrix[
-                        this_panel_row, this_panel_column
-                    ].plot(
-                        less_columns + 0.5, less_rows + 0.5, linestyle='None',
-                        marker='.', markerfacecolor='k', markeredgecolor='k',
-                        markersize=6, markeredgewidth=1
-                    )
+        print('Saving figure to file: "{0:s}"...'.format(this_file_name))
+        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+        pyplot.close()
 
-                    greater_rows, greater_columns = numpy.where(
-                        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][
-                            0][..., k] >
-                        monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][
-                            0][..., k]
-                    )
-
-                    this_axes_object_matrix[
-                        this_panel_row, this_panel_column
-                    ].plot(
-                        greater_columns + 0.5, greater_rows + 0.5,
-                        linestyle='None', marker='.', markerfacecolor='k',
-                        markeredgecolor='k', markersize=6, markeredgewidth=1
-                    )
-
-            if save_paneled_figs:
-                this_file_name_suffix = 'radar'
-            else:
-                this_file_name_suffix = field_name_by_panel[j].replace('_', '-')
-
-            if pmm_flag:
-                this_title_string = 'Probability-matched mean'
-                this_file_name = '{0:s}/saliency_pmm_{1:s}.jpg'.format(
-                    output_dir_name, this_file_name_suffix)
-            else:
-                this_storm_time_string = time_conversion.unix_sec_to_string(
-                    storm_times_unix_sec[i], TIME_FORMAT)
-
-                this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                    full_id_strings[i], this_storm_time_string)
-
-                this_file_name = '{0:s}/saliency_{1:s}_{2:s}_{3:s}.jpg'.format(
-                    output_dir_name, full_id_strings[i].replace('_', '-'),
-                    this_storm_time_string, this_file_name_suffix)
-
-            if save_paneled_figs:
-                this_title_string += (
-                    ' (max absolute saliency = {0:.2e})'
-                ).format(max_colour_value_by_example[i])
-
-                pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-            print('Saving figure to file: "{0:s}"...'.format(this_file_name))
-            pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-            pyplot.close()
-
-            imagemagick_utils.trim_whitespace(
-                input_file_name=this_file_name, output_file_name=this_file_name,
-                border_width_pixels=border_width_px)
+        imagemagick_utils.trim_whitespace(
+            input_file_name=this_file_name, output_file_name=this_file_name)
 
 
 def _plot_saliency_for_3d_radar(
         radar_matrix, radar_saliency_matrix, model_metadata_dict,
         saliency_colour_map_object, max_colour_value_by_example,
-        output_dir_name, full_id_strings=None, storm_times_unix_sec=None):
+        output_dir_name, full_id_strings=None, storm_times_unix_sec=None,
+        monte_carlo_dict=None):
     """Plots saliency for 3-D radar fields.
 
     E = number of examples
@@ -445,10 +426,19 @@ def _plot_saliency_for_3d_radar(
     :param output_dir_name: Same.
     :param full_id_strings: Same.
     :param storm_times_unix_sec: Same.
+    :param monte_carlo_dict: Same.
     """
 
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+
+    if monte_carlo_dict is not None:
+        significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+        )
 
     num_examples = radar_matrix.shape[0]
     num_fields = radar_matrix.shape[-1]
@@ -475,7 +465,15 @@ def _plot_saliency_for_3d_radar(
                     radar_saliency_matrix[i, ..., k], axis=0),
                 axes_object_matrix=this_axes_object_matrix,
                 colour_map_object=saliency_colour_map_object,
-                max_absolute_colour_value=max_colour_value_by_example[i])
+                max_absolute_colour_value=max_colour_value_by_example[i]
+            )
+
+            if monte_carlo_dict is not None:
+                significance_plotting.plot_many_2d_grids_without_coords(
+                    significance_matrix=numpy.flip(
+                        significance_matrix[i, ..., k], axis=0),
+                    axes_object_matrix=this_axes_object_matrix
+                )
 
             this_colour_map_object, this_colour_norm_object = (
                 radar_plotting.get_default_colour_scheme(this_field_name)
@@ -648,14 +646,14 @@ def _plot_sounding_saliency(
         os.remove(this_right_file_name)
 
 
-def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
+def _run(input_file_name, plot_significance, saliency_colour_map_name,
          max_colour_prctile_for_saliency, output_dir_name):
     """Plots saliency maps for a CNN (convolutional neural network).
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
-    :param save_paneled_figs: Same.
+    :param plot_significance: Same.
     :param saliency_colour_map_name: Same.
     :param max_colour_prctile_for_saliency: Same.
     :param output_dir_name: Same.
@@ -737,6 +735,13 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
             output_dir_name=output_dir_name)
         print(SEPARATOR_STRING)
 
+    monte_carlo_dict = (
+        saliency_metadata_dict[saliency_maps.MONTE_CARLO_DICT_KEY]
+        if plot_significance and
+        saliency_maps.MONTE_CARLO_DICT_KEY in saliency_metadata_dict
+        else None
+    )
+
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         _plot_saliency_for_2d3d_radar(
             list_of_input_matrices=list_of_input_matrices,
@@ -745,10 +750,13 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
             saliency_colour_map_object=saliency_colour_map_object,
             max_colour_value_by_example=max_colour_value_by_example,
             output_dir_name=output_dir_name, full_id_strings=full_id_strings,
-            storm_times_unix_sec=storm_times_unix_sec)
+            storm_times_unix_sec=storm_times_unix_sec,
+            monte_carlo_dict=monte_carlo_dict)
+
         return
 
     num_radar_dimensions = len(list_of_input_matrices[0].shape) - 2
+
     if num_radar_dimensions == 3:
         _plot_saliency_for_3d_radar(
             radar_matrix=list_of_input_matrices[0],
@@ -757,23 +765,20 @@ def _run(input_file_name, save_paneled_figs, saliency_colour_map_name,
             saliency_colour_map_object=saliency_colour_map_object,
             max_colour_value_by_example=max_colour_value_by_example,
             output_dir_name=output_dir_name, full_id_strings=full_id_strings,
-            storm_times_unix_sec=storm_times_unix_sec)
+            storm_times_unix_sec=storm_times_unix_sec,
+            monte_carlo_dict=monte_carlo_dict)
+
         return
 
-    # TODO(thunderhoser): Argument `save_paneled_figs` should apply to
-    #  everything, not just 2-D radar fields.
     _plot_saliency_for_2d_radar(
         radar_matrix=list_of_input_matrices[0],
         radar_saliency_matrix=list_of_saliency_matrices[0],
         model_metadata_dict=model_metadata_dict,
         saliency_colour_map_object=saliency_colour_map_object,
         max_colour_value_by_example=max_colour_value_by_example,
-        output_dir_name=output_dir_name, save_paneled_figs=save_paneled_figs,
-        full_id_strings=full_id_strings,
+        output_dir_name=output_dir_name, full_id_strings=full_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
-        monte_carlo_dict=saliency_metadata_dict[
-            saliency_maps.MONTE_CARLO_DICT_KEY]
-    )
+        monte_carlo_dict=monte_carlo_dict)
 
 
 if __name__ == '__main__':
@@ -781,9 +786,8 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
-        save_paneled_figs=bool(getattr(
-            INPUT_ARG_OBJECT, SAVE_PANELED_ARG_NAME
-        )),
+        plot_significance=bool(getattr(
+            INPUT_ARG_OBJECT, PLOT_SIGNIFICANCE_ARG_NAME)),
         saliency_colour_map_name=getattr(
             INPUT_ARG_OBJECT, SALIENCY_CMAP_ARG_NAME),
         max_colour_prctile_for_saliency=getattr(

@@ -877,7 +877,7 @@ def plot_many_2d_grids_without_coords(
 
         this_extend_min_flag = field_name_by_panel[k] in SHEAR_VORT_DIV_NAMES
 
-        this_colour_bar_object = plotting_utils.plot_colour_bar(
+        plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object_matrix[
                 this_panel_row, this_panel_column],
             data_matrix=field_matrix[..., k],
@@ -886,21 +886,6 @@ def plot_many_2d_grids_without_coords(
             orientation_string='horizontal',
             extend_min=this_extend_min_flag, extend_max=True,
             fraction_of_axis_length=0.9, font_size=font_size)
-
-        if colour_map_object_by_panel[k] is None:
-            continue
-
-        # TODO(thunderhoser): This is a HACK for difference plots created by
-        # backwards optimization.
-        # tick_values = this_colour_bar_object.ax.get_xticks()
-        # print(tick_values)
-        # 
-        # this_colour_bar_object.set_ticks(tick_values)
-        # this_colour_bar_object.set_ticklabels(tick_values)
-
-        # axes_object_matrix[this_panel_row, this_panel_column].set_xlabel(
-        #     panel_names[k], fontsize=font_size
-        # )
 
     for k in range(num_panel_rows * num_panel_columns):
         if k < num_panels:

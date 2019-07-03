@@ -10,6 +10,7 @@ import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -19,6 +20,7 @@ from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
+from gewittergefahr.plotting import significance_plotting
 
 # TODO(thunderhoser): This file contains a lot of duplicated code for
 # determining output paths and titles.
@@ -32,6 +34,7 @@ FONT_SIZE_SANS_COLOUR_BARS = 20
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
+PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 COLOUR_MAP_ARG_NAME = 'diff_colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile_for_diff'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -39,6 +42,11 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `backwards_opt.read_standard_file` or'
     ' `backwards_opt.read_pmm_file`.')
+
+PLOT_SIGNIFICANCE_HELP_STRING = (
+    'Boolean flag.  If 1, will plot stippling for significance.  This applies '
+    'only if the saliency map contains PMM (proability-matched means) and '
+    'results of a Monte Carlo comparison.')
 
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map.  Differences for each predictor will be plotted with '
@@ -61,6 +69,10 @@ INPUT_ARG_PARSER.add_argument(
     help=INPUT_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_SIGNIFICANCE_ARG_NAME, type=int, required=False, default=0,
+    help=PLOT_SIGNIFICANCE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='bwr',
     help=COLOUR_MAP_HELP_STRING)
 
@@ -76,7 +88,8 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_bwo_for_2d3d_radar(
         list_of_optimized_matrices, training_option_dict,
         diff_colour_map_object, max_colour_percentile_for_diff, pmm_flag,
-        bwo_metadata_dict, top_output_dir_name, list_of_input_matrices=None):
+        bwo_metadata_dict, top_output_dir_name, list_of_input_matrices=None,
+        monte_carlo_dict=None):
     """Plots BWO results for 2-D azimuthal-shear and 3-D reflectivity fields.
 
     E = number of examples (storm objects)
@@ -96,6 +109,8 @@ def _plot_bwo_for_2d3d_radar(
         be saved here).
     :param list_of_input_matrices: Same as `list_of_optimized_matrices` but with
         non-optimized input matrices.
+    :param monte_carlo_dict: See doc for `monte_carlo.check_output`.  If this is
+        None, will *not* plot stippling for significance.
     """
 
     before_optimization_dir_name = '{0:s}/before_optimization'.format(
@@ -134,6 +149,21 @@ def _plot_bwo_for_2d3d_radar(
         final_activations = bwo_metadata_dict[
             backwards_opt.FINAL_ACTIVATIONS_KEY]
 
+    if monte_carlo_dict is not None:
+        refl_significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+        )
+
+        az_shear_significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][1] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][1],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][1] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][1]
+        )
+
     az_shear_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     num_az_shear_fields = len(az_shear_field_names)
     plot_colour_bar_flags = numpy.full(num_az_shear_fields, False, dtype=bool)
@@ -163,7 +193,8 @@ def _plot_bwo_for_2d3d_radar(
                 this_base_pathless_file_name = 'example{0:06d}'.format(i)
 
         this_reflectivity_matrix_dbz = numpy.flip(
-            list_of_optimized_matrices[0][i, ..., 0], axis=0)
+            list_of_optimized_matrices[0][i, ..., 0], axis=0
+        )
 
         this_num_heights = this_reflectivity_matrix_dbz.shape[-1]
         this_num_panel_rows = int(numpy.floor(
@@ -177,6 +208,15 @@ def _plot_bwo_for_2d3d_radar(
                 trainval_io.RADAR_HEIGHTS_KEY],
             ground_relative=True, num_panel_rows=this_num_panel_rows,
             font_size=FONT_SIZE_SANS_COLOUR_BARS)
+
+        if monte_carlo_dict is not None:
+            this_matrix = numpy.flip(
+                refl_significance_matrix[i, ..., 0], axis=0
+            )
+
+            significance_plotting.plot_many_2d_grids_without_coords(
+                significance_matrix=this_matrix,
+                axes_object_matrix=this_axes_object_matrix)
 
         this_colour_map_object, this_colour_norm_object = (
             radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
@@ -204,7 +244,8 @@ def _plot_bwo_for_2d3d_radar(
         pyplot.close()
 
         this_az_shear_matrix_s01 = numpy.flip(
-            list_of_optimized_matrices[1][i, ..., 0], axis=0)
+            list_of_optimized_matrices[1][i, ...], axis=0
+        )
 
         _, this_axes_object_matrix = (
             radar_plotting.plot_many_2d_grids_without_coords(
@@ -214,6 +255,15 @@ def _plot_bwo_for_2d3d_radar(
                 plot_colour_bar_by_panel=plot_colour_bar_flags,
                 font_size=FONT_SIZE_SANS_COLOUR_BARS)
         )
+
+        if monte_carlo_dict is not None:
+            this_matrix = numpy.flip(
+                az_shear_significance_matrix[i, ...], axis=0
+            )
+
+            significance_plotting.plot_many_2d_grids_without_coords(
+                significance_matrix=this_matrix,
+                axes_object_matrix=this_axes_object_matrix)
 
         this_colour_map_object, this_colour_norm_object = (
             radar_plotting.get_default_colour_scheme(
@@ -241,7 +291,8 @@ def _plot_bwo_for_2d3d_radar(
             continue
 
         this_reflectivity_matrix_dbz = numpy.flip(
-            list_of_input_matrices[0][i, ..., 0], axis=0)
+            list_of_input_matrices[0][i, ..., 0], axis=0
+        )
 
         _, this_axes_object_matrix = radar_plotting.plot_3d_grid_without_coords(
             field_matrix=this_reflectivity_matrix_dbz,
@@ -277,7 +328,8 @@ def _plot_bwo_for_2d3d_radar(
         pyplot.close()
 
         this_az_shear_matrix_s01 = numpy.flip(
-            list_of_input_matrices[1][i, ..., 0], axis=0)
+            list_of_input_matrices[1][i, ...], axis=0
+        )
 
         _, this_axes_object_matrix = (
             radar_plotting.plot_many_2d_grids_without_coords(
@@ -405,7 +457,7 @@ def _plot_bwo_for_2d3d_radar(
 def _plot_bwo_for_3d_radar(
         optimized_radar_matrix, training_option_dict, diff_colour_map_object,
         max_colour_percentile_for_diff, pmm_flag, bwo_metadata_dict,
-        top_output_dir_name, input_radar_matrix=None):
+        top_output_dir_name, input_radar_matrix=None, monte_carlo_dict=None):
     """Plots BWO results for 3-D radar fields.
 
     E = number of examples (storm objects)
@@ -424,6 +476,7 @@ def _plot_bwo_for_3d_radar(
     :param top_output_dir_name: Same.
     :param input_radar_matrix: Same as `optimized_radar_matrix` but with
         non-optimized input.
+    :param monte_carlo_dict: See doc for `_plot_bwo_for_2d3d_radar`.
     """
 
     before_optimization_dir_name = '{0:s}/before_optimization'.format(
@@ -462,6 +515,14 @@ def _plot_bwo_for_3d_radar(
         final_activations = bwo_metadata_dict[
             backwards_opt.FINAL_ACTIVATIONS_KEY]
 
+    if monte_carlo_dict is not None:
+        significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+        )
+
     radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
 
@@ -497,7 +558,8 @@ def _plot_bwo_for_3d_radar(
             _, this_axes_object_matrix = (
                 radar_plotting.plot_3d_grid_without_coords(
                     field_matrix=numpy.flip(
-                        optimized_radar_matrix[i, ..., j], axis=0),
+                        optimized_radar_matrix[i, ..., j], axis=0
+                    ),
                     field_name=radar_field_names[j],
                     grid_point_heights_metres=radar_heights_m_agl,
                     ground_relative=True, num_panel_rows=num_panel_rows,
@@ -508,6 +570,14 @@ def _plot_bwo_for_3d_radar(
                 radar_plotting.get_default_colour_scheme(
                     radar_field_names[j])
             )
+
+            if monte_carlo_dict is not None:
+                significance_plotting.plot_many_2d_grids_without_coords(
+                    significance_matrix=numpy.flip(
+                        significance_matrix[i, ..., j], axis=0
+                    ),
+                    axes_object_matrix=this_axes_object_matrix
+                )
 
             plotting_utils.plot_colour_bar(
                 axes_object_or_matrix=this_axes_object_matrix,
@@ -540,7 +610,8 @@ def _plot_bwo_for_3d_radar(
             _, this_axes_object_matrix = (
                 radar_plotting.plot_3d_grid_without_coords(
                     field_matrix=numpy.flip(
-                        input_radar_matrix[i, ..., j], axis=0),
+                        input_radar_matrix[i, ..., j], axis=0
+                    ),
                     field_name=radar_field_names[j],
                     grid_point_heights_metres=radar_heights_m_agl,
                     ground_relative=True, num_panel_rows=num_panel_rows,
@@ -628,7 +699,7 @@ def _plot_bwo_for_3d_radar(
 def _plot_bwo_for_2d_radar(
         optimized_radar_matrix, model_metadata_dict, diff_colour_map_object,
         max_colour_percentile_for_diff, pmm_flag, bwo_metadata_dict,
-        top_output_dir_name, input_radar_matrix=None):
+        top_output_dir_name, input_radar_matrix=None, monte_carlo_dict=None):
     """Plots BWO results for 2-D radar fields.
 
     E = number of examples (storm objects)
@@ -647,6 +718,7 @@ def _plot_bwo_for_2d_radar(
     :param top_output_dir_name: Same.
     :param input_radar_matrix: Same as `optimized_radar_matrix` but with
         non-optimized input.
+    :param monte_carlo_dict: See doc for `_plot_bwo_for_2d3d_radar`.
     """
 
     before_optimization_dir_name = '{0:s}/before_optimization'.format(
@@ -688,6 +760,14 @@ def _plot_bwo_for_2d_radar(
             backwards_opt.INITIAL_ACTIVATIONS_KEY]
         final_activations = bwo_metadata_dict[
             backwards_opt.FINAL_ACTIVATIONS_KEY]
+
+    if monte_carlo_dict is not None:
+        significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+        )
 
     if list_of_layer_operation_dicts is None:
         field_name_by_panel = training_option_dict[
@@ -743,12 +823,23 @@ def _plot_bwo_for_2d_radar(
                 this_base_title_string = 'Example {0:d}'.format(i + 1)
                 this_base_pathless_file_name = 'example{0:06d}'.format(i)
 
-        radar_plotting.plot_many_2d_grids_without_coords(
-            field_matrix=numpy.flip(optimized_radar_matrix[i, ...], axis=0),
-            field_name_by_panel=field_name_by_panel,
-            num_panel_rows=num_panel_rows, panel_names=panel_names,
-            plot_colour_bar_by_panel=plot_colour_bar_by_panel,
-            font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
+        this_axes_object_matrix = (
+            radar_plotting.plot_many_2d_grids_without_coords(
+                field_matrix=numpy.flip(optimized_radar_matrix[i, ...], axis=0),
+                field_name_by_panel=field_name_by_panel,
+                num_panel_rows=num_panel_rows, panel_names=panel_names,
+                plot_colour_bar_by_panel=plot_colour_bar_by_panel,
+                font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False
+            )[-1]
+        )
+
+        if monte_carlo_dict is not None:
+            significance_plotting.plot_many_2d_grids_without_coords(
+                significance_matrix=numpy.flip(
+                    significance_matrix[i, ...], axis=0
+                ),
+                axes_object_matrix=this_axes_object_matrix, row_major=False
+            )
 
         this_title_string = '{0:s} (AFTER; activation = {1:.2e})'.format(
             this_base_title_string, final_activations[i]
@@ -977,13 +1068,14 @@ def _plot_bwo_for_soundings(
         pyplot.close()
 
 
-def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
-         top_output_dir_name):
+def _run(input_file_name, plot_significance, diff_colour_map_name,
+         max_colour_percentile_for_diff, top_output_dir_name):
     """Plots results of backwards optimization.
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
+    :param plot_significance: Same.
     :param diff_colour_map_name: Same.
     :param max_colour_percentile_for_diff: Same.
     :param top_output_dir_name: Same.
@@ -1020,9 +1112,11 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
 
         for i in range(len(list_of_input_matrices)):
             list_of_input_matrices[i] = numpy.expand_dims(
-                list_of_input_matrices[i], axis=0)
+                list_of_input_matrices[i], axis=0
+            )
             list_of_optimized_matrices[i] = numpy.expand_dims(
-                list_of_optimized_matrices[i], axis=0)
+                list_of_optimized_matrices[i], axis=0
+            )
 
         bwo_metadata_dict = backwards_opt_dict
         bwo_metadata_dict[backwards_opt.FULL_IDS_KEY] = None
@@ -1040,6 +1134,13 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
 
     print(SEPARATOR_STRING)
 
+    monte_carlo_dict = (
+        bwo_metadata_dict[backwards_opt.MONTE_CARLO_DICT_KEY]
+        if plot_significance and
+        backwards_opt.MONTE_CARLO_DICT_KEY in bwo_metadata_dict
+        else None
+    )
+
     if sounding_field_names is not None:
         if list_of_input_matrices is None:
             this_input_matrix = None
@@ -1052,6 +1153,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             training_option_dict=training_option_dict, pmm_flag=pmm_flag,
             bwo_metadata_dict=bwo_metadata_dict,
             top_output_dir_name=top_output_dir_name)
+
         print(SEPARATOR_STRING)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
@@ -1062,7 +1164,9 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             max_colour_percentile_for_diff=max_colour_percentile_for_diff,
             pmm_flag=pmm_flag, bwo_metadata_dict=bwo_metadata_dict,
             top_output_dir_name=top_output_dir_name,
-            list_of_input_matrices=list_of_input_matrices)
+            list_of_input_matrices=list_of_input_matrices,
+            monte_carlo_dict=monte_carlo_dict)
+
         return
 
     if list_of_input_matrices is None:
@@ -1079,7 +1183,9 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             max_colour_percentile_for_diff=max_colour_percentile_for_diff,
             pmm_flag=pmm_flag, bwo_metadata_dict=bwo_metadata_dict,
             top_output_dir_name=top_output_dir_name,
-            input_radar_matrix=this_input_matrix)
+            input_radar_matrix=this_input_matrix,
+            monte_carlo_dict=monte_carlo_dict)
+
         return
 
     _plot_bwo_for_2d_radar(
@@ -1089,7 +1195,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         max_colour_percentile_for_diff=max_colour_percentile_for_diff,
         pmm_flag=pmm_flag, bwo_metadata_dict=bwo_metadata_dict,
         top_output_dir_name=top_output_dir_name,
-        input_radar_matrix=this_input_matrix)
+        input_radar_matrix=this_input_matrix, monte_carlo_dict=monte_carlo_dict)
 
 
 if __name__ == '__main__':
@@ -1097,6 +1203,8 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
+        plot_significance=bool(getattr(
+            INPUT_ARG_OBJECT, PLOT_SIGNIFICANCE_ARG_NAME)),
         diff_colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_percentile_for_diff=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
