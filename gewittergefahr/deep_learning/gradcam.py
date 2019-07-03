@@ -20,9 +20,12 @@ from tensorflow.python.framework import ops as tensorflow_ops
 from scipy.interpolate import (
     UnivariateSpline, RectBivariateSpline, RegularGridInterpolator)
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_interpretation
+
+TOLERANCE = 1e-6
 
 BACKPROP_FUNCTION_NAME = 'GuidedBackProp'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -50,11 +53,14 @@ MEAN_GUIDED_GRADCAM_KEY = 'mean_ggradcam_output_matrix'
 THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
 STANDARD_FILE_NAME_KEY = 'standard_gradcam_file_name'
 PMM_METADATA_KEY = 'pmm_metadata_dict'
+GRADCAM_MONTE_CARLO_KEY = 'gradcam_monte_carlo_dict'
+GUIDED_GRADCAM_MONTE_CARLO_KEY = 'ggradcam_monte_carlo_dict'
 
 PMM_FILE_KEYS = [
     MEAN_INPUT_MATRICES_KEY, MEAN_CLASS_ACTIVATIONS_KEY,
     MEAN_GUIDED_GRADCAM_KEY, THRESHOLD_COUNTS_KEY, MODEL_FILE_KEY,
-    STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
+    STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY, GRADCAM_MONTE_CARLO_KEY,
+    GUIDED_GRADCAM_MONTE_CARLO_KEY
 ]
 
 
@@ -466,7 +472,8 @@ def write_pmm_file(
         pickle_file_name, list_of_mean_input_matrices,
         mean_class_activation_matrix, mean_ggradcam_output_matrix,
         threshold_count_matrix, model_file_name, standard_gradcam_file_name,
-        pmm_metadata_dict):
+        pmm_metadata_dict, gradcam_monte_carlo_dict=None,
+        ggradcam_monte_carlo_dict=None):
     """Writes mean class-activation map to Pickle file.
 
     This is a mean over many examples, created by PMM (probability-matched
@@ -487,6 +494,14 @@ def write_pmm_file(
         output (readable by `read_standard_file`).
     :param pmm_metadata_dict: Dictionary created by
         `prob_matched_means.check_input_args`.
+    :param gradcam_monte_carlo_dict: Dictionary with results of Monte Carlo
+        significance test.  Must contain keys listed in
+        `monte_carlo.check_output`, plus the following.
+    gradcam_monte_carlo_dict['baseline_file_name']: Path to saliency file for
+        baseline set (readable by `read_standard_file`), against which the trial
+        set (contained in `standard_gradcam_file_name`) was compared.
+
+    :param ggradcam_monte_carlo_dict: Same but for guided Grad-CAM.
     """
 
     # TODO(thunderhoser): This method currently does not deal with sounding
@@ -519,6 +534,30 @@ def write_pmm_file(
     for this_input_matrix in list_of_mean_input_matrices:
         error_checking.assert_is_numpy_array_without_nan(this_input_matrix)
 
+    if (gradcam_monte_carlo_dict is not None or
+            ggradcam_monte_carlo_dict is not None):
+        monte_carlo.check_output(gradcam_monte_carlo_dict)
+        error_checking.assert_is_string(
+            gradcam_monte_carlo_dict[monte_carlo.BASELINE_FILE_KEY]
+        )
+
+        assert numpy.allclose(
+            mean_class_activation_matrix,
+            gradcam_monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0],
+            atol=TOLERANCE)
+
+        monte_carlo.check_output(ggradcam_monte_carlo_dict)
+        error_checking.assert_is_string(
+            ggradcam_monte_carlo_dict[monte_carlo.BASELINE_FILE_KEY]
+        )
+
+        assert numpy.allclose(
+            mean_ggradcam_output_matrix,
+            ggradcam_monte_carlo_dict[
+                monte_carlo.TRIAL_PMM_MATRICES_KEY][0],
+            atol=TOLERANCE
+        )
+
     mean_gradcam_dict = {
         MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
         MEAN_CLASS_ACTIVATIONS_KEY: mean_class_activation_matrix,
@@ -526,7 +565,9 @@ def write_pmm_file(
         THRESHOLD_COUNTS_KEY: threshold_count_matrix,
         MODEL_FILE_KEY: model_file_name,
         STANDARD_FILE_NAME_KEY: standard_gradcam_file_name,
-        PMM_METADATA_KEY: pmm_metadata_dict
+        PMM_METADATA_KEY: pmm_metadata_dict,
+        GRADCAM_MONTE_CARLO_KEY: gradcam_monte_carlo_dict,
+        GUIDED_GRADCAM_MONTE_CARLO_KEY: ggradcam_monte_carlo_dict
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -548,6 +589,8 @@ def read_pmm_file(pickle_file_name):
     mean_gradcam_dict['model_file_name']: Same.
     mean_gradcam_dict['standard_gradcam_file_name']: Same.
     mean_gradcam_dict['pmm_metadata_dict']: Same.
+    mean_gradcam_dict['gradcam_monte_carlo_dict']: Same.
+    mean_gradcam_dict['ggradcam_monte_carlo_dict']: Same.
 
     :raises: ValueError: if any of the aforelisted keys are missing from the
         dictionary.
@@ -556,6 +599,11 @@ def read_pmm_file(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     mean_gradcam_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    if (GRADCAM_MONTE_CARLO_KEY not in mean_gradcam_dict and
+            GUIDED_GRADCAM_MONTE_CARLO_KEY not in mean_gradcam_dict):
+        mean_gradcam_dict[GRADCAM_MONTE_CARLO_KEY] = None
+        mean_gradcam_dict[GUIDED_GRADCAM_MONTE_CARLO_KEY] = None
 
     missing_keys = list(set(PMM_FILE_KEYS) - set(mean_gradcam_dict.keys()))
     if len(missing_keys) == 0:
