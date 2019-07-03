@@ -417,9 +417,15 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
 
             list_of_input_matrices = gradcam_dict.pop(
                 gradcam.MEAN_INPUT_MATRICES_KEY)
-            list_of_interpretation_matrices = [
-                gradcam_dict.pop(gradcam.MEAN_CLASS_ACTIVATIONS_KEY)
-            ]
+
+            if guided_gradcam_flag:
+                list_of_interpretation_matrices = [
+                    gradcam_dict.pop(gradcam.MEAN_GUIDED_GRADCAM_KEY)
+                ]
+            else:
+                list_of_interpretation_matrices = [
+                    gradcam_dict.pop(gradcam.MEAN_CLASS_ACTIVATIONS_KEY)
+                ]
 
             saliency_flag = False
             model_file_name = gradcam_dict[gradcam.MODEL_FILE_KEY]
@@ -442,9 +448,15 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
 
             list_of_input_matrices = gradcam_dict.pop(
                 gradcam.INPUT_MATRICES_KEY)
-            list_of_interpretation_matrices = [
-                gradcam_dict.pop(gradcam.CLASS_ACTIVATIONS_KEY)
-            ]
+
+            if guided_gradcam_flag:
+                list_of_interpretation_matrices = [
+                    gradcam_dict.pop(gradcam.GUIDED_GRADCAM_KEY)
+                ]
+            else:
+                list_of_interpretation_matrices = [
+                    gradcam_dict.pop(gradcam.CLASS_ACTIVATIONS_KEY)
+                ]
 
             saliency_flag = False
             all_full_id_strings = gradcam_dict[gradcam.FULL_IDS_KEY]
