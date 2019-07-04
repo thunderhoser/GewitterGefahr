@@ -165,17 +165,13 @@ def _plot_saliency_for_2d3d_radar(
             num_panel_rows=num_panel_rows_for_reflectivity,
             font_size=FONT_SIZE_SANS_COLOUR_BARS)
 
-        this_contour_interval = (
-            max_colour_value_by_example[i] / HALF_NUM_CONTOURS
-        )
-
         saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=numpy.flip(
                 refl_saliency_matrix[i, ..., 0], axis=0),
             axes_object_matrix=this_axes_object_matrix,
             colour_map_object=saliency_colour_map_object,
             max_absolute_contour_level=max_colour_value_by_example[i],
-            contour_interval=this_contour_interval)
+            contour_interval=max_colour_value_by_example[i] / HALF_NUM_CONTOURS)
 
         if monte_carlo_dict is not None:
             significance_plotting.plot_many_2d_grids_without_coords(
@@ -237,7 +233,7 @@ def _plot_saliency_for_2d3d_radar(
             axes_object_matrix=this_axes_object_matrix,
             colour_map_object=saliency_colour_map_object,
             max_absolute_contour_level=max_colour_value_by_example[i],
-            contour_interval=this_contour_interval)
+            contour_interval=max_colour_value_by_example[i] / HALF_NUM_CONTOURS)
 
         if monte_carlo_dict is not None:
             significance_plotting.plot_many_2d_grids_without_coords(
@@ -351,17 +347,14 @@ def _plot_saliency_for_2d_radar(
                 font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
         )
 
-        this_contour_interval = (
-            max_colour_value_by_example[i] / HALF_NUM_CONTOURS
-        )
-
         saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=numpy.flip(
                 radar_saliency_matrix[i, ...], axis=0),
             axes_object_matrix=this_axes_object_matrix,
             colour_map_object=saliency_colour_map_object,
             max_absolute_contour_level=max_colour_value_by_example[i],
-            contour_interval=this_contour_interval, row_major=False)
+            contour_interval=max_colour_value_by_example[i] / HALF_NUM_CONTOURS,
+            row_major=False)
 
         if monte_carlo_dict is not None:
             significance_plotting.plot_many_2d_grids_without_coords(

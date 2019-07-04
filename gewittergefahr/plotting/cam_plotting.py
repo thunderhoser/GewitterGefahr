@@ -31,8 +31,11 @@ def plot_2d_grid(class_activation_matrix_2d, axes_object, colour_map_object,
     error_checking.assert_is_numpy_array(
         class_activation_matrix_2d, num_dimensions=2)
 
-    error_checking.assert_is_greater(max_contour_level, 0.)
-    error_checking.assert_is_greater(contour_interval, 0.)
+    error_checking.assert_is_geq(max_contour_level, 0.)
+    max_contour_level = max([max_contour_level, 0.001])
+
+    error_checking.assert_is_geq(contour_interval, 0.)
+    contour_interval = max([contour_interval, 0.0001])
     error_checking.assert_is_less_than(contour_interval, max_contour_level)
 
     num_grid_rows = class_activation_matrix_2d.shape[0]

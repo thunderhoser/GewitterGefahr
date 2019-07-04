@@ -25,6 +25,7 @@ TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 NUM_CONTOURS = 12
+HALF_NUM_CONTOURS = 10
 
 TITLE_FONT_SIZE = 20
 FONT_SIZE_WITH_COLOUR_BARS = 16
@@ -158,18 +159,15 @@ def _plot_3d_radar_cams(
 
             if class_activation_matrix is None:
                 this_matrix = ggradcam_output_matrix[i, ..., k]
-
                 this_max_contour_level = numpy.percentile(
                     numpy.absolute(this_matrix), max_colour_prctile_for_cam)
-                if this_max_contour_level == 0:
-                    this_max_contour_level = 10.
 
                 saliency_plotting.plot_many_2d_grids_with_contours(
                     saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
                     axes_object_matrix=this_axes_object_matrix,
                     colour_map_object=cam_colour_map_object,
                     max_absolute_contour_level=this_max_contour_level,
-                    contour_interval=this_max_contour_level / 10)
+                    contour_interval=this_max_contour_level / HALF_NUM_CONTOURS)
 
                 if monte_carlo_dict is not None:
                     significance_plotting.plot_many_2d_grids_without_coords(
@@ -179,11 +177,8 @@ def _plot_3d_radar_cams(
                     )
             else:
                 this_matrix = class_activation_matrix[i, ...]
-
                 this_max_contour_level = numpy.percentile(
                     this_matrix, max_colour_prctile_for_cam)
-                if this_max_contour_level == 0:
-                    this_max_contour_level = 10.
 
                 cam_plotting.plot_many_2d_grids(
                     class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
@@ -338,18 +333,16 @@ def _plot_2d_radar_cams(
 
         if class_activation_matrix is None:
             this_matrix = ggradcam_output_matrix[i, ...]
-
             this_max_contour_level = numpy.percentile(
                 numpy.absolute(this_matrix), max_colour_prctile_for_cam)
-            if this_max_contour_level == 0:
-                this_max_contour_level = 10.
 
             saliency_plotting.plot_many_2d_grids_with_contours(
                 saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
                 axes_object_matrix=this_axes_object_matrix,
                 colour_map_object=cam_colour_map_object,
                 max_absolute_contour_level=this_max_contour_level,
-                contour_interval=this_max_contour_level / 10, row_major=False)
+                contour_interval=this_max_contour_level / HALF_NUM_CONTOURS,
+                row_major=False)
 
             if monte_carlo_dict is not None:
                 significance_plotting.plot_many_2d_grids_without_coords(
@@ -366,8 +359,6 @@ def _plot_2d_radar_cams(
 
             this_max_contour_level = numpy.percentile(
                 this_matrix, max_colour_prctile_for_cam)
-            if this_max_contour_level == 0:
-                this_max_contour_level = 10.
 
             cam_plotting.plot_many_2d_grids(
                 class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),

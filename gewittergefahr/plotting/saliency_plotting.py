@@ -378,6 +378,9 @@ def plot_2d_grid_with_pm_signs(
     :param max_font_size: Max font size (used for max absolute value).
     """
 
+    error_checking.assert_is_geq(max_absolute_colour_value, 0.)
+    max_absolute_colour_value = max([max_absolute_colour_value, 0.001])
+
     error_checking.assert_is_numpy_array_without_nan(saliency_matrix_2d)
     error_checking.assert_is_numpy_array(saliency_matrix_2d, num_dimensions=2)
 
