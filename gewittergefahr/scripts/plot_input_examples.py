@@ -641,7 +641,9 @@ def _plot_2d_examples(
                 )
 
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
-            pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+            pyplot.savefig(
+                this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0.,
+                bbox_inches='tight')
             pyplot.close()
 
             if not save_paneled_figs:
