@@ -24,8 +24,10 @@ POSITIVE_POLYGON_OBJECTS_KEY = 'positive_objects_grid_coords'
 NEGATIVE_MASK_MATRIX_KEY = 'negative_mask_matrix'
 NEGATIVE_POLYGON_OBJECTS_KEY = 'negative_objects_grid_coords'
 
-ROW_DIMENSION_KEY = 'grid_row'
-COLUMN_DIMENSION_KEY = 'grid_column'
+GRID_ROW_DIMENSION_KEY = 'grid_row'
+GRID_COLUMN_DIMENSION_KEY = 'grid_column'
+PANEL_ROW_DIMENSION_KEY = 'panel_row'
+PANEL_COLUMN_DIMENSION_KEY = 'panel_column'
 POSITIVE_VERTEX_DIM_KEY = 'positive_polygon_vertex'
 NEGATIVE_VERTEX_DIM_KEY = 'negative_polygon_vertex'
 
@@ -619,10 +621,16 @@ def write_polygons(
     dataset_object.setncattr(IMAGE_FILE_KEY, orig_image_file_name)
 
     dataset_object.createDimension(
-        ROW_DIMENSION_KEY, positive_mask_matrix.shape[0]
+        PANEL_ROW_DIMENSION_KEY, positive_mask_matrix.shape[0]
     )
     dataset_object.createDimension(
-        COLUMN_DIMENSION_KEY, positive_mask_matrix.shape[1]
+        PANEL_COLUMN_DIMENSION_KEY, positive_mask_matrix.shape[1]
+    )
+    dataset_object.createDimension(
+        GRID_ROW_DIMENSION_KEY, positive_mask_matrix.shape[2]
+    )
+    dataset_object.createDimension(
+        GRID_COLUMN_DIMENSION_KEY, positive_mask_matrix.shape[3]
     )
     dataset_object.createDimension(
         POSITIVE_VERTEX_DIM_KEY, len(positive_vertex_rows)
@@ -691,7 +699,8 @@ def write_polygons(
 
     dataset_object.createVariable(
         POSITIVE_MASK_MATRIX_KEY, datatype=numpy.int32,
-        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+        dimensions=(PANEL_ROW_DIMENSION_KEY, PANEL_COLUMN_DIMENSION_KEY,
+                    GRID_ROW_DIMENSION_KEY, GRID_COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[POSITIVE_MASK_MATRIX_KEY][:] = (
         positive_mask_matrix.astype(int)
@@ -699,7 +708,8 @@ def write_polygons(
 
     dataset_object.createVariable(
         NEGATIVE_MASK_MATRIX_KEY, datatype=numpy.int32,
-        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+        dimensions=(PANEL_ROW_DIMENSION_KEY, PANEL_COLUMN_DIMENSION_KEY,
+                    GRID_ROW_DIMENSION_KEY, GRID_COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[NEGATIVE_MASK_MATRIX_KEY][:] = (
         negative_mask_matrix.astype(int)
