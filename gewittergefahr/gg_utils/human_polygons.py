@@ -13,17 +13,69 @@ from gewittergefahr.gg_utils import error_checking
 IMAGE_FILE_KEY = 'orig_image_file_name'
 POSITIVE_VERTEX_ROWS_KEY = 'positive_vertex_rows'
 POSITIVE_VERTEX_COLUMNS_KEY = 'positive_vertex_columns'
+POSITIVE_PANEL_ROW_BY_VERTEX_KEY = 'positive_panel_row_by_vertex'
+POSITIVE_PANEL_COLUMN_BY_VERTEX_KEY = 'positive_panel_column_by_vertex'
 NEGATIVE_VERTEX_ROWS_KEY = 'negative_vertex_rows'
 NEGATIVE_VERTEX_COLUMNS_KEY = 'negative_vertex_columns'
+NEGATIVE_PANEL_ROW_BY_VERTEX_KEY = 'negative_panel_row_by_vertex'
+NEGATIVE_PANEL_COLUMN_BY_VERTEX_KEY = 'negative_panel_column_by_vertex'
 POSITIVE_MASK_MATRIX_KEY = 'positive_mask_matrix'
-POSITIVE_POLYGON_OBJECTS_KEY = 'positive_polygon_objects_rowcol'
+POSITIVE_POLYGON_OBJECTS_KEY = 'positive_objects_grid_coords'
 NEGATIVE_MASK_MATRIX_KEY = 'negative_mask_matrix'
-NEGATIVE_POLYGON_OBJECTS_KEY = 'negative_polygon_objects_rowcol'
+NEGATIVE_POLYGON_OBJECTS_KEY = 'negative_objects_grid_coords'
 
 ROW_DIMENSION_KEY = 'grid_row'
 COLUMN_DIMENSION_KEY = 'grid_column'
 POSITIVE_VERTEX_DIM_KEY = 'positive_polygon_vertex'
 NEGATIVE_VERTEX_DIM_KEY = 'negative_polygon_vertex'
+
+POSITIVE_PANEL_ROW_BY_POLY_KEY = 'positive_panel_row_by_polygon'
+POSITIVE_PANEL_COLUMN_BY_POLY_KEY = 'positive_panel_column_by_polygon'
+NEGATIVE_PANEL_ROW_BY_POLY_KEY = 'negative_panel_row_by_polygon'
+NEGATIVE_PANEL_COLUMN_BY_POLY_KEY = 'negative_panel_column_by_polygon'
+
+
+def _check_polygons(
+        polygon_objects_grid_coords, num_panel_rows, num_panel_columns,
+        panel_row_by_polygon, panel_column_by_polygon):
+    """Error-checks list of polygons.
+
+    :param polygon_objects_grid_coords: See doc for
+        `polygons_from_pixel_to_grid_coords`.
+    :param num_panel_rows: Same.
+    :param num_panel_columns: Same.
+    :param panel_row_by_polygon: Same.
+    :param panel_column_by_polygon: Same.
+    """
+
+    error_checking.assert_is_integer(num_panel_rows)
+    error_checking.assert_is_greater(num_panel_rows, 0)
+    error_checking.assert_is_integer(num_panel_columns)
+    error_checking.assert_is_greater(num_panel_columns, 0)
+
+    num_polygons = len(polygon_objects_grid_coords)
+    if num_polygons == 0:
+        return
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(polygon_objects_grid_coords, dtype=object), num_dimensions=1
+    )
+
+    these_expected_dim = numpy.array([num_polygons], dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(panel_row_by_polygon)
+    error_checking.assert_is_numpy_array(
+        panel_row_by_polygon, exact_dimensions=these_expected_dim)
+    error_checking.assert_is_geq_numpy_array(panel_row_by_polygon, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        panel_row_by_polygon, num_panel_rows)
+
+    error_checking.assert_is_integer_numpy_array(panel_column_by_polygon)
+    error_checking.assert_is_numpy_array(
+        panel_column_by_polygon, exact_dimensions=these_expected_dim)
+    error_checking.assert_is_geq_numpy_array(panel_column_by_polygon, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        panel_column_by_polygon, num_panel_columns)
 
 
 def _polygon_list_to_vertex_list(polygon_objects_grid_coords):
@@ -35,6 +87,9 @@ def _polygon_list_to_vertex_list(polygon_objects_grid_coords):
         `polygons_from_pixel_to_grid_coords`.
     :return: vertex_rows: length-V numpy array of row coordinates.
     :return: vertex_columns: length-V numpy array of column coordinates.
+    :return: vertex_to_polygon_indices: length-V numpy array of indices.
+        If vertex_to_polygon_indices[i] = j, the [i]th vertex comes from the
+        [j]th input polygon.
     """
 
     error_checking.assert_is_list(polygon_objects_grid_coords)
@@ -48,30 +103,61 @@ def _polygon_list_to_vertex_list(polygon_objects_grid_coords):
 
     vertex_rows = []
     vertex_columns = []
+    vertex_to_polygon_indices = []
 
     for i in range(num_polygons):
+        this_num_vertices = len(polygon_objects_grid_coords[i].exterior.xy[1])
+
         vertex_rows += polygon_objects_grid_coords[i].exterior.xy[1]
         vertex_columns += polygon_objects_grid_coords[i].exterior.xy[0]
+        vertex_to_polygon_indices += [i] * this_num_vertices
 
         if i == num_polygons - 1:
             continue
 
         vertex_rows += [numpy.nan]
         vertex_columns += [numpy.nan]
+        vertex_to_polygon_indices += [-1]
 
-    return numpy.array(vertex_rows), numpy.array(vertex_columns)
+    return (
+        numpy.array(vertex_rows), numpy.array(vertex_columns),
+        numpy.array(vertex_to_polygon_indices, dtype=int)
+    )
 
 
 def _vertex_list_to_polygon_list(vertex_rows, vertex_columns):
     """This method is the inverse of `_polygon_list_to_vertex_list`.
 
+    P = number of polygons
+
     :param vertex_rows: See doc for `_polygon_list_to_vertex_list`.
     :param vertex_columns: Same.
     :return: polygon_objects_grid_coords: Same.
+    :return: polygon_to_first_vertex_indices: length-P numpy array of indices.
+        If polygon_to_first_vertex_indices[j] = i, the first vertex in the
+        [j]th polygon is the [i]th vertex in the input arrays.
+    :raises: ValueError: if row and column lists have NaN's at different
+        locations.
     """
 
     if len(vertex_rows) == 0:
-        return []
+        return [], numpy.array([], dtype=int)
+
+    nan_row_indices = numpy.where(numpy.isnan(vertex_rows))[0]
+    nan_column_indices = numpy.where(numpy.isnan(vertex_columns))[0]
+
+    if not numpy.array_equal(nan_row_indices, nan_column_indices):
+        error_string = (
+            'Row ({0:s}) and column ({1:s}) lists have NaN''s at different '
+            'locations.'
+        ).format(str(nan_row_indices), str(nan_column_indices))
+
+        raise ValueError(error_string)
+
+    polygon_to_first_vertex_indices = numpy.concatenate((
+        numpy.array([0], dtype=int),
+        nan_row_indices + 1
+    ))
 
     vertex_rows_by_polygon = general_utils.split_array_by_nan(vertex_rows)
     vertex_columns_by_polygon = general_utils.split_array_by_nan(vertex_columns)
@@ -87,7 +173,7 @@ def _vertex_list_to_polygon_list(vertex_rows, vertex_columns):
 
         polygon_objects_grid_coords.append(this_polygon_object)
 
-    return polygon_objects_grid_coords
+    return polygon_objects_grid_coords, polygon_to_first_vertex_indices
 
 
 def _polygons_to_mask_one_panel(polygon_objects_grid_coords, num_grid_rows,
@@ -390,10 +476,12 @@ def polygons_to_mask(
     error_checking.assert_is_greater(num_grid_rows, 0)
     error_checking.assert_is_integer(num_grid_columns)
     error_checking.assert_is_greater(num_grid_columns, 0)
-    error_checking.assert_is_integer(num_panel_rows)
-    error_checking.assert_is_greater(num_panel_rows, 0)
-    error_checking.assert_is_integer(num_panel_columns)
-    error_checking.assert_is_greater(num_panel_columns, 0)
+
+    _check_polygons(
+        polygon_objects_grid_coords=polygon_objects_grid_coords,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+        panel_row_by_polygon=panel_row_by_polygon,
+        panel_column_by_polygon=panel_column_by_polygon)
 
     mask_matrix = numpy.full(
         (num_panel_rows, num_panel_columns, num_grid_rows, num_grid_columns),
@@ -403,26 +491,6 @@ def polygons_to_mask(
     num_polygons = len(polygon_objects_grid_coords)
     if num_polygons == 0:
         return mask_matrix
-
-    error_checking.assert_is_numpy_array(
-        numpy.array(polygon_objects_grid_coords, dtype=object), num_dimensions=1
-    )
-
-    these_expected_dim = numpy.array([num_polygons], dtype=int)
-
-    error_checking.assert_is_integer_numpy_array(panel_row_by_polygon)
-    error_checking.assert_is_numpy_array(
-        panel_row_by_polygon, exact_dimensions=these_expected_dim)
-    error_checking.assert_is_geq_numpy_array(panel_row_by_polygon, 0)
-    error_checking.assert_is_less_than_numpy_array(
-        panel_row_by_polygon, num_panel_rows)
-
-    error_checking.assert_is_integer_numpy_array(panel_column_by_polygon)
-    error_checking.assert_is_numpy_array(
-        panel_column_by_polygon, exact_dimensions=these_expected_dim)
-    error_checking.assert_is_geq_numpy_array(panel_column_by_polygon, 0)
-    error_checking.assert_is_less_than_numpy_array(
-        panel_column_by_polygon, num_panel_columns)
 
     panel_coord_matrix = numpy.hstack((
         numpy.reshape(panel_row_by_polygon, (num_polygons, 1)),
@@ -454,29 +522,42 @@ def polygons_to_mask(
 
 
 def write_polygons(
-        output_file_name, orig_image_file_name, positive_polygon_objects_rowcol,
-        positive_mask_matrix, negative_polygon_objects_rowcol,
-        negative_mask_matrix):
+        output_file_name, orig_image_file_name, positive_objects_grid_coords,
+        positive_panel_row_by_polygon, positive_panel_column_by_polygon,
+        positive_mask_matrix, negative_objects_grid_coords=None,
+        negative_panel_row_by_polygon=None,
+        negative_panel_column_by_polygon=None, negative_mask_matrix=None):
     """Writes human polygons for one image to NetCDF file.
+
+    P = number of positive regions of interest
+    N = number of negative regions of interest
 
     :param output_file_name: Path to output (NetCDF) file.
     :param orig_image_file_name: Path to original image file (over which the
         polygons were drawn).
-    :param positive_polygon_objects_rowcol: List of polygons created by
+    :param positive_objects_grid_coords: length-P list of polygons created by
         `polygons_from_pixel_to_grid_coords`, containing positive regions of
         interest.
-    :param positive_mask_matrix: Mask matrix created by `polygons_to_mask`,
-        corresponding to `positive_polygon_objects_rowcol`.
-    :param negative_polygon_objects_rowcol: List of polygons created by
+    :param positive_panel_row_by_polygon: length-P numpy array of corresponding
+        panel rows (non-negative integers).
+    :param positive_panel_column_by_polygon: length-P numpy array of
+        corresponding panel columns (non-negative integers).
+    :param positive_mask_matrix: Binary mask for positive regions of interest,
+        created by `polygons_to_mask`.
+    :param negative_objects_grid_coords: length-N list of polygons created by
         `polygons_from_pixel_to_grid_coords`, containing negative regions of
         interest.
-    :param negative_mask_matrix: Mask matrix created by `polygons_to_mask`,
-        corresponding to `negative_polygon_objects_rowcol`.
+    :param negative_panel_row_by_polygon: length-N numpy array of corresponding
+        panel rows (non-negative integers).
+    :param negative_panel_column_by_polygon: length-N numpy array of
+        corresponding panel columns (non-negative integers).
+    :param negative_mask_matrix: Binary mask for negative regions of interest,
+        created by `polygons_to_mask`.
     """
 
     error_checking.assert_is_string(orig_image_file_name)
     error_checking.assert_is_boolean_numpy_array(positive_mask_matrix)
-    error_checking.assert_is_numpy_array(positive_mask_matrix, num_dimensions=2)
+    error_checking.assert_is_numpy_array(positive_mask_matrix, num_dimensions=4)
 
     error_checking.assert_is_boolean_numpy_array(negative_mask_matrix)
     error_checking.assert_is_numpy_array(
@@ -484,13 +565,52 @@ def write_polygons(
         exact_dimensions=numpy.array(positive_mask_matrix.shape, dtype=int)
     )
 
-    positive_vertex_rows, positive_vertex_columns = (
-        _polygon_list_to_vertex_list(positive_polygon_objects_rowcol)
-    )
+    _check_polygons(
+        polygon_objects_grid_coords=positive_objects_grid_coords,
+        num_panel_rows=positive_mask_matrix.shape[0],
+        num_panel_columns=positive_mask_matrix.shape[1],
+        panel_row_by_polygon=positive_panel_row_by_polygon,
+        panel_column_by_polygon=positive_panel_column_by_polygon)
 
-    negative_vertex_rows, negative_vertex_columns = (
-        _polygon_list_to_vertex_list(negative_polygon_objects_rowcol)
-    )
+    if negative_objects_grid_coords is None:
+        negative_objects_grid_coords = []
+        negative_panel_row_by_polygon = numpy.array([], dtype=int)
+        negative_panel_column_by_polygon = numpy.array([], dtype=int)
+        negative_mask_matrix = numpy.full(
+            positive_mask_matrix.shape, False, dtype=bool)
+
+    _check_polygons(
+        polygon_objects_grid_coords=negative_objects_grid_coords,
+        num_panel_rows=negative_mask_matrix.shape[0],
+        num_panel_columns=negative_mask_matrix.shape[1],
+        panel_row_by_polygon=negative_panel_row_by_polygon,
+        panel_column_by_polygon=negative_panel_column_by_polygon)
+
+    (positive_vertex_rows, positive_vertex_columns, these_vertex_to_poly_indices
+    ) = _polygon_list_to_vertex_list(positive_objects_grid_coords)
+
+    positive_panel_row_by_vertex = numpy.array([
+        positive_panel_row_by_polygon[k] if k >= 0 else numpy.nan
+        for k in these_vertex_to_poly_indices
+    ])
+
+    positive_panel_column_by_vertex = numpy.array([
+        positive_panel_column_by_polygon[k] if k >= 0 else numpy.nan
+        for k in these_vertex_to_poly_indices
+    ])
+
+    (negative_vertex_rows, negative_vertex_columns, these_vertex_to_poly_indices
+    ) = _polygon_list_to_vertex_list(negative_objects_grid_coords)
+
+    negative_panel_row_by_vertex = numpy.array([
+        negative_panel_row_by_polygon[k] if k >= 0 else numpy.nan
+        for k in these_vertex_to_poly_indices
+    ])
+
+    negative_panel_column_by_vertex = numpy.array([
+        negative_panel_column_by_polygon[k] if k >= 0 else numpy.nan
+        for k in these_vertex_to_poly_indices
+    ])
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     dataset_object = netCDF4.Dataset(
@@ -526,6 +646,21 @@ def write_polygons(
     )
 
     dataset_object.createVariable(
+        POSITIVE_PANEL_ROW_BY_VERTEX_KEY, datatype=numpy.int32,
+        dimensions=POSITIVE_VERTEX_DIM_KEY
+    )
+    dataset_object.variables[
+        POSITIVE_PANEL_ROW_BY_VERTEX_KEY][:] = positive_panel_row_by_vertex
+
+    dataset_object.createVariable(
+        POSITIVE_PANEL_COLUMN_BY_VERTEX_KEY, datatype=numpy.int32,
+        dimensions=POSITIVE_VERTEX_DIM_KEY
+    )
+    dataset_object.variables[
+        POSITIVE_PANEL_COLUMN_BY_VERTEX_KEY
+    ][:] = positive_panel_column_by_vertex
+
+    dataset_object.createVariable(
         NEGATIVE_VERTEX_ROWS_KEY, datatype=numpy.float32,
         dimensions=NEGATIVE_VERTEX_DIM_KEY
     )
@@ -538,6 +673,21 @@ def write_polygons(
     dataset_object.variables[NEGATIVE_VERTEX_COLUMNS_KEY][:] = (
         negative_vertex_columns
     )
+
+    dataset_object.createVariable(
+        NEGATIVE_PANEL_ROW_BY_VERTEX_KEY, datatype=numpy.int32,
+        dimensions=NEGATIVE_VERTEX_DIM_KEY
+    )
+    dataset_object.variables[
+        NEGATIVE_PANEL_ROW_BY_VERTEX_KEY][:] = negative_panel_row_by_vertex
+
+    dataset_object.createVariable(
+        NEGATIVE_PANEL_COLUMN_BY_VERTEX_KEY, datatype=numpy.int32,
+        dimensions=NEGATIVE_VERTEX_DIM_KEY
+    )
+    dataset_object.variables[
+        NEGATIVE_PANEL_COLUMN_BY_VERTEX_KEY
+    ][:] = negative_panel_column_by_vertex
 
     dataset_object.createVariable(
         POSITIVE_MASK_MATRIX_KEY, datatype=numpy.int32,
@@ -564,9 +714,13 @@ def read_polygons(netcdf_file_name):
     :param netcdf_file_name: Path to input file.
     :return: polygon_dict: Dictionary with the following keys.
     polygon_dict['orig_image_file_name']: See input doc for `write_polygons`.
-    polygon_dict['positive_polygon_objects_rowcol']: Same.
+    polygon_dict['positive_objects_grid_coords']: Same.
+    polygon_dict['positive_panel_row_by_polygon']: Same.
+    polygon_dict['positive_panel_column_by_polygon']: Same.
     polygon_dict['positive_mask_matrix']: Same.
-    polygon_dict['negative_polygon_objects_rowcol']: Same.
+    polygon_dict['negative_objects_grid_coords']: Same.
+    polygon_dict['negative_panel_row_by_polygon']: Same.
+    polygon_dict['negative_panel_column_by_polygon']: Same.
     polygon_dict['negative_mask_matrix']: Same.
     """
 
@@ -583,9 +737,11 @@ def read_polygons(netcdf_file_name):
         )
     }
 
-    positive_polygon_objects_rowcol = _vertex_list_to_polygon_list(
+    (positive_objects_grid_coords, these_poly_to_first_vertex_indices
+    ) = _vertex_list_to_polygon_list(
         vertex_rows=numpy.array(
-            dataset_object.variables[POSITIVE_VERTEX_ROWS_KEY][:], dtype=float
+            dataset_object.variables[POSITIVE_VERTEX_ROWS_KEY][:],
+            dtype=float
         ),
         vertex_columns=numpy.array(
             dataset_object.variables[POSITIVE_VERTEX_COLUMNS_KEY][:],
@@ -593,7 +749,27 @@ def read_polygons(netcdf_file_name):
         )
     )
 
-    negative_polygon_objects_rowcol = _vertex_list_to_polygon_list(
+    positive_panel_row_by_vertex = numpy.array(
+        dataset_object.variables[POSITIVE_PANEL_ROW_BY_VERTEX_KEY][:], dtype=int
+    )
+
+    positive_panel_row_by_polygon = positive_panel_row_by_vertex[
+        these_poly_to_first_vertex_indices]
+
+    positive_panel_column_by_vertex = numpy.array(
+        dataset_object.variables[POSITIVE_PANEL_COLUMN_BY_VERTEX_KEY][:],
+        dtype=int
+    )
+
+    positive_panel_column_by_polygon = positive_panel_column_by_vertex[
+        these_poly_to_first_vertex_indices]
+
+    polygon_dict[POSITIVE_PANEL_ROW_BY_POLY_KEY] = positive_panel_row_by_polygon
+    polygon_dict[
+        POSITIVE_PANEL_COLUMN_BY_POLY_KEY] = positive_panel_column_by_polygon
+
+    (negative_objects_grid_coords, these_poly_to_first_vertex_indices
+    ) = _vertex_list_to_polygon_list(
         vertex_rows=numpy.array(
             dataset_object.variables[NEGATIVE_VERTEX_ROWS_KEY][:], dtype=float
         ),
@@ -603,8 +779,27 @@ def read_polygons(netcdf_file_name):
         )
     )
 
+    negative_panel_row_by_vertex = numpy.array(
+        dataset_object.variables[NEGATIVE_PANEL_ROW_BY_VERTEX_KEY][:], dtype=int
+    )
+
+    negative_panel_row_by_polygon = negative_panel_row_by_vertex[
+        these_poly_to_first_vertex_indices]
+
+    negative_panel_column_by_vertex = numpy.array(
+        dataset_object.variables[NEGATIVE_PANEL_COLUMN_BY_VERTEX_KEY][:],
+        dtype=int
+    )
+
+    negative_panel_column_by_polygon = negative_panel_column_by_vertex[
+        these_poly_to_first_vertex_indices]
+
+    polygon_dict[NEGATIVE_PANEL_ROW_BY_POLY_KEY] = negative_panel_row_by_polygon
+    polygon_dict[
+        NEGATIVE_PANEL_COLUMN_BY_POLY_KEY] = negative_panel_column_by_polygon
+
     dataset_object.close()
 
-    polygon_dict[POSITIVE_POLYGON_OBJECTS_KEY] = positive_polygon_objects_rowcol
-    polygon_dict[NEGATIVE_POLYGON_OBJECTS_KEY] = negative_polygon_objects_rowcol
+    polygon_dict[POSITIVE_POLYGON_OBJECTS_KEY] = positive_objects_grid_coords
+    polygon_dict[NEGATIVE_POLYGON_OBJECTS_KEY] = negative_objects_grid_coords
     return polygon_dict

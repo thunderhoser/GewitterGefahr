@@ -37,6 +37,12 @@ TOY_POLYGON_OBJECTS = [
     THIS_THIRD_POLYGON_OBJECT
 ]
 
+TOY_VERTEX_TO_POLY_INDICES = numpy.array(
+    [0, 0, 0, 0, 0, -1, 1, 1, 1, 1, 1, -1, 2, 2, 2, 2, 2], dtype=int
+)
+
+TOY_POLY_TO_FIRST_VERTEX_INDICES = numpy.array([0, 6, 12], dtype=int)
+
 # The following constants are used to test polygons_from_pixel_to_grid_coords.
 NUM_GRID_ROWS = 24
 NUM_GRID_COLUMNS = 32
@@ -167,14 +173,16 @@ class HumanPolygonsTests(unittest.TestCase):
     def test_vertex_list_to_polygon_list(self):
         """Ensures correct output from _vertex_list_to_polygon_list."""
 
-        these_polygon_objects = human_polygons._vertex_list_to_polygon_list(
-            vertex_rows=TOY_VERTEX_ROWS, vertex_columns=TOY_VERTEX_COLUMNS)
+        these_polygon_objects, these_poly_to_first_vertex_indices = (
+            human_polygons._vertex_list_to_polygon_list(
+                vertex_rows=TOY_VERTEX_ROWS, vertex_columns=TOY_VERTEX_COLUMNS)
+        )
 
-        actual_num_polygons = len(these_polygon_objects)
-        expected_num_polygons = len(TOY_POLYGON_OBJECTS)
-        self.assertTrue(actual_num_polygons == expected_num_polygons)
+        self.assertTrue(numpy.array_equal(
+            these_poly_to_first_vertex_indices, TOY_POLY_TO_FIRST_VERTEX_INDICES
+        ))
 
-        for k in range(expected_num_polygons):
+        for k in range(len(these_polygon_objects)):
             self.assertTrue(
                 these_polygon_objects[k].almost_equals(
                     TOY_POLYGON_OBJECTS[k], decimal=TOLERANCE_NUM_DECIMAL_PLACES
@@ -184,8 +192,9 @@ class HumanPolygonsTests(unittest.TestCase):
     def test_polygon_list_to_vertex_list(self):
         """Ensures correct output from _polygon_list_to_vertex_list."""
 
-        these_rows, these_columns = human_polygons._polygon_list_to_vertex_list(
-            TOY_POLYGON_OBJECTS)
+        these_rows, these_columns, these_vertex_to_polygon_indices = (
+            human_polygons._polygon_list_to_vertex_list(TOY_POLYGON_OBJECTS)
+        )
 
         self.assertTrue(numpy.allclose(
             these_rows, TOY_VERTEX_ROWS, atol=TOLERANCE, equal_nan=True
@@ -193,6 +202,10 @@ class HumanPolygonsTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             these_columns, TOY_VERTEX_COLUMNS, atol=TOLERANCE, equal_nan=True
+        ))
+
+        self.assertTrue(numpy.array_equal(
+            these_vertex_to_polygon_indices, TOY_VERTEX_TO_POLY_INDICES
         ))
 
     def test_polygons_from_pixel_to_grid_coords(self):
