@@ -559,12 +559,6 @@ def write_polygons(
     error_checking.assert_is_boolean_numpy_array(positive_mask_matrix)
     error_checking.assert_is_numpy_array(positive_mask_matrix, num_dimensions=4)
 
-    error_checking.assert_is_boolean_numpy_array(negative_mask_matrix)
-    error_checking.assert_is_numpy_array(
-        negative_mask_matrix,
-        exact_dimensions=numpy.array(positive_mask_matrix.shape, dtype=int)
-    )
-
     _check_polygons(
         polygon_objects_grid_coords=positive_objects_grid_coords,
         num_panel_rows=positive_mask_matrix.shape[0],
@@ -578,6 +572,12 @@ def write_polygons(
         negative_panel_column_by_polygon = numpy.array([], dtype=int)
         negative_mask_matrix = numpy.full(
             positive_mask_matrix.shape, False, dtype=bool)
+
+    error_checking.assert_is_boolean_numpy_array(negative_mask_matrix)
+    error_checking.assert_is_numpy_array(
+        negative_mask_matrix,
+        exact_dimensions=numpy.array(positive_mask_matrix.shape, dtype=int)
+    )
 
     _check_polygons(
         polygon_objects_grid_coords=negative_objects_grid_coords,
