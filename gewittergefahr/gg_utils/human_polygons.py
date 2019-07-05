@@ -26,25 +26,23 @@ POSITIVE_VERTEX_DIM_KEY = 'positive_polygon_vertex'
 NEGATIVE_VERTEX_DIM_KEY = 'negative_polygon_vertex'
 
 
-def _polygon_list_to_vertex_list(list_of_polygon_objects_rowcol):
+def _polygon_list_to_vertex_list(polygon_objects_grid_coords):
     """Converts list of polygons to list of vertices.
 
     V = total number of vertices
 
-    :param list_of_polygon_objects_rowcol: List of polygons created by
+    :param polygon_objects_grid_coords: List of polygons created by
         `polygons_from_pixel_to_grid_coords`.
     :return: vertex_rows: length-V numpy array of row coordinates.
     :return: vertex_columns: length-V numpy array of column coordinates.
     """
 
-    # TODO(thunderhoser): Write unit test.
-
-    error_checking.assert_is_list(list_of_polygon_objects_rowcol)
-    num_polygons = len(list_of_polygon_objects_rowcol)
+    error_checking.assert_is_list(polygon_objects_grid_coords)
+    num_polygons = len(polygon_objects_grid_coords)
 
     if num_polygons > 0:
         error_checking.assert_is_numpy_array(
-            numpy.array(list_of_polygon_objects_rowcol, dtype=object),
+            numpy.array(polygon_objects_grid_coords, dtype=object),
             num_dimensions=1
         )
 
@@ -52,8 +50,8 @@ def _polygon_list_to_vertex_list(list_of_polygon_objects_rowcol):
     vertex_columns = []
 
     for i in range(num_polygons):
-        vertex_rows += list_of_polygon_objects_rowcol[i].exterior.xy[1]
-        vertex_columns += list_of_polygon_objects_rowcol[i].exterior.xy[0]
+        vertex_rows += polygon_objects_grid_coords[i].exterior.xy[1]
+        vertex_columns += polygon_objects_grid_coords[i].exterior.xy[0]
 
         if i == num_polygons - 1:
             continue
@@ -69,10 +67,8 @@ def _vertex_list_to_polygon_list(vertex_rows, vertex_columns):
 
     :param vertex_rows: See doc for `_polygon_list_to_vertex_list`.
     :param vertex_columns: Same.
-    :return: list_of_polygon_objects_rowcol: Same.
+    :return: polygon_objects_grid_coords: Same.
     """
-
-    # TODO(thunderhoser): Write unit test.
 
     if len(vertex_rows) == 0:
         return []
@@ -81,7 +77,7 @@ def _vertex_list_to_polygon_list(vertex_rows, vertex_columns):
     vertex_columns_by_polygon = general_utils.split_array_by_nan(vertex_columns)
 
     num_polygons = len(vertex_rows_by_polygon)
-    list_of_polygon_objects_rowcol = []
+    polygon_objects_grid_coords = []
 
     for i in range(num_polygons):
         this_polygon_object = polygons.vertex_arrays_to_polygon_object(
@@ -89,9 +85,63 @@ def _vertex_list_to_polygon_list(vertex_rows, vertex_columns):
             exterior_y_coords=vertex_rows_by_polygon[i]
         )
 
-        list_of_polygon_objects_rowcol.append(this_polygon_object)
+        polygon_objects_grid_coords.append(this_polygon_object)
 
-    return list_of_polygon_objects_rowcol
+    return polygon_objects_grid_coords
+
+
+def _polygons_to_mask_one_panel(polygon_objects_grid_coords, num_grid_rows,
+                                num_grid_columns):
+    """Converts list of polygons to binary mask.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param polygon_objects_grid_coords: See doc for
+        `polygons_from_pixel_to_grid_coords`.
+    :param num_grid_rows: Same.
+    :param num_grid_columns: Same.
+    :return: mask_matrix: M-by-N numpy array of Boolean flags.  If
+        mask_matrix[i, j] == True, grid point [i, j] is in/on at least one of
+        the polygons.
+    """
+
+    mask_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), False, dtype=bool
+    )
+
+    num_polygons = len(polygon_objects_grid_coords)
+    if num_polygons == 0:
+        return mask_matrix
+
+    # TODO(thunderhoser): This triple for-loop is probably inefficient.
+    for k in range(num_polygons):
+        these_grid_columns = numpy.array(
+            polygon_objects_grid_coords[k].exterior.xy[0]
+        )
+
+        error_checking.assert_is_geq_numpy_array(these_grid_columns, -0.5)
+        error_checking.assert_is_leq_numpy_array(
+            these_grid_columns, num_grid_columns - 0.5)
+
+        these_grid_rows = numpy.array(
+            polygon_objects_grid_coords[k].exterior.xy[1]
+        )
+
+        error_checking.assert_is_geq_numpy_array(these_grid_rows, -0.5)
+        error_checking.assert_is_leq_numpy_array(
+            these_grid_rows, num_grid_rows - 0.5)
+
+        for i in range(num_grid_rows):
+            for j in range(num_grid_columns):
+                if mask_matrix[i, j]:
+                    continue
+
+                mask_matrix[i, j] = polygons.point_in_or_on_polygon(
+                    polygon_object=polygon_objects_grid_coords[k],
+                    query_x_coordinate=j, query_y_coordinate=i)
+
+    return mask_matrix
 
 
 def capture_polygons(image_file_name, instruction_string=''):
@@ -102,7 +152,7 @@ def capture_polygons(image_file_name, instruction_string=''):
     :param image_file_name: Path to image file.  This method will display the
         image in a figure window and allow you to draw polygons on top.
     :param instruction_string: String with instructions for the user.
-    :return: list_of_polygon_objects_xy: length-N list of polygons (instances of
+    :return: polygon_objects_pixel_coords: length-N list of polygons (instances of
         `shapely.geometry.Polygon`), each containing vertices in pixel
         coordinates.
     :return: num_pixel_rows: Number of pixel rows in the image.
@@ -128,7 +178,7 @@ def capture_polygons(image_file_name, instruction_string=''):
     string_keys = [string_keys[k] for k in sort_indices]
 
     num_polygons = len(integer_keys)
-    list_of_polygon_objects_xy = []
+    polygon_objects_pixel_coords = []
 
     for i in range(num_polygons):
         this_roi_object = multi_roi_object.rois[string_keys[i]]
@@ -143,37 +193,46 @@ def capture_polygons(image_file_name, instruction_string=''):
         this_polygon_object = polygons.vertex_arrays_to_polygon_object(
             exterior_x_coords=these_x_coords, exterior_y_coords=these_y_coords)
 
-        list_of_polygon_objects_xy.append(this_polygon_object)
+        polygon_objects_pixel_coords.append(this_polygon_object)
 
-    return list_of_polygon_objects_xy, num_pixel_rows, num_pixel_columns
+    return polygon_objects_pixel_coords, num_pixel_rows, num_pixel_columns
 
 
 def polygons_from_pixel_to_grid_coords(
-        list_of_polygon_objects_xy, num_grid_rows, num_grid_columns,
-        num_pixel_rows, num_pixel_columns):
+        polygon_objects_pixel_coords, num_grid_rows, num_grid_columns,
+        num_pixel_rows, num_pixel_columns, num_panel_rows, num_panel_columns):
     """Converts polygons from pixel coordinates to grid coordinates.
 
     The input args `num_grid_rows` and `num_grid_columns` are the number of rows
     and columns in the data grid.  These are *not* the same as the number of
-    pixel rows and columns in the image.  This method assumes that the image
-    contains only the data grid, with absolutely no border around the data grid.
-    This method also assumes that the data grid is not warped in pixel space.
-    In other words, the transformation from pixel row to grid row, and pixel
-    column to grid column, must be linear; and both these transformations must
-    be constant throughout the image.
+    pixel rows and columns in the image.
+
+    This method assumes that the image contains one or more panels with gridded
+    data.  Each panel may contain a different variable, but they must all
+    contain the same grid, with the same aspect ratio and no whitespace border
+    (between the panels or around the outside of the image).
 
     N = number of polygons
 
-    :param list_of_polygon_objects_xy: length-N list of polygons (instances of
+    :param polygon_objects_pixel_coords: length-N list of polygons (instances of
         `shapely.geometry.Polygon`) with vertices in pixel coordinates, where
         the top-left corner is x = y = 0.
     :param num_grid_rows: Number of rows in grid.
     :param num_grid_columns: Number of columns in grid.
     :param num_pixel_rows: Number of pixel rows in image.
     :param num_pixel_columns: Number of pixel columns in image.
-    :return: list_of_polygon_objects_rowcol: length-N list of polygons
+    :param num_panel_rows: Number of panel rows in image.
+    :param num_panel_columns: Number of panel columns in image.
+    :return: polygon_objects_grid_coords: length-N list of polygons
         (instances of `shapely.geometry.Polygon`) with vertices in grid
         coordinates, where the bottom-left corner is x = y = 0.
+    :return: panel_row_by_polygon: length-N numpy array of panel rows.  If
+        panel_rows[k] = i, the [k]th polygon corresponds to a grid in the [i]th
+        panel row, where the top row is the 0th.
+    :return: panel_column_by_polygon: length-N numpy array of panel columns.  If
+        panel_columns[k] = j, the [k]th polygon corresponds to a grid in the
+        [j]th panel column, where the left column is the 0th.
+    :raises: ValueError: if one polygon is in multiple panels.
     """
 
     error_checking.assert_is_integer(num_grid_rows)
@@ -184,108 +243,212 @@ def polygons_from_pixel_to_grid_coords(
     error_checking.assert_is_greater(num_pixel_rows, 0)
     error_checking.assert_is_integer(num_pixel_columns)
     error_checking.assert_is_greater(num_pixel_columns, 0)
-    error_checking.assert_is_list(list_of_polygon_objects_xy)
+    error_checking.assert_is_integer(num_panel_rows)
+    error_checking.assert_is_greater(num_panel_rows, 0)
+    error_checking.assert_is_integer(num_panel_columns)
+    error_checking.assert_is_greater(num_panel_columns, 0)
+    error_checking.assert_is_list(polygon_objects_pixel_coords)
 
-    num_polygons = len(list_of_polygon_objects_xy)
+    num_polygons = len(polygon_objects_pixel_coords)
     if num_polygons == 0:
-        return list_of_polygon_objects_xy
+        empty_array = numpy.array([], dtype=int)
+        return polygon_objects_pixel_coords, empty_array, empty_array
 
     error_checking.assert_is_numpy_array(
-        numpy.array(list_of_polygon_objects_xy, dtype=object),
+        numpy.array(polygon_objects_pixel_coords, dtype=object),
         num_dimensions=1
     )
 
-    list_of_polygon_objects_rowcol = []
+    panel_row_to_first_px_row = {}
+    for i in range(num_panel_rows):
+        panel_row_to_first_px_row[i] = (
+            i * float(num_pixel_rows) / num_panel_rows
+        )
 
-    for i in range(num_polygons):
+    panel_column_to_first_px_column = {}
+    for j in range(num_panel_columns):
+        panel_column_to_first_px_column[j] = (
+            j * float(num_pixel_columns) / num_panel_columns
+        )
+
+    polygon_objects_grid_coords = [None] * num_polygons
+    panel_row_by_polygon = [None] * num_polygons
+    panel_column_by_polygon = [None] * num_polygons
+
+    for k in range(num_polygons):
+        # TODO(thunderhoser): Modularize this shit.
         these_pixel_columns = 0.5 + numpy.array(
-            list_of_polygon_objects_xy[i].exterior.xy[0]
+            polygon_objects_pixel_coords[k].exterior.xy[0]
         )
 
         error_checking.assert_is_geq_numpy_array(these_pixel_columns, 0.)
         error_checking.assert_is_leq_numpy_array(
             these_pixel_columns, num_pixel_columns)
 
-        these_grid_columns = -0.5 + (
-            these_pixel_columns * float(num_grid_columns) / num_pixel_columns
+        these_panel_columns = numpy.floor(
+            these_pixel_columns * float(num_panel_columns) / num_pixel_columns
+        ).astype(int)
+
+        these_panel_columns[
+            these_panel_columns == num_panel_columns
+        ] = num_panel_columns - 1
+
+        if len(numpy.unique(these_panel_columns)) > 1:
+            error_string = (
+                'The {0:d}th polygon is in multiple panels.  Panel columns '
+                'listed below.\n{1:s}'
+            ).format(k + 1, str(these_panel_columns))
+
+            raise ValueError(error_string)
+
+        panel_column_by_polygon[k] = these_panel_columns[0]
+        these_pixel_columns = (
+            these_pixel_columns -
+            panel_column_to_first_px_column[panel_column_by_polygon[k]]
         )
 
-        these_pixel_rows = num_pixel_rows - (
-            0.5 + numpy.array(list_of_polygon_objects_xy[i].exterior.xy[1])
+        these_grid_columns = -0.5 + (
+            these_pixel_columns *
+            float(num_grid_columns * num_panel_columns) / num_pixel_columns
+        )
+
+        these_pixel_rows = 0.5 + numpy.array(
+            polygon_objects_pixel_coords[k].exterior.xy[1]
         )
 
         error_checking.assert_is_geq_numpy_array(these_pixel_rows, 0.)
         error_checking.assert_is_leq_numpy_array(
             these_pixel_rows, num_pixel_rows)
 
-        these_grid_rows = -0.5 + (
-            these_pixel_rows * float(num_grid_rows) / num_pixel_rows
+        these_panel_rows = numpy.floor(
+            these_pixel_rows * float(num_panel_rows) / num_pixel_rows
+        ).astype(int)
+
+        these_panel_rows[
+            these_panel_rows == num_panel_rows
+        ] = num_panel_rows - 1
+
+        if len(numpy.unique(these_panel_rows)) > 1:
+            error_string = (
+                'The {0:d}th polygon is in multiple panels.  Panel rows '
+                'listed below.\n{1:s}'
+            ).format(k + 1, str(these_panel_rows))
+
+            raise ValueError(error_string)
+
+        panel_row_by_polygon[k] = these_panel_rows[0]
+        these_pixel_rows = (
+            these_pixel_rows -
+            panel_row_to_first_px_row[panel_row_by_polygon[k]]
         )
+
+        these_grid_rows = -0.5 + (
+            these_pixel_rows *
+            float(num_grid_rows * num_panel_rows) / num_pixel_rows
+        )
+
+        these_grid_rows = num_grid_rows - 1 - these_grid_rows
 
         this_polygon_object = polygons.vertex_arrays_to_polygon_object(
             exterior_x_coords=these_grid_columns,
             exterior_y_coords=these_grid_rows)
 
-        list_of_polygon_objects_rowcol.append(this_polygon_object)
+        polygon_objects_grid_coords[k] = this_polygon_object
 
-    return list_of_polygon_objects_rowcol
+    panel_row_by_polygon = numpy.array(panel_row_by_polygon, dtype=int)
+    panel_column_by_polygon = numpy.array(panel_column_by_polygon, dtype=int)
+
+    return (polygon_objects_grid_coords, panel_row_by_polygon,
+            panel_column_by_polygon)
 
 
-def polygons_to_mask(list_of_polygon_objects_rowcol, num_grid_rows,
-                     num_grid_columns):
-    """Converts list of polygons to gridded binary mask.
+def polygons_to_mask(
+        polygon_objects_grid_coords, num_grid_rows, num_grid_columns,
+        num_panel_rows, num_panel_columns, panel_row_by_polygon,
+        panel_column_by_polygon):
+    """Converts list of polygons to one binary mask for each panel.
 
     M = number of rows in grid
     N = number of columns in grid
+    J = number of panel rows in image
+    K = number of panel columns in image
 
-    :param list_of_polygon_objects_rowcol: See doc for
+    :param polygon_objects_grid_coords: See doc for
         `polygons_from_pixel_to_grid_coords`.
-    :param num_grid_rows: Number of rows in grid.
-    :param num_grid_columns: Number of columns in grid.
-    :return: mask_matrix: M-by-N numpy array of Boolean flags.  If
-        mask_matrix[i, j] == True, grid point [i, j] is in/on at least one of
-        the input polygons.
+    :param num_grid_rows: Same.
+    :param num_grid_columns: Same.
+    :param num_panel_rows: Same.
+    :param num_panel_columns: Same.
+    :param panel_row_by_polygon: Same.
+    :param panel_column_by_polygon: Same.
+    :return: mask_matrix: J-by-K-by-M-by-N numpy array of Boolean flags.  If
+        mask_matrix[j, k, m, n] == True, grid point [m, n] in panel [j, k] is
+        in/on at least one of the polygons.
     """
 
     error_checking.assert_is_integer(num_grid_rows)
     error_checking.assert_is_greater(num_grid_rows, 0)
     error_checking.assert_is_integer(num_grid_columns)
     error_checking.assert_is_greater(num_grid_columns, 0)
+    error_checking.assert_is_integer(num_panel_rows)
+    error_checking.assert_is_greater(num_panel_rows, 0)
+    error_checking.assert_is_integer(num_panel_columns)
+    error_checking.assert_is_greater(num_panel_columns, 0)
 
     mask_matrix = numpy.full(
-        (num_grid_rows, num_grid_columns), False, dtype=bool
+        (num_panel_rows, num_panel_columns, num_grid_rows, num_grid_columns),
+        False, dtype=bool
     )
 
-    num_polygons = len(list_of_polygon_objects_rowcol)
+    num_polygons = len(polygon_objects_grid_coords)
     if num_polygons == 0:
         return mask_matrix
 
-    # TODO(thunderhoser): This triple for-loop is probably inefficient.
-    for k in range(num_polygons):
-        these_grid_columns = numpy.array(
-            list_of_polygon_objects_rowcol[k].exterior.xy[0]
+    error_checking.assert_is_numpy_array(
+        numpy.array(polygon_objects_grid_coords, dtype=object), num_dimensions=1
+    )
+
+    these_expected_dim = numpy.array([num_polygons], dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(panel_row_by_polygon)
+    error_checking.assert_is_numpy_array(
+        panel_row_by_polygon, exact_dimensions=these_expected_dim)
+    error_checking.assert_is_geq_numpy_array(panel_row_by_polygon, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        panel_row_by_polygon, num_panel_rows)
+
+    error_checking.assert_is_integer_numpy_array(panel_column_by_polygon)
+    error_checking.assert_is_numpy_array(
+        panel_column_by_polygon, exact_dimensions=these_expected_dim)
+    error_checking.assert_is_geq_numpy_array(panel_column_by_polygon, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        panel_column_by_polygon, num_panel_columns)
+
+    panel_coord_matrix = numpy.hstack((
+        numpy.reshape(panel_row_by_polygon, (num_polygons, 1)),
+        numpy.reshape(panel_column_by_polygon, (num_polygons, 1))
+    ))
+
+    panel_coord_matrix = numpy.unique(panel_coord_matrix.astype(int), axis=0)
+
+    for i in range(panel_coord_matrix.shape[0]):
+        this_panel_row = panel_coord_matrix[i, 0]
+        this_panel_column = panel_coord_matrix[i, 1]
+
+        these_polygon_indices = numpy.where(numpy.logical_and(
+            panel_row_by_polygon == this_panel_row,
+            panel_column_by_polygon == this_panel_column
+        ))[0]
+
+        these_polygon_objects = [
+            polygon_objects_grid_coords[k] for k in these_polygon_indices
+        ]
+
+        mask_matrix[this_panel_row, this_panel_column, ...] = (
+            _polygons_to_mask_one_panel(
+                polygon_objects_grid_coords=these_polygon_objects,
+                num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
         )
-
-        error_checking.assert_is_geq_numpy_array(these_grid_columns, -0.5)
-        error_checking.assert_is_leq_numpy_array(
-            these_grid_columns, num_grid_columns - 0.5)
-
-        these_grid_rows = numpy.array(
-            list_of_polygon_objects_rowcol[k].exterior.xy[1]
-        )
-
-        error_checking.assert_is_geq_numpy_array(these_grid_rows, -0.5)
-        error_checking.assert_is_leq_numpy_array(
-            these_grid_rows, num_grid_rows - 0.5)
-
-        for i in range(num_grid_rows):
-            for j in range(num_grid_columns):
-                if mask_matrix[i, j]:
-                    continue
-
-                mask_matrix[i, j] = polygons.point_in_or_on_polygon(
-                    polygon_object=list_of_polygon_objects_rowcol[k],
-                    query_x_coordinate=j, query_y_coordinate=i)
 
     return mask_matrix
 
