@@ -627,7 +627,9 @@ def _plot_2d_examples(
                 radar_plotting.plot_2d_grid_without_coords(
                     field_matrix=this_radar_matrix,
                     field_name=field_name_by_panel[j],
-                    axes_object=this_axes_object)
+                    axes_object=this_axes_object,
+                    annotation_string=panel_names[j]
+                )
 
                 pyplot.axis('off')
 
