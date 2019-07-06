@@ -732,10 +732,13 @@ def plot_examples(
     :param storm_activations: Same.
     """
 
-    storm_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
-        for t in storm_times_unix_sec
-    ]
+    if storm_times_unix_sec is None:
+        storm_time_strings = None
+    else:
+        storm_time_strings = [
+            time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+            for t in storm_times_unix_sec
+        ]
 
     if len(list_of_predictor_matrices) == 3:
         _plot_2d3d_examples(
