@@ -20,8 +20,6 @@ KM_TO_KILOFEET = 3.2808
 METRES_TO_KM = 1e-3
 PER_SECOND_TO_PER_KILOSECOND = 1e3
 
-DEFAULT_FIGURE_WIDTH_INCHES = 15
-DEFAULT_FIGURE_HEIGHT_INCHES = 15
 DEFAULT_FONT_SIZE = 20
 
 FIELD_NAME_TO_VERBOSE_DICT = {
@@ -751,12 +749,11 @@ def plot_2d_grid_without_coords(
 
 
 def plot_many_2d_grids_without_coords(
-        field_matrix, field_name_by_panel, num_panel_rows, panel_names=None,
+        field_matrix, field_name_by_panel, num_panel_rows=None,
+        figure_object=None, axes_object_matrix=None, panel_names=None,
         colour_map_object_by_panel=None, colour_norm_object_by_panel=None,
-        plot_colour_bar_by_panel=None,
-        figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
-        figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
-        font_size=DEFAULT_FONT_SIZE, row_major=True):
+        plot_colour_bar_by_panel=None, font_size=DEFAULT_FONT_SIZE,
+        row_major=True):
     """Plots 2-D colour map in each panel (one per field/height pair).
 
     M = number of rows in spatial grid
@@ -765,10 +762,15 @@ def plot_many_2d_grids_without_coords(
 
     This method uses the default colour scheme for each radar field.
 
+    If `num_panel_rows is None`, this method needs arguments `figure_object` and
+    `axes_object_matrix` -- and vice-versa.
+
     :param field_matrix: M-by-N-by-P numpy array of radar values.
     :param field_name_by_panel: length-P list of field names.
     :param num_panel_rows: Number of rows in paneled figure (different than M,
         which is number of rows in spatial grid).
+    :param figure_object: See doc for `plotting_utils.create_paneled_figure`.
+    :param axes_object_matrix: See above.
     :param panel_names: length-P list of panel names (will be printed at bottoms
         of panels).  If you do not want panel names, make this None.
     :param colour_map_object_by_panel: length-P list of `matplotlib.pyplot.cm`
@@ -780,8 +782,6 @@ def plot_many_2d_grids_without_coords(
         plot_colour_bar_by_panel[k] = True, horizontal colour bar will be
         plotted under [k]th panel.  If you want to plot colour bar for every
         panel, leave this as None.
-    :param figure_width_inches: Figure width.
-    :param figure_height_inches: Figure height.
     :param font_size: Font size.
     :param row_major: Boolean flag.  If True, panels will be filled along rows
         first, then down columns.  If False, down columns first, then along
@@ -793,15 +793,10 @@ def plot_many_2d_grids_without_coords(
         panels.
     """
 
-    error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
     error_checking.assert_is_boolean(row_major)
-
-    if row_major:
-        order_string = 'C'
-    else:
-        order_string = 'F'
-
+    error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
     num_panels = field_matrix.shape[2]
+
     if panel_names is None:
         panel_names = [None] * num_panels
     if plot_colour_bar_by_panel is None:
@@ -809,9 +804,11 @@ def plot_many_2d_grids_without_coords(
 
     these_expected_dim = numpy.array([num_panels], dtype=int)
     error_checking.assert_is_numpy_array(
-        numpy.array(panel_names), exact_dimensions=these_expected_dim)
+        numpy.array(panel_names), exact_dimensions=these_expected_dim
+    )
     error_checking.assert_is_numpy_array(
-        numpy.array(field_name_by_panel), exact_dimensions=these_expected_dim)
+        numpy.array(field_name_by_panel), exact_dimensions=these_expected_dim
+    )
 
     error_checking.assert_is_boolean_numpy_array(plot_colour_bar_by_panel)
     error_checking.assert_is_numpy_array(
@@ -841,25 +838,32 @@ def plot_many_2d_grids_without_coords(
 
         raise ValueError(error_string)
 
-    error_checking.assert_is_integer(num_panel_rows)
-    error_checking.assert_is_geq(num_panel_rows, 1)
-    error_checking.assert_is_leq(num_panel_rows, num_panels)
+    if figure_object is None:
+        error_checking.assert_is_integer(num_panel_rows)
+        error_checking.assert_is_geq(num_panel_rows, 1)
+        error_checking.assert_is_leq(num_panel_rows, num_panels)
 
-    num_panel_columns = int(numpy.ceil(
-        float(num_panels) / num_panel_rows
-    ))
+        num_panel_columns = int(numpy.ceil(
+            float(num_panels) / num_panel_rows
+        ))
 
-    # figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
-    #     num_rows=num_panel_rows, num_columns=num_panel_columns,
-    #     figure_width_inches=figure_width_inches,
-    #     figure_height_inches=figure_height_inches, shared_x_axis=False,
-    #     shared_y_axis=False, keep_aspect_ratio=True)
+        figure_object, axes_object_matrix = (
+            plotting_utils.create_paneled_figure(
+                num_rows=num_panel_rows, num_columns=num_panel_columns,
+                shared_x_axis=False, shared_y_axis=False,
+                keep_aspect_ratio=True)
+        )
+    else:
+        error_checking.assert_is_numpy_array(
+            axes_object_matrix, num_dimensions=2)
 
-    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
-        num_rows=num_panel_rows, num_columns=num_panel_columns,
-        figure_width_inches=figure_width_inches,
-        figure_height_inches=figure_height_inches, shared_x_axis=False,
-        shared_y_axis=False, keep_aspect_ratio=False)
+        num_panel_rows = axes_object_matrix.shape[0]
+        num_panel_columns = axes_object_matrix.shape[1]
+
+    if row_major:
+        order_string = 'C'
+    else:
+        order_string = 'F'
 
     for k in range(num_panels):
         this_panel_row, this_panel_column = numpy.unravel_index(
@@ -908,8 +912,7 @@ def plot_many_2d_grids_without_coords(
 
 def plot_3d_grid_without_coords(
         field_matrix, field_name, grid_point_heights_metres, ground_relative,
-        num_panel_rows, figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
-        figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
+        num_panel_rows=None, figure_object=None, axes_object_matrix=None,
         font_size=DEFAULT_FONT_SIZE, colour_map_object=None,
         colour_norm_object=None):
     """Plots 3-D grid as many colour maps (one per height).
@@ -921,6 +924,9 @@ def plot_3d_grid_without_coords(
     To use the default colour scheme for the given radar field, leave
     `colour_map_object` and `colour_norm_object` empty.
 
+    If `num_panel_rows is None`, this method needs arguments `figure_object` and
+    `axes_object_matrix` -- and vice-versa.
+
     :param field_matrix: M-by-N-by-H numpy array with values of radar field.
     :param field_name: Name of radar field (must be accepted by
         `radar_utils.check_field_name`).
@@ -930,8 +936,8 @@ def plot_3d_grid_without_coords(
         sea-level-relative.
     :param num_panel_rows: Number of rows in paneled figure (different than M,
         the number of grid rows).
-    :param figure_width_inches: Figure width.
-    :param figure_height_inches: Figure height.
+    :param figure_object: See doc for `plotting_utils.create_paneled_figure`.
+    :param axes_object_matrix: See above.
     :param font_size: Font size for colour-bar ticks and panel labels.
     :param colour_map_object: See doc for `plot_latlng_grid`.
     :param colour_norm_object: Same.
@@ -940,34 +946,39 @@ def plot_3d_grid_without_coords(
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
+    error_checking.assert_is_geq_numpy_array(grid_point_heights_metres, 0)
+    grid_point_heights_metres = numpy.round(
+        grid_point_heights_metres
+    ).astype(int)
 
     num_heights = field_matrix.shape[2]
-    error_checking.assert_is_geq_numpy_array(grid_point_heights_metres, 0)
+    these_expected_dim = numpy.array([num_heights], dtype=int)
     error_checking.assert_is_numpy_array(
-        grid_point_heights_metres, exact_dimensions=numpy.array([num_heights]))
-    grid_point_heights_metres = numpy.round(
-        grid_point_heights_metres).astype(int)
+        grid_point_heights_metres, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_boolean(ground_relative)
-    error_checking.assert_is_integer(num_panel_rows)
-    error_checking.assert_is_geq(num_panel_rows, 1)
-    error_checking.assert_is_leq(num_panel_rows, num_heights)
 
-    num_panel_columns = int(numpy.ceil(
-        float(num_heights) / num_panel_rows
-    ))
+    if figure_object is None:
+        error_checking.assert_is_integer(num_panel_rows)
+        error_checking.assert_is_geq(num_panel_rows, 1)
+        error_checking.assert_is_leq(num_panel_rows, num_heights)
 
-    # figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
-    #     num_rows=num_panel_rows, num_columns=num_panel_columns,
-    #     figure_width_inches=figure_width_inches,
-    #     figure_height_inches=figure_height_inches, shared_x_axis=False,
-    #     shared_y_axis=False, keep_aspect_ratio=True)
+        num_panel_columns = int(numpy.ceil(
+            float(num_heights) / num_panel_rows
+        ))
 
-    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
-        num_rows=num_panel_rows, num_columns=num_panel_columns,
-        figure_width_inches=16,
-        figure_height_inches=12, shared_x_axis=False,
-        shared_y_axis=False, keep_aspect_ratio=False)
+        figure_object, axes_object_matrix = (
+            plotting_utils.create_paneled_figure(
+                num_rows=num_panel_rows, num_columns=num_panel_columns,
+                shared_x_axis=False, shared_y_axis=False,
+                keep_aspect_ratio=True)
+        )
+    else:
+        error_checking.assert_is_numpy_array(
+            axes_object_matrix, num_dimensions=2)
+
+        num_panel_rows = axes_object_matrix.shape[0]
+        num_panel_columns = axes_object_matrix.shape[1]
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
@@ -978,7 +989,9 @@ def plot_3d_grid_without_coords(
                 continue
 
             this_annotation_string = '{0:.1f} km'.format(
-                grid_point_heights_metres[this_height_index] * METRES_TO_KM)
+                grid_point_heights_metres[this_height_index] * METRES_TO_KM
+            )
+
             if ground_relative:
                 this_annotation_string += ' AGL'
             else:

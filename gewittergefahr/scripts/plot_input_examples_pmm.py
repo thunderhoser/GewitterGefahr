@@ -13,6 +13,7 @@ MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
+NO_WHITESPACE_ARG_NAME = 'no_whitespace'
 PLOT_SOUNDINGS_ARG_NAME = 'plot_soundings'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -21,6 +22,10 @@ INPUT_FILE_HELP_STRING = (
     'This should be a Pickle file with one dictionary, containing the keys '
     '"{0:s}" and "{1:s}".'
 ).format(MEAN_INPUT_MATRICES_KEY, MODEL_FILE_KEY)
+
+NO_WHITESPACE_HELP_STRING = (
+    'Boolean flag.  If 1, will plot with no whitespace between panels or around'
+    ' outside of image.')
 
 PLOT_SOUNDINGS_HELP_STRING = 'Boolean flag.  If 1, will plot sounding.'
 
@@ -33,6 +38,10 @@ INPUT_ARG_PARSER.add_argument(
     help=INPUT_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NO_WHITESPACE_ARG_NAME, type=int, required=False, default=0,
+    help=NO_WHITESPACE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_SOUNDINGS_ARG_NAME, type=int, required=False, default=1,
     help=PLOT_SOUNDINGS_HELP_STRING)
 
@@ -41,7 +50,7 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _run(input_file_name, plot_soundings, output_dir_name):
+def _run(input_file_name, no_whitespace, plot_soundings, output_dir_name):
     """Plots probability-matched mean (PMM) of many examples (storm objects).
 
     This is effectively the main method.
@@ -75,8 +84,8 @@ def _run(input_file_name, plot_soundings, output_dir_name):
 
     plot_input_examples.plot_examples(
         list_of_predictor_matrices=list_of_mean_input_matrices,
-        model_metadata_dict=model_metadata_dict,
-        output_dir_name=output_dir_name, pmm_flag=True)
+        model_metadata_dict=model_metadata_dict, pmm_flag=True,
+        no_whitespace=no_whitespace, output_dir_name=output_dir_name)
 
 
 if __name__ == '__main__':
@@ -84,6 +93,7 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
+        no_whitespace=bool(getattr(INPUT_ARG_OBJECT, NO_WHITESPACE_ARG_NAME)),
         plot_soundings=bool(getattr(INPUT_ARG_OBJECT, PLOT_SOUNDINGS_ARG_NAME)),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

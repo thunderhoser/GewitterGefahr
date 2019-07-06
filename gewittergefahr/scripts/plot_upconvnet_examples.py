@@ -163,8 +163,6 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=actual_output_dir_name)
 
-    # TODO(thunderhoser): Calling a method in another script is hacky.  If this
-    # method is going to be reused, should be in a module.
     plot_input_examples.plot_examples(
         list_of_predictor_matrices=[actual_radar_matrix],
         full_id_strings=full_id_strings,

@@ -21,8 +21,6 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 # from gewittergefahr.plotting import sounding_plotting
 
-TIGHT_LAYOUT = True
-
 # TODO(thunderhoser): This is a HACK.
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
@@ -56,6 +54,7 @@ FIGURE_RESOLUTION_DPI = 300
 ACTIVATION_FILE_ARG_NAME = 'input_activation_file_name'
 STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
+NO_WHITESPACE_ARG_NAME = 'no_whitespace'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 RADAR_FIELDS_ARG_NAME = 'radar_field_names'
 RADAR_HEIGHTS_ARG_NAME = 'radar_heights_m_agl'
@@ -79,6 +78,10 @@ NUM_EXAMPLES_HELP_STRING = (
     'Number of examples (storm objects) to read from `{0:s}` or `{1:s}`.  If '
     'you want to read all examples, make this non-positive.'
 ).format(ACTIVATION_FILE_ARG_NAME, STORM_METAFILE_ARG_NAME)
+
+NO_WHITESPACE_HELP_STRING = (
+    'Boolean flag.  If 1, will plot with no whitespace between panels or around'
+    ' outside of image.')
 
 EXAMPLE_DIR_HELP_STRING = (
     'Name of top-level directory with input examples.  Files therein will be '
@@ -130,6 +133,10 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NO_WHITESPACE_ARG_NAME, type=int, required=False, default=0,
+    help=NO_WHITESPACE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=True,
     help=EXAMPLE_DIR_HELP_STRING)
 
@@ -159,9 +166,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_3d_examples(
-        list_of_predictor_matrices, model_metadata_dict, output_dir_name,
-        pmm_flag=False, full_id_strings=None, storm_time_strings=None,
-        storm_activations=None):
+        list_of_predictor_matrices, model_metadata_dict, no_whitespace,
+        output_dir_name, pmm_flag=False, full_id_strings=None,
+        storm_time_strings=None, storm_activations=None):
     """Plots examples with 3-D radar data.
 
     E = number of examples
@@ -170,6 +177,7 @@ def _plot_3d_examples(
         `testing_io.read_specific_examples`, containing data to be plotted.
     :param model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
+    :param no_whitespace: See documentation at top of file.
     :param output_dir_name: Name of output directory.
     :param pmm_flag: Boolean flag.  If True, this method will assume that input
         contains a PMM (probability-matched mean) over many examples.  If False,
@@ -200,6 +208,9 @@ def _plot_3d_examples(
 
     num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_radar_heights)
+    ))
+    num_panel_columns = int(numpy.ceil(
+        float(num_radar_heights) / num_panel_rows
     ))
 
     # sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
@@ -237,9 +248,19 @@ def _plot_3d_examples(
         #     pyplot.close()
 
         for j in range(num_radar_fields):
-            this_radar_matrix = numpy.flip(
-                radar_matrix[i, ..., j], axis=0
-            )
+            this_radar_matrix = numpy.flip(radar_matrix[i, ..., j], axis=0)
+
+            if no_whitespace:
+                this_figure_object, this_axes_object_matrix = (
+                    plotting_utils.create_paneled_figure(
+                        num_rows=num_panel_rows, num_columns=num_panel_columns,
+                        horizontal_spacing=0., vertical_spacing=0.,
+                        shared_x_axis=False, shared_y_axis=False,
+                        keep_aspect_ratio=False)
+                )
+            else:
+                this_figure_object = None
+                this_axes_object_matrix = None
 
             _, this_axes_object_matrix = (
                 radar_plotting.plot_3d_grid_without_coords(
@@ -247,27 +268,30 @@ def _plot_3d_examples(
                     field_name=radar_field_names[j],
                     grid_point_heights_metres=radar_heights_m_agl,
                     ground_relative=True, num_panel_rows=num_panel_rows,
+                    figure_object=this_figure_object,
+                    axes_object_matrix=this_axes_object_matrix,
                     font_size=FONT_SIZE_SANS_COLOUR_BARS)
             )
 
-            this_colour_map_object, this_colour_norm_object = (
-                radar_plotting.get_default_colour_scheme(
-                    radar_field_names[j]
+            if not no_whitespace:
+                this_colour_map_object, this_colour_norm_object = (
+                    radar_plotting.get_default_colour_scheme(
+                        radar_field_names[j]
+                    )
                 )
-            )
 
-            plotting_utils.plot_colour_bar(
-                axes_object_or_matrix=this_axes_object_matrix,
-                data_matrix=this_radar_matrix,
-                colour_map_object=this_colour_map_object,
-                colour_norm_object=this_colour_norm_object,
-                orientation_string='horizontal', extend_min=True,
-                extend_max=True)
+                plotting_utils.plot_colour_bar(
+                    axes_object_or_matrix=this_axes_object_matrix,
+                    data_matrix=this_radar_matrix,
+                    colour_map_object=this_colour_map_object,
+                    colour_norm_object=this_colour_norm_object,
+                    orientation_string='horizontal', extend_min=True,
+                    extend_max=True)
 
-            this_title_string = '{0:s}; {1:s}'.format(
-                this_base_title_string, radar_field_names[j]
-            )
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+                this_title_string = '{0:s}; {1:s}'.format(
+                    this_base_title_string, radar_field_names[j]
+                )
+                pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
             this_file_name = metadata_to_radar_fig_file_name(
                 output_dir_name=output_dir_name, pmm_flag=pmm_flag,
@@ -282,13 +306,14 @@ def _plot_3d_examples(
 
 
 def _plot_2d3d_examples(
-        list_of_predictor_matrices, model_metadata_dict, output_dir_name,
-        pmm_flag=False, full_id_strings=None, storm_time_strings=None,
-        storm_activations=None):
+        list_of_predictor_matrices, model_metadata_dict, no_whitespace,
+        output_dir_name, pmm_flag=False, full_id_strings=None,
+        storm_time_strings=None, storm_activations=None):
     """Plots examples with 2-D and 3-D radar data.
 
     :param list_of_predictor_matrices: See doc for `_plot_3d_examples`.
     :param model_metadata_dict: Same.
+    :param no_whitespace: Same.
     :param output_dir_name: Same.
     :param pmm_flag: Same.
     :param full_id_strings: Same.
@@ -297,7 +322,6 @@ def _plot_2d3d_examples(
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-
     reflectivity_matrix_dbz = list_of_predictor_matrices[0]
     azimuthal_shear_matrix_s01 = list_of_predictor_matrices[0]
 
@@ -314,6 +338,13 @@ def _plot_2d3d_examples(
     num_storm_objects = len(full_id_strings)
     num_azimuthal_shear_fields = len(azimuthal_shear_field_names)
     num_reflectivity_heights = len(reflectivity_heights_m_agl)
+
+    num_refl_panel_rows = int(numpy.floor(
+        numpy.sqrt(num_reflectivity_heights)
+    ))
+    num_refl_panel_columns = int(numpy.ceil(
+        float(num_reflectivity_heights) / num_refl_panel_rows
+    ))
 
     for i in range(num_storm_objects):
         if pmm_flag:
@@ -336,34 +367,44 @@ def _plot_2d3d_examples(
             azimuthal_shear_matrix_s01[i, ...], axis=0
         )
 
-        this_num_panel_rows = int(numpy.floor(
-            numpy.sqrt(num_reflectivity_heights)
-        ))
+        if no_whitespace:
+            this_figure_object, this_axes_object_matrix = (
+                plotting_utils.create_paneled_figure(
+                    num_rows=num_refl_panel_rows,
+                    num_columns=num_refl_panel_columns, horizontal_spacing=0.,
+                    vertical_spacing=0., shared_x_axis=False,
+                    shared_y_axis=False, keep_aspect_ratio=False)
+            )
+        else:
+            this_figure_object = None
+            this_axes_object_matrix = None
 
-        _, this_axes_object_matrix = (
-            radar_plotting.plot_3d_grid_without_coords(
-                field_matrix=this_reflectivity_matrix_dbz,
-                field_name=radar_utils.REFL_NAME,
-                grid_point_heights_metres=reflectivity_heights_m_agl,
-                ground_relative=True, num_panel_rows=this_num_panel_rows,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS)
-        )
+        this_axes_object_matrix = radar_plotting.plot_3d_grid_without_coords(
+            field_matrix=this_reflectivity_matrix_dbz,
+            field_name=radar_utils.REFL_NAME,
+            grid_point_heights_metres=reflectivity_heights_m_agl,
+            ground_relative=True, num_panel_rows=num_refl_panel_rows,
+            figure_object=this_figure_object,
+            axes_object_matrix=this_axes_object_matrix,
+            font_size=FONT_SIZE_SANS_COLOUR_BARS
+        )[-1]
 
-        this_colour_map_object, this_colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
-        )
+        if not no_whitespace:
+            this_colour_map_object, this_colour_norm_object = (
+                radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
+            )
 
-        plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=this_axes_object_matrix,
-            data_matrix=this_reflectivity_matrix_dbz,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', extend_min=True,
-            extend_max=True)
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=this_reflectivity_matrix_dbz,
+                colour_map_object=this_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
-        this_title_string = '{0:s}; {1:s}'.format(
-            this_base_title_string, radar_utils.REFL_NAME)
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            this_title_string = '{0:s}; {1:s}'.format(
+                this_base_title_string, radar_utils.REFL_NAME)
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_file_name = metadata_to_radar_fig_file_name(
             output_dir_name=output_dir_name, pmm_flag=pmm_flag,
@@ -376,31 +417,46 @@ def _plot_2d3d_examples(
                        pad_inches=0, bbox_inches='tight')
         pyplot.close()
 
+        if no_whitespace:
+            this_figure_object, this_axes_object_matrix = (
+                plotting_utils.create_paneled_figure(
+                    num_rows=1, num_columns=num_azimuthal_shear_fields,
+                    horizontal_spacing=0., vertical_spacing=0.,
+                    shared_x_axis=False, shared_y_axis=False,
+                    keep_aspect_ratio=False)
+            )
+        else:
+            this_figure_object = None
+            this_axes_object_matrix = None
+
         _, this_axes_object_matrix = (
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=this_az_shear_matrix_s01,
                 field_name_by_panel=azimuthal_shear_field_names,
                 panel_names=azimuthal_shear_field_names, num_panel_rows=1,
+                figure_object=this_figure_object,
+                axes_object_matrix=this_axes_object_matrix,
                 plot_colour_bar_by_panel=numpy.full(
                     num_azimuthal_shear_fields, False, dtype=bool
                 ),
                 font_size=FONT_SIZE_SANS_COLOUR_BARS)
         )
 
-        this_colour_map_object, this_colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(
-                radar_utils.LOW_LEVEL_SHEAR_NAME)
-        )
+        if not no_whitespace:
+            this_colour_map_object, this_colour_norm_object = (
+                radar_plotting.get_default_colour_scheme(
+                    radar_utils.LOW_LEVEL_SHEAR_NAME)
+            )
 
-        plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=this_axes_object_matrix,
-            data_matrix=this_az_shear_matrix_s01,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', extend_min=True,
-            extend_max=True)
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=this_axes_object_matrix,
+                data_matrix=this_az_shear_matrix_s01,
+                colour_map_object=this_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
 
-        pyplot.suptitle(this_base_title_string, fontsize=TITLE_FONT_SIZE)
+            pyplot.suptitle(this_base_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_file_name = metadata_to_radar_fig_file_name(
             output_dir_name=output_dir_name, pmm_flag=pmm_flag,
@@ -415,13 +471,14 @@ def _plot_2d3d_examples(
 
 
 def _plot_2d_examples(
-        list_of_predictor_matrices, model_metadata_dict, output_dir_name,
-        pmm_flag=False, full_id_strings=None, storm_time_strings=None,
-        storm_activations=None):
+        list_of_predictor_matrices, model_metadata_dict, no_whitespace,
+        output_dir_name, pmm_flag=False, full_id_strings=None,
+        storm_time_strings=None, storm_activations=None):
     """Plots examples with 2-D radar data.
 
     :param list_of_predictor_matrices: See doc for `_plot_3d_examples`.
     :param model_metadata_dict: Same.
+    :param no_whitespace: Same.
     :param output_dir_name: Same.
     :param pmm_flag: Same.
     :param full_id_strings: Same.
@@ -454,7 +511,9 @@ def _plot_2d_examples(
         plot_colour_bar_by_panel = numpy.full(
             len(field_name_by_panel), False, dtype=bool
         )
-        # plot_colour_bar_by_panel[2::3] = True
+
+        if not no_whitespace:
+            plot_colour_bar_by_panel[2::3] = True
 
     radar_matrix = list_of_predictor_matrices[0]
 
@@ -465,9 +524,11 @@ def _plot_2d_examples(
 
     num_storm_objects = len(full_id_strings)
     num_panels = len(field_name_by_panel)
-
     num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_panels)
+    ))
+    num_panel_columns = int(numpy.ceil(
+        float(num_panels) / num_panel_rows
     ))
 
     for i in range(num_storm_objects):
@@ -485,15 +546,28 @@ def _plot_2d_examples(
 
         this_radar_matrix = numpy.flip(radar_matrix[i, ...], axis=0)
 
+        if no_whitespace:
+            this_figure_object, this_axes_object_matrix = (
+                plotting_utils.create_paneled_figure(
+                    num_rows=num_panel_rows, num_columns=num_panel_columns,
+                    horizontal_spacing=0., vertical_spacing=0.,
+                    shared_x_axis=False, shared_y_axis=False,
+                    keep_aspect_ratio=False)
+            )
+        else:
+            this_figure_object = None
+            this_axes_object_matrix = None
+
         radar_plotting.plot_many_2d_grids_without_coords(
             field_matrix=this_radar_matrix,
-            field_name_by_panel=field_name_by_panel,
-            panel_names=panel_names,
-            num_panel_rows=num_panel_rows,
+            field_name_by_panel=field_name_by_panel, panel_names=panel_names,
+            num_panel_rows=num_panel_rows, figure_object=this_figure_object,
+            axes_object_matrix=this_axes_object_matrix,
             plot_colour_bar_by_panel=plot_colour_bar_by_panel,
             font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
-        # pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+        if not no_whitespace:
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_file_name = metadata_to_radar_fig_file_name(
             output_dir_name=output_dir_name, pmm_flag=pmm_flag,
@@ -644,25 +718,31 @@ def radar_fig_file_name_to_metadata(figure_file_name):
 
 def plot_examples(
         list_of_predictor_matrices, model_metadata_dict, output_dir_name,
-        pmm_flag=False, full_id_strings=None, storm_time_strings=None,
-        storm_activations=None):
+        no_whitespace=False, pmm_flag=False, full_id_strings=None,
+        storm_times_unix_sec=None, storm_activations=None):
     """Plots examples.
 
     :param list_of_predictor_matrices: See doc for `_plot_3d_examples`.
     :param model_metadata_dict: Same.
+    :param no_whitespace: Same.
     :param output_dir_name: Same.
     :param pmm_flag: Same.
     :param full_id_strings: Same.
-    :param storm_time_strings: Same.
+    :param storm_times_unix_sec: Same.
     :param storm_activations: Same.
     """
+
+    storm_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in storm_times_unix_sec
+    ]
 
     if len(list_of_predictor_matrices) == 3:
         _plot_2d3d_examples(
             list_of_predictor_matrices=list_of_predictor_matrices,
             model_metadata_dict=model_metadata_dict,
-            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
-            full_id_strings=full_id_strings,
+            no_whitespace=no_whitespace, output_dir_name=output_dir_name,
+            pmm_flag=pmm_flag, full_id_strings=full_id_strings,
             storm_time_strings=storm_time_strings,
             storm_activations=storm_activations)
 
@@ -674,8 +754,8 @@ def plot_examples(
         _plot_3d_examples(
             list_of_predictor_matrices=list_of_predictor_matrices,
             model_metadata_dict=model_metadata_dict,
-            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
-            full_id_strings=full_id_strings,
+            no_whitespace=no_whitespace, output_dir_name=output_dir_name,
+            pmm_flag=pmm_flag, full_id_strings=full_id_strings,
             storm_time_strings=storm_time_strings,
             storm_activations=storm_activations)
 
@@ -683,14 +763,14 @@ def plot_examples(
 
     _plot_2d_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
-        model_metadata_dict=model_metadata_dict,
+        model_metadata_dict=model_metadata_dict, no_whitespace=no_whitespace,
         output_dir_name=output_dir_name, pmm_flag=pmm_flag,
         full_id_strings=full_id_strings,
         storm_time_strings=storm_time_strings,
         storm_activations=storm_activations)
 
 
-def _run(activation_file_name, storm_metafile_name, num_examples,
+def _run(activation_file_name, storm_metafile_name, num_examples, no_whitespace,
          top_example_dir_name, radar_field_names, radar_heights_m_agl,
          plot_soundings, num_radar_rows, num_radar_columns, output_dir_name):
     """Plots many dataset examples (storm objects).
@@ -700,6 +780,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     :param activation_file_name: See documentation at top of file.
     :param storm_metafile_name: Same.
     :param num_examples: Same.
+    :param no_whitespace: Same.
     :param top_example_dir_name: Same.
     :param radar_field_names: Same.
     :param radar_heights_m_agl: Same.
@@ -810,16 +891,11 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     )[0]
     print(SEPARATOR_STRING)
 
-    storm_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
-        for t in storm_times_unix_sec
-    ]
-
     plot_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
-        model_metadata_dict=model_metadata_dict,
+        model_metadata_dict=model_metadata_dict, no_whitespace=no_whitespace,
         output_dir_name=output_dir_name, full_id_strings=full_id_strings,
-        storm_time_strings=storm_time_strings,
+        storm_times_unix_sec=storm_times_unix_sec,
         storm_activations=storm_activations)
 
 
@@ -831,6 +907,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ACTIVATION_FILE_ARG_NAME),
         storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
+        no_whitespace=bool(getattr(INPUT_ARG_OBJECT, NO_WHITESPACE_ARG_NAME)),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELDS_ARG_NAME),
         radar_heights_m_agl=numpy.array(

@@ -162,7 +162,8 @@ def label_axes(axes_object, label_string, font_size=DEFAULT_LABEL_FONT_SIZE,
 def create_paneled_figure(
         num_rows, num_columns, figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
-        shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True):
+        horizontal_spacing=0.075, vertical_spacing=0., shared_x_axis=False,
+        shared_y_axis=False, keep_aspect_ratio=True):
     """Creates paneled figure.
 
     This method only initializes the panels.  It does not plot anything.
@@ -176,6 +177,10 @@ def create_paneled_figure(
         panels).
     :param figure_height_inches: Height of the entire figure (including all
         panels).
+    :param horizontal_spacing: Spacing (in figure-relative coordinates, from
+        0...1) between adjacent panel columns.
+    :param vertical_spacing: Spacing (in figure-relative coordinates, from
+        0...1) between adjacent panel rows.
     :param shared_x_axis: Boolean flag.  If True, all panels will share the same
         x-axis.
     :param shared_y_axis: Boolean flag.  If True, all panels will share the same
@@ -189,8 +194,10 @@ def create_paneled_figure(
         of `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    # TODO(thunderhoser): Make hspace and wspace input args.
-
+    error_checking.assert_is_geq(horizontal_spacing, 0.)
+    error_checking.assert_is_less_than(horizontal_spacing, 1.)
+    error_checking.assert_is_geq(vertical_spacing, 0.)
+    error_checking.assert_is_less_than(vertical_spacing, 1.)
     error_checking.assert_is_boolean(shared_x_axis)
     error_checking.assert_is_boolean(shared_y_axis)
     error_checking.assert_is_boolean(keep_aspect_ratio)
@@ -210,13 +217,9 @@ def create_paneled_figure(
             axes_object_matrix, (num_rows, num_columns)
         )
 
-    # pyplot.subplots_adjust(
-    #     left=0.02, bottom=0.02, right=0.98, top=0.95, hspace=0.075, wspace=0.
-    # )
-
     pyplot.subplots_adjust(
-        left=0.02, bottom=0.02, right=0.98, top=0.95, hspace=0., wspace=0.
-    )
+        left=0.02, bottom=0.02, right=0.98, top=0.95,
+        hspace=horizontal_spacing, wspace=vertical_spacing)
 
     if not keep_aspect_ratio:
         return figure_object, axes_object_matrix
