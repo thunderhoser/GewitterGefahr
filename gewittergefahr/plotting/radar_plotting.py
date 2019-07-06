@@ -965,8 +965,8 @@ def plot_3d_grid_without_coords(
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
-        figure_width_inches=figure_width_inches,
-        figure_height_inches=figure_height_inches, shared_x_axis=False,
+        figure_width_inches=16,
+        figure_height_inches=12, shared_x_axis=False,
         shared_y_axis=False, keep_aspect_ratio=False)
 
     for i in range(num_panel_rows):
