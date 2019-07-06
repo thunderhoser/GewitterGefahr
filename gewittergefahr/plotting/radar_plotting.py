@@ -849,11 +849,17 @@ def plot_many_2d_grids_without_coords(
         float(num_panels) / num_panel_rows
     ))
 
+    # figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
+    #     num_rows=num_panel_rows, num_columns=num_panel_columns,
+    #     figure_width_inches=figure_width_inches,
+    #     figure_height_inches=figure_height_inches, shared_x_axis=False,
+    #     shared_y_axis=False, keep_aspect_ratio=True)
+
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
         figure_width_inches=figure_width_inches,
         figure_height_inches=figure_height_inches, shared_x_axis=False,
-        shared_y_axis=False, keep_aspect_ratio=True)
+        shared_y_axis=False, keep_aspect_ratio=False)
 
     for k in range(num_panels):
         this_panel_row, this_panel_column = numpy.unravel_index(
@@ -951,11 +957,17 @@ def plot_3d_grid_without_coords(
         float(num_heights) / num_panel_rows
     ))
 
+    # figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
+    #     num_rows=num_panel_rows, num_columns=num_panel_columns,
+    #     figure_width_inches=figure_width_inches,
+    #     figure_height_inches=figure_height_inches, shared_x_axis=False,
+    #     shared_y_axis=False, keep_aspect_ratio=True)
+
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
         figure_width_inches=figure_width_inches,
         figure_height_inches=figure_height_inches, shared_x_axis=False,
-        shared_y_axis=False, keep_aspect_ratio=True)
+        shared_y_axis=False, keep_aspect_ratio=False)
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):

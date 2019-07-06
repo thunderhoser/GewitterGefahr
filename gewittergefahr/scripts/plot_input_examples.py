@@ -493,7 +493,7 @@ def _plot_2d_examples(
             plot_colour_bar_by_panel=plot_colour_bar_by_panel,
             font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+        # pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_file_name = metadata_to_radar_fig_file_name(
             output_dir_name=output_dir_name, pmm_flag=pmm_flag,
