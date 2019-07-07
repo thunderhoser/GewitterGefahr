@@ -1720,15 +1720,15 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
                         REFL_COLUMN_DIMENSION_KEY, RADAR_HEIGHT_DIM_KEY)
         )
         netcdf_dataset.variables[REFL_IMAGE_MATRIX_KEY][:] = example_dict[
-            RADAR_IMAGE_MATRIX_KEY][..., 0]
+            REFL_IMAGE_MATRIX_KEY][..., 0]
 
         netcdf_dataset.createVariable(
             AZ_SHEAR_IMAGE_MATRIX_KEY, datatype=numpy.float32,
             dimensions=(EXAMPLE_DIMENSION_KEY, AZ_SHEAR_ROW_DIMENSION_KEY,
-                        AZ_SHEAR_COLUMN_DIMENSION_KEY, RADAR_HEIGHT_DIM_KEY)
+                        AZ_SHEAR_COLUMN_DIMENSION_KEY, RADAR_FIELD_DIM_KEY)
         )
         netcdf_dataset.variables[AZ_SHEAR_IMAGE_MATRIX_KEY][:] = example_dict[
-            AZ_SHEAR_IMAGE_MATRIX_KEY][..., 0]
+            AZ_SHEAR_IMAGE_MATRIX_KEY]
 
     if not include_soundings:
         netcdf_dataset.close()
