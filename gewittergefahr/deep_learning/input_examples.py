@@ -2368,7 +2368,7 @@ def create_examples(
 
     for i in range(num_file_times):
         if radar_file_name_matrix is None:
-            this_file_name = reflectivity_file_name_matrix[0, 0]
+            this_file_name = reflectivity_file_name_matrix[i, 0]
         else:
             this_file_name = numpy.ravel(radar_file_name_matrix[i, ...])[0]
 
