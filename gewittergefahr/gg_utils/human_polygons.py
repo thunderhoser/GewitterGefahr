@@ -290,6 +290,7 @@ def capture_polygons(image_file_name, instruction_string=''):
     """
 
     error_checking.assert_file_exists(image_file_name)
+    error_checking.assert_is_string(instruction_string)
 
     image_matrix = Image.open(image_file_name)
     num_pixel_columns, num_pixel_rows = image_matrix.size
@@ -344,6 +345,7 @@ def capture_mouse_clicks(image_file_name, instruction_string=''):
     """
 
     error_checking.assert_file_exists(image_file_name)
+    error_checking.assert_is_string(instruction_string)
 
     image_matrix = Image.open(image_file_name)
     num_pixel_columns, num_pixel_rows = image_matrix.size
@@ -351,10 +353,6 @@ def capture_mouse_clicks(image_file_name, instruction_string=''):
     figure_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )[0]
-
-    instruction_string = (
-        'Click in polygons (areas of interest) that you did not expect.  Close '
-        'when you are done.')
 
     pyplot.imshow(image_matrix)
     pyplot.title(instruction_string)
@@ -373,7 +371,8 @@ def capture_mouse_clicks(image_file_name, instruction_string=''):
 
 
 def pixel_rows_to_grid_rows(
-        pixel_row_by_vertex, num_pixel_rows, num_panel_rows, num_grid_rows):
+        pixel_row_by_vertex, num_pixel_rows, num_panel_rows, num_grid_rows,
+        assert_same_panel):
     """Converts pixel rows to grid rows.
 
     V = number of vertices in object
@@ -383,9 +382,12 @@ def pixel_rows_to_grid_rows(
     :param num_pixel_rows: Total number of pixel rows in image.
     :param num_panel_rows: Total number of panel rows in image.
     :param num_grid_rows: Total number of rows in grid (one grid per panel).
-    :return: grid_row_by_vertex: length-V numpy array with row coordinates of
-        vertices in grid space.
-    :return: panel_row: Row coordinate of object in panel space.
+    :param assert_same_panel: Boolean flag.  If True, all vertices must be in
+        the same panel.
+    :return: grid_row_by_vertex: length-V numpy array with row coordinates
+        (floats) of vertices in grid space.
+    :return: panel_row_by_vertex: length-V numpy array with row coordinates
+        (integers) of vertices in panel space.
     """
 
     error_checking.assert_is_integer(num_pixel_rows)
@@ -394,6 +396,7 @@ def pixel_rows_to_grid_rows(
     error_checking.assert_is_greater(num_panel_rows, 0)
     error_checking.assert_is_integer(num_grid_rows)
     error_checking.assert_is_greater(num_grid_rows, 0)
+    error_checking.assert_is_boolean(assert_same_panel)
 
     error_checking.assert_is_numpy_array(pixel_row_by_vertex, num_dimensions=1)
 
@@ -416,17 +419,19 @@ def pixel_rows_to_grid_rows(
         panel_row_by_vertex == num_panel_rows
     ] = num_panel_rows - 1
 
-    if len(numpy.unique(panel_row_by_vertex)) > 1:
+    if assert_same_panel and len(numpy.unique(panel_row_by_vertex)) > 1:
         error_string = (
             'Object is in multiple panels.  Panel rows listed below.\n{0:s}'
         ).format(str(panel_row_by_vertex))
 
         raise ValueError(error_string)
 
-    panel_row = panel_row_by_vertex[0]
-    pixel_row_by_vertex = (
-        pixel_row_by_vertex - panel_row_to_first_px_row[panel_row]
-    )
+    num_vertices = len(pixel_row_by_vertex)
+    for i in range(num_vertices):
+        pixel_row_by_vertex[i] = (
+            pixel_row_by_vertex[i] -
+            panel_row_to_first_px_row[panel_row_by_vertex[i]]
+        )
 
     grid_row_by_vertex = -0.5 + (
         pixel_row_by_vertex *
@@ -435,12 +440,12 @@ def pixel_rows_to_grid_rows(
 
     grid_row_by_vertex = num_grid_rows - 1 - grid_row_by_vertex
 
-    return grid_row_by_vertex, panel_row
+    return grid_row_by_vertex, panel_row_by_vertex
 
 
 def pixel_columns_to_grid_columns(
         pixel_column_by_vertex, num_pixel_columns, num_panel_columns,
-        num_grid_columns):
+        num_grid_columns, assert_same_panel):
     """Converts pixel columns to grid columns.
 
     V = number of vertices in object
@@ -451,9 +456,12 @@ def pixel_columns_to_grid_columns(
     :param num_panel_columns: Total number of panel columns in image.
     :param num_grid_columns: Total number of columns in grid (one grid per
         panel).
+    :param assert_same_panel: Boolean flag.  If True, all vertices must be in
+        the same panel.
     :return: grid_column_by_vertex: length-V numpy array with column coordinates
-        of vertices in grid space.
-    :return: panel_column: Column coordinate of object in panel space.
+        (floats) of vertices in grid space.
+    :return: panel_column_by_vertex: length-V numpy array with column
+        coordinates (integers) of vertices in panel space.
     """
 
     error_checking.assert_is_integer(num_pixel_columns)
@@ -462,6 +470,7 @@ def pixel_columns_to_grid_columns(
     error_checking.assert_is_greater(num_panel_columns, 0)
     error_checking.assert_is_integer(num_grid_columns)
     error_checking.assert_is_greater(num_grid_columns, 0)
+    error_checking.assert_is_boolean(assert_same_panel)
 
     error_checking.assert_is_numpy_array(
         pixel_column_by_vertex, num_dimensions=1)
@@ -485,24 +494,26 @@ def pixel_columns_to_grid_columns(
         panel_column_by_vertex == num_panel_columns
     ] = num_panel_columns - 1
 
-    if len(numpy.unique(panel_column_by_vertex)) > 1:
+    if assert_same_panel and len(numpy.unique(panel_column_by_vertex)) > 1:
         error_string = (
             'Object is in multiple panels.  Panel columns listed below.\n{0:s}'
         ).format(str(panel_column_by_vertex))
 
         raise ValueError(error_string)
 
-    panel_column = panel_column_by_vertex[0]
-    pixel_column_by_vertex = (
-        pixel_column_by_vertex - panel_column_to_first_px_column[panel_column]
-    )
+    num_vertices = len(pixel_column_by_vertex)
+    for i in range(num_vertices):
+        pixel_column_by_vertex[i] = (
+            pixel_column_by_vertex[i] -
+            panel_column_to_first_px_column[panel_column_by_vertex[i]]
+        )
 
     grid_column_by_vertex = -0.5 + (
         pixel_column_by_vertex *
         float(num_grid_columns * num_panel_columns) / num_pixel_columns
     )
 
-    return grid_column_by_vertex, panel_column
+    return grid_column_by_vertex, panel_column_by_vertex
 
 
 def polygons_from_pixel_to_grid_coords(
@@ -559,22 +570,24 @@ def polygons_from_pixel_to_grid_coords(
     panel_column_by_polygon = [None] * num_polygons
 
     for k in range(num_polygons):
-        these_grid_columns, panel_column_by_polygon[k] = (
-            pixel_columns_to_grid_columns(
-                pixel_column_by_vertex=numpy.array(
-                    polygon_objects_pixel_coords[k].exterior.xy[0]
-                ),
-                num_pixel_columns=num_pixel_columns,
-                num_panel_columns=num_panel_columns,
-                num_grid_columns=num_grid_columns)
-        )
+        these_grid_columns, these_panel_columns = pixel_columns_to_grid_columns(
+            pixel_column_by_vertex=numpy.array(
+                polygon_objects_pixel_coords[k].exterior.xy[0]
+            ),
+            num_pixel_columns=num_pixel_columns,
+            num_panel_columns=num_panel_columns,
+            num_grid_columns=num_grid_columns, assert_same_panel=True)
 
-        these_grid_rows, panel_row_by_polygon[k] = pixel_rows_to_grid_rows(
+        panel_column_by_polygon[k] = these_panel_columns[0]
+
+        these_grid_rows, these_panel_rows = pixel_rows_to_grid_rows(
             pixel_row_by_vertex=numpy.array(
                 polygon_objects_pixel_coords[k].exterior.xy[1]
             ),
             num_pixel_rows=num_pixel_rows, num_panel_rows=num_panel_rows,
-            num_grid_rows=num_grid_rows)
+            num_grid_rows=num_grid_rows, assert_same_panel=True)
+
+        panel_row_by_polygon[k] = these_panel_rows[0]
 
         polygon_objects_grid_coords[k] = (
             polygons.vertex_arrays_to_polygon_object(

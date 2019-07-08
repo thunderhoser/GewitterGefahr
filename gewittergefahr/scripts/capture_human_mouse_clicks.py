@@ -93,7 +93,8 @@ def _run(input_image_file_name, num_grid_rows, num_grid_columns, num_panel_rows,
     grid_row_by_point, panel_row_by_point = (
         human_polygons.pixel_rows_to_grid_rows(
             pixel_row_by_vertex=y_coords_px, num_pixel_rows=num_pixel_rows,
-            num_panel_rows=num_panel_rows, num_grid_rows=num_grid_rows)
+            num_panel_rows=num_panel_rows, num_grid_rows=num_grid_rows,
+            assert_same_panel=False)
     )
 
     grid_column_by_point, panel_column_by_point = (
@@ -101,7 +102,7 @@ def _run(input_image_file_name, num_grid_rows, num_grid_columns, num_panel_rows,
             pixel_column_by_vertex=x_coords_px,
             num_pixel_columns=num_pixel_columns,
             num_panel_columns=num_panel_columns,
-            num_grid_columns=num_grid_columns)
+            num_grid_columns=num_grid_columns, assert_same_panel=False)
     )
 
     print('Writing points of interest to: "{0:s}"...'.format(output_file_name))

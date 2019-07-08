@@ -43,7 +43,8 @@ TOY_VERTEX_TO_POLY_INDICES = numpy.array(
 
 TOY_POLY_TO_FIRST_VERTEX_INDICES = numpy.array([0, 6, 12], dtype=int)
 
-# The following constants are used to test polygons_from_pixel_to_grid_coords.
+# The following constants are used to test pixel_rows_to_grid_rows,
+# pixel_columns_to_grid_columns, and polygons_from_pixel_to_grid_coords.
 NUM_GRID_ROWS = 24
 NUM_GRID_COLUMNS = 32
 NUM_PANEL_ROWS = 3
@@ -92,20 +93,28 @@ POLYGON_OBJECTS_PIXEL_COORDS = [
     SEVENTH_POLYGON_OBJECT_XY, EIGHTH_POLYGON_OBJECT_XY
 ]
 
-THESE_ROWS = numpy.array([21.1, 23.5, 21.1, 18.7, 21.1])
-THESE_COLUMNS = numpy.array([-0.5, 2.7, 5.9, 2.7, -0.5])
-THIS_FIRST_OBJECT = polygons.vertex_arrays_to_polygon_object(
-    exterior_x_coords=THESE_COLUMNS, exterior_y_coords=THESE_ROWS)
+FIRST_GRID_ROW_BY_VERTEX = numpy.array([21.1, 23.5, 21.1, 18.7, 21.1])
+FIRST_GRID_COLUMN_BY_VERTEX = numpy.array([-0.5, 2.7, 5.9, 2.7, -0.5])
+FIRST_PANEL_ROW_BY_VERTEX = numpy.full(5, 0, dtype=int)
+FIRST_PANEL_COLUMN_BY_VERTEX = numpy.full(5, 0, dtype=int)
 
-THESE_ROWS = numpy.array([0.5, 0.5, 4.3, 9.1, 9.1, 0.5])
-THESE_COLUMNS = numpy.array([
+THIS_FIRST_OBJECT = polygons.vertex_arrays_to_polygon_object(
+    exterior_x_coords=FIRST_GRID_COLUMN_BY_VERTEX,
+    exterior_y_coords=FIRST_GRID_ROW_BY_VERTEX)
+
+FIFTH_GRID_ROW_BY_VERTEX = numpy.array([0.5, 0.5, 4.3, 9.1, 9.1, 0.5])
+FIFTH_GRID_COLUMN_BY_VERTEX = numpy.array([
     27.2333333, 30.5, 30.5, 30.5, 27.2333333, 27.2333333
 ])
-THIS_SECOND_OBJECT = polygons.vertex_arrays_to_polygon_object(
-    exterior_x_coords=THESE_COLUMNS, exterior_y_coords=THESE_ROWS)
+FIFTH_PANEL_ROW_BY_VERTEX = numpy.full(6, 0, dtype=int)
+FIFTH_PANEL_COLUMN_BY_VERTEX = numpy.full(6, 0, dtype=int)
+
+THIS_FIFTH_OBJECT = polygons.vertex_arrays_to_polygon_object(
+    exterior_x_coords=FIFTH_GRID_COLUMN_BY_VERTEX,
+    exterior_y_coords=FIFTH_GRID_ROW_BY_VERTEX)
 
 POLYGON_OBJECTS_GRID_COORDS = (
-    [THIS_FIRST_OBJECT] * 4 + [THIS_SECOND_OBJECT] * 4
+    [THIS_FIRST_OBJECT] * 4 + [THIS_FIFTH_OBJECT] * 4
 )
 PANEL_ROW_BY_POLYGON = numpy.array([0, 0, 1, 2, 0, 0, 1, 2], dtype=int)
 PANEL_COLUMN_BY_POLYGON = numpy.array([0, 1, 0, 1, 0, 1, 0, 1], dtype=int)
@@ -206,6 +215,96 @@ class HumanPolygonsTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             these_vertex_to_polygon_indices, TOY_VERTEX_TO_POLY_INDICES
+        ))
+
+    def test_pixel_rows_to_grid_rows_first(self):
+        """Ensures correct output from pixel_rows_to_grid_rows.
+
+        In this case, testing first polygon.
+        """
+
+        these_grid_rows, these_panel_rows = (
+            human_polygons.pixel_rows_to_grid_rows(
+                pixel_row_by_vertex=numpy.array(
+                    FIRST_POLYGON_OBJECT_XY.exterior.xy[1]
+                ),
+                num_pixel_rows=NUM_PIXEL_ROWS, num_grid_rows=NUM_GRID_ROWS,
+                num_panel_rows=NUM_PANEL_ROWS, assert_same_panel=True)
+        )
+
+        self.assertTrue(numpy.allclose(
+            these_grid_rows, FIRST_GRID_ROW_BY_VERTEX, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_panel_rows, FIRST_PANEL_ROW_BY_VERTEX
+        ))
+
+    def test_pixel_rows_to_grid_rows_fifth(self):
+        """Ensures correct output from pixel_rows_to_grid_rows.
+
+        In this case, testing fifth polygon.
+        """
+
+        these_grid_rows, these_panel_rows = (
+            human_polygons.pixel_rows_to_grid_rows(
+                pixel_row_by_vertex=numpy.array(
+                    FIFTH_POLYGON_OBJECT_XY.exterior.xy[1]
+                ),
+                num_pixel_rows=NUM_PIXEL_ROWS, num_grid_rows=NUM_GRID_ROWS,
+                num_panel_rows=NUM_PANEL_ROWS, assert_same_panel=True)
+        )
+
+        self.assertTrue(numpy.allclose(
+            these_grid_rows, FIFTH_GRID_ROW_BY_VERTEX, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_panel_rows, FIFTH_PANEL_ROW_BY_VERTEX
+        ))
+
+    def test_pixel_columns_to_grid_columns_first(self):
+        """Ensures correct output from pixel_columns_to_grid_columns.
+
+        In this case, testing first polygon.
+        """
+
+        these_grid_columns, these_panel_columns = (
+            human_polygons.pixel_columns_to_grid_columns(
+                pixel_column_by_vertex=numpy.array(
+                    FIRST_POLYGON_OBJECT_XY.exterior.xy[0]
+                ),
+                num_pixel_columns=NUM_PIXEL_COLUMNS,
+                num_grid_columns=NUM_GRID_COLUMNS,
+                num_panel_columns=NUM_PANEL_COLUMNS, assert_same_panel=True)
+        )
+
+        self.assertTrue(numpy.allclose(
+            these_grid_columns, FIRST_GRID_COLUMN_BY_VERTEX, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_panel_columns, FIRST_PANEL_COLUMN_BY_VERTEX
+        ))
+
+    def test_pixel_columns_to_grid_columns_fifth(self):
+        """Ensures correct output from pixel_columns_to_grid_columns.
+
+        In this case, testing fifth polygon.
+        """
+
+        these_grid_columns, these_panel_columns = (
+            human_polygons.pixel_columns_to_grid_columns(
+                pixel_column_by_vertex=numpy.array(
+                    FIFTH_POLYGON_OBJECT_XY.exterior.xy[0]
+                ),
+                num_pixel_columns=NUM_PIXEL_COLUMNS,
+                num_grid_columns=NUM_GRID_COLUMNS,
+                num_panel_columns=NUM_PANEL_COLUMNS, assert_same_panel=True)
+        )
+
+        self.assertTrue(numpy.allclose(
+            these_grid_columns, FIFTH_GRID_COLUMN_BY_VERTEX, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_panel_columns, FIFTH_PANEL_COLUMN_BY_VERTEX
         ))
 
     def test_polygons_from_pixel_to_grid_coords(self):
