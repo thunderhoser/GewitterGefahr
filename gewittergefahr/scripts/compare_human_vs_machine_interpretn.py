@@ -434,11 +434,16 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
         human_polygon_dict[human_polygons.IMAGE_FILE_KEY]
     )
 
-    pmm_flag = human_metadata_dict[plot_input_examples.PMM_FLAG_KEY]
-    full_storm_id_string = human_metadata_dict[
-        plot_input_examples.FULL_STORM_ID_KEY]
-    storm_time_unix_sec = human_metadata_dict[
-        plot_input_examples.STORM_TIME_KEY]
+    # TODO(thunderhoser): Put this metadata in the file itself!
+    # pmm_flag = human_metadata_dict[plot_input_examples.PMM_FLAG_KEY]
+    # full_storm_id_string = human_metadata_dict[
+    #     plot_input_examples.FULL_STORM_ID_KEY]
+    # storm_time_unix_sec = human_metadata_dict[
+    #     plot_input_examples.STORM_TIME_KEY]
+
+    pmm_flag = True
+    full_storm_id_string = None
+    storm_time_unix_sec = None
 
     print('Reading data from: "{0:s}"...'.format(input_machine_file_name))
 
