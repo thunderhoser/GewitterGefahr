@@ -87,10 +87,14 @@ def _run(input_image_file_name, positive_and_negative, num_grid_rows,
     :param output_file_name: Same.
     """
 
+    instruction_string = (
+        'Outline POSITIVE regions of interest.  Left-click for new vertex, '
+        'right-click to close polygon.')
+
     positive_objects_pixel_coords, num_pixel_rows, num_pixel_columns = (
         human_polygons.capture_polygons(
             image_file_name=input_image_file_name,
-            instruction_string='Outline POSITIVE regions of interest.')
+            instruction_string=instruction_string)
     )
 
     (positive_objects_grid_coords, positive_panel_row_by_polygon,
@@ -109,10 +113,14 @@ def _run(input_image_file_name, positive_and_negative, num_grid_rows,
         panel_column_by_polygon=positive_panel_column_by_polygon)
 
     if positive_and_negative:
+        instruction_string = (
+            'Outline NEGATIVE regions of interest.  Left-click for new vertex, '
+            'right-click to close polygon.')
+
         negative_objects_pixel_coords, num_pixel_rows, num_pixel_columns = (
             human_polygons.capture_polygons(
                 image_file_name=input_image_file_name,
-                instruction_string='Outline NEGATIVE regions of interest.')
+                instruction_string=instruction_string)
         )
 
         (negative_objects_grid_coords, negative_panel_row_by_polygon,

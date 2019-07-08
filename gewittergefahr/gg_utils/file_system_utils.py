@@ -22,6 +22,9 @@ def mkdir_recursive_if_necessary(directory_name=None, file_name=None):
     else:
         error_checking.assert_is_string(directory_name)
 
+    if directory_name == '':
+        return
+
     try:
         os.makedirs(directory_name)
     except OSError as this_error:

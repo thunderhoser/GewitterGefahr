@@ -16,7 +16,8 @@ random.seed(6695)
 numpy.random.seed(6695)
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
+    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
+    allow_soft_placement=False
 )))
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
