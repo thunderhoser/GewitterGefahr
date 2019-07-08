@@ -377,7 +377,8 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
         )
 
         az_shear_heights_m_agl = numpy.full(
-            len(az_shear_field_names), radar_utils.SHEAR_NAMES)
+            len(az_shear_field_names), radar_utils.SHEAR_HEIGHT_M_ASL
+        )
         radar_height_by_pair_m_agl = numpy.concatenate((
             refl_heights_m_agl, az_shear_heights_m_agl
         )).astype(int)
