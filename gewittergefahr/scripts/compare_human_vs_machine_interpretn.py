@@ -236,6 +236,10 @@ def _plot_comparison(
                 fontweight='bold', horizontalalignment='center',
                 verticalalignment='center')
 
+        print(machine_mask_matrix.shape)
+        print(type(machine_mask_matrix))
+        print(type(machine_mask_matrix[..., k]))
+
         these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
             numpy.invert(numpy.flip(machine_mask_matrix[..., k], axis=0)),
             numpy.flip(human_mask_matrix[..., k], axis=0)
