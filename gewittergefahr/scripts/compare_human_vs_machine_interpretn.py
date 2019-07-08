@@ -442,6 +442,8 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
 
     print('Reading data from: "{0:s}"...'.format(input_machine_file_name))
 
+    machine_channel_indices = numpy.array([2, 8], dtype=int)
+
     if pmm_flag:
         try:
             saliency_dict = saliency_maps.read_pmm_file(input_machine_file_name)
@@ -450,11 +452,11 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
 
             input_matrix = saliency_dict.pop(
                 saliency_maps.MEAN_INPUT_MATRICES_KEY
-            )[0]
+            )[0][..., machine_channel_indices]
 
             machine_interpretation_matrix = saliency_dict.pop(
                 saliency_maps.MEAN_SALIENCY_MATRICES_KEY
-            )[0]
+            )[0][..., machine_channel_indices]
         except ValueError:
             gradcam_dict = gradcam.read_pmm_file(input_machine_file_name)
             saliency_flag = False
@@ -464,10 +466,12 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
 
             if guided_gradcam_flag:
                 machine_interpretation_matrix = gradcam_dict.pop(
-                    gradcam.MEAN_GUIDED_GRADCAM_KEY)
+                    gradcam.MEAN_GUIDED_GRADCAM_KEY
+                )[..., machine_channel_indices]
             else:
                 machine_interpretation_matrix = gradcam_dict.pop(
-                    gradcam.MEAN_CLASS_ACTIVATIONS_KEY)
+                    gradcam.MEAN_CLASS_ACTIVATIONS_KEY
+                )[..., machine_channel_indices]
     else:
         try:
             saliency_dict = saliency_maps.read_standard_file(
@@ -480,11 +484,11 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
 
             input_matrix = saliency_dict.pop(
                 saliency_maps.INPUT_MATRICES_KEY
-            )[0]
+            )[0][..., machine_channel_indices]
 
             machine_interpretation_matrix = saliency_dict.pop(
                 saliency_maps.SALIENCY_MATRICES_KEY
-            )[0]
+            )[0][..., machine_channel_indices]
         except ValueError:
             gradcam_dict = gradcam.read_standard_file(input_machine_file_name)
 
@@ -497,10 +501,12 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
 
             if guided_gradcam_flag:
                 machine_interpretation_matrix = gradcam_dict.pop(
-                    gradcam.GUIDED_GRADCAM_KEY)
+                    gradcam.GUIDED_GRADCAM_KEY
+                )[..., machine_channel_indices]
             else:
                 machine_interpretation_matrix = gradcam_dict.pop(
-                    gradcam.CLASS_ACTIVATIONS_KEY)
+                    gradcam.CLASS_ACTIVATIONS_KEY
+                    [..., machine_channel_indices])
 
         storm_object_index = tracking_utils.find_storm_objects(
             all_id_strings=all_full_id_strings,
@@ -525,6 +531,10 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
 
     print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
+    model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] = [
+        model_metadata_dict[cnn.LAYER_OPERATIONS_KEY][k]
+        for k in machine_channel_indices
+    ]
 
     human_positive_mask_matrix, human_negative_mask_matrix = (
         _reshape_human_maps(
