@@ -196,6 +196,7 @@ def _plot_comparison(
         row_major=False)
 
     for k in range(num_panels):
+        print(human_mask_matrix[..., k].astype(int))
 
         # TODO(thunderhoser): Modularize this shit.
         i, j = numpy.unravel_index(
@@ -235,10 +236,6 @@ def _plot_comparison(
                 fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
                 fontweight='bold', horizontalalignment='center',
                 verticalalignment='center')
-
-        print(machine_mask_matrix.shape)
-        print(machine_mask_matrix.dtype)
-        print(machine_mask_matrix[..., k].dtype)
 
         these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
             numpy.invert(numpy.flip(machine_mask_matrix[..., k], axis=0)),
