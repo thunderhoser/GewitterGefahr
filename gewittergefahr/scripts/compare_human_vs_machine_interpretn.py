@@ -215,14 +215,6 @@ def _plot_comparison(
             flipped_human_mask_matrix[..., k]
         )
 
-        numpy.set_printoptions(threshold=sys.maxsize)
-        print(flipped_machine_mask_matrix[..., k].astype(int))
-        print('\n\n***************\n\n')
-        print(flipped_human_mask_matrix[..., k].astype(int))
-        print('\n\n***************\n\n')
-        print(this_overlap_matrix.astype(int))
-        print('\n\n***************\n\n')
-
         these_grid_rows = these_grid_rows + 0.5
         these_grid_columns = these_grid_columns + 0.5
 
@@ -383,6 +375,10 @@ def _do_comparison_one_channel(
     machine_positive_mask_matrix = (
         machine_interpretation_matrix >= positive_threshold
     )
+
+    numpy.set_printoptions(threshold=sys.maxsize)
+    print(machine_positive_mask_matrix.astype(int))
+    print('\n\n***************\n\n')
 
     positive_iou = _compute_iou(
         machine_mask_matrix=machine_positive_mask_matrix,
