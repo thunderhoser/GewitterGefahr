@@ -14,21 +14,19 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import human_polygons
-from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import gradcam
-from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import plot_input_examples
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
-from gewittergefahr.plotting import imagemagick_utils
 
 # TODO(thunderhoser): Allow this script to deal with soundings at some point?
+# TODO(thunderhoser): Add unit tests!
 
 TOLERANCE = 1e-6
 METRES_TO_KM = 0.001
@@ -47,6 +45,11 @@ OVERLAY_FONT_COLOUR = numpy.full(3, 0.)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
+
+MACHINE_POSITIVE_MASK_KEY = 'machine_positive_mask_matrix'
+POSITIVE_IOU_KEY = 'positive_iou'
+MACHINE_NEGATIVE_MASK_KEY = 'machine_negative_mask_matrix'
+NEGATIVE_IOU_KEY = 'negative_iou'
 
 HUMAN_FILE_ARG_NAME = 'input_human_file_name'
 MACHINE_FILE_ARG_NAME = 'input_machine_file_name'
@@ -120,246 +123,284 @@ def _compute_iou(machine_mask_matrix, human_mask_matrix):
     return float(numpy.sum(intersection_matrix)) / numpy.sum(union_matrix)
 
 
-def _plot_comparison(input_matrix, input_metadata_dict, machine_mask_matrix,
-                     human_mask_matrix, title_string, output_file_name):
-    """Plots comparison between human and machine masks.
+def _plot_comparison(
+        input_matrix, model_metadata_dict, machine_mask_matrix,
+        human_mask_matrix, iou_by_channel, positive_flag, output_file_name):
+    """Plots comparison between human and machine interpretation maps.
 
-    M = number of rows in grid
-    N = number of columns in grid
+    M = number of rows in grid (physical space)
+    N = number of columns in grid (physical space)
+    C = number of channels
 
-    This method compares areas of extreme positive *or* negative interpretation
-    values, not both.
-
-    :param input_matrix: M-by-N numpy array with input data (radar image) over
-        which interpretation map was computed.
-    :param input_metadata_dict: Dictionary created by
-        `plot_input_examples.radar_fig_file_name_to_metadata`.
-    :param machine_mask_matrix: M-by-N Boolean numpy array, representing areas
-        of extreme interpretation values selon la machine.
-    :param human_mask_matrix: M-by-N Boolean numpy array, representing areas of
-        extreme interpretation values selon l'humain.
-    :param title_string: Title.
+    :param input_matrix: M-by-N-by-C numpy array of input values (predictors).
+    :param model_metadata_dict: Dictionary returned by
+        `cnn.read_model_metadata`.
+    :param machine_mask_matrix: M-by-N-by-C numpy array of Boolean flags,
+        indicating where machine interpretation value is strongly positive or
+        negative.
+    :param human_mask_matrix: Same but for human.
+    :param iou_by_channel: length-C numpy array of IoU values (intersection over
+        union) between human and machine masks.
+    :param positive_flag: Boolean flag.  If True (False), masks indicate where
+        interpretation value is strongly positive (negative).
     :param output_file_name: Path to output file (figure will be saved here).
     """
 
-    radar_field_name = input_metadata_dict[plot_input_examples.RADAR_FIELD_KEY]
-    radar_height_m_asl = input_metadata_dict[
-        plot_input_examples.RADAR_HEIGHT_KEY]
-    layer_operation_dict = input_metadata_dict[
-        plot_input_examples.LAYER_OPERATION_KEY]
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    list_of_layer_operation_dicts = model_metadata_dict[
+        cnn.LAYER_OPERATIONS_KEY]
 
-    if radar_field_name is None:
-        radar_field_name = layer_operation_dict[input_examples.RADAR_FIELD_KEY]
+    if list_of_layer_operation_dicts is None:
+        field_name_by_panel = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
 
-    _, axes_object = pyplot.subplots(
-        nrows=1, ncols=1,
-        figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
-    )
+        panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
+            field_names=field_name_by_panel,
+            heights_m_agl=training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+        )
 
-    radar_plotting.plot_2d_grid_without_coords(
-        field_matrix=input_matrix, field_name=radar_field_name,
-        axes_object=axes_object)
-
-    colour_map_object, colour_norm_object = (
-        radar_plotting.get_default_colour_scheme(radar_field_name)
-    )
-
-    colour_bar_object = plotting_utils.plot_colour_bar(
-        axes_object_or_matrix=axes_object, data_matrix=input_matrix,
-        colour_map_object=colour_map_object,
-        colour_norm_object=colour_norm_object,
-        orientation_string='horizontal', extend_min=True, extend_max=True,
-        fraction_of_axis_length=0.8)
-
-    if layer_operation_dict is None:
-        label_string = radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[
-            radar_field_name]
-
-        if radar_height_m_asl is not None:
-            label_string += ' at {0:.2f} km AGL'.format(
-                radar_height_m_asl * METRES_TO_KM)
+        plot_colour_bar_by_panel = numpy.full(
+            len(field_name_by_panel), True, dtype=bool
+        )
     else:
-        label_string = radar_plotting.layer_ops_to_field_and_panel_names(
-            list_of_layer_operation_dicts=[layer_operation_dict]
-        )[-1][0]
+        field_name_by_panel, panel_names = (
+            radar_plotting.layer_ops_to_field_and_panel_names(
+                list_of_layer_operation_dicts=list_of_layer_operation_dicts
+            )
+        )
 
-        label_string = label_string.replace('\n', ', ')
+        plot_colour_bar_by_panel = numpy.full(
+            len(field_name_by_panel), False, dtype=bool
+        )
 
-    colour_bar_object.set_label(label_string)
+        plot_colour_bar_by_panel[2::3] = True
 
-    these_rows, these_columns = numpy.where(numpy.logical_and(
-        machine_mask_matrix, human_mask_matrix
+    num_panels = len(field_name_by_panel)
+    num_panel_rows = int(numpy.floor(
+        numpy.sqrt(num_panels)
+    ))
+    num_panel_columns = int(numpy.ceil(
+        float(num_panels) / num_panel_rows
     ))
 
-    these_rows = these_rows + 0.5
-    these_columns = these_columns + 0.5
+    for k in range(num_panels):
+        panel_names[k] += '\n{0:s} IoU = {1:.3f}'.format(
+            'Positive' if positive_flag else 'Negative',
+            iou_by_channel[k]
+        )
 
-    if len(these_rows) > 0:
-        marker_colour_as_tuple = plotting_utils.colour_from_numpy_to_tuple(
-            MARKER_COLOUR)
+    _, axes_object_matrix = radar_plotting.plot_many_2d_grids_without_coords(
+        field_matrix=numpy.flip(input_matrix, axis=0),
+        field_name_by_panel=field_name_by_panel, panel_names=panel_names,
+        num_panel_rows=num_panel_rows,
+        plot_colour_bar_by_panel=plot_colour_bar_by_panel, font_size=14,
+        row_major=False)
 
-        axes_object.plot(
-            these_columns, these_rows, linestyle='None', marker=MARKER_TYPE,
-            markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
-            markerfacecolor=marker_colour_as_tuple,
-            markeredgecolor=marker_colour_as_tuple)
+    for k in range(num_panels):
 
-    these_rows, these_columns = numpy.where(numpy.logical_and(
-        machine_mask_matrix, numpy.invert(human_mask_matrix)
-    ))
+        # TODO(thunderhoser): Modularize this shit.
+        i, j = numpy.unravel_index(
+            k, (num_panel_rows, num_panel_columns), order='F'
+        )
 
-    these_rows = these_rows + 0.5
-    these_columns = these_columns + 0.5
+        these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
+            numpy.flip(machine_mask_matrix[..., k], axis=0),
+            numpy.flip(human_mask_matrix[..., k], axis=0)
+        ))
 
-    for k in range(len(these_rows)):
-        axes_object.text(
-            these_columns[k], these_rows[k], MACHINE_STRING,
-            fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
-            fontweight='bold', horizontalalignment='center',
-            verticalalignment='center')
+        these_grid_rows = these_grid_rows + 0.5
+        these_grid_columns = these_grid_columns + 0.5
 
-    these_rows, these_columns = numpy.where(numpy.logical_and(
-        numpy.invert(machine_mask_matrix), human_mask_matrix
-    ))
+        if len(these_grid_rows) > 0:
+            marker_colour_as_tuple = plotting_utils.colour_from_numpy_to_tuple(
+                MARKER_COLOUR)
 
-    these_rows = these_rows + 0.5
-    these_columns = these_columns + 0.5
+            axes_object_matrix[i, j].plot(
+                these_grid_columns, these_grid_rows, linestyle='None',
+                marker=MARKER_TYPE, markersize=MARKER_SIZE,
+                markeredgewidth=MARKER_EDGE_WIDTH,
+                markerfacecolor=marker_colour_as_tuple,
+                markeredgecolor=marker_colour_as_tuple)
 
-    for k in range(len(these_rows)):
-        axes_object.text(
-            these_columns[k], these_rows[k], HUMAN_STRING,
-            fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
-            fontweight='bold', horizontalalignment='center',
-            verticalalignment='center')
+        these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
+            numpy.flip(machine_mask_matrix[..., k], axis=0),
+            numpy.invert(numpy.flip(human_mask_matrix[..., k], axis=0))
+        ))
 
-    pyplot.title(title_string)
+        these_grid_rows = these_grid_rows + 0.5
+        these_grid_columns = these_grid_columns + 0.5
+
+        for m in range(len(these_grid_rows)):
+            axes_object_matrix[i, j].text(
+                these_grid_columns[m], these_grid_rows[m], MACHINE_STRING,
+                fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
+                fontweight='bold', horizontalalignment='center',
+                verticalalignment='center')
+
+        these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
+            numpy.invert(numpy.flip(machine_mask_matrix[..., k], axis=0)),
+            numpy.flip(human_mask_matrix[..., k], axis=0)
+        ))
+
+        these_grid_rows = these_grid_rows + 0.5
+        these_grid_columns = these_grid_columns + 0.5
+
+        for m in range(len(these_grid_rows)):
+            axes_object_matrix[i, j].text(
+                these_grid_columns[m], these_grid_rows[m], HUMAN_STRING,
+                fontsize=OVERLAY_FONT_SIZE, color=OVERLAY_FONT_COLOUR,
+                fontweight='bold', horizontalalignment='center',
+                verticalalignment='center')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+                   pad_inches=0., bbox_inches='tight')
     pyplot.close()
 
-    imagemagick_utils.trim_whitespace(input_file_name=output_file_name,
-                                      output_file_name=output_file_name)
 
+def _reshape_human_maps(model_metadata_dict, positive_mask_matrix_4d,
+                        negative_mask_matrix_4d):
+    """Reshapes human interpretation maps to match machine interpretation maps.
 
-def _get_machine_maps(
-        list_of_input_matrices, list_of_interpretation_matrices,
-        model_metadata_dict, human_metadata_dict, saliency_flag,
-        guided_gradcam_flag):
-    """Returns input and interpretation maps for machine.
+    M = number of rows in grid (physical space)
+    N = number of columns in grid (physical space)
+    J = number of panel rows in image
+    K = number of panel columns in image
+    C = J * K = number of channels
 
-    :param list_of_input_matrices: 1-D list of input matrices (numpy arrays) for
-        model.  These matrices contain predictors.
-    :param list_of_interpretation_matrices: 1-D list of interpretation maps
-        (numpy arrays) from model.
-    :param model_metadata_dict: Dictionary with model metadata (returned by
-        `cnn.read_model_metadata`).
-    :param human_metadata_dict: Dictionary with metadata for human polygons
-        (returned by `plot_input_examples.radar_fig_file_name_to_metadata`).
-    :param saliency_flag: Boolean flag.  If True, interpretation type is
-        saliency.
-    :param guided_gradcam_flag: Boolean flag.  If True, interpretation type is
-        guided Grad-CAM..
-    :return: input_matrix: Single numpy array with predictors.
-    :return: interpretation_matrix: Single numpy array with interpretation
-        values.
+    :param model_metadata_dict: Dictionary returned by
+        `cnn.read_model_metadata`.
+    :param positive_mask_matrix_4d: J-by-K-by-M-by-N numpy array of Boolean
+        flags.
+    :param negative_mask_matrix_4d: Same, except this may be None.
+    :return: positive_mask_matrix_3d: M-by-N-by-C numpy array of Boolean flags.
+    :return: negative_mask_matrix_3d: Same, except this may be None.
+    :raises: TypeError: if model performs 2-D and 3-D convolution.
+    :raises: ValueError: if number of channels in masks != number of input
+        channels to the model.
     """
 
-    radar_field_name = human_metadata_dict[plot_input_examples.RADAR_FIELD_KEY]
-    radar_height_m_asl = human_metadata_dict[
-        plot_input_examples.RADAR_HEIGHT_KEY]
-    layer_operation_dict = human_metadata_dict[
-        plot_input_examples.LAYER_OPERATION_KEY]
+    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+        raise TypeError(
+            'This script cannot handle models that perform 2-D and 3-D'
+            'convolution.'
+        )
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    list_of_layer_operation_dicts = model_metadata_dict[
+        cnn.LAYER_OPERATIONS_KEY]
 
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        num_radar_dimensions = None
+    if list_of_layer_operation_dicts is None:
+        num_machine_channels = len(
+            training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+        )
     else:
-        num_radar_dimensions = len(list_of_input_matrices[0].shape) - 1
+        num_machine_channels = len(list_of_layer_operation_dicts)
 
-    if num_radar_dimensions is None:
-        if radar_field_name == radar_utils.REFL_NAME:
-            height_index = numpy.where(
-                training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] ==
-                radar_height_m_asl
-            )[0][0]
+    num_human_channels = int(numpy.round(
+        positive_mask_matrix_4d.shape[0] * positive_mask_matrix_4d.shape[1]
+    ))
 
-            input_matrix = list_of_input_matrices[0][..., height_index, 0]
+    if num_machine_channels != num_human_channels:
+        error_string = (
+            'Number of channels in human masks ({0:d}) != number of input '
+            'channels to model ({1:d}).'
+        ).format(num_human_channels, num_machine_channels)
 
-            if saliency_flag or guided_gradcam_flag:
-                interpretation_matrix = (
-                    list_of_interpretation_matrices[0][..., height_index, 0]
-                )
-            else:
-                interpretation_matrix = (
-                    list_of_interpretation_matrices[0][..., height_index]
-                )
-        else:
-            field_index = training_option_dict[
-                trainval_io.RADAR_FIELDS_KEY
-            ].index(radar_field_name)
+        raise ValueError(error_string)
 
-            input_matrix = list_of_input_matrices[1][..., field_index]
+    this_shape = (num_human_channels,) + positive_mask_matrix_4d.shape[2:]
 
-            if saliency_flag or guided_gradcam_flag:
-                interpretation_matrix = (
-                    list_of_interpretation_matrices[1][..., field_index]
-                )
-            else:
-                interpretation_matrix = list_of_interpretation_matrices[1]
+    positive_mask_matrix_3d = numpy.reshape(
+        a=positive_mask_matrix_4d, newshape=this_shape, order='F'
+    )
+    positive_mask_matrix_3d = numpy.swapaxes(positive_mask_matrix_3d, 0, 2)
 
-    elif num_radar_dimensions == 2:
-        if layer_operation_dict is None:
-            these_flags = numpy.array([
-                f == radar_field_name
-                for f in training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-            ], dtype=bool)
-
-            field_index = numpy.where(numpy.logical_and(
-                these_flags,
-                training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] ==
-                radar_height_m_asl
-            ))[0][0]
-        else:
-            these_flags = numpy.array([
-                d == layer_operation_dict
-                for d in model_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
-            ], dtype=bool)
-
-            field_index = numpy.where(these_flags)[0][0]
-
-        input_matrix = list_of_input_matrices[0][..., field_index]
-
-        if saliency_flag or guided_gradcam_flag:
-            interpretation_matrix = (
-                list_of_interpretation_matrices[0][..., field_index]
-            )
-        else:
-            interpretation_matrix = list_of_interpretation_matrices[0]
-
+    if negative_mask_matrix_4d is None:
+        negative_mask_matrix_3d = None
     else:
-        field_index = training_option_dict[trainval_io.RADAR_FIELDS_KEY].index(
-            radar_field_name)
+        negative_mask_matrix_3d = numpy.reshape(
+            a=negative_mask_matrix_4d, newshape=this_shape, order='F'
+        )
+        negative_mask_matrix_3d = numpy.swapaxes(negative_mask_matrix_3d, 0, 2)
 
-        height_index = numpy.where(
-            training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] ==
-            radar_height_m_asl
-        )[0][0]
+    return positive_mask_matrix_3d, negative_mask_matrix_3d
 
-        input_matrix = list_of_input_matrices[0][..., height_index, field_index]
 
-        if saliency_flag or guided_gradcam_flag:
-            interpretation_matrix = (
-                list_of_interpretation_matrices[0][
-                    ..., height_index, field_index]
-            )
-        else:
-            interpretation_matrix = (
-                list_of_interpretation_matrices[0][..., height_index]
-            )
+def _do_comparison_one_channel(
+        machine_interpretation_matrix, abs_percentile_threshold,
+        human_positive_mask_matrix, human_negative_mask_matrix=None):
+    """Compares human and machine masks for one channel.
 
-    return input_matrix, interpretation_matrix
+    M = number of rows in grid (physical space)
+    N = number of columns in grid (physical space)
+
+    :param machine_interpretation_matrix: M-by-N numpy array of
+        interpretation values.
+    :param abs_percentile_threshold: See documentation at top of file.  This
+        threshold will be applied to `machine_interpretation_matrix` to turn
+        into one or two masks.
+    :param human_positive_mask_matrix: M-by-N numpy array of Boolean flags,
+        indicating where the human thinks the interpretation value is strongly
+        positive.
+    :param human_negative_mask_matrix: Same but for strongly negative.  If
+        this is None, will compare human vs. machine only for strongly positive
+        values.
+    :return: comparison_dict: Dictionary with the following keys.
+    comparison_dict['machine_positive_mask_matrix']: Same as
+        `human_positive_mask_matrix` but for the machine.
+    comparison_dict['positive_iou']: IoU (intersection over union) between
+        positive masks for human and machine.
+    comparison_dict['machine_negative_mask_matrix']: Same as
+        `human_negative_mask_matrix` but for the machine.  May be None.
+    comparison_dict['negative_iou']: IoU (intersection over union) between
+        negative masks for human and machine.  May be None.
+    """
+
+    if numpy.any(machine_interpretation_matrix > 0):
+        positive_threshold = numpy.percentile(
+            machine_interpretation_matrix[machine_interpretation_matrix > 0],
+            abs_percentile_threshold
+        )
+    else:
+        positive_threshold = TOLERANCE + 0.
+
+    machine_positive_mask_matrix = (
+        machine_interpretation_matrix >= positive_threshold
+    )
+
+    positive_iou = _compute_iou(
+        machine_mask_matrix=machine_positive_mask_matrix,
+        human_mask_matrix=human_positive_mask_matrix)
+
+    comparison_dict = {
+        MACHINE_POSITIVE_MASK_KEY: machine_positive_mask_matrix,
+        POSITIVE_IOU_KEY: positive_iou,
+        MACHINE_NEGATIVE_MASK_KEY: None,
+        NEGATIVE_IOU_KEY: None
+    }
+
+    if human_negative_mask_matrix is None:
+        return comparison_dict
+
+    if numpy.any(machine_interpretation_matrix < 0):
+        negative_threshold = numpy.percentile(
+            machine_interpretation_matrix[machine_interpretation_matrix < 0],
+            100. - abs_percentile_threshold
+        )
+    else:
+        negative_threshold = -1 * TOLERANCE
+
+    machine_negative_mask_matrix = (
+        machine_interpretation_matrix <= negative_threshold
+    )
+
+    negative_iou = _compute_iou(
+        machine_mask_matrix=machine_negative_mask_matrix,
+        human_mask_matrix=human_negative_mask_matrix)
+
+    comparison_dict[MACHINE_NEGATIVE_MASK_KEY] = machine_negative_mask_matrix
+    comparison_dict[NEGATIVE_IOU_KEY] = negative_iou
+    return comparison_dict
 
 
 def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
@@ -404,64 +445,62 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
     if pmm_flag:
         try:
             saliency_dict = saliency_maps.read_pmm_file(input_machine_file_name)
-
-            list_of_input_matrices = saliency_dict.pop(
-                saliency_maps.MEAN_INPUT_MATRICES_KEY)
-            list_of_interpretation_matrices = saliency_dict.pop(
-                saliency_maps.MEAN_SALIENCY_MATRICES_KEY)
-
             saliency_flag = True
             model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
+
+            input_matrix = saliency_dict.pop(
+                saliency_maps.MEAN_INPUT_MATRICES_KEY
+            )[0]
+
+            machine_interpretation_matrix = saliency_dict.pop(
+                saliency_maps.MEAN_SALIENCY_MATRICES_KEY
+            )[0]
         except ValueError:
             gradcam_dict = gradcam.read_pmm_file(input_machine_file_name)
-
-            list_of_input_matrices = gradcam_dict.pop(
-                gradcam.MEAN_INPUT_MATRICES_KEY)
-
-            if guided_gradcam_flag:
-                list_of_interpretation_matrices = [
-                    gradcam_dict.pop(gradcam.MEAN_GUIDED_GRADCAM_KEY)
-                ]
-            else:
-                list_of_interpretation_matrices = [
-                    gradcam_dict.pop(gradcam.MEAN_CLASS_ACTIVATIONS_KEY)
-                ]
-
             saliency_flag = False
             model_file_name = gradcam_dict[gradcam.MODEL_FILE_KEY]
+
+            input_matrix = gradcam_dict.pop(gradcam.MEAN_INPUT_MATRICES_KEY)[0]
+
+            if guided_gradcam_flag:
+                machine_interpretation_matrix = gradcam_dict.pop(
+                    gradcam.MEAN_GUIDED_GRADCAM_KEY)
+            else:
+                machine_interpretation_matrix = gradcam_dict.pop(
+                    gradcam.MEAN_CLASS_ACTIVATIONS_KEY)
     else:
         try:
             saliency_dict = saliency_maps.read_standard_file(
                 input_machine_file_name)
 
-            list_of_input_matrices = saliency_dict.pop(
-                saliency_maps.INPUT_MATRICES_KEY)
-            list_of_interpretation_matrices = saliency_dict.pop(
-                saliency_maps.SALIENCY_MATRICES_KEY)
-
             saliency_flag = True
             all_full_id_strings = saliency_dict[saliency_maps.FULL_IDS_KEY]
             all_times_unix_sec = saliency_dict[saliency_maps.STORM_TIMES_KEY]
             model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
+
+            input_matrix = saliency_dict.pop(
+                saliency_maps.INPUT_MATRICES_KEY
+            )[0]
+
+            machine_interpretation_matrix = saliency_dict.pop(
+                saliency_maps.SALIENCY_MATRICES_KEY
+            )[0]
         except ValueError:
             gradcam_dict = gradcam.read_standard_file(input_machine_file_name)
-
-            list_of_input_matrices = gradcam_dict.pop(
-                gradcam.INPUT_MATRICES_KEY)
-
-            if guided_gradcam_flag:
-                list_of_interpretation_matrices = [
-                    gradcam_dict.pop(gradcam.GUIDED_GRADCAM_KEY)
-                ]
-            else:
-                list_of_interpretation_matrices = [
-                    gradcam_dict.pop(gradcam.CLASS_ACTIVATIONS_KEY)
-                ]
 
             saliency_flag = False
             all_full_id_strings = gradcam_dict[gradcam.FULL_IDS_KEY]
             all_times_unix_sec = gradcam_dict[gradcam.STORM_TIMES_KEY]
             model_file_name = gradcam_dict[gradcam.MODEL_FILE_KEY]
+
+            input_matrix = gradcam_dict.pop(gradcam.INPUT_MATRICES_KEY)[0]
+
+            if guided_gradcam_flag:
+                machine_interpretation_matrix = gradcam_dict.pop(
+                    gradcam.GUIDED_GRADCAM_KEY)
+            else:
+                machine_interpretation_matrix = gradcam_dict.pop(
+                    gradcam.CLASS_ACTIVATIONS_KEY)
 
         storm_object_index = tracking_utils.find_storm_objects(
             all_id_strings=all_full_id_strings,
@@ -473,12 +512,12 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
             allow_missing=False
         )[0]
 
-        list_of_input_matrices = [
-            a[storm_object_index, ...] for a in list_of_input_matrices
-        ]
-        list_of_interpretation_matrices = [
-            a[storm_object_index, ...] for a in list_of_interpretation_matrices
-        ]
+        input_matrix = input_matrix[storm_object_index, ...]
+        machine_interpretation_matrix = machine_interpretation_matrix[
+            storm_object_index, ...]
+
+    if not (saliency_flag or guided_gradcam_flag):
+        human_negative_mask_matrix = None
 
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
@@ -487,75 +526,64 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
     print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
 
-    input_matrix, machine_interpretation_matrix = _get_machine_maps(
-        list_of_input_matrices=list_of_input_matrices,
-        list_of_interpretation_matrices=list_of_interpretation_matrices,
-        model_metadata_dict=model_metadata_dict,
-        human_metadata_dict=human_metadata_dict,
-        saliency_flag=saliency_flag, guided_gradcam_flag=guided_gradcam_flag)
-
-    input_matrix = numpy.flip(input_matrix, axis=0)
-    machine_interpretation_matrix = numpy.flip(
-        machine_interpretation_matrix, axis=0)
-
-    if numpy.any(machine_interpretation_matrix > 0):
-        positive_threshold = numpy.percentile(
-            machine_interpretation_matrix[machine_interpretation_matrix > 0],
-            abs_percentile_threshold
-        )
-    else:
-        positive_threshold = TOLERANCE + 0.
-
-    machine_positive_mask_matrix = (
-        machine_interpretation_matrix >= positive_threshold
+    human_positive_mask_matrix, human_negative_mask_matrix = (
+        _reshape_human_maps(
+            model_metadata_dict=model_metadata_dict,
+            positive_mask_matrix_4d=human_positive_mask_matrix,
+            negative_mask_matrix_4d=human_negative_mask_matrix)
     )
 
-    positive_iou = _compute_iou(
-        machine_mask_matrix=machine_positive_mask_matrix,
-        human_mask_matrix=human_positive_mask_matrix)
+    num_channels = human_positive_mask_matrix.shape[-1]
+    machine_positive_mask_matrix = numpy.full(
+        human_positive_mask_matrix.shape, numpy.nan)
+    positive_iou_by_channel = numpy.full(num_channels, numpy.nan)
 
-    print('IoU for positive values = {0:.3f}'.format(positive_iou))
+    if human_negative_mask_matrix is not None:
+        machine_negative_mask_matrix = numpy.full(
+            human_negative_mask_matrix.shape, numpy.nan)
+        negative_iou_by_channel = numpy.full(num_channels, numpy.nan)
 
-    this_title_string = (
-        'Positive values ... threshold = {0:.2e} ... IoU = {1:.3f}'
-    ).format(positive_threshold, positive_iou)
-    this_file_name = '{0:s}/positive_comparison.jpg'.format(output_dir_name)
-
-    _plot_comparison(
-        input_matrix=input_matrix, input_metadata_dict=human_metadata_dict,
-        machine_mask_matrix=machine_positive_mask_matrix,
-        human_mask_matrix=human_positive_mask_matrix,
-        title_string=this_title_string, output_file_name=this_file_name)
-
-    if saliency_flag or guided_gradcam_flag:
-        if numpy.any(machine_interpretation_matrix < 0):
-            negative_threshold = numpy.percentile(
-                machine_interpretation_matrix[machine_interpretation_matrix < 0],
-                100. - abs_percentile_threshold
-            )
-        else:
-            negative_threshold = -1 * TOLERANCE
-
-        machine_negative_mask_matrix = (
-            machine_interpretation_matrix <= negative_threshold
+    for k in range(num_channels):
+        this_negative_matrix = (
+            None if human_negative_mask_matrix is None
+            else human_negative_mask_matrix[..., k]
         )
 
-        negative_iou = _compute_iou(
-            machine_mask_matrix=machine_negative_mask_matrix,
-            human_mask_matrix=human_negative_mask_matrix)
+        this_comparison_dict = _do_comparison_one_channel(
+            machine_interpretation_matrix=machine_interpretation_matrix[..., k],
+            abs_percentile_threshold=abs_percentile_threshold,
+            human_positive_mask_matrix=human_positive_mask_matrix[..., k],
+            human_negative_mask_matrix=this_negative_matrix)
 
-        print('IoU for negative values = {0:.3f}'.format(negative_iou))
+        machine_positive_mask_matrix[..., k] = this_comparison_dict[
+            MACHINE_POSITIVE_MASK_KEY]
+        positive_iou_by_channel[k] = this_comparison_dict[POSITIVE_IOU_KEY]
 
-        this_title_string = (
-            'Negative values ... threshold = {0:.2e} ... IoU = {1:.3f}'
-        ).format(negative_threshold, negative_iou)
-        this_file_name = '{0:s}/negative_comparison.jpg'.format(output_dir_name)
+        if human_negative_mask_matrix is None:
+            continue
 
-        _plot_comparison(
-            input_matrix=input_matrix, input_metadata_dict=human_metadata_dict,
-            machine_mask_matrix=machine_negative_mask_matrix,
-            human_mask_matrix=human_negative_mask_matrix,
-            title_string=this_title_string, output_file_name=this_file_name)
+        machine_negative_mask_matrix[..., k] = this_comparison_dict[
+            MACHINE_NEGATIVE_MASK_KEY]
+        negative_iou_by_channel[k] = this_comparison_dict[NEGATIVE_IOU_KEY]
+
+    this_file_name = '{0:s}/positive_comparison.jpg'.format(output_dir_name)
+    _plot_comparison(
+        input_matrix=input_matrix, model_metadata_dict=model_metadata_dict,
+        machine_mask_matrix=machine_positive_mask_matrix,
+        human_mask_matrix=human_positive_mask_matrix,
+        iou_by_channel=positive_iou_by_channel,
+        positive_flag=True, output_file_name=this_file_name)
+
+    if human_negative_mask_matrix is None:
+        return
+
+    this_file_name = '{0:s}/negative_comparison.jpg'.format(output_dir_name)
+    _plot_comparison(
+        input_matrix=input_matrix, model_metadata_dict=model_metadata_dict,
+        machine_mask_matrix=machine_negative_mask_matrix,
+        human_mask_matrix=human_negative_mask_matrix,
+        iou_by_channel=negative_iou_by_channel,
+        positive_flag=False, output_file_name=this_file_name)
 
 
 if __name__ == '__main__':
