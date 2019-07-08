@@ -18,10 +18,6 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 LARGE_INTEGER = int(1e12)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-# TODO(thunderhoser): Make these input args.
-NUM_RADAR_ROWS = 32
-NUM_RADAR_COLUMNS = 32
-
 NUM_VALUES_KEY = 'num_values'
 MEAN_VALUE_KEY = 'mean_value'
 MEAN_OF_SQUARES_KEY = 'mean_of_squares'
@@ -62,6 +58,8 @@ SOUNDING_INTERVAL_DICT = {
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 MIN_PERCENTILE_ARG_NAME = 'min_percentile_level'
 MAX_PERCENTILE_ARG_NAME = 'max_percentile_level'
+NUM_ROWS_ARG_NAME = 'num_radar_rows'
+NUM_COLUMNS_ARG_NAME = 'num_radar_columns'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 EXAMPLE_DIR_HELP_STRING = (
@@ -76,6 +74,14 @@ MIN_PERCENTILE_HELP_STRING = (
 MAX_PERCENTILE_HELP_STRING = (
     'Max percentile level.  The "max value" for each field will actually be '
     'this percentile.')
+
+NUM_ROWS_HELP_STRING = (
+    'Number of rows to use in radar grid.  If less than total number of rows, '
+    'grid will be cropped around center.  If you want to use all rows, leave '
+    'this argument alone.')
+
+NUM_COLUMNS_HELP_STRING = 'Same as `{0:s}` but for columns.'.format(
+    NUM_ROWS_ARG_NAME)
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `deep_learning_utils.'
@@ -93,6 +99,14 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False, default=99.9,
     help=MAX_PERCENTILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_ROWS_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_ROWS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_COLUMNS_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_COLUMNS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -286,7 +300,7 @@ def _convert_normalization_params(
 
 
 def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
-         output_file_name):
+         num_radar_rows, num_radar_columns, output_file_name):
     """Finds normalization parameters for GridRad data.
 
     This is effectively the main method.
@@ -294,8 +308,15 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
     :param top_example_dir_name: See documentation at top of file.
     :param min_percentile_level: Same.
     :param max_percentile_level: Same.
+    :param num_radar_rows: Same.
+    :param num_radar_columns: Same.
     :param output_file_name: Same.
     """
+
+    if num_radar_rows <= 0:
+        num_radar_rows = None
+    if num_radar_columns <= 0:
+        num_radar_columns = None
 
     example_file_names = input_examples.find_many_example_files(
         top_directory_name=top_example_dir_name, shuffled=True,
@@ -402,8 +423,8 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
         print('Reading data from: "{0:s}"...'.format(this_example_file_name))
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=this_example_file_name, read_all_target_vars=True,
-            num_rows_to_keep=NUM_RADAR_ROWS,
-            num_columns_to_keep=NUM_RADAR_COLUMNS)
+            num_rows_to_keep=num_radar_rows,
+            num_columns_to_keep=num_radar_columns)
 
         for j in range(num_radar_fields):
             print('Updating normalization params for "{0:s}"...'.format(
@@ -631,5 +652,7 @@ if __name__ == '__main__':
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         min_percentile_level=getattr(INPUT_ARG_OBJECT, MIN_PERCENTILE_ARG_NAME),
         max_percentile_level=getattr(INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
+        num_radar_rows=getattr(INPUT_ARG_OBJECT, NUM_ROWS_ARG_NAME),
+        num_radar_columns=getattr(INPUT_ARG_OBJECT, NUM_COLUMNS_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
