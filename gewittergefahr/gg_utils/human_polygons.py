@@ -13,9 +13,15 @@ from gewittergefahr.gg_utils import error_checking
 
 x_coords_px = numpy.array([], dtype=float)
 y_coords_px = numpy.array([], dtype=float)
+figure_object = None
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
+
+MARKER_TYPE = 'D'
+MARKER_SIZE = 10
+MARKER_EDGE_WIDTH = 1
+MARKER_COLOUR = 'k'
 
 IMAGE_FILE_KEY = 'orig_image_file_name'
 POSITIVE_VERTEX_ROWS_KEY = 'positive_vertex_rows'
@@ -258,10 +264,9 @@ def _click_handler(event_object):
         clicks.
     """
 
-    print(type(event_object))
-
     global x_coords_px
     global y_coords_px
+    global figure_object
 
     x_coords_px = numpy.concatenate((
         x_coords_px, numpy.full(1, event_object.xdata)
@@ -270,6 +275,14 @@ def _click_handler(event_object):
     y_coords_px = numpy.concatenate((
         y_coords_px, numpy.full(1, event_object.ydata)
     ))
+
+    pyplot.plot(
+        event_object.xdata, event_object.ydata, linestyle='None',
+        marker=MARKER_TYPE, markerfacecolor=MARKER_COLOUR,
+        markeredgecolor=MARKER_COLOUR, markersize=MARKER_SIZE,
+        markeredgewidth=MARKER_EDGE_WIDTH)
+
+    figure_object.canvas.draw()
 
     return x_coords_px, y_coords_px
 
@@ -350,6 +363,7 @@ def capture_mouse_clicks(image_file_name, instruction_string=''):
     image_matrix = Image.open(image_file_name)
     num_pixel_columns, num_pixel_rows = image_matrix.size
 
+    global figure_object
     figure_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )[0]
