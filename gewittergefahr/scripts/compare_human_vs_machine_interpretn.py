@@ -7,6 +7,7 @@ This script handles 3 types of interpretation maps:
 - guided Grad-CAM
 """
 
+import sys
 import os.path
 import argparse
 import numpy
@@ -194,6 +195,8 @@ def _plot_comparison(
         num_panel_rows=num_panel_rows,
         plot_colour_bar_by_panel=plot_colour_bar_by_panel, font_size=14,
         row_major=False)
+
+    numpy.set_printoptions(threshold=sys.maxsize)
 
     for k in range(num_panels):
         print(human_mask_matrix[..., k].astype(int))
