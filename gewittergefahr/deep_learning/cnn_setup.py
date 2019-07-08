@@ -105,6 +105,17 @@ def _create_sounding_layers(
     current_num_spatial_filters = None
 
     for _ in range(num_conv_layer_sets):
+        # if current_layer_object is None:
+        #     if do_separable_conv:
+        #         current_num_spatial_filters = first_num_spatial_filters + 0
+        #     else:
+        #         current_num_filters = first_num_filters + 0
+        # else:
+        #     if do_separable_conv:
+        #         current_num_spatial_filters *= 2
+        #     else:
+        #         current_num_filters *= 2
+
         for _ in range(num_conv_layers_per_set):
             if current_layer_object is None:
                 this_input_layer_object = input_layer_object
@@ -812,6 +823,256 @@ def create_separable_2d_cnn(
     else:
         model_object = keras.models.Model(
             inputs=radar_input_layer_object, outputs=layer_object)
+
+    loss_function = _get_output_layer_and_loss(num_classes)[-1]
+    model_object.compile(
+        loss=loss_function, optimizer=keras.optimizers.Adam(),
+        metrics=list_of_metric_functions)
+
+    model_object.summary()
+    return model_object
+
+
+def create_2d3d_cnn(
+        num_refl_rows, num_refl_columns, num_refl_heights, num_az_shear_fields,
+        num_classes, num_sounding_fields, num_sounding_heights,
+        use_padding=False,
+        pooling_type_string=architecture_utils.MAX_POOLING_STRING,
+        num_conv_layer_sets=DEFAULT_NUM_CONV_LAYER_SETS,
+        num_conv_layers_per_set=DEFAULT_NUM_CONV_LAYERS_PER_SET,
+        first_num_refl_filters=None, first_num_shear_filters=None,
+        first_num_sounding_filters=None,
+        conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
+        num_dense_layers=DEFAULT_NUM_DENSE_LAYERS,
+        dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
+        l1_weight=DEFAULT_L1_WEIGHT, l2_weight=DEFAULT_L2_WEIGHT,
+        activation_function_string=DEFAULT_ACTIVATION_FUNCTION_STRING,
+        alpha_for_elu=architecture_utils.DEFAULT_ALPHA_FOR_ELU,
+        alpha_for_relu=architecture_utils.DEFAULT_ALPHA_FOR_RELU,
+        use_batch_normalization=DEFAULT_USE_BATCH_NORM_FLAG,
+        list_of_metric_functions=DEFAULT_METRIC_FUNCTION_LIST):
+    """Creates CNN to take in 2-D and 3-D radar data (and possibly soundings).
+
+    In this case, 3-D radar fields contain reflectivity and 2-D fields contain
+    azimuthal shear.
+
+    :param num_refl_rows: Number of rows in reflectivity grid.
+    :param num_refl_columns: Number of columns in reflectivity grid.
+    :param num_refl_heights: Number of heights in reflectivity grid.
+    :param num_az_shear_fields: Number of azimuthal-shear fields.
+    See doc for `check_radar_options`.
+    :param num_sounding_fields: See doc for `check_sounding_options`.
+    :param num_sounding_heights: Same.
+    :param use_padding: See doc for `create_2d_cnn`.
+    :param pooling_type_string: Pooling type (see doc for
+        `architecture_utils._check_pooling_options`).
+    :param num_conv_layer_sets: See doc for `check_radar_options`.
+    :param num_conv_layers_per_set: Same.
+    :param first_num_refl_filters: Number of filters created by first
+        convolution layer for reflectivity data.  This will double with
+        ach successive conv layer.
+    :param first_num_shear_filters: Same but for azimuthal shear.
+    :param first_num_sounding_filters: Same but for sounding.
+    :param conv_layer_dropout_fraction: See doc for `check_radar_options`.
+    :param num_dense_layers: Same.
+    :param dense_layer_dropout_fraction: Same.
+    :param l1_weight: Same.
+    :param l2_weight: Same.
+    :param activation_function_string: Same.
+    :param alpha_for_elu: Same.
+    :param alpha_for_relu: Same.
+    :param use_batch_normalization: Same.
+    :param list_of_metric_functions: List of Keras metrics.  Will be used to
+        report performance during training.
+    :return: cnn_model_object: Untrained instance of `keras.models.Model`.
+    """
+
+    error_checking.assert_is_boolean(use_padding)
+    padding_type_string = (
+        architecture_utils.YES_PADDING_STRING if use_padding
+        else architecture_utils.NO_PADDING_STRING
+    )
+
+    error_checking.assert_is_integer(num_sounding_fields)
+    error_checking.assert_is_integer(num_sounding_heights)
+    include_soundings = num_sounding_fields > 0 or num_sounding_heights > 0
+
+    first_num_refl_filters, _ = check_radar_options(
+        num_grid_rows=num_refl_rows, num_grid_columns=num_refl_columns,
+        num_heights=num_refl_heights, num_fields=1, num_dimensions=3,
+        num_classes=num_classes, num_conv_layer_sets=num_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
+        num_dense_layers=num_dense_layers,
+        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
+        l1_weight=l1_weight, l2_weight=l2_weight,
+        activation_function_string=activation_function_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization,
+        do_separable_conv=False, first_num_filters=first_num_refl_filters)
+
+    first_num_shear_filters, _ = check_radar_options(
+        num_grid_rows=2 * num_refl_rows, num_grid_columns=2 * num_refl_columns,
+        num_channels=num_az_shear_fields, num_dimensions=2,
+        num_classes=num_classes, num_conv_layer_sets=num_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
+        num_dense_layers=num_dense_layers,
+        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
+        l1_weight=l1_weight, l2_weight=l2_weight,
+        activation_function_string=activation_function_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization,
+        do_separable_conv=False, first_num_filters=first_num_shear_filters)
+
+    shear_input_layer_object = keras.layers.Input(
+        shape=(2 * num_refl_rows, 2 * num_refl_columns, num_az_shear_fields)
+    )
+
+    regularizer_object = architecture_utils.get_weight_regularizer(
+        l1_weight=l1_weight, l2_weight=l2_weight)
+
+    shear_layer_object = None
+
+    for _ in range(num_conv_layers_per_set):
+        if shear_layer_object is None:
+            this_input_layer_object = shear_input_layer_object
+        else:
+            this_input_layer_object = shear_layer_object
+
+        shear_layer_object = architecture_utils.get_2d_conv_layer(
+            num_filters=first_num_shear_filters,
+            num_kernel_rows=NUM_CONV_KERNEL_ROWS,
+            num_kernel_columns=NUM_CONV_KERNEL_COLUMNS,
+            num_rows_per_stride=1, num_columns_per_stride=1,
+            padding_type_string=architecture_utils.YES_PADDING_STRING,
+            weight_regularizer=regularizer_object
+        )(this_input_layer_object)
+
+        shear_layer_object = architecture_utils.get_activation_layer(
+            activation_function_string=activation_function_string,
+            alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+        )(shear_layer_object)
+
+        if conv_layer_dropout_fraction is not None:
+            shear_layer_object = architecture_utils.get_dropout_layer(
+                dropout_fraction=conv_layer_dropout_fraction
+            )(shear_layer_object)
+
+        if use_batch_normalization:
+            shear_layer_object = architecture_utils.get_batch_norm_layer()(
+                shear_layer_object
+            )
+
+    shear_layer_object = architecture_utils.get_2d_pooling_layer(
+        num_rows_in_window=2, num_columns_in_window=2,
+        num_rows_per_stride=2, num_columns_per_stride=2,
+        pooling_type_string=pooling_type_string
+    )(shear_layer_object)
+
+    refl_input_layer_object = keras.layers.Input(
+        shape=(num_refl_rows, num_refl_columns, num_refl_heights, 1)
+    )
+
+    refl_layer_object = keras.layers.Reshape(
+        target_shape=(num_refl_rows, num_refl_columns, num_refl_heights)
+    )(refl_input_layer_object)
+
+    radar_layer_object = keras.layers.concatenate(
+        [refl_layer_object, shear_layer_object], axis=-1
+    )
+
+    current_num_filters = None
+
+    for _ in range(num_conv_layer_sets):
+        if current_num_filters is None:
+            current_num_filters = (
+                first_num_shear_filters + first_num_refl_filters
+            )
+        else:
+            current_num_filters *= 2
+
+        for _ in range(num_conv_layers_per_set):
+            this_input_layer_object = radar_layer_object
+
+            radar_layer_object = architecture_utils.get_2d_conv_layer(
+                num_filters=current_num_filters,
+                num_kernel_rows=NUM_CONV_KERNEL_ROWS,
+                num_kernel_columns=NUM_CONV_KERNEL_COLUMNS,
+                num_rows_per_stride=1, num_columns_per_stride=1,
+                padding_type_string=padding_type_string,
+                weight_regularizer=regularizer_object
+            )(this_input_layer_object)
+
+            radar_layer_object = architecture_utils.get_activation_layer(
+                activation_function_string=activation_function_string,
+                alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+            )(radar_layer_object)
+
+            if conv_layer_dropout_fraction is not None:
+                radar_layer_object = architecture_utils.get_dropout_layer(
+                    dropout_fraction=conv_layer_dropout_fraction
+                )(radar_layer_object)
+
+            if use_batch_normalization:
+                radar_layer_object = (
+                    architecture_utils.get_batch_norm_layer()(
+                        radar_layer_object)
+                )
+
+        radar_layer_object = architecture_utils.get_2d_pooling_layer(
+            num_rows_in_window=2, num_columns_in_window=2,
+            num_rows_per_stride=2, num_columns_per_stride=2,
+            pooling_type_string=pooling_type_string
+        )(radar_layer_object)
+
+    these_dimensions = numpy.array(
+        radar_layer_object.get_shape().as_list()[1:], dtype=int
+    )
+    num_radar_features = numpy.prod(these_dimensions)
+
+    radar_layer_object = architecture_utils.get_flattening_layer()(
+        radar_layer_object)
+
+    if include_soundings:
+        (sounding_input_layer_object, sounding_layer_object,
+         num_sounding_features
+        ) = _create_sounding_layers(
+            num_fields=num_sounding_fields, num_heights=num_sounding_heights,
+            num_conv_layer_sets=num_conv_layer_sets,
+            num_conv_layers_per_set=num_conv_layers_per_set,
+            padding_type_string=padding_type_string, l1_weight=l1_weight,
+            l2_weight=l2_weight, pooling_type_string=pooling_type_string,
+            activation_function_string=activation_function_string,
+            alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+            use_batch_normalization=use_batch_normalization,
+            dropout_fraction=conv_layer_dropout_fraction,
+            do_separable_conv=False,
+            first_num_filters=first_num_sounding_filters)
+
+        layer_object = keras.layers.concatenate(
+            [radar_layer_object, sounding_layer_object]
+        )
+
+    else:
+        layer_object = radar_layer_object
+        num_sounding_features = 0
+
+    layer_object = _create_dense_layers(
+        flattening_layer_object=layer_object,
+        num_scalar_features=num_radar_features + num_sounding_features,
+        num_classes=num_classes, num_dense_layers=num_dense_layers,
+        dropout_fraction=dense_layer_dropout_fraction,
+        activation_function_string=activation_function_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization)
+
+    input_layer_objects = [refl_input_layer_object, shear_input_layer_object]
+    if include_soundings:
+        input_layer_objects.append(sounding_input_layer_object)
+
+    model_object = keras.models.Model(
+        inputs=input_layer_objects, outputs=layer_object)
 
     loss_function = _get_output_layer_and_loss(num_classes)[-1]
     model_object.compile(
