@@ -62,12 +62,13 @@ FIRST_VALIDN_TIME_KEY = 'first_validn_time_unix_sec'
 LAST_VALIDN_TIME_KEY = 'last_validn_time_unix_sec'
 TRAINING_OPTION_DICT_KEY = 'training_option_dict'
 LAYER_OPERATIONS_KEY = 'list_of_layer_operation_dicts'
+NUM_EX_PER_VALIDN_BATCH_KEY = 'num_examples_per_validn_batch'
 
 METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, NUM_VALIDATION_BATCHES_KEY,
     MONITOR_STRING_KEY, WEIGHT_LOSS_FUNCTION_KEY, USE_2D3D_CONVOLUTION_KEY,
     VALIDATION_FILES_KEY, FIRST_VALIDN_TIME_KEY, LAST_VALIDN_TIME_KEY,
-    TRAINING_OPTION_DICT_KEY, LAYER_OPERATIONS_KEY
+    TRAINING_OPTION_DICT_KEY, LAYER_OPERATIONS_KEY, NUM_EX_PER_VALIDN_BATCH_KEY
 ]
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
@@ -286,6 +287,7 @@ def write_model_metadata(
         `train_cnn_2d3d_myrorss`.
     metadata_dict['first_validn_time_unix_sec']: Same.
     metadata_dict['last_validn_time_unix_sec']: Same.
+    metadata_dict['num_examples_per_validn_batch']: Same.
 
     :param training_option_dict: See doc for
         `training_validation_io.example_generator_2d_or_3d` or
@@ -301,9 +303,8 @@ def write_model_metadata(
     training_option_dict = trainval_io.DEFAULT_OPTION_DICT.copy()
     training_option_dict.update(orig_training_option_dict)
 
-    metadata_dict.update({TRAINING_OPTION_DICT_KEY: training_option_dict})
-    metadata_dict.update({LAYER_OPERATIONS_KEY: list_of_layer_operation_dicts})
-
+    metadata_dict[TRAINING_OPTION_DICT_KEY] = training_option_dict
+    metadata_dict[LAYER_OPERATIONS_KEY] = list_of_layer_operation_dicts
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
 
     if len(missing_keys):
@@ -333,6 +334,11 @@ def read_model_metadata(pickle_file_name):
 
     if LAYER_OPERATIONS_KEY not in metadata_dict:
         metadata_dict[LAYER_OPERATIONS_KEY] = None
+
+    if NUM_EX_PER_VALIDN_BATCH_KEY not in metadata_dict:
+        metadata_dict[NUM_EX_PER_VALIDN_BATCH_KEY] = metadata_dict[
+            TRAINING_OPTION_DICT_KEY
+        ][trainval_io.NUM_EXAMPLES_PER_BATCH_KEY]
 
     if (trainval_io.SHUFFLE_TARGET_KEY not in
             metadata_dict[TRAINING_OPTION_DICT_KEY]
@@ -371,7 +377,8 @@ def train_cnn_2d_or_3d(
         num_epochs, num_training_batches_per_epoch, training_option_dict,
         monitor_string=LOSS_FUNCTION_STRING, weight_loss_function=False,
         num_validation_batches_per_epoch=0, validation_file_names=None,
-        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None):
+        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None,
+        num_examples_per_validn_batch=None):
     """Trains CNN with radar images, which are either all 2-D or all 3-D.
 
     :param model_object: Instance of `keras.models.Model` or
@@ -396,9 +403,14 @@ def train_cnn_2d_or_3d(
         [used only if num_validation_batches_per_epoch > 0]
         Start of validation period.  Examples before this time will not be used.
 
-    :param last_validn_time_unix_sec: Same.
+    :param last_validn_time_unix_sec:
         [used only if num_validation_batches_per_epoch > 0]
         End of validation period.  Examples after this time will not be used.
+
+    :param num_examples_per_validn_batch:
+        [used only if num_validation_batches_per_epoch > 0]
+        Number of examples per validation batch.  If left alone, this will
+        default to num examples per training batch.
     """
 
     class_to_weight_dict = _check_training_args(
@@ -432,6 +444,11 @@ def train_cnn_2d_or_3d(
             trainval_io.FIRST_STORM_TIME_KEY] = first_validn_time_unix_sec
         validation_option_dict[
             trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
+
+        if num_examples_per_validn_batch is not None:
+            validation_option_dict[
+                trainval_io.NUM_EXAMPLES_PER_BATCH_KEY
+            ] = num_examples_per_validn_batch
 
         validation_option_dict = _remove_data_augmentation(
             validation_option_dict)
@@ -457,7 +474,8 @@ def train_cnn_2d3d_myrorss(
         num_epochs, num_training_batches_per_epoch, training_option_dict,
         monitor_string=LOSS_FUNCTION_STRING, weight_loss_function=False,
         num_validation_batches_per_epoch=0, validation_file_names=None,
-        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None):
+        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None,
+        num_examples_per_validn_batch=None):
     """Trains CNN with both 2-D and 3-D radar images.
 
     :param model_object: See doc for `train_cnn_2d_or_3d`.
@@ -473,6 +491,7 @@ def train_cnn_2d3d_myrorss(
     :param validation_file_names: Same.
     :param first_validn_time_unix_sec: Same.
     :param last_validn_time_unix_sec: Same.
+    :param num_examples_per_validn_batch: Same.
     """
 
     class_to_weight_dict = _check_training_args(
@@ -506,6 +525,11 @@ def train_cnn_2d3d_myrorss(
             trainval_io.FIRST_STORM_TIME_KEY] = first_validn_time_unix_sec
         validation_option_dict[
             trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
+
+        if num_examples_per_validn_batch is not None:
+            validation_option_dict[
+                trainval_io.NUM_EXAMPLES_PER_BATCH_KEY
+            ] = num_examples_per_validn_batch
 
         validation_option_dict = _remove_data_augmentation(
             validation_option_dict)
@@ -532,7 +556,7 @@ def train_cnn_gridrad_2d_reduced(
         list_of_layer_operation_dicts, monitor_string=LOSS_FUNCTION_STRING,
         weight_loss_function=False, num_validation_batches_per_epoch=0,
         validation_file_names=None, first_validn_time_unix_sec=None,
-        last_validn_time_unix_sec=None):
+        last_validn_time_unix_sec=None, num_examples_per_validn_batch=None):
     """Trains CNN with 2-D GridRad images.
 
     These 2-D images are produced by applying layer operations to the native 3-D
@@ -554,6 +578,7 @@ def train_cnn_gridrad_2d_reduced(
     :param validation_file_names: Same.
     :param first_validn_time_unix_sec: Same.
     :param last_validn_time_unix_sec: Same.
+    :param num_examples_per_validn_batch: Same.
     """
 
     class_to_weight_dict = _check_training_args(
@@ -587,6 +612,11 @@ def train_cnn_gridrad_2d_reduced(
             trainval_io.FIRST_STORM_TIME_KEY] = first_validn_time_unix_sec
         validation_option_dict[
             trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
+
+        if num_examples_per_validn_batch is not None:
+            validation_option_dict[
+                trainval_io.NUM_EXAMPLES_PER_BATCH_KEY
+            ] = num_examples_per_validn_batch
 
         validation_option_dict = _remove_data_augmentation(
             validation_option_dict)

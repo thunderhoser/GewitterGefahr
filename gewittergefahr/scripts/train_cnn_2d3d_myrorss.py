@@ -40,10 +40,11 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
          x_translations_pixels, y_translations_pixels, ccw_rotation_angles_deg,
          noise_standard_deviation, num_noisings, flip_in_x, flip_in_y,
          top_training_dir_name, first_training_time_string,
-         last_training_time_string, top_validation_dir_name,
-         first_validation_time_string, last_validation_time_string,
-         num_examples_per_batch, num_epochs, num_training_batches_per_epoch,
-         num_validation_batches_per_epoch, output_dir_name):
+         last_training_time_string, num_examples_per_train_batch,
+         top_validation_dir_name, first_validation_time_string,
+         last_validation_time_string, num_examples_per_validn_batch, num_epochs,
+         num_training_batches_per_epoch, num_validation_batches_per_epoch,
+         output_dir_name):
     """Trains CNN with native (3-D) GridRad images.
 
     This is effectively the main method.
@@ -69,10 +70,11 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
     :param top_training_dir_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
+    :param num_examples_per_train_batch: Same.
     :param top_validation_dir_name: Same.
     :param first_validation_time_string: Same.
     :param last_validation_time_string: Same.
-    :param num_examples_per_batch: Same.
+    :param num_examples_per_validn_batch: Same.
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param num_validation_batches_per_epoch: Same.
@@ -173,7 +175,7 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
         trainval_io.TARGET_NAME_KEY: target_name,
         trainval_io.FIRST_STORM_TIME_KEY: first_training_time_unix_sec,
         trainval_io.LAST_STORM_TIME_KEY: last_training_time_unix_sec,
-        trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
+        trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_train_batch,
         trainval_io.RADAR_FIELDS_KEY:
             input_examples.AZIMUTHAL_SHEAR_FIELD_NAMES,
         trainval_io.RADAR_HEIGHTS_KEY: REFLECTIVITY_HEIGHTS_M_AGL,
@@ -213,7 +215,8 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_file_names=validation_file_names,
         first_validn_time_unix_sec=first_validation_time_unix_sec,
-        last_validn_time_unix_sec=last_validation_time_unix_sec)
+        last_validn_time_unix_sec=last_validation_time_unix_sec,
+        num_examples_per_validn_batch=num_examples_per_validn_batch)
 
 
 if __name__ == '__main__':
@@ -266,14 +269,16 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.FIRST_TRAINING_TIME_ARG_NAME),
         last_training_time_string=getattr(
             INPUT_ARG_OBJECT, dl_helper.LAST_TRAINING_TIME_ARG_NAME),
+        num_examples_per_train_batch=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_EX_PER_TRAIN_ARG_NAME),
         top_validation_dir_name=getattr(
             INPUT_ARG_OBJECT, dl_helper.VALIDATION_DIR_ARG_NAME),
         first_validation_time_string=getattr(
             INPUT_ARG_OBJECT, dl_helper.FIRST_VALIDATION_TIME_ARG_NAME),
         last_validation_time_string=getattr(
             INPUT_ARG_OBJECT, dl_helper.LAST_VALIDATION_TIME_ARG_NAME),
-        num_examples_per_batch=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NUM_EX_PER_BATCH_ARG_NAME),
+        num_examples_per_validn_batch=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_EX_PER_VALIDN_ARG_NAME),
         num_epochs=getattr(INPUT_ARG_OBJECT, dl_helper.NUM_EPOCHS_ARG_NAME),
         num_training_batches_per_epoch=getattr(
             INPUT_ARG_OBJECT, dl_helper.NUM_TRAINING_BATCHES_ARG_NAME),

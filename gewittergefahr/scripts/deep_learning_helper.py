@@ -34,10 +34,11 @@ FLIP_Y_ARG_NAME = 'flip_in_y'
 TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
 FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
 LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
+NUM_EX_PER_TRAIN_ARG_NAME = 'num_ex_per_train_batch'
 VALIDATION_DIR_ARG_NAME = 'input_validation_dir_name'
 FIRST_VALIDATION_TIME_ARG_NAME = 'first_validation_time_string'
 LAST_VALIDATION_TIME_ARG_NAME = 'last_validation_time_string'
-NUM_EX_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
+NUM_EX_PER_VALIDN_ARG_NAME = 'num_ex_per_validn_batch'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 NUM_TRAINING_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
 NUM_VALIDATION_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
@@ -141,6 +142,8 @@ TRAINING_TIME_HELP_STRING = (
     '`{0:s}`...`{1:s}` will be used for training.'
 ).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME)
 
+NUM_EX_PER_TRAIN_HELP_STRING = 'Number of examples per training batch.'
+
 VALIDATION_DIR_HELP_STRING = (
     'Same as `{0:s}` but for on-the-fly validation.  If you do not want '
     'validation, leave this alone.'
@@ -152,8 +155,7 @@ VALIDATION_TIME_HELP_STRING = (
     'validation, leave this alone.'
 ).format(FIRST_VALIDATION_TIME_ARG_NAME, LAST_VALIDATION_TIME_ARG_NAME)
 
-NUM_EX_PER_BATCH_HELP_STRING = (
-    'Number of examples in each training or validation batch.')
+NUM_EX_PER_VALIDN_HELP_STRING = 'Number of examples per validation batch.'
 
 NUM_EPOCHS_HELP_STRING = 'Number of training epochs.'
 
@@ -295,6 +297,11 @@ def add_input_args(argument_parser):
         help=TRAINING_TIME_HELP_STRING)
 
     argument_parser.add_argument(
+        '--' + NUM_EX_PER_TRAIN_ARG_NAME, type=int, required=False,
+        default=DEFAULT_NUM_EXAMPLES_PER_BATCH,
+        help=NUM_EX_PER_TRAIN_HELP_STRING)
+
+    argument_parser.add_argument(
         '--' + VALIDATION_DIR_ARG_NAME, type=str, required=False, default='',
         help=VALIDATION_DIR_HELP_STRING)
 
@@ -307,9 +314,9 @@ def add_input_args(argument_parser):
         default='', help=VALIDATION_TIME_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + NUM_EX_PER_BATCH_ARG_NAME, type=int, required=False,
+        '--' + NUM_EX_PER_VALIDN_ARG_NAME, type=int, required=False,
         default=DEFAULT_NUM_EXAMPLES_PER_BATCH,
-        help=NUM_EX_PER_BATCH_HELP_STRING)
+        help=NUM_EX_PER_VALIDN_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + NUM_EPOCHS_ARG_NAME, type=int, required=False,
