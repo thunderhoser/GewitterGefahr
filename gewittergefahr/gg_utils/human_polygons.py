@@ -4,11 +4,18 @@ import numpy
 import matplotlib.pyplot as pyplot
 import netCDF4
 from PIL import Image
+import shapely.geometry
 from roipoly import MultiRoi
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+
+x_coords_px = numpy.array([], dtype=float)
+y_coords_px = numpy.array([], dtype=float)
+
+FIGURE_WIDTH_INCHES = 15
+FIGURE_HEIGHT_INCHES = 15
 
 IMAGE_FILE_KEY = 'orig_image_file_name'
 POSITIVE_VERTEX_ROWS_KEY = 'positive_vertex_rows'
@@ -35,6 +42,12 @@ POSITIVE_PANEL_ROW_BY_POLY_KEY = 'positive_panel_row_by_polygon'
 POSITIVE_PANEL_COLUMN_BY_POLY_KEY = 'positive_panel_column_by_polygon'
 NEGATIVE_PANEL_ROW_BY_POLY_KEY = 'negative_panel_row_by_polygon'
 NEGATIVE_PANEL_COLUMN_BY_POLY_KEY = 'negative_panel_column_by_polygon'
+
+POINT_DIMENSION_KEY = 'point'
+GRID_ROW_BY_POINT_KEY = 'grid_row_by_point'
+GRID_COLUMN_BY_POINT_KEY = 'grid_column_by_point'
+PANEL_ROW_BY_POINT_KEY = 'panel_row_by_point'
+PANEL_COLUMN_BY_POINT_KEY = 'panel_column_by_point'
 
 
 def _check_polygons(
@@ -232,6 +245,35 @@ def _polygons_to_mask_one_panel(polygon_objects_grid_coords, num_grid_rows,
     return mask_matrix
 
 
+def _click_handler(event_object):
+    """Handles human mouse clicks on a matplotlib figure.
+
+    N = number of mouse clicks handled
+
+    :param event_object: Event-handler (I have no idea what type of object this
+        is).
+    :return: x_coords_px: length-N numpy array with x-coordinates of mouse
+        clicks.
+    :return: y_coords_px: length-N numpy array with y-coordinates of mouse
+        clicks.
+    """
+
+    print(type(event_object))
+
+    global x_coords_px
+    global y_coords_px
+
+    x_coords_px = numpy.concatenate((
+        x_coords_px, numpy.full(1, event_object.xdata)
+    ))
+
+    y_coords_px = numpy.concatenate((
+        y_coords_px, numpy.full(1, event_object.ydata)
+    ))
+
+    return x_coords_px, y_coords_px
+
+
 def capture_polygons(image_file_name, instruction_string=''):
     """This interactiv method allows you to draw polygons and captures vertices.
 
@@ -240,8 +282,8 @@ def capture_polygons(image_file_name, instruction_string=''):
     :param image_file_name: Path to image file.  This method will display the
         image in a figure window and allow you to draw polygons on top.
     :param instruction_string: String with instructions for the user.
-    :return: polygon_objects_pixel_coords: length-N list of polygons (instances of
-        `shapely.geometry.Polygon`), each containing vertices in pixel
+    :return: polygon_objects_pixel_coords: length-N list of polygons (instances
+        of `shapely.geometry.Polygon`), each containing vertices in pixel
         coordinates.
     :return: num_pixel_rows: Number of pixel rows in the image.
     :return: num_pixel_columns: Number of pixel columns in the image.
@@ -286,6 +328,183 @@ def capture_polygons(image_file_name, instruction_string=''):
     return polygon_objects_pixel_coords, num_pixel_rows, num_pixel_columns
 
 
+def capture_mouse_clicks(image_file_name, instruction_string=''):
+    """This interactive method captures coordinates of human mouse clicks.
+
+    N = number of mouse clicks
+
+    :param image_file_name: Path to image file.  This method will display the
+        image in a figure window and allow you to click on top.
+    :param instruction_string: String with instructions for the user.
+    :return: point_objects_pixel_coords: length-N list of points (instances
+        of `shapely.geometry.Point`), each containing a click location in pixel
+        coordinates.
+    :return: num_pixel_rows: Number of pixel rows in the image.
+    :return: num_pixel_columns: Number of pixel columns in the image.
+    """
+
+    error_checking.assert_file_exists(image_file_name)
+
+    image_matrix = Image.open(image_file_name)
+    num_pixel_columns, num_pixel_rows = image_matrix.size
+
+    figure_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )[0]
+
+    instruction_string = (
+        'Click in polygons (areas of interest) that you did not expect.  Close '
+        'when you are done.')
+
+    pyplot.imshow(image_matrix)
+    pyplot.title(instruction_string)
+
+    connection_id = figure_object.canvas.mpl_connect(
+        'button_press_event', _click_handler)
+    pyplot.show()
+    figure_object.canvas.mpl_disconnect(connection_id)
+
+    point_objects_pixel_coords = [
+        shapely.geometry.Point(this_x, this_y)
+        for this_x, this_y in zip(x_coords_px, y_coords_px)
+    ]
+
+    return point_objects_pixel_coords, num_pixel_rows, num_pixel_columns
+
+
+def pixel_rows_to_grid_rows(
+        pixel_row_by_vertex, num_pixel_rows, num_panel_rows, num_grid_rows):
+    """Converts pixel rows to grid rows.
+
+    V = number of vertices in object
+
+    :param pixel_row_by_vertex: length-V numpy array with row coordinates of
+        vertices in pixel space.
+    :param num_pixel_rows: Total number of pixel rows in image.
+    :param num_panel_rows: Total number of panel rows in image.
+    :param num_grid_rows: Total number of rows in grid (one grid per panel).
+    :return: grid_row_by_vertex: length-V numpy array with row coordinates of
+        vertices in grid space.
+    :return: panel_row: Row coordinate of object in panel space.
+    """
+
+    error_checking.assert_is_integer(num_pixel_rows)
+    error_checking.assert_is_greater(num_pixel_rows, 0)
+    error_checking.assert_is_integer(num_panel_rows)
+    error_checking.assert_is_greater(num_panel_rows, 0)
+    error_checking.assert_is_integer(num_grid_rows)
+    error_checking.assert_is_greater(num_grid_rows, 0)
+
+    error_checking.assert_is_numpy_array(pixel_row_by_vertex, num_dimensions=1)
+
+    pixel_row_by_vertex += 0.5
+    error_checking.assert_is_geq_numpy_array(pixel_row_by_vertex, 0.)
+    error_checking.assert_is_leq_numpy_array(
+        pixel_row_by_vertex, num_pixel_rows)
+
+    panel_row_to_first_px_row = {}
+    for i in range(num_panel_rows):
+        panel_row_to_first_px_row[i] = (
+            i * float(num_pixel_rows) / num_panel_rows
+        )
+
+    panel_row_by_vertex = numpy.floor(
+        pixel_row_by_vertex * float(num_panel_rows) / num_pixel_rows
+    ).astype(int)
+
+    panel_row_by_vertex[
+        panel_row_by_vertex == num_panel_rows
+    ] = num_panel_rows - 1
+
+    if len(numpy.unique(panel_row_by_vertex)) > 1:
+        error_string = (
+            'Object is in multiple panels.  Panel rows listed below.\n{0:s}'
+        ).format(str(panel_row_by_vertex))
+
+        raise ValueError(error_string)
+
+    panel_row = panel_row_by_vertex[0]
+    pixel_row_by_vertex = (
+        pixel_row_by_vertex - panel_row_to_first_px_row[panel_row]
+    )
+
+    grid_row_by_vertex = -0.5 + (
+        pixel_row_by_vertex *
+        float(num_grid_rows * num_panel_rows) / num_pixel_rows
+    )
+
+    grid_row_by_vertex = num_grid_rows - 1 - grid_row_by_vertex
+
+    return grid_row_by_vertex, panel_row
+
+
+def pixel_columns_to_grid_columns(
+        pixel_column_by_vertex, num_pixel_columns, num_panel_columns,
+        num_grid_columns):
+    """Converts pixel columns to grid columns.
+
+    V = number of vertices in object
+
+    :param pixel_column_by_vertex: length-V numpy array with column coordinates
+        of vertices in pixel space.
+    :param num_pixel_columns: Total number of pixel columns in image.
+    :param num_panel_columns: Total number of panel columns in image.
+    :param num_grid_columns: Total number of columns in grid (one grid per
+        panel).
+    :return: grid_column_by_vertex: length-V numpy array with column coordinates
+        of vertices in grid space.
+    :return: panel_column: Column coordinate of object in panel space.
+    """
+
+    error_checking.assert_is_integer(num_pixel_columns)
+    error_checking.assert_is_greater(num_pixel_columns, 0)
+    error_checking.assert_is_integer(num_panel_columns)
+    error_checking.assert_is_greater(num_panel_columns, 0)
+    error_checking.assert_is_integer(num_grid_columns)
+    error_checking.assert_is_greater(num_grid_columns, 0)
+
+    error_checking.assert_is_numpy_array(
+        pixel_column_by_vertex, num_dimensions=1)
+
+    pixel_column_by_vertex += 0.5
+    error_checking.assert_is_geq_numpy_array(pixel_column_by_vertex, 0.)
+    error_checking.assert_is_leq_numpy_array(
+        pixel_column_by_vertex, num_pixel_columns)
+
+    panel_column_to_first_px_column = {}
+    for j in range(num_panel_columns):
+        panel_column_to_first_px_column[j] = (
+            j * float(num_pixel_columns) / num_panel_columns
+        )
+
+    panel_column_by_vertex = numpy.floor(
+        pixel_column_by_vertex * float(num_panel_columns) / num_pixel_columns
+    ).astype(int)
+
+    panel_column_by_vertex[
+        panel_column_by_vertex == num_panel_columns
+    ] = num_panel_columns - 1
+
+    if len(numpy.unique(panel_column_by_vertex)) > 1:
+        error_string = (
+            'Object is in multiple panels.  Panel columns listed below.\n{0:s}'
+        ).format(str(panel_column_by_vertex))
+
+        raise ValueError(error_string)
+
+    panel_column = panel_column_by_vertex[0]
+    pixel_column_by_vertex = (
+        pixel_column_by_vertex - panel_column_to_first_px_column[panel_column]
+    )
+
+    grid_column_by_vertex = -0.5 + (
+        pixel_column_by_vertex *
+        float(num_grid_columns * num_panel_columns) / num_pixel_columns
+    )
+
+    return grid_column_by_vertex, panel_column
+
+
 def polygons_from_pixel_to_grid_coords(
         polygon_objects_pixel_coords, num_grid_rows, num_grid_columns,
         num_pixel_rows, num_pixel_columns, num_panel_rows, num_panel_columns):
@@ -323,18 +542,6 @@ def polygons_from_pixel_to_grid_coords(
     :raises: ValueError: if one polygon is in multiple panels.
     """
 
-    error_checking.assert_is_integer(num_grid_rows)
-    error_checking.assert_is_greater(num_grid_rows, 0)
-    error_checking.assert_is_integer(num_grid_columns)
-    error_checking.assert_is_greater(num_grid_columns, 0)
-    error_checking.assert_is_integer(num_pixel_rows)
-    error_checking.assert_is_greater(num_pixel_rows, 0)
-    error_checking.assert_is_integer(num_pixel_columns)
-    error_checking.assert_is_greater(num_pixel_columns, 0)
-    error_checking.assert_is_integer(num_panel_rows)
-    error_checking.assert_is_greater(num_panel_rows, 0)
-    error_checking.assert_is_integer(num_panel_columns)
-    error_checking.assert_is_greater(num_panel_columns, 0)
     error_checking.assert_is_list(polygon_objects_pixel_coords)
 
     num_polygons = len(polygon_objects_pixel_coords)
@@ -347,101 +554,33 @@ def polygons_from_pixel_to_grid_coords(
         num_dimensions=1
     )
 
-    panel_row_to_first_px_row = {}
-    for i in range(num_panel_rows):
-        panel_row_to_first_px_row[i] = (
-            i * float(num_pixel_rows) / num_panel_rows
-        )
-
-    panel_column_to_first_px_column = {}
-    for j in range(num_panel_columns):
-        panel_column_to_first_px_column[j] = (
-            j * float(num_pixel_columns) / num_panel_columns
-        )
-
     polygon_objects_grid_coords = [None] * num_polygons
     panel_row_by_polygon = [None] * num_polygons
     panel_column_by_polygon = [None] * num_polygons
 
     for k in range(num_polygons):
-        # TODO(thunderhoser): Modularize this shit.
-        these_pixel_columns = 0.5 + numpy.array(
-            polygon_objects_pixel_coords[k].exterior.xy[0]
+        these_grid_columns, panel_column_by_polygon[k] = (
+            pixel_columns_to_grid_columns(
+                pixel_column_by_vertex=numpy.array(
+                    polygon_objects_pixel_coords[k].exterior.xy[0]
+                ),
+                num_pixel_columns=num_pixel_columns,
+                num_panel_columns=num_panel_columns,
+                num_grid_columns=num_grid_columns)
         )
 
-        error_checking.assert_is_geq_numpy_array(these_pixel_columns, 0.)
-        error_checking.assert_is_leq_numpy_array(
-            these_pixel_columns, num_pixel_columns)
+        these_grid_rows, panel_row_by_polygon[k] = pixel_rows_to_grid_rows(
+            pixel_row_by_vertex=numpy.array(
+                polygon_objects_pixel_coords[k].exterior.xy[1]
+            ),
+            num_pixel_rows=num_pixel_rows, num_panel_rows=num_panel_rows,
+            num_grid_rows=num_grid_rows)
 
-        these_panel_columns = numpy.floor(
-            these_pixel_columns * float(num_panel_columns) / num_pixel_columns
-        ).astype(int)
-
-        these_panel_columns[
-            these_panel_columns == num_panel_columns
-        ] = num_panel_columns - 1
-
-        if len(numpy.unique(these_panel_columns)) > 1:
-            error_string = (
-                'The {0:d}th polygon is in multiple panels.  Panel columns '
-                'listed below.\n{1:s}'
-            ).format(k + 1, str(these_panel_columns))
-
-            raise ValueError(error_string)
-
-        panel_column_by_polygon[k] = these_panel_columns[0]
-        these_pixel_columns = (
-            these_pixel_columns -
-            panel_column_to_first_px_column[panel_column_by_polygon[k]]
+        polygon_objects_grid_coords[k] = (
+            polygons.vertex_arrays_to_polygon_object(
+                exterior_x_coords=these_grid_columns,
+                exterior_y_coords=these_grid_rows)
         )
-
-        these_grid_columns = -0.5 + (
-            these_pixel_columns *
-            float(num_grid_columns * num_panel_columns) / num_pixel_columns
-        )
-
-        these_pixel_rows = 0.5 + numpy.array(
-            polygon_objects_pixel_coords[k].exterior.xy[1]
-        )
-
-        error_checking.assert_is_geq_numpy_array(these_pixel_rows, 0.)
-        error_checking.assert_is_leq_numpy_array(
-            these_pixel_rows, num_pixel_rows)
-
-        these_panel_rows = numpy.floor(
-            these_pixel_rows * float(num_panel_rows) / num_pixel_rows
-        ).astype(int)
-
-        these_panel_rows[
-            these_panel_rows == num_panel_rows
-        ] = num_panel_rows - 1
-
-        if len(numpy.unique(these_panel_rows)) > 1:
-            error_string = (
-                'The {0:d}th polygon is in multiple panels.  Panel rows '
-                'listed below.\n{1:s}'
-            ).format(k + 1, str(these_panel_rows))
-
-            raise ValueError(error_string)
-
-        panel_row_by_polygon[k] = these_panel_rows[0]
-        these_pixel_rows = (
-            these_pixel_rows -
-            panel_row_to_first_px_row[panel_row_by_polygon[k]]
-        )
-
-        these_grid_rows = -0.5 + (
-            these_pixel_rows *
-            float(num_grid_rows * num_panel_rows) / num_pixel_rows
-        )
-
-        these_grid_rows = num_grid_rows - 1 - these_grid_rows
-
-        this_polygon_object = polygons.vertex_arrays_to_polygon_object(
-            exterior_x_coords=these_grid_columns,
-            exterior_y_coords=these_grid_rows)
-
-        polygon_objects_grid_coords[k] = this_polygon_object
 
     panel_row_by_polygon = numpy.array(panel_row_by_polygon, dtype=int)
     panel_column_by_polygon = numpy.array(panel_column_by_polygon, dtype=int)
@@ -813,3 +952,123 @@ def read_polygons(netcdf_file_name):
     polygon_dict[POSITIVE_POLYGON_OBJECTS_KEY] = positive_objects_grid_coords
     polygon_dict[NEGATIVE_POLYGON_OBJECTS_KEY] = negative_objects_grid_coords
     return polygon_dict
+
+
+def write_points(
+        output_file_name, orig_image_file_name, grid_row_by_point,
+        grid_column_by_point, panel_row_by_point, panel_column_by_point):
+    """Writes human points of interest for one image to NetCDF file.
+
+    K = number of points of interest
+
+    :param output_file_name: Path to output (NetCDF) file.
+    :param orig_image_file_name: Path to original image file (over which the
+        points were drawn).
+    :param grid_row_by_point: length-K numpy array of row indices in data grid
+        (floats).
+    :param grid_column_by_point: length-K numpy array of column indices in data
+        grid (floats).
+    :param panel_row_by_point: length-K numpy array of row indices in panel grid
+        (integers).
+    :param panel_column_by_point: length-K numpy array of column indices in
+        panel grid (integers).
+    """
+
+    error_checking.assert_is_string(orig_image_file_name)
+    # error_checking.assert_is_integer(num_grid_rows)
+    # error_checking.assert_is_greater(num_grid_rows, 0)
+    # error_checking.assert_is_integer(num_grid_columns)
+    # error_checking.assert_is_greater(num_grid_columns, 0)
+
+    error_checking.assert_is_numpy_array(grid_row_by_point, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(grid_row_by_point, -0.5)
+    # error_checking.assert_is_leq_numpy_array(
+    #     grid_row_by_point, num_grid_rows - 0.5)
+
+    num_points = len(grid_row_by_point)
+    these_expected_dim = numpy.array([num_points], dtype=int)
+
+    error_checking.assert_is_numpy_array(
+        grid_column_by_point, exact_dimensions=these_expected_dim)
+    error_checking.assert_is_geq_numpy_array(grid_column_by_point, -0.5)
+    # error_checking.assert_is_leq_numpy_array(
+    #     grid_column_by_point, num_grid_columns - 0.5)
+
+    error_checking.assert_is_numpy_array(
+        panel_row_by_point, exact_dimensions=these_expected_dim)
+    error_checking.assert_is_integer_numpy_array(panel_row_by_point)
+    error_checking.assert_is_geq_numpy_array(panel_row_by_point, 0)
+
+    error_checking.assert_is_numpy_array(
+        panel_column_by_point, exact_dimensions=these_expected_dim)
+    error_checking.assert_is_integer_numpy_array(panel_column_by_point)
+    error_checking.assert_is_geq_numpy_array(panel_column_by_point, 0)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+    dataset_object = netCDF4.Dataset(
+        output_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    dataset_object.setncattr(IMAGE_FILE_KEY, orig_image_file_name)
+    dataset_object.createDimension(POINT_DIMENSION_KEY, num_points)
+
+    dataset_object.createVariable(
+        GRID_ROW_BY_POINT_KEY, datatype=numpy.float32,
+        dimensions=POINT_DIMENSION_KEY
+    )
+    dataset_object.variables[GRID_ROW_BY_POINT_KEY][:] = grid_row_by_point
+
+    dataset_object.createVariable(
+        GRID_COLUMN_BY_POINT_KEY, datatype=numpy.float32,
+        dimensions=POINT_DIMENSION_KEY
+    )
+    dataset_object.variables[GRID_COLUMN_BY_POINT_KEY][:] = grid_column_by_point
+
+    dataset_object.createVariable(
+        PANEL_ROW_BY_POINT_KEY, datatype=numpy.int32,
+        dimensions=POINT_DIMENSION_KEY
+    )
+    dataset_object.variables[PANEL_ROW_BY_POINT_KEY][:] = panel_row_by_point
+
+    dataset_object.createVariable(
+        PANEL_COLUMN_BY_POINT_KEY, datatype=numpy.int32,
+        dimensions=POINT_DIMENSION_KEY
+    )
+    dataset_object.variables[
+        PANEL_COLUMN_BY_POINT_KEY][:] = panel_column_by_point
+
+    dataset_object.close()
+
+
+def read_points(netcdf_file_name):
+    """Reads human points of interest for one image from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: point_dict: Dictionary with the following keys.
+    point_dict['orig_image_file_name']: See input doc for `write_points`.
+    point_dict['grid_row_by_point']: Same.
+    point_dict['grid_column_by_point']: Same.
+    point_dict['panel_row_by_point']: Same.
+    point_dict['panel_column_by_point']: Same.
+    """
+
+    error_checking.assert_file_exists(netcdf_file_name)
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    point_dict = {
+        IMAGE_FILE_KEY: str(getattr(dataset_object, IMAGE_FILE_KEY)),
+        GRID_ROW_BY_POINT_KEY: numpy.array(
+            dataset_object.variables[GRID_ROW_BY_POINT_KEY][:], dtype=float
+        ),
+        GRID_COLUMN_BY_POINT_KEY: numpy.array(
+            dataset_object.variables[GRID_COLUMN_BY_POINT_KEY][:], dtype=float
+        ),
+        PANEL_ROW_BY_POINT_KEY: numpy.array(
+            dataset_object.variables[PANEL_ROW_BY_POINT_KEY][:], dtype=int
+        ),
+        PANEL_COLUMN_BY_POINT_KEY: numpy.array(
+            dataset_object.variables[PANEL_COLUMN_BY_POINT_KEY][:], dtype=int
+        )
+    }
+
+    dataset_object.close()
+    return point_dict
