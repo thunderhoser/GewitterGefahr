@@ -210,6 +210,14 @@ def _plot_comparison(
             flipped_human_mask_matrix[..., k]
         ))
 
+        this_overlap_matrix = numpy.logical_and(
+            flipped_machine_mask_matrix[..., k],
+            flipped_human_mask_matrix[..., k]
+        )
+
+        numpy.set_printoptions(threshold=sys.maxsize)
+        print(this_overlap_matrix)
+
         these_grid_rows = these_grid_rows + 0.5
         these_grid_columns = these_grid_columns + 0.5
 
