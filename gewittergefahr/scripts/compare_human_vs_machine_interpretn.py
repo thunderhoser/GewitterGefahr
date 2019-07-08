@@ -490,7 +490,11 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
             else:
                 machine_interpretation_matrix = gradcam_dict.pop(
                     gradcam.MEAN_CLASS_ACTIVATIONS_KEY
-                )[..., machine_channel_indices]
+                )
+
+                print(machine_interpretation_matrix.shape)
+                machine_interpretation_matrix = machine_interpretation_matrix[..., machine_channel_indices]
+                print(machine_interpretation_matrix.shape)
     else:
         try:
             saliency_dict = saliency_maps.read_standard_file(
