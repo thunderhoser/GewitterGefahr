@@ -196,19 +196,18 @@ def _plot_comparison(
         plot_colour_bar_by_panel=plot_colour_bar_by_panel, font_size=14,
         row_major=False)
 
-    numpy.set_printoptions(threshold=sys.maxsize)
+    flipped_machine_mask_matrix = numpy.flip(machine_mask_matrix, axis=0)
+    flipped_human_mask_matrix = numpy.flip(human_mask_matrix, axis=0)
 
     for k in range(num_panels):
-        print(human_mask_matrix[..., k].astype(int))
-
         # TODO(thunderhoser): Modularize this shit.
         i, j = numpy.unravel_index(
             k, (num_panel_rows, num_panel_columns), order='F'
         )
 
         these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
-            numpy.flip(machine_mask_matrix[..., k], axis=0),
-            numpy.flip(human_mask_matrix[..., k], axis=0)
+            flipped_machine_mask_matrix[..., k],
+            flipped_human_mask_matrix[..., k]
         ))
 
         these_grid_rows = these_grid_rows + 0.5
@@ -226,8 +225,8 @@ def _plot_comparison(
                 markeredgecolor=marker_colour_as_tuple)
 
         these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
-            numpy.flip(machine_mask_matrix[..., k], axis=0),
-            numpy.invert(numpy.flip(human_mask_matrix[..., k], axis=0))
+            flipped_machine_mask_matrix[..., k],
+            numpy.invert(flipped_human_mask_matrix[..., k])
         ))
 
         these_grid_rows = these_grid_rows + 0.5
@@ -241,8 +240,8 @@ def _plot_comparison(
                 verticalalignment='center')
 
         these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
-            numpy.invert(numpy.flip(machine_mask_matrix[..., k], axis=0)),
-            numpy.flip(human_mask_matrix[..., k], axis=0)
+            numpy.invert(flipped_machine_mask_matrix[..., k]),
+            flipped_human_mask_matrix[..., k]
         ))
 
         these_grid_rows = these_grid_rows + 0.5
