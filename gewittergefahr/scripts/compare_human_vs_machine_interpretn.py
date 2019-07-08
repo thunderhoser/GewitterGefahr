@@ -237,8 +237,8 @@ def _plot_comparison(
                 verticalalignment='center')
 
         print(machine_mask_matrix.shape)
-        print(type(machine_mask_matrix))
-        print(type(machine_mask_matrix[..., k]))
+        print(machine_mask_matrix.dtype)
+        print(machine_mask_matrix[..., k].dtype)
 
         these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
             numpy.invert(numpy.flip(machine_mask_matrix[..., k], axis=0)),
