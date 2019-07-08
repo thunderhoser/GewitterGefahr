@@ -160,7 +160,8 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
         cnn.USE_2D3D_CONVOLUTION_KEY: True,
         cnn.VALIDATION_FILES_KEY: validation_file_names,
         cnn.FIRST_VALIDN_TIME_KEY: first_validation_time_unix_sec,
-        cnn.LAST_VALIDN_TIME_KEY: last_validation_time_unix_sec
+        cnn.LAST_VALIDN_TIME_KEY: last_validation_time_unix_sec,
+        cnn.NUM_EX_PER_VALIDN_BATCH_KEY: num_examples_per_validn_batch
     }
 
     input_tensor = model_object.input
