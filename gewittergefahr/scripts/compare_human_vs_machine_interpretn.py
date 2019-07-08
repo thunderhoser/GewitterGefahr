@@ -467,7 +467,9 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
             saliency_flag = False
             model_file_name = gradcam_dict[gradcam.MODEL_FILE_KEY]
 
-            input_matrix = gradcam_dict.pop(gradcam.MEAN_INPUT_MATRICES_KEY)[0]
+            input_matrix = gradcam_dict.pop(
+                gradcam.MEAN_INPUT_MATRICES_KEY
+            )[0][..., machine_channel_indices]
 
             if guided_gradcam_flag:
                 machine_interpretation_matrix = gradcam_dict.pop(
@@ -502,7 +504,9 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
             all_times_unix_sec = gradcam_dict[gradcam.STORM_TIMES_KEY]
             model_file_name = gradcam_dict[gradcam.MODEL_FILE_KEY]
 
-            input_matrix = gradcam_dict.pop(gradcam.INPUT_MATRICES_KEY)[0]
+            input_matrix = gradcam_dict.pop(
+                gradcam.INPUT_MATRICES_KEY
+            )[0][..., machine_channel_indices]
 
             if guided_gradcam_flag:
                 machine_interpretation_matrix = gradcam_dict.pop(
@@ -511,7 +515,7 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
             else:
                 machine_interpretation_matrix = gradcam_dict.pop(
                     gradcam.CLASS_ACTIVATIONS_KEY
-                    [..., machine_channel_indices])
+                )[..., machine_channel_indices]
 
         storm_object_index = tracking_utils.find_storm_objects(
             all_id_strings=all_full_id_strings,
