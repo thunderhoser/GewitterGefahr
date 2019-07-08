@@ -430,11 +430,11 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
     human_negative_mask_matrix = human_polygon_dict[
         human_polygons.NEGATIVE_MASK_MATRIX_KEY]
 
-    human_metadata_dict = plot_input_examples.radar_fig_file_name_to_metadata(
-        human_polygon_dict[human_polygons.IMAGE_FILE_KEY]
-    )
-
     # TODO(thunderhoser): Put this metadata in the file itself!
+    # human_metadata_dict = plot_input_examples.radar_fig_file_name_to_metadata(
+    #     human_polygon_dict[human_polygons.IMAGE_FILE_KEY]
+    # )
+    #
     # pmm_flag = human_metadata_dict[plot_input_examples.PMM_FLAG_KEY]
     # full_storm_id_string = human_metadata_dict[
     #     plot_input_examples.FULL_STORM_ID_KEY]
