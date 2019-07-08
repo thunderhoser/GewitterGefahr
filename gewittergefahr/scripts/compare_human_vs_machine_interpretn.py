@@ -489,12 +489,7 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
                 )[..., machine_channel_indices]
             else:
                 machine_interpretation_matrix = gradcam_dict.pop(
-                    gradcam.MEAN_CLASS_ACTIVATIONS_KEY
-                )
-
-                print(machine_interpretation_matrix.shape)
-                machine_interpretation_matrix = machine_interpretation_matrix[..., machine_channel_indices]
-                print(machine_interpretation_matrix.shape)
+                    gradcam.MEAN_CLASS_ACTIVATIONS_KEY)
     else:
         try:
             saliency_dict = saliency_maps.read_standard_file(
@@ -530,8 +525,7 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
                 )[..., machine_channel_indices]
             else:
                 machine_interpretation_matrix = gradcam_dict.pop(
-                    gradcam.CLASS_ACTIVATIONS_KEY
-                )[..., machine_channel_indices]
+                    gradcam.CLASS_ACTIVATIONS_KEY)
 
         storm_object_index = tracking_utils.find_storm_objects(
             all_id_strings=all_full_id_strings,
@@ -546,6 +540,16 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
         input_matrix = input_matrix[storm_object_index, ...]
         machine_interpretation_matrix = machine_interpretation_matrix[
             storm_object_index, ...]
+
+    if saliency_flag and not guided_gradcam_flag:
+        machine_interpretation_matrix = numpy.expand_dims(
+            machine_interpretation_matrix, axis=-1)
+        machine_interpretation_matrix = numpy.repeat(
+            a=machine_interpretation_matrix, repeats=input_matrix.shape[-1],
+            axis=-1
+        )
+
+        print(machine_interpretation_matrix.shape)
 
     if not (saliency_flag or guided_gradcam_flag):
         human_negative_mask_matrix = None
