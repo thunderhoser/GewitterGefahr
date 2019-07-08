@@ -558,12 +558,12 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
 
     num_channels = human_positive_mask_matrix.shape[-1]
     machine_positive_mask_matrix = numpy.full(
-        human_positive_mask_matrix.shape, numpy.nan)
+        human_positive_mask_matrix.shape, False, dtype=bool)
     positive_iou_by_channel = numpy.full(num_channels, numpy.nan)
 
     if human_negative_mask_matrix is not None:
         machine_negative_mask_matrix = numpy.full(
-            human_negative_mask_matrix.shape, numpy.nan)
+            human_negative_mask_matrix.shape, False, dtype=bool)
         negative_iou_by_channel = numpy.full(num_channels, numpy.nan)
 
     for k in range(num_channels):
