@@ -216,7 +216,12 @@ def _plot_comparison(
         )
 
         numpy.set_printoptions(threshold=sys.maxsize)
-        print(this_overlap_matrix)
+        print(flipped_machine_mask_matrix[..., k].astype(int))
+        print('\n\n***************\n\n')
+        print(flipped_human_mask_matrix[..., k].astype(int))
+        print('\n\n***************\n\n')
+        print(this_overlap_matrix.astype(int))
+        print('\n\n***************\n\n')
 
         these_grid_rows = these_grid_rows + 0.5
         these_grid_columns = these_grid_columns + 0.5
