@@ -541,7 +541,7 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
         machine_interpretation_matrix = machine_interpretation_matrix[
             storm_object_index, ...]
 
-    if saliency_flag and not guided_gradcam_flag:
+    if not saliency_flag and not guided_gradcam_flag:
         machine_interpretation_matrix = numpy.expand_dims(
             machine_interpretation_matrix, axis=-1)
         machine_interpretation_matrix = numpy.repeat(
