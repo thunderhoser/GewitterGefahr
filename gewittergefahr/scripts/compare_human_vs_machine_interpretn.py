@@ -305,9 +305,9 @@ def _reshape_human_maps(model_metadata_dict, positive_mask_matrix_4d,
     else:
         num_machine_channels = len(list_of_layer_operation_dicts)
 
-    num_human_channels = int(numpy.round(
-        positive_mask_matrix_4d.shape[0] * positive_mask_matrix_4d.shape[1]
-    ))
+    num_panel_rows = positive_mask_matrix_4d.shape[0]
+    num_panel_columns = positive_mask_matrix_4d.shape[1]
+    num_human_channels = num_panel_rows * num_panel_columns
 
     if num_machine_channels != num_human_channels:
         error_string = (
@@ -317,20 +317,27 @@ def _reshape_human_maps(model_metadata_dict, positive_mask_matrix_4d,
 
         raise ValueError(error_string)
 
-    this_shape = (num_human_channels,) + positive_mask_matrix_4d.shape[2:]
-
-    positive_mask_matrix_3d = numpy.reshape(
-        a=positive_mask_matrix_4d, newshape=this_shape, order='F'
-    )
-    positive_mask_matrix_3d = numpy.swapaxes(positive_mask_matrix_3d, 0, 2)
+    this_shape = positive_mask_matrix_4d.shape[2:] + (num_human_channels,)
+    positive_mask_matrix_3d = numpy.full(this_shape, False, dtype=bool)
 
     if negative_mask_matrix_4d is None:
         negative_mask_matrix_3d = None
     else:
-        negative_mask_matrix_3d = numpy.reshape(
-            a=negative_mask_matrix_4d, newshape=this_shape, order='F'
+        negative_mask_matrix_3d = numpy.full(this_shape, False, dtype=bool)
+
+    for k in range(num_human_channels):
+        this_panel_row, this_panel_column = numpy.unravel_index(
+            k, (num_panel_rows, num_panel_columns), order='F'
         )
-        negative_mask_matrix_3d = numpy.swapaxes(negative_mask_matrix_3d, 0, 2)
+
+        positive_mask_matrix_3d[..., k] = positive_mask_matrix_4d[
+            this_panel_row, this_panel_column, ...]
+
+        if negative_mask_matrix_3d is None:
+            continue
+
+        negative_mask_matrix_3d[..., k] = negative_mask_matrix_4d[
+            this_panel_row, this_panel_column, ...]
 
     return positive_mask_matrix_3d, negative_mask_matrix_3d
 
