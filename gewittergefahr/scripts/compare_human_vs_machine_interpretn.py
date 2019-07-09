@@ -197,8 +197,8 @@ def _plot_comparison(
         plot_colour_bar_by_panel=plot_colour_bar_by_panel, font_size=14,
         row_major=False)
 
-    flipped_machine_mask_matrix = numpy.flip(machine_mask_matrix, axis=0)
-    flipped_human_mask_matrix = numpy.flip(human_mask_matrix, axis=0)
+    machine_mask_matrix_to_plot = numpy.flip(machine_mask_matrix, axis=0)
+    human_mask_matrix_to_plot = human_mask_matrix
 
     for k in range(num_panels):
         # TODO(thunderhoser): Modularize this shit.
@@ -207,13 +207,13 @@ def _plot_comparison(
         )
 
         these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
-            flipped_machine_mask_matrix[..., k],
-            flipped_human_mask_matrix[..., k]
+            machine_mask_matrix_to_plot[..., k],
+            human_mask_matrix_to_plot[..., k]
         ))
 
         this_overlap_matrix = numpy.logical_and(
-            flipped_machine_mask_matrix[..., k],
-            flipped_human_mask_matrix[..., k]
+            machine_mask_matrix_to_plot[..., k],
+            human_mask_matrix_to_plot[..., k]
         )
 
         these_grid_rows = these_grid_rows + 0.5
@@ -231,8 +231,8 @@ def _plot_comparison(
                 markeredgecolor=marker_colour_as_tuple)
 
         these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
-            flipped_machine_mask_matrix[..., k],
-            numpy.invert(flipped_human_mask_matrix[..., k])
+            machine_mask_matrix_to_plot[..., k],
+            numpy.invert(human_mask_matrix_to_plot[..., k])
         ))
 
         these_grid_rows = these_grid_rows + 0.5
@@ -246,8 +246,8 @@ def _plot_comparison(
                 verticalalignment='center')
 
         these_grid_rows, these_grid_columns = numpy.where(numpy.logical_and(
-            numpy.invert(flipped_machine_mask_matrix[..., k]),
-            flipped_human_mask_matrix[..., k]
+            numpy.invert(machine_mask_matrix_to_plot[..., k]),
+            human_mask_matrix_to_plot[..., k]
         ))
 
         these_grid_rows = these_grid_rows + 0.5
