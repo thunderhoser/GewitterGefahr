@@ -19,7 +19,8 @@ from gewittergefahr.deep_learning import novelty_detection
 from gewittergefahr.deep_learning import model_interpretation
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
+    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
+    allow_soft_placement=False
 )))
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
