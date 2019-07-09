@@ -553,12 +553,10 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
 
             this_sounding_matrix = this_example_dict[
                 input_examples.SOUNDING_MATRIX_KEY]
-            print(this_sounding_matrix.shape)
 
             if soundings.PRESSURE_NAME not in sounding_field_names:
                 this_sounding_matrix = numpy.delete(
                     this_sounding_matrix, pressure_index, axis=-1)
-                print(this_sounding_matrix.shape)
 
         if target_values is None:
             reflectivity_image_matrix_dbz = (
@@ -577,8 +575,6 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
                 sounding_pressure_matrix_pascals = (
                     this_pressure_matrix_pascals + 0.
                 )
-
-                print(sounding_matrix.shape)
         else:
             reflectivity_image_matrix_dbz = numpy.concatenate(
                 (reflectivity_image_matrix_dbz,
@@ -599,7 +595,6 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
                 sounding_matrix = numpy.concatenate(
                     (sounding_matrix, this_sounding_matrix), axis=0
                 )
-                print(sounding_matrix.shape)
 
                 sounding_pressure_matrix_pascals = numpy.concatenate(
                     (sounding_pressure_matrix_pascals,
