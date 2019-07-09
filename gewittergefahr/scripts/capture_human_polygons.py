@@ -4,6 +4,7 @@ NOTE: This script is interactive and requires an interactive display.  You
 cannot run it on a supercomputer without X-forwarding or whatever it's called.
 """
 
+import os.path
 import argparse
 from gewittergefahr.gg_utils import human_polygons
 
@@ -70,6 +71,37 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
+
+
+def image_file_to_storm_metadata(image_file_name):
+    """Parses storm metadata from path to image file.
+
+    If the image file contains a composite, both output variables will be None.
+
+    :param image_file_name: See documentation at top of this file.
+    :return: full_storm_id_string: Full storm ID.
+    :return: storm_time_unix_sec: Valid time.
+    """
+
+    # TODO(thunderhoser): Put this method somewhere more general.
+
+    pathless_image_file_name = os.path.split(image_file_name)[-1]
+    pathless_file_name_parts = pathless_image_file_name.split('_')
+
+    assert len(pathless_file_name_parts) == 2
+    storm_id_part = pathless_file_name_parts[0]
+    time_part = pathless_file_name_parts[1]
+
+    assert storm_id_part.startswith('storm=')
+    assert time_part.startswith('time=')
+
+    full_storm_id_string = storm_id_part.replace('storm=', '')
+    if full_storm_id_string == 'pmm':
+        return None, None
+
+    storm_time_unix_sec = int(time_part.replace('time=', ''))
+
+    return full_storm_id_string, storm_time_unix_sec
 
 
 def _run(input_image_file_name, positive_and_negative, num_grid_rows,
@@ -145,9 +177,13 @@ def _run(input_image_file_name, positive_and_negative, num_grid_rows,
 
     print('Writing polygons and masks to: "{0:s}"...'.format(output_file_name))
 
+    full_storm_id_string, storm_time_unix_sec = image_file_to_storm_metadata(
+        input_image_file_name)
+
     human_polygons.write_polygons(
         output_file_name=output_file_name,
-        orig_image_file_name=input_image_file_name,
+        full_storm_id_string=full_storm_id_string,
+        storm_time_unix_sec=storm_time_unix_sec,
         positive_objects_grid_coords=positive_objects_grid_coords,
         positive_panel_row_by_polygon=positive_panel_row_by_polygon,
         positive_panel_column_by_polygon=positive_panel_column_by_polygon,

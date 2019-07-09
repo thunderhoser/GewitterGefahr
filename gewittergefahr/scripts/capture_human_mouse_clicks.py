@@ -7,6 +7,7 @@ cannot run it on a supercomputer without X-forwarding or whatever it's called.
 import argparse
 import numpy
 from gewittergefahr.gg_utils import human_polygons
+from gewittergefahr.scripts import capture_human_polygons
 
 IMAGE_FILE_ARG_NAME = 'input_image_file_name'
 NUM_GRID_ROWS_ARG_NAME = 'num_grid_rows'
@@ -35,7 +36,7 @@ NUM_PANEL_ROWS_HELP_STRING = (
 NUM_PANEL_COLUMNS_HELP_STRING = 'Number of panel columns in image.'
 
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file.  Will be written by `human_polygons.write_polygons`.')
+    'Path to output file.  Will be written by `human_polygons.write_points`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -107,9 +108,15 @@ def _run(input_image_file_name, num_grid_rows, num_grid_columns, num_panel_rows,
 
     print('Writing points of interest to: "{0:s}"...'.format(output_file_name))
 
+    full_storm_id_string, storm_time_unix_sec = (
+        capture_human_polygons.image_file_to_storm_metadata(
+            input_image_file_name)
+    )
+
     human_polygons.write_points(
         output_file_name=output_file_name,
-        orig_image_file_name=input_image_file_name,
+        full_storm_id_string=full_storm_id_string,
+        storm_time_unix_sec=storm_time_unix_sec,
         grid_row_by_point=grid_row_by_point,
         grid_column_by_point=grid_column_by_point,
         panel_row_by_point=panel_row_by_point,

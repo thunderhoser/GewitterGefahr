@@ -23,7 +23,10 @@ MARKER_SIZE = 10
 MARKER_EDGE_WIDTH = 1
 MARKER_COLOUR = 'k'
 
-IMAGE_FILE_KEY = 'orig_image_file_name'
+DUMMY_STORM_ID_STRING = 'pmm'
+
+STORM_ID_KEY = 'full_storm_id_string'
+STORM_TIME_KEY = 'storm_time_unix_sec'
 POSITIVE_VERTEX_ROWS_KEY = 'positive_vertex_rows'
 POSITIVE_VERTEX_COLUMNS_KEY = 'positive_vertex_columns'
 POSITIVE_PANEL_ROW_BY_VERTEX_KEY = 'positive_panel_row_by_vertex'
@@ -690,19 +693,18 @@ def polygons_to_mask(
 
 
 def write_polygons(
-        output_file_name, orig_image_file_name, positive_objects_grid_coords,
+        output_file_name, positive_objects_grid_coords,
         positive_panel_row_by_polygon, positive_panel_column_by_polygon,
         positive_mask_matrix, negative_objects_grid_coords=None,
         negative_panel_row_by_polygon=None,
-        negative_panel_column_by_polygon=None, negative_mask_matrix=None):
+        negative_panel_column_by_polygon=None, negative_mask_matrix=None,
+        full_storm_id_string=None, storm_time_unix_sec=None):
     """Writes human polygons for one image to NetCDF file.
 
     P = number of positive regions of interest
     N = number of negative regions of interest
 
     :param output_file_name: Path to output (NetCDF) file.
-    :param orig_image_file_name: Path to original image file (over which the
-        polygons were drawn).
     :param positive_objects_grid_coords: length-P list of polygons created by
         `polygons_from_pixel_to_grid_coords`, containing positive regions of
         interest.
@@ -721,9 +723,23 @@ def write_polygons(
         corresponding panel columns (non-negative integers).
     :param negative_mask_matrix: Binary mask for negative regions of interest,
         created by `polygons_to_mask`.
+    :param full_storm_id_string: Full storm ID (if polygons were drawn for
+        composite, this should be None).
+    :param storm_time_unix_sec: Valid time (if polygons were drawn for
+        composite, this should be None).
     """
 
-    error_checking.assert_is_string(orig_image_file_name)
+    is_composite = (
+        full_storm_id_string is None and storm_time_unix_sec is None
+    )
+
+    if is_composite:
+        full_storm_id_string = DUMMY_STORM_ID_STRING
+        storm_time_unix_sec = -1
+
+    error_checking.assert_is_string(full_storm_id_string)
+    error_checking.assert_is_integer(storm_time_unix_sec)
+
     error_checking.assert_is_boolean_numpy_array(positive_mask_matrix)
     error_checking.assert_is_numpy_array(positive_mask_matrix, num_dimensions=4)
 
@@ -784,7 +800,8 @@ def write_polygons(
     dataset_object = netCDF4.Dataset(
         output_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
-    dataset_object.setncattr(IMAGE_FILE_KEY, orig_image_file_name)
+    dataset_object.setncattr(STORM_ID_KEY, full_storm_id_string)
+    dataset_object.setncattr(STORM_TIME_KEY, storm_time_unix_sec)
 
     dataset_object.createDimension(
         PANEL_ROW_DIMENSION_KEY, positive_mask_matrix.shape[0]
@@ -889,7 +906,8 @@ def read_polygons(netcdf_file_name):
 
     :param netcdf_file_name: Path to input file.
     :return: polygon_dict: Dictionary with the following keys.
-    polygon_dict['orig_image_file_name']: See input doc for `write_polygons`.
+    polygon_dict['full_storm_id_string']: See input doc for `write_polygons`.
+    polygon_dict['storm_time_unix_sec']: Same.
     polygon_dict['positive_objects_grid_coords']: Same.
     polygon_dict['positive_panel_row_by_polygon']: Same.
     polygon_dict['positive_panel_column_by_polygon']: Same.
@@ -904,7 +922,10 @@ def read_polygons(netcdf_file_name):
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
     polygon_dict = {
-        IMAGE_FILE_KEY: str(getattr(dataset_object, IMAGE_FILE_KEY)),
+        STORM_ID_KEY: str(getattr(dataset_object, STORM_ID_KEY)),
+        STORM_TIME_KEY: int(numpy.round(
+            getattr(dataset_object, STORM_TIME_KEY)
+        )),
         POSITIVE_MASK_MATRIX_KEY: numpy.array(
             dataset_object.variables[POSITIVE_MASK_MATRIX_KEY][:], dtype=bool
         ),
@@ -912,6 +933,10 @@ def read_polygons(netcdf_file_name):
             dataset_object.variables[NEGATIVE_MASK_MATRIX_KEY][:], dtype=bool
         )
     }
+
+    if polygon_dict[STORM_ID_KEY] == DUMMY_STORM_ID_STRING:
+        polygon_dict[STORM_ID_KEY] = None
+        polygon_dict[STORM_TIME_KEY] = None
 
     (positive_objects_grid_coords, these_poly_to_first_vertex_indices
     ) = _vertex_list_to_polygon_list(
@@ -982,15 +1007,14 @@ def read_polygons(netcdf_file_name):
 
 
 def write_points(
-        output_file_name, orig_image_file_name, grid_row_by_point,
-        grid_column_by_point, panel_row_by_point, panel_column_by_point):
+        output_file_name, grid_row_by_point, grid_column_by_point,
+        panel_row_by_point, panel_column_by_point, full_storm_id_string=None,
+        storm_time_unix_sec=None):
     """Writes human points of interest for one image to NetCDF file.
 
     K = number of points of interest
 
     :param output_file_name: Path to output (NetCDF) file.
-    :param orig_image_file_name: Path to original image file (over which the
-        points were drawn).
     :param grid_row_by_point: length-K numpy array of row indices in data grid
         (floats).
     :param grid_column_by_point: length-K numpy array of column indices in data
@@ -999,9 +1023,21 @@ def write_points(
         (integers).
     :param panel_column_by_point: length-K numpy array of column indices in
         panel grid (integers).
+    :param full_storm_id_string: See doc for `write_polygons`.
+    :param storm_time_unix_sec: Same.
     """
 
-    error_checking.assert_is_string(orig_image_file_name)
+    is_composite = (
+        full_storm_id_string is None and storm_time_unix_sec is None
+    )
+
+    if is_composite:
+        full_storm_id_string = DUMMY_STORM_ID_STRING
+        storm_time_unix_sec = -1
+
+    error_checking.assert_is_string(full_storm_id_string)
+    error_checking.assert_is_integer(storm_time_unix_sec)
+
     # error_checking.assert_is_integer(num_grid_rows)
     # error_checking.assert_is_greater(num_grid_rows, 0)
     # error_checking.assert_is_integer(num_grid_columns)
@@ -1035,7 +1071,8 @@ def write_points(
     dataset_object = netCDF4.Dataset(
         output_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
-    dataset_object.setncattr(IMAGE_FILE_KEY, orig_image_file_name)
+    dataset_object.setncattr(STORM_ID_KEY, full_storm_id_string)
+    dataset_object.setncattr(STORM_TIME_KEY, storm_time_unix_sec)
     dataset_object.createDimension(POINT_DIMENSION_KEY, num_points)
 
     dataset_object.createVariable(
@@ -1071,7 +1108,8 @@ def read_points(netcdf_file_name):
 
     :param netcdf_file_name: Path to input file.
     :return: point_dict: Dictionary with the following keys.
-    point_dict['orig_image_file_name']: See input doc for `write_points`.
+    point_dict['full_storm_id_string']: See input doc for `write_points`.
+    point_dict['storm_time_unix_sec']: Same.
     point_dict['grid_row_by_point']: Same.
     point_dict['grid_column_by_point']: Same.
     point_dict['panel_row_by_point']: Same.
@@ -1082,7 +1120,10 @@ def read_points(netcdf_file_name):
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
     point_dict = {
-        IMAGE_FILE_KEY: str(getattr(dataset_object, IMAGE_FILE_KEY)),
+        STORM_ID_KEY: str(getattr(dataset_object, STORM_ID_KEY)),
+        STORM_TIME_KEY: int(numpy.round(
+            getattr(dataset_object, STORM_TIME_KEY)
+        )),
         GRID_ROW_BY_POINT_KEY: numpy.array(
             dataset_object.variables[GRID_ROW_BY_POINT_KEY][:], dtype=float
         ),
@@ -1098,4 +1139,9 @@ def read_points(netcdf_file_name):
     }
 
     dataset_object.close()
+
+    if point_dict[STORM_ID_KEY] == DUMMY_STORM_ID_STRING:
+        point_dict[STORM_ID_KEY] = None
+        point_dict[STORM_TIME_KEY] = None
+
     return point_dict
