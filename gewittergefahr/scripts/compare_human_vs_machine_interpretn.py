@@ -28,6 +28,7 @@ from gewittergefahr.plotting import radar_plotting
 
 # TODO(thunderhoser): Allow this script to deal with soundings at some point?
 # TODO(thunderhoser): Add unit tests!
+numpy.set_printoptions(threshold=sys.maxsize)
 
 TOLERANCE = 1e-6
 METRES_TO_KM = 0.001
@@ -376,10 +377,6 @@ def _do_comparison_one_channel(
         machine_interpretation_matrix >= positive_threshold
     )
 
-    numpy.set_printoptions(threshold=sys.maxsize)
-    print(machine_positive_mask_matrix.astype(int))
-    print('\n\n***************\n\n')
-
     positive_iou = _compute_iou(
         machine_mask_matrix=machine_positive_mask_matrix,
         human_mask_matrix=human_positive_mask_matrix)
@@ -549,8 +546,6 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
             axis=-1
         )
 
-        print(machine_interpretation_matrix.shape)
-
     if not (saliency_flag or guided_gradcam_flag):
         human_negative_mask_matrix = None
 
@@ -565,12 +560,16 @@ def _run(input_human_file_name, input_machine_file_name, guided_gradcam_flag,
         for k in machine_channel_indices
     ]
 
+    print(human_positive_mask_matrix[0, 0, ...].astype(int))
+
     human_positive_mask_matrix, human_negative_mask_matrix = (
         _reshape_human_maps(
             model_metadata_dict=model_metadata_dict,
             positive_mask_matrix_4d=human_positive_mask_matrix,
             negative_mask_matrix_4d=human_negative_mask_matrix)
     )
+
+    print(human_positive_mask_matrix[..., 0].astype(int))
 
     num_channels = human_positive_mask_matrix.shape[-1]
     machine_positive_mask_matrix = numpy.full(
