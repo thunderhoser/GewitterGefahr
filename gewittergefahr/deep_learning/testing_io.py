@@ -319,7 +319,8 @@ def generator_2d_or_3d(option_dict, num_examples_total):
                 input_examples.SOUNDING_MATRIX_KEY]
 
             if soundings.PRESSURE_NAME not in sounding_field_names:
-                this_sounding_matrix = this_sounding_matrix[..., :-1]
+                # this_sounding_matrix = this_sounding_matrix[..., :-1]
+                numpy.delete(this_sounding_matrix, pressure_index, axis=-1)
 
         if target_values is None:
             radar_image_matrix = (
@@ -554,7 +555,7 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
             print(this_sounding_matrix.shape)
 
             if soundings.PRESSURE_NAME not in sounding_field_names:
-                this_sounding_matrix = this_sounding_matrix[..., -1]
+                numpy.delete(this_sounding_matrix, pressure_index, axis=-1)
                 print(this_sounding_matrix.shape)
 
         if target_values is None:
@@ -830,7 +831,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
                 input_examples.SOUNDING_MATRIX_KEY]
 
             if soundings.PRESSURE_NAME not in sounding_field_names:
-                this_sounding_matrix = this_sounding_matrix[..., :-1]
+                numpy.delete(this_sounding_matrix, pressure_index, axis=-1)
 
         if target_values is None:
             radar_image_matrix = (
