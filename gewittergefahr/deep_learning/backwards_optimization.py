@@ -1068,7 +1068,8 @@ def write_pmm_file(
             assert numpy.allclose(
                 list_of_mean_optimized_matrices[i],
                 monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i],
-                atol=TOLERANCE)
+                atol=TOLERANCE
+            )
 
     mean_optimization_dict = {
         MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,

@@ -26,6 +26,8 @@ def _check_input_args(
     :param confidence_level: Same.
     :raises: ValueError: if number of baseline matrices (input tensors to model)
         != number of trial matrices.
+    :raises: TypeError: if all "input matrices" are None.
+    :return: num_examples_per_set: Number of examples in each set.
     """
 
     error_checking.assert_is_integer(num_iterations)
@@ -45,16 +47,21 @@ def _check_input_args(
         raise ValueError(error_string)
 
     num_matrices = num_trial_matrices
-    num_examples = None
+    num_examples_per_set = None
 
     for i in range(num_matrices):
+        if (list_of_baseline_matrices[i] is None
+                and list_of_trial_matrices[i] is None):
+            continue
+
         error_checking.assert_is_numpy_array(list_of_baseline_matrices[i])
 
-        if num_examples is None:
-            num_examples = list_of_baseline_matrices[i].shape[0]
+        if num_examples_per_set is None:
+            num_examples_per_set = list_of_baseline_matrices[i].shape[0]
 
         these_expected_dim = numpy.array(
-            (num_examples,) + list_of_baseline_matrices[i].shape[1:], dtype=int
+            (num_examples_per_set,) + list_of_baseline_matrices[i].shape[1:],
+            dtype=int
         )
 
         error_checking.assert_is_numpy_array(
@@ -65,6 +72,11 @@ def _check_input_args(
 
         error_checking.assert_is_numpy_array(
             list_of_trial_matrices[i], exact_dimensions=these_expected_dim)
+
+    if num_examples_per_set is None:
+        raise TypeError('All "input matrices" are None.')
+
+    return num_examples_per_set
 
 
 def check_output(monte_carlo_dict):
@@ -99,6 +111,11 @@ def check_output(monte_carlo_dict):
     num_matrices = num_trial_matrices
 
     for i in range(num_matrices):
+        if (monte_carlo_dict[TRIAL_PMM_MATRICES_KEY][i] is None
+                and monte_carlo_dict[MIN_MATRICES_KEY][i] is None
+                and monte_carlo_dict[MAX_MATRICES_KEY][i] is None):
+            continue
+
         error_checking.assert_is_numpy_array(
             monte_carlo_dict[TRIAL_PMM_MATRICES_KEY][i]
         )
@@ -153,18 +170,16 @@ def run_monte_carlo_test(
     monte_carlo_dict['confidence_level']: Same as input.
     """
 
-    _check_input_args(
+    num_examples_per_set = _check_input_args(
         list_of_baseline_matrices=list_of_baseline_matrices,
         list_of_trial_matrices=list_of_trial_matrices,
         num_iterations=num_iterations, confidence_level=confidence_level)
-
-    num_matrices = len(list_of_trial_matrices)
-    num_examples_per_set = list_of_trial_matrices[0].shape[0]
 
     example_indices = numpy.linspace(
         0, 2 * num_examples_per_set - 1, num=2 * num_examples_per_set,
         dtype=int)
 
+    num_matrices = len(list_of_trial_matrices)
     list_of_shuffled_pmm_matrices = [None] * num_matrices
     print(SEPARATOR_STRING)
 
@@ -186,6 +201,9 @@ def run_monte_carlo_test(
         )
 
         for j in range(num_matrices):
+            if list_of_trial_matrices[j] is None:
+                continue
+
             this_shuffled_matrix = numpy.concatenate((
                 list_of_baseline_matrices[j][these_baseline_indices, ...],
                 list_of_trial_matrices[j][these_trial_indices, ...]
@@ -214,6 +232,9 @@ def run_monte_carlo_test(
     list_of_trial_pmm_matrices = [None] * num_matrices
 
     for j in range(num_matrices):
+        if list_of_trial_matrices[j] is None:
+            continue
+
         list_of_min_matrices[j] = numpy.percentile(
             a=list_of_shuffled_pmm_matrices[j], q=50. * (1 - confidence_level),
             axis=0

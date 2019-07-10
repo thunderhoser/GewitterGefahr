@@ -89,7 +89,8 @@ def _plot_3d_radar_cams(
         radar_matrix, model_metadata_dict, cam_colour_map_object,
         max_colour_prctile_for_cam, output_dir_name,
         class_activation_matrix=None, guided_class_activation_matrix=None,
-        full_id_strings=None, storm_times_unix_sec=None, monte_carlo_dict=None):
+        full_id_strings=None, storm_times_unix_sec=None, monte_carlo_dict=None,
+        monte_carlo_index=None):
     """Plots class-activation maps for 3-D radar data.
 
     E = number of examples
@@ -118,16 +119,21 @@ def _plot_3d_radar_cams(
     :param storm_times_unix_sec: length-E numpy array of storm times.
     :param monte_carlo_dict: See doc for `monte_carlo.check_output`.  If this is
         None, will *not* plot stippling for significance.
+    :param monte_carlo_index: [used only if `monte_carlo_dict is not None`]
+        Index of input tensor being plotted.  If this is q, plotting the [q]th
+        input tensor to the model.
     """
 
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     if monte_carlo_dict is not None:
+        i = monte_carlo_index
+
         significance_matrix = numpy.logical_or(
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
-            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
-            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][i],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][i]
         )
 
     num_examples = radar_matrix.shape[0]
@@ -252,7 +258,8 @@ def _plot_2d_radar_cams(
         radar_matrix, model_metadata_dict, cam_colour_map_object,
         max_colour_prctile_for_cam, output_dir_name,
         class_activation_matrix=None, guided_class_activation_matrix=None,
-        full_id_strings=None, storm_times_unix_sec=None, monte_carlo_dict=None):
+        full_id_strings=None, storm_times_unix_sec=None, monte_carlo_dict=None,
+        monte_carlo_index=None):
     """Plots class-activation maps for 2-D radar data.
 
     E = number of examples
@@ -278,16 +285,19 @@ def _plot_2d_radar_cams(
     :param full_id_strings: See doc for `_plot_3d_radar_cams`.
     :param storm_times_unix_sec: Same.
     :param monte_carlo_dict: Same.
+    :param monte_carlo_index: Same.
     """
 
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     if monte_carlo_dict is not None:
+        i = monte_carlo_index
+
         significance_matrix = numpy.logical_or(
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
-            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
-            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][i],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][i]
         )
 
     conv_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
@@ -521,7 +531,7 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
                 output_dir_name=main_gradcam_dir_name,
                 full_id_strings=full_id_strings,
                 storm_times_unix_sec=storm_times_unix_sec,
-                monte_carlo_dict=cam_monte_carlo_dict)
+                monte_carlo_dict=cam_monte_carlo_dict, monte_carlo_index=i)
 
             print(SEPARATOR_STRING)
 
@@ -534,7 +544,8 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
                 output_dir_name=guided_gradcam_dir_name,
                 full_id_strings=full_id_strings,
                 storm_times_unix_sec=storm_times_unix_sec,
-                monte_carlo_dict=guided_cam_monte_carlo_dict)
+                monte_carlo_dict=guided_cam_monte_carlo_dict,
+                monte_carlo_index=i)
 
             print(SEPARATOR_STRING)
 
@@ -548,7 +559,7 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
                 output_dir_name=main_gradcam_dir_name,
                 full_id_strings=full_id_strings,
                 storm_times_unix_sec=storm_times_unix_sec,
-                monte_carlo_dict=cam_monte_carlo_dict)
+                monte_carlo_dict=cam_monte_carlo_dict, monte_carlo_index=i)
 
             print(SEPARATOR_STRING)
 
@@ -561,7 +572,8 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
                 output_dir_name=guided_gradcam_dir_name,
                 full_id_strings=full_id_strings,
                 storm_times_unix_sec=storm_times_unix_sec,
-                monte_carlo_dict=guided_cam_monte_carlo_dict)
+                monte_carlo_dict=guided_cam_monte_carlo_dict,
+                monte_carlo_index=i)
 
             print(SEPARATOR_STRING)
 

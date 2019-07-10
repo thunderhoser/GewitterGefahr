@@ -131,8 +131,8 @@ def _run(interpretation_type_string, baseline_file_name, trial_file_name,
 
     print('Reading trial set from: "{0:s}"...'.format(trial_file_name))
     monte_carlo_dict = None
-    gradcam_monte_carlo_dict = None
-    ggradcam_monte_carlo_dict = None
+    cam_monte_carlo_dict = None
+    guided_cam_monte_carlo_dict = None
 
     if interpretation_type_string == SALIENCY_STRING:
         trial_dict = saliency_maps.read_standard_file(trial_file_name)
@@ -151,25 +151,23 @@ def _run(interpretation_type_string, baseline_file_name, trial_file_name,
     elif interpretation_type_string == GRADCAM_STRING:
         trial_dict = gradcam.read_standard_file(trial_file_name)
 
-        gradcam_monte_carlo_dict = monte_carlo.run_monte_carlo_test(
-            list_of_baseline_matrices=[
-                baseline_dict[gradcam.CLASS_ACTIVATIONS_KEY]
-            ],
-            list_of_trial_matrices=[trial_dict[gradcam.CLASS_ACTIVATIONS_KEY]],
+        cam_monte_carlo_dict = monte_carlo.run_monte_carlo_test(
+            list_of_baseline_matrices=baseline_dict[gradcam.CAM_MATRICES_KEY],
+            list_of_trial_matrices=trial_dict[gradcam.CAM_MATRICES_KEY],
             max_pmm_percentile_level=max_pmm_percentile_level,
             num_iterations=num_iterations, confidence_level=confidence_level)
 
-        ggradcam_monte_carlo_dict = monte_carlo.run_monte_carlo_test(
-            list_of_baseline_matrices=[
-                baseline_dict[gradcam.GUIDED_GRADCAM_KEY]
-            ],
-            list_of_trial_matrices=[trial_dict[gradcam.GUIDED_GRADCAM_KEY]],
+        guided_cam_monte_carlo_dict = monte_carlo.run_monte_carlo_test(
+            list_of_baseline_matrices=baseline_dict[
+                gradcam.GUIDED_CAM_MATRICES_KEY],
+            list_of_trial_matrices=trial_dict[
+                gradcam.GUIDED_CAM_MATRICES_KEY],
             max_pmm_percentile_level=max_pmm_percentile_level,
             num_iterations=num_iterations, confidence_level=confidence_level)
 
-        gradcam_monte_carlo_dict[
+        cam_monte_carlo_dict[
             monte_carlo.BASELINE_FILE_KEY] = baseline_file_name
-        ggradcam_monte_carlo_dict[
+        guided_cam_monte_carlo_dict[
             monte_carlo.BASELINE_FILE_KEY] = baseline_file_name
         list_of_input_matrices = trial_dict[gradcam.INPUT_MATRICES_KEY]
 
@@ -223,18 +221,17 @@ def _run(interpretation_type_string, baseline_file_name, trial_file_name,
         gradcam.write_pmm_file(
             pickle_file_name=output_file_name,
             list_of_mean_input_matrices=list_of_mean_input_matrices,
-            mean_class_activation_matrix=copy.deepcopy(
-                gradcam_monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0]
+            list_of_mean_cam_matrices=copy.deepcopy(
+                cam_monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY]
             ),
-            mean_ggradcam_output_matrix=copy.deepcopy(
-                ggradcam_monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0]
+            list_of_mean_guided_cam_matrices=copy.deepcopy(
+                guided_cam_monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY]
             ),
-            threshold_count_matrix=None,
             model_file_name=trial_dict[gradcam.MODEL_FILE_KEY],
             standard_gradcam_file_name=trial_file_name,
             pmm_metadata_dict=pmm_metadata_dict,
-            gradcam_monte_carlo_dict=gradcam_monte_carlo_dict,
-            ggradcam_monte_carlo_dict=ggradcam_monte_carlo_dict)
+            cam_monte_carlo_dict=cam_monte_carlo_dict,
+            guided_cam_monte_carlo_dict=guided_cam_monte_carlo_dict)
 
     else:
         backwards_opt.write_pmm_file(

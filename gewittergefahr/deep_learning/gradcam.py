@@ -662,6 +662,8 @@ def write_pmm_file(
         list_of_cam_matrices=list_of_mean_cam_matrices,
         list_of_guided_cam_matrices=list_of_mean_guided_cam_matrices)
 
+    num_input_matrices = len(list_of_mean_input_matrices)
+
     if (cam_monte_carlo_dict is not None or
             guided_cam_monte_carlo_dict is not None):
         monte_carlo.check_output(cam_monte_carlo_dict)
@@ -669,22 +671,33 @@ def write_pmm_file(
             cam_monte_carlo_dict[monte_carlo.BASELINE_FILE_KEY]
         )
 
-        # assert numpy.allclose(
-        #     mean_class_activation_matrix,
-        #     gradcam_monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0],
-        #     atol=TOLERANCE)
-
         monte_carlo.check_output(guided_cam_monte_carlo_dict)
         error_checking.assert_is_string(
             guided_cam_monte_carlo_dict[monte_carlo.BASELINE_FILE_KEY]
         )
 
-        # assert numpy.allclose(
-        #     mean_ggradcam_output_matrix,
-        #     ggradcam_monte_carlo_dict[
-        #         monte_carlo.TRIAL_PMM_MATRICES_KEY][0],
-        #     atol=TOLERANCE
-        # )
+        for i in range(num_input_matrices):
+            both_none = (
+                list_of_mean_cam_matrices[i] is None and
+                cam_monte_carlo_dict[
+                    monte_carlo.TRIAL_PMM_MATRICES_KEY][i] is None
+            )
+
+            if both_none:
+                continue
+
+            assert numpy.allclose(
+                list_of_mean_cam_matrices[i],
+                cam_monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i],
+                atol=TOLERANCE
+            )
+
+            assert numpy.allclose(
+                list_of_mean_guided_cam_matrices[i],
+                guided_cam_monte_carlo_dict[
+                    monte_carlo.TRIAL_PMM_MATRICES_KEY][i],
+                atol=TOLERANCE
+            )
 
     mean_gradcam_dict = {
         MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
