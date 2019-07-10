@@ -304,9 +304,9 @@ def _get_connected_input_layers(model_object, list_of_input_matrices,
         num_connected_layers, -1, dtype=int)
 
     for i in range(num_connected_layers):
-        print(dir(connected_layer_objects[i]))
+        print(connected_layer_objects[i].input_shape)
         these_first_dim = numpy.array(
-            connected_layer_objects[i].get_shape().as_list()[1:], dtype=int
+            connected_layer_objects[i].input_shape.as_list()[1:], dtype=int
         )
 
         for j in range(num_input_matrices):
