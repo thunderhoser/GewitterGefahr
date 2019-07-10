@@ -158,7 +158,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
         print('Running guided Grad-CAM for example {0:d} of {1:d}...'.format(
             i + 1, num_examples))
 
-        these_gradcam_matrices, new_model_object = (
+        these_guided_cam_matrices, new_model_object = (
             gradcam.run_guided_gradcam(
                 orig_model_object=model_object,
                 list_of_input_matrices=these_input_matrices,
@@ -167,17 +167,10 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
                 new_model_object=new_model_object)
         )
 
-        for j in range(len(these_cam_matrices)):
-            these_cam_matrices[j] = numpy.expand_dims(
-                these_cam_matrices[j], axis=0
-            )
-            these_gradcam_matrices[j] = numpy.expand_dims(
-                these_gradcam_matrices[j], axis=0
-            )
-
         if list_of_cam_matrices is None:
             list_of_cam_matrices = copy.deepcopy(these_cam_matrices)
-            list_of_guided_cam_matrices = copy.deepcopy(these_gradcam_matrices)
+            list_of_guided_cam_matrices = copy.deepcopy(
+                these_guided_cam_matrices)
         else:
             for j in range(len(these_cam_matrices)):
                 list_of_cam_matrices[j] = numpy.concatenate(
@@ -185,7 +178,8 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
                 )
 
                 list_of_guided_cam_matrices[j] = numpy.concatenate(
-                    (list_of_guided_cam_matrices[j], these_gradcam_matrices[j]),
+                    (list_of_guided_cam_matrices[j],
+                     these_guided_cam_matrices[j]),
                     axis=0
                 )
 
