@@ -211,7 +211,6 @@ def _read_target_values(
             times_to_keep_unix_sec=storm_times_unix_sec[these_indices]
         )
 
-        print(these_indices)
         if len(these_indices) == 0:
             continue
 
@@ -220,10 +219,6 @@ def _read_target_values(
 
         these_target_values = numpy.reshape(
             these_target_values, these_target_values.size)
-
-        print(these_target_values)
-        print(these_target_values.shape)
-        print('\n\n*******\n\n')
 
         storm_target_values = numpy.concatenate((
             storm_target_values, these_target_values
