@@ -457,9 +457,9 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
     except ValueError:
         gradcam_dict = gradcam.read_pmm_file(input_file_name)
         list_of_input_matrices = gradcam_dict[gradcam.MEAN_INPUT_MATRICES_KEY]
-        list_of_cam_matrices = gradcam_dict[gradcam.CAM_MATRICES_KEY]
+        list_of_cam_matrices = gradcam_dict[gradcam.MEAN_CAM_MATRICES_KEY]
         list_of_guided_cam_matrices = gradcam_dict[
-            gradcam.GUIDED_CAM_MATRICES_KEY]
+            gradcam.MEAN_GUIDED_CAM_MATRICES_KEY]
 
         for i in range(len(list_of_input_matrices)):
             list_of_input_matrices[i] = numpy.expand_dims(
