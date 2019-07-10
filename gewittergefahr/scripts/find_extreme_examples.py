@@ -215,10 +215,11 @@ def _read_target_values(
         if len(these_indices) == 0:
             continue
 
-        these_target_values = (
-            this_target_value_dict[target_val_utils.TARGET_MATRIX_KEY][
-                these_indices, :]
-        )
+        these_target_values = this_target_value_dict[
+            target_val_utils.TARGET_MATRIX_KEY][these_indices, :]
+
+        if len(these_indices) > 1:
+            these_target_values = numpy.squeeze(these_target_values)
 
         print(these_target_values)
         print(these_target_values.shape)
