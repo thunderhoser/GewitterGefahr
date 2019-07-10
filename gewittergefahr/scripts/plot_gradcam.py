@@ -6,6 +6,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
@@ -143,12 +144,16 @@ def _plot_3d_radar_cams(
         quantity_string = 'max class activation'
         pathless_file_name_prefix = 'gradcam'
 
+    conv_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     for i in range(num_examples):
         for k in range(num_fields):
-            this_field_name = training_option_dict[
-                trainval_io.RADAR_FIELDS_KEY][k]
+            if conv_2d3d:
+                this_field_name = radar_utils.REFL_NAME
+            else:
+                this_field_name = training_option_dict[
+                    trainval_io.RADAR_FIELDS_KEY][k]
 
             _, this_axes_object_matrix = (
                 radar_plotting.plot_3d_grid_without_coords(
@@ -285,36 +290,32 @@ def _plot_2d_radar_cams(
             monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
         )
 
+    conv_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
+
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
 
     if list_of_layer_operation_dicts is None:
-        field_name_by_panel = training_option_dict[
-            trainval_io.RADAR_FIELDS_KEY]
+        field_name_by_panel = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
 
-        panel_names = (
-            radar_plotting.radar_fields_and_heights_to_panel_names(
-                field_names=field_name_by_panel,
-                heights_m_agl=training_option_dict[
-                    trainval_io.RADAR_HEIGHTS_KEY]
-            )
-        )
+        if conv_2d3d:
+            heights_m_agl = numpy.full(len(field_name_by_panel), 0, dtype=int)
+        else:
+            heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
 
-        plot_colour_bar_by_panel = numpy.full(
-            len(panel_names), True, dtype=bool
-        )
+        panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
+            field_names=field_name_by_panel, heights_m_agl=heights_m_agl)
+
+        plot_cbar_by_panel = numpy.full(len(panel_names), True, dtype=bool)
     else:
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
                 list_of_layer_operation_dicts)
         )
 
-        plot_colour_bar_by_panel = numpy.full(
-            len(panel_names), False, dtype=bool
-        )
-
-        plot_colour_bar_by_panel[2::3] = True
+        plot_cbar_by_panel = numpy.full(len(panel_names), False, dtype=bool)
+        plot_cbar_by_panel[2::3] = True
 
     num_examples = radar_matrix.shape[0]
     num_channels = radar_matrix.shape[-1]
@@ -335,7 +336,7 @@ def _plot_2d_radar_cams(
                 field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
                 field_name_by_panel=field_name_by_panel,
                 panel_names=panel_names, num_panel_rows=num_panel_rows,
-                plot_colour_bar_by_panel=plot_colour_bar_by_panel,
+                plot_colour_bar_by_panel=plot_cbar_by_panel,
                 font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
         )
 
