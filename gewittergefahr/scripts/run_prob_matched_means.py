@@ -249,31 +249,37 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
     if input_gradcam_file_name is not None:
         print('Running PMM on class-activation matrices...')
 
-        class_activation_matrix = gradcam_dict[gradcam.CLASS_ACTIVATIONS_KEY]
-        ggradcam_output_matrix = gradcam_dict[gradcam.GUIDED_GRADCAM_KEY]
-        class_activation_matrix = numpy.expand_dims(
-            class_activation_matrix, axis=-1)
+        list_of_cam_matrices = gradcam_dict[gradcam.CAM_MATRICES_KEY]
+        list_of_guided_cam_matrices = gradcam_dict[
+            gradcam.GUIDED_CAM_MATRICES_KEY]
 
-        mean_class_activation_matrix = pmm.run_pmm_many_variables(
-            input_matrix=class_activation_matrix,
-            max_percentile_level=max_percentile_level
-        )[0]
+        num_input_matrices = len(list_of_input_matrices)
+        list_of_mean_cam_matrices = [None] * num_input_matrices
+        list_of_mean_guided_cam_matrices = [None] * num_input_matrices
 
-        mean_class_activation_matrix = mean_class_activation_matrix[..., 0]
+        for i in range(num_input_matrices):
+            if list_of_cam_matrices[i] is None:
+                continue
 
-        print('Running PMM on output matrices from guided Grad-CAM...')
-        mean_ggradcam_output_matrix = pmm.run_pmm_many_variables(
-            input_matrix=ggradcam_output_matrix,
-            max_percentile_level=max_percentile_level
-        )[0]
+            list_of_mean_cam_matrices[i] = pmm.run_pmm_many_variables(
+                input_matrix=numpy.expand_dims(
+                    list_of_cam_matrices[i], axis=-1),
+                max_percentile_level=max_percentile_level
+            )[0]
+
+            list_of_mean_cam_matrices[i] = list_of_mean_cam_matrices[i][..., 0]
+
+            list_of_mean_guided_cam_matrices[i] = pmm.run_pmm_many_variables(
+                input_matrix=list_of_guided_cam_matrices[i],
+                max_percentile_level=max_percentile_level
+            )[0]
 
         print('Writing output to: "{0:s}"...'.format(output_file_name))
         gradcam.write_pmm_file(
             pickle_file_name=output_file_name,
             list_of_mean_input_matrices=list_of_mean_input_matrices,
-            mean_class_activation_matrix=mean_class_activation_matrix,
-            mean_ggradcam_output_matrix=mean_ggradcam_output_matrix,
-            threshold_count_matrix=threshold_count_matrix,
+            list_of_mean_cam_matrices=list_of_mean_cam_matrices,
+            list_of_mean_guided_cam_matrices=list_of_mean_guided_cam_matrices,
             model_file_name=gradcam_dict[gradcam.MODEL_FILE_KEY],
             standard_gradcam_file_name=input_gradcam_file_name,
             pmm_metadata_dict=pmm_metadata_dict)
