@@ -220,6 +220,10 @@ def _read_target_values(
                 these_indices, :]
         )
 
+        print(these_target_values)
+        print(these_target_values.shape)
+        print('\n\n*******\n\n')
+
         storm_target_values = numpy.concatenate((
             storm_target_values, these_target_values
         ))
