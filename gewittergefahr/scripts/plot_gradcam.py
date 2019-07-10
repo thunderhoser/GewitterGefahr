@@ -465,6 +465,10 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
             list_of_input_matrices[i] = numpy.expand_dims(
                 list_of_input_matrices[i], axis=0
             )
+
+            if list_of_cam_matrices[i] is None:
+                continue
+
             list_of_cam_matrices[i] = numpy.expand_dims(
                 list_of_cam_matrices[i], axis=0
             )
