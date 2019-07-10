@@ -1,7 +1,8 @@
 """Evaluates predictions from CNN."""
 
 import random
-import os.path
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 from keras import backend as K
@@ -15,11 +16,9 @@ from gewittergefahr.scripts import model_evaluation_helper as model_eval_helper
 random.seed(6695)
 numpy.random.seed(6695)
 
-gpu_options = K.tf.GPUOptions(allow_growth=True)
-
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
-    allow_soft_placement=False, gpu_options=gpu_options
+    allow_soft_placement=False
 )))
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
