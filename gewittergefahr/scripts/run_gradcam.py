@@ -173,6 +173,9 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
                 these_guided_cam_matrices)
         else:
             for j in range(len(these_cam_matrices)):
+                print(list_of_cam_matrices[j].shape)
+                print(these_cam_matrices[j].shape)
+
                 list_of_cam_matrices[j] = numpy.concatenate(
                     (list_of_cam_matrices[j], these_cam_matrices[j]), axis=0
                 )
