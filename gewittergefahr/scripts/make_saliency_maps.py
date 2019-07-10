@@ -4,7 +4,8 @@ CNN = convolutional neural network
 """
 
 import copy
-import os.path
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 import keras.models

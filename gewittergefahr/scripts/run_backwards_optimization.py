@@ -1,6 +1,7 @@
 """Runs backwards optimization on a trained CNN."""
 
-import os.path
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 import tensorflow

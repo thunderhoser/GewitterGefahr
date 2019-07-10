@@ -3,7 +3,8 @@
 CNN = convolutional neural network
 """
 
-import os.path
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 from keras import backend as K

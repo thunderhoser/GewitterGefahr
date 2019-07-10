@@ -6,7 +6,8 @@ Wagstaff, K., and J. Lee: "Interpretable discovery in large image data sets."
 arXiv e-prints, 1806, https://arxiv.org/abs/1806.08340
 """
 
-import os.path
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 from keras import backend as K

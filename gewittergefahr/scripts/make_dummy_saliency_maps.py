@@ -4,7 +4,8 @@ In these dummy saliency maps, the "saliency map" is actually just the filter
 produced by an edge-detector with no learned weights.
 """
 
-import os.path
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 from keras import backend as K

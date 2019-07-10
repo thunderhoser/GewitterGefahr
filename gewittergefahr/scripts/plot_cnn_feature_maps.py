@@ -1,7 +1,8 @@
 """For each example (storm object), plots feature maps for one CNN layer."""
 
 import random
-import os.path
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 import matplotlib
