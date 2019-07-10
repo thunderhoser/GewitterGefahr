@@ -18,11 +18,13 @@ from keras import backend as K
 import tensorflow
 from tensorflow.python.framework import ops as tensorflow_ops
 from scipy.interpolate import (
-    UnivariateSpline, RectBivariateSpline, RegularGridInterpolator)
+    UnivariateSpline, RectBivariateSpline, RegularGridInterpolator
+)
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import model_interpretation
 
 TOLERANCE = 1e-6
@@ -62,33 +64,6 @@ PMM_FILE_KEYS = [
     STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY, GRADCAM_MONTE_CARLO_KEY,
     GUIDED_GRADCAM_MONTE_CARLO_KEY
 ]
-
-
-def _find_relevant_input_matrix(list_of_input_matrices, num_spatial_dim):
-    """Finds relevant input matrix (with desired number of spatial dimensions).
-
-    :param list_of_input_matrices: See doc for `run_gradcam`.
-    :param num_spatial_dim: Desired number of spatial dimensions.
-    :return: relevant_index: Array index for relevant input matrix.  If
-        `relevant_index = q`, then list_of_input_matrices[q] is the relevant
-        matrix.
-    :raises: TypeError: if this method does not find exactly one input matrix
-        with desired number of spatial dimensions.
-    """
-
-    num_spatial_dim_by_input = numpy.array(
-        [len(m.shape) - 2 for m in list_of_input_matrices], dtype=int)
-
-    these_indices = numpy.where(num_spatial_dim_by_input == num_spatial_dim)[0]
-    if len(these_indices) != 1:
-        error_string = (
-            'Expected one input matrix with {0:d} dimensions.  Found {1:d} such'
-            ' input matrices.'
-        ).format(num_spatial_dim, len(these_indices))
-
-        raise TypeError(error_string)
-
-    return these_indices[0]
 
 
 def _compute_gradients(loss_tensor, list_of_input_tensors):
@@ -249,19 +224,24 @@ def _change_backprop_function(model_object):
     return new_model_object
 
 
-def _make_saliency_function(model_object, layer_name, input_index):
+def _make_saliency_function(model_object, target_layer_name,
+                            input_layer_indices):
     """Creates saliency function.
+
+    This function computes the gradient of activations in the target layer with
+    respect to each input value in the specified layers.
 
     :param model_object: Instance of `keras.models.Model` or
         `keras.models.Sequential`.
-    :param layer_name: Numerator in gradient will be based on activations in
-        this layer.
-    :param input_index: Denominators in gradient will be each value in the [q]th
-        input tensor to the model, where q = `input_index`.
+    :param target_layer_name: Target layer (numerator in gradient will be based
+        on activations in this layer).
+    :param input_layer_indices: 1-D numpy array of indices.  If the array
+        contains j, the gradient will be computed with respect to every value in
+        the [j]th input layer.
     :return: saliency_function: Instance of `keras.backend.function`.
     """
 
-    output_tensor = model_object.get_layer(name=layer_name).output
+    output_tensor = model_object.get_layer(name=target_layer_name).output
     filter_maxxed_output_tensor = K.max(output_tensor, axis=-1)
 
     if isinstance(model_object.input, list):
@@ -270,7 +250,9 @@ def _make_saliency_function(model_object, layer_name, input_index):
         list_of_input_tensors = [model_object.input]
 
     list_of_saliency_tensors = K.gradients(
-        K.sum(filter_maxxed_output_tensor), list_of_input_tensors[input_index])
+        K.sum(filter_maxxed_output_tensor),
+        [list_of_input_tensors[i] for i in input_layer_indices]
+    )
 
     return K.function(
         list_of_input_tensors + [K.learning_phase()],
@@ -301,6 +283,57 @@ def _normalize_guided_gradcam_output(ggradcam_output_matrix):
     return ggradcam_output_matrix
 
 
+def _get_connected_input_layers(model_object, list_of_input_matrices,
+                                target_layer_name):
+    """Finds input layers connected to target layer.
+    
+    :param model_object: See doc for `run_gradcam`.
+    :param list_of_input_matrices: Same.
+    :param target_layer_name: Same.
+    :return: connected_to_input_layer_indices: 1-D numpy array of indices.  If
+        the array contains j, the target layer is connected to the [j]th input
+        layer, which has the same dimensions as list_of_input_matrices[j].
+    """
+
+    connected_layer_objects = cnn.get_connected_input_layers(
+        model_object=model_object, target_layer_name=target_layer_name)
+
+    num_input_matrices = len(list_of_input_matrices)
+    num_connected_layers = len(connected_layer_objects)
+    connected_to_input_layer_indices = numpy.full(
+        num_connected_layers, -1, dtype=int)
+
+    for i in range(num_connected_layers):
+        these_first_dim = numpy.array(
+            connected_layer_objects[i].get_shape().as_list()[1:], dtype=int
+        )
+
+        for j in range(num_input_matrices):
+            these_second_dim = numpy.array(
+                list_of_input_matrices[j].shape[1:], dtype=int
+            )
+
+            if not numpy.array_equal(these_first_dim, these_second_dim):
+                continue
+
+            connected_to_input_layer_indices[i] = j
+            break
+
+        if connected_to_input_layer_indices[i] >= 0:
+            continue
+
+        error_string = (
+            'Cannot find matrix corresponding to input layer "{0:s}".  '
+            'Dimensions of "{0:s}" (excluding example dimension) are {1:s}.'
+        ).format(
+            connected_layer_objects[i].name, str(these_first_dim)
+        )
+
+        raise ValueError(error_string)
+
+    return connected_to_input_layer_indices
+
+
 def run_gradcam(model_object, list_of_input_matrices, target_class,
                 target_layer_name):
     """Runs Grad-CAM.
@@ -323,16 +356,20 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
         M x N.
     """
 
+    # TODO(thunderhoser): Fix method doc.
+
     # Check input args.
     error_checking.assert_is_string(target_layer_name)
     error_checking.assert_is_list(list_of_input_matrices)
+    num_input_matrices = len(list_of_input_matrices)
 
-    for q in range(len(list_of_input_matrices)):
-        error_checking.assert_is_numpy_array(list_of_input_matrices[q])
+    for i in range(num_input_matrices):
+        error_checking.assert_is_numpy_array(list_of_input_matrices[i])
 
-        if list_of_input_matrices[q].shape[0] != 1:
-            list_of_input_matrices[q] = numpy.expand_dims(
-                list_of_input_matrices[q], axis=0)
+        if list_of_input_matrices[i].shape[0] != 1:
+            list_of_input_matrices[i] = numpy.expand_dims(
+                list_of_input_matrices[i], axis=0
+            )
 
     # Create loss tensor.
     output_layer_object = model_object.layers[-1].output
@@ -383,32 +420,60 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
         target_layer_activation_matrix.shape[:-1])
 
     num_filters = len(mean_weight_by_filter)
-    for m in range(num_filters):
+    for k in range(num_filters):
         class_activation_matrix += (
-            mean_weight_by_filter[m] * target_layer_activation_matrix[..., m]
+            mean_weight_by_filter[k] * target_layer_activation_matrix[..., k]
         )
 
-    input_index = _find_relevant_input_matrix(
+    input_layer_indices = _get_connected_input_layers(
+        model_object=model_object,
         list_of_input_matrices=list_of_input_matrices,
-        num_spatial_dim=len(class_activation_matrix.shape)
-    )
+        target_layer_name=target_layer_name)
 
-    spatial_dimensions = numpy.array(
-        list_of_input_matrices[input_index].shape[1:-1], dtype=int)
-    class_activation_matrix = _upsample_cam(
-        class_activation_matrix=class_activation_matrix,
-        new_dimensions=spatial_dimensions)
+    list_of_activation_matrices = [None] * num_input_matrices
 
-    class_activation_matrix[class_activation_matrix < 0.] = 0.
+    for i in input_layer_indices:
+        these_spatial_dim = numpy.array(
+            list_of_input_matrices[i].shape[1:-1], dtype=int
+        )
+
+        add_height_dim = (
+            len(class_activation_matrix.shape) == 2
+            and len(these_spatial_dim) == 3
+        )
+
+        if add_height_dim:
+            list_of_activation_matrices[i] = _upsample_cam(
+                class_activation_matrix=class_activation_matrix,
+                new_dimensions=these_spatial_dim[:-1]
+            )
+
+            list_of_activation_matrices[i] = numpy.expand_dims(
+                list_of_activation_matrices[i], axis=-1
+            )
+
+            list_of_activation_matrices[i] = numpy.repeat(
+                a=list_of_activation_matrices[i], repeats=these_spatial_dim[-1],
+                axis=-1
+            )
+        else:
+            list_of_activation_matrices[i] = _upsample_cam(
+                class_activation_matrix=class_activation_matrix,
+                new_dimensions=these_spatial_dim)
+
+        list_of_activation_matrices[i] = numpy.maximum(
+            list_of_activation_matrices[i], 0.
+        )
+
     # denominator = numpy.maximum(numpy.max(class_activation_matrix), K.epsilon())
     # return class_activation_matrix / denominator
 
-    return class_activation_matrix
+    return list_of_activation_matrices
 
 
 def run_guided_gradcam(
         orig_model_object, list_of_input_matrices, target_layer_name,
-        class_activation_matrix, new_model_object=None):
+        list_of_activation_matrices, new_model_object=None):
     """Runs guided Grad-CAM.
 
     M = number of rows in grid
@@ -419,24 +484,26 @@ def run_guided_gradcam(
         `keras.models.Model` or `keras.models.Sequential`).
     :param list_of_input_matrices: See doc for `run_gradcam`.
     :param target_layer_name: Same.
-    :param class_activation_matrix: Same.
+    :param list_of_activation_matrices: Same.
     :param new_model_object: New model (created by `_change_backprop_function`),
         to be used for guided backprop.
     :return: ggradcam_output_matrix: M-by-N-by-C numpy array of output values.
     :return: new_model_object: See input doc.
     """
 
+    # TODO(thunderhoser): Fix method doc.
+
     # Check input args.
     error_checking.assert_is_string(target_layer_name)
     error_checking.assert_is_list(list_of_input_matrices)
-    error_checking.assert_is_numpy_array_without_nan(class_activation_matrix)
+    # error_checking.assert_is_numpy_array_without_nan(list_of_activation_matrices)
 
-    for q in range(len(list_of_input_matrices)):
-        error_checking.assert_is_numpy_array(list_of_input_matrices[q])
+    for i in range(len(list_of_input_matrices)):
+        error_checking.assert_is_numpy_array(list_of_input_matrices[i])
 
-        if list_of_input_matrices[q].shape[0] != 1:
-            list_of_input_matrices[q] = numpy.expand_dims(
-                list_of_input_matrices[q], axis=0)
+        if list_of_input_matrices[i].shape[0] != 1:
+            list_of_input_matrices[i] = numpy.expand_dims(
+                list_of_input_matrices[i], axis=0)
 
     # Do the dirty work.
     if new_model_object is None:
@@ -444,28 +511,40 @@ def run_guided_gradcam(
         new_model_object = _change_backprop_function(
             model_object=orig_model_object)
 
-    input_index = _find_relevant_input_matrix(
+    input_layer_indices = _get_connected_input_layers(
+        model_object=orig_model_object,
         list_of_input_matrices=list_of_input_matrices,
-        num_spatial_dim=len(class_activation_matrix.shape)
-    )
+        target_layer_name=target_layer_name)
 
     saliency_function = _make_saliency_function(
-        model_object=new_model_object, layer_name=target_layer_name,
-        input_index=input_index)
+        model_object=new_model_object, target_layer_name=target_layer_name,
+        input_layer_indices=input_layer_indices)
 
-    saliency_matrix = saliency_function(list_of_input_matrices + [0])[0]
-    print('Minimum saliency = {0:.4e} ... max saliency = {1:.4e}'.format(
-        numpy.min(saliency_matrix), numpy.max(saliency_matrix)
+    list_of_saliency_matrices = saliency_function(list_of_input_matrices + [0])
+
+    min_saliency_values = numpy.array([
+        numpy.min(s) for s in list_of_saliency_matrices
+    ])
+    max_saliency_values = numpy.array([
+        numpy.max(s) for s in list_of_saliency_matrices
+    ])
+
+    print((
+        'Min saliency by input matrix = {0:s} ... max saliency by matrix = '
+        '{1:s}'
+    ).format(
+        str(min_saliency_values), str(max_saliency_values)
     ))
 
-    ggradcam_output_matrix = saliency_matrix * class_activation_matrix[
-        ..., numpy.newaxis]
-    ggradcam_output_matrix = ggradcam_output_matrix[0, ...]
+    list_of_gradcam_matrices = [
+        s[0, ...] * a[0, ..., numpy.newaxis]
+        for s, a in zip(list_of_saliency_matrices, list_of_activation_matrices)
+    ]
 
     # ggradcam_output_matrix = _normalize_guided_gradcam_output(
     #     ggradcam_output_matrix[0, ...])
 
-    return ggradcam_output_matrix, new_model_object
+    return list_of_gradcam_matrices, new_model_object
 
 
 def write_pmm_file(

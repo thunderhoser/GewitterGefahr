@@ -232,6 +232,41 @@ def _binary_probabilities_to_matrix(binary_probabilities):
     return numpy.hstack((1. - binary_probabilities, binary_probabilities))
 
 
+def get_connected_input_layers(model_object, target_layer_name):
+    """Gets input layers connected to target layer.
+
+    :param model_object: Instance of `keras.models.Model` or
+        `keras.models.Sequential`.
+    :param target_layer_name: Name of target layer.
+    :return: input_layer_objects: 1-D list of input layers (instances of
+        `keras.layers.Input`) connected to target layer.
+    """
+
+    error_checking.assert_is_string(target_layer_name)
+
+    prev_layer_objects = [model_object.get_layer(name=target_layer_name)]
+    input_layer_objects = []
+
+    while len(prev_layer_objects) > 0:
+        new_prev_layer_objects = []
+
+        for l in prev_layer_objects:
+            these_prev_node_objects = l._inbound_nodes
+            these_prev_layer_objects = []
+
+            for n in these_prev_node_objects:
+                these_prev_layer_objects += n.inbound_layers
+
+            if len(these_prev_layer_objects) == 0:
+                input_layer_objects.append(l)
+            else:
+                new_prev_layer_objects += these_prev_layer_objects
+
+        prev_layer_objects = [l for l in new_prev_layer_objects]
+
+    return input_layer_objects
+
+
 def model_to_feature_generator(model_object, feature_layer_name):
     """Reduces Keras model from predictor to feature-generator.
 
