@@ -307,7 +307,6 @@ def _get_connected_input_layers(model_object, list_of_input_matrices,
         these_first_dim = numpy.array(
             list(connected_layer_objects[i].input_shape[1:]), dtype=int
         )
-        print(these_first_dim)
 
         for j in range(num_input_matrices):
             these_second_dim = numpy.array(

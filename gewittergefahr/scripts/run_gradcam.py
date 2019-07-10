@@ -1,5 +1,6 @@
 """Runs Grad-CAM (gradient-weighted class-activation maps)."""
 
+import copy
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
@@ -138,8 +139,8 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     )
     print(SEPARATOR_STRING)
 
-    class_activation_matrix = None
-    ggradcam_output_matrix = None
+    list_of_cam_matrices = None
+    list_of_gradcam_matrices = None
     new_model_object = None
 
     num_examples = len(full_id_strings)
@@ -149,7 +150,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
             i + 1, num_examples))
 
         these_input_matrices = [a[[i], ...] for a in list_of_input_matrices]
-        this_class_activation_matrix = gradcam.run_gradcam(
+        these_cam_matrices = gradcam.run_gradcam(
             model_object=model_object,
             list_of_input_matrices=these_input_matrices,
             target_class=target_class, target_layer_name=target_layer_name)
@@ -157,30 +158,36 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
         print('Running guided Grad-CAM for example {0:d} of {1:d}...'.format(
             i + 1, num_examples))
 
-        this_ggradcam_output_matrix, new_model_object = (
+        these_gradcam_matrices, new_model_object = (
             gradcam.run_guided_gradcam(
                 orig_model_object=model_object,
                 list_of_input_matrices=these_input_matrices,
                 target_layer_name=target_layer_name,
-                class_activation_matrix=this_class_activation_matrix,
+                list_of_activation_matrices=these_cam_matrices,
                 new_model_object=new_model_object)
         )
 
-        this_class_activation_matrix = numpy.expand_dims(
-            this_class_activation_matrix, axis=0)
-        this_ggradcam_output_matrix = numpy.expand_dims(
-            this_ggradcam_output_matrix, axis=0)
+        for j in range(len(these_cam_matrices)):
+            these_cam_matrices[j] = numpy.expand_dims(
+                these_cam_matrices[j], axis=0
+            )
+            these_gradcam_matrices[j] = numpy.expand_dims(
+                these_gradcam_matrices[j], axis=0
+            )
 
-        if class_activation_matrix is None:
-            class_activation_matrix = this_class_activation_matrix + 0.
-            ggradcam_output_matrix = this_ggradcam_output_matrix + 0.
+        if list_of_cam_matrices is None:
+            list_of_cam_matrices = copy.deepcopy(these_cam_matrices)
+            list_of_gradcam_matrices = copy.deepcopy(these_gradcam_matrices)
         else:
-            class_activation_matrix = numpy.concatenate(
-                (class_activation_matrix, this_class_activation_matrix), axis=0
-            )
-            ggradcam_output_matrix = numpy.concatenate(
-                (ggradcam_output_matrix, this_ggradcam_output_matrix), axis=0
-            )
+            for j in range(len(these_cam_matrices)):
+                list_of_cam_matrices[j] = numpy.concatenate(
+                    (list_of_cam_matrices[j], these_cam_matrices[j]), axis=0
+                )
+
+                list_of_gradcam_matrices[j] = numpy.concatenate(
+                    (list_of_gradcam_matrices[j], these_gradcam_matrices[j]),
+                    axis=0
+                )
 
     print(SEPARATOR_STRING)
 
