@@ -211,6 +211,7 @@ def _read_target_values(
             times_to_keep_unix_sec=storm_times_unix_sec[these_indices]
         )
 
+        print(these_indices)
         if len(these_indices) == 0:
             continue
 
