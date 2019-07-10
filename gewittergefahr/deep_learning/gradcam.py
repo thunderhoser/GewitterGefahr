@@ -535,9 +535,11 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
                 new_dimensions=these_spatial_dim)
 
         list_of_cam_matrices[i] = numpy.maximum(list_of_cam_matrices[i], 0.)
+        print(list_of_cam_matrices[i].shape)
         list_of_cam_matrices[i] = numpy.expand_dims(
             list_of_cam_matrices[i], axis=0
         )
+        print(list_of_cam_matrices[i].shape)
 
     # denominator = numpy.maximum(numpy.max(class_activation_matrix), K.epsilon())
     # return class_activation_matrix / denominator
