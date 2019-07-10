@@ -28,10 +28,15 @@ RADAR_TO_MINIMUM_DICT = {
     radar_utils.VIL_NAME: 0.,                   # mm
     radar_utils.CORRELATION_COEFF_NAME: 0.,     # unitless
     radar_utils.SPECTRUM_WIDTH_NAME: 0.,        # m s^-1
+    radar_utils.LOW_LEVEL_SHEAR_NAME: -0.02,    # s^-1
+    radar_utils.MID_LEVEL_SHEAR_NAME: -0.02     # s^-1
 }
 
 RADAR_TO_MAX_DICT = {
-    radar_utils.CORRELATION_COEFF_NAME: 1.      # unitless
+    radar_utils.CORRELATION_COEFF_NAME: 1.,     # unitless
+    radar_utils.REFL_NAME: 80.,                 # dBZ
+    radar_utils.LOW_LEVEL_SHEAR_NAME: 0.02,     # s^-1
+    radar_utils.MID_LEVEL_SHEAR_NAME: 0.02      # s^-1
 }
 
 SOUNDING_TO_MINIMUM_DICT = {

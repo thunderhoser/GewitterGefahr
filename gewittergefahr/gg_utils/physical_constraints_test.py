@@ -241,25 +241,25 @@ FIRST_METADATA_DICT = {
 
 FIRST_MIN_VALUES_Z_NORM = [
     numpy.array([-22. / 15]),
-    numpy.full(len(AZ_SHEAR_FIELD_NAMES), numpy.nan),
+    numpy.array([-202. / 3, -101]),
     numpy.array([-6, -4. / 3, -3.5, numpy.nan, numpy.nan])
 ]
 
 FIRST_MAX_VALUES_Z_NORM = [
-    numpy.full(1, numpy.nan),
-    numpy.full(len(AZ_SHEAR_FIELD_NAMES), numpy.nan),
+    numpy.array([58. / 15]),
+    numpy.array([198. / 3, 99]),
     numpy.array([numpy.nan, 332, 1.5, numpy.nan, numpy.nan])
 ]
 
 FIRST_MIN_VALUES_MINMAX_NORM = [
-    numpy.array([0.]),
-    numpy.full(len(AZ_SHEAR_FIELD_NAMES), numpy.nan),
+    numpy.full(1, 0.),
+    numpy.full(len(AZ_SHEAR_FIELD_NAMES), 0.),
     numpy.array([0, 0, 0, numpy.nan, numpy.nan])
 ]
 
 FIRST_MAX_VALUES_MINMAX_NORM = [
-    numpy.full(1, numpy.nan),
-    numpy.full(len(AZ_SHEAR_FIELD_NAMES), numpy.nan),
+    numpy.full(1, 1.),
+    numpy.full(len(AZ_SHEAR_FIELD_NAMES), 1.),
     numpy.array([numpy.nan, 1, 1, numpy.nan, numpy.nan])
 ]
 
@@ -277,22 +277,22 @@ SECOND_METADATA_DICT = {
 }
 
 SECOND_MIN_VALUES_Z_NORM = [
-    numpy.full(len(AZ_SHEAR_FIELD_NAMES), numpy.nan),
+    numpy.array([-202. / 3, -101]),
     numpy.array([-6, -4. / 3, -3.5, numpy.nan, numpy.nan])
 ]
 
 SECOND_MAX_VALUES_Z_NORM = [
-    numpy.full(len(AZ_SHEAR_FIELD_NAMES), numpy.nan),
+    numpy.array([198. / 3, 99]),
     numpy.array([numpy.nan, 332, 1.5, numpy.nan, numpy.nan])
 ]
 
 SECOND_MIN_VALUES_MINMAX_NORM = [
-    numpy.full(len(AZ_SHEAR_FIELD_NAMES), numpy.nan),
+    numpy.full(len(AZ_SHEAR_FIELD_NAMES), 0.),
     numpy.array([0, 0, 0, numpy.nan, numpy.nan])
 ]
 
 SECOND_MAX_VALUES_MINMAX_NORM = [
-    numpy.full(len(AZ_SHEAR_FIELD_NAMES), numpy.nan),
+    numpy.full(len(AZ_SHEAR_FIELD_NAMES), 1.),
     numpy.array([numpy.nan, 1, 1, numpy.nan, numpy.nan])
 ]
 
@@ -323,7 +323,7 @@ THIRD_MIN_VALUES_Z_NORM = [
 ]
 
 THIRD_MAX_VALUES_Z_NORM = [
-    numpy.full(len(THIS_LIST_OF_OPERATION_DICTS), numpy.nan),
+    numpy.array([58. / 15, numpy.nan, numpy.nan, numpy.nan]),
     numpy.array([numpy.nan, 332, 1.5, numpy.nan, numpy.nan])
 ]
 
@@ -333,7 +333,7 @@ THIRD_MIN_VALUES_MINMAX_NORM = [
 ]
 
 THIRD_MAX_VALUES_MINMAX_NORM = [
-    numpy.full(len(THIS_LIST_OF_OPERATION_DICTS), numpy.nan),
+    numpy.array([1, numpy.nan, numpy.nan, numpy.nan]),
     numpy.array([numpy.nan, 1, 1, numpy.nan, numpy.nan])
 ]
 
@@ -354,7 +354,7 @@ FOURTH_MIN_VALUES_Z_NORM = [
 ]
 
 FOURTH_MAX_VALUES_Z_NORM = [
-    numpy.full(len(THIS_LIST_OF_OPERATION_DICTS), numpy.nan)
+    numpy.array([58. / 15, numpy.nan, numpy.nan, numpy.nan])
 ]
 
 FOURTH_MIN_VALUES_MINMAX_NORM = [
@@ -362,7 +362,7 @@ FOURTH_MIN_VALUES_MINMAX_NORM = [
 ]
 
 FOURTH_MAX_VALUES_MINMAX_NORM = [
-    numpy.full(len(THIS_LIST_OF_OPERATION_DICTS), numpy.nan)
+    numpy.array([1, numpy.nan, numpy.nan, numpy.nan])
 ]
 
 
