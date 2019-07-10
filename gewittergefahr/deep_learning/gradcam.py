@@ -536,10 +536,20 @@ def run_guided_gradcam(
         str(min_saliency_values), str(max_saliency_values)
     ))
 
-    list_of_gradcam_matrices = [
-        s[0, ...] * a[0, ..., numpy.newaxis]
-        for s, a in zip(list_of_saliency_matrices, list_of_activation_matrices)
-    ]
+    num_activation_matrices = len(list_of_activation_matrices)
+    list_of_gradcam_matrices = [None] * num_activation_matrices
+    saliency_index = 0
+
+    for i in range(num_activation_matrices):
+        if list_of_activation_matrices[i] is None:
+            continue
+
+        list_of_gradcam_matrices[i] = (
+            list_of_saliency_matrices[saliency_index][0, ...] *
+            list_of_activation_matrices[i][0, ..., numpy.newaxis]
+        )
+
+        saliency_index += 1
 
     # ggradcam_output_matrix = _normalize_guided_gradcam_output(
     #     ggradcam_output_matrix[0, ...])
