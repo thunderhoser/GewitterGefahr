@@ -140,7 +140,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     print(SEPARATOR_STRING)
 
     list_of_cam_matrices = None
-    list_of_gradcam_matrices = None
+    list_of_guided_cam_matrices = None
     new_model_object = None
 
     num_examples = len(full_id_strings)
@@ -163,7 +163,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
                 orig_model_object=model_object,
                 list_of_input_matrices=these_input_matrices,
                 target_layer_name=target_layer_name,
-                list_of_activation_matrices=these_cam_matrices,
+                list_of_cam_matrices=these_cam_matrices,
                 new_model_object=new_model_object)
         )
 
@@ -177,15 +177,15 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
 
         if list_of_cam_matrices is None:
             list_of_cam_matrices = copy.deepcopy(these_cam_matrices)
-            list_of_gradcam_matrices = copy.deepcopy(these_gradcam_matrices)
+            list_of_guided_cam_matrices = copy.deepcopy(these_gradcam_matrices)
         else:
             for j in range(len(these_cam_matrices)):
                 list_of_cam_matrices[j] = numpy.concatenate(
                     (list_of_cam_matrices[j], these_cam_matrices[j]), axis=0
                 )
 
-                list_of_gradcam_matrices[j] = numpy.concatenate(
-                    (list_of_gradcam_matrices[j], these_gradcam_matrices[j]),
+                list_of_guided_cam_matrices[j] = numpy.concatenate(
+                    (list_of_guided_cam_matrices[j], these_gradcam_matrices[j]),
                     axis=0
                 )
 
@@ -202,8 +202,8 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     gradcam.write_standard_file(
         pickle_file_name=output_file_name,
         list_of_input_matrices=list_of_input_matrices,
-        class_activation_matrix=class_activation_matrix,
-        ggradcam_output_matrix=ggradcam_output_matrix,
+        list_of_cam_matrices=list_of_cam_matrices,
+        list_of_guided_cam_matrices=list_of_guided_cam_matrices,
         model_file_name=model_file_name, full_id_strings=full_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
         target_class=target_class, target_layer_name=target_layer_name,

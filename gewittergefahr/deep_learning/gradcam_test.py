@@ -7,19 +7,6 @@ from gewittergefahr.deep_learning import gradcam
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test _find_relevant_input_matrix.
-REFLECTIVITY_MATRIX_DBZ = numpy.random.uniform(
-    low=0., high=1., size=(1, 32, 32, 12, 1)
-)
-AZIMUTHAL_SHEAR_MATRIX_S01 = numpy.random.uniform(
-    low=0., high=1., size=(1, 64, 64, 2)
-)
-SOUNDING_MATRIX = numpy.random.uniform(low=0., high=1., size=(1, 49, 5))
-
-LIST_OF_INPUT_MATRICES = [
-    REFLECTIVITY_MATRIX_DBZ, AZIMUTHAL_SHEAR_MATRIX_S01, SOUNDING_MATRIX
-]
-
 # The following constants are used to test _upsample_cam.
 CLASS_ACTIV_MATRIX_1D = numpy.linspace(1, 49, num=49, dtype=float)
 CLASS_ACTIV_MATRIX_COARSE_1D = CLASS_ACTIV_MATRIX_1D[::2]
@@ -46,9 +33,11 @@ CLASS_ACTIV_MATRIX_3D = (
 CLASS_ACTIV_MATRIX_COARSE_3D = CLASS_ACTIV_MATRIX_3D[::4, ::4, ::4]
 
 # The following constants are used to test _normalize_guided_gradcam_output.
-GRADIENT_MATRIX_DENORM = numpy.array([[0, 2, 4, 2, 0],
-                                      [1, 4, 7, 4, 1],
-                                      [-5, -5, -5, -5, -5]], dtype=float)
+GRADIENT_MATRIX_DENORM = numpy.array([
+    [0, 2, 4, 2, 0],
+    [1, 4, 7, 4, 1],
+    [-5, -5, -5, -5, -5]
+], dtype=float)
 
 GRADIENT_MATRIX_DENORM = numpy.expand_dims(GRADIENT_MATRIX_DENORM, axis=0)
 
@@ -65,39 +54,6 @@ GRADIENT_MATRIX_NORM[GRADIENT_MATRIX_NORM > 1.] = 1.
 class GradcamTests(unittest.TestCase):
     """Each method is a unit test for gradcam.py."""
 
-    def test_find_relevant_input_matrix_refl(self):
-        """Ensures correct output from _find_relevant_input_matrix.
-
-        In this case, relevant matrix contains reflectivity.
-        """
-
-        this_index = gradcam._find_relevant_input_matrix(
-            list_of_input_matrices=LIST_OF_INPUT_MATRICES, num_spatial_dim=3)
-
-        self.assertTrue(this_index == 0)
-
-    def test_find_relevant_input_matrix_az_shear(self):
-        """Ensures correct output from _find_relevant_input_matrix.
-
-        In this case, relevant matrix contains azimuthal shear.
-        """
-
-        this_index = gradcam._find_relevant_input_matrix(
-            list_of_input_matrices=LIST_OF_INPUT_MATRICES, num_spatial_dim=2)
-
-        self.assertTrue(this_index == 1)
-
-    def test_find_relevant_input_matrix_soundings(self):
-        """Ensures correct output from _find_relevant_input_matrix.
-
-        In this case, relevant matrix contains soundings.
-        """
-
-        this_index = gradcam._find_relevant_input_matrix(
-            list_of_input_matrices=LIST_OF_INPUT_MATRICES, num_spatial_dim=1)
-
-        self.assertTrue(this_index == 2)
-
     def test_upsample_cam_1d(self):
         """Ensures correct output from _upsample_cam.
 
@@ -110,7 +66,8 @@ class GradcamTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.allclose(
-            this_matrix, CLASS_ACTIV_MATRIX_1D, atol=TOLERANCE))
+            this_matrix, CLASS_ACTIV_MATRIX_1D, atol=TOLERANCE
+        ))
 
     def test_upsample_cam_2d(self):
         """Ensures correct output from _upsample_cam.
@@ -124,7 +81,8 @@ class GradcamTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.allclose(
-            this_matrix, CLASS_ACTIV_MATRIX_2D, atol=TOLERANCE))
+            this_matrix, CLASS_ACTIV_MATRIX_2D, atol=TOLERANCE
+        ))
 
     def test_upsample_cam_3d(self):
         """Ensures correct output from _upsample_cam.
@@ -138,7 +96,8 @@ class GradcamTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.allclose(
-            this_matrix, CLASS_ACTIV_MATRIX_3D, atol=TOLERANCE))
+            this_matrix, CLASS_ACTIV_MATRIX_3D, atol=TOLERANCE
+        ))
 
     def test_normalize_guided_gradcam_output(self):
         """Ensures correct output from _normalize_guided_gradcam_output."""
@@ -147,7 +106,8 @@ class GradcamTests(unittest.TestCase):
             GRADIENT_MATRIX_DENORM + 0.)
 
         self.assertTrue(numpy.allclose(
-            this_matrix, GRADIENT_MATRIX_NORM, atol=TOLERANCE))
+            this_matrix, GRADIENT_MATRIX_NORM, atol=TOLERANCE
+        ))
 
 
 if __name__ == '__main__':
