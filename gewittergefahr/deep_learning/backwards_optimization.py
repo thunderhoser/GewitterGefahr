@@ -7,6 +7,7 @@ Olah, C., A. Mordvintsev, and L. Schubert, 2017: Feature visualization. Distill,
     URL https://distill.pub/2017/feature-visualization.
 """
 
+import copy
 import pickle
 import numpy
 from keras import backend as K
@@ -170,7 +171,7 @@ def _do_gradient_descent(
     num_input_tensors = len(list_of_input_tensors)
 
     if isinstance(init_function_or_matrices, list):
-        list_of_optimized_matrices = init_function_or_matrices + []
+        list_of_optimized_matrices = copy.deepcopy(init_function_or_matrices)
     else:
         list_of_optimized_matrices = [None] * num_input_tensors
 

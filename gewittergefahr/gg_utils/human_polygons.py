@@ -23,6 +23,7 @@ MARKER_SIZE = 10
 MARKER_EDGE_WIDTH = 1
 MARKER_COLOUR = 'k'
 
+SENTINEL_VALUE = -9999.
 DUMMY_STORM_ID_STRING = 'pmm'
 
 STORM_ID_KEY = 'full_storm_id_string'
@@ -783,6 +784,12 @@ def write_polygons(
         for k in these_vertex_to_poly_indices
     ])
 
+    if len(positive_vertex_rows) == 0:
+        positive_vertex_rows = numpy.full(1, SENTINEL_VALUE - 1)
+        positive_vertex_columns = numpy.full(1, SENTINEL_VALUE - 1)
+        positive_panel_row_by_vertex = numpy.full(1, -1, dtype=int)
+        positive_panel_column_by_vertex = numpy.full(1, -1, dtype=int)
+
     (negative_vertex_rows, negative_vertex_columns, these_vertex_to_poly_indices
     ) = _polygon_list_to_vertex_list(negative_objects_grid_coords)
 
@@ -938,32 +945,39 @@ def read_polygons(netcdf_file_name):
         polygon_dict[STORM_ID_KEY] = None
         polygon_dict[STORM_TIME_KEY] = None
 
-    (positive_objects_grid_coords, these_poly_to_first_vertex_indices
-    ) = _vertex_list_to_polygon_list(
-        vertex_rows=numpy.array(
-            dataset_object.variables[POSITIVE_VERTEX_ROWS_KEY][:],
-            dtype=float
-        ),
-        vertex_columns=numpy.array(
-            dataset_object.variables[POSITIVE_VERTEX_COLUMNS_KEY][:],
-            dtype=float
+    positive_vertex_rows = numpy.array(
+        dataset_object.variables[POSITIVE_VERTEX_ROWS_KEY][:], dtype=float
+    )
+    positive_vertex_columns = numpy.array(
+        dataset_object.variables[POSITIVE_VERTEX_COLUMNS_KEY][:], dtype=float
+    )
+
+    if positive_vertex_rows[0] <= SENTINEL_VALUE:
+        positive_objects_grid_coords = []
+        positive_panel_row_by_polygon = numpy.array([], dtype=int)
+        positive_panel_column_by_polygon = numpy.array([], dtype=int)
+    else:
+        positive_objects_grid_coords, these_poly_to_first_vertex_indices = (
+            _vertex_list_to_polygon_list(
+                vertex_rows=positive_vertex_rows,
+                vertex_columns=positive_vertex_columns)
         )
-    )
 
-    positive_panel_row_by_vertex = numpy.array(
-        dataset_object.variables[POSITIVE_PANEL_ROW_BY_VERTEX_KEY][:], dtype=int
-    )
+        positive_panel_row_by_vertex = numpy.array(
+            dataset_object.variables[POSITIVE_PANEL_ROW_BY_VERTEX_KEY][:],
+            dtype=int
+        )
 
-    positive_panel_row_by_polygon = positive_panel_row_by_vertex[
-        these_poly_to_first_vertex_indices]
+        positive_panel_row_by_polygon = positive_panel_row_by_vertex[
+            these_poly_to_first_vertex_indices]
 
-    positive_panel_column_by_vertex = numpy.array(
-        dataset_object.variables[POSITIVE_PANEL_COLUMN_BY_VERTEX_KEY][:],
-        dtype=int
-    )
+        positive_panel_column_by_vertex = numpy.array(
+            dataset_object.variables[POSITIVE_PANEL_COLUMN_BY_VERTEX_KEY][:],
+            dtype=int
+        )
 
-    positive_panel_column_by_polygon = positive_panel_column_by_vertex[
-        these_poly_to_first_vertex_indices]
+        positive_panel_column_by_polygon = positive_panel_column_by_vertex[
+            these_poly_to_first_vertex_indices]
 
     polygon_dict[POSITIVE_PANEL_ROW_BY_POLY_KEY] = positive_panel_row_by_polygon
     polygon_dict[
