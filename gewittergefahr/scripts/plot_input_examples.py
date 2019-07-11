@@ -256,7 +256,7 @@ def _plot_3d_examples(
                         num_rows=num_panel_rows, num_columns=num_panel_columns,
                         horizontal_spacing=0., vertical_spacing=0.,
                         shared_x_axis=False, shared_y_axis=False,
-                        keep_aspect_ratio=False)
+                        keep_aspect_ratio=True)
                 )
             else:
                 this_figure_object = None
@@ -373,7 +373,7 @@ def _plot_2d3d_examples(
                     num_rows=num_refl_panel_rows,
                     num_columns=num_refl_panel_columns, horizontal_spacing=0.,
                     vertical_spacing=0., shared_x_axis=False,
-                    shared_y_axis=False, keep_aspect_ratio=False)
+                    shared_y_axis=False, keep_aspect_ratio=True)
             )
         else:
             this_figure_object = None
@@ -423,7 +423,7 @@ def _plot_2d3d_examples(
                     num_rows=1, num_columns=num_azimuthal_shear_fields,
                     horizontal_spacing=0., vertical_spacing=0.,
                     shared_x_axis=False, shared_y_axis=False,
-                    keep_aspect_ratio=False)
+                    keep_aspect_ratio=True)
             )
         else:
             this_figure_object = None
@@ -552,7 +552,7 @@ def _plot_2d_examples(
                     num_rows=num_panel_rows, num_columns=num_panel_columns,
                     horizontal_spacing=0., vertical_spacing=0.,
                     shared_x_axis=False, shared_y_axis=False,
-                    keep_aspect_ratio=False)
+                    keep_aspect_ratio=True)
             )
         else:
             this_figure_object = None
