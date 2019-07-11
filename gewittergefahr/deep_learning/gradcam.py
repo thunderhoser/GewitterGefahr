@@ -118,9 +118,14 @@ def _upsample_cam(class_activation_matrix, new_dimensions):
     )
 
     if len(new_dimensions) == 1:
+        # interp_object = UnivariateSpline(
+        #     x=row_indices_orig, y=numpy.ravel(class_activation_matrix),
+        #     k=1, s=0
+        # )
+
         interp_object = UnivariateSpline(
             x=row_indices_orig, y=numpy.ravel(class_activation_matrix),
-            k=1, s=0
+            k=3, s=0
         )
 
         return interp_object(row_indices_new)
@@ -136,7 +141,7 @@ def _upsample_cam(class_activation_matrix, new_dimensions):
     if len(new_dimensions) == 2:
         interp_object = RectBivariateSpline(
             x=row_indices_orig, y=column_indices_orig,
-            z=class_activation_matrix, kx=1, ky=1, s=0
+            z=class_activation_matrix, kx=3, ky=3, s=0
         )
 
         return interp_object(x=row_indices_new, y=column_indices_new, grid=True)
