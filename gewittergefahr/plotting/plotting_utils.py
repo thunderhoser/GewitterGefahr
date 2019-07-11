@@ -226,7 +226,7 @@ def create_paneled_figure(
 
     for i in range(num_rows):
         for j in range(num_columns):
-            axes_object_matrix[i][j].set(adjustable='box', aspect='equal')
+            axes_object_matrix[i][j].set(aspect='equal')
 
     return figure_object, axes_object_matrix
 
