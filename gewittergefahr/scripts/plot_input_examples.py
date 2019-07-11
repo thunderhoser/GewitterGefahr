@@ -554,6 +554,11 @@ def _plot_2d_examples(
                     shared_x_axis=False, shared_y_axis=False,
                     keep_aspect_ratio=False)
             )
+
+            for k in range(num_panel_rows):
+                for m in range(num_panel_columns):
+                    this_axes_object_matrix[k, m].set_aspect('equal')
+
         else:
             this_figure_object = None
             this_axes_object_matrix = None
