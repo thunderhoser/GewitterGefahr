@@ -407,8 +407,8 @@ def _plot_bwo_for_2d3d_radar(
         pyplot.close()
 
         this_shear_diff_matrix_s01 = (
-            list_of_optimized_matrices[1][i, ..., 0] -
-            list_of_input_matrices[1][i, ..., 0]
+            list_of_optimized_matrices[1][i, ...] -
+            list_of_input_matrices[1][i, ...]
         )
         this_shear_diff_matrix_s01 = numpy.flip(
             this_shear_diff_matrix_s01, axis=0)
