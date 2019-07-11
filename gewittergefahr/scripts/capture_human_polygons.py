@@ -24,8 +24,8 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 IMAGE_PATH_HELP_STRING = (
     'Path to input file or directory.  This script will allow you to draw '
-    'polygons over each image.  Each file name must be in the format specified '
-    'by the method `check_image_file_name` in this script.')
+    'polygons over each image.  Each file name must be in the format {0:s}.'
+).format(FILE_FORMAT_STRING)
 
 POS_NEG_HELP_STRING = (
     'Boolean flag.  If 1, will capture positive and negative polygons (regions '
