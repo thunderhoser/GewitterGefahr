@@ -513,7 +513,10 @@ def _plot_2d_examples(
         )
 
         if not no_whitespace:
-            plot_colour_bar_by_panel[2::3] = True
+            if len(field_name_by_panel) == 12:
+                plot_colour_bar_by_panel[2::3] = True
+            else:
+                plot_colour_bar_by_panel[:] = True
 
     radar_matrix = list_of_predictor_matrices[0]
 

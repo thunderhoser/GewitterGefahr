@@ -1,5 +1,6 @@
 """Handles polygons drawn interactively by a human."""
 
+import warnings
 import numpy
 import matplotlib.pyplot as pyplot
 import netCDF4
@@ -334,6 +335,16 @@ def capture_polygons(image_file_name, instruction_string=''):
         these_x_coords = numpy.array(
             [this_roi_object.x[0]] + list(reversed(this_roi_object.x))
         )
+
+        if len(these_x_coords) < 4:
+            warning_string = (
+                'Found polygon with only {0:d} points.  A valid polygon must '
+                'have at least 3 points.  Skipping this polygon.'
+            ).format(len(these_x_coords) - 1)
+
+            warnings.warn(warning_string)
+            continue
+
         these_y_coords = numpy.array(
             [this_roi_object.y[0]] + list(reversed(this_roi_object.y))
         )
