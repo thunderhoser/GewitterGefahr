@@ -17,10 +17,10 @@ Lagerquist, R., McGovern, A., and Smith, T., 2017: Machine learning for real-
 import copy
 import pickle
 import numpy
+import pandas
 import sklearn.metrics
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import histograms
-from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -35,20 +35,18 @@ TOLERANCE = 1e-6
 MIN_FORECAST_PROB_FOR_XENTROPY = numpy.finfo(float).eps
 MAX_FORECAST_PROB_FOR_XENTROPY = 1. - numpy.finfo(float).eps
 
-DEFAULT_NUM_BOOTSTRAP_ITERS = 100
-DEFAULT_BOOTSTRAP_CONFIDENCE_LEVEL = 0.95
-
-MIN_OPTIMIZATION_DIRECTION = 'min'
-MAX_OPTIMIZATION_DIRECTION = 'max'
-VALID_OPTIMIZATION_DIRECTIONS = [
-    MIN_OPTIMIZATION_DIRECTION, MAX_OPTIMIZATION_DIRECTION]
+MIN_OPTIMIZATION_STRING = 'min'
+MAX_OPTIMIZATION_STRING = 'max'
+VALID_OPTIMIZATION_STRINGS = [
+    MIN_OPTIMIZATION_STRING, MAX_OPTIMIZATION_STRING
+]
 
 NUM_TRUE_POSITIVES_KEY = 'num_true_positives'
 NUM_FALSE_POSITIVES_KEY = 'num_false_positives'
 NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 NUM_TRUE_NEGATIVES_KEY = 'num_true_negatives'
 
-BRIER_SKILL_SCORE_KEY = 'brier_skill_score'
+BSS_KEY = 'brier_skill_score'
 BRIER_SCORE_KEY = 'brier_score'
 RESOLUTION_KEY = 'resolution'
 RELIABILITY_KEY = 'reliability'
@@ -56,15 +54,14 @@ UNCERTAINTY_KEY = 'uncertainty'
 
 POD_BY_THRESHOLD_KEY = 'pod_by_threshold'
 POFD_BY_THRESHOLD_KEY = 'pofd_by_threshold'
-AREA_UNDER_ROC_CURVE_KEY = 'area_under_curve'
-SUCCESS_RATIO_BY_THRESHOLD_KEY = 'success_ratio_by_threshold'
-MAX_CSI_KEY = 'max_csi_over_thresholds'
-MEAN_FORECAST_PROB_BY_BIN_KEY = 'mean_forecast_prob_by_bin'
-MEAN_OBSERVED_LABEL_BY_BIN_KEY = 'mean_observed_label_by_bin'
+SR_BY_THRESHOLD_KEY = 'success_ratio_by_threshold'
+MEAN_FORECAST_BY_BIN_KEY = 'mean_forecast_by_bin'
+EVENT_FREQ_BY_BIN_KEY = 'event_frequency_by_bin'
 
 FORECAST_PROBABILITIES_KEY = 'forecast_probabilities'
 OBSERVED_LABELS_KEY = 'observed_labels'
-BINARIZATION_THRESHOLD_KEY = 'binarization_threshold'
+BEST_THRESHOLD_KEY = 'best_prob_threshold'
+ALL_THRESHOLDS_KEY = 'all_prob_thresholds'
 POD_KEY = 'pod'
 POFD_KEY = 'pofd'
 SUCCESS_RATIO_KEY = 'success_ratio'
@@ -75,20 +72,28 @@ FREQUENCY_BIAS_KEY = 'frequency_bias'
 PEIRCE_SCORE_KEY = 'peirce_score'
 HEIDKE_SCORE_KEY = 'heidke_score'
 AUC_KEY = 'auc'
-SCIKIT_LEARN_AUC_KEY = 'scikit_learn_auc'
 AUPD_KEY = 'aupd'
-BSS_DICTIONARY_KEY = 'bss_dict'
+EVALUATION_TABLE_KEY = 'evaluation_table'
+
+EVALUATION_TABLE_COLUMNS = [
+    NUM_TRUE_POSITIVES_KEY, NUM_FALSE_POSITIVES_KEY, NUM_FALSE_NEGATIVES_KEY,
+    NUM_TRUE_NEGATIVES_KEY, POD_KEY, POFD_KEY, SUCCESS_RATIO_KEY, FOCN_KEY,
+    ACCURACY_KEY, CSI_KEY, FREQUENCY_BIAS_KEY, PEIRCE_SCORE_KEY,
+    HEIDKE_SCORE_KEY, POD_BY_THRESHOLD_KEY, POFD_BY_THRESHOLD_KEY, AUC_KEY,
+    SR_BY_THRESHOLD_KEY, AUPD_KEY, MEAN_FORECAST_BY_BIN_KEY,
+    EVENT_FREQ_BY_BIN_KEY, RELIABILITY_KEY, RESOLUTION_KEY, BSS_KEY
+]
+
 
 EVALUATION_DICT_KEYS = [
-    FORECAST_PROBABILITIES_KEY, OBSERVED_LABELS_KEY, BINARIZATION_THRESHOLD_KEY,
-    POD_KEY, POFD_KEY, SUCCESS_RATIO_KEY, FOCN_KEY, ACCURACY_KEY, CSI_KEY,
-    FREQUENCY_BIAS_KEY, PEIRCE_SCORE_KEY, HEIDKE_SCORE_KEY, AUC_KEY,
-    SCIKIT_LEARN_AUC_KEY, AUPD_KEY, BSS_DICTIONARY_KEY]
+    FORECAST_PROBABILITIES_KEY, OBSERVED_LABELS_KEY, BEST_THRESHOLD_KEY,
+    ALL_THRESHOLDS_KEY, EVALUATION_TABLE_KEY
+]
 
 MIN_BINARIZATION_THRESHOLD = 0.
 MAX_BINARIZATION_THRESHOLD = 1. + TOLERANCE
 
-DEFAULT_NUM_BINS_FOR_RELIABILITY_CURVE = 10
+DEFAULT_NUM_RELIABILITY_BINS = 20
 DEFAULT_PRECISION_FOR_THRESHOLDS = 1e-4
 THRESHOLD_ARG_FOR_UNIQUE_FORECASTS = 'unique_forecasts'
 
@@ -289,7 +294,7 @@ def binarize_forecast_probs(forecast_probabilities, binarization_threshold):
 
 def find_best_binarization_threshold(
         forecast_probabilities, observed_labels, threshold_arg,
-        criterion_function, optimization_direction=MAX_OPTIMIZATION_DIRECTION,
+        criterion_function, optimization_direction=MAX_OPTIMIZATION_STRING,
         unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS):
     """Finds the best binarization threshold.
 
@@ -308,16 +313,16 @@ def find_best_binarization_threshold(
     :return: best_criterion_value: Value of criterion function at said
         threshold.
     :raises: ValueError: if `optimization_direction not in
-        VALID_OPTIMIZATION_DIRECTIONS`.
+        VALID_OPTIMIZATION_STRINGS`.
     """
 
     error_checking.assert_is_string(optimization_direction)
 
-    if optimization_direction not in VALID_OPTIMIZATION_DIRECTIONS:
+    if optimization_direction not in VALID_OPTIMIZATION_STRINGS:
         error_string = (
             '\n\n{0:s}\nValid optimization directions (listed above) do not '
             'include "{1:s}".'
-        ).format(str(VALID_OPTIMIZATION_DIRECTIONS), optimization_direction)
+        ).format(str(VALID_OPTIMIZATION_STRINGS), optimization_direction)
 
         raise ValueError(error_string)
 
@@ -340,7 +345,7 @@ def find_best_binarization_threshold(
 
         criterion_values[i] = criterion_function(this_contingency_table_as_dict)
 
-    if optimization_direction == MAX_OPTIMIZATION_DIRECTION:
+    if optimization_direction == MAX_OPTIMIZATION_STRING:
         best_criterion_value = numpy.nanmax(criterion_values)
         best_probability_threshold = possible_thresholds[
             numpy.nanargmax(criterion_values)]
@@ -718,103 +723,6 @@ def get_area_under_roc_curve(pofd_by_threshold, pod_by_threshold):
         pofd_by_threshold[real_indices], pod_by_threshold[real_indices])
 
 
-def bootstrap_roc_curve(
-        forecast_probabilities=None, observed_labels=None, threshold_arg=None,
-        unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS,
-        num_bootstrap_iters=DEFAULT_NUM_BOOTSTRAP_ITERS,
-        confidence_level=DEFAULT_BOOTSTRAP_CONFIDENCE_LEVEL):
-    """Bootstrapped version of get_points_in_roc_curve.
-
-    T = number of binarization thresholds (same for top, middle, and bottom of
-        confidence interval).
-
-    :param forecast_probabilities: See documentation for
-        `_check_forecast_probs_and_observed_labels`.
-    :param observed_labels: See doc for
-        `_check_forecast_probs_and_observed_labels`.
-    :param threshold_arg: See documentation for get_binarization_thresholds.
-    :param unique_forecast_precision: See doc for get_binarization_thresholds.
-    :param num_bootstrap_iters: Number of bootstrapping iterations (number of
-        samples to draw from full set of forecast-observation pairs).
-    :param confidence_level: Confidence level.  Will be used to create
-        confidence interval ("envelope") for ROC curve.
-    :return: roc_dictionary_bottom: Dictionary with the following keys.
-    roc_dictionary_bottom['pofd_by_threshold']: length-T numpy array of POFD
-        values for bottom of envelope (confidence interval).
-    roc_dictionary_bottom['pod_by_threshold']: Same but for POD.
-    roc_dictionary_bottom['area_under_curve']: Area under ROC curve.
-
-    :return: roc_dictionary_mean: Same as roc_dictionary_bottom, but for middle
-        of envelope (confidence interval).
-    :return: roc_dictionary_top: Same as roc_dictionary_bottom, but for top of
-        envelope (confidence interval).
-    """
-
-    _check_forecast_probs_and_observed_labels(
-        forecast_probabilities, observed_labels)
-
-    binarization_thresholds = get_binarization_thresholds(
-        threshold_arg=threshold_arg,
-        forecast_probabilities=forecast_probabilities,
-        unique_forecast_precision=unique_forecast_precision)
-
-    error_checking.assert_is_integer(num_bootstrap_iters)
-    error_checking.assert_is_greater(num_bootstrap_iters, 1)
-
-    num_thresholds = len(binarization_thresholds)
-    pod_matrix = numpy.full((num_thresholds, num_bootstrap_iters), numpy.nan)
-    pofd_matrix = numpy.full((num_thresholds, num_bootstrap_iters), numpy.nan)
-    auc_values = numpy.full(num_bootstrap_iters, numpy.nan)
-
-    for j in range(num_bootstrap_iters):
-        _, these_sample_indices = bootstrapping.draw_sample(
-            forecast_probabilities)
-
-        for i in range(num_thresholds):
-            these_forecast_labels = binarize_forecast_probs(
-                forecast_probabilities[these_sample_indices],
-                binarization_thresholds[i])
-            this_contingency_table_as_dict = get_contingency_table(
-                these_forecast_labels, observed_labels[these_sample_indices])
-
-            pofd_matrix[i, j] = get_pofd(this_contingency_table_as_dict)
-            pod_matrix[i, j] = get_pod(this_contingency_table_as_dict)
-
-        auc_values[j] = get_area_under_roc_curve(
-            pofd_matrix[:, j], pod_matrix[:, j])
-
-    roc_dictionary_bottom = {
-        POD_BY_THRESHOLD_KEY: numpy.full(num_thresholds, numpy.nan),
-        POFD_BY_THRESHOLD_KEY: numpy.full(num_thresholds, numpy.nan),
-        AREA_UNDER_ROC_CURVE_KEY: numpy.nan
-    }
-    roc_dictionary_top = copy.deepcopy(roc_dictionary_bottom)
-    roc_dictionary_mean = copy.deepcopy(roc_dictionary_bottom)
-
-    for i in range(num_thresholds):
-        (roc_dictionary_top[POFD_BY_THRESHOLD_KEY][i],
-         roc_dictionary_bottom[POFD_BY_THRESHOLD_KEY][i]) = (
-             bootstrapping.get_confidence_interval(
-                 pofd_matrix[i, :], confidence_level))
-
-        (roc_dictionary_bottom[POD_BY_THRESHOLD_KEY][i],
-         roc_dictionary_top[POD_BY_THRESHOLD_KEY][i]) = (
-             bootstrapping.get_confidence_interval(
-                 pod_matrix[i, :], confidence_level))
-
-    roc_dictionary_mean[POFD_BY_THRESHOLD_KEY] = numpy.nanmean(
-        pofd_matrix, axis=1)
-    roc_dictionary_mean[POD_BY_THRESHOLD_KEY] = numpy.nanmean(
-        pod_matrix, axis=1)
-
-    (roc_dictionary_bottom[AREA_UNDER_ROC_CURVE_KEY],
-     roc_dictionary_top[AREA_UNDER_ROC_CURVE_KEY]) = (
-         bootstrapping.get_confidence_interval(auc_values, confidence_level))
-    roc_dictionary_mean[AREA_UNDER_ROC_CURVE_KEY] = numpy.nanmean(auc_values)
-
-    return roc_dictionary_bottom, roc_dictionary_mean, roc_dictionary_top
-
-
 def get_random_roc_curve():
     """Returns points in random ROC (receiver operating characteristic) curve.
 
@@ -909,117 +817,6 @@ def get_area_under_perf_diagram(success_ratio_by_threshold, pod_by_threshold):
         pod_by_threshold[real_indices])
 
 
-def bootstrap_performance_diagram(
-        forecast_probabilities=None, observed_labels=None, threshold_arg=None,
-        unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS,
-        num_bootstrap_iters=DEFAULT_NUM_BOOTSTRAP_ITERS,
-        confidence_level=DEFAULT_BOOTSTRAP_CONFIDENCE_LEVEL):
-    """Bootstrapped version of get_points_in_performance_diagram.
-
-    T = number of binarization thresholds (same for top, middle, and bottom of
-        confidence interval).
-
-    :param forecast_probabilities: See documentation for
-        `_check_forecast_probs_and_observed_labels`.
-    :param observed_labels: See doc for
-        `_check_forecast_probs_and_observed_labels`.
-    :param threshold_arg: See documentation for get_binarization_thresholds.
-    :param unique_forecast_precision: See doc for get_binarization_thresholds.
-    :param num_bootstrap_iters: Number of bootstrapping iterations (number of
-        samples to draw from full set of forecast-observation pairs).
-    :param confidence_level: Confidence level.  Will be used to create
-        confidence interval ("envelope") for performance diagram.
-    :return: performance_diagram_dict_bottom: Dictionary with the following
-        keys.
-    performance_diagram_dict_bottom['success_ratio_by_threshold']: length-T
-        numpy array of success ratios for bottom of envelope (confidence
-        interval).
-    performance_diagram_dict_bottom['pod_by_threshold']: Same but for POD.
-    performance_diagram_dict_bottom['max_csi_over_thresholds']: Maximum CSI
-        (critical success index) over all thresholds.
-
-    :return: performance_diagram_dict_mean: Same as
-        performance_diagram_dict_bottom, but for middle of envelope (confidence
-        interval).
-    :return: performance_diagram_dict_top: Same as
-        performance_diagram_dict_bottom, but for top of envelope (confidence
-        interval).
-    """
-
-    _check_forecast_probs_and_observed_labels(
-        forecast_probabilities, observed_labels)
-
-    binarization_thresholds = get_binarization_thresholds(
-        threshold_arg=threshold_arg,
-        forecast_probabilities=forecast_probabilities,
-        unique_forecast_precision=unique_forecast_precision)
-
-    error_checking.assert_is_integer(num_bootstrap_iters)
-    error_checking.assert_is_greater(num_bootstrap_iters, 1)
-
-    num_thresholds = len(binarization_thresholds)
-    pod_matrix = numpy.full((num_thresholds, num_bootstrap_iters), numpy.nan)
-    success_ratio_matrix = numpy.full((num_thresholds, num_bootstrap_iters),
-                                      numpy.nan)
-    max_csi_values = numpy.full(num_bootstrap_iters, numpy.nan)
-
-    for j in range(num_bootstrap_iters):
-        _, these_sample_indices = bootstrapping.draw_sample(
-            forecast_probabilities)
-        these_csi_values = numpy.full(num_thresholds, numpy.nan)
-
-        for i in range(num_thresholds):
-            these_forecast_labels = binarize_forecast_probs(
-                forecast_probabilities[these_sample_indices],
-                binarization_thresholds[i])
-            this_contingency_table_as_dict = get_contingency_table(
-                these_forecast_labels, observed_labels[these_sample_indices])
-
-            pod_matrix[i, j] = get_pod(this_contingency_table_as_dict)
-            success_ratio_matrix[i, j] = get_success_ratio(
-                this_contingency_table_as_dict)
-            these_csi_values[i] = csi_from_sr_and_pod(
-                numpy.array([success_ratio_matrix[i, j]]),
-                numpy.array([pod_matrix[i, j]]))[0]
-
-        max_csi_values[j] = numpy.nanmax(these_csi_values)
-
-    performance_diagram_dict_bottom = {
-        POD_BY_THRESHOLD_KEY: numpy.full(num_thresholds, numpy.nan),
-        SUCCESS_RATIO_BY_THRESHOLD_KEY: numpy.full(num_thresholds, numpy.nan)
-    }
-    performance_diagram_dict_top = copy.deepcopy(
-        performance_diagram_dict_bottom)
-    performance_diagram_dict_mean = copy.deepcopy(
-        performance_diagram_dict_bottom)
-
-    for i in range(num_thresholds):
-        (performance_diagram_dict_bottom[POD_BY_THRESHOLD_KEY][i],
-         performance_diagram_dict_top[POD_BY_THRESHOLD_KEY][i]) = (
-             bootstrapping.get_confidence_interval(
-                 pod_matrix[i, :], confidence_level))
-
-        (performance_diagram_dict_bottom[SUCCESS_RATIO_BY_THRESHOLD_KEY][i],
-         performance_diagram_dict_top[SUCCESS_RATIO_BY_THRESHOLD_KEY][i]) = (
-             bootstrapping.get_confidence_interval(
-                 success_ratio_matrix[i, :], confidence_level))
-
-    performance_diagram_dict_mean[POD_BY_THRESHOLD_KEY] = numpy.nanmean(
-        pod_matrix, axis=1)
-    performance_diagram_dict_mean[SUCCESS_RATIO_BY_THRESHOLD_KEY] = (
-        numpy.nanmean(success_ratio_matrix, axis=1))
-
-    (performance_diagram_dict_bottom[MAX_CSI_KEY],
-     performance_diagram_dict_top[MAX_CSI_KEY]) = (
-         bootstrapping.get_confidence_interval(
-             max_csi_values, confidence_level))
-    performance_diagram_dict_mean[MAX_CSI_KEY] = numpy.nanmean(max_csi_values)
-
-    return (performance_diagram_dict_bottom,
-            performance_diagram_dict_mean,
-            performance_diagram_dict_top)
-
-
 def get_sr_pod_grid(success_ratio_spacing=DEFAULT_SUCCESS_RATIO_SPACING,
                     pod_spacing=DEFAULT_POD_SPACING):
     """Creates grid in SR-POD space
@@ -1108,7 +905,7 @@ def csi_from_sr_and_pod(success_ratio_array, pod_array):
 
 def get_points_in_reliability_curve(
         forecast_probabilities=None, observed_labels=None,
-        num_forecast_bins=DEFAULT_NUM_BINS_FOR_RELIABILITY_CURVE):
+        num_forecast_bins=DEFAULT_NUM_RELIABILITY_BINS):
     """Determines points in reliability curve.
 
     B = number of forecast bins
@@ -1147,140 +944,6 @@ def get_points_in_reliability_curve(
             observed_labels[these_example_indices].astype(float))
 
     return (mean_forecast_prob_by_bin, mean_observed_label_by_bin,
-            num_examples_by_bin)
-
-
-def bootstrap_reliability_curve(
-        forecast_probabilities=None, observed_labels=None,
-        num_forecast_bins=DEFAULT_NUM_BINS_FOR_RELIABILITY_CURVE,
-        num_bootstrap_iters=DEFAULT_NUM_BOOTSTRAP_ITERS,
-        confidence_level=DEFAULT_BOOTSTRAP_CONFIDENCE_LEVEL):
-    """Bootstrapped version of get_points_in_reliability_curve.
-
-    B = number of forecast bins (same for top, middle, and bottom of confidence
-        interval).
-
-    :param forecast_probabilities: See documentation for
-        `_check_forecast_probs_and_observed_labels`.
-    :param observed_labels: See doc for
-        `_check_forecast_probs_and_observed_labels`.
-    :param num_forecast_bins: Number of bins in which to discretize forecast
-        probabilities.
-    :param num_bootstrap_iters: Number of bootstrapping iterations (number of
-        samples to draw from full set of forecast-observation pairs).
-    :param confidence_level: Confidence level.  Will be used to create
-        confidence interval ("envelope") for reliability curve.
-    :return: reliability_dict_bottom: Dictionary with the following keys.
-    reliability_dict_bottom['mean_forecast_prob_by_bin']: length-B numpy array
-        of mean forecast probabilities for bottom of envelope (confidence
-        interval).
-    reliability_dict_bottom['mean_observed_label_by_bin']: Same but for observed
-        labels (conditional event frequencies).
-    reliability_dict_bottom['brier_skill_score']: Brier skill score.
-    reliability_dict_bottom['brier_score']: Brier score.
-    reliability_dict_bottom['reliability']: Reliability.
-    reliability_dict_bottom['resolution']: Resolution.
-
-    :return: reliability_dict_mean: Same as reliability_dict_bottom, but for
-        middle of envelope (confidence interval).
-    :return: reliability_dict_top: Same as reliability_dict_bottom, but for top
-        of envelope (confidence interval).
-    :return: num_examples_by_bin: length-B numpy array with number of examples
-        in each bin.
-    """
-
-    _check_forecast_probs_and_observed_labels(
-        forecast_probabilities, observed_labels)
-    bin_index_by_example = _split_forecast_probs_into_bins(
-        forecast_probabilities, num_forecast_bins)
-
-    num_examples_by_bin = numpy.full(num_forecast_bins, -1, dtype=int)
-    for i in range(num_forecast_bins):
-        num_examples_by_bin[i] = len(numpy.where(bin_index_by_example == i)[0])
-
-    mean_forecast_prob_matrix = numpy.full(
-        (num_forecast_bins, num_bootstrap_iters), numpy.nan)
-    mean_observed_label_matrix = numpy.full(
-        (num_forecast_bins, num_bootstrap_iters), numpy.nan)
-    brier_skill_scores = numpy.full(num_bootstrap_iters, numpy.nan)
-    brier_scores = numpy.full(num_bootstrap_iters, numpy.nan)
-    reliabilities = numpy.full(num_bootstrap_iters, numpy.nan)
-    resolutions = numpy.full(num_bootstrap_iters, numpy.nan)
-
-    for j in range(num_bootstrap_iters):
-        _, these_sample_indices = bootstrapping.draw_sample(
-            forecast_probabilities)
-        these_num_examples_by_bin = numpy.full(num_forecast_bins, -1, dtype=int)
-
-        for i in range(num_forecast_bins):
-            these_example_indices = numpy.where(
-                bin_index_by_example[these_sample_indices] == i)[0]
-            these_example_indices = these_sample_indices[these_example_indices]
-
-            mean_forecast_prob_matrix[i, j] = numpy.mean(
-                forecast_probabilities[these_example_indices])
-            mean_observed_label_matrix[i, j] = numpy.mean(
-                observed_labels[these_example_indices].astype(float))
-            these_num_examples_by_bin[i] = len(these_example_indices)
-
-        this_bss_dictionary = get_brier_skill_score(
-            mean_forecast_prob_by_bin=mean_forecast_prob_matrix[:, j],
-            mean_observed_label_by_bin=mean_observed_label_matrix[:, j],
-            num_examples_by_bin=these_num_examples_by_bin,
-            climatology=numpy.mean(
-                observed_labels[these_sample_indices].astype(float)))
-
-        brier_skill_scores[j] = this_bss_dictionary[BRIER_SKILL_SCORE_KEY]
-        brier_scores[j] = this_bss_dictionary[BRIER_SCORE_KEY]
-        reliabilities[j] = this_bss_dictionary[RELIABILITY_KEY]
-        resolutions[j] = this_bss_dictionary[RESOLUTION_KEY]
-
-    reliability_dict_bottom = {
-        MEAN_FORECAST_PROB_BY_BIN_KEY: numpy.full(num_forecast_bins, numpy.nan),
-        MEAN_OBSERVED_LABEL_BY_BIN_KEY: numpy.full(num_forecast_bins, numpy.nan)
-    }
-    reliability_dict_top = copy.deepcopy(reliability_dict_bottom)
-    reliability_dict_mean = copy.deepcopy(reliability_dict_bottom)
-
-    for i in range(num_forecast_bins):
-        (reliability_dict_top[MEAN_FORECAST_PROB_BY_BIN_KEY][i],
-         reliability_dict_bottom[MEAN_FORECAST_PROB_BY_BIN_KEY][i]) = (
-             bootstrapping.get_confidence_interval(
-                 mean_forecast_prob_matrix[i, :], confidence_level))
-
-        (reliability_dict_bottom[MEAN_OBSERVED_LABEL_BY_BIN_KEY][i],
-         reliability_dict_top[MEAN_OBSERVED_LABEL_BY_BIN_KEY][i]) = (
-             bootstrapping.get_confidence_interval(
-                 mean_observed_label_matrix[i, :], confidence_level))
-
-    reliability_dict_mean[MEAN_FORECAST_PROB_BY_BIN_KEY] = numpy.nanmean(
-        mean_forecast_prob_matrix, axis=1)
-    reliability_dict_mean[MEAN_OBSERVED_LABEL_BY_BIN_KEY] = numpy.nanmean(
-        mean_observed_label_matrix, axis=1)
-
-    (reliability_dict_bottom[BRIER_SKILL_SCORE_KEY],
-     reliability_dict_top[BRIER_SKILL_SCORE_KEY]) = (
-         bootstrapping.get_confidence_interval(
-             brier_skill_scores, confidence_level))
-    (reliability_dict_bottom[BRIER_SCORE_KEY],
-     reliability_dict_top[BRIER_SCORE_KEY]) = (
-         bootstrapping.get_confidence_interval(brier_scores, confidence_level))
-    (reliability_dict_bottom[RELIABILITY_KEY],
-     reliability_dict_top[RELIABILITY_KEY]) = (
-         bootstrapping.get_confidence_interval(reliabilities, confidence_level))
-    (reliability_dict_bottom[RESOLUTION_KEY],
-     reliability_dict_top[RESOLUTION_KEY]) = (
-         bootstrapping.get_confidence_interval(resolutions, confidence_level))
-
-    reliability_dict_mean[BRIER_SKILL_SCORE_KEY] = numpy.nanmean(
-        brier_skill_scores)
-    reliability_dict_mean[BRIER_SCORE_KEY] = numpy.nanmean(brier_scores)
-    reliability_dict_mean[RELIABILITY_KEY] = numpy.nanmean(reliabilities)
-    reliability_dict_mean[RESOLUTION_KEY] = numpy.nanmean(resolutions)
-
-    return (reliability_dict_bottom,
-            reliability_dict_mean,
-            reliability_dict_top,
             num_examples_by_bin)
 
 
@@ -1346,7 +1009,7 @@ def get_brier_skill_score(
     except ZeroDivisionError:
         brier_skill_score = numpy.nan
 
-    return {BRIER_SKILL_SCORE_KEY: brier_skill_score,
+    return {BSS_KEY: brier_skill_score,
             BRIER_SCORE_KEY: brier_score,
             RELIABILITY_KEY: reliability, RESOLUTION_KEY: resolution,
             UNCERTAINTY_KEY: uncertainty}
@@ -1444,88 +1107,232 @@ def get_no_resolution_line_for_reliability_curve(mean_observed_label):
     return numpy.array([0., 1.]), numpy.full(2, mean_observed_label)
 
 
-def write_results(
-        forecast_probabilities, observed_labels, binarization_threshold, pod,
-        pofd, success_ratio, focn, accuracy, csi, frequency_bias, peirce_score,
-        heidke_score, auc, scikit_learn_auc, aupd, bss_dict, pickle_file_name):
-    """Writes results to Pickle file.
+def eval_binary_classifn(
+        forecast_probabilities, observed_labels, best_prob_threshold,
+        all_prob_thresholds, climatology):
+    """Evaluates binary classification.
 
-    :param forecast_probabilities: See documentation for
-        `_check_forecast_probs_and_observed_labels`.
-    :param observed_labels: See doc for
-        `_check_forecast_probs_and_observed_labels`.
-    :param binarization_threshold: See doc for `binarize_forecast_probs`.
-    :param pod: Probability of detection.
-    :param pofd: Probability of false detection.
-    :param success_ratio: Success ratio.
-    :param focn: Frequency of correct nulls.
-    :param accuracy: Accuracy.
-    :param csi: Critical success index.
-    :param frequency_bias: Frequency bias.
-    :param peirce_score: Peirce score.
-    :param heidke_score: Heidke score.
-    :param auc: Area under ROC curve (computed by GewitterGefahr).
-    :param scikit_learn_auc: AUC computed by scikit-learn.
-    :param aupd: Area under performance diagram.
-    :param bss_dict: Dictionary created by `get_brier_skill_score`.
-    :param pickle_file_name: Path to output file.
+    The input args `forecast_probabilities` and `observed_labels` may contain
+    all data or just one bootstrap replicate.
+
+    E = number of examples
+    T = number of probability thresholds
+    B = number of bins for reliability curve
+
+    :param forecast_probabilities: length-E numpy array of forecast probs.
+    :param observed_labels: length-E numpy array of observed labels (all 0 or
+        1).
+    :param best_prob_threshold: Best probability threshold (will be used to
+        binarize forecasts).
+    :param all_prob_thresholds: length-T numpy array of probability thresholds
+        to use for ROC curve and performance diagram.
+    :param climatology: Climatology (frequency of positive class in the entire
+        dataset).
+    :return: evaluation_table: pandas DataFrame with one row and the following
+        columns.  All values are scalar unless noted otherwise.
+    evaluation_table['num_true_positives']
+    evaluation_table['num_false_positives']
+    evaluation_table['num_false_negatives']
+    evaluation_table['num_true_negatives']
+    evaluation_table['probability_of_detection']
+    evaluation_table['probability_of_false_detection']
+    evaluation_table['success_ratio']
+    evaluation_table['frequency_of_correct_nulls']
+    evaluation_table['accuracy']
+    evaluation_table['critical_success_index']
+    evaluation_table['frequency_bias']
+    evaluation_table['peirce_score']
+    evaluation_table['heidke_score']
+    evaluation_table['pod_by_threshold']: length-T numpy array of POD values
+        (probability of detection).
+    evaluation_table['pofd_by_threshold']: length-T numpy array of POFD values
+        (probability of false detection).
+    evaluation_table['area_under_roc_curve']
+    evaluation_table['success_ratio_by_threshold']: length-T numpy array of
+        success ratios.
+    evaluation_table['area_under_perf_diagram']
+    evaluation_table['mean_forecast_by_bin']: length-B numpy array of mean
+        forecast probabilities.
+    evaluation_table['event_frequency_by_bin']: length-B numpy array of event
+        frequencies.
+    evaluation_table['reliability']
+    evaluation_table['resolution']
+    evaluation_table['brier_skill_score']
     """
+
+    forecast_labels = binarize_forecast_probs(
+        forecast_probabilities=forecast_probabilities,
+        binarization_threshold=best_prob_threshold)
+
+    contingency_table_as_dict = get_contingency_table(
+        forecast_labels=forecast_labels, observed_labels=observed_labels)
+
+    evaluation_dict = copy.deepcopy(contingency_table_as_dict)
+
+    for this_key in evaluation_dict:
+        evaluation_dict[this_key] = numpy.array(
+            [evaluation_dict[this_key]], dtype=int
+        )
+
+    evaluation_dict.update({
+        POD_KEY: get_pod(contingency_table_as_dict),
+        POFD_KEY: get_pofd(contingency_table_as_dict),
+        SUCCESS_RATIO_KEY: get_success_ratio(contingency_table_as_dict),
+        FOCN_KEY: get_focn(contingency_table_as_dict),
+        ACCURACY_KEY: get_accuracy(contingency_table_as_dict),
+        CSI_KEY: get_csi(contingency_table_as_dict),
+        FREQUENCY_BIAS_KEY: get_frequency_bias(contingency_table_as_dict),
+        PEIRCE_SCORE_KEY: get_peirce_score(contingency_table_as_dict),
+        HEIDKE_SCORE_KEY: get_heidke_score(contingency_table_as_dict)
+    })
+
+    print('\n{0:s}\n'.format(str(evaluation_dict)))
+
+    for this_key in evaluation_dict:
+        if isinstance(evaluation_dict[this_key], numpy.ndarray):
+            continue
+
+        evaluation_dict[this_key] = numpy.array(
+            [evaluation_dict[this_key]], dtype=float
+        )
+
+    evaluation_table = pandas.DataFrame.from_dict(evaluation_dict)
+    nested_array = evaluation_table[[CSI_KEY, CSI_KEY]].values.tolist()
+
+    evaluation_table = evaluation_table.assign(**{
+        POD_BY_THRESHOLD_KEY: nested_array,
+        POFD_BY_THRESHOLD_KEY: nested_array,
+        SR_BY_THRESHOLD_KEY: nested_array,
+        MEAN_FORECAST_BY_BIN_KEY: nested_array,
+        EVENT_FREQ_BY_BIN_KEY: nested_array
+    })
+
+    pofd_by_threshold, pod_by_threshold = get_points_in_roc_curve(
+        forecast_probabilities=forecast_probabilities,
+        observed_labels=observed_labels,
+        threshold_arg=all_prob_thresholds)
+
+    evaluation_table[POFD_BY_THRESHOLD_KEY].values[0] = pofd_by_threshold
+    evaluation_table[POD_BY_THRESHOLD_KEY].values[0] = pod_by_threshold
+
+    auc = get_area_under_roc_curve(
+        pofd_by_threshold=pofd_by_threshold, pod_by_threshold=pod_by_threshold)
+
+    success_ratio_by_threshold = get_points_in_performance_diagram(
+        forecast_probabilities=forecast_probabilities,
+        observed_labels=observed_labels,
+        threshold_arg=all_prob_thresholds
+    )[0]
+
+    evaluation_table[SR_BY_THRESHOLD_KEY].values[0] = success_ratio_by_threshold
+
+    aupd = get_area_under_perf_diagram(
+        success_ratio_by_threshold=success_ratio_by_threshold,
+        pod_by_threshold=pod_by_threshold)
+
+    mean_forecast_by_bin, event_frequency_by_bin, num_examples_by_bin = (
+        get_points_in_reliability_curve(
+            forecast_probabilities=forecast_probabilities,
+            observed_labels=observed_labels,
+            num_forecast_bins=DEFAULT_NUM_RELIABILITY_BINS)
+    )
+
+    evaluation_table[MEAN_FORECAST_BY_BIN_KEY].values[0] = mean_forecast_by_bin
+    evaluation_table[EVENT_FREQ_BY_BIN_KEY].values[0] = event_frequency_by_bin
+
+    bss_dictionary = get_brier_skill_score(
+        mean_forecast_prob_by_bin=mean_forecast_by_bin,
+        mean_observed_label_by_bin=event_frequency_by_bin,
+        num_examples_by_bin=num_examples_by_bin, climatology=climatology)
+
+    return evaluation_table.assign(**{
+        AUC_KEY: auc,
+        AUPD_KEY: aupd,
+        RELIABILITY_KEY: bss_dictionary[RELIABILITY_KEY],
+        RESOLUTION_KEY: bss_dictionary[RESOLUTION_KEY],
+        BSS_KEY: bss_dictionary[BSS_KEY]
+    })
+
+
+def write_binary_classifn_results(
+        pickle_file_name, forecast_probabilities, observed_labels,
+        best_prob_threshold, all_prob_thresholds, evaluation_table):
+    """Writes results for binary classification to Pickle file.
+
+    E = number of examples
+
+    :param pickle_file_name: Path to output file.
+    :param forecast_probabilities: See doc for `eval_binary_classifn`.
+    :param observed_labels: Same.
+    :param best_prob_threshold: Same.
+    :param all_prob_thresholds: Same.
+    :param evaluation_table: See doc for
+        `model_evaluation.eval_binary_classifn`.  The only difference is that
+        this table may have multiple rows (one per bootstrap replicate).
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    _check_forecast_probs_and_observed_labels(
+        forecast_probabilities=forecast_probabilities,
+        observed_labels=observed_labels)
+
+    get_binarization_thresholds(threshold_arg=all_prob_thresholds)
+
+    error_checking.assert_is_geq(
+        best_prob_threshold, MIN_BINARIZATION_THRESHOLD)
+    error_checking.assert_is_leq(
+        best_prob_threshold, MAX_BINARIZATION_THRESHOLD)
+
+    error_checking.assert_columns_in_dataframe(
+        evaluation_table, EVALUATION_TABLE_COLUMNS)
 
     evaluation_dict = {
         FORECAST_PROBABILITIES_KEY: forecast_probabilities,
         OBSERVED_LABELS_KEY: observed_labels,
-        BINARIZATION_THRESHOLD_KEY: binarization_threshold,
-        POD_KEY: pod,
-        POFD_KEY: pofd,
-        SUCCESS_RATIO_KEY: success_ratio,
-        FOCN_KEY: focn,
-        ACCURACY_KEY: accuracy,
-        CSI_KEY: csi,
-        FREQUENCY_BIAS_KEY: frequency_bias,
-        PEIRCE_SCORE_KEY: peirce_score,
-        HEIDKE_SCORE_KEY: heidke_score,
-        AUC_KEY: auc,
-        SCIKIT_LEARN_AUC_KEY: scikit_learn_auc,
-        AUPD_KEY: aupd,
-        BSS_DICTIONARY_KEY: bss_dict
+        BEST_THRESHOLD_KEY: best_prob_threshold,
+        ALL_THRESHOLDS_KEY: all_prob_thresholds,
+        EVALUATION_TABLE_KEY: evaluation_table
     }
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(evaluation_dict, pickle_file_handle)
     pickle_file_handle.close()
 
 
-def read_results(pickle_file_name):
-    """Reads results from Pickle file.
+def read_binary_classifn_results(pickle_file_name):
+    """Reads results for binary classification from Pickle file.
+
+    E = number of examples
 
     :param pickle_file_name: Path to input file.
-    :return: evaluation_dict: Dictionary with all keys in the list
-        `EVALUATION_DICT_KEYS`.
-    :raises: ValueError: if dictionary does not contain all keys in the list
-        `EVALUATION_DICT_KEYS`.
+    :return: evaluation_dict: Dictionary with the following keys.
+    evaluation_dict['forecast_probabilities']: See doc for
+        `read_binary_classifn_results`.
+    evaluation_dict['observed_labels']: Same.
+    evaluation_dict['best_prob_threshold']: Same.
+    evaluation_dict['all_prob_thresholds']: Same.
+    evaluation_dict['evaluation_table']: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     evaluation_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    if AUPD_KEY not in list(evaluation_dict.keys()):
-        evaluation_dict.update({AUPD_KEY: numpy.nan})
+    missing_keys = list(
+        set(EVALUATION_DICT_KEYS) - set(evaluation_dict.keys())
+    )
 
-    expected_keys_as_set = set(EVALUATION_DICT_KEYS)
-    actual_keys_as_set = set(evaluation_dict.keys())
-
-    if not set(expected_keys_as_set).issubset(actual_keys_as_set):
+    if len(missing_keys) > 0:
         error_string = (
-            '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
-            '("{1:s}") are listed below.  Some expected keys were not found.'
-            '\n{2:s}\n'
-        ).format(
-            str(EVALUATION_DICT_KEYS), pickle_file_name,
-            str(list(evaluation_dict.keys()))
-        )
+            '\n{0:s}\nKeys listed above were expected, but not found, in file '
+            '"{1:s}".'
+        ).format(str(missing_keys), pickle_file_name)
 
         raise ValueError(error_string)
+
+    error_checking.assert_columns_in_dataframe(
+        evaluation_dict[EVALUATION_TABLE_KEY], EVALUATION_TABLE_COLUMNS
+    )
 
     return evaluation_dict

@@ -28,6 +28,8 @@ EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
+NUM_BOOTSTRAP_ARG_NAME = 'num_bootstrap_reps'
+CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 CLASS_FRACTION_KEYS_ARG_NAME = 'class_fraction_keys'
 CLASS_FRACTION_VALUES_ARG_NAME = 'class_fraction_values'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -46,6 +48,15 @@ SPC_DATE_HELP_STRING = (
 ).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
 
 NUM_EXAMPLES_HELP_STRING = 'Number of examples to use.'
+
+NUM_BOOTSTRAP_HELP_STRING = (
+    'Number of bootstrap replicates.  If you do not want bootstrapping, leave '
+    'this alone.')
+
+CONFIDENCE_LEVEL_HELP_STRING = (
+    '[used only if `{0:s}` > 1] Confidence level for bootstrapping, in range '
+    '0...1.'
+).format(NUM_BOOTSTRAP_ARG_NAME)
 
 CLASS_FRACTION_KEYS_HELP_STRING = (
     'List of keys used to create input `class_to_sampling_fraction_dict` for '
@@ -84,6 +95,14 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_BOOTSTRAP_ARG_NAME, type=int, required=False, default=1,
+    help=NUM_BOOTSTRAP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
+    help=CONFIDENCE_LEVEL_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + CLASS_FRACTION_KEYS_ARG_NAME, type=int, nargs='+',
     required=False, default=[0], help=CLASS_FRACTION_KEYS_HELP_STRING)
 
@@ -97,8 +116,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(model_file_name, top_example_dir_name, first_spc_date_string,
-         last_spc_date_string, num_examples, class_fraction_keys,
-         class_fraction_values, output_dir_name):
+         last_spc_date_string, num_examples, num_bootstrap_reps,
+         confidence_level, class_fraction_keys, class_fraction_values,
+         output_dir_name):
     """Evaluates CNN (convolutional neural net) predictions.
 
     This is effectively the main method.
@@ -108,6 +128,8 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
     :param num_examples: Same.
+    :param num_bootstrap_reps: Same.
+    :param confidence_level: Same.
     :param class_fraction_keys: Same.
     :param class_fraction_values: Same.
     :param output_dir_name: Same.
@@ -218,11 +240,13 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
         print(SEPARATOR_STRING)
 
         forecast_probabilities = numpy.concatenate((
-            forecast_probabilities, this_probability_matrix[:, -1]))
+            forecast_probabilities, this_probability_matrix[:, -1]
+        ))
 
     model_eval_helper.run_evaluation(
         forecast_probabilities=forecast_probabilities,
-        observed_labels=observed_labels, output_dir_name=output_dir_name)
+        observed_labels=observed_labels, num_bootstrap_reps=num_bootstrap_reps,
+        confidence_level=confidence_level, output_dir_name=output_dir_name)
 
 
 if __name__ == '__main__':
@@ -235,6 +259,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, FIRST_SPC_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME),
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
+        num_bootstrap_reps=getattr(INPUT_ARG_OBJECT, NUM_BOOTSTRAP_ARG_NAME),
+        confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         class_fraction_keys=numpy.array(
             getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_KEYS_ARG_NAME), dtype=int),
         class_fraction_values=numpy.array(
