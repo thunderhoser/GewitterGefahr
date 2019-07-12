@@ -124,16 +124,34 @@ SUCCESS_RATIO_BY_THRESHOLD = numpy.array(
     [0.5, 0.5, 5. / 9, 0.625, 5. / 7, 0.833333, 1., 1., 1., 1., numpy.nan]
 )
 
-# The following constants are used to test get_sr_pod_grid.
-SUCCESS_RATIO_SPACING_FOR_GRID = 0.5
-POD_SPACING_FOR_GRID = 0.5
-SUCCESS_RATIO_MATRIX = numpy.array([[0.25, 0.75], [0.25, 0.75]])
-POD_MATRIX = numpy.array([[0.75, 0.75], [0.25, 0.25]])
+# The following constants are used to test get_sr_pod_grid and
+# get_pofd_pod_grid.
+POD_GRID_SPACING = 0.5
+NON_POD_GRID_SPACING = 0.25
+
+SUCCESS_RATIO_MATRIX = numpy.array([
+    [0.125, 0.375, 0.625, 0.875],
+    [0.125, 0.375, 0.625, 0.875]
+])
+
+POD_MATRIX = numpy.array([
+    [0.75, 0.75, 0.75, 0.75],
+    [0.25, 0.25, 0.25, 0.25]
+])
+
+POFD_MATRIX = SUCCESS_RATIO_MATRIX + 0.
 
 # The following constants are used to test frequency_bias_from_sr_and_pod and
 # csi_from_sr_and_pod.
-FREQUENCY_BIAS_MATRIX = numpy.array([[3., 1.], [1., 0.333333]])
-CSI_MATRIX = 3. / numpy.array([[13., 5.], [21., 13.]])
+FREQUENCY_BIAS_MATRIX = numpy.array([
+    [6, 2, 1.2, 6. / 7],
+    [2, 2. / 3, 0.4, 2. / 7]
+])
+
+CSI_MATRIX = numpy.array([
+    [25. / 3, 3, 0.6 + 4. / 3, 1. / 7 + 4. / 3],
+    [11, 17. / 3, 4.6, 29. / 7]
+]) ** -1
 
 # The following constants are used to test _split_forecasts_into_bins and
 # get_points_in_reliability_curve.
@@ -614,14 +632,29 @@ class ModelEvaluationTests(unittest.TestCase):
     def test_get_sr_pod_grid(self):
         """Ensures correct output from get_sr_pod_grid."""
 
-        this_success_ratio_matrix, this_pod_matrix = (
-            model_eval.get_sr_pod_grid(
-                SUCCESS_RATIO_SPACING_FOR_GRID, POD_SPACING_FOR_GRID))
+        this_success_ratio_matrix, this_pod_matrix = model_eval.get_sr_pod_grid(
+            success_ratio_spacing=NON_POD_GRID_SPACING,
+            pod_spacing=POD_GRID_SPACING)
 
         self.assertTrue(numpy.allclose(
-            this_success_ratio_matrix, SUCCESS_RATIO_MATRIX, atol=TOLERANCE))
+            this_success_ratio_matrix, SUCCESS_RATIO_MATRIX, atol=TOLERANCE
+        ))
         self.assertTrue(numpy.allclose(
-            this_pod_matrix, POD_MATRIX, atol=TOLERANCE))
+            this_pod_matrix, POD_MATRIX, atol=TOLERANCE
+        ))
+
+    def test_get_pofd_pod_grid(self):
+        """Ensures correct output from get_pofd_pod_grid."""
+
+        this_pofd_matrix, this_pod_matrix = model_eval.get_pofd_pod_grid(
+            pofd_spacing=NON_POD_GRID_SPACING, pod_spacing=POD_GRID_SPACING)
+
+        self.assertTrue(numpy.allclose(
+            this_pofd_matrix, POFD_MATRIX, atol=TOLERANCE
+        ))
+        self.assertTrue(numpy.allclose(
+            this_pod_matrix, POD_MATRIX, atol=TOLERANCE
+        ))
 
     def test_frequency_bias_from_sr_and_pod(self):
         """Ensures correct output from frequency_bias_from_sr_and_pod."""

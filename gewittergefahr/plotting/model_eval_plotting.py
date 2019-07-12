@@ -42,6 +42,7 @@ LEVELS_FOR_FREQ_BIAS_CONTOURS = numpy.array([
 ])
 
 LEVELS_FOR_CSI_CONTOURS = numpy.linspace(0, 1, num=11, dtype=float)
+LEVELS_FOR_PEIRCE_CONTOURS = numpy.linspace(0, 1, num=11, dtype=float)
 
 DEFAULT_RELIABILITY_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 DEFAULT_RELIABILITY_WIDTH = 3.
@@ -79,8 +80,10 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 def _get_csi_colour_scheme():
     """Returns colour scheme for CSI (critical success index).
 
-    :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
-    :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
+    :return: colour_map_object: Colour scheme (instance of
+        `matplotlib.colors.ListedColormap`).
+    :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`,
+        defining the scale of the colour map.
     """
 
     this_colour_map_object = pyplot.cm.Blues
@@ -90,14 +93,44 @@ def _get_csi_colour_scheme():
     rgba_matrix = this_colour_map_object(this_colour_norm_object(
         LEVELS_FOR_CSI_CONTOURS
     ))
+
     colour_list = [
         rgba_matrix[i, ..., :-1] for i in range(rgba_matrix.shape[0])
     ]
 
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
-    colour_map_object.set_under(numpy.array([1, 1, 1]))
+    colour_map_object.set_under(numpy.full(3, 1.))
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         LEVELS_FOR_CSI_CONTOURS, colour_map_object.N)
+
+    return colour_map_object, colour_norm_object
+
+
+def _get_peirce_colour_scheme():
+    """Returns colour scheme for Peirce score.
+
+    :return: colour_map_object: Colour scheme (instance of
+        `matplotlib.colors.ListedColormap`).
+    :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`,
+        defining the scale of the colour map.
+    """
+
+    this_colour_map_object = pyplot.cm.Blues
+    this_colour_norm_object = matplotlib.colors.BoundaryNorm(
+        LEVELS_FOR_PEIRCE_CONTOURS, this_colour_map_object.N)
+
+    rgba_matrix = this_colour_map_object(this_colour_norm_object(
+        LEVELS_FOR_PEIRCE_CONTOURS
+    ))
+
+    colour_list = [
+        rgba_matrix[i, ..., :-1] for i in range(rgba_matrix.shape[0])
+    ]
+
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_map_object.set_under(numpy.full(3, 1.))
+    colour_norm_object = matplotlib.colors.BoundaryNorm(
+        LEVELS_FOR_PEIRCE_CONTOURS, colour_map_object.N)
 
     return colour_map_object, colour_norm_object
 
@@ -346,6 +379,24 @@ def plot_roc_curve(
         pofd_by_threshold, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
         pofd_by_threshold, 1., allow_nan=True)
+
+    pofd_matrix, pod_matrix = model_eval.get_pofd_pod_grid()
+    peirce_score_matrix = pod_matrix - pofd_matrix
+
+    this_colour_map_object, this_colour_norm_object = _get_peirce_colour_scheme()
+
+    pyplot.contourf(
+        pofd_matrix, pod_matrix, peirce_score_matrix, LEVELS_FOR_CSI_CONTOURS,
+        cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
+        vmax=1., axes=axes_object)
+
+    colour_bar_object = plotting_utils.plot_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=peirce_score_matrix,
+        colour_map_object=this_colour_map_object,
+        colour_norm_object=this_colour_norm_object,
+        orientation_string='vertical', extend_min=False, extend_max=False)
+
+    colour_bar_object.set_label('Peirce score (POD minus POFD)')
 
     random_x_coords, random_y_coords = model_eval.get_random_roc_curve()
     axes_object.plot(

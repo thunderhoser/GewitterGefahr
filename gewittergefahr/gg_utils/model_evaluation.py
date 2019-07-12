@@ -19,7 +19,6 @@ import pickle
 import numpy
 import pandas
 import sklearn.metrics
-from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import file_system_utils
@@ -97,8 +96,7 @@ DEFAULT_NUM_RELIABILITY_BINS = 20
 DEFAULT_PRECISION_FOR_THRESHOLDS = 1e-4
 THRESHOLD_ARG_FOR_UNIQUE_FORECASTS = 'unique_forecasts'
 
-DEFAULT_SUCCESS_RATIO_SPACING = 0.01
-DEFAULT_POD_SPACING = 0.01
+DEFAULT_GRID_SPACING = 0.01
 
 
 def _check_forecast_probs_and_observed_labels(
@@ -817,8 +815,8 @@ def get_area_under_perf_diagram(success_ratio_by_threshold, pod_by_threshold):
         pod_by_threshold[real_indices])
 
 
-def get_sr_pod_grid(success_ratio_spacing=DEFAULT_SUCCESS_RATIO_SPACING,
-                    pod_spacing=DEFAULT_POD_SPACING):
+def get_sr_pod_grid(success_ratio_spacing=DEFAULT_GRID_SPACING,
+                    pod_spacing=DEFAULT_GRID_SPACING):
     """Creates grid in SR-POD space
 
     SR = success ratio
@@ -844,15 +842,51 @@ def get_sr_pod_grid(success_ratio_spacing=DEFAULT_SUCCESS_RATIO_SPACING,
 
     num_success_ratios = int(numpy.ceil(1. / success_ratio_spacing))
     num_pod_values = int(numpy.ceil(1. / pod_spacing))
-    success_ratio_spacing = 1. / num_success_ratios
-    pod_spacing = 1. / num_pod_values
 
-    unique_success_ratios, unique_pod_values = grids.get_xy_grid_points(
-        x_min_metres=success_ratio_spacing / 2, y_min_metres=pod_spacing / 2,
-        x_spacing_metres=success_ratio_spacing, y_spacing_metres=pod_spacing,
-        num_rows=num_pod_values, num_columns=num_success_ratios)
-    return grids.xy_vectors_to_matrices(
-        unique_success_ratios, unique_pod_values[::-1])
+    unique_success_ratios = success_ratio_spacing / 2 + numpy.linspace(
+        0., 1., num=num_success_ratios + 1
+    )[:-1]
+
+    unique_pod_values = pod_spacing / 2 + numpy.linspace(
+        0., 1., num=num_pod_values + 1
+    )[:-1]
+
+    return numpy.meshgrid(unique_success_ratios, unique_pod_values[::-1])
+
+
+def get_pofd_pod_grid(pofd_spacing=DEFAULT_GRID_SPACING,
+                      pod_spacing=DEFAULT_GRID_SPACING):
+    """Creates grid in POFD-POD space.
+
+    POFD = probability of false detection
+    POD = probability of detection
+
+    M = number of rows (unique POD values) in grid
+    N = number of columns (unique POFD values) in grid
+
+    :param pofd_spacing: Spacing between grid cells in adjacent columns.
+    :param pod_spacing: Spacing between grid cells in adjacent rows.
+    :return: pofd_matrix: M-by-N numpy array of POFD values.
+    :return: pod_matrix: M-by-N numpy array of POD values.
+    """
+
+    error_checking.assert_is_greater(pofd_spacing, 0.)
+    error_checking.assert_is_less_than(pofd_spacing, 1.)
+    error_checking.assert_is_greater(pod_spacing, 0.)
+    error_checking.assert_is_less_than(pod_spacing, 1.)
+
+    num_pofd_values = int(numpy.ceil(1. / pofd_spacing))
+    num_pod_values = int(numpy.ceil(1. / pod_spacing))
+
+    unique_pofd_values = pofd_spacing / 2 + numpy.linspace(
+        0., 1., num=num_pofd_values + 1
+    )[:-1]
+
+    unique_pod_values = pod_spacing / 2 + numpy.linspace(
+        0., 1., num=num_pod_values + 1
+    )[:-1]
+
+    return numpy.meshgrid(unique_pofd_values, unique_pod_values[::-1])
 
 
 def frequency_bias_from_sr_and_pod(success_ratio_array, pod_array):
