@@ -7,7 +7,6 @@ from skimage.measure import label as label_image
 from shapely.ops import cascaded_union
 from gewittergefahr.deep_learning import gradcam
 from gewittergefahr.gg_utils import polygons
-from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 INPUT_FILE_ARG_NAME = 'input_gradcam_file_name'
@@ -32,7 +31,8 @@ MIN_ACTIVATION_HELP_STRING = 'See documentation for `{0:s}`.'.format(
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file.  Regions of interest (polygons) will be written here '
-    'by `gradcam.read_standard_file` or `gradcam.read_pmm_file`.')
+    'by `gradcam.read_standard_file` or `gradcam.read_pmm_file`.  To make '
+    'output file = input file, leave this empty.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -48,7 +48,7 @@ INPUT_ARG_PARSER.add_argument(
     help=MIN_ACTIVATION_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
+    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=False, default='',
     help=OUTPUT_FILE_HELP_STRING)
 
 
@@ -138,7 +138,6 @@ def _run(input_gradcam_file_name, percentile_threshold, min_class_activation,
     error_checking.assert_is_geq(percentile_threshold, 50.)
     error_checking.assert_is_less_than(percentile_threshold, 100.)
     error_checking.assert_is_greater(min_class_activation, 0.)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     print('Reading data from: "{0:s}"...\n'.format(input_gradcam_file_name))
     pmm_flag = False
@@ -232,6 +231,9 @@ def _run(input_gradcam_file_name, percentile_threshold, min_class_activation,
         gradcam.PERCENTILE_THRESHOLD_KEY: percentile_threshold,
         gradcam.MIN_CLASS_ACTIVATION_KEY: min_class_activation
     }
+
+    if output_file_name in ['', 'None']:
+        output_file_name = input_gradcam_file_name
 
     print('Writing regions of interest to: "{0:s}"...'.format(output_file_name))
     gradcam.add_regions_to_file(
