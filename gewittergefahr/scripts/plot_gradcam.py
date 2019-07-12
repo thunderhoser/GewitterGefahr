@@ -23,6 +23,9 @@ from gewittergefahr.plotting import significance_plotting
 # TODO(thunderhoser): Use threshold counts at some point.
 # TODO(thunderhoser): Make this script deal with soundings.
 
+# TODO(thunderhoser): Modularize code that deals with Monte Carlo and regions of
+# interest.
+
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -36,6 +39,7 @@ FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
+PLOT_REGIONS_ARG_NAME = 'plot_regions_of_interest'
 COLOUR_MAP_ARG_NAME = 'cam_colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_prctile_for_cam'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -48,6 +52,10 @@ PLOT_SIGNIFICANCE_HELP_STRING = (
     'Boolean flag.  If 1, will plot stippling for significance.  This applies '
     'only if the saliency map contains PMM (proability-matched means) and '
     'results of a Monte Carlo comparison.')
+
+PLOT_REGIONS_HELP_STRING = (
+    'Boolean flag.  If 1, will plot regions of interest (as polygons on top of '
+    'class-activation maps).')
 
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map for class activations.  The same colour map will be '
@@ -73,6 +81,10 @@ INPUT_ARG_PARSER.add_argument(
     help=PLOT_SIGNIFICANCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_REGIONS_ARG_NAME, type=int, required=False, default=0,
+    help=PLOT_REGIONS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='gist_yarg',
     help=COLOUR_MAP_HELP_STRING)
 
@@ -90,7 +102,7 @@ def _plot_3d_radar_cams(
         max_colour_prctile_for_cam, output_dir_name,
         class_activation_matrix=None, guided_class_activation_matrix=None,
         full_id_strings=None, storm_times_unix_sec=None, monte_carlo_dict=None,
-        monte_carlo_index=None):
+        input_matrix_index=None):
     """Plots class-activation maps for 3-D radar data.
 
     E = number of examples
@@ -118,22 +130,22 @@ def _plot_3d_radar_cams(
     :param full_id_strings: length-E list of full storm IDs.
     :param storm_times_unix_sec: length-E numpy array of storm times.
     :param monte_carlo_dict: See doc for `monte_carlo.check_output`.  If this is
-        None, will *not* plot stippling for significance.
-    :param monte_carlo_index: [used only if `monte_carlo_dict is not None`]
-        Index of input tensor being plotted.  If this is q, plotting the [q]th
-        input tensor to the model.
+        specified, will plot stippling for significance.
+    :param input_matrix_index:
+        [used only if `monte_carlo_dict` or `region_dict` is specified]
+        Index of input matrix being plotted.  If this is q, the [q]th matrix is
+        being plotted.
     """
 
+    q = input_matrix_index
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     if monte_carlo_dict is not None:
-        i = monte_carlo_index
-
         significance_matrix = numpy.logical_or(
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] <
-            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][i],
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] >
-            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][i]
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][q] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][q],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][q] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][q]
         )
 
     num_examples = radar_matrix.shape[0]
@@ -259,7 +271,7 @@ def _plot_2d_radar_cams(
         max_colour_prctile_for_cam, output_dir_name,
         class_activation_matrix=None, guided_class_activation_matrix=None,
         full_id_strings=None, storm_times_unix_sec=None, monte_carlo_dict=None,
-        monte_carlo_index=None):
+        region_dict=None, input_matrix_index=None):
     """Plots class-activation maps for 2-D radar data.
 
     E = number of examples
@@ -285,20 +297,26 @@ def _plot_2d_radar_cams(
     :param full_id_strings: See doc for `_plot_3d_radar_cams`.
     :param storm_times_unix_sec: Same.
     :param monte_carlo_dict: Same.
-    :param monte_carlo_index: Same.
+    :param region_dict: See doc for `gradcam._check_region_dict`.  If this is
+        specified, will plot regions of interest (polygons).
+    :param input_matrix_index: See doc for `_plot_3d_radar_cams`.
     """
 
+    q = input_matrix_index
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
     if monte_carlo_dict is not None:
-        i = monte_carlo_index
+        region_dict = None
 
         significance_matrix = numpy.logical_or(
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] <
-            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][i],
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] >
-            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][i]
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][q] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][q],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][q] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][q]
         )
+
+    if region_dict is not None:
+        region_polygon_objects = region_dict[gradcam.POLYGON_OBJECTS_KEY][q]
 
     conv_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
 
@@ -328,6 +346,7 @@ def _plot_2d_radar_cams(
         plot_cbar_by_panel[2::3] = True
 
     num_examples = radar_matrix.shape[0]
+    num_grid_rows = radar_matrix.shape[1]
     num_channels = radar_matrix.shape[-1]
     num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_channels)
@@ -371,6 +390,24 @@ def _plot_2d_radar_cams(
                     axes_object_matrix=this_axes_object_matrix, row_major=False
                 )
 
+            if region_dict is not None:
+                for this_polygon_object in region_polygon_objects[i]:
+                    for j in range(num_channels):
+                        r, c = numpy.unravel_index(
+                            j, this_axes_object_matrix.shape, order='F')
+                        this_axes_object = this_axes_object_matrix[r, c]
+
+                        these_columns = numpy.array(
+                            this_polygon_object.exterior.xy[0]
+                        )
+                        these_rows = num_grid_rows - numpy.array(
+                            this_polygon_object.exterior.xy[1]
+                        )
+
+                        this_axes_object.plot(
+                            these_columns, these_rows,
+                            color=POLYGON_COLOUR, linestyle='solid',
+                            linewidth=POLYGON_WIDTH)
         else:
             this_matrix = numpy.expand_dims(
                 class_activation_matrix[i, ...], axis=-1)
@@ -425,18 +462,22 @@ def _plot_2d_radar_cams(
         pyplot.close()
 
 
-def _run(input_file_name, plot_significance, cam_colour_map_name,
-         max_colour_prctile_for_cam, top_output_dir_name):
+def _run(input_file_name, plot_significance, plot_regions_of_interest,
+         cam_colour_map_name, max_colour_prctile_for_cam, top_output_dir_name):
     """Plots Grad-CAM output (class-activation maps).
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
     :param plot_significance: Same.
+    :param plot_regions_of_interest: Same.
     :param cam_colour_map_name: Same.
     :param max_colour_prctile_for_cam: Same.
     :param top_output_dir_name: Same.
     """
+
+    if plot_significance:
+        plot_regions_of_interest = False
 
     main_gradcam_dir_name = '{0:s}/main_gradcam'.format(top_output_dir_name)
     guided_gradcam_dir_name = '{0:s}/guided_gradcam'.format(top_output_dir_name)
@@ -502,16 +543,17 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
 
     cam_monte_carlo_dict = (
         gradcam_metadata_dict[gradcam.CAM_MONTE_CARLO_KEY]
-        if plot_significance and
-        gradcam.CAM_MONTE_CARLO_KEY in gradcam_metadata_dict
-        else None
+        if plot_significance else None
     )
 
     guided_cam_monte_carlo_dict = (
         gradcam_metadata_dict[gradcam.GUIDED_CAM_MONTE_CARLO_KEY]
-        if plot_significance and
-        gradcam.GUIDED_CAM_MONTE_CARLO_KEY in gradcam_metadata_dict
-        else None
+        if plot_significance else None
+    )
+
+    region_dict = (
+        gradcam_metadata_dict[gradcam.REGION_DICT_KEY]
+        if plot_regions_of_interest else None
     )
 
     # Do plotting.
@@ -531,7 +573,7 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
                 output_dir_name=main_gradcam_dir_name,
                 full_id_strings=full_id_strings,
                 storm_times_unix_sec=storm_times_unix_sec,
-                monte_carlo_dict=cam_monte_carlo_dict, monte_carlo_index=i)
+                monte_carlo_dict=cam_monte_carlo_dict, input_matrix_index=i)
 
             print(SEPARATOR_STRING)
 
@@ -545,7 +587,7 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
                 full_id_strings=full_id_strings,
                 storm_times_unix_sec=storm_times_unix_sec,
                 monte_carlo_dict=guided_cam_monte_carlo_dict,
-                monte_carlo_index=i)
+                input_matrix_index=i)
 
             print(SEPARATOR_STRING)
 
@@ -559,7 +601,8 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
                 output_dir_name=main_gradcam_dir_name,
                 full_id_strings=full_id_strings,
                 storm_times_unix_sec=storm_times_unix_sec,
-                monte_carlo_dict=cam_monte_carlo_dict, monte_carlo_index=i)
+                monte_carlo_dict=cam_monte_carlo_dict, region_dict=region_dict,
+                input_matrix_index=i)
 
             print(SEPARATOR_STRING)
 
@@ -573,7 +616,7 @@ def _run(input_file_name, plot_significance, cam_colour_map_name,
                 full_id_strings=full_id_strings,
                 storm_times_unix_sec=storm_times_unix_sec,
                 monte_carlo_dict=guided_cam_monte_carlo_dict,
-                monte_carlo_index=i)
+                region_dict=region_dict, input_matrix_index=i)
 
             print(SEPARATOR_STRING)
 
@@ -585,6 +628,8 @@ if __name__ == '__main__':
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
         plot_significance=bool(getattr(
             INPUT_ARG_OBJECT, PLOT_SIGNIFICANCE_ARG_NAME)),
+        plot_regions_of_interest=bool(getattr(
+            INPUT_ARG_OBJECT, PLOT_REGIONS_ARG_NAME)),
         cam_colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_prctile_for_cam=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
