@@ -167,7 +167,7 @@ def _run(input_gradcam_file_name, percentile_threshold, min_class_activation,
             continue
 
         num_examples = list_of_cam_matrices[j].shape[0]
-        this_num_spatial_dim = len(list_of_cam_matrices[j].shape - 1)
+        this_num_spatial_dim = len(list_of_cam_matrices[j].shape) - 1
         if this_num_spatial_dim == 2:
             continue
 
@@ -210,6 +210,7 @@ def _run(input_gradcam_file_name, percentile_threshold, min_class_activation,
             ))
 
             list_of_polygon_objects[j][i] = _mask_to_polygons(this_mask_matrix)
+            this_mask_matrix = numpy.expand_dims(this_mask_matrix, axis=0)
 
             if list_of_mask_matrices[j] is None:
                 list_of_mask_matrices[j] = copy.deepcopy(this_mask_matrix)
