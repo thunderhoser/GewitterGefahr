@@ -407,6 +407,8 @@ def _plot_2d_radar_cams(
                             this_polygon_object.exterior.xy[1]
                         )
 
+                        print('FOOOOOOOO')
+
                         this_axes_object.plot(
                             these_columns, these_rows,
                             color=plotting_utils.colour_from_numpy_to_tuple(
@@ -560,10 +562,6 @@ def _run(input_file_name, plot_significance, plot_regions_of_interest,
         gradcam_metadata_dict[gradcam.REGION_DICT_KEY]
         if plot_regions_of_interest else None
     )
-
-    print('\n\n******\n\n')
-    print(region_dict)
-    print('\n\n******\n\n')
 
     # Do plotting.
     for i in range(len(list_of_input_matrices)):
