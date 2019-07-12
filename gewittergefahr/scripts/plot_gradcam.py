@@ -398,29 +398,6 @@ def _plot_2d_radar_cams(
                         significance_matrix[i, ...], axis=0),
                     axes_object_matrix=this_axes_object_matrix, row_major=False
                 )
-
-            if region_dict is not None:
-                for this_polygon_object in region_polygon_objects[i]:
-                    for j in range(num_channels):
-                        r, c = numpy.unravel_index(
-                            j, this_axes_object_matrix.shape, order='F')
-                        this_axes_object = this_axes_object_matrix[r, c]
-
-                        these_columns = numpy.array(
-                            this_polygon_object.exterior.xy[0]
-                        )
-                        these_rows = num_grid_rows - numpy.array(
-                            this_polygon_object.exterior.xy[1]
-                        )
-
-                        print('FOOOOOOOO')
-
-                        this_axes_object.plot(
-                            these_columns, these_rows,
-                            color=plotting_utils.colour_from_numpy_to_tuple(
-                                REGION_COLOUR),
-                            linestyle='solid', linewidth=REGION_LINE_WIDTH
-                        )
         else:
             this_matrix = numpy.expand_dims(
                 class_activation_matrix[i, ...], axis=-1)
@@ -448,6 +425,29 @@ def _plot_2d_radar_cams(
                     significance_matrix=numpy.flip(this_matrix, axis=0),
                     axes_object_matrix=this_axes_object_matrix, row_major=False
                 )
+
+            if region_dict is not None:
+                for this_polygon_object in region_polygon_objects[i]:
+                    for j in range(num_channels):
+                        r, c = numpy.unravel_index(
+                            j, this_axes_object_matrix.shape, order='F')
+                        this_axes_object = this_axes_object_matrix[r, c]
+
+                        these_columns = numpy.array(
+                            this_polygon_object.exterior.xy[0]
+                        )
+                        these_rows = num_grid_rows - numpy.array(
+                            this_polygon_object.exterior.xy[1]
+                        )
+
+                        print('FOOOOOOOO')
+
+                        this_axes_object.plot(
+                            these_columns, these_rows,
+                            color=plotting_utils.colour_from_numpy_to_tuple(
+                                REGION_COLOUR),
+                            linestyle='solid', linewidth=REGION_LINE_WIDTH
+                        )
 
         if pmm_flag:
             this_title_string = 'Probability-matched mean'
