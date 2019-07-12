@@ -616,7 +616,7 @@ def _run(input_file_name, plot_significance, plot_regions_of_interest,
                 full_id_strings=full_id_strings,
                 storm_times_unix_sec=storm_times_unix_sec,
                 monte_carlo_dict=guided_cam_monte_carlo_dict,
-                region_dict=region_dict, input_matrix_index=i)
+                input_matrix_index=i)
 
             print(SEPARATOR_STRING)
 
