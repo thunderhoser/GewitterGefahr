@@ -29,6 +29,9 @@ from gewittergefahr.plotting import significance_plotting
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+REGION_COLOUR = numpy.full(3, 0.)
+REGION_LINE_WIDTH = 3
+
 NUM_CONTOURS = 12
 HALF_NUM_CONTOURS = 10
 
@@ -406,8 +409,10 @@ def _plot_2d_radar_cams(
 
                         this_axes_object.plot(
                             these_columns, these_rows,
-                            color=POLYGON_COLOUR, linestyle='solid',
-                            linewidth=POLYGON_WIDTH)
+                            color=plotting_utils.colour_from_numpy_to_tuple(
+                                REGION_COLOUR),
+                            linestyle='solid', linewidth=REGION_LINE_WIDTH
+                        )
         else:
             this_matrix = numpy.expand_dims(
                 class_activation_matrix[i, ...], axis=-1)
