@@ -308,6 +308,9 @@ def _plot_2d_radar_cams(
     q = input_matrix_index
     pmm_flag = full_id_strings is None and storm_times_unix_sec is None
 
+    print('\n\n******\n\n')
+    print(region_dict)
+
     if monte_carlo_dict is not None:
         region_dict = None
 
@@ -317,6 +320,9 @@ def _plot_2d_radar_cams(
             monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][q] >
             monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][q]
         )
+
+    print('\n\n******\n\n')
+    print(region_dict)
 
     if region_dict is not None:
         region_polygon_objects = region_dict[gradcam.POLYGON_OBJECTS_KEY][q]
