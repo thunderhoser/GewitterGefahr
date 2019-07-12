@@ -561,6 +561,10 @@ def _run(input_file_name, plot_significance, plot_regions_of_interest,
         if plot_regions_of_interest else None
     )
 
+    print('\n\n******\n\n')
+    print(region_dict)
+    print('\n\n******\n\n')
+
     # Do plotting.
     for i in range(len(list_of_input_matrices)):
         if list_of_cam_matrices[i] is None:
