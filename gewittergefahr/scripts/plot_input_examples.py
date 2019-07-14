@@ -218,17 +218,17 @@ def _plot_3d_example(
     num_radar_fields = len(radar_field_names)
     num_radar_heights = len(radar_heights_m_agl)
 
-    # num_panel_rows = int(numpy.floor(
-    #     numpy.sqrt(num_radar_heights)
-    # ))
-    # num_panel_columns = int(numpy.ceil(
-    #     float(num_radar_heights) / num_panel_rows
-    # ))
-
-    num_panel_rows = int(numpy.ceil(
+    num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_radar_heights)
     ))
-    num_panel_columns = num_panel_rows + 0
+    num_panel_columns = int(numpy.ceil(
+        float(num_radar_heights) / num_panel_rows
+    ))
+
+    # num_panel_rows = int(numpy.ceil(
+    #     numpy.sqrt(num_radar_heights)
+    # ))
+    # num_panel_columns = num_panel_rows + 0
 
     figure_objects = [None] * num_radar_fields
     axes_object_matrices = [None] * num_radar_fields
@@ -306,17 +306,17 @@ def _plot_2d3d_example(
     num_az_shear_fields = len(az_shear_field_names)
     num_refl_heights = len(refl_heights_m_agl)
 
-    # this_num_panel_rows = int(numpy.floor(
-    #     numpy.sqrt(num_refl_heights)
-    # ))
-    # this_num_panel_columns = int(numpy.ceil(
-    #     float(num_refl_heights) / this_num_panel_rows
-    # ))
-
-    this_num_panel_rows = int(numpy.ceil(
+    this_num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_refl_heights)
     ))
-    this_num_panel_columns = this_num_panel_rows + 0
+    this_num_panel_columns = int(numpy.ceil(
+        float(num_refl_heights) / this_num_panel_rows
+    ))
+
+    # this_num_panel_rows = int(numpy.ceil(
+    #     numpy.sqrt(num_refl_heights)
+    # ))
+    # this_num_panel_columns = this_num_panel_rows + 0
 
     if allow_whitespace:
         refl_figure_object = None
@@ -457,17 +457,17 @@ def _plot_2d_example(
             else:
                 plot_cbar_by_panel[:] = True
 
-    # num_panel_rows = int(numpy.floor(
-    #     numpy.sqrt(num_panels)
-    # ))
-    # num_panel_columns = int(numpy.ceil(
-    #     float(num_panels) / num_panel_rows
-    # ))
-
-    num_panel_rows = int(numpy.ceil(
+    num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_panels)
     ))
-    num_panel_columns = num_panel_rows + 0
+    num_panel_columns = int(numpy.ceil(
+        float(num_panels) / num_panel_rows
+    ))
+
+    # num_panel_rows = int(numpy.ceil(
+    #     numpy.sqrt(num_panels)
+    # ))
+    # num_panel_columns = num_panel_rows + 0
 
     if allow_whitespace:
         figure_object = None

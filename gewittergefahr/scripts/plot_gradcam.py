@@ -13,6 +13,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import gradcam
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import cam_plotting
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import significance_plotting
@@ -164,31 +165,31 @@ def _plot_3d_radar_cam(
             numpy.absolute(this_matrix), max_colour_percentile
         )
 
-        # if cam_matrix is None:
-        #     saliency_plotting.plot_many_2d_grids_with_contours(
-        #         saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
-        #         axes_object_matrix=axes_object_matrices[j],
-        #         colour_map_object=colour_map_object,
-        #         max_absolute_contour_level=this_max_contour_level,
-        #         contour_interval=this_max_contour_level / HALF_NUM_CONTOURS)
-        # else:
-        #     cam_plotting.plot_many_2d_grids(
-        #         class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
-        #         axes_object_matrix=axes_object_matrices[j],
-        #         colour_map_object=colour_map_object,
-        #         max_contour_level=this_max_contour_level,
-        #         contour_interval=this_max_contour_level / NUM_CONTOURS)
-        #
-        # if significance_matrix is not None:
-        #     if cam_matrix is None:
-        #         this_matrix = significance_matrix[..., j]
-        #     else:
-        #         this_matrix = significance_matrix
-        #
-        #     significance_plotting.plot_many_2d_grids_without_coords(
-        #         significance_matrix=numpy.flip(this_matrix, axis=0),
-        #         axes_object_matrix=axes_object_matrices[j]
-        #     )
+        if cam_matrix is None:
+            saliency_plotting.plot_many_2d_grids_with_contours(
+                saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
+                axes_object_matrix=axes_object_matrices[j],
+                colour_map_object=colour_map_object,
+                max_absolute_contour_level=this_max_contour_level,
+                contour_interval=this_max_contour_level / HALF_NUM_CONTOURS)
+        else:
+            cam_plotting.plot_many_2d_grids(
+                class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
+                axes_object_matrix=axes_object_matrices[j],
+                colour_map_object=colour_map_object,
+                max_contour_level=this_max_contour_level,
+                contour_interval=this_max_contour_level / NUM_CONTOURS)
+
+        if significance_matrix is not None:
+            if cam_matrix is None:
+                this_matrix = significance_matrix[..., j]
+            else:
+                this_matrix = significance_matrix
+
+            significance_plotting.plot_many_2d_grids_without_coords(
+                significance_matrix=numpy.flip(this_matrix, axis=0),
+                axes_object_matrix=axes_object_matrices[j]
+            )
 
         allow_whitespace = figure_objects[j]._suptitle is not None
 
@@ -199,11 +200,6 @@ def _plot_3d_radar_cam(
             )
 
             figure_objects[j].suptitle(this_title_string)
-        else:
-            pass
-            # for i in range(axes_object_matrices[j].shape[0]):
-            #     for k in range(axes_object_matrices[j].shape[1]):
-            #         axes_object_matrices[j][i, k].set(aspect='equal')
 
         this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
             output_dir_name=output_dir_name, pmm_flag=pmm_flag,
@@ -231,7 +227,7 @@ def _plot_2d_radar_cam(
     N = number of columns in spatial grid
     C = number of radar channels
 
-    :param colour_map_object: See doc for `_plot_2d_radar_cam`.
+    :param colour_map_object: See doc for `_plot_3d_radar_cam`.
     :param max_colour_percentile: Same.
     :param figure_objects: Same.
     :param axes_object_matrices: Same.
@@ -239,7 +235,7 @@ def _plot_2d_radar_cam(
     :param output_dir_name: Same.
     :param cam_matrix: M-by-N numpy array of class activations.
     :param guided_cam_matrix: M-by-N-by-C numpy array of guided-CAM output.
-    :param significance_matrix: See doc for `_plot_2d_radar_cam`.
+    :param significance_matrix: See doc for `_plot_3d_radar_cam`.
     :param full_storm_id_string: Same.
     :param storm_time_string: Same.
     """
@@ -300,7 +296,8 @@ def _plot_2d_radar_cam(
 
         significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=numpy.flip(this_matrix, axis=0),
-            axes_object_matrix=axes_object_matrices[figure_index]
+            axes_object_matrix=axes_object_matrices[figure_index],
+            row_major=False
         )
 
     allow_whitespace = figure_objects[figure_index]._suptitle is not None
@@ -312,10 +309,72 @@ def _plot_2d_radar_cam(
         )
 
         figure_objects[figure_index].suptitle(title_string)
+
+    output_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
+        output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+        full_storm_id_string=full_storm_id_string,
+        storm_time_string=storm_time_string,
+        radar_field_name='shear' if conv_2d3d else None)
+
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    figure_objects[figure_index].savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+    pyplot.close(figure_objects[figure_index])
+
+
+def _plot_2d_regions(
+        figure_objects, axes_object_matrices, model_metadata_dict,
+        list_of_polygon_objects, output_dir_name, full_storm_id_string=None,
+        storm_time_string=None):
+    """Plots regions of interest for 2-D radar data.
+
+    :param figure_objects: See doc for `_plot_3d_radar_cam`.
+    :param axes_object_matrices: Same.
+    :param model_metadata_dict: Same.
+    :param list_of_polygon_objects: List of polygons (instances of
+        `shapely.geometry.Polygon`), demarcating regions of interest.
+    :param output_dir_name: See doc for `_plot_3d_radar_cam`.
+    :param full_storm_id_string: Same.
+    :param storm_time_string: Same.
+    """
+
+    conv_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
+    figure_index = 1 if conv_2d3d else 0
+
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    num_grid_rows = training_option_dict[trainval_io.NUM_ROWS_KEY]
+
+    list_of_layer_operation_dicts = model_metadata_dict[
+        cnn.LAYER_OPERATIONS_KEY]
+
+    if list_of_layer_operation_dicts is None:
+        num_channels = len(training_option_dict[trainval_io.RADAR_FIELDS_KEY])
     else:
-        for i in range(axes_object_matrices[figure_index].shape[0]):
-            for k in range(axes_object_matrices[figure_index].shape[1]):
-                axes_object_matrices[figure_index][i, k].set(aspect='equal')
+        num_channels = len(list_of_layer_operation_dicts)
+
+    for this_polygon_object in list_of_polygon_objects:
+        for k in range(num_channels):
+            i, j = numpy.unravel_index(
+                k, axes_object_matrices[figure_index].shape, order='F'
+            )
+
+            these_grid_columns = numpy.array(
+                this_polygon_object.exterior.xy[0]
+            )
+            these_grid_rows = num_grid_rows - numpy.array(
+                this_polygon_object.exterior.xy[1]
+            )
+
+            axes_object_matrices[figure_index][i, j].plot(
+                these_grid_columns, these_grid_rows,
+                color=plotting_utils.colour_from_numpy_to_tuple(
+                    REGION_COLOUR),
+                linestyle='solid', linewidth=REGION_LINE_WIDTH
+            )
+
+    pmm_flag = full_storm_id_string is None and storm_time_string is None
 
     output_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
         output_dir_name=output_dir_name, pmm_flag=pmm_flag,
@@ -486,18 +545,30 @@ def _run(input_file_name, allow_whitespace, plot_significance,
                     storm_time_string=storm_time_strings[i]
                 )
             else:
-                _plot_2d_radar_cam(
-                    colour_map_object=cam_colour_map_object,
-                    max_colour_percentile=max_colour_percentile,
-                    figure_objects=these_figure_objects,
-                    axes_object_matrices=these_axes_object_matrices,
-                    model_metadata_dict=model_metadata_dict,
-                    output_dir_name=unguided_cam_dir_name,
-                    cam_matrix=list_of_cam_matrices[j][i, ...],
-                    significance_matrix=this_significance_matrix,
-                    full_storm_id_string=full_storm_id_strings[i],
-                    storm_time_string=storm_time_strings[i]
-                )
+                if region_dict is None:
+                    _plot_2d_radar_cam(
+                        colour_map_object=cam_colour_map_object,
+                        max_colour_percentile=max_colour_percentile,
+                        figure_objects=these_figure_objects,
+                        axes_object_matrices=these_axes_object_matrices,
+                        model_metadata_dict=model_metadata_dict,
+                        output_dir_name=unguided_cam_dir_name,
+                        cam_matrix=list_of_cam_matrices[j][i, ...],
+                        significance_matrix=this_significance_matrix,
+                        full_storm_id_string=full_storm_id_strings[i],
+                        storm_time_string=storm_time_strings[i]
+                    )
+                else:
+                    _plot_2d_regions(
+                        figure_objects=these_figure_objects,
+                        axes_object_matrices=these_axes_object_matrices,
+                        model_metadata_dict=model_metadata_dict,
+                        list_of_polygon_objects=
+                        region_dict[gradcam.POLYGON_OBJECTS_KEY][j][i],
+                        output_dir_name=unguided_cam_dir_name,
+                        full_storm_id_string=full_storm_id_strings[i],
+                        storm_time_string=storm_time_strings[i]
+                    )
 
         these_figure_objects, these_axes_object_matrices = (
             plot_input_examples.plot_one_example(
