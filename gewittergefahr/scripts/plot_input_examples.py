@@ -322,7 +322,9 @@ def _plot_2d3d_example(
 
     refl_figure_object, refl_axes_object_matrix = (
         radar_plotting.plot_3d_grid_without_coords(
-            field_matrix=numpy.flip(list_of_predictor_matrices[0], axis=0),
+            field_matrix=numpy.flip(
+                list_of_predictor_matrices[0][..., 0], axis=0
+            ),
             field_name=radar_utils.REFL_NAME,
             grid_point_heights_metres=refl_heights_m_agl,
             ground_relative=True, num_panel_rows=this_num_panel_rows,
