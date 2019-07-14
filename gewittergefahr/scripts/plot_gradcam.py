@@ -138,9 +138,6 @@ def _plot_3d_radar_cam(
     :param storm_time_string: Storm time (format "yyyy-mm-dd-HHMMSS").
     """
 
-    print(figure_objects)
-    print(axes_object_matrices)
-
     if cam_matrix is None:
         quantity_string = 'max absolute value'
     else:
@@ -193,12 +190,13 @@ def _plot_3d_radar_cam(
                 axes_object_matrix=axes_object_matrices[j]
             )
 
-        this_title_string = '{0:s}; ({1:s} = {2:.3f})'.format(
-            figure_objects[j]._suptitle.get_text(), quantity_string,
-            this_max_contour_level
-        )
+        if figure_objects[j]._suptitle is not None:
+            this_title_string = '{0:s}; ({1:s} = {2:.3f})'.format(
+                figure_objects[j]._suptitle.get_text(), quantity_string,
+                this_max_contour_level
+            )
 
-        figure_objects[j].suptitle(this_title_string)
+            figure_objects[j].suptitle(this_title_string)
 
         this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
             output_dir_name=output_dir_name, pmm_flag=pmm_flag,
@@ -298,12 +296,13 @@ def _plot_2d_radar_cam(
             axes_object_matrix=axes_object_matrices[figure_index]
         )
 
-    title_string = '{0:s}; ({1:s} = {2:.3f})'.format(
-        figure_objects[figure_index]._suptitle.get_text(), quantity_string,
-        max_contour_level
-    )
+    if figure_objects[j]._suptitle is not None:
+        title_string = '{0:s}; ({1:s} = {2:.3f})'.format(
+            figure_objects[figure_index]._suptitle.get_text(), quantity_string,
+            max_contour_level
+        )
 
-    figure_objects[figure_index].suptitle(title_string)
+        figure_objects[figure_index].suptitle(title_string)
 
     output_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
         output_dir_name=output_dir_name, pmm_flag=pmm_flag,
