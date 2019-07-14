@@ -200,9 +200,10 @@ def _plot_3d_radar_cam(
 
             figure_objects[j].suptitle(this_title_string)
         else:
-            for i in range(axes_object_matrices[j].shape[0]):
-                for k in range(axes_object_matrices[j].shape[1]):
-                    axes_object_matrices[j][i, k].set(aspect='equal')
+            pass
+            # for i in range(axes_object_matrices[j].shape[0]):
+            #     for k in range(axes_object_matrices[j].shape[1]):
+            #         axes_object_matrices[j][i, k].set(aspect='equal')
 
         this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
             output_dir_name=output_dir_name, pmm_flag=pmm_flag,
