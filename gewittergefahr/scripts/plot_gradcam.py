@@ -345,6 +345,7 @@ def _plot_2d_regions(
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     num_grid_rows = training_option_dict[trainval_io.NUM_ROWS_KEY]
+    num_grid_rows *= 1 + int(conv_2d3d)
 
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
