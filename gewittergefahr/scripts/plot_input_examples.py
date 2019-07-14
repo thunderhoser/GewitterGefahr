@@ -654,7 +654,11 @@ def plot_one_example(
 
     if pmm_flag:
         title_string = 'PMM composite'
-        predictor_matrices_to_plot = list_of_predictor_matrices
+
+        if list_of_predictor_matrices[0].shape[0] == 1:
+            predictor_matrices_to_plot = [
+                a[0, ...] for a in list_of_predictor_matrices
+            ]
     else:
         error_checking.assert_is_integer(example_index)
         predictor_matrices_to_plot = [
