@@ -138,6 +138,9 @@ def _plot_3d_radar_cam(
     :param storm_time_string: Storm time (format "yyyy-mm-dd-HHMMSS").
     """
 
+    print(figure_objects)
+    print(axes_object_matrices)
+
     if cam_matrix is None:
         quantity_string = 'max absolute value'
     else:
@@ -436,9 +439,6 @@ def _run(input_file_name, allow_whitespace, plot_significance,
                 storm_time_unix_sec=storm_times_unix_sec[i]
             )
         )
-
-        print(these_figure_objects)
-        print(these_axes_object_matrices)
 
         for j in range(num_input_matrices):
             if list_of_cam_matrices[j] is None:
