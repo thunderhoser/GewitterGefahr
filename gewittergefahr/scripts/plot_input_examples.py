@@ -464,13 +464,15 @@ def _plot_2d_example(
                 keep_aspect_ratio=True)
         )
 
-    radar_plotting.plot_many_2d_grids_without_coords(
-        field_matrix=numpy.flip(list_of_predictor_matrices[0], axis=0),
-        field_name_by_panel=field_name_by_panel, panel_names=panel_names,
-        num_panel_rows=num_panel_rows, figure_object=figure_object,
-        axes_object_matrix=axes_object_matrix,
-        plot_colour_bar_by_panel=plot_cbar_by_panel,
-        font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
+    figure_object, axes_object_matrix = (
+        radar_plotting.plot_many_2d_grids_without_coords(
+            field_matrix=numpy.flip(list_of_predictor_matrices[0], axis=0),
+            field_name_by_panel=field_name_by_panel, panel_names=panel_names,
+            num_panel_rows=num_panel_rows, figure_object=figure_object,
+            axes_object_matrix=axes_object_matrix,
+            plot_colour_bar_by_panel=plot_cbar_by_panel,
+            font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
+    )
 
     if allow_whitespace and title_string is not None:
         pyplot.suptitle(title_string, fontsize=TITLE_FONT_SIZE)
@@ -740,8 +742,6 @@ def plot_examples(
             storm_time_unix_sec=storm_times_unix_sec[i],
             storm_activation=storm_activations[i]
         )[0]
-
-        print(these_figure_objects)
 
         if len(list_of_predictor_matrices) == 3:
             this_file_name = metadata_to_radar_fig_file_name(
