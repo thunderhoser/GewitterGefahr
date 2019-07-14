@@ -164,31 +164,31 @@ def _plot_3d_radar_cam(
             numpy.absolute(this_matrix), max_colour_percentile
         )
 
-        if cam_matrix is None:
-            saliency_plotting.plot_many_2d_grids_with_contours(
-                saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
-                axes_object_matrix=axes_object_matrices[j],
-                colour_map_object=colour_map_object,
-                max_absolute_contour_level=this_max_contour_level,
-                contour_interval=this_max_contour_level / HALF_NUM_CONTOURS)
-        else:
-            cam_plotting.plot_many_2d_grids(
-                class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
-                axes_object_matrix=axes_object_matrices[j],
-                colour_map_object=colour_map_object,
-                max_contour_level=this_max_contour_level,
-                contour_interval=this_max_contour_level / NUM_CONTOURS)
-
-        if significance_matrix is not None:
-            if cam_matrix is None:
-                this_matrix = significance_matrix[..., j]
-            else:
-                this_matrix = significance_matrix
-
-            significance_plotting.plot_many_2d_grids_without_coords(
-                significance_matrix=numpy.flip(this_matrix, axis=0),
-                axes_object_matrix=axes_object_matrices[j]
-            )
+        # if cam_matrix is None:
+        #     saliency_plotting.plot_many_2d_grids_with_contours(
+        #         saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
+        #         axes_object_matrix=axes_object_matrices[j],
+        #         colour_map_object=colour_map_object,
+        #         max_absolute_contour_level=this_max_contour_level,
+        #         contour_interval=this_max_contour_level / HALF_NUM_CONTOURS)
+        # else:
+        #     cam_plotting.plot_many_2d_grids(
+        #         class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
+        #         axes_object_matrix=axes_object_matrices[j],
+        #         colour_map_object=colour_map_object,
+        #         max_contour_level=this_max_contour_level,
+        #         contour_interval=this_max_contour_level / NUM_CONTOURS)
+        #
+        # if significance_matrix is not None:
+        #     if cam_matrix is None:
+        #         this_matrix = significance_matrix[..., j]
+        #     else:
+        #         this_matrix = significance_matrix
+        #
+        #     significance_plotting.plot_many_2d_grids_without_coords(
+        #         significance_matrix=numpy.flip(this_matrix, axis=0),
+        #         axes_object_matrix=axes_object_matrices[j]
+        #     )
 
         allow_whitespace = figure_objects[j]._suptitle is not None
 
