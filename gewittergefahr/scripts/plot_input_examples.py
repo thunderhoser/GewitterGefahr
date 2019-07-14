@@ -164,10 +164,10 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_3d_examples(
+def _plot_3d_example(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         title_string=None, sounding_file_name=None):
-    """Plots examples with 3-D radar data.
+    """Plots example with 3-D radar data.
 
     J = number of panel rows in image
     K = number of panel columns in image
@@ -276,22 +276,22 @@ def _plot_3d_examples(
     return figure_objects, axes_object_matrices
 
 
-def _plot_2d3d_examples(list_of_predictor_matrices, model_metadata_dict,
-                        allow_whitespace, title_string=None):
-    """Plots examples with 3-D reflectivity and 2-D azimuthal shear.
+def _plot_2d3d_example(
+        list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
+        title_string=None):
+    """Plots example with 3-D reflectivity and 2-D azimuthal shear.
 
-    :param list_of_predictor_matrices: See doc for `_plot_3d_examples`.
+    :param list_of_predictor_matrices: See doc for `_plot_3d_example`.
     :param model_metadata_dict: Same.
     :param allow_whitespace: Same.
     :param title_string: Same.
-    :return: refl_figure_object: Figure handle (instance of
-        `matplotlib.figure.Figure`) for reflectivity.
-    :return: refl_axes_object_matrix: 2-D numpy array of axes handles (instances
-        of `matplotlib.axes._subplots.AxesSubplot`) for reflectivity.
-    :return: shear_figure_object: Same as `refl_figure_object` but for azimuthal
-        shear.
-    :return: shear_axes_object_matrix: Same as `refl_axes_object_matrix` but for
-        azimuthal shear.
+    :return: figure_objects: length-2 list of figure handles (instances of
+        `matplotlib.figure.Figure`).  The first is for reflectivity; the second
+        is for azimuthal shear.
+    :return: axes_object_matrices: length-2 list (the first is for reflectivity;
+        the second is for azimuthal shear).  Each element is a 2-D numpy
+        array of axes handles (instances of
+        `matplotlib.axes._subplots.AxesSubplot`).
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
@@ -391,20 +391,28 @@ def _plot_2d3d_examples(list_of_predictor_matrices, model_metadata_dict,
         if title_string is not None:
             pyplot.suptitle(title_string, fontsize=TITLE_FONT_SIZE)
 
-    return (refl_figure_object, refl_axes_object_matrix, shear_figure_object,
-            shear_axes_object_matrix)
+    figure_objects = [refl_figure_object, shear_figure_object]
+    axes_object_matrices = [refl_axes_object_matrix, shear_axes_object_matrix]
+    return figure_objects, axes_object_matrices
 
 
-def _plot_2d_examples(list_of_predictor_matrices, model_metadata_dict,
-                      allow_whitespace, title_string=None):
+def _plot_2d_example(
+        list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
+        title_string=None):
     """Plots examples with 2-D radar data.
 
-    :param list_of_predictor_matrices: See doc for `_plot_3d_examples`.
+    J = number of panel rows in image
+    K = number of panel columns in image
+
+    :param list_of_predictor_matrices: See doc for `_plot_3d_example`.
     :param model_metadata_dict: Same.
     :param allow_whitespace: Same.
     :param title_string: Same.
-    :return: figure_object: Same.
-    :return: axes_object_matrix: Same.
+    :return: figure_objects: length-1 list of figure handles (instances of
+        `matplotlib.figure.Figure`).
+    :return: axes_object_matrices: length-1 list.  Each element is a J-by-K
+        numpy array of axes handles (instances of
+        `matplotlib.axes._subplots.AxesSubplot`).
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
@@ -467,7 +475,7 @@ def _plot_2d_examples(list_of_predictor_matrices, model_metadata_dict,
     if allow_whitespace and title_string is not None:
         pyplot.suptitle(title_string, fontsize=TITLE_FONT_SIZE)
 
-    return figure_object, axes_object_matrix
+    return [figure_object], [axes_object_matrix]
 
 
 def metadata_to_radar_fig_file_name(
@@ -605,126 +613,193 @@ def radar_fig_file_name_to_metadata(figure_file_name):
     return metadata_dict
 
 
-def plot_examples(
-        list_of_predictor_matrices, model_metadata_dict, output_dir_name,
-        allow_whitespace=True, pmm_flag=False, full_id_strings=None,
-        storm_times_unix_sec=None, storm_activations=None):
-    """Plots examples.
+def plot_one_example(
+        list_of_predictor_matrices, model_metadata_dict, allow_whitespace=True,
+        pmm_flag=False, example_index=None, full_storm_id_string=None,
+        storm_time_unix_sec=None, storm_activation=None):
+    """Plots predictors for one example.
 
-    :param list_of_predictor_matrices: See doc for `_plot_3d_examples`.
-    :param model_metadata_dict: Same.
-    :param allow_whitespace: Same.
-    :param output_dir_name: Same.
-    :param pmm_flag: Same.
-    :param full_id_strings: Same.
-    :param storm_times_unix_sec: Same.
-    :param storm_activations: Same.
+    H = number of figures created
+
+    :param list_of_predictor_matrices: List created by
+        `testing_io.read_specific_examples`.
+    :param model_metadata_dict: Dictionary returned by
+        `cnn.read_model_metadata`.
+    :param allow_whitespace: See documentation at top of file.
+    :param pmm_flag: Boolean flag.  If True, will plot PMM (probability-matched
+        mean) composite of many examples (storm objects).  If False, will plot
+        one example.
+    :param example_index: [used only if `pmm_flag == False`]
+        Will plot the [i]th example, where i = `example_index`.
+    :param full_storm_id_string: [used only if `pmm_flag == False`]
+        Full storm ID.
+    :param storm_time_unix_sec: [used only if `pmm_flag == False`]
+        Storm time.
+    :param storm_activation: [used only if `pmm_flag == False`]
+        Model activation for this example.  Even if `pmm_flag == True`, this may
+        be None.
+    :return: figure_objects: length-H list of figure handles (instances of
+        `matplotlib.figure.Figure`).
+    :return: axes_object_matrices: length-H list.  Each element is a 2-D numpy
+        array of axes handles (instances of
+        `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    # TODO(thunderhoser): Need version of this that does a single example.
-    # TODO(thunderhoser): Put activations back in title.
+    error_checking.assert_is_boolean(allow_whitespace)
+    error_checking.assert_is_boolean(pmm_flag)
 
-    num_examples = list_of_predictor_matrices[0].shape[0]
-    num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
-
-    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-
-    if storm_times_unix_sec is None:
-        full_id_strings = [None] * num_examples
-        storm_time_strings = [None] * num_examples
+    if pmm_flag:
+        title_string = 'PMM composite'
+        predictor_matrices_to_plot = list_of_predictor_matrices
     else:
+        error_checking.assert_is_integer(example_index)
+        predictor_matrices_to_plot = [
+            a[example_index, ...] for a in list_of_predictor_matrices
+        ]
+
+        error_checking.assert_is_string(full_storm_id_string)
+        storm_time_string = time_conversion.unix_sec_to_string(
+            storm_time_unix_sec, TIME_FORMAT)
+
+        if storm_activation is not None:
+            error_checking.assert_is_not_nan(storm_activation)
+
+        title_string = 'Storm "{0:s}" at {1:s}'.format(
+            full_storm_id_string, storm_time_string)
+
+    if len(list_of_predictor_matrices) == 3:
+        return _plot_2d3d_example(
+            list_of_predictor_matrices=predictor_matrices_to_plot,
+            model_metadata_dict=model_metadata_dict,
+            allow_whitespace=allow_whitespace, title_string=title_string)
+
+    num_radar_dimensions = len(predictor_matrices_to_plot[0].shape) - 1
+
+    if num_radar_dimensions == 3:
+        return _plot_3d_example(
+            list_of_predictor_matrices=predictor_matrices_to_plot,
+            model_metadata_dict=model_metadata_dict,
+            allow_whitespace=allow_whitespace, title_string=title_string)
+
+    return _plot_2d_example(
+        list_of_predictor_matrices=predictor_matrices_to_plot,
+        model_metadata_dict=model_metadata_dict,
+        allow_whitespace=allow_whitespace, title_string=title_string)
+
+
+def plot_examples(
+        list_of_predictor_matrices, model_metadata_dict, output_dir_name,
+        allow_whitespace=True, pmm_flag=False, full_storm_id_strings=None,
+        storm_times_unix_sec=None, storm_activations=None):
+    """Plots predictors for each example.
+
+    E = number of examples
+
+    :param list_of_predictor_matrices: See doc for `plot_one_example`.
+    :param model_metadata_dict: Same.
+    :param output_dir_name: Path to output directory.  Figures will be saved
+        here (one or more figures per example).
+    :param allow_whitespace: See doc for `plot_one_example`.
+    :param pmm_flag: Same.
+    :param full_storm_id_strings: [used only if `pmm_flag == False`]
+        length-E list of full storm IDs.
+    :param storm_times_unix_sec: [used only if `pmm_flag == False`]
+        length-E numpy array of storm times.
+    :param storm_activations: [used only if `pmm_flag == False`]
+        length-E numpy array of model activations.  Even if `pmm_flag == True`,
+        this may be None.
+    """
+
+    error_checking.assert_is_boolean(pmm_flag)
+
+    if pmm_flag:
+        num_examples = 1
+        full_storm_id_strings = [None]
+        storm_time_strings = [None]
+    else:
+        num_examples = list_of_predictor_matrices[0].shape[0]
+
         storm_time_strings = [
             time_conversion.unix_sec_to_string(t, TIME_FORMAT)
             for t in storm_times_unix_sec
         ]
 
-    for i in range(num_examples):
-        if pmm_flag:
-            this_title_string = 'PMM composite'
-        else:
-            this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                full_id_strings[i], storm_time_strings[i]
-            )
+    if storm_activations is None:
+        storm_activations = [None] * num_examples
 
-        these_predictor_matrices = [
-            a[i, ...] for a in list_of_predictor_matrices
-        ]
+    num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+
+    for i in range(num_examples):
+        these_figure_objects = plot_one_example(
+            list_of_predictor_matrices=list_of_predictor_matrices,
+            model_metadata_dict=model_metadata_dict, example_index=i,
+            allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
+            full_storm_id_string=full_storm_id_strings[i],
+            storm_time_unix_sec=storm_times_unix_sec[i],
+            storm_activation=storm_activations[i]
+        )[0]
 
         if len(list_of_predictor_matrices) == 3:
-            refl_figure_object, _, shear_figure_object, _ = _plot_2d3d_examples(
-                list_of_predictor_matrices=these_predictor_matrices,
-                model_metadata_dict=model_metadata_dict,
-                allow_whitespace=allow_whitespace,
-                title_string=this_title_string)
-
             this_file_name = metadata_to_radar_fig_file_name(
                 output_dir_name=output_dir_name, pmm_flag=pmm_flag,
-                full_storm_id_string=full_id_strings[i],
+                full_storm_id_string=full_storm_id_strings[i],
                 storm_time_string=storm_time_strings[i],
                 radar_field_name='reflectivity')
 
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
-            refl_figure_object.savefig(
+            these_figure_objects[0].savefig(
                 this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                 bbox_inches='tight'
             )
-            refl_figure_object.close()
+            these_figure_objects[0].close()
 
             this_file_name = metadata_to_radar_fig_file_name(
                 output_dir_name=output_dir_name, pmm_flag=pmm_flag,
-                full_storm_id_string=full_id_strings[i],
+                full_storm_id_string=full_storm_id_strings[i],
                 storm_time_string=storm_time_strings[i],
                 radar_field_name='shear')
 
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
-            shear_figure_object.savefig(
+            these_figure_objects[1].savefig(
                 this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                 bbox_inches='tight'
             )
-            shear_figure_object.close()
+            these_figure_objects[1].close()
 
-        elif num_radar_dimensions == 3:
-            figure_objects, _ = _plot_3d_examples(
-                list_of_predictor_matrices=these_predictor_matrices,
-                model_metadata_dict=model_metadata_dict,
-                allow_whitespace=allow_whitespace,
-                title_string=this_title_string)
+            continue
 
+        if num_radar_dimensions == 3:
             for j in range(len(radar_field_names)):
                 this_file_name = metadata_to_radar_fig_file_name(
                     output_dir_name=output_dir_name, pmm_flag=pmm_flag,
-                    full_storm_id_string=full_id_strings[i],
+                    full_storm_id_string=full_storm_id_strings[i],
                     storm_time_string=storm_time_strings[i],
                     radar_field_name=radar_field_names[j],
                     radar_height_m_agl=None)
 
                 print('Saving figure to: "{0:s}"...'.format(this_file_name))
-                figure_objects[j].savefig(
+                these_figure_objects[j].savefig(
                     this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                     bbox_inches='tight'
                 )
-                figure_objects[j].close()
+                these_figure_objects[j].close()
 
-        else:
-            figure_object, _ = _plot_2d_examples(
-                list_of_predictor_matrices=these_predictor_matrices,
-                model_metadata_dict=model_metadata_dict,
-                allow_whitespace=allow_whitespace,
-                title_string=this_title_string)
+            continue
 
-            this_file_name = metadata_to_radar_fig_file_name(
-                output_dir_name=output_dir_name, pmm_flag=pmm_flag,
-                full_storm_id_string=full_id_strings[i],
-                storm_time_string=storm_time_strings[i]
-            )
+        this_file_name = metadata_to_radar_fig_file_name(
+            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+            full_storm_id_string=full_storm_id_strings[i],
+            storm_time_string=storm_time_strings[i]
+        )
 
-            print('Saving figure to: "{0:s}"...'.format(this_file_name))
-            figure_object.savefig(
-                this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-                bbox_inches='tight'
-            )
-            figure_object.close()
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
+        these_figure_objects[0].savefig(
+            this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+            bbox_inches='tight'
+        )
+        these_figure_objects[0].close()
 
 
 def _run(activation_file_name, storm_metafile_name, num_examples,
@@ -759,8 +834,9 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
     if activation_file_name is None:
         print('Reading data from: "{0:s}"...'.format(storm_metafile_name))
-        full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
-            storm_metafile_name)
+        full_storm_id_strings, storm_times_unix_sec = (
+            tracking_io.read_ids_and_times(storm_metafile_name)
+        )
 
         training_option_dict = dict()
         training_option_dict[trainval_io.RADAR_FIELDS_KEY] = radar_field_names
@@ -792,7 +868,8 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     else:
         print('Reading data from: "{0:s}"...'.format(activation_file_name))
         activation_matrix, activation_metadata_dict = (
-            model_activation.read_file(activation_file_name))
+            model_activation.read_file(activation_file_name)
+        )
 
         num_model_components = activation_matrix.shape[1]
         if num_model_components > 1:
@@ -803,7 +880,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
             raise TypeError(error_string)
 
-        full_id_strings = activation_metadata_dict[
+        full_storm_id_strings = activation_metadata_dict[
             model_activation.FULL_IDS_KEY]
         storm_times_unix_sec = activation_metadata_dict[
             model_activation.STORM_TIMES_KEY]
@@ -831,8 +908,8 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
         model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
 
-    if 0 < num_examples < len(full_id_strings):
-        full_id_strings = full_id_strings[:num_examples]
+    if 0 < num_examples < len(full_storm_id_strings):
+        full_storm_id_strings = full_storm_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
         if storm_activations is not None:
@@ -840,7 +917,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
     print(SEPARATOR_STRING)
     list_of_predictor_matrices = testing_io.read_specific_examples(
-        desired_full_id_strings=full_id_strings,
+        desired_full_id_strings=full_storm_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
         top_example_dir_name=top_example_dir_name,
@@ -852,8 +929,9 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     plot_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
         model_metadata_dict=model_metadata_dict,
-        allow_whitespace=allow_whitespace, output_dir_name=output_dir_name,
-        full_id_strings=full_id_strings,
+        output_dir_name=output_dir_name,
+        allow_whitespace=allow_whitespace, pmm_flag=False,
+        full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
         storm_activations=storm_activations)
 
