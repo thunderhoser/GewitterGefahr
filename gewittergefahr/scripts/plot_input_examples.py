@@ -755,7 +755,7 @@ def plot_examples(
                 this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                 bbox_inches='tight'
             )
-            these_figure_objects[0].close()
+            pyplot.close(these_figure_objects[0])
 
             this_file_name = metadata_to_radar_fig_file_name(
                 output_dir_name=output_dir_name, pmm_flag=pmm_flag,
@@ -768,7 +768,7 @@ def plot_examples(
                 this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                 bbox_inches='tight'
             )
-            these_figure_objects[1].close()
+            pyplot.close(these_figure_objects[1])
 
             continue
 
@@ -786,7 +786,7 @@ def plot_examples(
                     this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                     bbox_inches='tight'
                 )
-                these_figure_objects[j].close()
+                pyplot.close(these_figure_objects[j])
 
             continue
 
@@ -801,7 +801,7 @@ def plot_examples(
             this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
             bbox_inches='tight'
         )
-        these_figure_objects[0].close()
+        pyplot.close(these_figure_objects[0])
 
 
 def _run(activation_file_name, storm_metafile_name, num_examples,
