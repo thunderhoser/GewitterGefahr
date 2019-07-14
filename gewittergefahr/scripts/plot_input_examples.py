@@ -719,6 +719,7 @@ def plot_examples(
     if pmm_flag:
         num_examples = 1
         full_storm_id_strings = [None]
+        storm_times_unix_sec = [None]
         storm_time_strings = [None]
     else:
         num_examples = list_of_predictor_matrices[0].shape[0]
