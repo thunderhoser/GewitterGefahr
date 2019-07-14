@@ -741,6 +741,8 @@ def plot_examples(
             storm_activation=storm_activations[i]
         )[0]
 
+        print(these_figure_objects)
+
         if len(list_of_predictor_matrices) == 3:
             this_file_name = metadata_to_radar_fig_file_name(
                 output_dir_name=output_dir_name, pmm_flag=pmm_flag,
