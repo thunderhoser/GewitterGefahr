@@ -1,4 +1,4 @@
-"""Captures polygons drawn by a human over a pre-existing image.
+"""Captures polygons drawn by a human over each pre-existing image.
 
 NOTE: This script is interactive and requires an interactive display.  You
 cannot run it on a supercomputer without X-forwarding or whatever it's called.
@@ -9,6 +9,7 @@ import os.path
 import warnings
 import argparse
 from gewittergefahr.gg_utils import human_polygons
+from gewittergefahr.gg_utils import error_checking
 
 FILE_FORMAT_STRING = (
     '"storm=foo_time=bar", where "foo" is an ID with no underscores '
@@ -54,74 +55,32 @@ OUTPUT_DIR_HELP_STRING = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + IMAGE_PATH_ARG_NAME, type=str, required=True,
+    '-i', '--' + IMAGE_PATH_ARG_NAME, type=str, required=True,
     help=IMAGE_PATH_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + POS_NEG_ARG_NAME, type=int, required=False, default=0,
+    '-posandneg', '--' + POS_NEG_ARG_NAME, type=int, required=False, default=0,
     help=POS_NEG_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_GRID_ROWS_ARG_NAME, type=int, required=True,
-    help=NUM_GRID_ROWS_HELP_STRING)
+    '-ngridrows', '--' + NUM_GRID_ROWS_ARG_NAME, type=int, required=False,
+    default=32, help=NUM_GRID_ROWS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_GRID_COLUMNS_ARG_NAME, type=int, required=True,
-    help=NUM_GRID_COLUMNS_HELP_STRING)
+    '-ngridcols', '--' + NUM_GRID_COLUMNS_ARG_NAME, type=int, required=False,
+    default=32, help=NUM_GRID_COLUMNS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=True,
-    help=NUM_PANEL_ROWS_HELP_STRING)
+    '-npanelrows', '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=False,
+    default=1, help=NUM_PANEL_ROWS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_PANEL_COLUMNS_ARG_NAME, type=int, required=True,
-    help=NUM_PANEL_COLUMNS_HELP_STRING)
+    '-npanelcols', '--' + NUM_PANEL_COLUMNS_ARG_NAME, type=int, required=False,
+    default=2, help=NUM_PANEL_COLUMNS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    '-o', '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
-
-
-def check_image_file_name(image_file_name):
-    """Error-checks name of image file.
-
-    If the image file contains a composite rather than one storm, both output
-    variables will be None.
-
-    :param image_file_name: Path to image file.
-    :return: full_storm_id_string: Full storm ID.
-    :return: storm_time_unix_sec: Valid time.
-    :raises: ValueError: if file name is not in the desired format.
-    """
-
-    # TODO(thunderhoser): Put this method somewhere more general.
-
-    pathless_image_file_name = os.path.split(image_file_name)[-1]
-    bare_image_file_name = os.path.splitext(pathless_image_file_name)[0]
-    bare_file_name_parts = bare_image_file_name.split('_')
-
-    error_string = (
-        'File name ("{0:s}") is not in desired format ({1:s}).'
-    ).format(image_file_name, FILE_FORMAT_STRING)
-
-    if len(bare_file_name_parts) != 2:
-        raise ValueError(error_string)
-
-    storm_id_part = bare_file_name_parts[0]
-    time_part = bare_file_name_parts[1]
-
-    if not storm_id_part.startswith('storm='):
-        raise ValueError(error_string)
-    if not time_part.startswith('time='):
-        raise ValueError(error_string)
-
-    full_storm_id_string = storm_id_part.replace('storm=', '')
-    if full_storm_id_string == 'pmm':
-        return None, None
-
-    storm_time_unix_sec = int(time_part.replace('time=', ''))
-
-    return full_storm_id_string, storm_time_unix_sec
 
 
 def _capture_polygons_one_image(
@@ -138,9 +97,13 @@ def _capture_polygons_one_image(
     :param output_file_name: Same.
     """
 
+    # instruction_string = (
+    #     'Outline POSITIVE regions of interest.  Left-click for new vertex, '
+    #     'right-click to close polygon.')
+
     instruction_string = (
-        'Outline POSITIVE regions of interest.  Left-click for new vertex, '
-        'right-click to close polygon.')
+        'Outline regions that most support tornado production in the next hour.'
+        '  LEFT-CLICK for new vertex; RIGHT-CLICK to close polygon.')
 
     positive_objects_pixel_coords, num_pixel_rows, num_pixel_columns = (
         human_polygons.capture_polygons(
@@ -195,7 +158,6 @@ def _capture_polygons_one_image(
         negative_mask_matrix = None
 
     print('Writing polygons and masks to: "{0:s}"...'.format(output_file_name))
-
     full_storm_id_string, storm_time_unix_sec = check_image_file_name(
         image_file_name)
 
@@ -215,7 +177,7 @@ def _capture_polygons_one_image(
 
 def _run(image_dir_or_file_name, positive_and_negative, num_grid_rows,
          num_grid_columns, num_panel_rows, num_panel_columns, output_dir_name):
-    """Captures polygons drawn by a human over a pre-existing image.
+    """Captures polygons drawn by a human over each pre-existing image.
 
     This is effectively the main method.
 
@@ -226,10 +188,77 @@ def _run(image_dir_or_file_name, positive_and_negative, num_grid_rows,
     :param num_panel_rows: Same.
     :param num_panel_columns: Same.
     :param output_dir_name: Same.
+    """
+
+    image_file_names = get_image_files(image_dir_or_file_name)
+
+    for this_image_file_name in image_file_names:
+        this_pathless_file_name = os.path.split(this_image_file_name)[-1]
+        this_bare_file_name = os.path.splitext(this_pathless_file_name)[0]
+
+        this_output_file_name = '{0:s}/{1:s}_human.nc'.format(
+            output_dir_name, this_bare_file_name)
+
+        _capture_polygons_one_image(
+            image_file_name=this_image_file_name,
+            positive_and_negative=positive_and_negative,
+            num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns,
+            num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+            output_file_name=this_output_file_name)
+
+
+def check_image_file_name(image_file_name):
+    """Error-checks name of image file.
+
+    If the image file contains a composite rather than one storm, both output
+    variables will be None.
+
+    :param image_file_name: Path to image file.
+    :return: full_storm_id_string: Full storm ID.
+    :return: storm_time_unix_sec: Valid time.
+    :raises: ValueError: if file name is not in the desired format.
+    """
+
+    # TODO(thunderhoser): Put this method somewhere more general.
+
+    pathless_image_file_name = os.path.split(image_file_name)[-1]
+    bare_image_file_name = os.path.splitext(pathless_image_file_name)[0]
+    bare_file_name_parts = bare_image_file_name.split('_')
+
+    error_string = (
+        'File name ("{0:s}") is not in desired format ({1:s}).'
+    ).format(image_file_name, FILE_FORMAT_STRING)
+
+    if len(bare_file_name_parts) != 2:
+        raise ValueError(error_string)
+
+    storm_id_part = bare_file_name_parts[0]
+    time_part = bare_file_name_parts[1]
+
+    if not storm_id_part.startswith('storm='):
+        raise ValueError(error_string)
+    if not time_part.startswith('time='):
+        raise ValueError(error_string)
+
+    full_storm_id_string = storm_id_part.replace('storm=', '')
+    if full_storm_id_string == 'pmm':
+        return None, None
+
+    storm_time_unix_sec = int(time_part.replace('time=', ''))
+
+    return full_storm_id_string, storm_time_unix_sec
+
+
+def get_image_files(image_dir_or_file_name):
+    """Finds image files.
+
+    :param image_dir_or_file_name: See documentation at top of file.
+    :return: image_file_names: 1-D list of paths to image files.
     :raises: ValueError: if `image_dir_or_file_name` is a directory and contains
         no files that match the desired format.
     """
 
+    error_checking.assert_is_string(image_dir_or_file_name)
     image_file_names = []
 
     if os.path.isdir(image_dir_or_file_name):
@@ -263,19 +292,7 @@ def _run(image_dir_or_file_name, positive_and_negative, num_grid_rows,
         check_image_file_name(image_dir_or_file_name)
         image_file_names = [image_dir_or_file_name]
 
-    for this_image_file_name in image_file_names:
-        this_pathless_file_name = os.path.split(this_image_file_name)[-1]
-        this_bare_file_name = os.path.splitext(this_pathless_file_name)[0]
-
-        this_output_file_name = '{0:s}/{1:s}_human.nc'.format(
-            output_dir_name, this_bare_file_name)
-
-        _capture_polygons_one_image(
-            image_file_name=this_image_file_name,
-            positive_and_negative=positive_and_negative,
-            num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns,
-            num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
-            output_file_name=this_output_file_name)
+    return image_file_names
 
 
 if __name__ == '__main__':
