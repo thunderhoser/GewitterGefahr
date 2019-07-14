@@ -36,6 +36,7 @@ FONT_SIZE_SANS_COLOUR_BARS = 20
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
+ALLOW_WHITESPACE_ARG_NAME = 'allow_whitespace'
 PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 PLOT_REGIONS_ARG_NAME = 'plot_regions_of_interest'
 COLOUR_MAP_ARG_NAME = 'cam_colour_map_name'
@@ -45,6 +46,10 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `gradcam.read_standard_file` or'
     ' `gradcam.read_pmm_file`.')
+
+ALLOW_WHITESPACE_HELP_STRING = (
+    'Boolean flag.  If 0, will plot with no whitespace between panels or around'
+    ' outside of image.')
 
 PLOT_SIGNIFICANCE_HELP_STRING = (
     'Boolean flag.  If 1, will plot stippling for significance.  This applies '
@@ -73,6 +78,10 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
     help=INPUT_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + ALLOW_WHITESPACE_ARG_NAME, type=int, required=False, default=1,
+    help=ALLOW_WHITESPACE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_SIGNIFICANCE_ARG_NAME, type=int, required=False, default=0,
@@ -307,13 +316,15 @@ def _plot_2d_radar_cam(
     pyplot.close(figure_objects[figure_index])
 
 
-def _run(input_file_name, plot_significance, plot_regions_of_interest,
-         cam_colour_map_name, max_colour_percentile, top_output_dir_name):
+def _run(input_file_name, allow_whitespace, plot_significance,
+         plot_regions_of_interest, cam_colour_map_name, max_colour_percentile,
+         top_output_dir_name):
     """Plots Grad-CAM output (class-activation maps).
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
+    :param allow_whitespace: Same.
     :param plot_significance: Same.
     :param plot_regions_of_interest: Same.
     :param cam_colour_map_name: Same.
@@ -420,7 +431,7 @@ def _run(input_file_name, plot_significance, plot_regions_of_interest,
             plot_input_examples.plot_one_example(
                 list_of_predictor_matrices=list_of_input_matrices,
                 model_metadata_dict=model_metadata_dict, example_index=i,
-                allow_whitespace=True, pmm_flag=pmm_flag,
+                allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
                 full_storm_id_string=full_storm_id_strings[i],
                 storm_time_unix_sec=storm_times_unix_sec[i]
             )
@@ -477,7 +488,7 @@ def _run(input_file_name, plot_significance, plot_regions_of_interest,
             plot_input_examples.plot_one_example(
                 list_of_predictor_matrices=list_of_input_matrices,
                 model_metadata_dict=model_metadata_dict, example_index=i,
-                allow_whitespace=True, pmm_flag=pmm_flag,
+                allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
                 full_storm_id_string=full_storm_id_strings[i],
                 storm_time_unix_sec=storm_times_unix_sec[i]
             )
@@ -536,6 +547,9 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
+        allow_whitespace=bool(getattr(
+            INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
+        )),
         plot_significance=bool(getattr(
             INPUT_ARG_OBJECT, PLOT_SIGNIFICANCE_ARG_NAME)),
         plot_regions_of_interest=bool(getattr(
