@@ -437,6 +437,9 @@ def _run(input_file_name, allow_whitespace, plot_significance,
             )
         )
 
+        print(these_figure_objects)
+        print(these_axes_object_matrices)
+
         for j in range(num_input_matrices):
             if list_of_cam_matrices[j] is None:
                 continue
