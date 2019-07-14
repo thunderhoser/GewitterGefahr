@@ -296,7 +296,7 @@ def _plot_2d_radar_cam(
             axes_object_matrix=axes_object_matrices[figure_index]
         )
 
-    if figure_objects[j]._suptitle is not None:
+    if figure_objects[figure_index]._suptitle is not None:
         title_string = '{0:s}; ({1:s} = {2:.3f})'.format(
             figure_objects[figure_index]._suptitle.get_text(), quantity_string,
             max_contour_level
