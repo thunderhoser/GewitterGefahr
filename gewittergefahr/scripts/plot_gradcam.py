@@ -190,13 +190,18 @@ def _plot_3d_radar_cam(
                 axes_object_matrix=axes_object_matrices[j]
             )
 
-        if figure_objects[j]._suptitle is not None:
+        allow_whitespace = figure_objects[j]._suptitle is not None
+
+        if allow_whitespace:
             this_title_string = '{0:s}; ({1:s} = {2:.3f})'.format(
                 figure_objects[j]._suptitle.get_text(), quantity_string,
                 this_max_contour_level
             )
 
             figure_objects[j].suptitle(this_title_string)
+        else:
+            for this_axes_object in axes_object_matrices[j]:
+                this_axes_object.set(aspect='equal')
 
         this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
             output_dir_name=output_dir_name, pmm_flag=pmm_flag,
@@ -296,13 +301,18 @@ def _plot_2d_radar_cam(
             axes_object_matrix=axes_object_matrices[figure_index]
         )
 
-    if figure_objects[figure_index]._suptitle is not None:
+    allow_whitespace = figure_objects[figure_index]._suptitle is not None
+
+    if allow_whitespace:
         title_string = '{0:s}; ({1:s} = {2:.3f})'.format(
             figure_objects[figure_index]._suptitle.get_text(), quantity_string,
             max_contour_level
         )
 
         figure_objects[figure_index].suptitle(title_string)
+    else:
+        for this_axes_object in axes_object_matrices[j]:
+            this_axes_object.set(aspect='equal')
 
     output_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
         output_dir_name=output_dir_name, pmm_flag=pmm_flag,
