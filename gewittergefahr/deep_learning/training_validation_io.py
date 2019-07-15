@@ -896,6 +896,10 @@ def myrorss_generator_2d3d(option_dict):
     num_grid_rows = option_dict[NUM_ROWS_KEY]
     num_grid_columns = option_dict[NUM_COLUMNS_KEY]
 
+    print(num_grid_rows)
+    print(num_grid_columns)
+    print('\n\n**************\n\n')
+
     normalization_type_string = option_dict[NORMALIZATION_TYPE_KEY]
     normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
     min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
