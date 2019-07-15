@@ -465,9 +465,9 @@ def _upsample_reflectivity(reflectivity_matrix_dbz):
         (E-by-M-by-N-by-H numpy array).
     """
 
-    print(orig_refl_matrix_dbz.shape)
+    print(reflectivity_matrix_dbz.shape)
 
-    orig_refl_matrix_dbz = reflectivity_matrix_dbz
+    orig_refl_matrix_dbz = reflectivity_matrix_dbz + 0.
     num_rows_orig = orig_refl_matrix_dbz.shape[1]
     num_rows_new = 2 * num_rows_orig
 
