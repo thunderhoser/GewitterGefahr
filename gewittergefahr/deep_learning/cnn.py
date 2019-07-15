@@ -466,7 +466,7 @@ def train_cnn_2d_or_3d(
             patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
             min_delta=CROSS_ENTROPY_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
 
-        list_of_callback_objects.append([early_stopping_object, plateau_object])
+        list_of_callback_objects += [early_stopping_object, plateau_object]
 
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
@@ -553,7 +553,7 @@ def train_cnn_with_soundings(
             patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
             min_delta=CROSS_ENTROPY_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
 
-        list_of_callback_objects.append([early_stopping_object, plateau_object])
+        list_of_callback_objects += [early_stopping_object, plateau_object]
 
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
@@ -636,7 +636,7 @@ def train_cnn_2d3d_myrorss(
             patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
             min_delta=CROSS_ENTROPY_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
 
-        list_of_callback_objects.append([early_stopping_object, plateau_object])
+        list_of_callback_objects += [early_stopping_object, plateau_object]
 
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
@@ -728,7 +728,7 @@ def train_cnn_gridrad_2d_reduced(
             patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
             min_delta=CROSS_ENTROPY_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
 
-        list_of_callback_objects.append([early_stopping_object, plateau_object])
+        list_of_callback_objects += [early_stopping_object, plateau_object]
 
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
