@@ -490,19 +490,19 @@ def _run(input_file_name, plot_significance, saliency_colour_map_name,
     )
     num_radar_matrices = len(list_of_input_matrices) - int(include_soundings)
 
-    if include_soundings:
-
-        # TODO(thunderhoser): Write version of this that plots only one example.
-        _plot_sounding_saliency(
-            sounding_matrix=list_of_input_matrices[-1],
-            saliency_matrix=list_of_saliency_matrices[-1],
-            model_metadata_dict=model_metadata_dict,
-            saliency_dict=saliency_dict,
-            colour_map_object=saliency_colour_map_object,
-            max_colour_value_by_example=max_colour_value_by_example,
-            output_dir_name=output_dir_name)
-
-        print(SEPARATOR_STRING)
+    # if include_soundings:
+    #
+    #     # TODO(thunderhoser): Write version of this that plots only one example.
+    #     _plot_sounding_saliency(
+    #         sounding_matrix=list_of_input_matrices[-1],
+    #         saliency_matrix=list_of_saliency_matrices[-1],
+    #         model_metadata_dict=model_metadata_dict,
+    #         saliency_dict=saliency_dict,
+    #         colour_map_object=saliency_colour_map_object,
+    #         max_colour_value_by_example=max_colour_value_by_example,
+    #         output_dir_name=output_dir_name)
+    #
+    #     print(SEPARATOR_STRING)
 
     monte_carlo_dict = (
         saliency_dict[saliency_maps.MONTE_CARLO_DICT_KEY]
