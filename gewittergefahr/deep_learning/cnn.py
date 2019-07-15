@@ -24,10 +24,12 @@ import keras.losses
 import keras.optimizers
 import keras.models
 import keras.callbacks
+from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import keras_metrics
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.gg_io import netcdf_io
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -381,6 +383,13 @@ def read_model_metadata(pickle_file_name):
        ):
         metadata_dict[TRAINING_OPTION_DICT_KEY][
             trainval_io.SHUFFLE_TARGET_KEY
+        ] = False
+
+    if (trainval_io.UPSAMPLE_REFLECTIVITY_KEY not in
+            metadata_dict[TRAINING_OPTION_DICT_KEY]
+    ):
+        metadata_dict[TRAINING_OPTION_DICT_KEY][
+            trainval_io.UPSAMPLE_REFLECTIVITY_KEY
         ] = False
 
     if 'use_2d3d_convolution' in metadata_dict:
