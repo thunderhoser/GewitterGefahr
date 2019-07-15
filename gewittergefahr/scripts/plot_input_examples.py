@@ -706,7 +706,7 @@ def plot_one_example(
             model_metadata_dict=model_metadata_dict,
             allow_whitespace=allow_whitespace, title_string=title_string)
 
-    num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 1
+    num_radar_dimensions = len(predictor_matrices_to_plot[0].shape) - 1
 
     if num_radar_dimensions == 3:
         return _plot_3d_example(
@@ -761,9 +761,16 @@ def plot_examples(
     if storm_activations is None:
         storm_activations = [None] * num_examples
 
-    num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    include_soundings = (
+        training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
+    )
+    num_radar_matrices = (
+        len(list_of_predictor_matrices) - int(include_soundings)
+    )
+
     radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+    num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
     for i in range(num_examples):
         these_figure_objects = plot_one_example(
@@ -775,7 +782,7 @@ def plot_examples(
             storm_activation=storm_activations[i]
         )[0]
 
-        if len(list_of_predictor_matrices) == 3:
+        if num_radar_matrices == 2:
             this_file_name = metadata_to_radar_fig_file_name(
                 output_dir_name=output_dir_name, pmm_flag=pmm_flag,
                 full_storm_id_string=full_storm_id_strings[i],
