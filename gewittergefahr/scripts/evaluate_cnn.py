@@ -221,11 +221,17 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
             else:
                 this_sounding_matrix = None
 
-            this_probability_matrix = cnn.apply_2d3d_cnn(
-                model_object=model_object,
-                reflectivity_matrix_dbz=these_predictor_matrices[0],
-                azimuthal_shear_matrix_s01=these_predictor_matrices[1],
-                sounding_matrix=this_sounding_matrix, verbose=True)
+            if training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]:
+                this_probability_matrix = cnn.apply_2d_or_3d_cnn(
+                    model_object=model_object,
+                    radar_image_matrix=these_predictor_matrices[0],
+                    sounding_matrix=this_sounding_matrix, verbose=True)
+            else:
+                this_probability_matrix = cnn.apply_2d3d_cnn(
+                    model_object=model_object,
+                    reflectivity_matrix_dbz=these_predictor_matrices[0],
+                    azimuthal_shear_matrix_s01=these_predictor_matrices[1],
+                    sounding_matrix=this_sounding_matrix, verbose=True)
         else:
             if len(these_predictor_matrices) == 2:
                 this_sounding_matrix = these_predictor_matrices[1]
