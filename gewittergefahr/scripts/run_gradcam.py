@@ -187,8 +187,34 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
                 )
 
     print(SEPARATOR_STRING)
+    upsample_refl = training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]
+
+    if upsample_refl:
+        list_of_cam_matrices[0] = numpy.expand_dims(
+            list_of_cam_matrices[0], axis=-1
+        )
+
+        num_channels = list_of_input_matrices[0].shape[-1]
+        list_of_cam_matrices[0] = numpy.repeat(
+            a=list_of_cam_matrices[0], repeats=num_channels, axis=-1
+        )
+
+        list_of_cam_matrices = trainval_io.separate_shear_and_reflectivity(
+            list_of_input_matrices=list_of_cam_matrices,
+            training_option_dict=training_option_dict)
+
+        list_of_cam_matrices[0] = list_of_cam_matrices[0][..., 0]
+        list_of_cam_matrices[1] = list_of_cam_matrices[1][..., 0]
+
+    list_of_guided_cam_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=list_of_guided_cam_matrices,
+        training_option_dict=training_option_dict)
 
     print('Denormalizing predictors...')
+    list_of_input_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=list_of_input_matrices,
+        training_option_dict=training_option_dict)
+
     list_of_input_matrices = model_interpretation.denormalize_data(
         list_of_input_matrices=list_of_input_matrices,
         model_metadata_dict=model_metadata_dict)
