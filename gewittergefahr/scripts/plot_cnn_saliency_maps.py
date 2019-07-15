@@ -125,11 +125,12 @@ def _plot_3d_radar_saliency(
         radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
 
     for j in range(loop_max):
-        saliency_plotting.plot_many_2d_grids_with_pm_signs(
+        saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=numpy.flip(saliency_matrix[..., j], axis=0),
             axes_object_matrix=axes_object_matrices[j],
             colour_map_object=colour_map_object,
-            max_absolute_colour_value=max_colour_value)
+            max_absolute_contour_level=max_colour_value,
+            contour_interval=max_colour_value / HALF_NUM_CONTOURS)
 
         if significance_matrix is not None:
             this_matrix = numpy.flip(significance_matrix[..., j], axis=0)
