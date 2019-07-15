@@ -701,7 +701,8 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
             TARGET_ARRAY_KEY: target_array,
             FULL_IDS_KEY: this_example_dict[input_examples.FULL_IDS_KEY],
             STORM_TIMES_KEY: this_example_dict[input_examples.STORM_TIMES_KEY],
-            SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pascals + 0.
+            SOUNDING_PRESSURES_KEY:
+                copy.deepcopy(sounding_pressure_matrix_pascals)
         }
 
         radar_image_matrix = None
