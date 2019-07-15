@@ -541,7 +541,7 @@ def _run(input_file_name, plot_significance, saliency_colour_map_name,
 
             if this_num_spatial_dim == 3:
                 _plot_3d_radar_saliency(
-                    saliency_matrix=list_of_saliency_matrices[0],
+                    saliency_matrix=list_of_saliency_matrices[j][i, ...],
                     colour_map_object=saliency_colour_map_object,
                     max_colour_value=max_colour_value_by_example[i],
                     figure_objects=these_figure_objects,
@@ -554,7 +554,7 @@ def _run(input_file_name, plot_significance, saliency_colour_map_name,
                 )
             else:
                 _plot_2d_radar_saliency(
-                    saliency_matrix=list_of_saliency_matrices[0],
+                    saliency_matrix=list_of_saliency_matrices[j][i, ...],
                     colour_map_object=saliency_colour_map_object,
                     max_colour_value=max_colour_value_by_example[i],
                     figure_objects=these_figure_objects,
