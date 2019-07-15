@@ -73,12 +73,15 @@ def _do_saliency_calculations(
 
     list_of_gradient_tensors = K.gradients(loss_tensor, list_of_input_tensors)
     num_input_tensors = len(list_of_input_tensors)
+
     for i in range(num_input_tensors):
         list_of_gradient_tensors[i] /= K.maximum(
-            K.std(list_of_gradient_tensors[i]), K.epsilon())
+            K.std(list_of_gradient_tensors[i]), K.epsilon()
+        )
 
     inputs_to_gradients_function = K.function(
-        list_of_input_tensors + [K.learning_phase()], list_of_gradient_tensors)
+        list_of_input_tensors + [K.learning_phase()], list_of_gradient_tensors
+    )
 
     # list_of_saliency_matrices = None
     # num_examples = list_of_input_matrices[0].shape[0]
@@ -97,7 +100,8 @@ def _do_saliency_calculations(
     #                 axis=0)
 
     list_of_saliency_matrices = inputs_to_gradients_function(
-        list_of_input_matrices + [0])
+        list_of_input_matrices + [0]
+    )
 
     for i in range(num_input_tensors):
         list_of_saliency_matrices[i] *= -1
