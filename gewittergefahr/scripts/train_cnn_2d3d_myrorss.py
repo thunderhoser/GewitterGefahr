@@ -32,6 +32,18 @@ SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = dl_helper.add_input_args(argument_parser=INPUT_ARG_PARSER)
 
+UPSAMPLE_REFL_ARG_NAME = 'upsample_refl'
+
+UPSAMPLE_REFL_HELP_STRING = (
+    'Boolean flag.  If True, will upsample reflectivity to the same resolution '
+    'as azimuthal shear and do 2-D convolution over both at the same time.  If '
+    'False, will do 3-D convolution over reflectivity and 2-D convolution over '
+    'azimuthal shear.')
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + UPSAMPLE_REFL_ARG_NAME, type=int, required=False, default=0,
+    help=UPSAMPLE_REFL_HELP_STRING)
+
 
 def _run(input_model_file_name, sounding_field_names, normalization_type_string,
          normalization_param_file_name, min_normalized_value,
@@ -39,7 +51,7 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
          downsampling_fractions, monitor_string, weight_loss_function,
          x_translations_pixels, y_translations_pixels, ccw_rotation_angles_deg,
          noise_standard_deviation, num_noisings, flip_in_x, flip_in_y,
-         top_training_dir_name, first_training_time_string,
+         upsample_refl, top_training_dir_name, first_training_time_string,
          last_training_time_string, num_examples_per_train_batch,
          top_validation_dir_name, first_validation_time_string,
          last_validation_time_string, num_examples_per_validn_batch, num_epochs,
@@ -67,6 +79,7 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
     :param num_noisings: Same.
     :param flip_in_x: Same.
     :param flip_in_y: Same.
+    :param upsample_refl: Same.
     :param top_training_dir_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
@@ -197,7 +210,8 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
         trainval_io.NOISE_STDEV_KEY: noise_standard_deviation,
         trainval_io.NUM_NOISINGS_KEY: num_noisings,
         trainval_io.FLIP_X_KEY: flip_in_x,
-        trainval_io.FLIP_Y_KEY: flip_in_y
+        trainval_io.FLIP_Y_KEY: flip_in_y,
+        trainval_io.UPSAMPLE_REFLECTIVITY_KEY: upsample_refl
     }
 
     print('Writing metadata to: "{0:s}"...'.format(model_metafile_name))
@@ -264,6 +278,7 @@ if __name__ == '__main__':
         num_noisings=getattr(INPUT_ARG_OBJECT, dl_helper.NUM_NOISINGS_ARG_NAME),
         flip_in_x=bool(getattr(INPUT_ARG_OBJECT, dl_helper.FLIP_X_ARG_NAME)),
         flip_in_y=bool(getattr(INPUT_ARG_OBJECT, dl_helper.FLIP_Y_ARG_NAME)),
+        upsample_refl=bool(getattr(INPUT_ARG_OBJECT, UPSAMPLE_REFL_ARG_NAME)),
         top_training_dir_name=getattr(
             INPUT_ARG_OBJECT, dl_helper.TRAINING_DIR_ARG_NAME),
         first_training_time_string=getattr(

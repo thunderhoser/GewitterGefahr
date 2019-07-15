@@ -16,6 +16,7 @@ C = number of radar field/height pairs
 
 import numpy
 import keras
+from scipy.interpolate import RectBivariateSpline
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import data_augmentation
 from gewittergefahr.deep_learning import input_examples
@@ -56,6 +57,7 @@ NOISE_STDEV_KEY = 'noise_standard_deviation'
 NUM_NOISINGS_KEY = 'num_noisings'
 FLIP_X_KEY = 'flip_in_x'
 FLIP_Y_KEY = 'flip_in_y'
+UPSAMPLE_REFLECTIVITY_KEY = 'upsample_reflectivity'
 
 DEFAULT_OPTION_DICT = {
     NORMALIZATION_TYPE_KEY: dl_utils.Z_NORMALIZATION_TYPE_STRING,
@@ -72,7 +74,8 @@ DEFAULT_OPTION_DICT = {
     NOISE_STDEV_KEY: 0.05,
     NUM_NOISINGS_KEY: 0,
     FLIP_X_KEY: False,
-    FLIP_Y_KEY: False
+    FLIP_Y_KEY: False,
+    UPSAMPLE_REFLECTIVITY_KEY: False
 }
 
 
@@ -446,6 +449,62 @@ def _augment_radar_images(
     return list_of_predictor_matrices, target_array
 
 
+def _upsample_reflectivity(reflectivity_matrix_dbz):
+    """Upsamples reflectivity to twice the horizontal resolution
+
+    E = number of examples
+    m = number of rows in original grid
+    n = number of columns in original grid
+    M = 2 * m = number of rows in new grid
+    N = 2 * n = number of columns in new grid
+    H = number of heights in grid
+
+    :param reflectivity_matrix_dbz: E-by-m-by-n-by-H numpy array of reflectivity
+        (dBZ).
+    :return: reflectivity_matrix_dbz: Upsampled version of input
+        (E-by-M-by-N-by-H numpy array).
+    """
+
+    orig_refl_matrix_dbz = reflectivity_matrix_dbz
+    num_rows_orig = orig_refl_matrix_dbz.shape[1]
+    num_rows_new = 2 * num_rows_orig
+
+    row_indices_new = numpy.linspace(
+        1, num_rows_new, num=num_rows_new, dtype=float
+    )
+    row_indices_orig = numpy.linspace(
+        1, num_rows_new, num=num_rows_orig, dtype=float
+    )
+
+    num_columns_orig = orig_refl_matrix_dbz.shape[2]
+    num_columns_new = 2 * num_columns_orig
+
+    column_indices_new = numpy.linspace(
+        1, num_columns_new, num=num_columns_new, dtype=float
+    )
+    column_indices_orig = numpy.linspace(
+        1, num_columns_new, num=num_columns_orig, dtype=float
+    )
+
+    num_examples = orig_refl_matrix_dbz.shape[0]
+    num_heights = orig_refl_matrix_dbz.shape[3]
+    new_refl_matrix_dbz = numpy.full(
+        (num_examples, num_rows_new, num_columns_new, num_heights), numpy.nan
+    )
+
+    for i in range(num_examples):
+        for k in range(num_heights):
+            this_interp_object = RectBivariateSpline(
+                x=row_indices_orig, y=column_indices_orig,
+                z=orig_refl_matrix_dbz[i, ..., k], kx=3, ky=3, s=0
+            )
+
+            new_refl_matrix_dbz[i, ..., k] = this_interp_object(
+                x=row_indices_new, y=column_indices_new, grid=True)
+
+    return new_refl_matrix_dbz
+
+
 def check_generator_args(option_dict):
     """Error-checks input arguments for generator.
 
@@ -466,6 +525,7 @@ def check_generator_args(option_dict):
     error_checking.assert_is_boolean(option_dict[BINARIZE_TARGET_KEY])
     error_checking.assert_is_boolean(option_dict[SHUFFLE_TARGET_KEY])
     error_checking.assert_is_boolean(option_dict[LOOP_ONCE_KEY])
+    error_checking.assert_is_boolean(option_dict[UPSAMPLE_REFLECTIVITY_KEY])
 
     return option_dict
 
@@ -645,18 +705,16 @@ def generator_2d_or_3d(option_dict):
             if this_example_dict is None:
                 continue
 
+            this_radar_matrix = this_example_dict[
+                input_examples.RADAR_IMAGE_MATRIX_KEY]
+            num_radar_dimensions = len(this_radar_matrix.shape) - 2
+
             include_soundings = (
                 input_examples.SOUNDING_MATRIX_KEY in this_example_dict
             )
-            num_radar_dimensions = len(
-                this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY].shape
-            ) - 2
 
             if target_values is None:
-                radar_image_matrix = (
-                    this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]
-                    + 0.
-                )
+                radar_image_matrix = this_radar_matrix + 0.
                 target_values = (
                     this_example_dict[input_examples.TARGET_VALUES_KEY] + 0
                 )
@@ -668,9 +726,7 @@ def generator_2d_or_3d(option_dict):
                     )
             else:
                 radar_image_matrix = numpy.concatenate(
-                    (radar_image_matrix,
-                     this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]),
-                    axis=0
+                    (radar_image_matrix, this_radar_matrix), axis=0
                 )
                 target_values = numpy.concatenate((
                     target_values,
@@ -798,6 +854,12 @@ def myrorss_generator_2d3d(option_dict):
     option_dict['num_noisings']: Same.
     option_dict['flip_in_x']: Same.
     option_dict['flip_in_y']: Same.
+    option_dict['upsample_reflectivity']: Boolean flag.  If True, will upsample
+        reflectivity to the same resolution as azimuthal shear and do 2-D
+        convolution over both at the same time.  If False, will do 3-D
+        convolution over reflectivity and 2-D convolution over azimuthal shear.
+
+    If `upsample_reflectivity == True`...
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = reflectivity_image_matrix_dbz: numpy array
@@ -809,6 +871,15 @@ def myrorss_generator_2d3d(option_dict):
         not exist.
 
     :return: target_array: See doc for `generator_2d_or_3d`.
+
+    If `upsample_reflectivity == False`...
+
+    :return: predictor_list: List with the following items.
+    predictor_list[0]: radar_image_matrix: numpy array (E x 2M x 2N x [H_r + C])
+        of storm-centered radar images.
+    predictor_list[1]: sounding_matrix: See above.
+
+    :return: target_array: See above.
     """
 
     option_dict = check_generator_args(option_dict)
@@ -843,6 +914,13 @@ def myrorss_generator_2d3d(option_dict):
     num_noisings = option_dict[NUM_NOISINGS_KEY]
     flip_in_x = option_dict[FLIP_X_KEY]
     flip_in_y = option_dict[FLIP_Y_KEY]
+    upsample_refl = option_dict[UPSAMPLE_REFLECTIVITY_KEY]
+
+    if upsample_refl:
+        radar_field_names = (
+            [radar_utils.REFL_NAME] * len(reflectivity_heights_m_agl) +
+            azimuthal_shear_field_names
+        )
 
     class_to_batch_size_dict = _get_batch_size_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
@@ -851,6 +929,7 @@ def myrorss_generator_2d3d(option_dict):
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
 
+    radar_image_matrix = None
     reflectivity_image_matrix_dbz = None
     az_shear_image_matrix_s01 = None
     sounding_matrix = None
@@ -864,6 +943,7 @@ def myrorss_generator_2d3d(option_dict):
             raise StopIteration
 
         stop_generator = False
+
         while not stop_generator:
             if file_index == len(example_file_names):
                 if loop_thru_files_once:
@@ -903,17 +983,32 @@ def myrorss_generator_2d3d(option_dict):
                 input_examples.SOUNDING_MATRIX_KEY in this_example_dict
             )
 
+            this_az_shear_matrix_s01 = this_example_dict[
+                input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY]
+
+            if upsample_refl:
+                this_refl_matrix_dbz = _upsample_reflectivity(
+                    this_example_dict[input_examples.REFL_IMAGE_MATRIX_KEY][
+                        ..., 0]
+                )
+
+                this_radar_matrix = numpy.concatenate(
+                    (this_refl_matrix_dbz, this_az_shear_matrix_s01), axis=-1
+                )
+            else:
+                this_refl_matrix_dbz = this_example_dict[
+                    input_examples.REFL_IMAGE_MATRIX_KEY]
+
             if target_values is None:
-                reflectivity_image_matrix_dbz = (
-                    this_example_dict[input_examples.REFL_IMAGE_MATRIX_KEY] + 0.
-                )
-                az_shear_image_matrix_s01 = (
-                    this_example_dict[input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY]
-                    + 0.
-                )
                 target_values = (
                     this_example_dict[input_examples.TARGET_VALUES_KEY] + 0
                 )
+
+                if upsample_refl:
+                    radar_image_matrix = this_radar_matrix + 0.
+                else:
+                    reflectivity_image_matrix_dbz = this_refl_matrix_dbz + 0.
+                    az_shear_image_matrix_s01 = this_az_shear_matrix_s01 + 0.
 
                 if include_soundings:
                     sounding_matrix = (
@@ -921,20 +1016,24 @@ def myrorss_generator_2d3d(option_dict):
                         + 0.
                     )
             else:
-                reflectivity_image_matrix_dbz = numpy.concatenate(
-                    (reflectivity_image_matrix_dbz,
-                     this_example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]),
-                    axis=0
-                )
-                az_shear_image_matrix_s01 = numpy.concatenate((
-                    az_shear_image_matrix_s01,
-                    this_example_dict[input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY]
-                ), axis=0)
-
                 target_values = numpy.concatenate((
                     target_values,
                     this_example_dict[input_examples.TARGET_VALUES_KEY]
                 ))
+
+                if upsample_refl:
+                    radar_image_matrix = numpy.concatenate(
+                        (radar_image_matrix, this_radar_matrix), axis=0
+                    )
+                else:
+                    reflectivity_image_matrix_dbz = numpy.concatenate(
+                        (reflectivity_image_matrix_dbz, this_refl_matrix_dbz),
+                        axis=0
+                    )
+                    az_shear_image_matrix_s01 = numpy.concatenate(
+                        (az_shear_image_matrix_s01, this_az_shear_matrix_s01),
+                        axis=0
+                    )
 
                 if include_soundings:
                     sounding_matrix = numpy.concatenate(
@@ -955,30 +1054,46 @@ def myrorss_generator_2d3d(option_dict):
                 target_name=target_name, target_values=target_values,
                 num_examples_total=num_examples_per_batch)
 
-            reflectivity_image_matrix_dbz = reflectivity_image_matrix_dbz[
-                indices_to_keep, ...]
-            az_shear_image_matrix_s01 = az_shear_image_matrix_s01[
-                indices_to_keep, ...]
+            if upsample_refl:
+                radar_image_matrix = radar_image_matrix[indices_to_keep, ...]
+            else:
+                reflectivity_image_matrix_dbz = reflectivity_image_matrix_dbz[
+                    indices_to_keep, ...]
+                az_shear_image_matrix_s01 = az_shear_image_matrix_s01[
+                    indices_to_keep, ...]
+
             target_values = target_values[indices_to_keep]
             if include_soundings:
                 sounding_matrix = sounding_matrix[indices_to_keep, ...]
 
         if normalization_type_string is not None:
-            reflectivity_image_matrix_dbz = dl_utils.normalize_radar_images(
-                radar_image_matrix=reflectivity_image_matrix_dbz,
-                field_names=[radar_utils.REFL_NAME],
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value).astype('float32')
+            if upsample_refl:
+                radar_image_matrix = dl_utils.normalize_radar_images(
+                    radar_image_matrix=radar_image_matrix,
+                    field_names=radar_field_names,
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_param_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value
+                ).astype('float32')
+            else:
+                reflectivity_image_matrix_dbz = dl_utils.normalize_radar_images(
+                    radar_image_matrix=reflectivity_image_matrix_dbz,
+                    field_names=[radar_utils.REFL_NAME],
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_param_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value
+                ).astype('float32')
 
-            az_shear_image_matrix_s01 = dl_utils.normalize_radar_images(
-                radar_image_matrix=az_shear_image_matrix_s01,
-                field_names=azimuthal_shear_field_names,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value).astype('float32')
+                az_shear_image_matrix_s01 = dl_utils.normalize_radar_images(
+                    radar_image_matrix=az_shear_image_matrix_s01,
+                    field_names=azimuthal_shear_field_names,
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_param_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value
+                ).astype('float32')
 
             if include_soundings:
                 sounding_matrix = dl_utils.normalize_soundings(
@@ -987,14 +1102,19 @@ def myrorss_generator_2d3d(option_dict):
                     normalization_type_string=normalization_type_string,
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
-                    max_normalized_value=max_normalized_value).astype('float32')
+                    max_normalized_value=max_normalized_value
+                ).astype('float32')
 
         if shuffle_target:
             numpy.random.shuffle(target_values)
 
-        list_of_predictor_matrices = [
-            reflectivity_image_matrix_dbz, az_shear_image_matrix_s01
-        ]
+        if upsample_refl:
+            list_of_predictor_matrices = [radar_image_matrix]
+        else:
+            list_of_predictor_matrices = [
+                reflectivity_image_matrix_dbz, az_shear_image_matrix_s01
+            ]
+
         if include_soundings:
             list_of_predictor_matrices.append(sounding_matrix)
 
@@ -1013,6 +1133,7 @@ def myrorss_generator_2d3d(option_dict):
             noise_standard_deviation=noise_standard_deviation,
             num_noisings=num_noisings, flip_in_x=flip_in_x, flip_in_y=flip_in_y)
 
+        radar_image_matrix = None
         reflectivity_image_matrix_dbz = None
         az_shear_image_matrix_s01 = None
         sounding_matrix = None

@@ -40,6 +40,83 @@ TARGET_VALUES_WIND[THESE_INDICES[:30]] = 2
 TARGET_VALUES_WIND[THESE_INDICES[30:70]] = 1
 TARGET_VALUES_WIND[THESE_INDICES[70:]] = -2
 
+# The following constants are used to test _upsample_reflectivity.
+THIS_MATRIX_EXAMPLE1_HEIGHT1 = numpy.array([
+    [0, 1, 2, 3, 4, 5],
+    [0, 1, 2, 3, 4, 5],
+    [0, 1, 2, 3, 4, 5],
+    [0, 1, 2, 3, 4, 5]
+])
+
+THIS_MATRIX_EXAMPLE1_HEIGHT2 = numpy.array([
+    [0, 1, 2, 3, 4, 5],
+    [6, 7, 8, 9, 10, 11],
+    [12, 13, 14, 15, 16, 17],
+    [18, 19, 20, 21, 22, 23]
+])
+
+THIS_MATRIX_EXAMPLE1_HEIGHT3 = numpy.array([
+    [0, 0, 0, 0, 0, 0],
+    [10, 10, 10, 10, 10, 10],
+    [20, 20, 20, 20, 20, 20],
+    [30, 30, 30, 30, 30, 30]
+])
+
+THIS_MATRIX_EXAMPLE1 = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT1, THIS_MATRIX_EXAMPLE1_HEIGHT2,
+     THIS_MATRIX_EXAMPLE1_HEIGHT3),
+    axis=-1
+)
+
+RADAR_MATRIX_ORIG = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1, THIS_MATRIX_EXAMPLE1 * 2), axis=0
+).astype(float)
+
+THIS_MATRIX_EXAMPLE1_HEIGHT1 = numpy.array([
+    [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+], dtype=float) / 11
+
+THIS_OTHER_MATRIX = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18],
+    [36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36],
+    [54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54],
+    [72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72],
+    [90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90],
+    [108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108, 108],
+    [126, 126, 126, 126, 126, 126, 126, 126, 126, 126, 126, 126],
+], dtype=float) / 7
+
+THIS_MATRIX_EXAMPLE1_HEIGHT2 = THIS_MATRIX_EXAMPLE1_HEIGHT1 + THIS_OTHER_MATRIX
+
+THIS_MATRIX_EXAMPLE1_HEIGHT3 = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30],
+    [60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60],
+    [90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90],
+    [120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120],
+    [150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150],
+    [180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180, 180],
+    [210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210],
+], dtype=float) / 7
+
+THIS_MATRIX_EXAMPLE1 = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT1, THIS_MATRIX_EXAMPLE1_HEIGHT2,
+     THIS_MATRIX_EXAMPLE1_HEIGHT3),
+    axis=-1
+)
+
+RADAR_MATRIX_UPSAMPLED = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1, THIS_MATRIX_EXAMPLE1 * 2), axis=0
+).astype(float)
+
 # The following constants are used to test layer_ops_to_field_height_pairs.
 RADAR_FIELD_NAMES = (
     [radar_utils.REFL_NAME] * 3 +
@@ -288,6 +365,16 @@ class TrainingValidationIoTests(unittest.TestCase):
             target_values_in_memory=TARGET_VALUES_WIND)
 
         self.assertTrue(this_dict == {-2: 0, 0: 0, 1: 0, 2: 0})
+
+    def test_upsample_reflectivity(self):
+        """Ensures correct output from _upsample_reflectivity."""
+
+        this_radar_matrix = trainval_io._upsample_reflectivity(
+            RADAR_MATRIX_ORIG + 0.)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_UPSAMPLED, atol=TOLERANCE
+        ))
 
     def test_layer_ops_to_field_height_pairs(self):
         """Ensures correct output from layer_ops_to_field_height_pairs."""
