@@ -104,7 +104,7 @@ def _create_sounding_layers(
     current_num_filters = None
     current_num_spatial_filters = None
 
-    for _ in range(num_conv_layer_sets):
+    for i in range(num_conv_layer_sets):
         # if current_layer_object is None:
         #     if do_separable_conv:
         #         current_num_spatial_filters = first_num_spatial_filters + 0
@@ -167,10 +167,14 @@ def _create_sounding_layers(
                         current_layer_object)
                 )
 
-        current_layer_object = architecture_utils.get_1d_pooling_layer(
-            num_rows_in_window=2, num_rows_per_stride=2,
-            pooling_type_string=pooling_type_string
-        )(current_layer_object)
+        # TODO(thunderhoser): This condition is a HACK.
+        current_num_heights = current_layer_object.shape[1]
+
+        if not (current_num_heights < 8 and i == num_conv_layer_sets - 1):
+            current_layer_object = architecture_utils.get_1d_pooling_layer(
+                num_rows_in_window=2, num_rows_per_stride=2,
+                pooling_type_string=pooling_type_string
+            )(current_layer_object)
 
     these_dimensions = numpy.array(
         current_layer_object.get_shape().as_list()[1:], dtype=int)
@@ -634,6 +638,101 @@ def create_2d_cnn(
     else:
         model_object = keras.models.Model(
             inputs=radar_input_layer_object, outputs=layer_object)
+
+    loss_function = _get_output_layer_and_loss(num_classes)[-1]
+    model_object.compile(
+        loss=loss_function, optimizer=keras.optimizers.Adam(),
+        metrics=list_of_metric_functions)
+
+    model_object.summary()
+    return model_object
+
+
+def create_cnn_soundings_only(
+        num_fields, num_heights, first_num_filters, num_classes,
+        use_padding=False,
+        pooling_type_string=architecture_utils.MAX_POOLING_STRING,
+        num_conv_layer_sets=DEFAULT_NUM_CONV_LAYER_SETS,
+        num_conv_layers_per_set=DEFAULT_NUM_CONV_LAYERS_PER_SET,
+        conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
+        num_dense_layers=DEFAULT_NUM_DENSE_LAYERS,
+        dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
+        l1_weight=DEFAULT_L1_WEIGHT, l2_weight=DEFAULT_L2_WEIGHT,
+        activation_function_string=DEFAULT_ACTIVATION_FUNCTION_STRING,
+        alpha_for_elu=architecture_utils.DEFAULT_ALPHA_FOR_ELU,
+        alpha_for_relu=architecture_utils.DEFAULT_ALPHA_FOR_RELU,
+        use_batch_normalization=DEFAULT_USE_BATCH_NORM_FLAG,
+        list_of_metric_functions=DEFAULT_METRIC_FUNCTION_LIST):
+    """Creates CNN that convolves over soundings only.
+
+    :param num_fields: Number of sounding fields.
+    :param num_heights: Number of sounding heights.
+    :param first_num_filters: Number of filters produced by first conv layer.
+        Will double with each successive conv layer.
+    :param num_classes: See doc for `create_2d_cnn`.
+    :param use_padding: Same.
+    :param pooling_type_string: Same.
+    :param num_conv_layer_sets: Same.
+    :param num_conv_layers_per_set: Same.
+    :param conv_layer_dropout_fraction: Same.
+    :param num_dense_layers: Same.
+    :param dense_layer_dropout_fraction: Same.
+    :param l1_weight: Same.
+    :param l2_weight: Same.
+    :param activation_function_string: Same.
+    :param alpha_for_elu: Same.
+    :param alpha_for_relu: Same.
+    :param use_batch_normalization: Same.
+    :param list_of_metric_functions: Same.
+    :return: cnn_model_object: Untrained instance of `keras.models.Model`.
+    """
+
+    error_checking.assert_is_boolean(use_padding)
+    padding_type_string = (
+        architecture_utils.YES_PADDING_STRING if use_padding
+        else architecture_utils.NO_PADDING_STRING
+    )
+
+    check_radar_options(
+        num_grid_rows=32, num_grid_columns=32, num_dimensions=2,
+        num_channels=32, first_num_filters=32, num_classes=num_classes,
+        num_conv_layer_sets=num_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
+        num_dense_layers=num_dense_layers,
+        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
+        l1_weight=l1_weight, l2_weight=l2_weight,
+        activation_function_string=activation_function_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization,
+        do_separable_conv=False)
+
+    check_sounding_options(
+        num_fields=num_fields, num_heights=num_heights,
+        first_num_filters=first_num_filters, do_separable_conv=False)
+
+    input_layer_object, layer_object, num_features = _create_sounding_layers(
+        num_fields=num_fields, num_heights=num_heights,
+        first_num_filters=first_num_filters,
+        num_conv_layer_sets=num_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        padding_type_string=padding_type_string, l1_weight=l1_weight,
+        l2_weight=l2_weight, pooling_type_string=pooling_type_string,
+        activation_function_string=activation_function_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization,
+        dropout_fraction=conv_layer_dropout_fraction, do_separable_conv=False)
+
+    layer_object = _create_dense_layers(
+        flattening_layer_object=layer_object, num_scalar_features=num_features,
+        num_classes=num_classes, num_dense_layers=num_dense_layers,
+        dropout_fraction=dense_layer_dropout_fraction,
+        activation_function_string=activation_function_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization)
+
+    model_object = keras.models.Model(
+        inputs=input_layer_object, outputs=layer_object)
 
     loss_function = _get_output_layer_and_loss(num_classes)[-1]
     model_object.compile(
