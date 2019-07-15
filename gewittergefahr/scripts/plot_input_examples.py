@@ -954,6 +954,11 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     )[0]
     print(SEPARATOR_STRING)
 
+    print(len(list_of_predictor_matrices))
+    for a in list_of_predictor_matrices:
+        print(a.shape)
+    print('\n\n*************\n\n')
+
     plot_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
         model_metadata_dict=model_metadata_dict,
