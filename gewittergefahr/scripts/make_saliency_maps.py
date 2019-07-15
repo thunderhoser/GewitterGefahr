@@ -283,25 +283,9 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
 
     print(SEPARATOR_STRING)
 
-    upsample_refl = training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]
-    list_of_input_matrices_denorm = copy.deepcopy(list_of_input_matrices)
-
-    if upsample_refl:
-        num_az_shear_fields = len(
-            training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-        )
-
-        new_first_matrix = numpy.expand_dims(
-            list_of_input_matrices_denorm[0][..., :-num_az_shear_fields],
-            axis=-1
-        )
-        new_second_matrix = (
-            list_of_input_matrices_denorm[0][..., -num_az_shear_fields:]
-        )
-        list_of_input_matrices_denorm = (
-            [new_first_matrix, new_second_matrix] +
-            list_of_input_matrices_denorm[1:]
-        )
+    list_of_input_matrices_denorm = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=copy.deepcopy(list_of_input_matrices),
+        training_option_dict=training_option_dict)
 
     print('Denormalizing model inputs...')
     list_of_input_matrices_denorm = model_interpretation.denormalize_data(
@@ -385,18 +369,9 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
                     ideal_activation=ideal_activation)
             )
 
-        if upsample_refl:
-            new_first_matrix = numpy.expand_dims(
-                list_of_saliency_matrices[0][..., :-num_az_shear_fields],
-                axis=-1
-            )
-            new_second_matrix = (
-                list_of_saliency_matrices[0][..., -num_az_shear_fields:]
-            )
-            list_of_saliency_matrices = (
-                [new_first_matrix, new_second_matrix] +
-                list_of_saliency_matrices[1:]
-            )
+        list_of_saliency_matrices = trainval_io.separate_shear_and_reflectivity(
+            list_of_input_matrices=list_of_saliency_matrices,
+            training_option_dict=training_option_dict)
 
         print('Writing saliency maps to file: "{0:s}"...'.format(
             this_output_file_name))

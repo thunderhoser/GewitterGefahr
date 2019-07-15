@@ -534,6 +534,46 @@ def upsample_reflectivity(reflectivity_matrix_dbz):
     return new_refl_matrix_dbz
 
 
+def separate_shear_and_reflectivity(list_of_input_matrices,
+                                    training_option_dict):
+    """Separates azimuthal shear and reflectivity.
+
+    This works only for cases where reflectivity has been upsampled to the
+    resolution of azimuthal shear.
+
+    T = number of input matrices to model
+
+    :param list_of_input_matrices: length-T list of input matrices to model.
+        Each must be a numpy array.
+    :param training_option_dict: See doc for any generator in this file.
+    :return: list_of_input_matrices: length-(T + 1) list of numpy arrays, where
+        the first contains 3-D reflectivity fields and the second contains 2-D
+        azimuthal-shear fields.
+    """
+
+    error_checking.assert_is_list(list_of_input_matrices)
+    for this_matrix in list_of_input_matrices:
+        error_checking.assert_is_numpy_array_without_nan(this_matrix)
+
+    upsample_refl = training_option_dict[UPSAMPLE_REFLECTIVITY_KEY]
+    if not upsample_refl:
+        return list_of_input_matrices
+
+    num_az_shear_fields = len(training_option_dict[RADAR_FIELDS_KEY])
+
+    new_first_matrix = numpy.expand_dims(
+        list_of_input_matrices[0][..., :-num_az_shear_fields], axis=-1
+    )
+    new_second_matrix = (
+        list_of_input_matrices[0][..., -num_az_shear_fields:]
+    )
+    list_of_input_matrices = (
+        [new_first_matrix, new_second_matrix] + list_of_input_matrices[1:]
+    )
+
+    return list_of_input_matrices
+
+
 def generator_2d_or_3d(option_dict):
     """Generates examples with either 2-D or 3-D radar images.
 
