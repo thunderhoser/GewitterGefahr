@@ -728,8 +728,12 @@ def generator_2d_or_3d(option_dict):
         if shuffle_target:
             numpy.random.shuffle(target_values)
 
+        list_of_predictor_matrices = [radar_image_matrix]
+        if include_soundings:
+            list_of_predictor_matrices.append(sounding_matrix)
+
         list_of_predictor_matrices, target_array = _select_batch(
-            list_of_predictor_matrices=[radar_image_matrix, sounding_matrix],
+            list_of_predictor_matrices=list_of_predictor_matrices,
             target_values=target_values,
             num_examples_per_batch=num_examples_per_batch,
             binarize_target=binarize_target, num_classes=num_classes)
@@ -747,10 +751,7 @@ def generator_2d_or_3d(option_dict):
         sounding_matrix = None
         target_values = None
 
-        if include_soundings:
-            yield (list_of_predictor_matrices, target_array)
-        else:
-            yield (list_of_predictor_matrices[0], target_array)
+        yield (list_of_predictor_matrices, target_array)
 
 
 def myrorss_generator_2d3d(option_dict):
@@ -991,11 +992,14 @@ def myrorss_generator_2d3d(option_dict):
         if shuffle_target:
             numpy.random.shuffle(target_values)
 
+        list_of_predictor_matrices = [
+            reflectivity_image_matrix_dbz, az_shear_image_matrix_s01
+        ]
+        if include_soundings:
+            list_of_predictor_matrices.append(sounding_matrix)
+
         list_of_predictor_matrices, target_array = _select_batch(
-            list_of_predictor_matrices=[
-                reflectivity_image_matrix_dbz, az_shear_image_matrix_s01,
-                sounding_matrix
-            ],
+            list_of_predictor_matrices=list_of_predictor_matrices,
             target_values=target_values,
             num_examples_per_batch=num_examples_per_batch,
             binarize_target=binarize_target, num_classes=num_classes)
@@ -1014,10 +1018,7 @@ def myrorss_generator_2d3d(option_dict):
         sounding_matrix = None
         target_values = None
 
-        if include_soundings:
-            yield (list_of_predictor_matrices, target_array)
-        else:
-            yield (list_of_predictor_matrices[:-1], target_array)
+        yield (list_of_predictor_matrices, target_array)
 
 
 def sounding_generator(option_dict):
@@ -1443,8 +1444,12 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
         if shuffle_target:
             numpy.random.shuffle(target_values)
 
+        list_of_predictor_matrices = [radar_image_matrix]
+        if include_soundings:
+            list_of_predictor_matrices.append(sounding_matrix)
+
         list_of_predictor_matrices, target_array = _select_batch(
-            list_of_predictor_matrices=[radar_image_matrix, sounding_matrix],
+            list_of_predictor_matrices=list_of_predictor_matrices,
             target_values=target_values,
             num_examples_per_batch=num_examples_per_batch,
             binarize_target=binarize_target, num_classes=num_classes)
@@ -1462,7 +1467,4 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
         sounding_matrix = None
         target_values = None
 
-        if include_soundings:
-            yield (list_of_predictor_matrices, target_array)
-        else:
-            yield (list_of_predictor_matrices[0], target_array)
+        yield (list_of_predictor_matrices, target_array)
