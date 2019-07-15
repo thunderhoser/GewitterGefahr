@@ -198,6 +198,10 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
         generator_object = testing_io.generator_2d_or_3d(
             option_dict=training_option_dict, num_examples_total=num_examples)
 
+    include_soundings = (
+        training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
+    )
+
     forecast_probabilities = numpy.array([])
     observed_labels = numpy.array([], dtype=int)
 
@@ -215,12 +219,12 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
         these_predictor_matrices = this_storm_object_dict[
             testing_io.INPUT_MATRICES_KEY]
 
-        if model_metadata_dict[cnn.CONV_2D3D_KEY]:
-            if len(these_predictor_matrices) == 3:
-                this_sounding_matrix = these_predictor_matrices[2]
-            else:
-                this_sounding_matrix = None
+        if include_soundings:
+            this_sounding_matrix = these_predictor_matrices[-1]
+        else:
+            this_sounding_matrix = None
 
+        if model_metadata_dict[cnn.CONV_2D3D_KEY]:
             if training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]:
                 this_probability_matrix = cnn.apply_2d_or_3d_cnn(
                     model_object=model_object,
@@ -233,11 +237,6 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
                     azimuthal_shear_matrix_s01=these_predictor_matrices[1],
                     sounding_matrix=this_sounding_matrix, verbose=True)
         else:
-            if len(these_predictor_matrices) == 2:
-                this_sounding_matrix = these_predictor_matrices[1]
-            else:
-                this_sounding_matrix = None
-
             this_probability_matrix = cnn.apply_2d_or_3d_cnn(
                 model_object=model_object,
                 radar_image_matrix=these_predictor_matrices[0],

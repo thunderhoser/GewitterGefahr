@@ -139,7 +139,7 @@ def _create_sounding_layers(
                         num_rows_per_stride=1,
                         num_spatial_filters=current_num_spatial_filters,
                         num_non_spatial_filters=num_non_spatial_filters,
-                        padding_type_string=padding_type_string,
+                        padding_type_string=architecture_utils.YES_PADDING_STRING,
                         weight_regularizer=regularizer_object
                     )(this_input_layer_object)
                 )
@@ -147,7 +147,7 @@ def _create_sounding_layers(
                 current_layer_object = architecture_utils.get_1d_conv_layer(
                     num_kernel_rows=NUM_CONV_KERNEL_HEIGHTS,
                     num_rows_per_stride=1, num_filters=current_num_filters,
-                    padding_type_string=padding_type_string,
+                    padding_type_string=architecture_utils.YES_PADDING_STRING,
                     weight_regularizer=regularizer_object
                 )(this_input_layer_object)
 
@@ -552,13 +552,18 @@ def create_2d_cnn(
     current_num_filters = None
 
     for _ in range(num_conv_layer_sets):
+        if current_num_filters is None:
+            current_num_filters = first_num_radar_filters + 0
+        else:
+            current_num_filters *= 2
+
         for _ in range(num_conv_layers_per_set):
             if radar_layer_object is None:
                 this_input_layer_object = radar_input_layer_object
-                current_num_filters = first_num_radar_filters + 0
+                # current_num_filters = first_num_radar_filters + 0
             else:
                 this_input_layer_object = radar_layer_object
-                current_num_filters *= 2
+                # current_num_filters *= 2
 
             radar_layer_object = architecture_utils.get_2d_conv_layer(
                 num_filters=current_num_filters,
