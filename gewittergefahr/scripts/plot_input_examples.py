@@ -947,7 +947,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     list_of_predictor_matrices = testing_io.read_specific_examples(
         desired_full_id_strings=full_storm_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
-        option_dict=training_option_dict,
+        option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
         top_example_dir_name=top_example_dir_name,
         list_of_layer_operation_dicts=model_metadata_dict[
             cnn.LAYER_OPERATIONS_KEY]
