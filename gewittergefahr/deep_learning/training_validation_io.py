@@ -995,6 +995,7 @@ def myrorss_generator_2d3d(option_dict):
                 this_radar_matrix = numpy.concatenate(
                     (this_refl_matrix_dbz, this_az_shear_matrix_s01), axis=-1
                 )
+                print(this_radar_matrix.shape)
             else:
                 this_refl_matrix_dbz = this_example_dict[
                     input_examples.REFL_IMAGE_MATRIX_KEY]
