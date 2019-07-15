@@ -173,6 +173,10 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
     num_grid_rows = list_of_input_tensors[0].get_shape().as_list()[1]
     num_grid_columns = list_of_input_tensors[0].get_shape().as_list()[2]
 
+    print(num_grid_rows)
+    print(num_grid_columns)
+    print('\n\n********\n\n')
+
     training_option_dict = {
         trainval_io.EXAMPLE_FILES_KEY: training_file_names,
         trainval_io.TARGET_NAME_KEY: target_name,
