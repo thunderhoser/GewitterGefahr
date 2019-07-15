@@ -7,6 +7,7 @@ import numpy
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import model_interpretation
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import plot_input_examples
 
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
@@ -81,6 +82,9 @@ def _run(input_file_name, allow_whitespace, plot_soundings, output_dir_name):
 
     print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
+    model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY][
+        trainval_io.UPSAMPLE_REFLECTIVITY_KEY
+    ] = False
 
     plot_input_examples.plot_examples(
         list_of_predictor_matrices=list_of_mean_input_matrices,

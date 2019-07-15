@@ -932,6 +932,10 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
         model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
 
+    model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY][
+        trainval_io.UPSAMPLE_REFLECTIVITY_KEY
+    ] = False
+
     if 0 < num_examples < len(full_storm_id_strings):
         full_storm_id_strings = full_storm_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
