@@ -40,7 +40,7 @@ TARGET_VALUES_WIND[THESE_INDICES[:30]] = 2
 TARGET_VALUES_WIND[THESE_INDICES[30:70]] = 1
 TARGET_VALUES_WIND[THESE_INDICES[70:]] = -2
 
-# The following constants are used to test _upsample_reflectivity.
+# The following constants are used to test upsample_reflectivity.
 THIS_MATRIX_EXAMPLE1_HEIGHT1 = numpy.array([
     [0, 1, 2, 3, 4, 5],
     [0, 1, 2, 3, 4, 5],
@@ -367,9 +367,9 @@ class TrainingValidationIoTests(unittest.TestCase):
         self.assertTrue(this_dict == {-2: 0, 0: 0, 1: 0, 2: 0})
 
     def test_upsample_reflectivity(self):
-        """Ensures correct output from _upsample_reflectivity."""
+        """Ensures correct output from upsample_reflectivity."""
 
-        this_radar_matrix = trainval_io._upsample_reflectivity(
+        this_radar_matrix = trainval_io.upsample_reflectivity(
             RADAR_MATRIX_ORIG + 0.)
 
         self.assertTrue(numpy.allclose(

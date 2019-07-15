@@ -425,19 +425,21 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
     :param option_dict: Dictionary with the following keys.
     option_dict['example_file_names']: See doc for
         `training_validation_io.myrorss_generator_2d3d`.
-    option_dict['binarize_target']: Same.
-    option_dict['radar_field_names']: Same.
-    option_dict['radar_heights_m_agl']: Same.
-    option_dict['sounding_field_names']: Same.
-    option_dict['sounding_heights_m_agl']: Same.
     option_dict['first_storm_time_unix_sec']: Same.
     option_dict['last_storm_time_unix_sec']: Same.
+    option_dict['radar_field_names']: Same.
+    option_dict['radar_heights_m_agl']: Same.
     option_dict['num_grid_rows']: Same.
     option_dict['num_grid_columns']: Same.
-    option_dict['normalization_type_string']: See doc for `generator_2d_or_3d`.
+    option_dict['sounding_field_names']: Same.
+    option_dict['sounding_heights_m_agl']: Same.
+    option_dict['normalization_type_string']: Same.
     option_dict['normalization_param_file_name']: Same.
     option_dict['min_normalized_value']: Same.
     option_dict['max_normalized_value']: Same.
+    option_dict['upsample_reflectivity']: Same.
+    option_dict['target_name']: Same.
+    option_dict['binarize_target']: Same.
     option_dict['class_to_sampling_fraction_dict']: Same.
 
     :param num_examples_total: Total number of examples to generate.
@@ -460,26 +462,41 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
     print('\n')
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
-    target_name = option_dict[trainval_io.TARGET_NAME_KEY]
-    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
-
     first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
-    num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
-    num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
+
     azimuthal_shear_field_names = option_dict[trainval_io.RADAR_FIELDS_KEY]
     reflectivity_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+    num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
+    num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
     sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
     sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
 
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
 
-    if normalization_type_string is not None:
-        normalization_param_file_name = option_dict[
+    if normalization_type_string is None:
+        normalization_file_name = None
+        min_normalized_value = None
+        max_normalized_value = None
+    else:
+        normalization_file_name = option_dict[
             trainval_io.NORMALIZATION_FILE_KEY
         ]
         min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
         max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+
+    upsample_refl = option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]
+
+    if upsample_refl:
+        radar_field_names = (
+            [radar_utils.REFL_NAME] * len(reflectivity_heights_m_agl) +
+            azimuthal_shear_field_names
+        )
+    else:
+        radar_field_names = None
+
+    target_name = option_dict[trainval_io.TARGET_NAME_KEY]
+    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
 
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
@@ -494,12 +511,14 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
                 sounding_field_names + [soundings.PRESSURE_NAME]
             )
 
+    radar_image_matrix = None
     reflectivity_image_matrix_dbz = None
     az_shear_image_matrix_s01 = None
     sounding_matrix = None
     target_values = None
-    sounding_pressure_matrix_pascals = None
+
     file_index = 0
+    sounding_pressure_matrix_pascals = None
 
     while True:
         if file_index >= len(example_file_names):
@@ -558,18 +577,36 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
             if soundings.PRESSURE_NAME not in sounding_field_names:
                 this_sounding_matrix = numpy.delete(
                     this_sounding_matrix, pressure_index, axis=-1)
+        else:
+            this_sounding_matrix = None
+            this_pressure_matrix_pascals = None
+
+        this_az_shear_matrix_s01 = this_example_dict[
+            input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY]
+
+        if upsample_refl:
+            this_refl_matrix_dbz = trainval_io.upsample_reflectivity(
+                this_example_dict[input_examples.REFL_IMAGE_MATRIX_KEY][..., 0]
+            )
+
+            this_radar_matrix = numpy.concatenate(
+                (this_refl_matrix_dbz, this_az_shear_matrix_s01), axis=-1
+            )
+        else:
+            this_radar_matrix = None
+            this_refl_matrix_dbz = this_example_dict[
+                input_examples.REFL_IMAGE_MATRIX_KEY]
 
         if target_values is None:
-            reflectivity_image_matrix_dbz = (
-                this_example_dict[input_examples.REFL_IMAGE_MATRIX_KEY] + 0.
-            )
-            az_shear_image_matrix_s01 = (
-                this_example_dict[input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY]
-                + 0.
-            )
             target_values = (
                 this_example_dict[input_examples.TARGET_VALUES_KEY] + 0
             )
+
+            if upsample_refl:
+                radar_image_matrix = this_radar_matrix + 0.
+            else:
+                reflectivity_image_matrix_dbz = this_refl_matrix_dbz + 0.
+                az_shear_image_matrix_s01 = this_az_shear_matrix_s01 + 0.
 
             if include_soundings:
                 sounding_matrix = this_sounding_matrix + 0.
@@ -577,20 +614,24 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
                     this_pressure_matrix_pascals + 0.
                 )
         else:
-            reflectivity_image_matrix_dbz = numpy.concatenate(
-                (reflectivity_image_matrix_dbz,
-                 this_example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]),
-                axis=0
-            )
-            az_shear_image_matrix_s01 = numpy.concatenate((
-                az_shear_image_matrix_s01,
-                this_example_dict[input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY]
-            ), axis=0)
-
             target_values = numpy.concatenate((
                 target_values,
                 this_example_dict[input_examples.TARGET_VALUES_KEY]
             ))
+
+            if upsample_refl:
+                radar_image_matrix = numpy.concatenate(
+                    (radar_image_matrix, this_radar_matrix), axis=0
+                )
+            else:
+                reflectivity_image_matrix_dbz = numpy.concatenate(
+                    (reflectivity_image_matrix_dbz, this_refl_matrix_dbz),
+                    axis=0
+                )
+                az_shear_image_matrix_s01 = numpy.concatenate(
+                    (az_shear_image_matrix_s01, this_az_shear_matrix_s01),
+                    axis=0
+                )
 
             if include_soundings:
                 sounding_matrix = numpy.concatenate(
@@ -604,34 +645,50 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
                 )
 
         if normalization_type_string is not None:
-            reflectivity_image_matrix_dbz = dl_utils.normalize_radar_images(
-                radar_image_matrix=reflectivity_image_matrix_dbz,
-                field_names=[radar_utils.REFL_NAME],
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value).astype('float32')
+            if upsample_refl:
+                radar_image_matrix = dl_utils.normalize_radar_images(
+                    radar_image_matrix=radar_image_matrix,
+                    field_names=radar_field_names,
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value
+                ).astype('float32')
+            else:
+                reflectivity_image_matrix_dbz = dl_utils.normalize_radar_images(
+                    radar_image_matrix=reflectivity_image_matrix_dbz,
+                    field_names=[radar_utils.REFL_NAME],
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value
+                ).astype('float32')
 
-            az_shear_image_matrix_s01 = dl_utils.normalize_radar_images(
-                radar_image_matrix=az_shear_image_matrix_s01,
-                field_names=azimuthal_shear_field_names,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value).astype('float32')
+                az_shear_image_matrix_s01 = dl_utils.normalize_radar_images(
+                    radar_image_matrix=az_shear_image_matrix_s01,
+                    field_names=azimuthal_shear_field_names,
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value
+                ).astype('float32')
 
             if include_soundings:
                 sounding_matrix = dl_utils.normalize_soundings(
                     sounding_matrix=sounding_matrix,
                     field_names=sounding_field_names,
                     normalization_type_string=normalization_type_string,
-                    normalization_param_file_name=normalization_param_file_name,
+                    normalization_param_file_name=normalization_file_name,
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value).astype('float32')
 
-        list_of_predictor_matrices = [
-            reflectivity_image_matrix_dbz, az_shear_image_matrix_s01
-        ]
+        if upsample_refl:
+            list_of_predictor_matrices = [radar_image_matrix]
+        else:
+            list_of_predictor_matrices = [
+                reflectivity_image_matrix_dbz, az_shear_image_matrix_s01
+            ]
+
         if include_soundings:
             list_of_predictor_matrices.append(sounding_matrix)
 
@@ -647,6 +704,7 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
             SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pascals + 0.
         }
 
+        radar_image_matrix = None
         reflectivity_image_matrix_dbz = None
         az_shear_image_matrix_s01 = None
         sounding_matrix = None

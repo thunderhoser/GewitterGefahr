@@ -449,7 +449,32 @@ def _augment_radar_images(
     return list_of_predictor_matrices, target_array
 
 
-def _upsample_reflectivity(reflectivity_matrix_dbz):
+def check_generator_args(option_dict):
+    """Error-checks input arguments for generator.
+
+    :param option_dict: See doc for any generator in this file.
+    :return: option_dict: Same as input, except defaults may have been added.
+    """
+
+    orig_option_dict = option_dict.copy()
+    option_dict = DEFAULT_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
+    error_checking.assert_is_string_list(option_dict[EXAMPLE_FILES_KEY])
+    error_checking.assert_is_numpy_array(
+        numpy.array(option_dict[EXAMPLE_FILES_KEY]), num_dimensions=1)
+
+    error_checking.assert_is_integer(option_dict[NUM_EXAMPLES_PER_BATCH_KEY])
+    error_checking.assert_is_geq(option_dict[NUM_EXAMPLES_PER_BATCH_KEY], 32)
+    error_checking.assert_is_boolean(option_dict[BINARIZE_TARGET_KEY])
+    error_checking.assert_is_boolean(option_dict[SHUFFLE_TARGET_KEY])
+    error_checking.assert_is_boolean(option_dict[LOOP_ONCE_KEY])
+    error_checking.assert_is_boolean(option_dict[UPSAMPLE_REFLECTIVITY_KEY])
+
+    return option_dict
+
+
+def upsample_reflectivity(reflectivity_matrix_dbz):
     """Upsamples reflectivity to twice the horizontal resolution
 
     E = number of examples
@@ -464,6 +489,10 @@ def _upsample_reflectivity(reflectivity_matrix_dbz):
     :return: reflectivity_matrix_dbz: Upsampled version of input
         (E-by-M-by-N-by-H numpy array).
     """
+
+    error_checking.assert_is_numpy_array_without_nan(reflectivity_matrix_dbz)
+    error_checking.assert_is_numpy_array(
+        reflectivity_matrix_dbz, num_dimensions=4)
 
     orig_refl_matrix_dbz = reflectivity_matrix_dbz + 0.
     num_rows_orig = orig_refl_matrix_dbz.shape[1]
@@ -503,31 +532,6 @@ def _upsample_reflectivity(reflectivity_matrix_dbz):
                 x=row_indices_new, y=column_indices_new, grid=True)
 
     return new_refl_matrix_dbz
-
-
-def check_generator_args(option_dict):
-    """Error-checks input arguments for generator.
-
-    :param option_dict: See doc for any generator in this file.
-    :return: option_dict: Same as input, except defaults may have been added.
-    """
-
-    orig_option_dict = option_dict.copy()
-    option_dict = DEFAULT_OPTION_DICT.copy()
-    option_dict.update(orig_option_dict)
-
-    error_checking.assert_is_string_list(option_dict[EXAMPLE_FILES_KEY])
-    error_checking.assert_is_numpy_array(
-        numpy.array(option_dict[EXAMPLE_FILES_KEY]), num_dimensions=1)
-
-    error_checking.assert_is_integer(option_dict[NUM_EXAMPLES_PER_BATCH_KEY])
-    error_checking.assert_is_geq(option_dict[NUM_EXAMPLES_PER_BATCH_KEY], 32)
-    error_checking.assert_is_boolean(option_dict[BINARIZE_TARGET_KEY])
-    error_checking.assert_is_boolean(option_dict[SHUFFLE_TARGET_KEY])
-    error_checking.assert_is_boolean(option_dict[LOOP_ONCE_KEY])
-    error_checking.assert_is_boolean(option_dict[UPSAMPLE_REFLECTIVITY_KEY])
-
-    return option_dict
 
 
 def generator_2d_or_3d(option_dict):
@@ -896,10 +900,6 @@ def myrorss_generator_2d3d(option_dict):
     num_grid_rows = option_dict[NUM_ROWS_KEY]
     num_grid_columns = option_dict[NUM_COLUMNS_KEY]
 
-    print(num_grid_rows)
-    print(num_grid_columns)
-    print('\n\n**************\n\n')
-
     normalization_type_string = option_dict[NORMALIZATION_TYPE_KEY]
     normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
     min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
@@ -991,7 +991,7 @@ def myrorss_generator_2d3d(option_dict):
                 input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY]
 
             if upsample_refl:
-                this_refl_matrix_dbz = _upsample_reflectivity(
+                this_refl_matrix_dbz = upsample_reflectivity(
                     this_example_dict[input_examples.REFL_IMAGE_MATRIX_KEY][
                         ..., 0]
                 )
