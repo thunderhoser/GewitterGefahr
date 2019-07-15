@@ -202,7 +202,7 @@ def _run(
             num_examples_total=LARGE_INTEGER
         )
 
-    elif model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    elif model_metadata_dict[cnn.CONV_2D3D_KEY]:
         generator_object = testing_io.myrorss_generator_2d3d(
             option_dict=training_option_dict, num_examples_total=LARGE_INTEGER)
     else:

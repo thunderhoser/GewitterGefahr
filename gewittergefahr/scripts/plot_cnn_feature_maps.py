@@ -279,7 +279,7 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     feature_matrix_by_layer = [None] * num_layers
 
     for k in range(num_layers):
-        if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+        if model_metadata_dict[cnn.CONV_2D3D_KEY]:
             if len(list_of_predictor_matrices) == 3:
                 sounding_matrix = list_of_predictor_matrices[-1]
             else:

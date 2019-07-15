@@ -735,7 +735,7 @@ def _run(input_file_name, plot_significance, saliency_colour_map_name,
         else None
     )
 
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    if model_metadata_dict[cnn.CONV_2D3D_KEY]:
         _plot_saliency_for_2d3d_radar(
             list_of_input_matrices=list_of_input_matrices,
             list_of_saliency_matrices=list_of_saliency_matrices,

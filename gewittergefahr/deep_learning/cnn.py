@@ -18,7 +18,6 @@ C = number of radar field/height pairs
 
 import copy
 import pickle
-import os.path
 import numpy
 import netCDF4
 import keras.losses
@@ -56,7 +55,7 @@ NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
 MONITOR_STRING_KEY = 'monitor_string'
 WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
-USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
+CONV_2D3D_KEY = 'conv_2d3d'
 VALIDATION_FILES_KEY = 'validation_file_names'
 FIRST_VALIDN_TIME_KEY = 'first_validn_time_unix_sec'
 LAST_VALIDN_TIME_KEY = 'last_validn_time_unix_sec'
@@ -66,7 +65,7 @@ NUM_EX_PER_VALIDN_BATCH_KEY = 'num_examples_per_validn_batch'
 
 METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, NUM_VALIDATION_BATCHES_KEY,
-    MONITOR_STRING_KEY, WEIGHT_LOSS_FUNCTION_KEY, USE_2D3D_CONVOLUTION_KEY,
+    MONITOR_STRING_KEY, WEIGHT_LOSS_FUNCTION_KEY, CONV_2D3D_KEY,
     VALIDATION_FILES_KEY, FIRST_VALIDN_TIME_KEY, LAST_VALIDN_TIME_KEY,
     TRAINING_OPTION_DICT_KEY, LAYER_OPERATIONS_KEY, NUM_EX_PER_VALIDN_BATCH_KEY
 ]
@@ -314,10 +313,9 @@ def write_model_metadata(
         batches in each epoch.
     metadata_dict['monitor_string']: See doc for `_get_checkpoint_object`.
     metadata_dict['weight_loss_function']: See doc for `_check_training_args`.
-    metadata_dict['use_2d3d_convolution']: Boolean flag.  If True, the net
-        convolves over both 2-D and 3-D radar images, so was trained with
-        `train_cnn_2d3d_myrorss`.  If False, the net convolves over only 2-D or
-        only 3-D images, so was trained with `train_cnn_2d_or_3d`.
+    metadata_dict['conv_2d3d']: Boolean flag.  If True, the net convolves over
+        both 2-D and 3-D radar images, so was trained with
+        `train_cnn_2d3d_myrorss`.
     metadata_dict['validation_file_names']: See doc for `train_cnn_2d_or_3d` or
         `train_cnn_2d3d_myrorss`.
     metadata_dict['first_validn_time_unix_sec']: Same.
@@ -382,18 +380,8 @@ def read_model_metadata(pickle_file_name):
             trainval_io.SHUFFLE_TARGET_KEY
         ] = False
 
-    # TODO(thunderhoser): This is a HACK.
-    normalization_file_name = metadata_dict[TRAINING_OPTION_DICT_KEY][
-        trainval_io.NORMALIZATION_FILE_KEY]
-
-    if not os.path.isfile(normalization_file_name):
-        metadata_dict[TRAINING_OPTION_DICT_KEY][
-            trainval_io.NORMALIZATION_FILE_KEY
-        ] = (
-            '/glade/scratch/ryanlage/gridrad_final/myrorss_format/new_tracks/'
-            'reanalyzed/tornado_occurrence/downsampled/learning_examples/'
-            'shuffled/single_pol_2011-2015/normalization_params_hacky.p'
-        )
+    if 'use_2d3d_convolution' in metadata_dict:
+        metadata_dict[CONV_2D3D_KEY] = metadata_dict['use_2d3d_convolution']
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
@@ -499,6 +487,85 @@ def train_cnn_2d_or_3d(
     else:
         model_object.fit_generator(
             generator=trainval_io.generator_2d_or_3d(training_option_dict),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
+            verbose=1, class_weight=class_to_weight_dict,
+            callbacks=list_of_callback_objects)
+
+
+def train_cnn_with_soundings(
+        model_object, model_file_name, history_file_name, tensorboard_dir_name,
+        num_epochs, num_training_batches_per_epoch, training_option_dict,
+        monitor_string=LOSS_FUNCTION_STRING, weight_loss_function=False,
+        num_validation_batches_per_epoch=0, validation_file_names=None,
+        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None,
+        num_examples_per_validn_batch=None):
+    """Trains CNN with soundings only.
+
+    :param model_object: See doc for `train_cnn_2d_or_3d`.
+    :param model_file_name: Same.
+    :param history_file_name: Same.
+    :param tensorboard_dir_name: Same.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param training_option_dict: See doc for
+        `training_validation_io.sounding_generator`.
+    :param monitor_string: See doc for `train_cnn_2d_or_3d`.
+    :param weight_loss_function: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param validation_file_names: Same.
+    :param first_validn_time_unix_sec: Same.
+    :param last_validn_time_unix_sec: Same.
+    :param num_examples_per_validn_batch: Same.
+    """
+
+    class_to_weight_dict = _check_training_args(
+        model_file_name=model_file_name, history_file_name=history_file_name,
+        tensorboard_dir_name=tensorboard_dir_name, num_epochs=num_epochs,
+        num_training_batches_per_epoch=num_training_batches_per_epoch,
+        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+        training_option_dict=training_option_dict,
+        weight_loss_function=weight_loss_function)
+
+    history_object = keras.callbacks.CSVLogger(
+        filename=history_file_name, separator=',', append=False)
+
+    checkpoint_object = _get_checkpoint_object(
+        output_model_file_name=model_file_name, monitor_string=monitor_string,
+        use_validation=num_validation_batches_per_epoch is not None)
+
+    list_of_callback_objects = [history_object, checkpoint_object]
+
+    if num_validation_batches_per_epoch > 0:
+        early_stopping_object = keras.callbacks.EarlyStopping(
+            monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+            patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+
+        list_of_callback_objects.append(early_stopping_object)
+
+        validation_option_dict = copy.deepcopy(training_option_dict)
+        validation_option_dict[
+            trainval_io.EXAMPLE_FILES_KEY] = validation_file_names
+        validation_option_dict[
+            trainval_io.FIRST_STORM_TIME_KEY] = first_validn_time_unix_sec
+        validation_option_dict[
+            trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
+
+        if num_examples_per_validn_batch is not None:
+            validation_option_dict[
+                trainval_io.NUM_EXAMPLES_PER_BATCH_KEY
+            ] = num_examples_per_validn_batch
+
+        model_object.fit_generator(
+            generator=trainval_io.sounding_generator(training_option_dict),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
+            verbose=1, class_weight=class_to_weight_dict,
+            callbacks=list_of_callback_objects,
+            validation_data=trainval_io.sounding_generator(
+                validation_option_dict),
+            validation_steps=num_validation_batches_per_epoch)
+    else:
+        model_object.fit_generator(
+            generator=trainval_io.sounding_generator(training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_to_weight_dict,
             callbacks=list_of_callback_objects)
@@ -688,10 +755,10 @@ def apply_2d_or_3d_cnn(
     :param radar_image_matrix: E-by-M-by-N-by-C numpy array of storm-centered
         radar images.
     :param sounding_matrix: [may be None]
-        numpy array (E x H_s x F_s) of storm-centered sounding.
+        numpy array (E x H_s x F_s) of storm-centered soundings.
     :param num_examples_per_batch: Number of examples per batch.  Will apply CNN
-        to this many examples at once.  If `num_examples_per_batch is None`, will
-        apply CNN to all examples at once.
+        to this many examples at once.  If `num_examples_per_batch is None`,
+        will apply CNN to all examples at once.
     :param verbose: Boolean flag.  If True, will print progress messages.
     :param return_features: Boolean flag.  If True, this method will return
         features (activations of an intermediate layer).  If False, this method
@@ -754,7 +821,9 @@ def apply_2d_or_3d_cnn(
         if verbose:
             print((
                 'Applying model to examples {0:d}-{1:d} of {2:d}...'
-            ).format(this_first_index + 1, this_last_index + 1, num_examples))
+            ).format(
+                this_first_index + 1, this_last_index + 1, num_examples
+            ))
 
         if sounding_matrix is None:
             these_outputs = model_object_to_use.predict(
@@ -762,17 +831,103 @@ def apply_2d_or_3d_cnn(
                 batch_size=len(these_indices)
             )
         else:
+            these_predictor_matrices = [
+                radar_image_matrix[these_indices, ...],
+                sounding_matrix[these_indices, ...]
+            ]
+
             these_outputs = model_object_to_use.predict(
-                [radar_image_matrix[these_indices, ...],
-                 sounding_matrix[these_indices, ...]],
-                batch_size=len(these_indices)
+                these_predictor_matrices, batch_size=len(these_indices)
             )
 
         if output_matrix is None:
             output_matrix = these_outputs + 0.
         else:
             output_matrix = numpy.concatenate(
-                (output_matrix, these_outputs), axis=0)
+                (output_matrix, these_outputs), axis=0
+            )
+
+    if verbose:
+        print('Have applied model to all {0:d} examples!'.format(num_examples))
+
+    if return_features:
+        return output_matrix
+
+    return _binary_probabilities_to_matrix(output_matrix)
+
+
+def apply_cnn_soundings_only(
+        model_object, sounding_matrix, num_examples_per_batch=100,
+        verbose=False, return_features=False, feature_layer_name=None):
+    """Applies CNN to soundings only.
+
+    :param model_object: See doc for `apply_2d_or_3d_cnn`.
+    :param sounding_matrix: numpy array (E x H_s x F_s) of storm-centered
+        soundings.
+    :param num_examples_per_batch: See doc for `apply_2d_or_3d_cnn`.
+    :param verbose: Same.
+    :param return_features: Same.
+    :param feature_layer_name: Same.
+
+    If return_features = True...
+
+    :return: feature_matrix: See doc for `apply_2d_or_3d_cnn`.
+
+    If return_features = False...
+
+    :return: class_probability_matrix: See doc for `apply_2d_or_3d_cnn`.
+    """
+
+    num_examples = sounding_matrix.shape[0]
+    if sounding_matrix is not None:
+        dl_utils.check_soundings(
+            sounding_matrix=sounding_matrix, num_examples=num_examples)
+
+    if num_examples_per_batch is None:
+        num_examples_per_batch = num_examples + 0
+    else:
+        error_checking.assert_is_integer(num_examples_per_batch)
+        error_checking.assert_is_greater(num_examples_per_batch, 0)
+
+    num_examples_per_batch = min([num_examples_per_batch, num_examples])
+    error_checking.assert_is_boolean(verbose)
+    error_checking.assert_is_boolean(return_features)
+
+    if return_features:
+        model_object_to_use = model_to_feature_generator(
+            model_object=model_object, feature_layer_name=feature_layer_name)
+    else:
+        model_object_to_use = model_object
+
+    output_matrix = None
+
+    for i in range(0, num_examples, num_examples_per_batch):
+        this_first_index = i
+        this_last_index = min(
+            [i + num_examples_per_batch - 1, num_examples - 1]
+        )
+
+        these_indices = numpy.linspace(
+            this_first_index, this_last_index,
+            num=this_last_index - this_first_index + 1, dtype=int)
+
+        if verbose:
+            print((
+                'Applying model to examples {0:d}-{1:d} of {2:d}...'
+            ).format(
+                this_first_index + 1, this_last_index + 1, num_examples
+            ))
+
+        these_outputs = model_object_to_use.predict(
+            sounding_matrix[these_indices, ...], batch_size=len(these_indices)
+        )
+
+        if output_matrix is None:
+            output_matrix = these_outputs + 0.
+        else:
+            output_matrix = numpy.concatenate(
+                (output_matrix, these_outputs), axis=0
+            )
 
     if verbose:
         print('Have applied model to all {0:d} examples!'.format(num_examples))
@@ -864,21 +1019,25 @@ def apply_2d3d_cnn(
         if verbose:
             print((
                 'Applying model to examples {0:d}-{1:d} of {2:d}...'
-            ).format(this_first_index + 1, this_last_index + 1, num_examples))
+            ).format(
+                this_first_index + 1, this_last_index + 1, num_examples
+            ))
 
         if sounding_matrix is None:
-            these_outputs = model_object_to_use.predict(
-                [reflectivity_matrix_dbz[these_indices, ...],
-                 azimuthal_shear_matrix_s01[these_indices, ...]],
-                batch_size=len(these_indices)
-            )
+            these_predictor_matrices = [
+                reflectivity_matrix_dbz[these_indices, ...],
+                azimuthal_shear_matrix_s01[these_indices, ...]
+            ]
         else:
-            these_outputs = model_object_to_use.predict(
-                [reflectivity_matrix_dbz[these_indices, ...],
-                 azimuthal_shear_matrix_s01[these_indices, ...],
-                 sounding_matrix[these_indices, ...]],
-                batch_size=len(these_indices)
-            )
+            these_predictor_matrices = [
+                reflectivity_matrix_dbz[these_indices, ...],
+                azimuthal_shear_matrix_s01[these_indices, ...],
+                sounding_matrix[these_indices, ...]
+            ]
+
+        these_outputs = model_object_to_use.predict(
+            these_predictor_matrices, batch_size=len(these_indices)
+        )
 
         if output_matrix is None:
             output_matrix = these_outputs + 0.

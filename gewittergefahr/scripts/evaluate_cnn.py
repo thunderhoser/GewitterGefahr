@@ -191,7 +191,7 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
             num_examples_total=num_examples
         )
 
-    elif model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    elif model_metadata_dict[cnn.CONV_2D3D_KEY]:
         generator_object = testing_io.myrorss_generator_2d3d(
             option_dict=training_option_dict, num_examples_total=num_examples)
     else:
@@ -215,7 +215,7 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
         these_predictor_matrices = this_storm_object_dict[
             testing_io.INPUT_MATRICES_KEY]
 
-        if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+        if model_metadata_dict[cnn.CONV_2D3D_KEY]:
             if len(these_predictor_matrices) == 3:
                 this_sounding_matrix = these_predictor_matrices[2]
             else:

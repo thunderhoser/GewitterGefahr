@@ -432,7 +432,7 @@ def create_climo_initializer(
         initial_matrix = numpy.full(matrix_dimensions, numpy.nan)
 
         if len(matrix_dimensions) == 5:
-            if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+            if model_metadata_dict[cnn.CONV_2D3D_KEY]:
                 radar_field_names = [radar_utils.REFL_NAME]
             else:
                 radar_field_names = training_option_dict[

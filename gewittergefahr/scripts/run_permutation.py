@@ -136,7 +136,7 @@ def _create_predictor_names(model_metadata_dict, list_of_predictor_matrices):
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    if model_metadata_dict[cnn.CONV_2D3D_KEY]:
         num_radar_dimensions = -1
     else:
         num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
@@ -409,7 +409,7 @@ def _run(model_file_name, top_example_dir_name,
             num_examples_total=num_examples
         )
 
-    elif model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    elif model_metadata_dict[cnn.CONV_2D3D_KEY]:
         generator_object = testing_io.myrorss_generator_2d3d(
             option_dict=training_option_dict, num_examples_total=num_examples)
     else:
@@ -488,7 +488,7 @@ def _run(model_file_name, top_example_dir_name,
 
             print('\n')
 
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    if model_metadata_dict[cnn.CONV_2D3D_KEY]:
         prediction_function = permutation.prediction_function_2d3d_cnn
     else:
         num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2

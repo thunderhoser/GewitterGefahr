@@ -1020,6 +1020,169 @@ def myrorss_generator_2d3d(option_dict):
             yield (list_of_predictor_matrices[:-1], target_array)
 
 
+def sounding_generator(option_dict):
+    """Generates examples with soundings only.
+
+    In this case each example (storm objects) consists of the following:
+
+    - Near-storm sounding
+    - Target value (class)
+
+    :param option_dict: Dictionary with the following keys.
+    option_dict['example_file_names']: See doc for `generator_2d_or_3d`.
+    option_dict['num_examples_per_batch']: Same.
+    option_dict['first_storm_time_unix_sec']: Same.
+    option_dict['last_storm_time_unix_sec']: Same.
+    option_dict['sounding_field_names']: Same.
+    option_dict['sounding_heights_m_agl']: Same.
+    option_dict['normalization_type_string']: Same.
+    option_dict['normalization_param_file_name']: Same.
+    option_dict['min_normalized_value']: Same.
+    option_dict['max_normalized_value']: Same.
+    option_dict['target_name']: Same.
+    option_dict['binarize_target']: Same.
+    option_dict['loop_thru_files_once']: Same.
+    option_dict['class_to_sampling_fraction_dict']: Same.
+
+    :return: sounding_matrix: numpy array (E x H_s x F_s) of near-storm
+        soundings.
+    :return: target_array: See doc for `generator_2d_or_3d`.
+    """
+
+    option_dict = check_generator_args(option_dict)
+
+    example_file_names = option_dict[EXAMPLE_FILES_KEY]
+    num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
+    first_storm_time_unix_sec = option_dict[FIRST_STORM_TIME_KEY]
+    last_storm_time_unix_sec = option_dict[LAST_STORM_TIME_KEY]
+
+    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
+    normalization_type_string = option_dict[NORMALIZATION_TYPE_KEY]
+    normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
+    min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
+    max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
+
+    target_name = option_dict[TARGET_NAME_KEY]
+    binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
+    class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
+
+    class_to_batch_size_dict = _get_batch_size_by_class(
+        num_examples_per_batch=num_examples_per_batch, target_name=target_name,
+        class_to_sampling_fraction_dict=class_to_sampling_fraction_dict)
+
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
+
+    sounding_matrix = None
+    target_values = None
+    file_index = 0
+
+    this_example_dict = input_examples.read_example_file(
+        netcdf_file_name=example_file_names[0], read_all_target_vars=False,
+        target_name=target_name, metadata_only=True)
+
+    dummy_radar_field_names = [
+        this_example_dict[input_examples.RADAR_FIELDS_KEY][0]
+    ]
+    dummy_radar_heights_m_agl = numpy.array(
+        [this_example_dict[input_examples.RADAR_HEIGHTS_KEY][0]], dtype=int
+    )
+
+    while True:
+        if loop_thru_files_once and file_index >= len(example_file_names):
+            raise StopIteration
+
+        stop_generator = False
+
+        while not stop_generator:
+            if file_index == len(example_file_names):
+                if loop_thru_files_once:
+                    if target_values is None:
+                        raise StopIteration
+                    break
+
+                file_index = 0
+
+            class_to_rem_batch_size_dict = _get_remaining_batch_size_by_class(
+                class_to_batch_size_dict=class_to_batch_size_dict,
+                target_values_in_memory=target_values)
+
+            print('Reading data from: "{0:s}"...'.format(
+                example_file_names[file_index]
+            ))
+
+            this_example_dict = input_examples.read_example_file(
+                netcdf_file_name=example_file_names[file_index],
+                read_all_target_vars=False, target_name=target_name,
+                include_soundings=True,
+                radar_field_names_to_keep=dummy_radar_field_names,
+                radar_heights_to_keep_m_agl=dummy_radar_heights_m_agl,
+                sounding_field_names_to_keep=sounding_field_names,
+                sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
+                first_time_to_keep_unix_sec=first_storm_time_unix_sec,
+                last_time_to_keep_unix_sec=last_storm_time_unix_sec,
+                downsampling_dict=class_to_rem_batch_size_dict)
+
+            file_index += 1
+            if this_example_dict is None:
+                continue
+
+            if sounding_matrix is None:
+                sounding_matrix = (
+                    this_example_dict[input_examples.SOUNDING_MATRIX_KEY] + 0.
+                )
+                target_values = (
+                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0
+                )
+            else:
+                sounding_matrix = numpy.concatenate(
+                    (sounding_matrix,
+                     this_example_dict[input_examples.SOUNDING_MATRIX_KEY]),
+                    axis=0
+                )
+                target_values = numpy.concatenate((
+                    target_values,
+                    this_example_dict[input_examples.TARGET_VALUES_KEY]
+                ))
+
+            stop_generator = _check_stopping_criterion(
+                num_examples_per_batch=num_examples_per_batch,
+                class_to_batch_size_dict=class_to_batch_size_dict,
+                class_to_sampling_fraction_dict=class_to_sampling_fraction_dict,
+                target_values_in_memory=target_values)
+
+        if class_to_sampling_fraction_dict is not None:
+            indices_to_keep = dl_utils.sample_by_class(
+                sampling_fraction_by_class_dict=class_to_sampling_fraction_dict,
+                target_name=target_name, target_values=target_values,
+                num_examples_total=num_examples_per_batch)
+
+            sounding_matrix = sounding_matrix[indices_to_keep, ...]
+            target_values = target_values[indices_to_keep]
+
+        if normalization_type_string is not None:
+            sounding_matrix = dl_utils.normalize_soundings(
+                sounding_matrix=sounding_matrix,
+                field_names=sounding_field_names,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value
+            ).astype('float32')
+
+        list_of_predictor_matrices, target_array = _select_batch(
+            list_of_predictor_matrices=[sounding_matrix],
+            target_values=target_values,
+            num_examples_per_batch=num_examples_per_batch,
+            binarize_target=binarize_target, num_classes=num_classes)
+
+        sounding_matrix = None
+        target_values = None
+        yield (list_of_predictor_matrices[0], target_array)
+
+
 def layer_ops_to_field_height_pairs(list_of_operation_dicts):
     """Converts list of layer operations to list of field-height pairs.
 

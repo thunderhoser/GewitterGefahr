@@ -1156,7 +1156,7 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
 
         print(SEPARATOR_STRING)
 
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    if model_metadata_dict[cnn.CONV_2D3D_KEY]:
         _plot_bwo_for_2d3d_radar(
             list_of_optimized_matrices=list_of_optimized_matrices,
             training_option_dict=training_option_dict,

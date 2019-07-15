@@ -297,7 +297,7 @@ def _reshape_human_maps(model_metadata_dict, positive_mask_matrix_4d,
         channels to model (in the predictor matrix).
     """
 
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    if model_metadata_dict[cnn.CONV_2D3D_KEY]:
         raise TypeError(
             'This script cannot handle models that perform 2-D and 3-D'
             'convolution.'

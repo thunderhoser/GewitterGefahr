@@ -296,7 +296,7 @@ def _normalize_minima_and_maxima(
     min_values_by_tensor = [numpy.array([])] * num_input_tensors
     max_values_by_tensor = [numpy.array([])] * num_input_tensors
 
-    if cnn_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    if cnn_metadata_dict[cnn.CONV_2D3D_KEY]:
         this_min_value, this_max_value = __normalize_minmax_for_radar_field(
             field_name=radar_utils.REFL_NAME,
             cnn_metadata_dict=cnn_metadata_dict, test_mode=test_mode,

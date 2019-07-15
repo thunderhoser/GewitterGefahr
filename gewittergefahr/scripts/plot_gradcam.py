@@ -145,7 +145,7 @@ def _plot_3d_radar_cam(
         quantity_string = 'max class activation'
 
     pmm_flag = full_storm_id_string is None and storm_time_string is None
-    conv_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
+    conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
 
     if conv_2d3d:
         loop_max = 1
@@ -246,7 +246,7 @@ def _plot_2d_radar_cam(
         quantity_string = 'max class activation'
 
     pmm_flag = full_storm_id_string is None and storm_time_string is None
-    conv_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
+    conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
     figure_index = 1 if conv_2d3d else 0
 
     list_of_layer_operation_dicts = model_metadata_dict[
@@ -340,7 +340,7 @@ def _plot_2d_regions(
     :param storm_time_string: Same.
     """
 
-    conv_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
+    conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
     figure_index = 1 if conv_2d3d else 0
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]

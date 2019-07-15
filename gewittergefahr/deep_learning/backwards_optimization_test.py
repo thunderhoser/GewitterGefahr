@@ -299,7 +299,7 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_metadata_dict = {
             cnn.TRAINING_OPTION_DICT_KEY: TRAINING_OPTION_DICT_3D,
-            cnn.USE_2D3D_CONVOLUTION_KEY: False
+            cnn.CONV_2D3D_KEY: False
         }
 
         this_init_function = backwards_opt.create_climo_initializer(
@@ -319,7 +319,7 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_metadata_dict = {
             cnn.TRAINING_OPTION_DICT_KEY: TRAINING_OPTION_DICT_2D,
-            cnn.USE_2D3D_CONVOLUTION_KEY: False,
+            cnn.CONV_2D3D_KEY: False,
             cnn.LAYER_OPERATIONS_KEY: None
         }
 
@@ -340,7 +340,7 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_metadata_dict = {
             cnn.TRAINING_OPTION_DICT_KEY: TRAINING_OPTION_DICT_3D,
-            cnn.USE_2D3D_CONVOLUTION_KEY: False
+            cnn.CONV_2D3D_KEY: False
         }
 
         this_init_function = backwards_opt.create_climo_initializer(
@@ -360,7 +360,7 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_metadata_dict = {
             cnn.TRAINING_OPTION_DICT_KEY: TRAINING_OPTION_DICT_3D,
-            cnn.USE_2D3D_CONVOLUTION_KEY: False
+            cnn.CONV_2D3D_KEY: False
         }
 
         this_init_function = backwards_opt.create_climo_initializer(

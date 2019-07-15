@@ -122,7 +122,7 @@ def _run(model_file_name, example_file_name, first_time_string,
             num_examples_total=LARGE_INTEGER
         )
 
-    elif model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    elif model_metadata_dict[cnn.CONV_2D3D_KEY]:
         generator_object = testing_io.myrorss_generator_2d3d(
             option_dict=training_option_dict, num_examples_total=LARGE_INTEGER)
     else:
@@ -141,7 +141,7 @@ def _run(model_file_name, example_file_name, first_time_string,
         list_of_predictor_matrices = storm_object_dict[
             testing_io.INPUT_MATRICES_KEY]
 
-        if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+        if model_metadata_dict[cnn.CONV_2D3D_KEY]:
             if len(list_of_predictor_matrices) == 3:
                 this_sounding_matrix = list_of_predictor_matrices[2]
             else:

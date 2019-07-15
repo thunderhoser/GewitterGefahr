@@ -195,7 +195,7 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    if model_metadata_dict[cnn.CONV_2D3D_KEY]:
         list_of_input_matrices[0] = dl_utils.denormalize_radar_images(
             radar_image_matrix=list_of_input_matrices[0],
             field_names=[radar_utils.REFL_NAME],

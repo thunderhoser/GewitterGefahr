@@ -1866,6 +1866,9 @@ def read_example_file(
         class labels), where E = number of examples.
     """
 
+    # TODO(thunderhoser): Allow this method to read only soundings, not radar
+    # patches.
+
     error_checking.assert_is_boolean(read_all_target_vars)
     error_checking.assert_is_boolean(include_soundings)
     error_checking.assert_is_boolean(metadata_only)
