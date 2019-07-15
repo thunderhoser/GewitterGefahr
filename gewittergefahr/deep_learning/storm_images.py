@@ -1267,9 +1267,6 @@ def extract_storm_images_myrorss_or_mrms(
         )
 
         for j in range(num_field_height_pairs):
-            if radar_file_name_matrix[i, j] is None:
-                continue
-
             print((
                 'Extracting storm-centered images for "{0:s}" at {1:d} '
                 'metres ASL and {2:s}...'
