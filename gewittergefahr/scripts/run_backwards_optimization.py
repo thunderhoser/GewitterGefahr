@@ -4,7 +4,6 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
-import tensorflow
 from keras import backend as K
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.deep_learning import cnn
@@ -405,14 +404,23 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 ), axis=0)
 
     print(SEPARATOR_STRING)
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     print('Denormalizing optimized examples...')
+    list_of_optimized_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=list_of_optimized_matrices,
+        training_option_dict=training_option_dict)
+
     list_of_optimized_matrices = model_interpretation.denormalize_data(
         list_of_input_matrices=list_of_optimized_matrices,
         model_metadata_dict=model_metadata_dict)
 
     if init_function_name is None:
         print('Denormalizing input examples...')
+        list_of_init_matrices = trainval_io.separate_shear_and_reflectivity(
+            list_of_input_matrices=list_of_init_matrices,
+            training_option_dict=training_option_dict)
+
         list_of_init_matrices = model_interpretation.denormalize_data(
             list_of_input_matrices=list_of_init_matrices,
             model_metadata_dict=model_metadata_dict)
@@ -441,31 +449,30 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
-    with tensorflow.device('/cpu:0'):
-        _run(
-            model_file_name=getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME),
-            init_function_name=getattr(
-                INPUT_ARG_OBJECT, INIT_FUNCTION_ARG_NAME),
-            storm_metafile_name=getattr(
-                INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
-            num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
-            top_example_dir_name=getattr(
-                INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
-            component_type_string=getattr(
-                INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME),
-            target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
-            layer_name=getattr(INPUT_ARG_OBJECT, LAYER_NAME_ARG_NAME),
-            neuron_indices=numpy.array(
-                getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),
-            channel_index=getattr(INPUT_ARG_OBJECT, CHANNEL_INDEX_ARG_NAME),
-            num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
-            ideal_activation=getattr(
-                INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
-            learning_rate=getattr(INPUT_ARG_OBJECT, LEARNING_RATE_ARG_NAME),
-            l2_weight=getattr(INPUT_ARG_OBJECT, L2_WEIGHT_ARG_NAME),
-            radar_constraint_weight=getattr(
-                INPUT_ARG_OBJECT, RADAR_CONSTRAINT_WEIGHT_ARG_NAME),
-            minmax_constraint_weight=getattr(
-                INPUT_ARG_OBJECT, MINMAX_CONSTRAINT_WEIGHT_ARG_NAME),
-            output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
-        )
+    _run(
+        model_file_name=getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME),
+        init_function_name=getattr(
+            INPUT_ARG_OBJECT, INIT_FUNCTION_ARG_NAME),
+        storm_metafile_name=getattr(
+            INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
+        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
+        top_example_dir_name=getattr(
+            INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
+        component_type_string=getattr(
+            INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME),
+        target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
+        layer_name=getattr(INPUT_ARG_OBJECT, LAYER_NAME_ARG_NAME),
+        neuron_indices=numpy.array(
+            getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),
+        channel_index=getattr(INPUT_ARG_OBJECT, CHANNEL_INDEX_ARG_NAME),
+        num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
+        ideal_activation=getattr(
+            INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
+        learning_rate=getattr(INPUT_ARG_OBJECT, LEARNING_RATE_ARG_NAME),
+        l2_weight=getattr(INPUT_ARG_OBJECT, L2_WEIGHT_ARG_NAME),
+        radar_constraint_weight=getattr(
+            INPUT_ARG_OBJECT, RADAR_CONSTRAINT_WEIGHT_ARG_NAME),
+        minmax_constraint_weight=getattr(
+            INPUT_ARG_OBJECT, MINMAX_CONSTRAINT_WEIGHT_ARG_NAME),
+        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
+    )

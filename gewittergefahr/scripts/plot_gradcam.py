@@ -120,7 +120,7 @@ def _plot_3d_radar_cam(
     F = number of radar fields
 
     If this method is plotting a composite rather than single example (storm
-    object), `full_storm_id_string` and `storm_time_unix_sec` can be None.
+    object), `full_storm_id_string` and `storm_time_string` can be None.
 
     :param colour_map_object: See documentation at top of file.
     :param max_colour_percentile: Same.
