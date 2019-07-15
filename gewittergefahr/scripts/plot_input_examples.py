@@ -674,6 +674,8 @@ def plot_one_example(
             predictor_matrices_to_plot = [
                 a[0, ...] for a in list_of_predictor_matrices
             ]
+        else:
+            predictor_matrices_to_plot = list_of_predictor_matrices
     else:
         error_checking.assert_is_integer(example_index)
         predictor_matrices_to_plot = [
@@ -689,14 +691,22 @@ def plot_one_example(
 
         title_string = 'Storm "{0:s}" at {1:s}'.format(
             full_storm_id_string, storm_time_string)
+    
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    include_soundings = (
+        training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
+    )
+    num_radar_matrices = (
+        len(list_of_predictor_matrices) - int(include_soundings)
+    )
 
-    if len(list_of_predictor_matrices) == 3:
+    if num_radar_matrices == 2:
         return _plot_2d3d_example(
             list_of_predictor_matrices=predictor_matrices_to_plot,
             model_metadata_dict=model_metadata_dict,
             allow_whitespace=allow_whitespace, title_string=title_string)
 
-    num_radar_dimensions = len(predictor_matrices_to_plot[0].shape) - 1
+    num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 1
 
     if num_radar_dimensions == 3:
         return _plot_3d_example(
@@ -953,11 +963,6 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
             cnn.LAYER_OPERATIONS_KEY]
     )[0]
     print(SEPARATOR_STRING)
-
-    print(len(list_of_predictor_matrices))
-    for a in list_of_predictor_matrices:
-        print(a.shape)
-    print('\n\n*************\n\n')
 
     plot_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
