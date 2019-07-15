@@ -108,8 +108,23 @@ def prediction_function_2d3d_cnn(model_object, list_of_input_matrices):
         belongs to the [k]th class.
     """
 
-    if len(list_of_input_matrices) == 3:
-        sounding_matrix = list_of_input_matrices[2]
+    num_input_matrices = len(list_of_input_matrices)
+    first_num_dimensions = len(list_of_input_matrices[0].shape)
+    upsample_refl = first_num_dimensions == 5
+
+    if upsample_refl:
+        if num_input_matrices == 2:
+            sounding_matrix = list_of_input_matrices[-1]
+        else:
+            sounding_matrix = None
+
+        return cnn.apply_2d_or_3d_cnn(
+            model_object=model_object,
+            radar_image_matrix=list_of_input_matrices[0],
+            sounding_matrix=sounding_matrix)
+
+    if num_input_matrices == 3:
+        sounding_matrix = list_of_input_matrices[-1]
     else:
         sounding_matrix = None
 

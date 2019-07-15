@@ -275,45 +275,42 @@ def _run(model_file_name, layer_names, top_example_dir_name,
 
     print(SEPARATOR_STRING)
 
+    include_soundings = (
+        training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
+    )
+
+    if include_soundings:
+        sounding_matrix = list_of_predictor_matrices[-1]
+    else:
+        sounding_matrix = None
+
     num_layers = len(layer_names)
     feature_matrix_by_layer = [None] * num_layers
 
     for k in range(num_layers):
         if model_metadata_dict[cnn.CONV_2D3D_KEY]:
-            if len(list_of_predictor_matrices) == 3:
-                sounding_matrix = list_of_predictor_matrices[-1]
+            if training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]:
+                feature_matrix_by_layer[k] = cnn.apply_2d_or_3d_cnn(
+                    model_object=model_object,
+                    radar_image_matrix=list_of_predictor_matrices[0],
+                    sounding_matrix=sounding_matrix,
+                    return_features=True, feature_layer_name=layer_names[k]
+                )
             else:
-                sounding_matrix = None
-
-            feature_matrix_by_layer[k] = cnn.apply_2d3d_cnn(
+                feature_matrix_by_layer[k] = cnn.apply_2d3d_cnn(
+                    model_object=model_object,
+                    reflectivity_matrix_dbz=list_of_predictor_matrices[0],
+                    azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
+                    sounding_matrix=sounding_matrix,
+                    return_features=True, feature_layer_name=layer_names[k]
+                )
+        else:
+            feature_matrix_by_layer[k] = cnn.apply_2d_or_3d_cnn(
                 model_object=model_object,
-                reflectivity_matrix_dbz=list_of_predictor_matrices[0],
-                azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
+                radar_image_matrix=list_of_predictor_matrices[0],
                 sounding_matrix=sounding_matrix,
                 return_features=True, feature_layer_name=layer_names[k]
             )
-        else:
-            if len(list_of_predictor_matrices) == 2:
-                sounding_matrix = list_of_predictor_matrices[-1]
-            else:
-                sounding_matrix = None
-
-            num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
-
-            if num_radar_dimensions == 2:
-                feature_matrix_by_layer[k] = cnn.apply_2d_or_3d_cnn(
-                    model_object=model_object,
-                    radar_image_matrix=list_of_predictor_matrices[0],
-                    sounding_matrix=sounding_matrix,
-                    return_features=True, feature_layer_name=layer_names[k]
-                )
-            else:
-                feature_matrix_by_layer[k] = cnn.apply_2d_or_3d_cnn(
-                    model_object=model_object,
-                    radar_image_matrix=list_of_predictor_matrices[0],
-                    sounding_matrix=sounding_matrix,
-                    return_features=True, feature_layer_name=layer_names[k]
-                )
 
     for k in range(num_layers):
         this_output_dir_name = '{0:s}/{1:s}'.format(

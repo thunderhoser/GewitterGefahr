@@ -129,6 +129,10 @@ def _run(model_file_name, example_file_name, first_time_string,
         generator_object = testing_io.generator_2d_or_3d(
             option_dict=training_option_dict, num_examples_total=LARGE_INTEGER)
 
+    include_soundings = (
+        training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
+    )
+
     try:
         storm_object_dict = next(generator_object)
     except StopIteration:
@@ -141,28 +145,28 @@ def _run(model_file_name, example_file_name, first_time_string,
         list_of_predictor_matrices = storm_object_dict[
             testing_io.INPUT_MATRICES_KEY]
 
-        if model_metadata_dict[cnn.CONV_2D3D_KEY]:
-            if len(list_of_predictor_matrices) == 3:
-                this_sounding_matrix = list_of_predictor_matrices[2]
-            else:
-                this_sounding_matrix = None
-
-            class_probability_matrix = cnn.apply_2d3d_cnn(
-                model_object=model_object,
-                reflectivity_matrix_dbz=list_of_predictor_matrices[0],
-                azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
-                sounding_matrix=this_sounding_matrix, verbose=True)
-
+        if include_soundings:
+            sounding_matrix = list_of_predictor_matrices[-1]
         else:
-            if len(list_of_predictor_matrices) == 2:
-                this_sounding_matrix = list_of_predictor_matrices[1]
-            else:
-                this_sounding_matrix = None
+            sounding_matrix = None
 
+        if model_metadata_dict[cnn.CONV_2D3D_KEY]:
+            if training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]:
+                class_probability_matrix = cnn.apply_2d_or_3d_cnn(
+                    model_object=model_object,
+                    radar_image_matrix=list_of_predictor_matrices[0],
+                    sounding_matrix=sounding_matrix, verbose=True)
+            else:
+                class_probability_matrix = cnn.apply_2d3d_cnn(
+                    model_object=model_object,
+                    reflectivity_matrix_dbz=list_of_predictor_matrices[0],
+                    azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
+                    sounding_matrix=sounding_matrix, verbose=True)
+        else:
             class_probability_matrix = cnn.apply_2d_or_3d_cnn(
                 model_object=model_object,
                 radar_image_matrix=list_of_predictor_matrices[0],
-                sounding_matrix=this_sounding_matrix, verbose=True)
+                sounding_matrix=sounding_matrix, verbose=True)
 
         print(SEPARATOR_STRING)
         num_examples = class_probability_matrix.shape[0]
