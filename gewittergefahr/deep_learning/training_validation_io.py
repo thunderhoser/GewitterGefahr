@@ -465,6 +465,8 @@ def _upsample_reflectivity(reflectivity_matrix_dbz):
         (E-by-M-by-N-by-H numpy array).
     """
 
+    print(orig_refl_matrix_dbz.shape)
+
     orig_refl_matrix_dbz = reflectivity_matrix_dbz
     num_rows_orig = orig_refl_matrix_dbz.shape[1]
     num_rows_new = 2 * num_rows_orig
@@ -995,7 +997,6 @@ def myrorss_generator_2d3d(option_dict):
                 this_radar_matrix = numpy.concatenate(
                     (this_refl_matrix_dbz, this_az_shear_matrix_s01), axis=-1
                 )
-                print(this_radar_matrix.shape)
             else:
                 this_refl_matrix_dbz = this_example_dict[
                     input_examples.REFL_IMAGE_MATRIX_KEY]
