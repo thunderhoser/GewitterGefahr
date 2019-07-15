@@ -3,7 +3,6 @@
 CNN = convolutional neural network
 """
 
-import copy
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
@@ -282,10 +281,26 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
     )
 
     print(SEPARATOR_STRING)
+    upsample_refl = training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]
+
+    if upsample_refl:
+        num_az_shear_fields = len(
+            training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+        )
+
+        new_first_matrix = numpy.expand_dims(
+            list_of_input_matrices[0][..., :-num_az_shear_fields], axis=-1
+        )
+        new_second_matrix = (
+            list_of_input_matrices[0][..., -num_az_shear_fields:]
+        )
+        list_of_input_matrices_denorm = (
+            [new_first_matrix, new_second_matrix] + list_of_input_matrices[1:]
+        )
 
     print('Denormalizing model inputs...')
     list_of_input_matrices_denorm = model_interpretation.denormalize_data(
-        list_of_input_matrices=copy.deepcopy(list_of_input_matrices),
+        list_of_input_matrices=list_of_input_matrices_denorm,
         model_metadata_dict=model_metadata_dict)
     print(SEPARATOR_STRING)
 
@@ -363,6 +378,19 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
                     list_of_input_matrices=list_of_input_matrices,
                     stat_function_for_neuron_activations=K.max,
                     ideal_activation=ideal_activation)
+            )
+
+        if upsample_refl:
+            new_first_matrix = numpy.expand_dims(
+                list_of_saliency_matrices[0][..., :-num_az_shear_fields],
+                axis=-1
+            )
+            new_second_matrix = (
+                list_of_saliency_matrices[0][..., -num_az_shear_fields:]
+            )
+            list_of_saliency_matrices = (
+                [new_first_matrix, new_second_matrix] +
+                list_of_saliency_matrices[1:]
             )
 
         print('Writing saliency maps to file: "{0:s}"...'.format(
