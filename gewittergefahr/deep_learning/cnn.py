@@ -31,8 +31,11 @@ from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-NUM_EPOCHS_FOR_EARLY_STOPPING = 6
-MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING = 0.005
+PLATEAU_PATIENCE_EPOCHS = 5
+PLATEAU_LEARNING_RATE_MULTIPLIER = 0.1
+PLATEAU_COOLDOWN_EPOCHS = 3
+EARLY_STOPPING_PATIENCE_EPOCHS = 10
+CROSS_ENTROPY_PATIENCE = 0.005
 
 LOSS_FUNCTION_STRING = 'loss'
 PEIRCE_SCORE_STRING = 'binary_peirce_score'
@@ -455,10 +458,15 @@ def train_cnn_2d_or_3d(
 
     if num_validation_batches_per_epoch > 0:
         early_stopping_object = keras.callbacks.EarlyStopping(
-            monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
-            patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+            monitor='val_loss', min_delta=CROSS_ENTROPY_PATIENCE,
+            patience=EARLY_STOPPING_PATIENCE_EPOCHS, verbose=1, mode='min')
 
-        list_of_callback_objects.append(early_stopping_object)
+        plateau_object = keras.callbacks.ReduceLROnPlateau(
+            monitor='val_loss', factor=PLATEAU_LEARNING_RATE_MULTIPLIER,
+            patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
+            min_delta=CROSS_ENTROPY_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
+
+        list_of_callback_objects.append([early_stopping_object, plateau_object])
 
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
@@ -537,10 +545,15 @@ def train_cnn_with_soundings(
 
     if num_validation_batches_per_epoch > 0:
         early_stopping_object = keras.callbacks.EarlyStopping(
-            monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
-            patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+            monitor='val_loss', min_delta=CROSS_ENTROPY_PATIENCE,
+            patience=EARLY_STOPPING_PATIENCE_EPOCHS, verbose=1, mode='min')
 
-        list_of_callback_objects.append(early_stopping_object)
+        plateau_object = keras.callbacks.ReduceLROnPlateau(
+            monitor='val_loss', factor=PLATEAU_LEARNING_RATE_MULTIPLIER,
+            patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
+            min_delta=CROSS_ENTROPY_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
+
+        list_of_callback_objects.append([early_stopping_object, plateau_object])
 
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
@@ -615,10 +628,15 @@ def train_cnn_2d3d_myrorss(
 
     if num_validation_batches_per_epoch > 0:
         early_stopping_object = keras.callbacks.EarlyStopping(
-            monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
-            patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+            monitor='val_loss', min_delta=CROSS_ENTROPY_PATIENCE,
+            patience=EARLY_STOPPING_PATIENCE_EPOCHS, verbose=1, mode='min')
 
-        list_of_callback_objects.append(early_stopping_object)
+        plateau_object = keras.callbacks.ReduceLROnPlateau(
+            monitor='val_loss', factor=PLATEAU_LEARNING_RATE_MULTIPLIER,
+            patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
+            min_delta=CROSS_ENTROPY_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
+
+        list_of_callback_objects.append([early_stopping_object, plateau_object])
 
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
@@ -702,10 +720,15 @@ def train_cnn_gridrad_2d_reduced(
 
     if num_validation_batches_per_epoch > 0:
         early_stopping_object = keras.callbacks.EarlyStopping(
-            monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
-            patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+            monitor='val_loss', min_delta=CROSS_ENTROPY_PATIENCE,
+            patience=EARLY_STOPPING_PATIENCE_EPOCHS, verbose=1, mode='min')
 
-        list_of_callback_objects.append(early_stopping_object)
+        plateau_object = keras.callbacks.ReduceLROnPlateau(
+            monitor='val_loss', factor=PLATEAU_LEARNING_RATE_MULTIPLIER,
+            patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
+            min_delta=CROSS_ENTROPY_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
+
+        list_of_callback_objects.append([early_stopping_object, plateau_object])
 
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
