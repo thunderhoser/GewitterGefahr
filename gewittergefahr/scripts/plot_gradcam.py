@@ -427,10 +427,10 @@ def _run(input_file_name, allow_whitespace, plot_significance,
 
     try:
         gradcam_dict = gradcam.read_standard_file(input_file_name)
-        list_of_input_matrices = gradcam_dict.pop(gradcam.INPUT_MATRICES_KEY)
-        list_of_cam_matrices = gradcam_dict.pop(gradcam.CAM_MATRICES_KEY)
-        list_of_guided_cam_matrices = gradcam_dict.pop(
-            gradcam.GUIDED_CAM_MATRICES_KEY)
+        list_of_input_matrices = gradcam_dict[gradcam.INPUT_MATRICES_KEY]
+        list_of_cam_matrices = gradcam_dict[gradcam.CAM_MATRICES_KEY]
+        list_of_guided_cam_matrices = gradcam_dict[
+            gradcam.GUIDED_CAM_MATRICES_KEY]
 
         full_storm_id_strings = gradcam_dict[gradcam.FULL_IDS_KEY]
         storm_times_unix_sec = gradcam_dict[gradcam.STORM_TIMES_KEY]
