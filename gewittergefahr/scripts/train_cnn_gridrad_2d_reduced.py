@@ -277,6 +277,11 @@ def _run(input_model_file_name, radar_field_name_by_channel,
     model_object.summary()
     print(SEPARATOR_STRING)
 
+    print(K.eval(
+        model_object.get_layer(name='radar_conv2d_2').weights[0]
+    ))
+    print(SEPARATOR_STRING)
+
     # Write metadata.
     metadata_dict = {
         cnn.NUM_EPOCHS_KEY: num_epochs,
