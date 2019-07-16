@@ -233,8 +233,13 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
             observed_labels, this_storm_object_dict[testing_io.TARGET_ARRAY_KEY]
         ))
 
-        these_predictor_matrices = this_storm_object_dict[
-            testing_io.INPUT_MATRICES_KEY]
+        if soundings_only:
+            these_predictor_matrices = [
+                this_storm_object_dict[testing_io.SOUNDING_MATRIX_KEY]
+            ]
+        else:
+            these_predictor_matrices = this_storm_object_dict[
+                testing_io.INPUT_MATRICES_KEY]
 
         if include_soundings:
             this_sounding_matrix = these_predictor_matrices[-1]
