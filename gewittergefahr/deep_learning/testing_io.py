@@ -107,6 +107,8 @@ def _find_examples_to_read(option_dict, num_examples_total):
     if trainval_io.RADAR_FIELDS_KEY in option_dict:
         radar_field_names = option_dict[trainval_io.RADAR_FIELDS_KEY]
         radar_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+        num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
+        num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
     else:
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=example_file_names[0], read_all_target_vars=False,
@@ -119,11 +121,11 @@ def _find_examples_to_read(option_dict, num_examples_total):
             [this_example_dict[input_examples.RADAR_HEIGHTS_KEY][0]], dtype=int
         )
 
+        num_grid_rows = None
+        num_grid_columns = None
+
     first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
-    num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
-    num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
-
     class_to_sampling_fraction_dict = option_dict[
         trainval_io.SAMPLING_FRACTIONS_KEY]
 
