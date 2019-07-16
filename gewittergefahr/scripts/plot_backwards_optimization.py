@@ -7,6 +7,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.colors
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
@@ -146,7 +147,7 @@ def _plot_3d_radar_difference(
 
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
     if conv_2d3d:
-        radar_field_names = ['reflectivity']
+        radar_field_names = [radar_utils.REFL_NAME]
     else:
         radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
 
