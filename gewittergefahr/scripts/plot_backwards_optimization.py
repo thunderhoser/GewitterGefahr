@@ -267,15 +267,23 @@ def _plot_2d_radar_difference(
 
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+
+    if conv_2d3d:
+        num_fields = len(training_option_dict[trainval_io.RADAR_FIELDS_KEY])
+        radar_heights_m_agl = numpy.full(
+            num_fields, radar_utils.SHEAR_HEIGHT_M_ASL, dtype=int)
+    else:
+        radar_heights_m_agl = training_option_dict[
+            trainval_io.RADAR_HEIGHTS_KEY]
+
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
 
     if list_of_layer_operation_dicts is None:
         field_name_by_panel = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+
         panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
-            field_names=field_name_by_panel,
-            heights_m_agl=training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
-        )
+            field_names=field_name_by_panel, heights_m_agl=radar_heights_m_agl)
     else:
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
