@@ -552,8 +552,15 @@ def separate_shear_and_reflectivity(list_of_input_matrices,
     """
 
     error_checking.assert_is_list(list_of_input_matrices)
-    for this_matrix in list_of_input_matrices:
-        error_checking.assert_is_numpy_array_without_nan(this_matrix)
+    num_matrices = len(list_of_input_matrices)
+
+    for i in range(num_matrices):
+        if i == num_matrices - 1 and list_of_input_matrices[i] is None:
+            continue
+
+        error_checking.assert_is_numpy_array_without_nan(
+            list_of_input_matrices[i]
+        )
 
     upsample_refl = training_option_dict[UPSAMPLE_REFLECTIVITY_KEY]
     if not upsample_refl:
@@ -568,7 +575,7 @@ def separate_shear_and_reflectivity(list_of_input_matrices,
         list_of_input_matrices[0][..., -num_az_shear_fields:]
     )
     list_of_input_matrices = (
-        [new_first_matrix, new_second_matrix] + list_of_input_matrices[1:]
+            [new_first_matrix, new_second_matrix] + list_of_input_matrices[1:]
     )
 
     return list_of_input_matrices
