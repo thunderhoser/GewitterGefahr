@@ -151,6 +151,19 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
 
         raise ValueError(error_string)
 
+    soundings_only = False
+
+    if isinstance(model_object.input, list):
+        list_of_input_tensors = model_object.input
+    else:
+        list_of_input_tensors = [model_object.input]
+
+    if len(list_of_input_tensors) == 1:
+        these_spatial_dim = numpy.array(
+            list_of_input_tensors[0].get_shape().as_list()[1:-1], dtype=int
+        )
+        soundings_only = len(these_spatial_dim) == 1
+
     model_directory_name, _ = os.path.split(model_file_name)
     model_metafile_name = '{0:s}/model_metadata.p'.format(model_directory_name)
 
@@ -183,7 +196,11 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
         time_conversion.get_end_of_spc_date(last_spc_date_string)
     )
 
-    if model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] is not None:
+    if soundings_only:
+        generator_object = testing_io.sounding_generator(
+            option_dict=training_option_dict, num_examples_total=num_examples)
+
+    elif model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] is not None:
         generator_object = testing_io.gridrad_generator_2d_reduced(
             option_dict=training_option_dict,
             list_of_operation_dicts=model_metadata_dict[
@@ -224,7 +241,11 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
         else:
             this_sounding_matrix = None
 
-        if model_metadata_dict[cnn.CONV_2D3D_KEY]:
+        if soundings_only:
+            this_probability_matrix = cnn.apply_cnn_soundings_only(
+                model_object=model_object, sounding_matrix=this_sounding_matrix,
+                verbose=True)
+        elif model_metadata_dict[cnn.CONV_2D3D_KEY]:
             if training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]:
                 this_probability_matrix = cnn.apply_2d_or_3d_cnn(
                     model_object=model_object,
