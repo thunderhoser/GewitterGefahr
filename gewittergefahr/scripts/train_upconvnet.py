@@ -215,7 +215,7 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
         input_upconvnet_file_name))
 
     upconvnet_model_object = cnn.read_model(input_upconvnet_file_name)
-    upconvnet_model_object = keras.models.clone_model(upconvnet_model_object)
+    # upconvnet_model_object = keras.models.clone_model(upconvnet_model_object)
 
     # TODO(thunderhoser): This is a HACK.
     upconvnet_model_object.compile(

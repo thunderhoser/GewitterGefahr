@@ -108,7 +108,7 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
     # Read architecture.
     print('Reading architecture from: "{0:s}"...'.format(input_model_file_name))
     model_object = cnn.read_model(input_model_file_name)
-    model_object = keras.models.clone_model(model_object)
+    # model_object = keras.models.clone_model(model_object)
 
     # TODO(thunderhoser): This is a HACK.
     model_object.compile(

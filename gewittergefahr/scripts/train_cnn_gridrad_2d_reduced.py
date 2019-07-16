@@ -9,7 +9,6 @@ import numpy
 import keras.losses
 import keras.optimizers
 from keras import backend as K
-from keras.models import clone_model
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
