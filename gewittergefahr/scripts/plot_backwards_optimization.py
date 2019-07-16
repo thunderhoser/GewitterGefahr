@@ -1,6 +1,5 @@
 """Plots results of backwards optimization."""
 
-import copy
 import os.path
 import argparse
 import numpy
@@ -8,7 +7,6 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.colors
 import matplotlib.pyplot as pyplot
-from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
@@ -17,13 +15,12 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
-from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
 from gewittergefahr.plotting import significance_plotting
+from gewittergefahr.scripts import plot_input_examples
 
-# TODO(thunderhoser): This file contains a lot of duplicated code for
-# determining output paths and titles.
+# TODO(thunderhoser): A lot of this code should be in plot_input_examples.py.
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -36,7 +33,7 @@ FIGURE_RESOLUTION_DPI = 300
 INPUT_FILE_ARG_NAME = 'input_file_name'
 PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 COLOUR_MAP_ARG_NAME = 'diff_colour_map_name'
-MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile_for_diff'
+MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
@@ -85,867 +82,257 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_bwo_for_2d3d_radar(
-        list_of_optimized_matrices, training_option_dict,
-        diff_colour_map_object, max_colour_percentile_for_diff, pmm_flag,
-        bwo_metadata_dict, top_output_dir_name, list_of_input_matrices=None,
-        monte_carlo_dict=None):
-    """Plots BWO results for 2-D azimuthal-shear and 3-D reflectivity fields.
+def _plot_3d_radar_difference(
+        difference_matrix, colour_map_object, max_colour_percentile,
+        model_metadata_dict, backwards_opt_dict, output_dir_name,
+        example_index=None, significance_matrix=None):
+    """Plots difference (after minus before optimization) for 3-D radar data.
 
-    E = number of examples (storm objects)
-    T = number of input tensors to the model
-
-    :param list_of_optimized_matrices: length-T list of numpy arrays, where the
-        [i]th array is the optimized version of the [i]th input matrix to the
-        model.
-    :param training_option_dict: See doc for `cnn.read_model_metadata`.
-    :param diff_colour_map_object: See documentation at top of file.
-    :param max_colour_percentile_for_diff: Same.
-    :param pmm_flag: Boolean flag.  If True, `list_of_predictor_matrices`
-        contains probability-matched means.
-    :param bwo_metadata_dict: Dictionary with metadata for backwards
-        optimization (returned by `backwards_optimization.read_standard_file`).
-    :param top_output_dir_name: Path to top-level output directory (figures will
-        be saved here).
-    :param list_of_input_matrices: Same as `list_of_optimized_matrices` but with
-        non-optimized input matrices.
-    :param monte_carlo_dict: See doc for `monte_carlo.check_output`.  If this is
-        None, will *not* plot stippling for significance.
-    """
-
-    before_optimization_dir_name = '{0:s}/before_optimization'.format(
-        top_output_dir_name)
-    after_optimization_dir_name = '{0:s}/after_optimization'.format(
-        top_output_dir_name)
-    difference_dir_name = '{0:s}/after_minus_before_optimization'.format(
-        top_output_dir_name)
-
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=before_optimization_dir_name)
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=after_optimization_dir_name)
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=difference_dir_name)
-
-    full_id_strings = bwo_metadata_dict[backwards_opt.FULL_IDS_KEY]
-    storm_times_unix_sec = bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY]
-
-    if pmm_flag:
-        have_storm_ids = False
-
-        initial_activations = numpy.array([
-            bwo_metadata_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
-        ])
-        final_activations = numpy.array([
-            bwo_metadata_dict[backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
-        ])
-    else:
-        have_storm_ids = not (
-            full_id_strings is None or storm_times_unix_sec is None
-        )
-
-        initial_activations = bwo_metadata_dict[
-            backwards_opt.INITIAL_ACTIVATIONS_KEY]
-        final_activations = bwo_metadata_dict[
-            backwards_opt.FINAL_ACTIVATIONS_KEY]
-
-    if monte_carlo_dict is not None:
-        refl_significance_matrix = numpy.logical_or(
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
-            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
-            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
-        )
-
-        az_shear_significance_matrix = numpy.logical_or(
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][1] <
-            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][1],
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][1] >
-            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][1]
-        )
-
-    az_shear_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-    num_az_shear_fields = len(az_shear_field_names)
-    plot_colour_bar_flags = numpy.full(num_az_shear_fields, False, dtype=bool)
-
-    num_storms = list_of_optimized_matrices[0].shape[0]
-
-    for i in range(num_storms):
-        print('\n')
-
-        if pmm_flag:
-            this_base_title_string = 'Probability-matched mean'
-            this_base_pathless_file_name = 'pmm'
-        else:
-            if have_storm_ids:
-                this_storm_time_string = time_conversion.unix_sec_to_string(
-                    storm_times_unix_sec[i], TIME_FORMAT)
-
-                this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                    full_id_strings[i], this_storm_time_string)
-
-                this_base_pathless_file_name = '{0:s}_{1:s}'.format(
-                    full_id_strings[i].replace('_', '-'),
-                    this_storm_time_string)
-
-            else:
-                this_base_title_string = 'Example {0:d}'.format(i + 1)
-                this_base_pathless_file_name = 'example{0:06d}'.format(i)
-
-        this_reflectivity_matrix_dbz = numpy.flip(
-            list_of_optimized_matrices[0][i, ..., 0], axis=0
-        )
-
-        this_num_heights = this_reflectivity_matrix_dbz.shape[-1]
-        this_num_panel_rows = int(numpy.floor(
-            numpy.sqrt(this_num_heights)
-        ))
-
-        _, this_axes_object_matrix = radar_plotting.plot_3d_grid_without_coords(
-            field_matrix=this_reflectivity_matrix_dbz,
-            field_name=radar_utils.REFL_NAME,
-            grid_point_heights_metres=training_option_dict[
-                trainval_io.RADAR_HEIGHTS_KEY],
-            ground_relative=True, num_panel_rows=this_num_panel_rows,
-            font_size=FONT_SIZE_SANS_COLOUR_BARS)
-
-        if monte_carlo_dict is not None:
-            this_matrix = numpy.flip(
-                refl_significance_matrix[i, ..., 0], axis=0
-            )
-
-            significance_plotting.plot_many_2d_grids_without_coords(
-                significance_matrix=this_matrix,
-                axes_object_matrix=this_axes_object_matrix)
-
-        this_colour_map_object, this_colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
-        )
-
-        plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=this_axes_object_matrix,
-            data_matrix=this_reflectivity_matrix_dbz,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', extend_min=True, extend_max=True)
-
-        this_title_string = '{0:s} (AFTER; {1:.2e})'.format(
-            this_base_title_string, final_activations[i]
-        )
-
-        this_file_name = (
-            '{0:s}/{1:s}_after-optimization_reflectivity.jpg'
-        ).format(after_optimization_dir_name, this_base_pathless_file_name)
-
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-        print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
-
-        this_az_shear_matrix_s01 = numpy.flip(
-            list_of_optimized_matrices[1][i, ...], axis=0
-        )
-
-        _, this_axes_object_matrix = (
-            radar_plotting.plot_many_2d_grids_without_coords(
-                field_matrix=this_az_shear_matrix_s01,
-                field_name_by_panel=az_shear_field_names, num_panel_rows=1,
-                panel_names=az_shear_field_names,
-                plot_colour_bar_by_panel=plot_colour_bar_flags,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS)
-        )
-
-        if monte_carlo_dict is not None:
-            this_matrix = numpy.flip(
-                az_shear_significance_matrix[i, ...], axis=0
-            )
-
-            significance_plotting.plot_many_2d_grids_without_coords(
-                significance_matrix=this_matrix,
-                axes_object_matrix=this_axes_object_matrix)
-
-        this_colour_map_object, this_colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(
-                radar_utils.LOW_LEVEL_SHEAR_NAME)
-        )
-
-        plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=this_axes_object_matrix,
-            data_matrix=this_az_shear_matrix_s01,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', extend_min=True, extend_max=True)
-
-        this_file_name = (
-            '{0:s}/{1:s}_after-optimization_azimuthal-shear.jpg'
-        ).format(after_optimization_dir_name, this_base_pathless_file_name)
-
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-        print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
-
-        if list_of_input_matrices is None:
-            continue
-
-        this_reflectivity_matrix_dbz = numpy.flip(
-            list_of_input_matrices[0][i, ..., 0], axis=0
-        )
-
-        _, this_axes_object_matrix = radar_plotting.plot_3d_grid_without_coords(
-            field_matrix=this_reflectivity_matrix_dbz,
-            field_name=radar_utils.REFL_NAME,
-            grid_point_heights_metres=training_option_dict[
-                trainval_io.RADAR_HEIGHTS_KEY],
-            ground_relative=True, num_panel_rows=this_num_panel_rows,
-            font_size=FONT_SIZE_SANS_COLOUR_BARS)
-
-        this_colour_map_object, this_colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
-        )
-
-        plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=this_axes_object_matrix,
-            data_matrix=this_reflectivity_matrix_dbz,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', extend_min=True, extend_max=True)
-
-        this_title_string = '{0:s} (BEFORE; {1:.2e})'.format(
-            this_base_title_string, initial_activations[i]
-        )
-
-        this_file_name = (
-            '{0:s}/{1:s}_before-optimization_reflectivity.jpg'
-        ).format(before_optimization_dir_name, this_base_pathless_file_name)
-
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-        print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
-
-        this_az_shear_matrix_s01 = numpy.flip(
-            list_of_input_matrices[1][i, ...], axis=0
-        )
-
-        _, this_axes_object_matrix = (
-            radar_plotting.plot_many_2d_grids_without_coords(
-                field_matrix=this_az_shear_matrix_s01,
-                field_name_by_panel=az_shear_field_names, num_panel_rows=1,
-                panel_names=az_shear_field_names,
-                plot_colour_bar_by_panel=plot_colour_bar_flags,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS)
-        )
-
-        this_colour_map_object, this_colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(
-                radar_utils.LOW_LEVEL_SHEAR_NAME)
-        )
-
-        plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=this_axes_object_matrix,
-            data_matrix=this_az_shear_matrix_s01,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', extend_min=True, extend_max=True)
-
-        this_file_name = (
-            '{0:s}/{1:s}_before-optimization_azimuthal-shear.jpg'
-        ).format(before_optimization_dir_name, this_base_pathless_file_name)
-
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-        print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
-
-        this_refl_diff_matrix_dbz = (
-            list_of_optimized_matrices[0][i, ..., 0] -
-            list_of_input_matrices[0][i, ..., 0]
-        )
-        this_refl_diff_matrix_dbz = numpy.flip(
-            this_refl_diff_matrix_dbz, axis=0)
-
-        this_max_value_dbz = numpy.percentile(
-            numpy.absolute(this_refl_diff_matrix_dbz),
-            max_colour_percentile_for_diff)
-
-        this_colour_norm_object = matplotlib.colors.Normalize(
-            vmin=-1 * this_max_value_dbz, vmax=this_max_value_dbz, clip=False)
-
-        _, this_axes_object_matrix = radar_plotting.plot_3d_grid_without_coords(
-            field_matrix=this_refl_diff_matrix_dbz,
-            field_name=radar_utils.REFL_NAME,
-            grid_point_heights_metres=training_option_dict[
-                trainval_io.RADAR_HEIGHTS_KEY],
-            ground_relative=True, num_panel_rows=this_num_panel_rows,
-            font_size=FONT_SIZE_SANS_COLOUR_BARS,
-            colour_map_object=diff_colour_map_object,
-            colour_norm_object=this_colour_norm_object)
-
-        plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=this_axes_object_matrix,
-            data_matrix=this_refl_diff_matrix_dbz,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', extend_min=True, extend_max=True)
-
-        this_title_string = '{0:s} (after minus before)'.format(
-            this_base_title_string)
-
-        this_file_name = (
-            '{0:s}/{1:s}_optimization-diff_reflectivity.jpg'
-        ).format(difference_dir_name, this_base_pathless_file_name)
-
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-        print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
-
-        this_shear_diff_matrix_s01 = (
-            list_of_optimized_matrices[1][i, ...] -
-            list_of_input_matrices[1][i, ...]
-        )
-        this_shear_diff_matrix_s01 = numpy.flip(
-            this_shear_diff_matrix_s01, axis=0)
-
-        this_max_value_s01 = numpy.percentile(
-            numpy.absolute(this_shear_diff_matrix_s01),
-            max_colour_percentile_for_diff)
-
-        this_colour_norm_object = matplotlib.colors.Normalize(
-            vmin=-1 * this_max_value_s01, vmax=this_max_value_s01, clip=False)
-
-        _, this_axes_object_matrix = (
-            radar_plotting.plot_many_2d_grids_without_coords(
-                field_matrix=this_shear_diff_matrix_s01,
-                field_name_by_panel=az_shear_field_names, num_panel_rows=1,
-                panel_names=az_shear_field_names,
-                colour_map_object_by_panel=
-                [diff_colour_map_object] * num_az_shear_fields,
-                colour_norm_object_by_panel=
-                [copy.deepcopy(this_colour_norm_object)] * num_az_shear_fields,
-                plot_colour_bar_by_panel=plot_colour_bar_flags,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS)
-        )
-
-        plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=this_axes_object_matrix,
-            data_matrix=this_shear_diff_matrix_s01,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', extend_min=True, extend_max=True)
-
-        this_title_string = '{0:s} (after minus before)'.format(
-            this_base_title_string)
-
-        this_file_name = (
-            '{0:s}/{1:s}_optimization-diff_azimuthal-shear.jpg'
-        ).format(difference_dir_name, this_base_pathless_file_name)
-
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-        print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
-
-
-def _plot_bwo_for_3d_radar(
-        optimized_radar_matrix, training_option_dict, diff_colour_map_object,
-        max_colour_percentile_for_diff, pmm_flag, bwo_metadata_dict,
-        top_output_dir_name, input_radar_matrix=None, monte_carlo_dict=None):
-    """Plots BWO results for 3-D radar fields.
-
-    E = number of examples (storm objects)
     M = number of rows in spatial grid
     N = number of columns in spatial grid
     H = number of heights in spatial grid
     F = number of fields
 
-    :param optimized_radar_matrix: E-by-M-by-N-by-H-by-F numpy array of radar
-        values (predictors).
-    :param training_option_dict: See doc for `_plot_bwo_for_2d3d_radar`.
-    :param diff_colour_map_object: Same.
-    :param max_colour_percentile_for_diff: Same.
-    :param pmm_flag: Same.
-    :param bwo_metadata_dict: Same.
-    :param top_output_dir_name: Same.
-    :param input_radar_matrix: Same as `optimized_radar_matrix` but with
-        non-optimized input.
-    :param monte_carlo_dict: See doc for `_plot_bwo_for_2d3d_radar`.
+    :param difference_matrix: M-by-N-by-H-by-F numpy array of differences (after
+        minus before optimization).
+    :param colour_map_object: See documentation at top of file.
+    :param max_colour_percentile: Same.
+    :param model_metadata_dict: Dictionary returned by
+        `cnn.read_model_metadata`.
+    :param backwards_opt_dict: Dictionary returned by
+        `backwards_optimization.read_standard_file` or
+        `backwards_optimization.read_pmm_file`, containing metadata.
+    :param output_dir_name: Name of output directory.  Figure(s) will be saved
+        here.
+    :param example_index: This method will plot only the [i]th example, where
+        i = `example_index`.  This will be used to find metadata for the given
+        example in `backwards_opt_dict`.  If `backwards_opt_dict` contains PMM
+        (probability-matched means), leave this argument alone.
+    :param significance_matrix: M-by-N-by-H-by-F numpy array of Boolean flags,
+        indicating where these differences are significantly different than
+        differences from another backwards optimization.
     """
 
-    before_optimization_dir_name = '{0:s}/before_optimization'.format(
-        top_output_dir_name)
-    after_optimization_dir_name = '{0:s}/after_optimization'.format(
-        top_output_dir_name)
-    difference_dir_name = '{0:s}/after_minus_before_optimization'.format(
-        top_output_dir_name)
-
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=before_optimization_dir_name)
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=after_optimization_dir_name)
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=difference_dir_name)
-
-    full_id_strings = bwo_metadata_dict[backwards_opt.FULL_IDS_KEY]
-    storm_times_unix_sec = bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY]
-
-    if pmm_flag:
-        have_storm_ids = False
-
-        initial_activations = numpy.array([
-            bwo_metadata_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
-        ])
-        final_activations = numpy.array([
-            bwo_metadata_dict[backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
-        ])
-    else:
-        have_storm_ids = not (
-            full_id_strings is None or storm_times_unix_sec is None
-        )
-
-        initial_activations = bwo_metadata_dict[
-            backwards_opt.INITIAL_ACTIVATIONS_KEY]
-        final_activations = bwo_metadata_dict[
-            backwards_opt.FINAL_ACTIVATIONS_KEY]
-
-    if monte_carlo_dict is not None:
-        significance_matrix = numpy.logical_or(
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
-            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
-            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
-        )
-
-    radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+    num_heights = len(radar_heights_m_agl)
 
-    num_storms = optimized_radar_matrix.shape[0]
-    num_heights = optimized_radar_matrix.shape[-2]
     num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_heights)
     ))
 
-    for i in range(num_storms):
-        print('\n')
+    pmm_flag = backwards_opt.MEAN_FINAL_ACTIVATION_KEY in backwards_opt_dict
+    if pmm_flag:
+        initial_activation = backwards_opt_dict[
+            backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
+        final_activation = backwards_opt_dict[
+            backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
+
+        full_storm_id_string = None
+        storm_time_string = None
+    else:
+        initial_activation = backwards_opt_dict[
+            backwards_opt.INITIAL_ACTIVATIONS_KEY][example_index]
+        final_activation = backwards_opt_dict[
+            backwards_opt.FINAL_ACTIVATIONS_KEY][example_index]
+
+        full_storm_id_string = backwards_opt_dict[
+            backwards_opt.FULL_IDS_KEY][example_index]
+
+        storm_time_string = time_conversion.unix_sec_to_string(
+            backwards_opt_dict[backwards_opt.STORM_TIMES_KEY][example_index],
+            plot_input_examples.TIME_FORMAT
+        )
+
+    conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
+    if conv_2d3d:
+        radar_field_names = ['reflectivity']
+    else:
+        radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+
+    num_fields = len(radar_field_names)
+
+    for j in range(num_fields):
+        this_max_colour_value = numpy.percentile(
+            numpy.absolute(difference_matrix[..., j]), max_colour_percentile
+        )
+
+        this_colour_norm_object = matplotlib.colors.Normalize(
+            vmin=-1 * this_max_colour_value, vmax=this_max_colour_value,
+            clip=False)
+
+        # TODO(thunderhoser): Deal with change of units.
+        this_figure_object, this_axes_object_matrix = (
+            radar_plotting.plot_3d_grid_without_coords(
+                field_matrix=numpy.flip(difference_matrix[..., j], axis=0),
+                field_name=radar_field_names[j],
+                grid_point_heights_metres=radar_heights_m_agl,
+                ground_relative=True, num_panel_rows=num_panel_rows,
+                font_size=FONT_SIZE_SANS_COLOUR_BARS,
+                colour_map_object=colour_map_object,
+                colour_norm_object=this_colour_norm_object)
+        )
+
+        if significance_matrix is not None:
+            this_matrix = numpy.flip(significance_matrix[..., j], axis=0)
+
+            significance_plotting.plot_many_2d_grids_without_coords(
+                significance_matrix=this_matrix,
+                axes_object_matrix=this_axes_object_matrix)
 
         if pmm_flag:
-            this_base_title_string = 'Probability-matched mean'
-            this_base_pathless_file_name = 'pmm'
+            this_title_string = 'PMM'
         else:
-            if have_storm_ids:
-                this_storm_time_string = time_conversion.unix_sec_to_string(
-                    storm_times_unix_sec[i], TIME_FORMAT)
+            this_title_string = 'Storm "{0:s}" at {1:s}'.format(
+                full_storm_id_string, storm_time_string)
 
-                this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                    full_id_strings[i], this_storm_time_string)
+        this_title_string += '{0:s}; activation from {1:.2e} to {2:.2e}'.format(
+            radar_field_names[j], initial_activation, final_activation
+        )
+        this_figure_object.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-                this_base_pathless_file_name = '{0:s}_{1:s}'.format(
-                    full_id_strings[i].replace('_', '-'),
-                    this_storm_time_string)
+        this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
+            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+            full_storm_id_string=full_storm_id_string,
+            storm_time_string=storm_time_string,
+            radar_field_name=radar_field_names[j]
+        )
 
-            else:
-                this_base_title_string = 'Example {0:d}'.format(i + 1)
-                this_base_pathless_file_name = 'example{0:06d}'.format(i)
-
-        for j in range(len(radar_field_names)):
-            _, this_axes_object_matrix = (
-                radar_plotting.plot_3d_grid_without_coords(
-                    field_matrix=numpy.flip(
-                        optimized_radar_matrix[i, ..., j], axis=0
-                    ),
-                    field_name=radar_field_names[j],
-                    grid_point_heights_metres=radar_heights_m_agl,
-                    ground_relative=True, num_panel_rows=num_panel_rows,
-                    font_size=FONT_SIZE_SANS_COLOUR_BARS)
-            )
-
-            this_colour_map_object, this_colour_norm_object = (
-                radar_plotting.get_default_colour_scheme(
-                    radar_field_names[j])
-            )
-
-            if monte_carlo_dict is not None:
-                significance_plotting.plot_many_2d_grids_without_coords(
-                    significance_matrix=numpy.flip(
-                        significance_matrix[i, ..., j], axis=0
-                    ),
-                    axes_object_matrix=this_axes_object_matrix
-                )
-
-            plotting_utils.plot_colour_bar(
-                axes_object_or_matrix=this_axes_object_matrix,
-                data_matrix=optimized_radar_matrix[i, ..., j],
-                colour_map_object=this_colour_map_object,
-                colour_norm_object=this_colour_norm_object,
-                orientation_string='horizontal', extend_min=True,
-                extend_max=True)
-
-            this_title_string = '{0:s} (AFTER; {1:.2e})'.format(
-                this_base_title_string, final_activations[i]
-            )
-
-            this_file_name = (
-                '{0:s}/{1:s}_after-optimization_{2:s}.jpg'
-            ).format(
-                after_optimization_dir_name, this_base_pathless_file_name,
-                radar_field_names[j].replace('_', '-')
-            )
-
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-            print('Saving figure to: "{0:s}"...'.format(this_file_name))
-            pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-            pyplot.close()
-
-            if input_radar_matrix is None:
-                continue
-
-            _, this_axes_object_matrix = (
-                radar_plotting.plot_3d_grid_without_coords(
-                    field_matrix=numpy.flip(
-                        input_radar_matrix[i, ..., j], axis=0
-                    ),
-                    field_name=radar_field_names[j],
-                    grid_point_heights_metres=radar_heights_m_agl,
-                    ground_relative=True, num_panel_rows=num_panel_rows,
-                    font_size=FONT_SIZE_SANS_COLOUR_BARS)
-            )
-
-            this_colour_map_object, this_colour_norm_object = (
-                radar_plotting.get_default_colour_scheme(
-                    radar_field_names[j])
-            )
-
-            plotting_utils.plot_colour_bar(
-                axes_object_or_matrix=this_axes_object_matrix,
-                data_matrix=input_radar_matrix[i, ..., j],
-                colour_map_object=this_colour_map_object,
-                colour_norm_object=this_colour_norm_object,
-                orientation_string='horizontal', extend_min=True,
-                extend_max=True)
-
-            this_title_string = '{0:s} (BEFORE; {1:.2e})'.format(
-                this_base_title_string, initial_activations[i]
-            )
-
-            this_file_name = (
-                '{0:s}/{1:s}_before-optimization_{2:s}.jpg'
-            ).format(
-                before_optimization_dir_name, this_base_pathless_file_name,
-                radar_field_names[j].replace('_', '-')
-            )
-
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-            print('Saving figure to: "{0:s}"...'.format(this_file_name))
-            pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-            pyplot.close()
-
-            this_diff_matrix = (
-                optimized_radar_matrix[i, ..., j] -
-                input_radar_matrix[i, ..., j]
-            )
-
-            this_max_value = numpy.percentile(
-                numpy.absolute(this_diff_matrix),
-                max_colour_percentile_for_diff)
-
-            this_colour_norm_object = matplotlib.colors.Normalize(
-                vmin=-1 * this_max_value, vmax=this_max_value, clip=False)
-
-            _, this_axes_object_matrix = (
-                radar_plotting.plot_3d_grid_without_coords(
-                    field_matrix=numpy.flip(this_diff_matrix, axis=0),
-                    field_name=radar_field_names[j],
-                    grid_point_heights_metres=radar_heights_m_agl,
-                    ground_relative=True, num_panel_rows=num_panel_rows,
-                    font_size=FONT_SIZE_SANS_COLOUR_BARS,
-                    colour_map_object=diff_colour_map_object,
-                    colour_norm_object=this_colour_norm_object)
-            )
-
-            plotting_utils.plot_colour_bar(
-                axes_object_or_matrix=this_axes_object_matrix,
-                data_matrix=this_diff_matrix,
-                colour_map_object=this_colour_map_object,
-                colour_norm_object=this_colour_norm_object,
-                orientation_string='horizontal', extend_min=True,
-                extend_max=True)
-
-            this_title_string = '{0:s} (after minus before)'.format(
-                this_base_title_string)
-
-            this_file_name = (
-                '{0:s}/{1:s}_optimization-diff_{2:s}.jpg'
-            ).format(
-                difference_dir_name, this_base_pathless_file_name,
-                radar_field_names[j].replace('_', '-')
-            )
-
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-            print('Saving figure to: "{0:s}"...'.format(this_file_name))
-            pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-            pyplot.close()
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
+        this_figure_object.savefig(
+            this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+            bbox_inches='tight'
+        )
+        pyplot.close(this_figure_object)
 
 
-def _plot_bwo_for_2d_radar(
-        optimized_radar_matrix, model_metadata_dict, diff_colour_map_object,
-        max_colour_percentile_for_diff, pmm_flag, bwo_metadata_dict,
-        top_output_dir_name, input_radar_matrix=None, monte_carlo_dict=None):
-    """Plots BWO results for 2-D radar fields.
+def _plot_2d_radar_difference(
+        difference_matrix, colour_map_object, max_colour_percentile,
+        model_metadata_dict, backwards_opt_dict, output_dir_name,
+        example_index=None, significance_matrix=None):
+    """Plots difference (after minus before optimization) for 2-D radar data.
 
-    E = number of examples (storm objects)
     M = number of rows in spatial grid
     N = number of columns in spatial grid
-    C = number of channels (field/height pairs)
+    C = number of channels
 
-    :param optimized_radar_matrix: E-by-M-by-N-by-C numpy array of radar values
-        (predictors).
-    :param model_metadata_dict: Dictionary returned by
-        `cnn.read_model_metadata`.
-    :param diff_colour_map_object: See doc for `_plot_bwo_for_2d3d_radar`.
-    :param max_colour_percentile_for_diff: Same.
-    :param pmm_flag: Same.
-    :param bwo_metadata_dict: Same.
-    :param top_output_dir_name: Same.
-    :param input_radar_matrix: Same as `optimized_radar_matrix` but with
-        non-optimized input.
-    :param monte_carlo_dict: See doc for `_plot_bwo_for_2d3d_radar`.
+    :param difference_matrix: M-by-N-by-C numpy array of differences (after
+        minus before optimization).
+    :param colour_map_object: See doc for `_plot_3d_radar_difference`.
+    :param max_colour_percentile: Same.
+    :param model_metadata_dict: Same.
+    :param backwards_opt_dict: Same.
+    :param output_dir_name: Same.
+    :param example_index: Same.
+    :param significance_matrix: M-by-N-by-C numpy array of Boolean flags,
+        indicating where these differences are significantly different than
+        differences from another backwards optimization.
     """
 
-    before_optimization_dir_name = '{0:s}/before_optimization'.format(
-        top_output_dir_name)
-    after_optimization_dir_name = '{0:s}/after_optimization'.format(
-        top_output_dir_name)
-    difference_dir_name = '{0:s}/after_minus_before_optimization'.format(
-        top_output_dir_name)
+    pmm_flag = backwards_opt.MEAN_FINAL_ACTIVATION_KEY in backwards_opt_dict
+    if pmm_flag:
+        initial_activation = backwards_opt_dict[
+            backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
+        final_activation = backwards_opt_dict[
+            backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
 
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=before_optimization_dir_name)
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=after_optimization_dir_name)
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=difference_dir_name)
+        full_storm_id_string = None
+        storm_time_string = None
+    else:
+        initial_activation = backwards_opt_dict[
+            backwards_opt.INITIAL_ACTIVATIONS_KEY][example_index]
+        final_activation = backwards_opt_dict[
+            backwards_opt.FINAL_ACTIVATIONS_KEY][example_index]
 
+        full_storm_id_string = backwards_opt_dict[
+            backwards_opt.FULL_IDS_KEY][example_index]
+
+        storm_time_string = time_conversion.unix_sec_to_string(
+            backwards_opt_dict[backwards_opt.STORM_TIMES_KEY][example_index],
+            plot_input_examples.TIME_FORMAT
+        )
+
+    conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
 
-    full_id_strings = bwo_metadata_dict[backwards_opt.FULL_IDS_KEY]
-    storm_times_unix_sec = bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY]
-
-    if pmm_flag:
-        have_storm_ids = False
-
-        initial_activations = numpy.array([
-            bwo_metadata_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
-        ])
-        final_activations = numpy.array([
-            bwo_metadata_dict[backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
-        ])
-    else:
-        have_storm_ids = not (
-            full_id_strings is None or storm_times_unix_sec is None
-        )
-
-        initial_activations = bwo_metadata_dict[
-            backwards_opt.INITIAL_ACTIVATIONS_KEY]
-        final_activations = bwo_metadata_dict[
-            backwards_opt.FINAL_ACTIVATIONS_KEY]
-
-    if monte_carlo_dict is not None:
-        significance_matrix = numpy.logical_or(
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
-            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
-            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
-        )
-
     if list_of_layer_operation_dicts is None:
-        field_name_by_panel = training_option_dict[
-            trainval_io.RADAR_FIELDS_KEY]
-
-        panel_names = (
-            radar_plotting.radar_fields_and_heights_to_panel_names(
-                field_names=field_name_by_panel,
-                heights_m_agl=training_option_dict[
-                    trainval_io.RADAR_HEIGHTS_KEY]
-            )
+        field_name_by_panel = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+        panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
+            field_names=field_name_by_panel,
+            heights_m_agl=training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
         )
-
-        plot_colour_bar_by_panel = numpy.full(
-            len(panel_names), True, dtype=bool)
-
     else:
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
-                list_of_layer_operation_dicts)
+                list_of_layer_operation_dicts=list_of_layer_operation_dicts
+            )
         )
 
-        plot_colour_bar_by_panel = numpy.full(
-            len(panel_names), False, dtype=bool)
-        plot_colour_bar_by_panel[2::3] = True
+    num_panels = len(field_name_by_panel)
+    plot_cbar_by_panel = numpy.full(num_panels, True, dtype=bool)
+    cmap_object_by_panel = [colour_map_object] * num_panels
+    cnorm_object_by_panel = [None] * num_panels
 
-    num_panels = len(panel_names)
-    num_storms = optimized_radar_matrix.shape[0]
-    num_channels = optimized_radar_matrix.shape[-1]
+    for j in range(num_panels):
+        this_max_colour_value = numpy.percentile(
+            numpy.absolute(difference_matrix[..., j]), max_colour_percentile
+        )
+
+        cnorm_object_by_panel[j] = matplotlib.colors.Normalize(
+            vmin=-1 * this_max_colour_value, vmax=this_max_colour_value,
+            clip=False)
+
     num_panel_rows = int(numpy.floor(
-        numpy.sqrt(num_channels)
+        numpy.sqrt(num_panels)
     ))
 
-    for i in range(num_storms):
-        print('\n')
-
-        if pmm_flag:
-            this_base_title_string = 'Probability-matched mean'
-            this_base_pathless_file_name = 'pmm'
-        else:
-            if have_storm_ids:
-                this_storm_time_string = time_conversion.unix_sec_to_string(
-                    storm_times_unix_sec[i], TIME_FORMAT)
-
-                this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                    full_id_strings[i], this_storm_time_string)
-
-                this_base_pathless_file_name = '{0:s}_{1:s}'.format(
-                    full_id_strings[i].replace('_', '-'),
-                    this_storm_time_string)
-
-            else:
-                this_base_title_string = 'Example {0:d}'.format(i + 1)
-                this_base_pathless_file_name = 'example{0:06d}'.format(i)
-
-        this_axes_object_matrix = (
-            radar_plotting.plot_many_2d_grids_without_coords(
-                field_matrix=numpy.flip(optimized_radar_matrix[i, ...], axis=0),
-                field_name_by_panel=field_name_by_panel,
-                num_panel_rows=num_panel_rows, panel_names=panel_names,
-                plot_colour_bar_by_panel=plot_colour_bar_by_panel,
-                font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False
-            )[-1]
-        )
-
-        if monte_carlo_dict is not None:
-            significance_plotting.plot_many_2d_grids_without_coords(
-                significance_matrix=numpy.flip(
-                    significance_matrix[i, ...], axis=0
-                ),
-                axes_object_matrix=this_axes_object_matrix, row_major=False
-            )
-
-        this_title_string = '{0:s} (AFTER; activation = {1:.2e})'.format(
-            this_base_title_string, final_activations[i]
-        )
-
-        this_file_name = '{0:s}/{1:s}_after-optimization_radar.jpg'.format(
-            after_optimization_dir_name, this_base_pathless_file_name)
-
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-        print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
-
-        if input_radar_matrix is None:
-            continue
-
+    figure_object, axes_object_matrix = (
         radar_plotting.plot_many_2d_grids_without_coords(
-            field_matrix=numpy.flip(input_radar_matrix[i, ...], axis=0),
+            field_matrix=numpy.flip(difference_matrix, axis=0),
             field_name_by_panel=field_name_by_panel,
-            num_panel_rows=num_panel_rows, panel_names=panel_names,
-            plot_colour_bar_by_panel=plot_colour_bar_by_panel,
-            font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
+            num_panel_rows=num_panel_rows,
+            panel_names=panel_names, row_major=False,
+            colour_map_object_by_panel=cmap_object_by_panel,
+            colour_norm_object_by_panel=cnorm_object_by_panel,
+            plot_colour_bar_by_panel=plot_cbar_by_panel,
+            font_size=FONT_SIZE_WITH_COLOUR_BARS)
+    )
 
-        this_title_string = '{0:s} (BEFORE; activation = {1:.2e})'.format(
-            this_base_title_string, initial_activations[i]
+    if significance_matrix is not None:
+        significance_plotting.plot_many_2d_grids_without_coords(
+            significance_matrix=numpy.flip(significance_matrix, axis=0),
+            axes_object_matrix=axes_object_matrix, row_major=False
         )
 
-        this_file_name = '{0:s}/{1:s}_before-optimization_radar.jpg'.format(
-            before_optimization_dir_name, this_base_pathless_file_name)
+    if pmm_flag:
+        this_title_string = 'PMM'
+    else:
+        this_title_string = 'Storm "{0:s}" at {1:s}'.format(
+            full_storm_id_string, storm_time_string)
 
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+    this_title_string += '; activation from {0:.2e} to {1:.2e}'.format(
+        initial_activation, final_activation)
+    figure_object.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-        print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
+    output_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
+        output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+        full_storm_id_string=full_storm_id_string,
+        storm_time_string=storm_time_string,
+        radar_field_name='shear' if conv_2d3d else None)
 
-        this_cmap_object_by_panel = [diff_colour_map_object] * num_panels
-        this_cnorm_object_by_panel = [None] * num_panels
-
-        if list_of_layer_operation_dicts is None:
-            for j in range(num_panels):
-                this_diff_matrix = (
-                    optimized_radar_matrix[i, ..., j] -
-                    input_radar_matrix[i, ..., j]
-                )
-
-                this_max_value = numpy.percentile(
-                    numpy.absolute(this_diff_matrix),
-                    max_colour_percentile_for_diff)
-
-                this_cnorm_object_by_panel[j] = matplotlib.colors.Normalize(
-                    vmin=-1 * this_max_value, vmax=this_max_value, clip=False)
-
-        else:
-            unique_field_names = numpy.unique(numpy.array(field_name_by_panel))
-
-            for this_field_name in unique_field_names:
-                these_panel_indices = numpy.where(
-                    numpy.array(field_name_by_panel) == this_field_name
-                )[0]
-
-                this_diff_matrix = (
-                    optimized_radar_matrix[i, ..., these_panel_indices] -
-                    input_radar_matrix[i, ..., these_panel_indices]
-                )
-
-                this_max_value = numpy.percentile(
-                    numpy.absolute(this_diff_matrix),
-                    max_colour_percentile_for_diff)
-
-                for this_index in these_panel_indices:
-                    this_cnorm_object_by_panel[this_index] = (
-                        matplotlib.colors.Normalize(
-                            vmin=-1 * this_max_value, vmax=this_max_value,
-                            clip=False)
-                    )
-
-        this_diff_matrix = (
-            optimized_radar_matrix[i, ...] - input_radar_matrix[i, ...]
-        )
-
-        radar_plotting.plot_many_2d_grids_without_coords(
-            field_matrix=numpy.flip(this_diff_matrix, axis=0),
-            field_name_by_panel=field_name_by_panel,
-            num_panel_rows=num_panel_rows, panel_names=panel_names,
-            colour_map_object_by_panel=this_cmap_object_by_panel,
-            colour_norm_object_by_panel=this_cnorm_object_by_panel,
-            plot_colour_bar_by_panel=plot_colour_bar_by_panel,
-            font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
-
-        this_title_string = '{0:s} (after minus before)'.format(
-            this_base_title_string)
-        this_file_name = '{0:s}/{1:s}_optimization-diff_radar.jpg'.format(
-            difference_dir_name, this_base_pathless_file_name)
-
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
-
-        print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
 
 def _plot_bwo_for_soundings(
         optimized_sounding_matrix, training_option_dict, pmm_flag,
-        bwo_metadata_dict, top_output_dir_name, input_sounding_matrix=None):
+        backwards_opt_dict, top_output_dir_name, input_sounding_matrix=None):
     """Plots BWO results for soundings.
 
     E = number of examples (storm objects)
@@ -956,7 +343,7 @@ def _plot_bwo_for_soundings(
         (predictors).
     :param training_option_dict: See doc for `_plot_bwo_for_2d3d_radar`.
     :param pmm_flag: Same.
-    :param bwo_metadata_dict: Same.
+    :param backwards_opt_dict: Same.
     :param top_output_dir_name: Same.
     :param input_sounding_matrix: Same as `optimized_sounding_matrix` but with
         non-optimized input.
@@ -972,26 +359,26 @@ def _plot_bwo_for_soundings(
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=after_optimization_dir_name)
 
-    full_id_strings = bwo_metadata_dict[backwards_opt.FULL_IDS_KEY]
-    storm_times_unix_sec = bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY]
+    full_id_strings = backwards_opt_dict[backwards_opt.FULL_IDS_KEY]
+    storm_times_unix_sec = backwards_opt_dict[backwards_opt.STORM_TIMES_KEY]
 
     if pmm_flag:
         have_storm_ids = False
 
         initial_activations = numpy.array([
-            bwo_metadata_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
+            backwards_opt_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
         ])
         final_activations = numpy.array([
-            bwo_metadata_dict[backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
+            backwards_opt_dict[backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
         ])
     else:
         have_storm_ids = not (
             full_id_strings is None or storm_times_unix_sec is None
         )
 
-        initial_activations = bwo_metadata_dict[
+        initial_activations = backwards_opt_dict[
             backwards_opt.INITIAL_ACTIVATIONS_KEY]
-        final_activations = bwo_metadata_dict[
+        final_activations = backwards_opt_dict[
             backwards_opt.FINAL_ACTIVATIONS_KEY]
 
     num_examples = optimized_sounding_matrix.shape[0]
@@ -1069,7 +456,7 @@ def _plot_bwo_for_soundings(
 
 
 def _run(input_file_name, plot_significance, diff_colour_map_name,
-         max_colour_percentile_for_diff, top_output_dir_name):
+         max_colour_percentile, top_output_dir_name):
     """Plots results of backwards optimization.
 
     This is effectively the main method.
@@ -1077,38 +464,51 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
     :param input_file_name: See documentation at top of file.
     :param plot_significance: Same.
     :param diff_colour_map_name: Same.
-    :param max_colour_percentile_for_diff: Same.
+    :param max_colour_percentile: Same.
     :param top_output_dir_name: Same.
     """
 
-    pmm_flag = False
+    before_optimization_dir_name = '{0:s}/before_optimization'.format(
+        top_output_dir_name)
+    after_optimization_dir_name = '{0:s}/after_optimization'.format(
+        top_output_dir_name)
+    difference_dir_name = '{0:s}/difference'.format(top_output_dir_name)
 
-    error_checking.assert_is_geq(max_colour_percentile_for_diff, 0.)
-    error_checking.assert_is_leq(max_colour_percentile_for_diff, 100.)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=before_optimization_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=after_optimization_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=difference_dir_name)
+
+    error_checking.assert_is_geq(max_colour_percentile, 0.)
+    error_checking.assert_is_leq(max_colour_percentile, 100.)
     diff_colour_map_object = pyplot.cm.get_cmap(diff_colour_map_name)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
 
     try:
         backwards_opt_dict = backwards_opt.read_standard_file(input_file_name)
-        list_of_optimized_matrices = backwards_opt_dict.pop(
-            backwards_opt.OPTIMIZED_MATRICES_KEY)
-        list_of_input_matrices = backwards_opt_dict.pop(
-            backwards_opt.INIT_FUNCTION_KEY)
+        list_of_optimized_matrices = backwards_opt_dict[
+            backwards_opt.OPTIMIZED_MATRICES_KEY]
+        list_of_input_matrices = backwards_opt_dict[
+            backwards_opt.INIT_FUNCTION_KEY]
 
-        if not isinstance(list_of_input_matrices, list):
-            list_of_input_matrices = None
+        full_storm_id_strings = backwards_opt_dict[backwards_opt.FULL_IDS_KEY]
+        storm_times_unix_sec = backwards_opt_dict[backwards_opt.STORM_TIMES_KEY]
 
-        bwo_metadata_dict = backwards_opt_dict
+        storm_time_strings = [
+            time_conversion.unix_sec_to_string(
+                t, plot_input_examples.TIME_FORMAT)
+            for t in storm_times_unix_sec
+        ]
 
     except ValueError:
-        pmm_flag = True
         backwards_opt_dict = backwards_opt.read_pmm_file(input_file_name)
-
-        list_of_input_matrices = backwards_opt_dict.pop(
-            backwards_opt.MEAN_INPUT_MATRICES_KEY)
-        list_of_optimized_matrices = backwards_opt_dict.pop(
-            backwards_opt.MEAN_OPTIMIZED_MATRICES_KEY)
+        list_of_input_matrices = backwards_opt_dict[
+            backwards_opt.MEAN_INPUT_MATRICES_KEY]
+        list_of_optimized_matrices = backwards_opt_dict[
+            backwards_opt.MEAN_OPTIMIZED_MATRICES_KEY]
 
         for i in range(len(list_of_input_matrices)):
             list_of_input_matrices[i] = numpy.expand_dims(
@@ -1118,84 +518,111 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
                 list_of_optimized_matrices[i], axis=0
             )
 
-        bwo_metadata_dict = backwards_opt_dict
-        bwo_metadata_dict[backwards_opt.FULL_IDS_KEY] = None
-        bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY] = None
+        full_storm_id_strings = [None]
+        storm_times_unix_sec = [None]
+        storm_time_strings = [None]
 
-    model_file_name = bwo_metadata_dict[backwards_opt.MODEL_FILE_KEY]
+    pmm_flag = (
+        full_storm_id_strings[0] is None and storm_time_strings[0] is None
+    )
+
+    model_file_name = backwards_opt_dict[backwards_opt.MODEL_FILE_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )
 
     print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
-    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-
     print(SEPARATOR_STRING)
 
-    monte_carlo_dict = (
-        bwo_metadata_dict[backwards_opt.MONTE_CARLO_DICT_KEY]
-        if plot_significance and
-        backwards_opt.MONTE_CARLO_DICT_KEY in bwo_metadata_dict
-        else None
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    include_soundings = (
+        training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
     )
 
-    if sounding_field_names is not None:
-        if list_of_input_matrices is None:
-            this_input_matrix = None
-        else:
-            this_input_matrix = list_of_input_matrices[-1]
-
+    if include_soundings:
         _plot_bwo_for_soundings(
-            input_sounding_matrix=this_input_matrix,
+            input_sounding_matrix=list_of_input_matrices[-1],
             optimized_sounding_matrix=list_of_optimized_matrices[-1],
             training_option_dict=training_option_dict, pmm_flag=pmm_flag,
-            bwo_metadata_dict=bwo_metadata_dict,
+            backwards_opt_dict=backwards_opt_dict,
             top_output_dir_name=top_output_dir_name)
 
         print(SEPARATOR_STRING)
 
-    if model_metadata_dict[cnn.CONV_2D3D_KEY]:
-        _plot_bwo_for_2d3d_radar(
-            list_of_optimized_matrices=list_of_optimized_matrices,
-            training_option_dict=training_option_dict,
-            diff_colour_map_object=diff_colour_map_object,
-            max_colour_percentile_for_diff=max_colour_percentile_for_diff,
-            pmm_flag=pmm_flag, bwo_metadata_dict=bwo_metadata_dict,
-            top_output_dir_name=top_output_dir_name,
-            list_of_input_matrices=list_of_input_matrices,
-            monte_carlo_dict=monte_carlo_dict)
-
-        return
-
-    if list_of_input_matrices is None:
-        this_input_matrix = None
-    else:
-        this_input_matrix = list_of_input_matrices[0]
-
-    num_radar_dimensions = len(list_of_optimized_matrices[0].shape) - 2
-    if num_radar_dimensions == 3:
-        _plot_bwo_for_3d_radar(
-            optimized_radar_matrix=list_of_optimized_matrices[0],
-            training_option_dict=training_option_dict,
-            diff_colour_map_object=diff_colour_map_object,
-            max_colour_percentile_for_diff=max_colour_percentile_for_diff,
-            pmm_flag=pmm_flag, bwo_metadata_dict=bwo_metadata_dict,
-            top_output_dir_name=top_output_dir_name,
-            input_radar_matrix=this_input_matrix,
-            monte_carlo_dict=monte_carlo_dict)
-
-        return
-
-    _plot_bwo_for_2d_radar(
-        optimized_radar_matrix=list_of_optimized_matrices[0],
+    # TODO(thunderhoser): Make sure to not plot soundings here.
+    plot_input_examples.plot_examples(
+        list_of_predictor_matrices=list_of_input_matrices,
         model_metadata_dict=model_metadata_dict,
-        diff_colour_map_object=diff_colour_map_object,
-        max_colour_percentile_for_diff=max_colour_percentile_for_diff,
-        pmm_flag=pmm_flag, bwo_metadata_dict=bwo_metadata_dict,
-        top_output_dir_name=top_output_dir_name,
-        input_radar_matrix=this_input_matrix, monte_carlo_dict=monte_carlo_dict)
+        output_dir_name=before_optimization_dir_name,
+        allow_whitespace=True, pmm_flag=pmm_flag,
+        full_storm_id_strings=full_storm_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec)
+    print(SEPARATOR_STRING)
+
+    plot_input_examples.plot_examples(
+        list_of_predictor_matrices=list_of_optimized_matrices,
+        model_metadata_dict=model_metadata_dict,
+        output_dir_name=after_optimization_dir_name,
+        allow_whitespace=True, pmm_flag=pmm_flag,
+        full_storm_id_strings=full_storm_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec)
+    print(SEPARATOR_STRING)
+
+    monte_carlo_dict = (
+        backwards_opt_dict[backwards_opt.MONTE_CARLO_DICT_KEY]
+        if plot_significance and
+        backwards_opt.MONTE_CARLO_DICT_KEY in backwards_opt_dict
+        else None
+    )
+
+    num_examples = list_of_optimized_matrices[0].shape[0]
+    num_radar_matrices = (
+        len(list_of_optimized_matrices) - int(include_soundings)
+    )
+
+    for i in range(num_examples):
+        # TODO(thunderhoser): Make BWO file always store initial matrices, even
+        # if they are created by a function.
+
+        for j in range(num_radar_matrices):
+            if monte_carlo_dict is None:
+                this_significance_matrix = None
+            else:
+                this_significance_matrix = numpy.logical_or(
+                    monte_carlo_dict[
+                        monte_carlo.TRIAL_PMM_MATRICES_KEY][j][i, ...] <
+                    monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][j][i, ...],
+                    monte_carlo_dict[
+                        monte_carlo.TRIAL_PMM_MATRICES_KEY][j][i, ...] >
+                    monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][j][i, ...]
+                )
+
+            this_difference_matrix = (
+                list_of_optimized_matrices[j][i, ...] -
+                list_of_input_matrices[j][i, ...]
+            )
+
+            this_num_spatial_dim = len(list_of_input_matrices[j].shape) - 2
+
+            if this_num_spatial_dim == 3:
+                _plot_3d_radar_difference(
+                    difference_matrix=this_difference_matrix,
+                    colour_map_object=diff_colour_map_object,
+                    max_colour_percentile=max_colour_percentile,
+                    model_metadata_dict=model_metadata_dict,
+                    backwards_opt_dict=backwards_opt_dict,
+                    output_dir_name=difference_dir_name, example_index=i,
+                    significance_matrix=this_significance_matrix)
+            else:
+                _plot_2d_radar_difference(
+                    difference_matrix=this_difference_matrix,
+                    colour_map_object=diff_colour_map_object,
+                    max_colour_percentile=max_colour_percentile,
+                    model_metadata_dict=model_metadata_dict,
+                    backwards_opt_dict=backwards_opt_dict,
+                    output_dir_name=difference_dir_name, example_index=i,
+                    significance_matrix=this_significance_matrix)
 
 
 if __name__ == '__main__':
@@ -1204,9 +631,10 @@ if __name__ == '__main__':
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
         plot_significance=bool(getattr(
-            INPUT_ARG_OBJECT, PLOT_SIGNIFICANCE_ARG_NAME)),
+            INPUT_ARG_OBJECT, PLOT_SIGNIFICANCE_ARG_NAME
+        )),
         diff_colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
-        max_colour_percentile_for_diff=getattr(
+        max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
