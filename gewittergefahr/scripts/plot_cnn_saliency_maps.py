@@ -454,38 +454,6 @@ def _run(input_file_name, plot_significance, saliency_colour_map_name,
     print(SEPARATOR_STRING)
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    # upsample_refl = training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]
-    #
-    # if upsample_refl:
-    #     num_az_shear_fields = len(
-    #         training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-    #     )
-    #
-    #     new_first_matrix = numpy.expand_dims(
-    #         list_of_input_matrices[0][..., :-num_az_shear_fields], axis=-1
-    #     )
-    #     new_second_matrix = (
-    #         list_of_input_matrices[0][..., -num_az_shear_fields:]
-    #     )
-    #     list_of_input_matrices = (
-    #         [new_first_matrix, new_second_matrix] + list_of_input_matrices[1:]
-    #     )
-    #
-    #     new_first_matrix = numpy.expand_dims(
-    #         list_of_saliency_matrices[0][..., :-num_az_shear_fields], axis=-1
-    #     )
-    #     new_second_matrix = (
-    #         list_of_saliency_matrices[0][..., -num_az_shear_fields:]
-    #     )
-    #     list_of_saliency_matrices = (
-    #         [new_first_matrix, new_second_matrix] +
-    #         list_of_saliency_matrices[1:]
-    #     )
-    #
-    #     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY][
-    #         trainval_io.UPSAMPLE_REFLECTIVITY_KEY
-    #     ] = False
-
     include_soundings = (
         training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
     )
