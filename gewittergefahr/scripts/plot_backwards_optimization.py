@@ -16,6 +16,7 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
 from gewittergefahr.plotting import significance_plotting
@@ -26,7 +27,7 @@ from gewittergefahr.scripts import plot_input_examples
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-TITLE_FONT_SIZE = 20
+TITLE_FONT_SIZE = 12
 FONT_SIZE_WITH_COLOUR_BARS = 16
 FONT_SIZE_SANS_COLOUR_BARS = 20
 FIGURE_RESOLUTION_DPI = 300
@@ -181,15 +182,26 @@ def _plot_3d_radar_difference(
                 significance_matrix=this_matrix,
                 axes_object_matrix=this_axes_object_matrix)
 
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=difference_matrix[..., j],
+            colour_map_object=colour_map_object,
+            colour_norm_object=this_colour_norm_object,
+            orientation_string='horizontal', extend_min=True,
+            extend_max=True)
+
         if pmm_flag:
             this_title_string = 'PMM'
         else:
             this_title_string = 'Storm "{0:s}" at {1:s}'.format(
                 full_storm_id_string, storm_time_string)
 
-        this_title_string += '{0:s}; activation from {1:.2e} to {2:.2e}'.format(
+        this_title_string += (
+            '; {0:s}; activation from {1:.2e} to {2:.2e}'
+        ).format(
             radar_field_names[j], initial_activation, final_activation
         )
+
         this_figure_object.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
