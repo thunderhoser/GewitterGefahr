@@ -50,7 +50,7 @@ RADAR_FIELD_KEY = 'radar_field_name'
 RADAR_HEIGHT_KEY = 'radar_height_m_agl'
 LAYER_OPERATION_KEY = 'layer_operation_dict'
 
-TITLE_FONT_SIZE = 20
+TITLE_FONT_SIZE = 16
 FONT_SIZE_WITH_COLOUR_BARS = 16
 FONT_SIZE_SANS_COLOUR_BARS = 20
 
