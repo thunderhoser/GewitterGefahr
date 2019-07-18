@@ -89,8 +89,8 @@ def _run(input_file_name, allow_whitespace, plot_soundings, output_dir_name):
     plot_input_examples.plot_examples(
         list_of_predictor_matrices=list_of_mean_input_matrices,
         model_metadata_dict=model_metadata_dict,
-        output_dir_name=output_dir_name, pmm_flag=True,
-        allow_whitespace=allow_whitespace)
+        output_dir_name=output_dir_name, plot_soundings=plot_soundings,
+        allow_whitespace=allow_whitespace, pmm_flag=True)
 
 
 if __name__ == '__main__':
