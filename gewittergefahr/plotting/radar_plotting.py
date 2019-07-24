@@ -900,6 +900,7 @@ def plot_many_2d_grids_without_coords(
         this_extend_min_flag = field_name_by_panel[k] in SHEAR_VORT_DIV_NAMES
         print('\n\n********\n\n')
         print(this_colour_norm_object)
+        print(dir(this_colour_norm_object))
         print('\n\n********\n\n')
 
         this_colour_bar_object = plotting_utils.plot_colour_bar(

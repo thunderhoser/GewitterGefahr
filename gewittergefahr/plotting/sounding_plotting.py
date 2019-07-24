@@ -189,6 +189,7 @@ def plot_sounding(
         tick_labels.append('{0:d}'.format(int(numpy.round(this_tick_value))))
 
     axes_object.set_xticklabels(tick_labels)
+    axes_object.set_xlim(-40, 50)
 
     if title_string is not None:
         pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
