@@ -558,6 +558,10 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
     )
 
     model_file_name = backwards_opt_dict[backwards_opt.MODEL_FILE_KEY]
+    if not os.path.isfile(model_file_name):
+        model_file_name = model_file_name.replace('/condo/swatwork/ralager',
+                                                  '/glade/work/ryanlage')
+
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )
