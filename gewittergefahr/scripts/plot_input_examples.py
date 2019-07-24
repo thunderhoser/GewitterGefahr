@@ -483,7 +483,7 @@ def _plot_2d_radar_scan(
         #         plot_cbar_by_panel[:] = True
 
         num_panel_rows = 1
-        num_panel_columns = 4
+        num_panel_columns = num_panels + 0
 
     # num_panel_rows = int(numpy.floor(
     #     numpy.sqrt(num_panels)

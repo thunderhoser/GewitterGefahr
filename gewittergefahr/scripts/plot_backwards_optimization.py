@@ -243,6 +243,7 @@ def _plot_2d_radar_difference(
     """
 
     pmm_flag = backwards_opt.MEAN_FINAL_ACTIVATION_KEY in backwards_opt_dict
+
     if pmm_flag:
         initial_activation = backwards_opt_dict[
             backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
@@ -282,14 +283,30 @@ def _plot_2d_radar_difference(
 
         panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
             field_names=field_name_by_panel, heights_m_agl=radar_heights_m_agl)
+
+        num_panels = len(field_name_by_panel)
+        num_panel_rows = int(numpy.floor(
+            numpy.sqrt(num_panels)
+        ))
     else:
+        list_of_layer_operation_dicts = [
+            list_of_layer_operation_dicts[k]
+            for k in plot_input_examples.LAYER_OP_INDICES_TO_KEEP
+        ]
+
+        difference_matrix = difference_matrix[
+            ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
+        ]
+
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
                 list_of_layer_operation_dicts=list_of_layer_operation_dicts
             )
         )
 
-    num_panels = len(field_name_by_panel)
+        num_panels = len(field_name_by_panel)
+        num_panel_rows = 1
+
     plot_cbar_by_panel = numpy.full(num_panels, True, dtype=bool)
     cmap_object_by_panel = [colour_map_object] * num_panels
     cnorm_object_by_panel = [None] * num_panels
@@ -302,10 +319,6 @@ def _plot_2d_radar_difference(
         cnorm_object_by_panel[j] = matplotlib.colors.Normalize(
             vmin=-1 * this_max_colour_value, vmax=this_max_colour_value,
             clip=False)
-
-    num_panel_rows = int(numpy.floor(
-        numpy.sqrt(num_panels)
-    ))
 
     figure_object, axes_object_matrix = (
         radar_plotting.plot_many_2d_grids_without_coords(
@@ -320,6 +333,11 @@ def _plot_2d_radar_difference(
     )
 
     if significance_matrix is not None:
+        if list_of_layer_operation_dicts is not None:
+            significance_matrix = significance_matrix[
+                ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
+            ]
+
         significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=numpy.flip(significance_matrix, axis=0),
             axes_object_matrix=axes_object_matrix, row_major=False

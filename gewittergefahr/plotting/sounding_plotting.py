@@ -181,6 +181,10 @@ def plot_sounding(
     axes_object.set_ylabel('')
 
     tick_values_deg_c = axes_object.get_xticks()
+    print('\n\n*******\n\n')
+    print(tick_values_deg_c)
+    print('\n\n*******\n\n')
+
     tick_labels = []
     for this_tick_value in tick_values_deg_c:
         tick_labels.append('{0:d}'.format(int(numpy.round(this_tick_value))))
