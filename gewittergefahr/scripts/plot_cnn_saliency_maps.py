@@ -158,11 +158,12 @@ def _plot_3d_radar_saliency(
                 axes_object_matrix=axes_object_matrices[j]
             )
 
-        this_title_string = figure_objects[j]._suptitle
+        this_title_object = figure_objects[j]._suptitle
 
-        if this_title_string is not None:
-            this_title_string += ' (max abs saliency = {0:.2e})'.format(
-                max_colour_value)
+        if this_title_object is not None:
+            this_title_string = '{0:s} (max abs saliency = {1:.2e})'.format(
+                this_title_object.get_text(), max_colour_value
+            )
 
             figure_objects[j].suptitle(
                 this_title_string, fontsize=plot_input_examples.TITLE_FONT_SIZE)
@@ -250,13 +251,12 @@ def _plot_2d_radar_saliency(
             axes_object_matrix=axes_object_matrices[figure_index],
             row_major=False)
 
-    this_title_string = figure_objects[figure_index]._suptitle
-    print(this_title_string)
-    print(dir(this_title_string))
+    this_title_object = figure_objects[figure_index]._suptitle
 
-    if this_title_string is not None:
-        this_title_string += ' (max abs saliency = {0:.2e})'.format(
-            max_colour_value)
+    if this_title_object is not None:
+        this_title_string = '{0:s} (max abs saliency = {1:.2e})'.format(
+            this_title_object.get_text(), max_colour_value
+        )
 
         figure_objects[figure_index].suptitle(
             this_title_string, fontsize=plot_input_examples.TITLE_FONT_SIZE)
