@@ -180,6 +180,7 @@ def plot_sounding(
     axes_object.set_xlabel('')
     axes_object.set_ylabel('')
 
+    axes_object.set_xlim(-40, 50)
     tick_values_deg_c = axes_object.get_xticks()
     print('\n\n*******\n\n')
     print(tick_values_deg_c)
