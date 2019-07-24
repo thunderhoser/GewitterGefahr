@@ -702,6 +702,7 @@ def plot_one_example(
 
     if pmm_flag:
         title_string = 'PMM composite'
+        print(list_of_predictor_matrices[0].shape)
 
         if list_of_predictor_matrices[0].shape[0] == 1:
             predictor_matrices_to_plot = [
@@ -709,6 +710,8 @@ def plot_one_example(
             ]
         else:
             predictor_matrices_to_plot = list_of_predictor_matrices
+
+        print(list_of_predictor_matrices[0].shape)
     else:
         error_checking.assert_is_integer(example_index)
         predictor_matrices_to_plot = [
