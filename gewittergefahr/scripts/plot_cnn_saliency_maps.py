@@ -223,6 +223,19 @@ def _plot_2d_radar_saliency(
         figure_index = 0
         radar_field_name = None
 
+    list_of_layer_operation_dicts = model_metadata_dict[
+        cnn.LAYER_OPERATIONS_KEY]
+
+    if list_of_layer_operation_dicts is not None:
+        saliency_matrix = saliency_matrix[
+            ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
+        ]
+
+        if significance_matrix is not None:
+            significance_matrix = significance_matrix[
+                ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
+            ]
+
     saliency_plotting.plot_many_2d_grids_with_contours(
         saliency_matrix_3d=numpy.flip(saliency_matrix, axis=0),
         axes_object_matrix=axes_object_matrices[figure_index],

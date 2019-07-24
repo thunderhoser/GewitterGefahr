@@ -910,7 +910,7 @@ def plot_many_2d_grids_without_coords(
             fraction_of_axis_length=0.75, font_size=font_size)
 
         this_colour_bar_object.set_label(
-            panel_names[k].replace('\n', ''), fontsize=font_size,
+            panel_names[k].replace('\n', '; '), fontsize=font_size,
             fontweight='bold')
 
     for k in range(num_panel_rows * num_panel_columns):
