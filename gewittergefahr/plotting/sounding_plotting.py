@@ -180,11 +180,9 @@ def plot_sounding(
     axes_object.set_xlabel('')
     axes_object.set_ylabel('')
 
-    axes_object.set_xlim(-40, 50)
-    tick_values_deg_c = axes_object.get_xticks()
-    print('\n\n*******\n\n')
-    print(tick_values_deg_c)
-    print('\n\n*******\n\n')
+    # tick_values_deg_c = axes_object.get_xticks()
+    tick_values_deg_c = numpy.linspace(-40, 50, num=10)
+    axes_object.set_xticks(tick_values_deg_c)
 
     tick_labels = []
     for this_tick_value in tick_values_deg_c:
