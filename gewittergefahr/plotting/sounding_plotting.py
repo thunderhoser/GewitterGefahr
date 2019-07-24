@@ -181,7 +181,7 @@ def plot_sounding(
     axes_object.set_ylabel('')
 
     # tick_values_deg_c = axes_object.get_xticks()
-    tick_values_deg_c = numpy.linspace(-40, 50, num=9)
+    tick_values_deg_c = numpy.linspace(-40, 50, num=10)
     axes_object.set_xticks(tick_values_deg_c)
 
     tick_labels = []
