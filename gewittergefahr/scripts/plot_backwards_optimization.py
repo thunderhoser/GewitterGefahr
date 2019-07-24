@@ -131,7 +131,7 @@ def _plot_3d_radar_difference(
             backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
 
         full_storm_id_string = None
-        storm_time_string = None
+        storm_time_unix_sec = None
     else:
         initial_activation = backwards_opt_dict[
             backwards_opt.INITIAL_ACTIVATIONS_KEY][example_index]
@@ -140,11 +140,8 @@ def _plot_3d_radar_difference(
 
         full_storm_id_string = backwards_opt_dict[
             backwards_opt.FULL_IDS_KEY][example_index]
-
-        storm_time_string = time_conversion.unix_sec_to_string(
-            backwards_opt_dict[backwards_opt.STORM_TIMES_KEY][example_index],
-            plot_input_examples.TIME_FORMAT
-        )
+        storm_time_unix_sec = backwards_opt_dict[
+            backwards_opt.STORM_TIMES_KEY][example_index]
 
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
     if conv_2d3d:
@@ -194,7 +191,10 @@ def _plot_3d_radar_difference(
             this_title_string = 'PMM'
         else:
             this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                full_storm_id_string, storm_time_string)
+                full_storm_id_string,
+                time_conversion.unix_sec_to_string(
+                    storm_time_unix_sec, plot_input_examples.TIME_FORMAT)
+            )
 
         this_title_string += (
             '; {0:s}; activation from {1:.2e} to {2:.2e}'
@@ -204,10 +204,10 @@ def _plot_3d_radar_difference(
 
         this_figure_object.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-        this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
-            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
-            full_storm_id_string=full_storm_id_string,
-            storm_time_string=storm_time_string,
+        this_file_name = plot_input_examples.metadata_to_file_name(
+            output_dir_name=output_dir_name, is_sounding=False,
+            pmm_flag=pmm_flag, full_storm_id_string=full_storm_id_string,
+            storm_time_unix_sec=storm_time_unix_sec,
             radar_field_name=radar_field_names[j]
         )
 
@@ -250,7 +250,7 @@ def _plot_2d_radar_difference(
             backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
 
         full_storm_id_string = None
-        storm_time_string = None
+        storm_time_unix_sec = None
     else:
         initial_activation = backwards_opt_dict[
             backwards_opt.INITIAL_ACTIVATIONS_KEY][example_index]
@@ -259,25 +259,23 @@ def _plot_2d_radar_difference(
 
         full_storm_id_string = backwards_opt_dict[
             backwards_opt.FULL_IDS_KEY][example_index]
-
-        storm_time_string = time_conversion.unix_sec_to_string(
-            backwards_opt_dict[backwards_opt.STORM_TIMES_KEY][example_index],
-            plot_input_examples.TIME_FORMAT
-        )
+        storm_time_unix_sec = backwards_opt_dict[
+            backwards_opt.STORM_TIMES_KEY][example_index]
 
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    list_of_layer_operation_dicts = model_metadata_dict[
+        cnn.LAYER_OPERATIONS_KEY]
 
     if conv_2d3d:
         num_fields = len(training_option_dict[trainval_io.RADAR_FIELDS_KEY])
         radar_heights_m_agl = numpy.full(
             num_fields, radar_utils.SHEAR_HEIGHT_M_ASL, dtype=int)
-    else:
+    elif list_of_layer_operation_dicts is None:
         radar_heights_m_agl = training_option_dict[
             trainval_io.RADAR_HEIGHTS_KEY]
-
-    list_of_layer_operation_dicts = model_metadata_dict[
-        cnn.LAYER_OPERATIONS_KEY]
+    else:
+        radar_heights_m_agl = None
 
     if list_of_layer_operation_dicts is None:
         field_name_by_panel = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
@@ -331,16 +329,19 @@ def _plot_2d_radar_difference(
         this_title_string = 'PMM'
     else:
         this_title_string = 'Storm "{0:s}" at {1:s}'.format(
-            full_storm_id_string, storm_time_string)
+            full_storm_id_string,
+            time_conversion.unix_sec_to_string(
+                storm_time_unix_sec, plot_input_examples.TIME_FORMAT)
+        )
 
     this_title_string += '; activation from {0:.2e} to {1:.2e}'.format(
         initial_activation, final_activation)
     figure_object.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-    output_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
-        output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+    output_file_name = plot_input_examples.metadata_to_file_name(
+        output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
         full_storm_id_string=full_storm_id_string,
-        storm_time_string=storm_time_string,
+        storm_time_unix_sec=storm_time_unix_sec,
         radar_field_name='shear' if conv_2d3d else None)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -383,7 +384,6 @@ def _plot_bwo_for_soundings(
     if pmm_flag:
         full_id_strings = None
         storm_times_unix_sec = None
-        have_storm_ids = False
 
         initial_activations = numpy.array([
             backwards_opt_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
@@ -394,10 +394,6 @@ def _plot_bwo_for_soundings(
     else:
         full_id_strings = backwards_opt_dict[backwards_opt.FULL_IDS_KEY]
         storm_times_unix_sec = backwards_opt_dict[backwards_opt.STORM_TIMES_KEY]
-
-        have_storm_ids = not (
-            full_id_strings is None or storm_times_unix_sec is None
-        )
 
         initial_activations = backwards_opt_dict[
             backwards_opt.INITIAL_ACTIVATIONS_KEY]
@@ -427,37 +423,32 @@ def _plot_bwo_for_soundings(
 
     for i in range(num_examples):
         if pmm_flag:
-            this_base_title_string = 'Probability-matched mean'
-            this_base_pathless_file_name = 'pmm'
+            this_base_title_string = 'PMM'
         else:
-            if have_storm_ids:
-                this_storm_time_string = time_conversion.unix_sec_to_string(
-                    storm_times_unix_sec[i], TIME_FORMAT)
-
-                this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
-                    full_id_strings[i], this_storm_time_string)
-
-                this_base_pathless_file_name = '{0:s}_{1:s}'.format(
-                    full_id_strings[i].replace('_', '-'),
-                    this_storm_time_string)
-            else:
-                this_base_title_string = 'Example {0:d}'.format(i + 1)
-                this_base_pathless_file_name = 'example{0:06d}'.format(i)
+            this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
+                full_id_strings[i],
+                time_conversion.unix_sec_to_string(
+                    storm_times_unix_sec[i], plot_input_examples.TIME_FORMAT)
+            )
 
         this_title_string = '{0:s} (AFTER; activation = {1:.2e})'.format(
             this_base_title_string, final_activations[i]
         )
 
-        this_file_name = '{0:s}/{1:s}_after-optimization_sounding.jpg'.format(
-            after_optimization_dir_name, this_base_pathless_file_name)
+        this_file_name = plot_input_examples.metadata_to_file_name(
+            output_dir_name=after_optimization_dir_name, is_sounding=True,
+            pmm_flag=pmm_flag, full_storm_id_string=full_id_strings[i],
+            storm_time_unix_sec=storm_times_unix_sec[i]
+        )
 
-        sounding_plotting.plot_sounding(
+        this_figure_object = sounding_plotting.plot_sounding(
             sounding_dict_for_metpy=list_of_optimized_metpy_dicts[i],
-            title_string=this_title_string)
+            title_string=this_title_string
+        )[0]
 
         print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
+        pyplot.close(this_figure_object)
 
         if input_sounding_matrix is None:
             continue
@@ -466,12 +457,18 @@ def _plot_bwo_for_soundings(
             this_base_title_string, initial_activations[i]
         )
 
-        this_file_name = '{0:s}/{1:s}_before-optimization_sounding.jpg'.format(
-            before_optimization_dir_name, this_base_pathless_file_name)
+        this_file_name = plot_input_examples.metadata_to_file_name(
+            output_dir_name=before_optimization_dir_name, is_sounding=True,
+            pmm_flag=pmm_flag, full_storm_id_string=full_id_strings[i],
+            storm_time_unix_sec=storm_times_unix_sec[i]
+        )
 
-        sounding_plotting.plot_sounding(
+        this_figure_object = sounding_plotting.plot_sounding(
             sounding_dict_for_metpy=list_of_input_metpy_dicts[i],
-            title_string=this_title_string)
+            title_string=this_title_string
+        )[0]
+
+        pyplot.close(this_figure_object)
 
         print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -520,12 +517,6 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
         full_storm_id_strings = backwards_opt_dict[backwards_opt.FULL_IDS_KEY]
         storm_times_unix_sec = backwards_opt_dict[backwards_opt.STORM_TIMES_KEY]
 
-        storm_time_strings = [
-            time_conversion.unix_sec_to_string(
-                t, plot_input_examples.TIME_FORMAT)
-            for t in storm_times_unix_sec
-        ]
-
     except ValueError:
         backwards_opt_dict = backwards_opt.read_pmm_file(input_file_name)
         list_of_input_matrices = backwards_opt_dict[
@@ -543,10 +534,9 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
 
         full_storm_id_strings = [None]
         storm_times_unix_sec = [None]
-        storm_time_strings = [None]
 
     pmm_flag = (
-        full_storm_id_strings[0] is None and storm_time_strings[0] is None
+        full_storm_id_strings[0] is None and storm_times_unix_sec[0] is None
     )
 
     model_file_name = backwards_opt_dict[backwards_opt.MODEL_FILE_KEY]
