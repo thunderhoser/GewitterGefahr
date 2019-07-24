@@ -702,7 +702,6 @@ def plot_one_example(
 
     if pmm_flag:
         title_string = 'PMM composite'
-        print(list_of_predictor_matrices[0].shape)
 
         if list_of_predictor_matrices[0].shape[0] == 1:
             predictor_matrices_to_plot = [
@@ -710,8 +709,6 @@ def plot_one_example(
             ]
         else:
             predictor_matrices_to_plot = list_of_predictor_matrices
-
-        print(list_of_predictor_matrices[0].shape)
     else:
         error_checking.assert_is_integer(example_index)
         predictor_matrices_to_plot = [
@@ -735,7 +732,7 @@ def plot_one_example(
 
     if plot_sounding and has_sounding:
         sounding_figure_object, sounding_axes_object = _plot_sounding(
-            list_of_predictor_matrices=list_of_predictor_matrices,
+            list_of_predictor_matrices=predictor_matrices_to_plot,
             model_metadata_dict=model_metadata_dict,
             allow_whitespace=allow_whitespace,
             title_string=title_string)
@@ -743,7 +740,7 @@ def plot_one_example(
         sounding_figure_object = None
         sounding_axes_object = None
 
-    num_radar_matrices = len(list_of_predictor_matrices) - int(has_sounding)
+    num_radar_matrices = len(predictor_matrices_to_plot) - int(has_sounding)
     num_radar_dimensions = len(predictor_matrices_to_plot[0].shape) - 1
 
     if num_radar_matrices == 2:
