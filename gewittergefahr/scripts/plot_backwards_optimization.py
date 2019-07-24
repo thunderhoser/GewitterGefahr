@@ -561,15 +561,15 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
         training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
     )
 
-    # if include_soundings:
-    #     _plot_bwo_for_soundings(
-    #         input_sounding_matrix=list_of_input_matrices[-1],
-    #         optimized_sounding_matrix=list_of_optimized_matrices[-1],
-    #         training_option_dict=training_option_dict, pmm_flag=pmm_flag,
-    #         backwards_opt_dict=backwards_opt_dict,
-    #         top_output_dir_name=top_output_dir_name)
-    #
-    #     print(SEPARATOR_STRING)
+    if include_soundings:
+        _plot_bwo_for_soundings(
+            input_sounding_matrix=list_of_input_matrices[-1],
+            optimized_sounding_matrix=list_of_optimized_matrices[-1],
+            training_option_dict=training_option_dict, pmm_flag=pmm_flag,
+            backwards_opt_dict=backwards_opt_dict,
+            top_output_dir_name=top_output_dir_name)
+
+        print(SEPARATOR_STRING)
 
     # TODO(thunderhoser): Make sure to not plot soundings here.
     plot_input_examples.plot_examples(
