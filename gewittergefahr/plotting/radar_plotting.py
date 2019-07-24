@@ -909,7 +909,7 @@ def plot_many_2d_grids_without_coords(
             extend_min=this_extend_min_flag, extend_max=True,
             fraction_of_axis_length=0.9, font_size=font_size)
 
-        this_colour_bar_object.set_label(panel_names[k])
+        this_colour_bar_object.set_label(panel_names[k], font_size=font_size)
 
     for k in range(num_panel_rows * num_panel_columns):
         if k < num_panels:
