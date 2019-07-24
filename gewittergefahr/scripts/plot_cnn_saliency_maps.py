@@ -275,7 +275,7 @@ def _plot_2d_radar_saliency(
 
 def _plot_sounding_saliency(
         saliency_matrix, colour_map_object, max_colour_value, sounding_matrix,
-        saliency_dict, model_metadata_dict, output_dir_name,
+        saliency_dict, model_metadata_dict, output_dir_name, pmm_flag,
         example_index=None):
     """Plots saliency for sounding.
 
@@ -295,10 +295,14 @@ def _plot_sounding_saliency(
         `cnn.read_model_metadata`.
     :param output_dir_name: Path to output directory.  Figure will be saved
         here.
-    :param example_index: Will plot the [i]th example, where i =
-        `example_index`.  If plotting a composite rather than one example, leave
-        this argument alone.
+    :param pmm_flag: Boolean flag.  If True, will plot composite rather than one
+        example.
+    :param example_index: [used only if `pmm_flag == False`]
+        Will plot the [i]th example, where i = `example_index`.
     """
+
+    if pmm_flag:
+        example_index = 0
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
@@ -327,8 +331,6 @@ def _plot_sounding_saliency(
             height_levels_m_agl=sounding_heights_m_agl,
             storm_elevations_m_asl=numpy.array([0.])
         )[0]
-
-    pmm_flag = example_index is None
 
     if pmm_flag:
         full_storm_id_string = None
@@ -503,7 +505,8 @@ def _run(input_file_name, plot_soundings, allow_whitespace, plot_significance,
                 sounding_matrix=list_of_input_matrices[-1][i, ...],
                 saliency_dict=saliency_dict,
                 model_metadata_dict=model_metadata_dict,
-                output_dir_name=output_dir_name, example_index=i)
+                output_dir_name=output_dir_name,
+                pmm_flag=pmm_flag, example_index=i)
 
         this_handle_dict = plot_input_examples.plot_one_example(
             list_of_predictor_matrices=list_of_input_matrices,
