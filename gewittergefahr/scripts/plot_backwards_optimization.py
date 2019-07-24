@@ -380,10 +380,9 @@ def _plot_bwo_for_soundings(
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=after_optimization_dir_name)
 
-    full_id_strings = backwards_opt_dict[backwards_opt.FULL_IDS_KEY]
-    storm_times_unix_sec = backwards_opt_dict[backwards_opt.STORM_TIMES_KEY]
-
     if pmm_flag:
+        full_id_strings = None
+        storm_times_unix_sec = None
         have_storm_ids = False
 
         initial_activations = numpy.array([
@@ -393,6 +392,9 @@ def _plot_bwo_for_soundings(
             backwards_opt_dict[backwards_opt.MEAN_FINAL_ACTIVATION_KEY]
         ])
     else:
+        full_id_strings = backwards_opt_dict[backwards_opt.FULL_IDS_KEY]
+        storm_times_unix_sec = backwards_opt_dict[backwards_opt.STORM_TIMES_KEY]
+
         have_storm_ids = not (
             full_id_strings is None or storm_times_unix_sec is None
         )
