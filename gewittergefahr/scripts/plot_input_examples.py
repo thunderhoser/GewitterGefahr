@@ -23,6 +23,7 @@ from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
 
 # TODO(thunderhoser): This is a HACK.
+LAYER_OP_INDICES_TO_KEEP = numpy.array([2, 3, 7, 10], dtype=int)
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -446,6 +447,13 @@ def _plot_2d_radar_scan(
 
         plot_cbar_by_panel = numpy.full(num_panels, True, dtype=bool)
     else:
+        list_of_layer_operation_dicts = [
+            list_of_layer_operation_dicts[k] for k in LAYER_OP_INDICES_TO_KEEP
+        ]
+
+        list_of_predictor_matrices[0] = list_of_predictor_matrices[0][
+            ..., LAYER_OP_INDICES_TO_KEEP]
+
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
                 list_of_layer_operation_dicts=list_of_layer_operation_dicts
@@ -453,13 +461,13 @@ def _plot_2d_radar_scan(
         )
 
         num_panels = len(field_name_by_panel)
-        plot_cbar_by_panel = numpy.full(num_panels, False, dtype=bool)
+        plot_cbar_by_panel = numpy.full(num_panels, True, dtype=bool)
 
-        if allow_whitespace:
-            if len(field_name_by_panel) == 12:
-                plot_cbar_by_panel[2::3] = True
-            else:
-                plot_cbar_by_panel[:] = True
+        # if allow_whitespace:
+        #     if len(field_name_by_panel) == 12:
+        #         plot_cbar_by_panel[2::3] = True
+        #     else:
+        #         plot_cbar_by_panel[:] = True
 
     num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_panels)
