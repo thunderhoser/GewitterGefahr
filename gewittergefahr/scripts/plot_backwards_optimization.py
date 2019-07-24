@@ -382,8 +382,8 @@ def _plot_bwo_for_soundings(
         directory_name=after_optimization_dir_name)
 
     if pmm_flag:
-        full_id_strings = None
-        storm_times_unix_sec = None
+        full_id_strings = [None]
+        storm_times_unix_sec = [None]
 
         initial_activations = numpy.array([
             backwards_opt_dict[backwards_opt.MEAN_INITIAL_ACTIVATION_KEY]
