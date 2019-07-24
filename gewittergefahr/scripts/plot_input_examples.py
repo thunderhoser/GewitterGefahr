@@ -812,6 +812,7 @@ def plot_examples(
     )
     num_radar_matrices = len(list_of_predictor_matrices) - int(has_soundings)
 
+    print(list(training_option_dict.keys()))
     radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
