@@ -498,15 +498,18 @@ def _run(input_file_name, allow_whitespace, plot_significance,
     num_input_matrices = len(list_of_input_matrices)
 
     for i in range(num_examples):
-        these_figure_objects, these_axes_object_matrices = (
-            plot_input_examples.plot_one_example(
-                list_of_predictor_matrices=list_of_input_matrices,
-                model_metadata_dict=model_metadata_dict, plot_sounding=False,
-                allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
-                example_index=i, full_storm_id_string=full_storm_id_strings[i],
-                storm_time_unix_sec=storm_times_unix_sec[i]
-            )
+        this_handle_dict = plot_input_examples.plot_one_example(
+            list_of_predictor_matrices=list_of_input_matrices,
+            model_metadata_dict=model_metadata_dict, plot_sounding=False,
+            allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
+            example_index=i, full_storm_id_string=full_storm_id_strings[i],
+            storm_time_unix_sec=storm_times_unix_sec[i]
         )
+
+        these_figure_objects = this_handle_dict[
+            plot_input_examples.RADAR_FIGURES_KEY]
+        these_axes_object_matrices = this_handle_dict[
+            plot_input_examples.RADAR_AXES_KEY]
 
         for j in range(num_input_matrices):
             if list_of_cam_matrices[j] is None:
@@ -567,15 +570,18 @@ def _run(input_file_name, allow_whitespace, plot_significance,
                         storm_time_unix_sec=storm_times_unix_sec[i]
                     )
 
-        these_figure_objects, these_axes_object_matrices = (
-            plot_input_examples.plot_one_example(
-                list_of_predictor_matrices=list_of_input_matrices,
-                model_metadata_dict=model_metadata_dict, plot_sounding=False,
-                allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
-                example_index=i, full_storm_id_string=full_storm_id_strings[i],
-                storm_time_unix_sec=storm_times_unix_sec[i]
-            )
+        this_handle_dict = plot_input_examples.plot_one_example(
+            list_of_predictor_matrices=list_of_input_matrices,
+            model_metadata_dict=model_metadata_dict, plot_sounding=False,
+            allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
+            example_index=i, full_storm_id_string=full_storm_id_strings[i],
+            storm_time_unix_sec=storm_times_unix_sec[i]
         )
+
+        these_figure_objects = this_handle_dict[
+            plot_input_examples.RADAR_FIGURES_KEY]
+        these_axes_object_matrices = this_handle_dict[
+            plot_input_examples.RADAR_AXES_KEY]
 
         for j in range(num_input_matrices):
             if list_of_guided_cam_matrices[j] is None:
