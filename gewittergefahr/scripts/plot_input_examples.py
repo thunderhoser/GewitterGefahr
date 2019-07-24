@@ -384,11 +384,18 @@ def _plot_2d3d_radar_scan(
                 keep_aspect_ratio=True)
         )
 
+    shear_panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
+        field_names=az_shear_field_names,
+        heights_m_agl=numpy.full(len(az_shear_field_names), 0, dtype=int)
+    )
+
+    shear_panel_names = [n.split('\n')[0] for n in shear_panel_names]
+
     shear_figure_object, shear_axes_object_matrix = (
         radar_plotting.plot_many_2d_grids_without_coords(
             field_matrix=numpy.flip(list_of_predictor_matrices[1], axis=0),
             field_name_by_panel=az_shear_field_names,
-            panel_names=az_shear_field_names, num_panel_rows=1,
+            panel_names=shear_panel_names, num_panel_rows=1,
             figure_object=shear_figure_object,
             axes_object_matrix=shear_axes_object_matrix,
             plot_colour_bar_by_panel=numpy.full(
