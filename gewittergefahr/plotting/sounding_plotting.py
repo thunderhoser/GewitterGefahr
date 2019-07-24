@@ -181,7 +181,7 @@ def plot_sounding(
     axes_object.set_ylabel('')
 
     # tick_values_deg_c = axes_object.get_xticks()
-    tick_values_deg_c = numpy.linspace(-40, 50, num=10)
+    tick_values_deg_c = numpy.linspace(-30, 50, num=9)
     axes_object.set_xticks(tick_values_deg_c)
 
     tick_labels = []
@@ -189,7 +189,7 @@ def plot_sounding(
         tick_labels.append('{0:d}'.format(int(numpy.round(this_tick_value))))
 
     axes_object.set_xticklabels(tick_labels)
-    axes_object.set_xlim(-40, 50)
+    axes_object.set_xlim(-30, 50)
 
     if title_string is not None:
         pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
