@@ -60,7 +60,7 @@ PANELED_IMAGE_BORDER_WIDTH_PX = 50
 
 
 def plot_sounding(
-        sounding_dict_for_metpy, title_string, option_dict=None):
+        sounding_dict_for_metpy, title_string=None, option_dict=None):
     """Plots atmospheric sounding.
 
     H = number of vertical levels in sounding
@@ -92,9 +92,15 @@ def plot_sounding(
     option_dict['grid_line_width']: Width for grid lines.
     option_dict['figure_width_inches']: Figure width.
     option_dict['figure_height_inches']: Figure height.
+
+    :return: figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :return: axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    error_checking.assert_is_string(title_string)
+    if title_string is not None:
+        error_checking.assert_is_string(title_string)
 
     if option_dict is None:
         orig_option_dict = {}
@@ -180,7 +186,11 @@ def plot_sounding(
         tick_labels.append('{0:d}'.format(int(numpy.round(this_tick_value))))
 
     axes_object.set_xticklabels(tick_labels)
-    pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
+
+    if title_string is not None:
+        pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
+
+    return figure_object, axes_object
 
 
 def plot_many_soundings(

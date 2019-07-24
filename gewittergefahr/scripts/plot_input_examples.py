@@ -16,9 +16,11 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import model_activation
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
+from gewittergefahr.plotting import sounding_plotting
 
 # TODO(thunderhoser): This is a HACK.
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
@@ -35,6 +37,12 @@ SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL
 
 ACTIVATIONS_KEY = 'storm_activations'
 
+SOUNDING_FIGURE_KEY = 'sounding_figure_object'
+SOUNDING_AXES_KEY = 'sounding_axes_object'
+RADAR_FIGURES_KEY = 'radar_figure_objects'
+RADAR_AXES_KEY = 'radar_axes_object_matrices'
+
+IS_SOUNDING_KEY = 'is_sounding'
 PMM_FLAG_KEY = 'pmm_flag'
 FULL_STORM_ID_KEY = 'full_storm_id_string'
 STORM_TIME_KEY = 'storm_time_unix_sec'
@@ -42,7 +50,7 @@ RADAR_FIELD_KEY = 'radar_field_name'
 RADAR_HEIGHT_KEY = 'radar_height_m_agl'
 LAYER_OPERATION_KEY = 'layer_operation_dict'
 
-TITLE_FONT_SIZE = 20
+TITLE_FONT_SIZE = 16
 FONT_SIZE_WITH_COLOUR_BARS = 16
 FONT_SIZE_SANS_COLOUR_BARS = 20
 
@@ -164,10 +172,39 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_3d_example(
+def _plot_sounding(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
-        title_string=None, sounding_file_name=None):
-    """Plots example with 3-D radar data.
+        title_string=None):
+    """Plots sounding for one example.
+
+    :param list_of_predictor_matrices: See doc for `_plot_3d_radar_scan`.
+    :param model_metadata_dict: Same.
+    :param allow_whitespace: Same.
+    :param title_string: Same.
+    :return: figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :return: axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    """
+
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+    sounding_matrix = numpy.expand_dims(list_of_predictor_matrices[-1], axis=0)
+
+    metpy_dict = dl_utils.soundings_to_metpy_dictionaries(
+        sounding_matrix=sounding_matrix, field_names=sounding_field_names
+    )[0]
+
+    return sounding_plotting.plot_sounding(
+        sounding_dict_for_metpy=metpy_dict,
+        title_string=title_string if allow_whitespace else None
+    )
+
+
+def _plot_3d_radar_scan(
+        list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
+        title_string=None):
+    """Plots 3-D radar scan for one example.
 
     J = number of panel rows in image
     K = number of panel columns in image
@@ -180,9 +217,6 @@ def _plot_3d_example(
         `cnn.read_model_metadata`.
     :param allow_whitespace: See documentation at top of file.
     :param title_string: Title (may be None).
-    :param sounding_file_name:
-        [used only if `list_of_predictor_matrices` contains sounding]
-        Path to output file (sounding image will be saved here).
 
     :return: figure_objects: length-F list of figure handles (instances of
         `matplotlib.figure.Figure`).
@@ -192,26 +226,6 @@ def _plot_3d_example(
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-
-    # sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-    # plot_soundings = sounding_field_names is not None
-    #
-    # if plot_soundings:
-    #     this_matrix = numpy.expand_dims(list_of_predictor_matrices[-1], axis=0)
-    #
-    #     metpy_dict = dl_utils.soundings_to_metpy_dictionaries(
-    #         sounding_matrix=this_matrix, field_names=sounding_field_names
-    #     )[0]
-    #
-    #     sounding_plotting.plot_sounding(
-    #         sounding_dict_for_metpy=metpy_dict, title_string=title_string)
-    #
-    #     this_file_name = '{0:s}_sounding.jpg'.format(sounding_file_name)
-    #
-    #     print('Saving figure to: "{0:s}"...'.format(sounding_file_name))
-    #     pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-    #     pyplot.close()
-
     radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
 
@@ -224,11 +238,6 @@ def _plot_3d_example(
     num_panel_columns = int(numpy.ceil(
         float(num_radar_heights) / num_panel_rows
     ))
-
-    # num_panel_rows = int(numpy.ceil(
-    #     numpy.sqrt(num_radar_heights)
-    # ))
-    # num_panel_columns = num_panel_rows + 0
 
     figure_objects = [None] * num_radar_fields
     axes_object_matrices = [None] * num_radar_fields
@@ -281,12 +290,12 @@ def _plot_3d_example(
     return figure_objects, axes_object_matrices
 
 
-def _plot_2d3d_example(
+def _plot_2d3d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         title_string=None):
-    """Plots example with 3-D reflectivity and 2-D azimuthal shear.
+    """Plots 3-D reflectivity and 2-D azimuthal shear for one example.
 
-    :param list_of_predictor_matrices: See doc for `_plot_3d_example`.
+    :param list_of_predictor_matrices: See doc for `_plot_3d_radar_scan`.
     :param model_metadata_dict: Same.
     :param allow_whitespace: Same.
     :param title_string: Same.
@@ -312,11 +321,6 @@ def _plot_2d3d_example(
     this_num_panel_columns = int(numpy.ceil(
         float(num_refl_heights) / this_num_panel_rows
     ))
-
-    # this_num_panel_rows = int(numpy.ceil(
-    #     numpy.sqrt(num_refl_heights)
-    # ))
-    # this_num_panel_columns = this_num_panel_rows + 0
 
     if allow_whitespace:
         refl_figure_object = None
@@ -408,15 +412,15 @@ def _plot_2d3d_example(
     return figure_objects, axes_object_matrices
 
 
-def _plot_2d_example(
+def _plot_2d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         title_string=None):
-    """Plots examples with 2-D radar data.
+    """Plots 2-D radar scan for one example.
 
     J = number of panel rows in image
     K = number of panel columns in image
 
-    :param list_of_predictor_matrices: See doc for `_plot_3d_example`.
+    :param list_of_predictor_matrices: See doc for `_plot_3d_radar_scan`.
     :param model_metadata_dict: Same.
     :param allow_whitespace: Same.
     :param title_string: Same.
@@ -464,11 +468,6 @@ def _plot_2d_example(
         float(num_panels) / num_panel_rows
     ))
 
-    # num_panel_rows = int(numpy.ceil(
-    #     numpy.sqrt(num_panels)
-    # ))
-    # num_panel_columns = num_panel_rows + 0
-
     if allow_whitespace:
         figure_object = None
         axes_object_matrix = None
@@ -497,23 +496,26 @@ def _plot_2d_example(
     return [figure_object], [axes_object_matrix]
 
 
-def metadata_to_radar_fig_file_name(
-        output_dir_name, pmm_flag=False, full_storm_id_string=None,
-        storm_time_string=None, radar_field_name=None, radar_height_m_agl=None,
-        layer_operation_dict=None):
-    """Creates name for figure file with radar data.
+def metadata_to_file_name(
+        output_dir_name, is_sounding, pmm_flag=False, full_storm_id_string=None,
+        storm_time_unix_sec=None, radar_field_name=None,
+        radar_height_m_agl=None, layer_operation_dict=None):
+    """Creates name for image file.
 
-    If `radar_field_name is None` and `layer_operation_dict is None`, will
-    assume that figure contains all radar data for one storm object.
+    If `is_sounding == False and radar_field_name is None and
+        layer_operation_dict is None`,
+    will assume that figure contains all radar data for one example.
 
     :param output_dir_name: Name of output directory.
+    :param is_sounding: Boolean flag, indicating whether or not figure contains
+        sounding.
     :param pmm_flag: Boolean flag.  If True, output file contains a PMM
         (probability-matched mean) over many examples.  If False, contains one
         example.
     :param full_storm_id_string: [used only if `pmm_flag == False`]
         Full storm ID.
-    :param storm_time_string: [used only if `pmm_flag == False`]
-        Storm time (format "yyyy-mm-dd-HHMMSS").
+    :param storm_time_unix_sec: [used only if `pmm_flag == False`]
+        Storm time.
     :param radar_field_name: Name of radar field.  May be None.
     :param radar_height_m_agl: Radar height (metres above ground level).  May be
         None.
@@ -523,50 +525,59 @@ def metadata_to_radar_fig_file_name(
     """
 
     error_checking.assert_is_string(output_dir_name)
+    error_checking.assert_is_boolean(is_sounding)
     error_checking.assert_is_boolean(pmm_flag)
 
     if pmm_flag:
-        output_file_name = '{0:s}/pmm'.format(output_dir_name)
+        output_file_name = '{0:s}/storm=pmm_time=0'.format(output_dir_name)
     else:
-        output_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
+        storm_time_string = time_conversion.unix_sec_to_string(
+            storm_time_unix_sec, TIME_FORMAT)
+
+        output_file_name = '{0:s}/storm={1:s}_time={2:s}'.format(
             output_dir_name, full_storm_id_string.replace('_', '-'),
             storm_time_string
         )
 
+    if layer_operation_dict is not None:
+        radar_field_name = layer_operation_dict[input_examples.RADAR_FIELD_KEY]
+        operation_name = layer_operation_dict[input_examples.OPERATION_NAME_KEY]
+        min_height_m_agl = layer_operation_dict[input_examples.MIN_HEIGHT_KEY]
+        max_height_m_agl = layer_operation_dict[input_examples.MAX_HEIGHT_KEY]
+
+        return '{0:s}_{1:s}_{2:s}-{3:05d}-{4:05d}metres.jpg'.format(
+            output_file_name, radar_field_name.replace('_', '-'),
+            operation_name, int(numpy.round(min_height_m_agl)),
+            int(numpy.round(max_height_m_agl))
+        )
+
+    if is_sounding:
+        return '{0:s}_sounding.jpg'.format(output_file_name)
+
     if radar_field_name is None and layer_operation_dict is None:
         return '{0:s}_radar.jpg'.format(output_file_name)
 
-    if radar_field_name is not None:
-        output_file_name += '_{0:s}'.format(
-            radar_field_name.replace('_', '-')
-        )
-
-        if radar_height_m_agl is None:
-            output_file_name += '.jpg'
-        else:
-            output_file_name += '_{0:05d}metres.jpg'.format(
-                int(numpy.round(radar_height_m_agl))
-            )
-
-        return output_file_name
-
-    radar_field_name = layer_operation_dict[input_examples.RADAR_FIELD_KEY]
-    operation_name = layer_operation_dict[input_examples.OPERATION_NAME_KEY]
-    min_height_m_agl = layer_operation_dict[input_examples.MIN_HEIGHT_KEY]
-    max_height_m_agl = layer_operation_dict[input_examples.MAX_HEIGHT_KEY]
-
-    return '{0:s}_{1:s}_{2:s}-{3:05d}-{4:05d}metres.jpg'.format(
-        output_file_name, radar_field_name.replace('_', '-'), operation_name,
-        int(numpy.round(min_height_m_agl)), int(numpy.round(max_height_m_agl))
+    output_file_name += '_{0:s}'.format(
+        radar_field_name.replace('_', '-')
     )
 
+    if radar_height_m_agl is None:
+        output_file_name += '.jpg'
+    else:
+        output_file_name += '_{0:05d}metres.jpg'.format(
+            int(numpy.round(radar_height_m_agl))
+        )
 
-def radar_fig_file_name_to_metadata(figure_file_name):
-    """Inverse of `metadata_to_radar_fig_file_name`.
+    return output_file_name
+
+
+def file_name_to_metadata(figure_file_name):
+    """Inverse of `metadata_to_file_name`.
 
     :param figure_file_name: Path to figure file with radar data.
     :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['pmm_flag']: See doc for `metadata_to_radar_fig_file_name`.
+    metadata_dict['is_sounding']: See doc for `metadata_to_file_name`.
+    metadata_dict['pmm_flag']: Same.
     metadata_dict['full_storm_id_string']: Same.
     metadata_dict['storm_time_unix_sec']: Same.
     metadata_dict['radar_field_name']: Same.
@@ -578,21 +589,23 @@ def radar_fig_file_name_to_metadata(figure_file_name):
     extensionless_file_name = os.path.splitext(pathless_file_name)[0]
 
     full_storm_id_string = extensionless_file_name.split('_')[0]
+    full_storm_id_string = (
+        full_storm_id_string.replace('storm=', '').replace('-', '_')
+    )
+
     pmm_flag = full_storm_id_string == 'pmm'
 
     if pmm_flag:
         full_storm_id_string = None
         storm_time_unix_sec = None
     else:
-        full_storm_id_string = (
-            full_storm_id_string.replace('storm=', '').replace('-', '_')
-        )
-
+        storm_time_string = extensionless_file_name.split('_')[1]
+        storm_time_string = storm_time_string.replace('time=', '')
         storm_time_unix_sec = time_conversion.string_to_unix_sec(
-            extensionless_file_name.split('_')[1], TIME_FORMAT
-        )
+            storm_time_string, TIME_FORMAT)
 
     metadata_dict = {
+        IS_SOUNDING_KEY: False,
         PMM_FLAG_KEY: pmm_flag,
         FULL_STORM_ID_KEY: full_storm_id_string,
         STORM_TIME_KEY: storm_time_unix_sec,
@@ -601,15 +614,19 @@ def radar_fig_file_name_to_metadata(figure_file_name):
         LAYER_OPERATION_KEY: None
     }
 
-    radar_field_name = extensionless_file_name.split('_')[2 - int(pmm_flag)]
-    if radar_field_name == 'radar':
+    field_name = extensionless_file_name.split('_')[2]
+    if field_name == 'radar':
         return metadata_dict
 
-    radar_field_name = radar_field_name.replace('-', '_')
-    metadata_dict[RADAR_FIELD_KEY] = radar_field_name
+    if field_name == 'sounding':
+        metadata_dict[IS_SOUNDING_KEY] = True
+        return metadata_dict
+
+    field_name = field_name.replace('-', '_')
+    metadata_dict[RADAR_FIELD_KEY] = field_name
 
     try:
-        height_string = extensionless_file_name.split('_')[3 - int(pmm_flag)]
+        height_string = extensionless_file_name.split('_')[3]
     except IndexError:
         return metadata_dict
 
@@ -621,9 +638,8 @@ def radar_fig_file_name_to_metadata(figure_file_name):
         return metadata_dict
 
     metadata_dict[RADAR_FIELD_KEY] = None
-
     metadata_dict[LAYER_OPERATION_KEY] = {
-        input_examples.RADAR_FIELD_KEY: radar_field_name,
+        input_examples.RADAR_FIELD_KEY: field_name,
         input_examples.OPERATION_NAME_KEY: height_string_parts[0],
         input_examples.MIN_HEIGHT_KEY: int(height_string_parts[1]),
         input_examples.MAX_HEIGHT_KEY: int(height_string_parts[2])
@@ -633,18 +649,20 @@ def radar_fig_file_name_to_metadata(figure_file_name):
 
 
 def plot_one_example(
-        list_of_predictor_matrices, model_metadata_dict, allow_whitespace=True,
-        pmm_flag=False, example_index=None, full_storm_id_string=None,
-        storm_time_unix_sec=None, storm_activation=None):
+        list_of_predictor_matrices, model_metadata_dict, plot_sounding=True,
+        allow_whitespace=True, pmm_flag=False, example_index=None,
+        full_storm_id_string=None, storm_time_unix_sec=None,
+        storm_activation=None):
     """Plots predictors for one example.
 
-    H = number of figures created
+    R = number of radar figures
 
     :param list_of_predictor_matrices: List created by
         `testing_io.read_specific_examples`.
     :param model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
-    :param allow_whitespace: See documentation at top of file.
+    :param plot_sounding: See documentation at top of file.
+    :param allow_whitespace: Same.
     :param pmm_flag: Boolean flag.  If True, will plot PMM (probability-matched
         mean) composite of many examples (storm objects).  If False, will plot
         one example.
@@ -657,13 +675,20 @@ def plot_one_example(
     :param storm_activation: [used only if `pmm_flag == False`]
         Model activation for this example.  Even if `pmm_flag == True`, this may
         be None.
-    :return: figure_objects: length-H list of figure handles (instances of
-        `matplotlib.figure.Figure`).
-    :return: axes_object_matrices: length-H list.  Each element is a 2-D numpy
-        array of axes handles (instances of
+    :return: handle_dict: Dictionary with the following keys.
+    handle_dict['sounding_figure_object']: One figure handle (instance of
+        `matplotlib.figure.Figure`).  If sounding was not plotted, this is None.
+    handle_dict['sounding_axes_object']: One axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).  If sounding was not plotted,
+        this is None.
+    handle_dict['radar_figure_objects']: length-R list of figure handles
+        (instances of `matplotlib.figure.Figure`).
+    handle_dict['radar_axes_object_matrices']: length-R list.  Each element is a
+        2-D numpy array of axes handles (instances of
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
+    error_checking.assert_is_boolean(plot_sounding)
     error_checking.assert_is_boolean(allow_whitespace)
     error_checking.assert_is_boolean(pmm_flag)
 
@@ -691,39 +716,56 @@ def plot_one_example(
 
         title_string = 'Storm "{0:s}" at {1:s}'.format(
             full_storm_id_string, storm_time_string)
-    
+
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    include_soundings = (
+    has_sounding = (
         training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
     )
-    num_radar_matrices = (
-        len(list_of_predictor_matrices) - int(include_soundings)
-    )
 
-    if num_radar_matrices == 2:
-        return _plot_2d3d_example(
-            list_of_predictor_matrices=predictor_matrices_to_plot,
+    if plot_sounding and has_sounding:
+        sounding_figure_object, sounding_axes_object = _plot_sounding(
+            list_of_predictor_matrices=list_of_predictor_matrices,
             model_metadata_dict=model_metadata_dict,
-            allow_whitespace=allow_whitespace, title_string=title_string)
+            allow_whitespace=allow_whitespace,
+            title_string=title_string)
+    else:
+        sounding_figure_object = None
+        sounding_axes_object = None
 
+    num_radar_matrices = len(list_of_predictor_matrices) - int(has_sounding)
     num_radar_dimensions = len(predictor_matrices_to_plot[0].shape) - 1
 
-    if num_radar_dimensions == 3:
-        return _plot_3d_example(
+    if num_radar_matrices == 2:
+        radar_figure_objects, radar_axes_object_matrices = (
+            _plot_2d3d_radar_scan(
+                list_of_predictor_matrices=predictor_matrices_to_plot,
+                model_metadata_dict=model_metadata_dict,
+                allow_whitespace=allow_whitespace, title_string=title_string)
+        )
+    elif num_radar_dimensions == 3:
+        radar_figure_objects, radar_axes_object_matrices = _plot_3d_radar_scan(
+            list_of_predictor_matrices=predictor_matrices_to_plot,
+            model_metadata_dict=model_metadata_dict,
+            allow_whitespace=allow_whitespace, title_string=title_string)
+    else:
+        radar_figure_objects, radar_axes_object_matrices = _plot_2d_radar_scan(
             list_of_predictor_matrices=predictor_matrices_to_plot,
             model_metadata_dict=model_metadata_dict,
             allow_whitespace=allow_whitespace, title_string=title_string)
 
-    return _plot_2d_example(
-        list_of_predictor_matrices=predictor_matrices_to_plot,
-        model_metadata_dict=model_metadata_dict,
-        allow_whitespace=allow_whitespace, title_string=title_string)
+    return {
+        SOUNDING_FIGURE_KEY: sounding_figure_object,
+        SOUNDING_AXES_KEY: sounding_axes_object,
+        RADAR_FIGURES_KEY: radar_figure_objects,
+        RADAR_AXES_KEY: radar_axes_object_matrices
+    }
 
 
 def plot_examples(
         list_of_predictor_matrices, model_metadata_dict, output_dir_name,
-        allow_whitespace=True, pmm_flag=False, full_storm_id_strings=None,
-        storm_times_unix_sec=None, storm_activations=None):
+        plot_soundings=True, allow_whitespace=True, pmm_flag=False,
+        full_storm_id_strings=None, storm_times_unix_sec=None,
+        storm_activations=None):
     """Plots predictors for each example.
 
     E = number of examples
@@ -732,7 +774,8 @@ def plot_examples(
     :param model_metadata_dict: Same.
     :param output_dir_name: Path to output directory.  Figures will be saved
         here (one or more figures per example).
-    :param allow_whitespace: See doc for `plot_one_example`.
+    :param plot_soundings: See doc for `plot_one_example`.
+    :param allow_whitespace: Same.
     :param pmm_flag: Same.
     :param full_storm_id_strings: [used only if `pmm_flag == False`]
         length-E list of full storm IDs.
@@ -749,98 +792,114 @@ def plot_examples(
         num_examples = 1
         full_storm_id_strings = [None]
         storm_times_unix_sec = [None]
-        storm_time_strings = [None]
     else:
         num_examples = list_of_predictor_matrices[0].shape[0]
-
-        storm_time_strings = [
-            time_conversion.unix_sec_to_string(t, TIME_FORMAT)
-            for t in storm_times_unix_sec
-        ]
 
     if storm_activations is None:
         storm_activations = [None] * num_examples
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    include_soundings = (
+    has_soundings = (
         training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
     )
-    num_radar_matrices = (
-        len(list_of_predictor_matrices) - int(include_soundings)
-    )
+    num_radar_matrices = len(list_of_predictor_matrices) - int(has_soundings)
 
     radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
     for i in range(num_examples):
-        these_figure_objects = plot_one_example(
+        this_handle_dict = plot_one_example(
             list_of_predictor_matrices=list_of_predictor_matrices,
-            model_metadata_dict=model_metadata_dict, example_index=i,
-            allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
+            model_metadata_dict=model_metadata_dict,
+            plot_sounding=plot_soundings, allow_whitespace=allow_whitespace,
+            pmm_flag=pmm_flag, example_index=i,
             full_storm_id_string=full_storm_id_strings[i],
             storm_time_unix_sec=storm_times_unix_sec[i],
             storm_activation=storm_activations[i]
-        )[0]
+        )
+
+        this_sounding_figure_object = this_handle_dict[SOUNDING_FIGURE_KEY]
+
+        if this_sounding_figure_object is not None:
+            this_file_name = metadata_to_file_name(
+                output_dir_name=output_dir_name, is_sounding=True,
+                pmm_flag=pmm_flag,
+                full_storm_id_string=full_storm_id_strings[i],
+                storm_time_unix_sec=storm_times_unix_sec[i]
+            )
+
+            print('Saving figure to: "{0:s}"...'.format(this_file_name))
+            this_sounding_figure_object.savefig(
+                this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                bbox_inches='tight'
+            )
+            pyplot.close(this_sounding_figure_object)
+
+        these_radar_figure_objects = this_handle_dict[RADAR_FIGURES_KEY]
 
         if num_radar_matrices == 2:
-            this_file_name = metadata_to_radar_fig_file_name(
-                output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+            this_file_name = metadata_to_file_name(
+                output_dir_name=output_dir_name, is_sounding=False,
+                pmm_flag=pmm_flag,
                 full_storm_id_string=full_storm_id_strings[i],
-                storm_time_string=storm_time_strings[i],
+                storm_time_unix_sec=storm_times_unix_sec[i],
                 radar_field_name='reflectivity')
 
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
-            these_figure_objects[0].savefig(
+            these_radar_figure_objects[0].savefig(
                 this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                 bbox_inches='tight'
             )
-            pyplot.close(these_figure_objects[0])
+            pyplot.close(these_radar_figure_objects[0])
 
-            this_file_name = metadata_to_radar_fig_file_name(
-                output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+            this_file_name = metadata_to_file_name(
+                output_dir_name=output_dir_name, is_sounding=False,
+                pmm_flag=pmm_flag,
                 full_storm_id_string=full_storm_id_strings[i],
-                storm_time_string=storm_time_strings[i],
+                storm_time_unix_sec=storm_times_unix_sec[i],
                 radar_field_name='shear')
 
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
-            these_figure_objects[1].savefig(
+            these_radar_figure_objects[1].savefig(
                 this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                 bbox_inches='tight'
             )
-            pyplot.close(these_figure_objects[1])
+            pyplot.close(these_radar_figure_objects[1])
 
             continue
 
         if num_radar_dimensions == 3:
             for j in range(len(radar_field_names)):
-                this_file_name = metadata_to_radar_fig_file_name(
-                    output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+                this_file_name = metadata_to_file_name(
+                    output_dir_name=output_dir_name, is_sounding=False,
+                    pmm_flag=pmm_flag,
                     full_storm_id_string=full_storm_id_strings[i],
-                    storm_time_string=storm_time_strings[i],
+                    storm_time_unix_sec=storm_times_unix_sec[i],
                     radar_field_name=radar_field_names[j],
                     radar_height_m_agl=None)
 
                 print('Saving figure to: "{0:s}"...'.format(this_file_name))
-                these_figure_objects[j].savefig(
+                these_radar_figure_objects[j].savefig(
                     this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                     bbox_inches='tight'
                 )
-                pyplot.close(these_figure_objects[j])
+                pyplot.close(these_radar_figure_objects[j])
 
             continue
 
-        this_file_name = metadata_to_radar_fig_file_name(
-            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+        this_file_name = metadata_to_file_name(
+            output_dir_name=output_dir_name, is_sounding=False,
+            pmm_flag=pmm_flag,
             full_storm_id_string=full_storm_id_strings[i],
-            storm_time_string=storm_time_strings[i]
+            storm_time_unix_sec=storm_times_unix_sec[i]
         )
 
         print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        these_figure_objects[0].savefig(
+        these_radar_figure_objects[0].savefig(
             this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
             bbox_inches='tight'
         )
-        pyplot.close(these_figure_objects[0])
+        pyplot.close(these_radar_figure_objects[0])
 
 
 def _run(activation_file_name, storm_metafile_name, num_examples,
@@ -883,15 +942,10 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         training_option_dict[trainval_io.RADAR_FIELDS_KEY] = radar_field_names
         training_option_dict[
             trainval_io.RADAR_HEIGHTS_KEY] = radar_heights_m_agl
-
-        if plot_soundings:
-            training_option_dict[
-                trainval_io.SOUNDING_FIELDS_KEY] = SOUNDING_FIELD_NAMES
-            training_option_dict[
-                trainval_io.SOUNDING_HEIGHTS_KEY] = SOUNDING_HEIGHTS_M_AGL
-        else:
-            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
-            training_option_dict[trainval_io.SOUNDING_HEIGHTS_KEY] = None
+        training_option_dict[
+            trainval_io.SOUNDING_FIELDS_KEY] = SOUNDING_FIELD_NAMES
+        training_option_dict[
+            trainval_io.SOUNDING_HEIGHTS_KEY] = SOUNDING_HEIGHTS_M_AGL
 
         training_option_dict[trainval_io.NUM_ROWS_KEY] = num_radar_rows
         training_option_dict[trainval_io.NUM_COLUMNS_KEY] = num_radar_columns
@@ -941,12 +995,6 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
         training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
-        if plot_soundings:
-            training_option_dict[
-                trainval_io.SOUNDING_FIELDS_KEY] = SOUNDING_FIELD_NAMES
-        else:
-            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
-
         model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
 
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY][
@@ -956,7 +1004,6 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     if 0 < num_examples < len(full_storm_id_strings):
         full_storm_id_strings = full_storm_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
-
         if storm_activations is not None:
             storm_activations = storm_activations[:num_examples]
 
@@ -974,7 +1021,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     plot_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
         model_metadata_dict=model_metadata_dict,
-        output_dir_name=output_dir_name,
+        output_dir_name=output_dir_name, plot_soundings=plot_soundings,
         allow_whitespace=allow_whitespace, pmm_flag=False,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,

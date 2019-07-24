@@ -6,7 +6,6 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -30,17 +29,13 @@ REGION_LINE_WIDTH = 3
 
 NUM_CONTOURS = 12
 HALF_NUM_CONTOURS = 10
-
-TITLE_FONT_SIZE = 20
-FONT_SIZE_WITH_COLOUR_BARS = 16
-FONT_SIZE_SANS_COLOUR_BARS = 20
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 ALLOW_WHITESPACE_ARG_NAME = 'allow_whitespace'
 PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 PLOT_REGIONS_ARG_NAME = 'plot_regions_of_interest'
-COLOUR_MAP_ARG_NAME = 'cam_colour_map_name'
+COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -109,7 +104,7 @@ def _plot_3d_radar_cam(
         colour_map_object, max_colour_percentile, figure_objects,
         axes_object_matrices, model_metadata_dict, output_dir_name,
         cam_matrix=None, guided_cam_matrix=None, significance_matrix=None,
-        full_storm_id_string=None, storm_time_string=None):
+        full_storm_id_string=None, storm_time_unix_sec=None):
     """Plots guided or unguided class-activation map for 3-D radar data.
 
     This method will plot either `cam_matrix` or `guided_cam_matrix`, not both.
@@ -120,7 +115,7 @@ def _plot_3d_radar_cam(
     F = number of radar fields
 
     If this method is plotting a composite rather than single example (storm
-    object), `full_storm_id_string` and `storm_time_string` can be None.
+    object), `full_storm_id_string` and `storm_time_unix_sec` can be None.
 
     :param colour_map_object: See documentation at top of file.
     :param max_colour_percentile: Same.
@@ -136,15 +131,15 @@ def _plot_3d_radar_cam(
         the array being plotted (`cam_matrix` or `guided_cam_matrix`),
         indicating where differences with some other CAM are significant.
     :param full_storm_id_string: Full storm ID.
-    :param storm_time_string: Storm time (format "yyyy-mm-dd-HHMMSS").
+    :param storm_time_unix_sec: Storm time.
     """
 
     if cam_matrix is None:
-        quantity_string = 'max absolute value'
+        quantity_string = 'max abs value'
     else:
-        quantity_string = 'max class activation'
+        quantity_string = 'max activation'
 
-    pmm_flag = full_storm_id_string is None and storm_time_string is None
+    pmm_flag = full_storm_id_string is None and storm_time_unix_sec is None
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
 
     if conv_2d3d:
@@ -191,20 +186,19 @@ def _plot_3d_radar_cam(
                 axes_object_matrix=axes_object_matrices[j]
             )
 
-        allow_whitespace = figure_objects[j]._suptitle is not None
+        this_title_string = figure_objects[j]._suptitle
 
-        if allow_whitespace:
-            this_title_string = '{0:s}; ({1:s} = {2:.3f})'.format(
-                figure_objects[j]._suptitle.get_text(), quantity_string,
-                this_max_contour_level
-            )
+        if this_title_string is not None:
+            this_title_string += ' ({0:s} = {1:.2e})'.format(
+                quantity_string, this_max_contour_level)
 
-            figure_objects[j].suptitle(this_title_string)
+            figure_objects[j].suptitle(
+                this_title_string, fontsize=plot_input_examples.TITLE_FONT_SIZE)
 
-        this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
-            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
-            full_storm_id_string=full_storm_id_string,
-            storm_time_string=storm_time_string,
+        this_file_name = plot_input_examples.metadata_to_file_name(
+            output_dir_name=output_dir_name, is_sounding=False,
+            pmm_flag=pmm_flag, full_storm_id_string=full_storm_id_string,
+            storm_time_unix_sec=storm_time_unix_sec,
             radar_field_name=radar_field_names[j]
         )
 
@@ -220,7 +214,7 @@ def _plot_2d_radar_cam(
         colour_map_object, max_colour_percentile, figure_objects,
         axes_object_matrices, model_metadata_dict, output_dir_name,
         cam_matrix=None, guided_cam_matrix=None, significance_matrix=None,
-        full_storm_id_string=None, storm_time_string=None):
+        full_storm_id_string=None, storm_time_unix_sec=None):
     """Plots guided or unguided class-activation map for 2-D radar data.
 
     M = number of rows in spatial grid
@@ -237,15 +231,15 @@ def _plot_2d_radar_cam(
     :param guided_cam_matrix: M-by-N-by-C numpy array of guided-CAM output.
     :param significance_matrix: See doc for `_plot_3d_radar_cam`.
     :param full_storm_id_string: Same.
-    :param storm_time_string: Same.
+    :param storm_time_unix_sec: Same.
     """
 
     if cam_matrix is None:
-        quantity_string = 'max absolute value'
+        quantity_string = 'max abs value'
     else:
-        quantity_string = 'max class activation'
+        quantity_string = 'max activation'
 
-    pmm_flag = full_storm_id_string is None and storm_time_string is None
+    pmm_flag = full_storm_id_string is None and storm_time_unix_sec is None
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
     figure_index = 1 if conv_2d3d else 0
 
@@ -300,20 +294,19 @@ def _plot_2d_radar_cam(
             row_major=False
         )
 
-    allow_whitespace = figure_objects[figure_index]._suptitle is not None
+    this_title_string = figure_objects[figure_index]._suptitle
 
-    if allow_whitespace:
-        title_string = '{0:s}; ({1:s} = {2:.3f})'.format(
-            figure_objects[figure_index]._suptitle.get_text(), quantity_string,
-            max_contour_level
-        )
+    if this_title_string is not None:
+        this_title_string += ' ({0:s} = {1:.2e})'.format(
+            quantity_string, max_contour_level)
 
-        figure_objects[figure_index].suptitle(title_string)
+        figure_objects[figure_index].suptitle(
+            this_title_string, fontsize=plot_input_examples.TITLE_FONT_SIZE)
 
-    output_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
-        output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+    output_file_name = plot_input_examples.metadata_to_file_name(
+        output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
         full_storm_id_string=full_storm_id_string,
-        storm_time_string=storm_time_string,
+        storm_time_unix_sec=storm_time_unix_sec,
         radar_field_name='shear' if conv_2d3d else None)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -327,7 +320,7 @@ def _plot_2d_radar_cam(
 def _plot_2d_regions(
         figure_objects, axes_object_matrices, model_metadata_dict,
         list_of_polygon_objects, output_dir_name, full_storm_id_string=None,
-        storm_time_string=None):
+        storm_time_unix_sec=None):
     """Plots regions of interest for 2-D radar data.
 
     :param figure_objects: See doc for `_plot_3d_radar_cam`.
@@ -337,7 +330,7 @@ def _plot_2d_regions(
         `shapely.geometry.Polygon`), demarcating regions of interest.
     :param output_dir_name: See doc for `_plot_3d_radar_cam`.
     :param full_storm_id_string: Same.
-    :param storm_time_string: Same.
+    :param storm_time_unix_sec: Same.
     """
 
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
@@ -375,12 +368,12 @@ def _plot_2d_regions(
                 linestyle='solid', linewidth=REGION_LINE_WIDTH
             )
 
-    pmm_flag = full_storm_id_string is None and storm_time_string is None
+    pmm_flag = full_storm_id_string is None and storm_time_unix_sec is None
 
-    output_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
-        output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+    output_file_name = plot_input_examples.metadata_to_file_name(
+        output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
         full_storm_id_string=full_storm_id_string,
-        storm_time_string=storm_time_string,
+        storm_time_unix_sec=storm_time_unix_sec,
         radar_field_name='shear' if conv_2d3d else None)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -392,7 +385,7 @@ def _plot_2d_regions(
 
 
 def _run(input_file_name, allow_whitespace, plot_significance,
-         plot_regions_of_interest, cam_colour_map_name, max_colour_percentile,
+         plot_regions_of_interest, colour_map_name, max_colour_percentile,
          top_output_dir_name):
     """Plots Grad-CAM output (class-activation maps).
 
@@ -402,7 +395,7 @@ def _run(input_file_name, allow_whitespace, plot_significance,
     :param allow_whitespace: Same.
     :param plot_significance: Same.
     :param plot_regions_of_interest: Same.
-    :param cam_colour_map_name: Same.
+    :param colour_map_name: Same.
     :param max_colour_percentile: Same.
     :param top_output_dir_name: Same.
     """
@@ -421,7 +414,7 @@ def _run(input_file_name, allow_whitespace, plot_significance,
     # Check input args.
     error_checking.assert_is_geq(max_colour_percentile, 0.)
     error_checking.assert_is_leq(max_colour_percentile, 100.)
-    cam_colour_map_object = pyplot.cm.get_cmap(cam_colour_map_name)
+    colour_map_object = pyplot.cm.get_cmap(colour_map_name)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
 
@@ -434,12 +427,6 @@ def _run(input_file_name, allow_whitespace, plot_significance,
 
         full_storm_id_strings = gradcam_dict[gradcam.FULL_IDS_KEY]
         storm_times_unix_sec = gradcam_dict[gradcam.STORM_TIMES_KEY]
-
-        storm_time_strings = [
-            time_conversion.unix_sec_to_string(
-                t, plot_input_examples.TIME_FORMAT)
-            for t in storm_times_unix_sec
-        ]
 
     except ValueError:
         gradcam_dict = gradcam.read_pmm_file(input_file_name)
@@ -465,10 +452,9 @@ def _run(input_file_name, allow_whitespace, plot_significance,
 
         full_storm_id_strings = [None]
         storm_times_unix_sec = [None]
-        storm_time_strings = [None]
 
     pmm_flag = (
-        full_storm_id_strings[0] is None and storm_time_strings[0] is None
+        full_storm_id_strings[0] is None and storm_times_unix_sec[0] is None
     )
 
     # Read metadata for CNN.
@@ -500,14 +486,12 @@ def _run(input_file_name, allow_whitespace, plot_significance,
     num_input_matrices = len(list_of_input_matrices)
 
     for i in range(num_examples):
-        # TODO(thunderhoser): Get rid of soundings and CAMs in sounding space.
-
         these_figure_objects, these_axes_object_matrices = (
             plot_input_examples.plot_one_example(
                 list_of_predictor_matrices=list_of_input_matrices,
-                model_metadata_dict=model_metadata_dict, example_index=i,
+                model_metadata_dict=model_metadata_dict, plot_sounding=False,
                 allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
-                full_storm_id_string=full_storm_id_strings[i],
+                example_index=i, full_storm_id_string=full_storm_id_strings[i],
                 storm_time_unix_sec=storm_times_unix_sec[i]
             )
         )
@@ -534,7 +518,7 @@ def _run(input_file_name, allow_whitespace, plot_significance,
 
             if this_num_spatial_dim == 3:
                 _plot_3d_radar_cam(
-                    colour_map_object=cam_colour_map_object,
+                    colour_map_object=colour_map_object,
                     max_colour_percentile=max_colour_percentile,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
@@ -543,12 +527,12 @@ def _run(input_file_name, allow_whitespace, plot_significance,
                     cam_matrix=list_of_cam_matrices[j][i, ...],
                     significance_matrix=this_significance_matrix,
                     full_storm_id_string=full_storm_id_strings[i],
-                    storm_time_string=storm_time_strings[i]
+                    storm_time_unix_sec=storm_times_unix_sec[i]
                 )
             else:
                 if region_dict is None:
                     _plot_2d_radar_cam(
-                        colour_map_object=cam_colour_map_object,
+                        colour_map_object=colour_map_object,
                         max_colour_percentile=max_colour_percentile,
                         figure_objects=these_figure_objects,
                         axes_object_matrices=these_axes_object_matrices,
@@ -557,7 +541,7 @@ def _run(input_file_name, allow_whitespace, plot_significance,
                         cam_matrix=list_of_cam_matrices[j][i, ...],
                         significance_matrix=this_significance_matrix,
                         full_storm_id_string=full_storm_id_strings[i],
-                        storm_time_string=storm_time_strings[i]
+                        storm_time_unix_sec=storm_times_unix_sec[i]
                     )
                 else:
                     _plot_2d_regions(
@@ -568,15 +552,15 @@ def _run(input_file_name, allow_whitespace, plot_significance,
                         region_dict[gradcam.POLYGON_OBJECTS_KEY][j][i],
                         output_dir_name=unguided_cam_dir_name,
                         full_storm_id_string=full_storm_id_strings[i],
-                        storm_time_string=storm_time_strings[i]
+                        storm_time_unix_sec=storm_times_unix_sec[i]
                     )
 
         these_figure_objects, these_axes_object_matrices = (
             plot_input_examples.plot_one_example(
                 list_of_predictor_matrices=list_of_input_matrices,
-                model_metadata_dict=model_metadata_dict, example_index=i,
+                model_metadata_dict=model_metadata_dict, plot_sounding=False,
                 allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
-                full_storm_id_string=full_storm_id_strings[i],
+                example_index=i, full_storm_id_string=full_storm_id_strings[i],
                 storm_time_unix_sec=storm_times_unix_sec[i]
             )
         )
@@ -603,7 +587,7 @@ def _run(input_file_name, allow_whitespace, plot_significance,
 
             if this_num_spatial_dim == 3:
                 _plot_3d_radar_cam(
-                    colour_map_object=cam_colour_map_object,
+                    colour_map_object=colour_map_object,
                     max_colour_percentile=max_colour_percentile,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
@@ -612,11 +596,11 @@ def _run(input_file_name, allow_whitespace, plot_significance,
                     guided_cam_matrix=list_of_guided_cam_matrices[j][i, ...],
                     significance_matrix=this_significance_matrix,
                     full_storm_id_string=full_storm_id_strings[i],
-                    storm_time_string=storm_time_strings[i]
+                    storm_time_unix_sec=storm_times_unix_sec[i]
                 )
             else:
                 _plot_2d_radar_cam(
-                    colour_map_object=cam_colour_map_object,
+                    colour_map_object=colour_map_object,
                     max_colour_percentile=max_colour_percentile,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
@@ -625,7 +609,7 @@ def _run(input_file_name, allow_whitespace, plot_significance,
                     guided_cam_matrix=list_of_guided_cam_matrices[j][i, ...],
                     significance_matrix=this_significance_matrix,
                     full_storm_id_string=full_storm_id_strings[i],
-                    storm_time_string=storm_time_strings[i]
+                    storm_time_unix_sec=storm_times_unix_sec[i]
                 )
 
 
@@ -641,7 +625,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, PLOT_SIGNIFICANCE_ARG_NAME)),
         plot_regions_of_interest=bool(getattr(
             INPUT_ARG_OBJECT, PLOT_REGIONS_ARG_NAME)),
-        cam_colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
+        colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
