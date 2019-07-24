@@ -186,11 +186,12 @@ def _plot_3d_radar_cam(
                 axes_object_matrix=axes_object_matrices[j]
             )
 
-        this_title_string = figure_objects[j]._suptitle
+        this_title_object = figure_objects[j]._suptitle
 
-        if this_title_string is not None:
-            this_title_string += ' ({0:s} = {1:.2e})'.format(
-                quantity_string, this_max_contour_level)
+        if this_title_object is not None:
+            this_title_string = '{0:s} ({1:s} = {2:.2e})'.format(
+                this_title_object.get_text(), quantity_string,
+                this_max_contour_level)
 
             figure_objects[j].suptitle(
                 this_title_string, fontsize=plot_input_examples.TITLE_FONT_SIZE)
@@ -259,6 +260,11 @@ def _plot_2d_radar_cam(
         this_matrix = numpy.expand_dims(cam_matrix, axis=-1)
         this_matrix = numpy.repeat(this_matrix, repeats=num_channels, axis=-1)
 
+    if list_of_layer_operation_dicts is not None:
+        this_matrix = this_matrix[
+            ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
+        ]
+
     max_contour_level = numpy.percentile(
         numpy.absolute(this_matrix), max_colour_percentile
     )
@@ -288,17 +294,23 @@ def _plot_2d_radar_cam(
             this_matrix = numpy.repeat(
                 this_matrix, repeats=num_channels, axis=-1)
 
+        if list_of_layer_operation_dicts is not None:
+            this_matrix = this_matrix[
+                ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
+            ]
+
         significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=numpy.flip(this_matrix, axis=0),
             axes_object_matrix=axes_object_matrices[figure_index],
             row_major=False
         )
 
-    this_title_string = figure_objects[figure_index]._suptitle
+    this_title_object = figure_objects[figure_index]._suptitle
 
-    if this_title_string is not None:
-        this_title_string += ' ({0:s} = {1:.2e})'.format(
-            quantity_string, max_contour_level)
+    if this_title_object is not None:
+        this_title_string = '{0:s} ({1:s} = {2:.2e})'.format(
+            this_title_object.get_text(), quantity_string, max_contour_level
+        )
 
         figure_objects[figure_index].suptitle(
             this_title_string, fontsize=plot_input_examples.TITLE_FONT_SIZE)
