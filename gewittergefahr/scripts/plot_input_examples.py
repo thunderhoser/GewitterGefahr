@@ -810,10 +810,8 @@ def plot_examples(
     has_soundings = (
         training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
     )
-    num_radar_matrices = len(list_of_predictor_matrices) - int(has_soundings)
 
-    print(list(training_option_dict.keys()))
-    radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+    num_radar_matrices = len(list_of_predictor_matrices) - int(has_soundings)
     num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
     for i in range(num_examples):
@@ -878,6 +876,9 @@ def plot_examples(
             continue
 
         if num_radar_dimensions == 3:
+            radar_field_names = training_option_dict[
+                trainval_io.RADAR_FIELDS_KEY]
+
             for j in range(len(radar_field_names)):
                 this_file_name = metadata_to_file_name(
                     output_dir_name=output_dir_name, is_sounding=False,
