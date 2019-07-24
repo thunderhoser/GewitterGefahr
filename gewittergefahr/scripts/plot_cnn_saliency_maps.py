@@ -315,7 +315,7 @@ def _plot_sounding_saliency(
         pressure_matrix_pascals = pressure_matrix_pascals[[example_index], ...]
         sounding_matrix = numpy.concatenate(
             (sounding_matrix, pressure_matrix_pascals), axis=-1
-        )[0, ...]
+        )
 
         sounding_dict_for_metpy = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=sounding_matrix,
@@ -446,6 +446,8 @@ def _run(input_file_name, plot_soundings, allow_whitespace, plot_significance,
         list_of_saliency_matrices = saliency_dict.pop(
             saliency_maps.MEAN_SALIENCY_MATRICES_KEY)
 
+        print(list_of_saliency_matrices[0].shape[0])
+
         for i in range(len(list_of_input_matrices)):
             list_of_input_matrices[i] = numpy.expand_dims(
                 list_of_input_matrices[i], axis=0
@@ -453,6 +455,8 @@ def _run(input_file_name, plot_soundings, allow_whitespace, plot_significance,
             list_of_saliency_matrices[i] = numpy.expand_dims(
                 list_of_saliency_matrices[i], axis=0
             )
+
+        print(list_of_saliency_matrices[0].shape[0])
 
         full_storm_id_strings = [None]
         storm_times_unix_sec = [None]
