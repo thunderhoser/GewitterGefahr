@@ -446,7 +446,7 @@ def _run(input_file_name, plot_soundings, allow_whitespace, plot_significance,
         list_of_saliency_matrices = saliency_dict.pop(
             saliency_maps.MEAN_SALIENCY_MATRICES_KEY)
 
-        print(list_of_saliency_matrices[0].shape[0])
+        print(list_of_saliency_matrices[-1].shape)
 
         for i in range(len(list_of_input_matrices)):
             list_of_input_matrices[i] = numpy.expand_dims(
@@ -456,7 +456,7 @@ def _run(input_file_name, plot_soundings, allow_whitespace, plot_significance,
                 list_of_saliency_matrices[i], axis=0
             )
 
-        print(list_of_saliency_matrices[0].shape[0])
+        print(list_of_saliency_matrices[-1].shape)
 
         full_storm_id_strings = [None]
         storm_times_unix_sec = [None]
@@ -501,7 +501,7 @@ def _run(input_file_name, plot_soundings, allow_whitespace, plot_significance,
     for i in range(num_examples):
         if has_soundings and plot_soundings:
             _plot_sounding_saliency(
-                saliency_matrix=list_of_saliency_matrices[0][i, ...],
+                saliency_matrix=list_of_saliency_matrices[-1][i, ...],
                 colour_map_object=colour_map_object,
                 max_colour_value=max_colour_value_by_example[i],
                 sounding_matrix=list_of_input_matrices[0][i, ...],
