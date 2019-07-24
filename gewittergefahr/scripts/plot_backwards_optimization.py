@@ -459,9 +459,14 @@ def _plot_bwo_for_soundings(
             storm_time_unix_sec=storm_times_unix_sec[i]
         )
 
+        # this_figure_object = sounding_plotting.plot_sounding(
+        #     sounding_dict_for_metpy=list_of_optimized_metpy_dicts[i],
+        #     title_string=this_title_string
+        # )[0]
+
         this_figure_object = sounding_plotting.plot_sounding(
             sounding_dict_for_metpy=list_of_optimized_metpy_dicts[i],
-            title_string=this_title_string
+            title_string=''
         )[0]
 
         print('Saving figure to: "{0:s}"...'.format(this_file_name))
@@ -481,9 +486,14 @@ def _plot_bwo_for_soundings(
             storm_time_unix_sec=storm_times_unix_sec[i]
         )
 
+        # this_figure_object = sounding_plotting.plot_sounding(
+        #     sounding_dict_for_metpy=list_of_input_metpy_dicts[i],
+        #     title_string=this_title_string
+        # )[0]
+
         this_figure_object = sounding_plotting.plot_sounding(
             sounding_dict_for_metpy=list_of_input_metpy_dicts[i],
-            title_string=this_title_string
+            title_string=''
         )[0]
 
         pyplot.close(this_figure_object)
