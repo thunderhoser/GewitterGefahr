@@ -190,10 +190,16 @@ def _plot_sounding(
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = training_option_dict[
+        trainval_io.SOUNDING_HEIGHTS_KEY]
+
     sounding_matrix = numpy.expand_dims(list_of_predictor_matrices[-1], axis=0)
 
+    # TODO(thunderhoser): Allow actual storm elevation to be used.
     metpy_dict = dl_utils.soundings_to_metpy_dictionaries(
-        sounding_matrix=sounding_matrix, field_names=sounding_field_names
+        sounding_matrix=sounding_matrix, field_names=sounding_field_names,
+        height_levels_m_agl=sounding_heights_m_agl,
+        storm_elevations_m_asl=numpy.array([0.])
     )[0]
 
     return sounding_plotting.plot_sounding(
