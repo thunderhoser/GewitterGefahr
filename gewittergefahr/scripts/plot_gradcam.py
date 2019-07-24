@@ -366,10 +366,17 @@ def _plot_2d_regions(
                 k, axes_object_matrices[figure_index].shape, order='F'
             )
 
-            these_grid_columns = numpy.array(
+            # these_grid_columns = numpy.array(
+            #     this_polygon_object.exterior.xy[0]
+            # )
+            # these_grid_rows = num_grid_rows - numpy.array(
+            #     this_polygon_object.exterior.xy[1]
+            # )
+
+            these_grid_columns = 0.5 + numpy.array(
                 this_polygon_object.exterior.xy[0]
             )
-            these_grid_rows = num_grid_rows - numpy.array(
+            these_grid_rows = 0.5 + num_grid_rows - numpy.array(
                 this_polygon_object.exterior.xy[1]
             )
 
