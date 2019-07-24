@@ -452,6 +452,13 @@ def _plot_2d_radar_scan(
         )
 
         plot_cbar_by_panel = numpy.full(num_panels, True, dtype=bool)
+
+        num_panel_rows = int(numpy.floor(
+            numpy.sqrt(num_panels)
+        ))
+        num_panel_columns = int(numpy.ceil(
+            float(num_panels) / num_panel_rows
+        ))
     else:
         list_of_layer_operation_dicts = [
             list_of_layer_operation_dicts[k] for k in LAYER_OP_INDICES_TO_KEEP
@@ -475,12 +482,15 @@ def _plot_2d_radar_scan(
         #     else:
         #         plot_cbar_by_panel[:] = True
 
-    num_panel_rows = int(numpy.floor(
-        numpy.sqrt(num_panels)
-    ))
-    num_panel_columns = int(numpy.ceil(
-        float(num_panels) / num_panel_rows
-    ))
+        num_panel_rows = 1
+        num_panel_columns = 4
+
+    # num_panel_rows = int(numpy.floor(
+    #     numpy.sqrt(num_panels)
+    # ))
+    # num_panel_columns = int(numpy.ceil(
+    #     float(num_panels) / num_panel_rows
+    # ))
 
     if allow_whitespace:
         figure_object = None
