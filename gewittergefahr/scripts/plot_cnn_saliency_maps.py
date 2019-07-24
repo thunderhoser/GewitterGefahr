@@ -251,6 +251,8 @@ def _plot_2d_radar_saliency(
             row_major=False)
 
     this_title_string = figure_objects[figure_index]._suptitle
+    print(this_title_string)
+    print(dir(this_title_string))
 
     if this_title_string is not None:
         this_title_string += ' (max abs saliency = {0:.2e})'.format(
