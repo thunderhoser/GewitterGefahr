@@ -260,10 +260,10 @@ def _plot_2d_radar_cam(
         this_matrix = numpy.expand_dims(cam_matrix, axis=-1)
         this_matrix = numpy.repeat(this_matrix, repeats=num_channels, axis=-1)
 
-    if list_of_layer_operation_dicts is not None:
-        this_matrix = this_matrix[
-            ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
-        ]
+    # if list_of_layer_operation_dicts is not None:
+    #     this_matrix = this_matrix[
+    #         ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
+    #     ]
 
     max_contour_level = numpy.percentile(
         numpy.absolute(this_matrix), max_colour_percentile
@@ -294,10 +294,10 @@ def _plot_2d_radar_cam(
             this_matrix = numpy.repeat(
                 this_matrix, repeats=num_channels, axis=-1)
 
-        if list_of_layer_operation_dicts is not None:
-            this_matrix = this_matrix[
-                ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
-            ]
+        # if list_of_layer_operation_dicts is not None:
+        #     this_matrix = this_matrix[
+        #         ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
+        #     ]
 
         significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=numpy.flip(this_matrix, axis=0),

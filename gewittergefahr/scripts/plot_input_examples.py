@@ -467,12 +467,12 @@ def _plot_2d_radar_scan(
             float(num_panels) / num_panel_rows
         ))
     else:
-        list_of_layer_operation_dicts = [
-            list_of_layer_operation_dicts[k] for k in LAYER_OP_INDICES_TO_KEEP
-        ]
-
-        list_of_predictor_matrices[0] = list_of_predictor_matrices[0][
-            ..., LAYER_OP_INDICES_TO_KEEP]
+        # list_of_layer_operation_dicts = [
+        #     list_of_layer_operation_dicts[k] for k in LAYER_OP_INDICES_TO_KEEP
+        # ]
+        #
+        # list_of_predictor_matrices[0] = list_of_predictor_matrices[0][
+        #     ..., LAYER_OP_INDICES_TO_KEEP]
 
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
