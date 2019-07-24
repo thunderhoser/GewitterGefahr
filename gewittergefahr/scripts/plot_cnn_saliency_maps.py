@@ -315,7 +315,7 @@ def _plot_sounding_saliency(
         pressure_matrix_pascals = pressure_matrix_pascals[[example_index], ...]
         sounding_matrix = numpy.concatenate(
             (sounding_matrix, pressure_matrix_pascals), axis=-1
-        )
+        )[0, ...]
 
         sounding_dict_for_metpy = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=sounding_matrix,
