@@ -888,7 +888,7 @@ def plot_many_2d_grids_without_coords(
                 field_name=field_name_by_panel[k],
                 axes_object=axes_object_matrix[
                     this_panel_row, this_panel_column],
-                annotation_string=None, font_size=font_size,
+                annotation_string=panel_names[k], font_size=font_size,
                 colour_map_object=colour_map_object_by_panel[k],
                 colour_norm_object=colour_norm_object_by_panel[k]
             )
