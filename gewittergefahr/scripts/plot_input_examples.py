@@ -481,7 +481,7 @@ def _plot_2d_radar_scan(
         )
 
         num_panels = len(field_name_by_panel)
-        plot_cbar_by_panel = numpy.full(num_panels, False, dtype=bool)
+        plot_cbar_by_panel = numpy.full(num_panels, True, dtype=bool)
 
         # if allow_whitespace:
         #     if len(field_name_by_panel) == 12:
