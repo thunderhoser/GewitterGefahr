@@ -630,12 +630,6 @@ def plot_latlng_grid(
         min_colour_value = colour_norm_object.vmin
         max_colour_value = colour_norm_object.vmax
 
-    if not use_default_colour_scheme:
-        min_colour_value = _field_to_plotting_units(
-            field_matrix=min_colour_value, field_name=field_name)
-        max_colour_value = _field_to_plotting_units(
-            field_matrix=max_colour_value, field_name=field_name)
-
     pyplot.pcolormesh(
         grid_cell_edge_longitudes_deg, grid_cell_edge_latitudes_deg,
         field_matrix_at_edges, cmap=colour_map_object, norm=colour_norm_object,
