@@ -385,8 +385,7 @@ def _plot_2d_regions(
                 k, axes_object_matrices[figure_index].shape, order='F'
             )
 
-            # TODO(thunderhoser): Adding 0.5 here is a HACK.  Need to fix this
-            #  in actual polygon files.
+            # TODO(thunderhoser): Figure this out next!!
             these_grid_columns = 0.5 + numpy.array(
                 this_polygon_object.exterior.xy[0]
             )

@@ -304,7 +304,9 @@ def _assign_colours_to_storms(storm_object_table, radar_colour_map_object):
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values
     )
 
-    colour_to_exclude = radar_colour_map_object(0.5)[:-1]
+    colour_to_exclude = numpy.array(
+        radar_colour_map_object(0.5)[:-1]
+    )
 
     rgb_matrix = colours.get_random_colours(
         num_colours=len(unique_primary_id_strings),
