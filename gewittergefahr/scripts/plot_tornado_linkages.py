@@ -33,8 +33,9 @@ LINKAGE_BACKGROUND_OPACITY = 0.5
 
 TORNADO_FONT_SIZE = 18
 TORNADO_START_MARKER_TYPE = 'o'
-TORNADO_END_MARKER_TYPE = 'x'
+TORNADO_END_MARKER_TYPE = 'D'
 TORNADO_MARKER_SIZE = 30
+TORNADO_MARKER_OPACITY = 0.5
 TORNADO_MARKER_EDGE_WIDTH = 1.5
 
 NUM_PARALLELS = 8
@@ -237,7 +238,7 @@ def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
         axes_object.plot(
             start_x_coords_metres[j], start_y_coords_metres[j],
             linestyle='None', marker=TORNADO_START_MARKER_TYPE,
-            markersize=TORNADO_MARKER_SIZE,
+            markersize=TORNADO_MARKER_SIZE, alpha=TORNADO_MARKER_OPACITY,
             markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
             markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
                 start_time_colour_matrix[j, :-1]
@@ -256,7 +257,8 @@ def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
 
         axes_object.plot(
             end_x_coords_metres[j], end_y_coords_metres[j], linestyle='None',
-            marker=TORNADO_END_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
+            marker=TORNADO_END_MARKER_TYPE, alpha=TORNADO_MARKER_OPACITY,
+            markersize=TORNADO_MARKER_SIZE,
             markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
             markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
                 end_time_colour_matrix[j, :-1]
