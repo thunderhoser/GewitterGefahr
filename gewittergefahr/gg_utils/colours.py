@@ -3,6 +3,7 @@
 import copy
 import numpy
 import skimage.color
+from sklearn.metrics.pairwise import euclidean_distances
 from gewittergefahr.gg_utils import error_checking
 
 MIN_L_FOR_LAB_SPACE = 0.
@@ -15,7 +16,59 @@ MAX_B_FOR_LAB_SPACE = 127.
 NUM_H_FOR_HSV_SPACE = 256
 NUM_S_FOR_HSV_SPACE = 256
 NUM_V_FOR_HSV_SPACE = 256
-DEFAULT_MIN_RGB_DISTANCE_FROM_COLOUR = 0.25
+DEFAULT_MIN_RGB_DISTANCE = 0.25
+
+
+def get_random_colours(num_colours, colour_to_exclude_rgb=None,
+                       min_rgb_distance=DEFAULT_MIN_RGB_DISTANCE):
+    """Returns list of random colours.
+
+    N = number of colours
+
+    :param num_colours: Number of colours desired.
+    :param colour_to_exclude_rgb: Colour to exclude (length-3 numpy array with
+        values in 0...1).
+    :param min_rgb_distance: All colours returned will be at least this far away
+        from `colour_to_exclude_rgb`.  Distance is Euclidean.
+    :return: rgb_matrix: N-by-3 numpy array with values in 0...1.  Each row is
+        one colour.
+    """
+
+    orig_num_colours = num_colours + 0
+
+    if colour_to_exclude_rgb is not None:
+        error_checking.assert_is_numpy_array(
+            colour_to_exclude_rgb, exact_dimensions=numpy.array([3], dtype=int)
+        )
+
+        error_checking.assert_is_geq_numpy_array(colour_to_exclude_rgb, 0.)
+        error_checking.assert_is_leq_numpy_array(colour_to_exclude_rgb, 1.)
+        error_checking.assert_is_greater(min_rgb_distance, 0.)
+        error_checking.assert_is_leq(min_rgb_distance, 1.)
+
+        num_colours = 10 * num_colours
+
+    rgb_matrix = numpy.random.uniform(low=0., high=1., size=(num_colours, 3))
+
+    if colour_to_exclude_rgb is not None:
+        colour_to_exclude_rgb = numpy.reshape(colour_to_exclude_rgb, (1, 3))
+
+        squared_distances = euclidean_distances(
+            X=rgb_matrix, Y=numpy.reshape(colour_to_exclude_rgb, (1, 3)),
+            squared=True
+        )
+
+        good_indices = numpy.where(
+            squared_distances >= min_rgb_distance ** 2
+        )[0]
+
+        rgb_matrix = rgb_matrix[good_indices, ...]
+
+    num_colours = min([
+        orig_num_colours, rgb_matrix.shape[0]
+    ])
+
+    return rgb_matrix[:num_colours, ...]
 
 
 def get_uniform_colours_in_lab_space(num_colours):
@@ -51,7 +104,7 @@ def get_uniform_colours_in_lab_space(num_colours):
 
 def get_uniform_colours_in_hsv_space(
         num_colours, colour_to_exclude_rgb=None,
-        min_rgb_distance_from_colour=DEFAULT_MIN_RGB_DISTANCE_FROM_COLOUR):
+        min_rgb_distance_from_colour=DEFAULT_MIN_RGB_DISTANCE):
     """Returns array of uniformly spaced colours in HSV space.
 
     N = number of colours
@@ -75,7 +128,7 @@ def get_uniform_colours_in_hsv_space(
         error_checking.assert_is_greater(min_rgb_distance_from_colour, 0.)
         error_checking.assert_is_leq(min_rgb_distance_from_colour, 1.)
 
-        orig_num_colours = copy.deepcopy(num_colours)
+        orig_num_colours = num_colours + 0
         num_colours = 10 * num_colours
 
     num_hsv_values = (

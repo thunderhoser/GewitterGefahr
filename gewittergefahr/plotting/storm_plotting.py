@@ -6,7 +6,6 @@ matplotlib.use('agg')
 import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from matplotlib.collections import LineCollection
-from gewittergefahr.gg_utils import colours
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import temporal_tracking
@@ -46,24 +45,18 @@ def get_storm_track_colours():
         colour.
     """
 
-    colour_to_exclude_rgb = numpy.array([252, 143, 60], dtype=float) / 255
-
-    return colours.get_uniform_colours_in_hsv_space(
-        num_colours=500, colour_to_exclude_rgb=colour_to_exclude_rgb,
-        min_rgb_distance_from_colour=0.3)
-
-    # return numpy.array([
-    #     [187, 255, 153],
-    #     [129, 243, 144],
-    #     [108, 232, 181],
-    #     [88, 213, 221],
-    #     [69, 137, 209],
-    #     [52, 55, 198],
-    #     [103, 37, 187],
-    #     [161, 23, 175],
-    #     [164, 10, 107],
-    #     [153, 0, 25]
-    # ], dtype=float) / 255
+    return numpy.array([
+        [187, 255, 153],
+        [129, 243, 144],
+        [108, 232, 181],
+        [88, 213, 221],
+        [69, 137, 209],
+        [52, 55, 198],
+        [103, 37, 187],
+        [161, 23, 175],
+        [164, 10, 107],
+        [153, 0, 25]
+    ], dtype=float) / 255
 
 
 def plot_storm_track(

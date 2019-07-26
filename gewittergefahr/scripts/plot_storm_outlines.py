@@ -282,6 +282,7 @@ def _filter_storm_objects_latlng(
 
 def _plot_storm_outlines_one_time(
         storm_object_table, valid_time_unix_sec, axes_object, basemap_object,
+        primary_id_to_colour_dict,
         storm_colour, storm_opacity, include_secondary_ids,
         output_dir_name, radar_matrix=None, radar_field_name=None,
         radar_latitudes_deg=None, radar_longitudes_deg=None):
@@ -296,6 +297,7 @@ def _plot_storm_outlines_one_time(
         Will plot tracks up to and including this time.
     :param axes_object: Same.
     :param basemap_object: Same.
+    :param primary_id_to_colour_dict: FOO.
     :param storm_colour: Same.
     :param storm_opacity: Same.
     :param include_secondary_ids: Same.
@@ -427,9 +429,20 @@ def _plot_storm_outlines_one_time(
     #     plot_near_centroids=False, include_secondary_ids=include_secondary_ids,
     #     font_colour=storm_plotting.DEFAULT_FONT_COLOUR)
 
-    storm_plotting.plot_storm_tracks(
-        storm_object_table=storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, colour_map_object='random')
+    for this_primary_id_string in primary_id_to_colour_dict:
+        this_storm_object_table = storm_object_table.loc[
+            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
+            this_primary_id_string
+        ]
+
+        if len(this_storm_object_table.index) == 0:
+            continue
+
+        storm_plotting.plot_storm_tracks(
+            storm_object_table=storm_object_table, axes_object=axes_object,
+            basemap_object=basemap_object, colour_map_object=None,
+            line_colour=primary_id_to_colour_dict[this_primary_id_string]
+        )
 
     nice_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, NICE_TIME_FORMAT)
@@ -514,6 +527,24 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     max_plot_latitude_deg = latitude_limits_deg[1]
     min_plot_longitude_deg = longitude_limits_deg[0]
     max_plot_longitude_deg = longitude_limits_deg[1]
+
+    unique_primary_id_strings = numpy.unique(
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values
+    )
+
+    colour_to_exclude = numpy.array([252, 143, 60], dtype=float) / 255
+    rgb_matrix = colours.get_random_colours(
+        num_colours=len(unique_primary_id_strings),
+        colour_to_exclude_rgb=colour_to_exclude
+    )
+
+    num_colours = rgb_matrix.shape[0]
+    primary_id_to_colour_dict = {}
+
+    for i in range(len(unique_primary_id_strings)):
+        primary_id_to_colour_dict[unique_primary_id_strings[i]] = rgb_matrix[
+            numpy.mod(i, num_colours), ...
+        ]
 
     valid_times_unix_sec = numpy.unique(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
@@ -605,6 +636,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             storm_object_table=this_storm_object_table.iloc[these_latlng_rows],
             valid_time_unix_sec=valid_times_unix_sec[i],
             axes_object=this_axes_object, basemap_object=this_basemap_object,
+            primary_id_to_colour_dict=primary_id_to_colour_dict,
             storm_colour=storm_colour, storm_opacity=storm_opacity,
             include_secondary_ids=include_secondary_ids,
             output_dir_name=output_dir_name, radar_matrix=this_radar_matrix,
