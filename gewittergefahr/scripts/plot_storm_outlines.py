@@ -427,6 +427,9 @@ def _plot_storm_outlines_one_time(
             this_ratio = radar_plotting._field_to_plotting_units(
                 field_matrix=1., field_name=radar_field_name)
 
+            print(radar_colour_norm_object.vmin / this_ratio)
+            print(radar_colour_norm_object.vmax / this_ratio)
+
             radar_colour_norm_object = pyplot.Normalize(
                 radar_colour_norm_object.vmin / this_ratio,
                 radar_colour_norm_object.vmax / this_ratio)
