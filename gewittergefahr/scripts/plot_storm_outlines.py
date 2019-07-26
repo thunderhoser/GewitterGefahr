@@ -360,6 +360,10 @@ def _plot_storm_outlines_one_time(
             radar_field_name
         )[-1]
 
+        print(colour_norm_object.vmin)
+        print(colour_norm_object.vmax)
+        print('\n\n*******\n\n')
+
         colour_norm_object = pyplot.Normalize(
             colour_norm_object.vmin, colour_norm_object.vmax)
 
