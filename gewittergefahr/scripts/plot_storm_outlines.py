@@ -12,6 +12,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_io import myrorss_and_mrms_io
+from gewittergefahr.gg_utils import colours
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import storm_plotting
@@ -27,7 +28,6 @@ SENTINEL_VALUE = -9999
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 NICE_TIME_FORMAT = '%H%M UTC %-d %b %Y'
 
-KILOFEET_TO_KM = 1. / 3.2808
 RADAR_COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
 
 NUM_PARALLELS = 8
@@ -429,8 +429,7 @@ def _plot_storm_outlines_one_time(
 
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, colour_map_object=None,
-        line_colour=TRACK_COLOUR)
+        basemap_object=basemap_object, colour_map_object='random')
 
     nice_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, NICE_TIME_FORMAT)
