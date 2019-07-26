@@ -419,6 +419,7 @@ def _plot_storm_outlines_one_time(
                 radar_plotting.get_default_colour_scheme(radar_field_name)
             )
         else:
+            colour_map_object = radar_colour_map_object
             colour_norm_object = radar_plotting.get_default_colour_scheme(
                 radar_field_name
             )[-1]
