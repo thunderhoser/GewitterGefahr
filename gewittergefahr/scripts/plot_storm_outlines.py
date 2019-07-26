@@ -396,6 +396,14 @@ def _plot_storm_outlines_one_time(
             tick_values = colour_bar_object.ax.get_yticks()
 
         print(tick_values)
+        tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
+
+        if orientation_string == 'horizontal':
+            colour_bar_object.ax.set_xticks(tick_values)
+            colour_bar_object.ax.set_xticklabels(tick_label_strings)
+        else:
+            colour_bar_object.ax.set_yticks(tick_values)
+            colour_bar_object.ax.set_yticklabels(tick_label_strings)
 
         colour_bar_object.set_label(
             radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[radar_field_name]
