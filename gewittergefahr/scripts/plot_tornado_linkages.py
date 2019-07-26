@@ -27,15 +27,15 @@ LATLNG_TOLERANCE_DEG = 0.001
 
 COLOUR_MAP_NAME = 'YlOrRd'
 
-LINKAGE_FONT_SIZE = 8
+LINKAGE_FONT_SIZE = 12
 LINKAGE_FONT_COLOUR = numpy.full(3, 0.)
 LINKAGE_BACKGROUND_OPACITY = 0.5
 
-TORNADO_FONT_SIZE = 12
+TORNADO_FONT_SIZE = 18
 TORNADO_START_MARKER_TYPE = 'o'
 TORNADO_END_MARKER_TYPE = 's'
-TORNADO_MARKER_SIZE = 20
-TORNADO_MARKER_EDGE_WIDTH = 1
+TORNADO_MARKER_SIZE = 30
+TORNADO_MARKER_EDGE_WIDTH = 1.5
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -632,7 +632,7 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
     print('Plotting tornado IDs with storm objects...')
     num_storm_objects = len(storm_to_tornadoes_table.index)
 
-    for i in range(num_storm_objects):
+    for i in range(0, num_storm_objects, 3):
         _plot_linkages_one_storm_object(
             storm_to_tornadoes_table=storm_to_tornadoes_table,
             storm_object_index=i, tornado_table=tornado_table,
