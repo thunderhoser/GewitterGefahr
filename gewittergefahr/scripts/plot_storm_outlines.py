@@ -27,6 +27,8 @@ SENTINEL_VALUE = -9999
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 NICE_TIME_FORMAT = '%H%M UTC %-d %b %Y'
 
+RADAR_COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
+
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = 0.5
@@ -354,17 +356,28 @@ def _plot_storm_outlines_one_time(
             radar_longitudes_deg[1] - radar_longitudes_deg[0]
         )
 
+        colour_norm_object = radar_plotting.get_default_colour_scheme(
+            radar_field_name
+        )[-1]
+
+        colour_norm_object = pyplot.Normalize(
+            colour_norm_object.vmin, colour_norm_object.vmax)
+
+        colour_map_object = RADAR_COLOUR_MAP_OBJECT
+
         radar_plotting.plot_latlng_grid(
             field_matrix=radar_matrix, field_name=radar_field_name,
             axes_object=axes_object,
             min_grid_point_latitude_deg=numpy.min(radar_latitudes_deg),
             min_grid_point_longitude_deg=numpy.min(radar_longitudes_deg),
             latitude_spacing_deg=latitude_spacing_deg,
-            longitude_spacing_deg=longitude_spacing_deg)
+            longitude_spacing_deg=longitude_spacing_deg,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object)
 
-        colour_map_object, colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(radar_field_name)
-        )
+        # colour_map_object, colour_norm_object = (
+        #     radar_plotting.get_default_colour_scheme(radar_field_name)
+        # )
 
         latitude_range_deg = max_plot_latitude_deg - min_plot_latitude_deg
         longitude_range_deg = max_plot_longitude_deg - min_plot_longitude_deg
@@ -398,11 +411,11 @@ def _plot_storm_outlines_one_time(
         axes_object=axes_object, basemap_object=basemap_object,
         line_colour=line_colour)
 
-    storm_plotting.plot_storm_ids(
-        storm_object_table=storm_object_table.iloc[valid_time_rows],
-        axes_object=axes_object, basemap_object=basemap_object,
-        plot_near_centroids=False, include_secondary_ids=include_secondary_ids,
-        font_colour=storm_plotting.DEFAULT_FONT_COLOUR)
+    # storm_plotting.plot_storm_ids(
+    #     storm_object_table=storm_object_table.iloc[valid_time_rows],
+    #     axes_object=axes_object, basemap_object=basemap_object,
+    #     plot_near_centroids=False, include_secondary_ids=include_secondary_ids,
+    #     font_colour=storm_plotting.DEFAULT_FONT_COLOUR)
 
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
