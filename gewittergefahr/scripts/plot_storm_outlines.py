@@ -538,6 +538,8 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         colour_to_exclude_rgb=colour_to_exclude
     )
 
+    print(rgb_matrix)
+
     num_colours = rgb_matrix.shape[0]
     primary_id_to_colour_dict = {}
 
