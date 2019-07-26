@@ -294,7 +294,6 @@ def _assign_colours_to_storms(storm_object_table, radar_colour_map_object):
     :param storm_object_table: See doc for `storm_tracking_io.write_file`.
     :param radar_colour_map_object: See doc for
         `radar_plotting.plot_latlng_grid`.
-    :param radar_colour_norm_object: Same.
     :return: primary_id_to_track_colour: Dictionary, where each key is a primary
         storm ID (string) and each value is an RGB colour (length-3 numpy
         array).
@@ -416,23 +415,20 @@ def _plot_storm_outlines_one_time(
         )
 
         if radar_colour_map_object is None:
-            radar_colour_map_object, radar_colour_norm_object = (
+            colour_map_object, colour_norm_object = (
                 radar_plotting.get_default_colour_scheme(radar_field_name)
             )
         else:
-            radar_colour_norm_object = radar_plotting.get_default_colour_scheme(
+            colour_norm_object = radar_plotting.get_default_colour_scheme(
                 radar_field_name
             )[-1]
 
             this_ratio = radar_plotting._field_to_plotting_units(
                 field_matrix=1., field_name=radar_field_name)
 
-            print(radar_colour_norm_object.vmin / this_ratio)
-            print(radar_colour_norm_object.vmax / this_ratio)
-
-            radar_colour_norm_object = pyplot.Normalize(
-                radar_colour_norm_object.vmin / this_ratio,
-                radar_colour_norm_object.vmax / this_ratio)
+            colour_norm_object = pyplot.Normalize(
+                colour_norm_object.vmin / this_ratio,
+                colour_norm_object.vmax / this_ratio)
 
         radar_plotting.plot_latlng_grid(
             field_matrix=radar_matrix, field_name=radar_field_name,
@@ -441,8 +437,8 @@ def _plot_storm_outlines_one_time(
             min_grid_point_longitude_deg=numpy.min(radar_longitudes_deg),
             latitude_spacing_deg=latitude_spacing_deg,
             longitude_spacing_deg=longitude_spacing_deg,
-            colour_map_object=radar_colour_map_object,
-            colour_norm_object=radar_colour_norm_object)
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object)
 
         latitude_range_deg = max_plot_latitude_deg - min_plot_latitude_deg
         longitude_range_deg = max_plot_longitude_deg - min_plot_longitude_deg
@@ -454,8 +450,8 @@ def _plot_storm_outlines_one_time(
 
         colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=radar_matrix,
-            colour_map_object=radar_colour_map_object,
-            colour_norm_object=radar_colour_norm_object,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object,
             orientation_string=orientation_string,
             extend_min=radar_field_name in radar_plotting.SHEAR_VORT_DIV_NAMES,
             extend_max=True, fraction_of_axis_length=0.9)
