@@ -33,7 +33,7 @@ LINKAGE_BACKGROUND_OPACITY = 0.5
 
 TORNADO_FONT_SIZE = 18
 TORNADO_START_MARKER_TYPE = 'o'
-TORNADO_END_MARKER_TYPE = 's'
+TORNADO_END_MARKER_TYPE = 'x'
 TORNADO_MARKER_SIZE = 30
 TORNADO_MARKER_EDGE_WIDTH = 1.5
 
@@ -354,8 +354,8 @@ def _plot_linkages_one_storm_object(
     axes_object.text(
         x_coord_metres, y_coord_metres, label_string,
         fontsize=LINKAGE_FONT_SIZE, color=LINKAGE_FONT_COLOUR,
-        bbox=bounding_box_dict, horizontalalignment='center',
-        verticalalignment='center', zorder=1e10)
+        bbox=bounding_box_dict, rotation=-90, horizontalalignment='center',
+        verticalalignment='top', zorder=1e10)
 
 
 def _subset_storms_by_time(storm_to_tornadoes_table, tornado_table,
