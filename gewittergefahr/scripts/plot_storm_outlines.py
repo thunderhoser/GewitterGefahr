@@ -357,14 +357,8 @@ def _plot_storm_outlines_one_time(
             radar_longitudes_deg[1] - radar_longitudes_deg[0]
         )
 
-        colour_norm_object = pyplot.Normalize(
-            0.1 * KILOFEET_TO_KM, 65 * KILOFEET_TO_KM)
-
-        print(colour_norm_object.vmin)
-        print(colour_norm_object.vmax)
-        print('\n\n*******\n\n')
-
         colour_map_object = RADAR_COLOUR_MAP_OBJECT
+        colour_norm_object = pyplot.Normalize(0.1, 65)
 
         radar_plotting.plot_latlng_grid(
             field_matrix=radar_matrix, field_name=radar_field_name,
