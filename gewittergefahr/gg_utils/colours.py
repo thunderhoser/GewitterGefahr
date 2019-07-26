@@ -16,7 +16,7 @@ MAX_B_FOR_LAB_SPACE = 127.
 NUM_H_FOR_HSV_SPACE = 256
 NUM_S_FOR_HSV_SPACE = 256
 NUM_V_FOR_HSV_SPACE = 256
-DEFAULT_MIN_RGB_DISTANCE = 0.25
+DEFAULT_MIN_RGB_DISTANCE = 0.1
 
 
 def get_random_colours(num_colours, colour_to_exclude_rgb=None,
@@ -68,7 +68,9 @@ def get_random_colours(num_colours, colour_to_exclude_rgb=None,
         orig_num_colours, rgb_matrix.shape[0]
     ])
 
-    return rgb_matrix[:num_colours, ...]
+    rgb_matrix = rgb_matrix[:num_colours, ...]
+    numpy.random.shuffle(rgb_matrix)
+    return rgb_matrix
 
 
 def get_uniform_colours_in_lab_space(num_colours):
