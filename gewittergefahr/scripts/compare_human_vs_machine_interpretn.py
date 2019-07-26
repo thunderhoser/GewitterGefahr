@@ -253,12 +253,13 @@ def _plot_comparison(
             iou_by_channel[k]
         )
 
-    _, axes_object_matrix = radar_plotting.plot_many_2d_grids_without_coords(
+    axes_object_matrix = radar_plotting.plot_many_2d_grids_without_coords(
         field_matrix=numpy.flip(predictor_matrix, axis=0),
         field_name_by_panel=field_name_by_panel, panel_names=panel_names,
         num_panel_rows=num_panel_rows,
         plot_colour_bar_by_panel=plot_colour_bar_by_panel, font_size=14,
-        row_major=False)
+        row_major=False
+    )[1]
 
     for k in range(num_panels):
         _plot_comparison_one_channel(

@@ -22,8 +22,8 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
 
-# TODO(thunderhoser): This is a HACK.
-LAYER_OP_INDICES_TO_KEEP = numpy.array([2, 3, 7, 10], dtype=int)
+# TODO(thunderhoser): The next two lines are HACKS.
+BAMS_CHANNEL_INDICES_TO_KEEP = numpy.array([2, 3, 7, 10], dtype=int)
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -35,8 +35,6 @@ SOUNDING_FIELD_NAMES = [
     soundings.PRESSURE_NAME
 ]
 SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL
-
-ACTIVATIONS_KEY = 'storm_activations'
 
 SOUNDING_FIGURE_KEY = 'sounding_figure_object'
 SOUNDING_AXES_KEY = 'sounding_axes_object'
@@ -54,7 +52,6 @@ LAYER_OPERATION_KEY = 'layer_operation_dict'
 TITLE_FONT_SIZE = 16
 FONT_SIZE_WITH_COLOUR_BARS = 16
 FONT_SIZE_SANS_COLOUR_BARS = 20
-
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
@@ -62,6 +59,7 @@ FIGURE_RESOLUTION_DPI = 300
 ACTIVATION_FILE_ARG_NAME = 'input_activation_file_name'
 STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
+BAMS_FORMAT_ARG_NAME = 'bams_format'
 ALLOW_WHITESPACE_ARG_NAME = 'allow_whitespace'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 RADAR_FIELDS_ARG_NAME = 'radar_field_names'
@@ -86,6 +84,10 @@ NUM_EXAMPLES_HELP_STRING = (
     'Number of examples (storm objects) to read from `{0:s}` or `{1:s}`.  If '
     'you want to read all examples, make this non-positive.'
 ).format(ACTIVATION_FILE_ARG_NAME, STORM_METAFILE_ARG_NAME)
+
+BAMS_FORMAT_HELP_STRING = (
+    'Boolean flag.  If 1, figures will be plotted in the format used for BAMS '
+    '2019.  If you do not know what this means, just leave the argument alone.')
 
 ALLOW_WHITESPACE_HELP_STRING = (
     'Boolean flag.  If 0, will plot with no whitespace between panels or around'
@@ -139,6 +141,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
     help=NUM_EXAMPLES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + BAMS_FORMAT_ARG_NAME, type=int, required=False, default=0,
+    help=BAMS_FORMAT_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + ALLOW_WHITESPACE_ARG_NAME, type=int, required=False, default=1,
@@ -391,7 +397,7 @@ def _plot_2d3d_radar_scan(
 
     shear_panel_names = [n.split('\n')[0] for n in shear_panel_names]
 
-    shear_figure_object, shear_axes_object_matrix = (
+    shear_figure_object, shear_axes_object_matrix, _ = (
         radar_plotting.plot_many_2d_grids_without_coords(
             field_matrix=numpy.flip(list_of_predictor_matrices[1], axis=0),
             field_name_by_panel=az_shear_field_names,
@@ -427,8 +433,8 @@ def _plot_2d3d_radar_scan(
 
 
 def _plot_2d_radar_scan(
-        list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
-        title_string=None):
+        list_of_predictor_matrices, model_metadata_dict, bams_format,
+        allow_whitespace, title_string=None):
     """Plots 2-D radar scan for one example.
 
     J = number of panel rows in image
@@ -436,7 +442,8 @@ def _plot_2d_radar_scan(
 
     :param list_of_predictor_matrices: See doc for `_plot_3d_radar_scan`.
     :param model_metadata_dict: Same.
-    :param allow_whitespace: Same.
+    :param bams_format: See documentation at top of file.
+    :param allow_whitespace: See doc for `_plot_3d_radar_scan`.
     :param title_string: Same.
     :return: figure_objects: length-1 list of figure handles (instances of
         `matplotlib.figure.Figure`).
@@ -449,55 +456,56 @@ def _plot_2d_radar_scan(
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
 
+    bams_format = bams_format and list_of_layer_operation_dicts is not None
+    if bams_format:
+        allow_whitespace = True
+
+    if bams_format:
+        list_of_layer_operation_dicts = [
+            list_of_layer_operation_dicts[k]
+            for k in BAMS_CHANNEL_INDICES_TO_KEEP
+        ]
+
+        list_of_predictor_matrices[0] = list_of_predictor_matrices[0][
+            ..., BAMS_CHANNEL_INDICES_TO_KEEP
+        ]
+
     if list_of_layer_operation_dicts is None:
         field_name_by_panel = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-        num_panels = len(field_name_by_panel)
 
         panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
             field_names=field_name_by_panel,
             heights_m_agl=training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
         )
-
-        plot_cbar_by_panel = numpy.full(num_panels, True, dtype=bool)
-
-        num_panel_rows = int(numpy.floor(
-            numpy.sqrt(num_panels)
-        ))
-        num_panel_columns = int(numpy.ceil(
-            float(num_panels) / num_panel_rows
-        ))
     else:
-        # list_of_layer_operation_dicts = [
-        #     list_of_layer_operation_dicts[k] for k in LAYER_OP_INDICES_TO_KEEP
-        # ]
-        #
-        # list_of_predictor_matrices[0] = list_of_predictor_matrices[0][
-        #     ..., LAYER_OP_INDICES_TO_KEEP]
-
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
                 list_of_layer_operation_dicts=list_of_layer_operation_dicts
             )
         )
 
-        num_panels = len(field_name_by_panel)
-        plot_cbar_by_panel = numpy.full(num_panels, True, dtype=bool)
+    num_panels = len(panel_names)
+    plot_cbar_by_panel = numpy.full(num_panels, True, dtype=bool)
 
-        # if allow_whitespace:
-        #     if len(field_name_by_panel) == 12:
-        #         plot_cbar_by_panel[2::3] = True
-        #     else:
-        #         plot_cbar_by_panel[:] = True
-
+    if bams_format:
         num_panel_rows = 1
         num_panel_columns = num_panels + 0
+    else:
+        num_panel_rows = int(numpy.floor(
+            numpy.sqrt(num_panels)
+        ))
+        num_panel_columns = int(numpy.ceil(
+            float(num_panels) / num_panel_rows
+        ))
 
-    # num_panel_rows = int(numpy.floor(
-    #     numpy.sqrt(num_panels)
-    # ))
-    # num_panel_columns = int(numpy.ceil(
-    #     float(num_panels) / num_panel_rows
-    # ))
+    this_flag = (
+        list_of_layer_operation_dicts is not None and
+        allow_whitespace and num_panels == 12
+    )
+
+    if this_flag:
+        plot_cbar_by_panel[:] = False
+        plot_cbar_by_panel[2::3] = True
 
     if allow_whitespace:
         figure_object = None
@@ -511,10 +519,11 @@ def _plot_2d_radar_scan(
                 keep_aspect_ratio=True)
         )
 
-    figure_object, axes_object_matrix = (
+    figure_object, axes_object_matrix, cbar_object_matrix = (
         radar_plotting.plot_many_2d_grids_without_coords(
             field_matrix=numpy.flip(list_of_predictor_matrices[0], axis=0),
-            field_name_by_panel=field_name_by_panel, panel_names=panel_names,
+            field_name_by_panel=field_name_by_panel,
+            panel_names=None if bams_format else panel_names,
             num_panel_rows=num_panel_rows, figure_object=figure_object,
             axes_object_matrix=axes_object_matrix,
             plot_colour_bar_by_panel=plot_cbar_by_panel,
@@ -523,6 +532,18 @@ def _plot_2d_radar_scan(
 
     if allow_whitespace and title_string is not None:
         pyplot.suptitle(title_string, fontsize=TITLE_FONT_SIZE)
+
+    if not bams_format:
+        return [figure_object], [axes_object_matrix]
+
+    for k in range(num_panels):
+        this_panel_row, this_panel_column = numpy.unravel_index(
+            k, cbar_object_matrix.shape, order='F')
+
+        this_cbar_object = cbar_object_matrix[this_panel_row, this_panel_column]
+        this_cbar_object.ax.set_title(
+            panel_names[k], fontsize=FONT_SIZE_WITH_COLOUR_BARS,
+            fontweight='bold')
 
     return [figure_object], [axes_object_matrix]
 
@@ -681,8 +702,8 @@ def file_name_to_metadata(figure_file_name):
 
 def plot_one_example(
         list_of_predictor_matrices, model_metadata_dict, plot_sounding=True,
-        allow_whitespace=True, pmm_flag=False, example_index=None,
-        full_storm_id_string=None, storm_time_unix_sec=None,
+        bams_format=False, allow_whitespace=True, pmm_flag=False,
+        example_index=None, full_storm_id_string=None, storm_time_unix_sec=None,
         storm_activation=None):
     """Plots predictors for one example.
 
@@ -693,6 +714,7 @@ def plot_one_example(
     :param model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     :param plot_sounding: See documentation at top of file.
+    :param bams_format: Same.
     :param allow_whitespace: Same.
     :param pmm_flag: Boolean flag.  If True, will plot PMM (probability-matched
         mean) composite of many examples (storm objects).  If False, will plot
@@ -781,7 +803,7 @@ def plot_one_example(
     else:
         radar_figure_objects, radar_axes_object_matrices = _plot_2d_radar_scan(
             list_of_predictor_matrices=predictor_matrices_to_plot,
-            model_metadata_dict=model_metadata_dict,
+            model_metadata_dict=model_metadata_dict, bams_format=bams_format,
             allow_whitespace=allow_whitespace, title_string=title_string)
 
     return {
@@ -794,8 +816,8 @@ def plot_one_example(
 
 def plot_examples(
         list_of_predictor_matrices, model_metadata_dict, output_dir_name,
-        plot_soundings=True, allow_whitespace=True, pmm_flag=False,
-        full_storm_id_strings=None, storm_times_unix_sec=None,
+        plot_soundings=True, bams_format=False, allow_whitespace=True,
+        pmm_flag=False, full_storm_id_strings=None, storm_times_unix_sec=None,
         storm_activations=None):
     """Plots predictors for each example.
 
@@ -806,6 +828,7 @@ def plot_examples(
     :param output_dir_name: Path to output directory.  Figures will be saved
         here (one or more figures per example).
     :param plot_soundings: See doc for `plot_one_example`.
+    :param bams_format: Same.
     :param allow_whitespace: Same.
     :param pmm_flag: Same.
     :param full_storm_id_strings: [used only if `pmm_flag == False`]
@@ -841,9 +864,9 @@ def plot_examples(
         this_handle_dict = plot_one_example(
             list_of_predictor_matrices=list_of_predictor_matrices,
             model_metadata_dict=model_metadata_dict,
-            plot_sounding=plot_soundings, allow_whitespace=allow_whitespace,
-            pmm_flag=pmm_flag, example_index=i,
-            full_storm_id_string=full_storm_id_strings[i],
+            plot_sounding=plot_soundings, bams_format=bams_format,
+            allow_whitespace=allow_whitespace, pmm_flag=pmm_flag,
+            example_index=i, full_storm_id_string=full_storm_id_strings[i],
             storm_time_unix_sec=storm_times_unix_sec[i],
             storm_activation=storm_activations[i]
         )
@@ -935,7 +958,7 @@ def plot_examples(
         pyplot.close(these_radar_figure_objects[0])
 
 
-def _run(activation_file_name, storm_metafile_name, num_examples,
+def _run(activation_file_name, storm_metafile_name, num_examples, bams_format,
          allow_whitespace, top_example_dir_name, radar_field_names,
          radar_heights_m_agl, plot_soundings, num_radar_rows, num_radar_columns,
          output_dir_name):
@@ -946,6 +969,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     :param activation_file_name: See documentation at top of file.
     :param storm_metafile_name: Same.
     :param num_examples: Same.
+    :param bams_format: Same.
     :param allow_whitespace: Same.
     :param top_example_dir_name: Same.
     :param radar_field_names: Same.
@@ -1055,8 +1079,8 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         list_of_predictor_matrices=list_of_predictor_matrices,
         model_metadata_dict=model_metadata_dict,
         output_dir_name=output_dir_name, plot_soundings=plot_soundings,
-        allow_whitespace=allow_whitespace, pmm_flag=False,
-        full_storm_id_strings=full_storm_id_strings,
+        bams_format=bams_format, allow_whitespace=allow_whitespace,
+        pmm_flag=False, full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
         storm_activations=storm_activations)
 
@@ -1069,6 +1093,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ACTIVATION_FILE_ARG_NAME),
         storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
+        bams_format=bool(getattr(INPUT_ARG_OBJECT, BAMS_FORMAT_ARG_NAME)),
         allow_whitespace=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
         )),

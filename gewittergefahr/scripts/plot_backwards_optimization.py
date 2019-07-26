@@ -33,6 +33,7 @@ FONT_SIZE_SANS_COLOUR_BARS = 20
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
+BAMS_FORMAT_ARG_NAME = 'bams_format'
 PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 COLOUR_MAP_ARG_NAME = 'diff_colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
@@ -41,6 +42,10 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `backwards_opt.read_standard_file` or'
     ' `backwards_opt.read_pmm_file`.')
+
+BAMS_FORMAT_HELP_STRING = (
+    'Boolean flag.  If 1, figures will be plotted in the format used for BAMS '
+    '2019.  If you do not know what this means, just leave the argument alone.')
 
 PLOT_SIGNIFICANCE_HELP_STRING = (
     'Boolean flag.  If 1, will plot stippling for significance.  This applies '
@@ -66,6 +71,10 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
     help=INPUT_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + BAMS_FORMAT_ARG_NAME, type=int, required=False, default=0,
+    help=BAMS_FORMAT_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_SIGNIFICANCE_ARG_NAME, type=int, required=False, default=0,
@@ -221,7 +230,7 @@ def _plot_3d_radar_difference(
 
 def _plot_2d_radar_difference(
         difference_matrix, colour_map_object, max_colour_percentile,
-        model_metadata_dict, backwards_opt_dict, output_dir_name,
+        bams_format, model_metadata_dict, backwards_opt_dict, output_dir_name,
         example_index=None, significance_matrix=None):
     """Plots difference (after minus before optimization) for 2-D radar data.
 
@@ -233,6 +242,7 @@ def _plot_2d_radar_difference(
         minus before optimization).
     :param colour_map_object: See doc for `_plot_3d_radar_difference`.
     :param max_colour_percentile: Same.
+    :param bams_format: Same.
     :param model_metadata_dict: Same.
     :param backwards_opt_dict: Same.
     :param output_dir_name: Same.
@@ -265,8 +275,25 @@ def _plot_2d_radar_difference(
 
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
+    bams_format = bams_format and list_of_layer_operation_dicts is not None
+
+    if bams_format:
+        list_of_layer_operation_dicts = [
+            list_of_layer_operation_dicts[k]
+            for k in plot_input_examples.BAMS_CHANNEL_INDICES_TO_KEEP
+        ]
+
+        difference_matrix = difference_matrix[
+            ..., plot_input_examples.BAMS_CHANNEL_INDICES_TO_KEEP
+        ]
+
+        if significance_matrix is not None:
+            significance_matrix = significance_matrix[
+                ..., plot_input_examples.BAMS_CHANNEL_INDICES_TO_KEEP
+            ]
 
     if conv_2d3d:
         num_fields = len(training_option_dict[trainval_io.RADAR_FIELDS_KEY])
@@ -283,33 +310,24 @@ def _plot_2d_radar_difference(
 
         panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
             field_names=field_name_by_panel, heights_m_agl=radar_heights_m_agl)
-
-        num_panels = len(field_name_by_panel)
-        num_panel_rows = int(numpy.floor(
-            numpy.sqrt(num_panels)
-        ))
     else:
-        list_of_layer_operation_dicts = [
-            list_of_layer_operation_dicts[k]
-            for k in plot_input_examples.LAYER_OP_INDICES_TO_KEEP
-        ]
-
-        difference_matrix = difference_matrix[
-            ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
-        ]
-
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
                 list_of_layer_operation_dicts=list_of_layer_operation_dicts
             )
         )
 
-        num_panels = len(field_name_by_panel)
-        num_panel_rows = 1
-
+    num_panels = len(panel_names)
     plot_cbar_by_panel = numpy.full(num_panels, True, dtype=bool)
     cmap_object_by_panel = [colour_map_object] * num_panels
     cnorm_object_by_panel = [None] * num_panels
+
+    if bams_format:
+        num_panel_rows = 1
+    else:
+        num_panel_rows = int(numpy.floor(
+            numpy.sqrt(num_panels)
+        ))
 
     for j in range(num_panels):
         this_max_colour_value = numpy.percentile(
@@ -320,12 +338,12 @@ def _plot_2d_radar_difference(
             vmin=-1 * this_max_colour_value, vmax=this_max_colour_value,
             clip=False)
 
-    figure_object, axes_object_matrix = (
+    figure_object, axes_object_matrix, cbar_object_matrix = (
         radar_plotting.plot_many_2d_grids_without_coords(
             field_matrix=numpy.flip(difference_matrix, axis=0),
             field_name_by_panel=field_name_by_panel,
             num_panel_rows=num_panel_rows,
-            panel_names=panel_names, row_major=False,
+            panel_names=None if bams_format else panel_names, row_major=False,
             colour_map_object_by_panel=cmap_object_by_panel,
             colour_norm_object_by_panel=cnorm_object_by_panel,
             plot_colour_bar_by_panel=plot_cbar_by_panel,
@@ -333,15 +351,22 @@ def _plot_2d_radar_difference(
     )
 
     if significance_matrix is not None:
-        if list_of_layer_operation_dicts is not None:
-            significance_matrix = significance_matrix[
-                ..., plot_input_examples.LAYER_OP_INDICES_TO_KEEP
-            ]
-
         significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=numpy.flip(significance_matrix, axis=0),
             axes_object_matrix=axes_object_matrix, row_major=False
         )
+
+    if bams_format:
+        for j in range(num_panels):
+            this_panel_row, this_panel_column = numpy.unravel_index(
+                j, cbar_object_matrix.shape, order='F')
+
+            this_cbar_object = cbar_object_matrix[
+                this_panel_row, this_panel_column]
+
+            this_cbar_object.ax.set_title(
+                panel_names[j], fontsize=FONT_SIZE_WITH_COLOUR_BARS,
+                fontweight='bold')
 
     if pmm_flag:
         this_title_string = 'PMM'
@@ -459,14 +484,9 @@ def _plot_bwo_for_soundings(
             storm_time_unix_sec=storm_times_unix_sec[i]
         )
 
-        # this_figure_object = sounding_plotting.plot_sounding(
-        #     sounding_dict_for_metpy=list_of_optimized_metpy_dicts[i],
-        #     title_string=this_title_string
-        # )[0]
-
         this_figure_object = sounding_plotting.plot_sounding(
             sounding_dict_for_metpy=list_of_optimized_metpy_dicts[i],
-            title_string=''
+            title_string=this_title_string
         )[0]
 
         print('Saving figure to: "{0:s}"...'.format(this_file_name))
@@ -486,14 +506,9 @@ def _plot_bwo_for_soundings(
             storm_time_unix_sec=storm_times_unix_sec[i]
         )
 
-        # this_figure_object = sounding_plotting.plot_sounding(
-        #     sounding_dict_for_metpy=list_of_input_metpy_dicts[i],
-        #     title_string=this_title_string
-        # )[0]
-
         this_figure_object = sounding_plotting.plot_sounding(
             sounding_dict_for_metpy=list_of_input_metpy_dicts[i],
-            title_string=''
+            title_string=this_title_string
         )[0]
 
         pyplot.close(this_figure_object)
@@ -503,13 +518,14 @@ def _plot_bwo_for_soundings(
         pyplot.close()
 
 
-def _run(input_file_name, plot_significance, diff_colour_map_name,
+def _run(input_file_name, bams_format, plot_significance, diff_colour_map_name,
          max_colour_percentile, top_output_dir_name):
     """Plots results of backwards optimization.
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
+    :param bams_format: Same.
     :param plot_significance: Same.
     :param diff_colour_map_name: Same.
     :param max_colour_percentile: Same.
@@ -568,10 +584,6 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
     )
 
     model_file_name = backwards_opt_dict[backwards_opt.MODEL_FILE_KEY]
-    if not os.path.isfile(model_file_name):
-        model_file_name = model_file_name.replace('/condo/swatwork/ralager',
-                                                  '/glade/work/ryanlage')
-
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )
@@ -595,11 +607,11 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
 
         print(SEPARATOR_STRING)
 
-    # TODO(thunderhoser): Make sure to not plot soundings here.
     plot_input_examples.plot_examples(
         list_of_predictor_matrices=list_of_input_matrices,
         model_metadata_dict=model_metadata_dict,
         output_dir_name=before_optimization_dir_name,
+        plot_soundings=False, bams_format=bams_format,
         allow_whitespace=True, pmm_flag=pmm_flag,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec)
@@ -609,6 +621,7 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
         list_of_predictor_matrices=list_of_optimized_matrices,
         model_metadata_dict=model_metadata_dict,
         output_dir_name=after_optimization_dir_name,
+        plot_soundings=False, bams_format=bams_format,
         allow_whitespace=True, pmm_flag=pmm_flag,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec)
@@ -664,6 +677,7 @@ def _run(input_file_name, plot_significance, diff_colour_map_name,
                     difference_matrix=this_difference_matrix,
                     colour_map_object=diff_colour_map_object,
                     max_colour_percentile=max_colour_percentile,
+                    bams_format=bams_format,
                     model_metadata_dict=model_metadata_dict,
                     backwards_opt_dict=backwards_opt_dict,
                     output_dir_name=difference_dir_name, example_index=i,
@@ -675,6 +689,7 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
+        bams_format=bool(getattr(INPUT_ARG_OBJECT, BAMS_FORMAT_ARG_NAME)),
         plot_significance=bool(getattr(
             INPUT_ARG_OBJECT, PLOT_SIGNIFICANCE_ARG_NAME
         )),

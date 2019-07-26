@@ -759,6 +759,8 @@ def plot_many_2d_grids_without_coords(
     M = number of rows in spatial grid
     N = number of columns in spatial grid
     P = number of panels (field/height pairs)
+    J = number of panel rows in figure
+    K = number of panel columns in figure
 
     This method uses the default colour scheme for each radar field.
 
@@ -788,6 +790,9 @@ def plot_many_2d_grids_without_coords(
         rows.
     :return: figure_object: See doc for `plotting_utils.create_paneled_figure`.
     :return: axes_object_matrix: Same.
+    :return: cbar_object_matrix: J-by-K numpy array of colour bars (instances of
+        `matplotlib.colorbar.Colorbar`).  If panel [j, k] has no colour bar,
+        cbar_object_matrix[j, k] will be None.
     :raises: ValueError: if `colour_map_object_by_panel` or
         `colour_norm_object_by_panel` has different length than number of
         panels.
@@ -865,22 +870,13 @@ def plot_many_2d_grids_without_coords(
     else:
         order_string = 'F'
 
+    cbar_object_matrix = numpy.full(
+        axes_object_matrix.shape, None, dtype=object)
+
     for k in range(num_panels):
         this_panel_row, this_panel_column = numpy.unravel_index(
             k, (num_panel_rows, num_panel_columns), order=order_string
         )
-
-        # this_colour_map_object, this_colour_norm_object = (
-        #     plot_2d_grid_without_coords(
-        #         field_matrix=field_matrix[..., k],
-        #         field_name=field_name_by_panel[k],
-        #         axes_object=axes_object_matrix[
-        #             this_panel_row, this_panel_column],
-        #         annotation_string=panel_names[k], font_size=font_size,
-        #         colour_map_object=colour_map_object_by_panel[k],
-        #         colour_norm_object=colour_norm_object_by_panel[k]
-        #     )
-        # )
 
         this_colour_map_object, this_colour_norm_object = (
             plot_2d_grid_without_coords(
@@ -898,24 +894,18 @@ def plot_many_2d_grids_without_coords(
             continue
 
         this_extend_min_flag = field_name_by_panel[k] in SHEAR_VORT_DIV_NAMES
-        print('\n\n********\n\n')
-        print(panel_names[k])
-        print(this_colour_norm_object.vmin)
-        print(this_colour_norm_object.vmax)
-        print('\n\n********\n\n')
 
-        this_colour_bar_object = plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=axes_object_matrix[
-                this_panel_row, this_panel_column],
-            data_matrix=field_matrix[..., k],
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal',
-            extend_min=this_extend_min_flag, extend_max=True,
-            fraction_of_axis_length=0.75, font_size=font_size)
-
-        this_colour_bar_object.ax.set_title(
-            panel_names[k], fontsize=font_size, fontweight='bold')
+        cbar_object_matrix[this_panel_row, this_panel_column] = (
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=axes_object_matrix[
+                    this_panel_row, this_panel_column],
+                data_matrix=field_matrix[..., k],
+                colour_map_object=this_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                orientation_string='horizontal',
+                extend_min=this_extend_min_flag, extend_max=True,
+                fraction_of_axis_length=0.75, font_size=font_size)
+        )
 
     for k in range(num_panel_rows * num_panel_columns):
         if k < num_panels:
@@ -927,7 +917,7 @@ def plot_many_2d_grids_without_coords(
 
         axes_object_matrix[this_panel_row, this_panel_column].axis('off')
 
-    return figure_object, axes_object_matrix
+    return figure_object, axes_object_matrix, cbar_object_matrix
 
 
 def plot_3d_grid_without_coords(
