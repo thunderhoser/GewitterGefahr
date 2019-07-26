@@ -439,7 +439,7 @@ def _plot_storm_outlines_one_time(
             continue
 
         storm_plotting.plot_storm_tracks(
-            storm_object_table=storm_object_table, axes_object=axes_object,
+            storm_object_table=this_storm_object_table, axes_object=axes_object,
             basemap_object=basemap_object, colour_map_object=None,
             line_colour=primary_id_to_colour_dict[this_primary_id_string]
         )

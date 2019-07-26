@@ -16,7 +16,7 @@ MAX_B_FOR_LAB_SPACE = 127.
 NUM_H_FOR_HSV_SPACE = 256
 NUM_S_FOR_HSV_SPACE = 256
 NUM_V_FOR_HSV_SPACE = 256
-DEFAULT_MIN_RGB_DISTANCE = 0.1
+DEFAULT_MIN_RGB_DISTANCE = 0.25
 
 
 def get_random_colours(num_colours, colour_to_exclude_rgb=None,
