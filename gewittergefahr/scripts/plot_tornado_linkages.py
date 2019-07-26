@@ -247,8 +247,8 @@ def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
         axes_object.text(
             start_x_coords_metres[j], start_y_coords_metres[j],
             tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
-            fontsize=TORNADO_FONT_SIZE, color='k', horizontalalignment='center',
-            verticalalignment='center')
+            fontsize=TORNADO_FONT_SIZE, fontweight='bold', color='k',
+            horizontalalignment='left', verticalalignment='top')
 
         if genesis_only:
             continue
@@ -267,7 +267,7 @@ def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
             end_x_coords_metres[j], end_y_coords_metres[j],
             tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
             fontsize=TORNADO_FONT_SIZE, fontweight='bold', color='k',
-            horizontalalignment='center', verticalalignment='center')
+            horizontalalignment='left', verticalalignment='top')
 
 
 def _plot_linkages_one_storm_object(
