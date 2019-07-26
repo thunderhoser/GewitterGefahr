@@ -27,6 +27,7 @@ SENTINEL_VALUE = -9999
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 NICE_TIME_FORMAT = '%H%M UTC %-d %b %Y'
 
+KILOFEET_TO_KM = 1. / 3.2808
 RADAR_COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
 
 NUM_PARALLELS = 8
@@ -356,16 +357,12 @@ def _plot_storm_outlines_one_time(
             radar_longitudes_deg[1] - radar_longitudes_deg[0]
         )
 
-        colour_norm_object = radar_plotting.get_default_colour_scheme(
-            radar_field_name
-        )[-1]
+        colour_norm_object = pyplot.Normalize(
+            0.1 * KILOFEET_TO_KM, 65 * KILOFEET_TO_KM)
 
         print(colour_norm_object.vmin)
         print(colour_norm_object.vmax)
         print('\n\n*******\n\n')
-
-        colour_norm_object = pyplot.Normalize(
-            colour_norm_object.vmin, colour_norm_object.vmax)
 
         colour_map_object = RADAR_COLOUR_MAP_OBJECT
 
