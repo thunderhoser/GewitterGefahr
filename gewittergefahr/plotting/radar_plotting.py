@@ -276,8 +276,9 @@ def _get_echo_top_colour_scheme():
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
     colour_map_object.set_under(numpy.full(3, 1))
 
-    colour_bounds_kft = numpy.array(
-        [0.1, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65])
+    colour_bounds_kft = numpy.array([
+        0.1, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_kft, colour_map_object.N)
 

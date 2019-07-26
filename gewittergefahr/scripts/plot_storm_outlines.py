@@ -17,7 +17,6 @@ from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import storm_plotting
 from gewittergefahr.plotting import radar_plotting
-from gewittergefahr.plotting import imagemagick_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -28,20 +27,18 @@ SENTINEL_VALUE = -9999
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 NICE_TIME_FORMAT = '%H%M UTC %-d %b %Y'
 
-RADAR_COLOUR_MAP_OBJECT = pyplot.cm.get_cmap('YlOrRd')
-
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = 0.5
 BORDER_COLOUR = numpy.full(3, 0.)
-TRACK_COLOUR = numpy.full(3, 0.)
+DEFAULT_TRACK_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
-STORM_COLOUR_ARG_NAME = 'storm_colour'
-STORM_OPACITY_ARG_NAME = 'storm_opacity'
+OUTLINE_COLOUR_ARG_NAME = 'storm_outline_colour'
+OUTLINE_OPACITY_ARG_NAME = 'storm_outline_opacity'
 INCLUDE_SECONDARY_ARG_NAME = 'include_secondary_ids'
 MIN_LATITUDE_ARG_NAME = 'min_plot_latitude_deg'
 MAX_LATITUDE_ARG_NAME = 'max_plot_latitude_deg'
@@ -50,6 +47,7 @@ MAX_LONGITUDE_ARG_NAME = 'max_plot_longitude_deg'
 MYRORSS_DIR_ARG_NAME = 'input_myrorss_dir_name'
 RADAR_FIELD_ARG_NAME = 'radar_field_name'
 RADAR_HEIGHT_ARG_NAME = 'radar_height_m_asl'
+RADAR_CMAP_ARG_NAME = 'radar_colour_map_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 TRACKING_DIR_HELP_STRING = (
@@ -62,11 +60,11 @@ SPC_DATE_HELP_STRING = (
     'dates in the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
-STORM_COLOUR_HELP_STRING = (
+OUTLINE_COLOUR_HELP_STRING = (
     'Colour of storm outlines (length-3 list of elements [R, G, B], each in '
     'range 0...255).')
 
-STORM_OPACITY_HELP_STRING = 'Opacity of storm outlines (in range 0...1).'
+OUTLINE_OPACITY_HELP_STRING = 'Opacity of storm outlines (in range 0...1).'
 
 INCLUDE_SECONDARY_HELP_STRING = (
     'Boolean flag.  If 1, primary_secondary ID will be plotted next to each '
@@ -100,11 +98,17 @@ RADAR_HEIGHT_HELP_STRING = (
     'sea level).'
 ).format(RADAR_FIELD_ARG_NAME, radar_utils.REFL_NAME)
 
+RADAR_CMAP_HELP_STRING = (
+    'Name of colour map for radar field.  For example, if name is "Greys", the '
+    'colour map used will be `pyplot.cm.Greys`.  This argument supports only '
+    'pyplot colour maps.  To use the default colour map, make this argument '
+    'empty.')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
 
-DEFAULT_STORM_COLOUR = numpy.array([228, 26, 28], dtype=int)
-DEFAULT_STORM_OPACITY = 0.5
+DEFAULT_OUTLINE_COLOUR = numpy.array([228, 26, 28], dtype=int)
+DEFAULT_OUTLINE_OPACITY = 0.5
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -120,12 +124,12 @@ INPUT_ARG_PARSER.add_argument(
     help=SPC_DATE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_COLOUR_ARG_NAME, type=int, nargs=3, required=False,
-    default=DEFAULT_STORM_COLOUR, help=STORM_COLOUR_HELP_STRING)
+    '--' + OUTLINE_COLOUR_ARG_NAME, type=int, nargs=3, required=False,
+    default=DEFAULT_OUTLINE_COLOUR, help=OUTLINE_COLOUR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_OPACITY_ARG_NAME, type=float, required=False,
-    default=DEFAULT_STORM_OPACITY, help=STORM_OPACITY_HELP_STRING)
+    '--' + OUTLINE_OPACITY_ARG_NAME, type=float, required=False,
+    default=DEFAULT_OUTLINE_OPACITY, help=OUTLINE_OPACITY_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + INCLUDE_SECONDARY_ARG_NAME, type=int, required=False,
@@ -158,6 +162,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_HEIGHT_ARG_NAME, type=int, required=False, default=-1,
     help=RADAR_HEIGHT_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + RADAR_CMAP_ARG_NAME, type=str, required=False, default='YlOrRd',
+    help=RADAR_CMAP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -280,28 +288,67 @@ def _filter_storm_objects_latlng(
     ))[0]
 
 
+def _assign_colours_to_storms(storm_object_table, radar_colour_map_object):
+    """Assigns colour to each primary storm ID.  Will be used to colour tracks.
+
+    :param storm_object_table: See doc for `storm_tracking_io.write_file`.
+    :param radar_colour_map_object: See doc for
+        `radar_plotting.plot_latlng_grid`.
+    :param radar_colour_norm_object: Same.
+    :return: primary_id_to_track_colour: Dictionary, where each key is a primary
+        storm ID (string) and each value is an RGB colour (length-3 numpy
+        array).
+    """
+
+    unique_primary_id_strings = numpy.unique(
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values
+    )
+
+    colour_to_exclude = radar_colour_map_object(0.5)[:-1]
+
+    rgb_matrix = colours.get_random_colours(
+        num_colours=len(unique_primary_id_strings),
+        colour_to_exclude_rgb=colour_to_exclude
+    )
+
+    num_colours = rgb_matrix.shape[0]
+    primary_id_to_track_colour = {}
+
+    for i in range(len(unique_primary_id_strings)):
+        primary_id_to_track_colour[unique_primary_id_strings[i]] = rgb_matrix[
+            numpy.mod(i, num_colours), ...
+        ]
+
+    return primary_id_to_track_colour
+
+
 def _plot_storm_outlines_one_time(
         storm_object_table, valid_time_unix_sec, axes_object, basemap_object,
-        primary_id_to_colour_dict,
-        storm_colour, storm_opacity, include_secondary_ids,
-        output_dir_name, radar_matrix=None, radar_field_name=None,
-        radar_latitudes_deg=None, radar_longitudes_deg=None):
+        storm_outline_colour, storm_outline_opacity, include_secondary_ids,
+        output_dir_name, primary_id_to_track_colour=None, radar_matrix=None,
+        radar_field_name=None, radar_latitudes_deg=None,
+        radar_longitudes_deg=None, radar_colour_map_object=None):
     """Plots storm outlines (and may underlay radar data) at one time step.
 
     M = number of rows in radar grid
     N = number of columns in radar grid
     K = number of storm objects
 
+    If `primary_id_to_track_colour is None`, all storm tracks will be the same
+    colour.
+
     :param storm_object_table: See doc for `storm_plotting.plot_storm_outlines`.
     :param valid_time_unix_sec: Will plot storm outlines only at this time.
         Will plot tracks up to and including this time.
-    :param axes_object: Same.
+    :param axes_object: See doc for `storm_plotting.plot_storm_outlines`.
     :param basemap_object: Same.
-    :param primary_id_to_colour_dict: FOO.
-    :param storm_colour: Same.
-    :param storm_opacity: Same.
+    :param storm_outline_colour: Same.
+    :param storm_outline_opacity: Same.
     :param include_secondary_ids: Same.
     :param output_dir_name: See documentation at top of file.
+    :param primary_id_to_track_colour: Dictionary created by
+        `_assign_colours_to_storms`.  If this is None, all storm tracks will be
+        the same colour.
     :param radar_matrix: M-by-N numpy array of radar values.  If
         `radar_matrix is None`, radar data will simply not be plotted.
     :param radar_field_name: [used only if `radar_matrix is not None`]
@@ -310,7 +357,12 @@ def _plot_storm_outlines_one_time(
         length-M numpy array of grid-point latitudes (deg N).
     :param radar_longitudes_deg: [used only if `radar_matrix is not None`]
         length-N numpy array of grid-point longitudes (deg E).
+    :param radar_colour_map_object: [used only if `radar_matrix is not None`]
+        Colour map (instance of `matplotlib.pyplot.cm`).  If None, will use
+        default for the given field.
     """
+
+    plot_storm_ids = radar_matrix is None or radar_colour_map_object is None
 
     min_plot_latitude_deg = basemap_object.llcrnrlat
     max_plot_latitude_deg = basemap_object.urcrnrlat
@@ -338,6 +390,8 @@ def _plot_storm_outlines_one_time(
         num_meridians=NUM_MERIDIANS)
 
     if radar_matrix is not None:
+        custom_colour_map = radar_colour_map_object is not None
+
         good_indices = numpy.where(numpy.logical_and(
             radar_latitudes_deg >= min_plot_latitude_deg,
             radar_latitudes_deg <= max_plot_latitude_deg
@@ -359,8 +413,21 @@ def _plot_storm_outlines_one_time(
             radar_longitudes_deg[1] - radar_longitudes_deg[0]
         )
 
-        colour_map_object = RADAR_COLOUR_MAP_OBJECT
-        colour_norm_object = pyplot.Normalize(0.1, 65)
+        if radar_colour_map_object is None:
+            radar_colour_map_object, radar_colour_norm_object = (
+                radar_plotting.get_default_colour_scheme(radar_field_name)
+            )
+        else:
+            radar_colour_norm_object = radar_plotting.get_default_colour_scheme(
+                radar_field_name
+            )[-1]
+
+            this_ratio = radar_plotting._field_to_plotting_units(
+                field_matrix=1., field_name=radar_field_name)
+
+            radar_colour_norm_object = pyplot.Normalize(
+                radar_colour_norm_object.vmin / this_ratio,
+                radar_colour_norm_object.vmax / this_ratio)
 
         radar_plotting.plot_latlng_grid(
             field_matrix=radar_matrix, field_name=radar_field_name,
@@ -369,12 +436,8 @@ def _plot_storm_outlines_one_time(
             min_grid_point_longitude_deg=numpy.min(radar_longitudes_deg),
             latitude_spacing_deg=latitude_spacing_deg,
             longitude_spacing_deg=longitude_spacing_deg,
-            colour_map_object=colour_map_object,
-            colour_norm_object=colour_norm_object)
-
-        # colour_map_object, colour_norm_object = (
-        #     radar_plotting.get_default_colour_scheme(radar_field_name)
-        # )
+            colour_map_object=radar_colour_map_object,
+            colour_norm_object=radar_colour_norm_object)
 
         latitude_range_deg = max_plot_latitude_deg - min_plot_latitude_deg
         longitude_range_deg = max_plot_longitude_deg - min_plot_longitude_deg
@@ -386,63 +449,68 @@ def _plot_storm_outlines_one_time(
 
         colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=radar_matrix,
-            colour_map_object=colour_map_object,
-            colour_norm_object=colour_norm_object,
+            colour_map_object=radar_colour_map_object,
+            colour_norm_object=radar_colour_norm_object,
             orientation_string=orientation_string,
             extend_min=radar_field_name in radar_plotting.SHEAR_VORT_DIV_NAMES,
             extend_max=True, fraction_of_axis_length=0.9)
 
-        if orientation_string == 'horizontal':
-            tick_values = colour_bar_object.ax.get_xticks()
-        else:
-            tick_values = colour_bar_object.ax.get_yticks()
-
-        print(tick_values)
-        tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
-
-        if orientation_string == 'horizontal':
-            colour_bar_object.ax.set_xticks(tick_values)
-            colour_bar_object.ax.set_xticklabels(tick_label_strings)
-        else:
-            colour_bar_object.ax.set_yticks(tick_values)
-            colour_bar_object.ax.set_yticklabels(tick_label_strings)
-
         colour_bar_object.set_label(
             radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[radar_field_name]
         )
+
+        if custom_colour_map:
+            if orientation_string == 'horizontal':
+                tick_values = colour_bar_object.ax.get_xticks()
+            else:
+                tick_values = colour_bar_object.ax.get_yticks()
+
+            tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
+            colour_bar_object.set_ticks(tick_values)
+            colour_bar_object.set_ticklabels(tick_label_strings)
 
     valid_time_rows = numpy.where(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values ==
         valid_time_unix_sec
     )[0]
 
-    line_colour = matplotlib.colors.to_rgba(storm_colour, storm_opacity)
+    this_colour = matplotlib.colors.to_rgba(
+        storm_outline_colour, storm_outline_opacity)
 
     storm_plotting.plot_storm_outlines(
         storm_object_table=storm_object_table.iloc[valid_time_rows],
         axes_object=axes_object, basemap_object=basemap_object,
-        line_colour=line_colour)
+        line_colour=this_colour)
 
-    # storm_plotting.plot_storm_ids(
-    #     storm_object_table=storm_object_table.iloc[valid_time_rows],
-    #     axes_object=axes_object, basemap_object=basemap_object,
-    #     plot_near_centroids=False, include_secondary_ids=include_secondary_ids,
-    #     font_colour=storm_plotting.DEFAULT_FONT_COLOUR)
+    if plot_storm_ids:
+        storm_plotting.plot_storm_ids(
+            storm_object_table=storm_object_table.iloc[valid_time_rows],
+            axes_object=axes_object, basemap_object=basemap_object,
+            plot_near_centroids=False,
+            include_secondary_ids=include_secondary_ids,
+            font_colour=storm_plotting.DEFAULT_FONT_COLOUR)
 
-    for this_primary_id_string in primary_id_to_colour_dict:
-        this_storm_object_table = storm_object_table.loc[
-            storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
-            this_primary_id_string
-        ]
-
-        if len(this_storm_object_table.index) == 0:
-            continue
-
+    if primary_id_to_track_colour is None:
         storm_plotting.plot_storm_tracks(
-            storm_object_table=this_storm_object_table, axes_object=axes_object,
+            storm_object_table=storm_object_table, axes_object=axes_object,
             basemap_object=basemap_object, colour_map_object=None,
-            line_colour=primary_id_to_colour_dict[this_primary_id_string]
-        )
+            line_colour=DEFAULT_TRACK_COLOUR)
+    else:
+        for this_primary_id_string in primary_id_to_track_colour:
+            this_storm_object_table = storm_object_table.loc[
+                storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
+                this_primary_id_string
+            ]
+
+            if len(this_storm_object_table.index) == 0:
+                continue
+
+            storm_plotting.plot_storm_tracks(
+                storm_object_table=this_storm_object_table,
+                axes_object=axes_object, basemap_object=basemap_object,
+                colour_map_object=None,
+                line_colour=primary_id_to_track_colour[this_primary_id_string]
+            )
 
     nice_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, NICE_TIME_FORMAT)
@@ -455,18 +523,16 @@ def _plot_storm_outlines_one_time(
         output_dir_name, abbrev_time_string)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                   bbox_inches='tight')
     pyplot.close()
-
-    imagemagick_utils.trim_whitespace(input_file_name=output_file_name,
-                                      output_file_name=output_file_name)
 
 
 def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
-         storm_colour, storm_opacity, include_secondary_ids,
+         storm_outline_colour, storm_outline_opacity, include_secondary_ids,
          min_plot_latitude_deg, max_plot_latitude_deg, min_plot_longitude_deg,
          max_plot_longitude_deg, top_myrorss_dir_name, radar_field_name,
-         radar_height_m_asl, output_dir_name):
+         radar_height_m_asl, radar_colour_map_name, output_dir_name):
     """Plots storm outlines (along with IDs) at each time step.
 
     This is effectively the main method.
@@ -474,8 +540,8 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     :param top_tracking_dir_name: See documentation at top of file.
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
-    :param storm_colour: Same.
-    :param storm_opacity: Same.
+    :param storm_outline_colour: Same.
+    :param storm_outline_opacity: Same.
     :param include_secondary_ids: Same.
     :param min_plot_latitude_deg: Same.
     :param max_plot_latitude_deg: Same.
@@ -484,6 +550,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     :param top_myrorss_dir_name: Same.
     :param radar_field_name: Same.
     :param radar_height_m_asl: Same.
+    :param radar_colour_map_name: Same.
     :param output_dir_name: Same.
     """
 
@@ -492,6 +559,11 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
     if radar_field_name != radar_utils.REFL_NAME:
         radar_height_m_asl = None
+
+    if radar_colour_map_name in ['', 'None']:
+        radar_colour_map_object = None
+    else:
+        radar_colour_map_object = pyplot.get_cmap(radar_colour_map_name)
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -528,25 +600,12 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     min_plot_longitude_deg = longitude_limits_deg[0]
     max_plot_longitude_deg = longitude_limits_deg[1]
 
-    unique_primary_id_strings = numpy.unique(
-        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values
-    )
-
-    colour_to_exclude = numpy.array([252, 143, 60], dtype=float) / 255
-    rgb_matrix = colours.get_random_colours(
-        num_colours=len(unique_primary_id_strings),
-        colour_to_exclude_rgb=colour_to_exclude
-    )
-
-    print(rgb_matrix)
-
-    num_colours = rgb_matrix.shape[0]
-    primary_id_to_colour_dict = {}
-
-    for i in range(len(unique_primary_id_strings)):
-        primary_id_to_colour_dict[unique_primary_id_strings[i]] = rgb_matrix[
-            numpy.mod(i, num_colours), ...
-        ]
+    if radar_colour_map_object is None:
+        primary_id_to_track_colour = None
+    else:
+        primary_id_to_track_colour = _assign_colours_to_storms(
+            storm_object_table=storm_object_table,
+            radar_colour_map_object=radar_colour_map_object)
 
     valid_times_unix_sec = numpy.unique(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
@@ -638,13 +697,15 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             storm_object_table=this_storm_object_table.iloc[these_latlng_rows],
             valid_time_unix_sec=valid_times_unix_sec[i],
             axes_object=this_axes_object, basemap_object=this_basemap_object,
-            primary_id_to_colour_dict=primary_id_to_colour_dict,
-            storm_colour=storm_colour, storm_opacity=storm_opacity,
+            storm_outline_colour=storm_outline_colour,
+            storm_outline_opacity=storm_outline_opacity,
             include_secondary_ids=include_secondary_ids,
-            output_dir_name=output_dir_name, radar_matrix=this_radar_matrix,
-            radar_field_name=radar_field_name,
+            output_dir_name=output_dir_name,
+            primary_id_to_track_colour=primary_id_to_track_colour,
+            radar_matrix=this_radar_matrix, radar_field_name=radar_field_name,
             radar_latitudes_deg=these_radar_latitudes_deg,
-            radar_longitudes_deg=these_radar_longitudes_deg)
+            radar_longitudes_deg=these_radar_longitudes_deg,
+            radar_colour_map_object=radar_colour_map_object)
 
 
 if __name__ == '__main__':
@@ -654,10 +715,11 @@ if __name__ == '__main__':
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
         first_spc_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
-        storm_colour=numpy.array(
-            getattr(INPUT_ARG_OBJECT, STORM_COLOUR_ARG_NAME), dtype=float
+        storm_outline_colour=numpy.array(
+            getattr(INPUT_ARG_OBJECT, OUTLINE_COLOUR_ARG_NAME), dtype=float
         ) / 255,
-        storm_opacity=getattr(INPUT_ARG_OBJECT, STORM_OPACITY_ARG_NAME),
+        storm_outline_opacity=getattr(
+            INPUT_ARG_OBJECT, OUTLINE_OPACITY_ARG_NAME),
         include_secondary_ids=bool(getattr(
             INPUT_ARG_OBJECT, INCLUDE_SECONDARY_ARG_NAME)),
         min_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MIN_LATITUDE_ARG_NAME),
@@ -669,5 +731,6 @@ if __name__ == '__main__':
         top_myrorss_dir_name=getattr(INPUT_ARG_OBJECT, MYRORSS_DIR_ARG_NAME),
         radar_field_name=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_ARG_NAME),
         radar_height_m_asl=getattr(INPUT_ARG_OBJECT, RADAR_HEIGHT_ARG_NAME),
+        radar_colour_map_name=getattr(INPUT_ARG_OBJECT, RADAR_CMAP_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

@@ -19,6 +19,9 @@ from gewittergefahr.plotting import storm_plotting
 # TODO(thunderhoser): Maybe put some of this code in linkage_plotting.py.
 #  Either way, methods need unit tests.
 
+# TODO(thunderhoser): Turn this into one plot for each tornado, rather than one
+# with all.
+
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
