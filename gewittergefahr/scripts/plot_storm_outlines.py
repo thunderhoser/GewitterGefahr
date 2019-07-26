@@ -395,6 +395,13 @@ def _plot_storm_outlines_one_time(
             extend_min=radar_field_name in radar_plotting.SHEAR_VORT_DIV_NAMES,
             extend_max=True, fraction_of_axis_length=0.9)
 
+        if orientation_string == 'horizontal':
+            tick_values = colour_bar_object.ax.get_xticks()
+        else:
+            tick_values = colour_bar_object.ax.get_yticks()
+
+        print(tick_values)
+
         colour_bar_object.set_label(
             radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[radar_field_name]
         )
