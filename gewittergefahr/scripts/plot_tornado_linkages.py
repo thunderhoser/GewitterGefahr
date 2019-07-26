@@ -103,7 +103,7 @@ INPUT_ARG_PARSER.add_argument(
     help=GENESIS_ONLY_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_DISTANCE_ARG_NAME, type=float, required=False, default=-1,
+    '--' + MAX_DISTANCE_ARG_NAME, type=float, required=False, default=0.,
     help=MAX_DISTANCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -274,7 +274,7 @@ def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
 def _plot_linkages_one_storm_object(
         storm_to_tornadoes_table, storm_object_index, tornado_table,
         colour_map_object, colour_norm_object, axes_object, basemap_object,
-        max_link_distance_metres=None):
+        max_link_distance_metres):
     """Plots linkages for one storm object.
 
     :param storm_to_tornadoes_table: pandas DataFrame returned by
@@ -437,9 +437,6 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
     :param max_plot_longitude_deg: Same.
     :param output_file_name: Same.
     """
-
-    if max_link_distance_metres < 0:
-        max_link_distance_metres = None
 
     colour_map_object = _truncate_colour_map(
         orig_colour_map_object=pyplot.cm.get_cmap('YlOrRd'),
