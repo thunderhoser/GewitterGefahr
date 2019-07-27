@@ -522,8 +522,8 @@ def _plot_2d_radar_scan(
     figure_object, axes_object_matrix, cbar_object_matrix = (
         radar_plotting.plot_many_2d_grids_without_coords(
             field_matrix=numpy.flip(list_of_predictor_matrices[0], axis=0),
-            field_name_by_panel=field_name_by_panel,
-            panel_names=None if bams_format else panel_names,
+            field_name_by_panel=field_name_by_panel, panel_names=None,
+            # panel_names=None if bams_format else panel_names,
             num_panel_rows=num_panel_rows, figure_object=figure_object,
             axes_object_matrix=axes_object_matrix,
             plot_colour_bar_by_panel=plot_cbar_by_panel,
