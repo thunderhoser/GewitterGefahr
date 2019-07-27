@@ -38,7 +38,7 @@ TORNADO_FONT_SIZE = 18
 TORNADO_START_MARKER_TYPE = 'o'
 TORNADO_END_MARKER_TYPE = 'x'
 TORNADO_START_MARKER_SIZE = 8
-TORNADO_END_MARKER_SIZE = 2
+TORNADO_END_MARKER_SIZE = 12
 
 TEXT_BOUNDING_BOX_DICT = {
     'alpha': 0.5, 'edgecolor': 'k', 'linewidth': 1
@@ -252,15 +252,11 @@ def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
             markerfacecolor=this_colour_tuple,
             markeredgecolor=this_colour_tuple)
 
-        this_bounding_box_dict = copy.deepcopy(TEXT_BOUNDING_BOX_DICT)
-        this_bounding_box_dict['facecolor'] = this_colour_tuple
-
         axes_object.text(
             start_x_coords_metres[j], start_y_coords_metres[j],
             tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
             fontsize=TORNADO_FONT_SIZE, fontweight='bold', color='k',
-            horizontalalignment='left', verticalalignment='top',
-            bbox=this_bounding_box_dict)
+            horizontalalignment='left', verticalalignment='top')
 
         if genesis_only:
             continue
@@ -275,15 +271,11 @@ def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
             markeredgewidth=1, markerfacecolor=this_colour_tuple,
             markeredgecolor=this_colour_tuple)
 
-        this_bounding_box_dict = copy.deepcopy(TEXT_BOUNDING_BOX_DICT)
-        this_bounding_box_dict['facecolor'] = this_colour_tuple
-
         axes_object.text(
             end_x_coords_metres[j], end_y_coords_metres[j],
             tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
             fontsize=TORNADO_FONT_SIZE, fontweight='bold', color='k',
-            horizontalalignment='left', verticalalignment='top',
-            bbox=this_bounding_box_dict)
+            horizontalalignment='left', verticalalignment='top')
 
 
 def _plot_linkages_one_storm_object(
