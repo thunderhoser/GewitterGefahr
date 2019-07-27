@@ -1,5 +1,6 @@
 """Plots tornado reports, storm tracks, and linkages."""
 
+import copy
 import os.path
 import argparse
 import numpy
@@ -32,12 +33,16 @@ COLOUR_MAP_NAME = 'YlOrRd'
 
 LINKAGE_FONT_SIZE = 12
 LINKAGE_FONT_COLOUR = numpy.full(3, 0.)
-LINKAGE_BACKGROUND_OPACITY = 0.5
 
 TORNADO_FONT_SIZE = 18
 TORNADO_START_MARKER_TYPE = 'o'
-TORNADO_END_MARKER_TYPE = 'D'
-TORNADO_MARKER_SIZE = 6
+TORNADO_END_MARKER_TYPE = 'x'
+TORNADO_START_MARKER_SIZE = 8
+TORNADO_END_MARKER_SIZE = 2
+
+TEXT_BOUNDING_BOX_DICT = {
+    'alpha': 0.5, 'edgecolor': 'k', 'linewidth': 1
+}
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -243,15 +248,19 @@ def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
         axes_object.plot(
             start_x_coords_metres[j], start_y_coords_metres[j],
             linestyle='None', marker=TORNADO_START_MARKER_TYPE,
-            markersize=TORNADO_MARKER_SIZE, markeredgewidth=1,
+            markersize=TORNADO_START_MARKER_SIZE, markeredgewidth=1,
             markerfacecolor=this_colour_tuple,
             markeredgecolor=this_colour_tuple)
+
+        this_bounding_box_dict = copy.deepcopy(TEXT_BOUNDING_BOX_DICT)
+        this_bounding_box_dict['facecolor'] = this_colour_tuple
 
         axes_object.text(
             start_x_coords_metres[j], start_y_coords_metres[j],
             tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
             fontsize=TORNADO_FONT_SIZE, fontweight='bold', color='k',
-            horizontalalignment='left', verticalalignment='top')
+            horizontalalignment='left', verticalalignment='top',
+            bbox=this_bounding_box_dict)
 
         if genesis_only:
             continue
@@ -262,15 +271,19 @@ def _plot_tornadoes(tornado_table, colour_map_object, colour_norm_object,
 
         axes_object.plot(
             end_x_coords_metres[j], end_y_coords_metres[j], linestyle='None',
-            marker=TORNADO_END_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
+            marker=TORNADO_END_MARKER_TYPE, markersize=TORNADO_END_MARKER_SIZE,
             markeredgewidth=1, markerfacecolor=this_colour_tuple,
             markeredgecolor=this_colour_tuple)
+
+        this_bounding_box_dict = copy.deepcopy(TEXT_BOUNDING_BOX_DICT)
+        this_bounding_box_dict['facecolor'] = this_colour_tuple
 
         axes_object.text(
             end_x_coords_metres[j], end_y_coords_metres[j],
             tornado_table[SHORT_TORNADO_ID_COLUMN].values[j],
             fontsize=TORNADO_FONT_SIZE, fontweight='bold', color='k',
-            horizontalalignment='left', verticalalignment='top')
+            horizontalalignment='left', verticalalignment='top',
+            bbox=this_bounding_box_dict)
 
 
 def _plot_linkages_one_storm_object(
@@ -342,14 +355,10 @@ def _plot_linkages_one_storm_object(
             tracking_utils.VALID_TIME_COLUMN].values[i]
     ))
 
-    bounding_box_dict = {
-        'facecolor': plotting_utils.colour_from_numpy_to_tuple(
-            bg_colour_numpy[:-1]
-        ),
-        'alpha': LINKAGE_BACKGROUND_OPACITY,
-        'edgecolor': 'k',
-        'linewidth': 1
-    }
+    bounding_box_dict = copy.deepcopy(TEXT_BOUNDING_BOX_DICT)
+    bounding_box_dict['facecolor'] = plotting_utils.colour_from_numpy_to_tuple(
+        bg_colour_numpy[:-1]
+    )
 
     label_string = ','.join(list(set(linked_short_id_strings)))
 
@@ -601,6 +610,21 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
         num_meridians=NUM_MERIDIANS)
 
     print('Plotting storm tracks...')
+
+    unique_primary_id_strings, unique_counts = numpy.unique(
+        storm_to_tornadoes_table[tracking_utils.PRIMARY_ID_COLUMN].values
+    )
+
+    singleton_indices = numpy.where(unique_counts == 1)[0]
+    singleton_id_strings = [
+        unique_primary_id_strings[k] for k in singleton_indices
+    ]
+
+    storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
+        ~storm_to_tornadoes_table[tracking_utils.PRIMARY_ID_COLUMN].isin(
+            singleton_id_strings)
+    ]
+
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_to_tornadoes_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=colour_map_object,
