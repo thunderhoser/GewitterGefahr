@@ -42,7 +42,7 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
         evaluation_table[model_eval.POD_BY_THRESHOLD_KEY].values.tolist()
     ))
     pofd_matrix = numpy.vstack(tuple(
-        evaluation_table[model_eval.POD_BY_THRESHOLD_KEY].values.tolist()
+        evaluation_table[model_eval.POFD_BY_THRESHOLD_KEY].values.tolist()
     ))
 
     mean_auc = numpy.mean(evaluation_table[model_eval.AUC_KEY].values)
