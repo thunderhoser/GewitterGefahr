@@ -612,7 +612,8 @@ def _run(top_linkage_dir_name, genesis_only, max_link_distance_metres,
     print('Plotting storm tracks...')
 
     unique_primary_id_strings, unique_counts = numpy.unique(
-        storm_to_tornadoes_table[tracking_utils.PRIMARY_ID_COLUMN].values
+        storm_to_tornadoes_table[tracking_utils.PRIMARY_ID_COLUMN].values,
+        return_counts=True
     )
 
     singleton_indices = numpy.where(unique_counts == 1)[0]
