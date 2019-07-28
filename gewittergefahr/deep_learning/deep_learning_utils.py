@@ -18,6 +18,7 @@ T = number of file times (time steps or SPC dates)
 
 import copy
 import pickle
+import os.path
 import numpy
 from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import radar_utils
@@ -1020,6 +1021,20 @@ def read_normalization_params_from_file(pickle_file_name):
     :return: sounding_table_no_height: Same.
     :return: sounding_table_with_height: Same.
     """
+
+    schooner_file_name = (
+        '/scratch/ralager/myrorss_40dbz_echo_tops/new_tracks/reanalyzed/'
+        'tornado_occurrence/downsampled_for_training/learning_examples/'
+        'shuffled/normalization_params.p')
+
+    casper_file_name = (
+        '/glade/scratch/ryanlage/myrorss_40dbz_echo_tops/new_tracks/reanalyzed/'
+        'tornado_occurrence/downsampled_for_training/learning_examples/'
+        'shuffled/normalization_params.p')
+
+    if (pickle_file_name == schooner_file_name and
+            not os.path.isfile(pickle_file_name)):
+        pickle_file_name = casper_file_name
 
     # TODO(thunderhoser): Move this to normalization.py or something.
     pickle_file_handle = open(pickle_file_name, 'rb')
