@@ -122,7 +122,8 @@ def plot_sounding(
     figure_height_inches = option_dict[FIGURE_HEIGHT_KEY]
 
     figure_object = pyplot.figure(
-        figsize=(figure_width_inches, figure_height_inches))
+        figsize=(figure_width_inches, figure_height_inches)
+    )
     skewt_object = metpy.plots.SkewT(figure_object, rotation=45)
 
     pressures_mb = sounding_dict_for_metpy[

@@ -511,11 +511,9 @@ def _plot_bwo_for_soundings(
             title_string=this_title_string
         )[0]
 
-        pyplot.close(this_figure_object)
-
         print('Saving figure to: "{0:s}"...'.format(this_file_name))
         pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
+        pyplot.close(this_figure_object)
 
 
 def _run(input_file_name, bams_format, plot_significance, diff_colour_map_name,
