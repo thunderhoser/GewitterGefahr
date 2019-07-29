@@ -1,5 +1,6 @@
 """Thresholds Grad-CAM output to create regions of interest (polygons)."""
 
+import sys
 import copy
 import argparse
 import numpy
@@ -204,6 +205,9 @@ def _run(input_gradcam_file_name, percentile_threshold, min_class_activation,
             this_mask_matrix = (
                 list_of_cam_matrices[j][i, ...] >= this_min_class_activation
             )
+
+            numpy.set_printoptions(threshold=sys.maxsize)
+            print(this_mask_matrix.astype(int))
 
             print('{0:d} of {1:d} grid points are inside mask.\n'.format(
                 numpy.sum(this_mask_matrix.astype(int)), this_mask_matrix.size
