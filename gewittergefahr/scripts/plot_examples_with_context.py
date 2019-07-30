@@ -193,13 +193,15 @@ def _plot_one_example_one_time(
     min_plot_longitude_deg = longitude_limits_deg[0]
     max_plot_longitude_deg = longitude_limits_deg[1]
 
-    radar_file_name = myrorss_and_mrms_io.find_raw_file(
+    radar_file_name = myrorss_and_mrms_io.find_raw_file_inexact_time(
         top_directory_name=top_myrorss_dir_name,
+        desired_time_unix_sec=valid_time_unix_sec,
         spc_date_string=time_conversion.time_to_spc_date_string(
             valid_time_unix_sec),
-        unix_time_sec=valid_time_unix_sec,
         data_source=radar_utils.MYRORSS_SOURCE_ID,
         field_name=radar_field_name, height_m_asl=radar_height_m_asl,
+        max_time_offset_sec=
+        myrorss_and_mrms_io.DEFAULT_MAX_TIME_OFFSET_FOR_NON_SHEAR_SEC,
         raise_error_if_missing=True)
 
     print('Reading data from: "{0:s}"...'.format(radar_file_name))
