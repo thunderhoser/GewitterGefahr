@@ -30,7 +30,6 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import storm_plotting
-from gewittergefahr.plotting import imagemagick_utils
 
 # TODO(thunderhoser): Deal with both tornado occurrence and genesis as target
 # variables.
@@ -745,11 +744,9 @@ def _plot_one_example(
         )
 
         print('Saving figure to file: "{0:s}"...\n'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                       bbox_inches='tight')
         pyplot.close()
-
-        imagemagick_utils.trim_whitespace(
-            input_file_name=this_file_name, output_file_name=this_file_name)
 
 
 def _run(main_activation_file_name, first_example_index, last_example_index,
