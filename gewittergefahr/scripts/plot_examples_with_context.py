@@ -239,7 +239,7 @@ def _plot_one_example_one_time(
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=plotting_utils.DEFAULT_COUNTY_COLOUR)
+        line_colour=plotting_utils.DEFAULT_COUNTRY_COLOUR)
 
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object)

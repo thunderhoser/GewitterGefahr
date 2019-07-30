@@ -21,7 +21,7 @@ DEFAULT_NUM_MERIDIANS = 6
 DEFAULT_COUNTRY_WIDTH = 2.
 DEFAULT_PROVINCE_WIDTH = 1.
 DEFAULT_COUNTY_WIDTH = 0.5
-DEFAULT_COAST_WIDTH = 1.
+DEFAULT_COAST_WIDTH = 2.
 DEFAULT_RIVER_WIDTH = 0.5
 DEFAULT_GRID_LINE_WIDTH = 1.
 
@@ -98,9 +98,9 @@ def _check_basemap_args(
     error_checking.assert_is_valid_latitude(max_latitude_deg)
     error_checking.assert_is_greater(max_latitude_deg, min_latitude_deg)
 
-    min_longitude_deg = lng_conversion.convert_lng_negative_in_west(
+    min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
         min_longitude_deg)
-    max_longitude_deg = lng_conversion.convert_lng_negative_in_west(
+    max_longitude_deg = lng_conversion.convert_lng_positive_in_west(
         max_longitude_deg)
 
     error_checking.assert_is_greater(max_longitude_deg, min_longitude_deg)
@@ -411,11 +411,11 @@ def create_map_with_nwp_proj(
             numpy.array([min_latitude_deg, max_latitude_deg])
         )
 
-        min_longitude_deg = lng_conversion.convert_lng_negative_in_west(
+        min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
             latlng_limit_dict[MIN_LONGITUDE_KEY]
         )
 
-        max_longitude_deg = lng_conversion.convert_lng_negative_in_west(
+        max_longitude_deg = lng_conversion.convert_lng_positive_in_west(
             latlng_limit_dict[MAX_LONGITUDE_KEY]
         )
 
