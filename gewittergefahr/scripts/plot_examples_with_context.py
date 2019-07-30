@@ -247,8 +247,8 @@ def _plot_one_example_one_time(
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object)
 
-    plotting_utils.plot_counties(
-        basemap_object=basemap_object, axes_object=axes_object)
+    # plotting_utils.plot_counties(
+    #     basemap_object=basemap_object, axes_object=axes_object)
 
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
