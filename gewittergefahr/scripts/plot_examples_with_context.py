@@ -22,6 +22,7 @@ from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import model_activation
 from gewittergefahr.deep_learning import model_interpretation
@@ -43,7 +44,6 @@ FORECAST_PROBABILITY_COLUMN = 'forecast_probability'
 PROBABILITY_BACKGROUND_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 PROBABILITY_BACKGROUND_OPACITY = 0.75
 PROBABILITY_FONT_COLOUR = numpy.full(3, 0.)
-# PROBABILITY_FONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 
 FONT_SIZE = 20
 FONT_COLOUR = numpy.full(3, 0.)
@@ -53,7 +53,6 @@ TORNADO_MARKER_TYPE = 'D'
 TORNADO_MARKER_SIZE = 16
 TORNADO_MARKER_EDGE_WIDTH = 1
 TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
-# TORNADO_MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 5
@@ -62,6 +61,8 @@ BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
 MAIN_ACTIVATION_FILE_ARG_NAME = 'input_main_activn_file_name'
+FIRST_INDEX_ARG_NAME = 'first_example_index'
+LAST_INDEX_ARG_NAME = 'last_example_index'
 AUX_ACTIVATION_FILE_ARG_NAME = 'input_aux_activn_file_name'
 TORNADO_DIR_ARG_NAME = 'input_tornado_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
@@ -76,6 +77,13 @@ MAIN_ACTIVATION_FILE_HELP_STRING = (
     'Path to main activation file (to be read by `model_activation.read_file`),'
     ' containing model predictions for one or more examples (storm objects).  '
     'Each storm object in this file will be plotted.')
+
+EXAMPLE_INDEX_HELP_STRING = (
+    'Will plot all examples in `{0:s}` from the [i]th to [j]th, where i = '
+    '`{1:s}` and j = `{2:s}`.  To plot all examples, leave this argument alone.'
+).format(
+    MAIN_ACTIVATION_FILE_ARG_NAME, FIRST_INDEX_ARG_NAME, LAST_INDEX_ARG_NAME
+)
 
 AUX_ACTIVATION_FILE_HELP_STRING = (
     'Path to auxiliary activation file.  Must contain all examples in `{0:s}` '
@@ -130,6 +138,14 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + MAIN_ACTIVATION_FILE_ARG_NAME, type=str, required=True,
     help=MAIN_ACTIVATION_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_INDEX_ARG_NAME, type=int, required=False, default=-1,
+    help=EXAMPLE_INDEX_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAST_INDEX_ARG_NAME, type=int, required=False, default=-1,
+    help=EXAMPLE_INDEX_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + AUX_ACTIVATION_FILE_ARG_NAME, type=str, required=False, default='',
@@ -736,15 +752,17 @@ def _plot_one_example(
             input_file_name=this_file_name, output_file_name=this_file_name)
 
 
-def _run(main_activation_file_name, aux_activation_file_name, tornado_dir_name,
-         top_tracking_dir_name, top_myrorss_dir_name, radar_field_name,
-         radar_height_m_asl, latitude_buffer_deg, longitude_buffer_deg,
-         top_output_dir_name):
+def _run(main_activation_file_name, first_example_index, last_example_index,
+         aux_activation_file_name, tornado_dir_name, top_tracking_dir_name,
+         top_myrorss_dir_name, radar_field_name, radar_height_m_asl,
+         latitude_buffer_deg, longitude_buffer_deg, top_output_dir_name):
     """Plots examples (storm objects) with surrounding context.
 
     This is effectively the main method.
 
     :param main_activation_file_name: See documentation at top of file.
+    :param first_example_index: Same.
+    :param last_example_index: Same.
     :param aux_activation_file_name: Same.
     :param tornado_dir_name: Same.
     :param top_tracking_dir_name: Same.
@@ -761,6 +779,10 @@ def _run(main_activation_file_name, aux_activation_file_name, tornado_dir_name,
 
     if aux_activation_file_name in ['', 'None']:
         aux_activation_file_name = None
+
+    if first_example_index == -1 or last_example_index == -1:
+        first_example_index = None
+        last_example_index = None
 
     print('Reading data from: "{0:s}"...'.format(main_activation_file_name))
     activation_matrix, activation_dict = model_activation.read_file(
@@ -781,6 +803,21 @@ def _run(main_activation_file_name, aux_activation_file_name, tornado_dir_name,
         raise ValueError(error_string)
 
     forecast_probabilities = numpy.squeeze(activation_matrix)
+    full_storm_id_strings = activation_dict[model_activation.FULL_IDS_KEY]
+    storm_times_unix_sec = activation_dict[model_activation.STORM_TIMES_KEY]
+
+    if first_example_index is not None:
+        error_checking.assert_is_geq(last_example_index, first_example_index)
+        example_indices = numpy.linspace(
+            first_example_index, last_example_index,
+            num=last_example_index - first_example_index + 1, dtype=int)
+
+        forecast_probabilities = forecast_probabilities[example_indices]
+        full_storm_id_strings = [
+            full_storm_id_strings[k] for k in example_indices
+        ]
+        storm_times_unix_sec = storm_times_unix_sec[example_indices]
+
     num_storm_objects = len(forecast_probabilities)
 
     model_file_name = activation_dict[model_activation.MODEL_FILE_NAME_KEY]
@@ -818,9 +855,8 @@ def _run(main_activation_file_name, aux_activation_file_name, tornado_dir_name,
 
     for i in range(num_storm_objects):
         _plot_one_example(
-            full_id_string=activation_dict[model_activation.FULL_IDS_KEY][i],
-            storm_time_unix_sec=activation_dict[
-                model_activation.STORM_TIMES_KEY][i],
+            full_id_string=full_storm_id_strings[i],
+            storm_time_unix_sec=storm_times_unix_sec[i],
             target_name=target_name,
             forecast_probability=forecast_probabilities[i],
             tornado_dir_name=tornado_dir_name,
@@ -844,6 +880,8 @@ if __name__ == '__main__':
     _run(
         main_activation_file_name=getattr(
             INPUT_ARG_OBJECT, MAIN_ACTIVATION_FILE_ARG_NAME),
+        first_example_index=getattr(INPUT_ARG_OBJECT, FIRST_INDEX_ARG_NAME),
+        last_example_index=getattr(INPUT_ARG_OBJECT, LAST_INDEX_ARG_NAME),
         aux_activation_file_name=getattr(
             INPUT_ARG_OBJECT, AUX_ACTIVATION_FILE_ARG_NAME),
         tornado_dir_name=getattr(INPUT_ARG_OBJECT, TORNADO_DIR_ARG_NAME),
