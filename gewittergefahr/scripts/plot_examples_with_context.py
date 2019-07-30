@@ -233,7 +233,7 @@ def _plot_one_example_one_time(
             min_latitude_deg=min_plot_latitude_deg,
             max_latitude_deg=max_plot_latitude_deg,
             min_longitude_deg=min_plot_longitude_deg,
-            max_longitude_deg=max_plot_longitude_deg, resolution_string='i'
+            max_longitude_deg=max_plot_longitude_deg, resolution_string='h'
         )[1:]
     )
 
@@ -249,13 +249,16 @@ def _plot_one_example_one_time(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
 
+    plotting_utils.plot_counties(
+        basemap_object=basemap_object, axes_object=axes_object)
+
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS)
+        num_parallels=NUM_PARALLELS, line_width=0)
 
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS)
+        num_meridians=NUM_MERIDIANS, line_width=0)
 
     radar_plotting.plot_latlng_grid(
         field_matrix=radar_matrix, field_name=radar_field_name,
