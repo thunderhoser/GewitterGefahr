@@ -239,15 +239,13 @@ def _plot_one_example_one_time(
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
+        line_colour=plotting_utils.DEFAULT_COUNTY_COLOUR)
 
     plotting_utils.plot_countries(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
+        basemap_object=basemap_object, axes_object=axes_object)
 
     plotting_utils.plot_states_and_provinces(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
+        basemap_object=basemap_object, axes_object=axes_object)
 
     plotting_utils.plot_counties(
         basemap_object=basemap_object, axes_object=axes_object)
