@@ -98,13 +98,12 @@ def _check_basemap_args(
     error_checking.assert_is_valid_latitude(max_latitude_deg)
     error_checking.assert_is_greater(max_latitude_deg, min_latitude_deg)
 
-    min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+    min_longitude_deg = lng_conversion.convert_lng_negative_in_west(
         min_longitude_deg)
-    max_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+    max_longitude_deg = lng_conversion.convert_lng_negative_in_west(
         max_longitude_deg)
 
     error_checking.assert_is_greater(max_longitude_deg, min_longitude_deg)
-
     error_checking.assert_is_string(resolution_string)
 
     return min_longitude_deg, max_longitude_deg
@@ -412,11 +411,11 @@ def create_map_with_nwp_proj(
             numpy.array([min_latitude_deg, max_latitude_deg])
         )
 
-        min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+        min_longitude_deg = lng_conversion.convert_lng_negative_in_west(
             latlng_limit_dict[MIN_LONGITUDE_KEY]
         )
 
-        max_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+        max_longitude_deg = lng_conversion.convert_lng_negative_in_west(
             latlng_limit_dict[MAX_LONGITUDE_KEY]
         )
 
