@@ -16,12 +16,14 @@ from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.plotting import model_eval_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 FORECAST_PRECISION_FOR_THRESHOLDS = 1e-4
+DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
@@ -291,8 +293,9 @@ def _plot_attributes_diagram(
     pyplot.close()
 
 
-def run_evaluation(forecast_probabilities, observed_labels, num_bootstrap_reps,
-                   output_dir_name, confidence_level=None):
+def run_evaluation(
+        forecast_probabilities, observed_labels, num_bootstrap_reps,
+        output_dir_name, downsampling_dict=None, confidence_level=None):
     """Evaluates forecast-observation pairs from any forecasting method.
 
     Specifically, this method does the following:
@@ -310,6 +313,9 @@ def run_evaluation(forecast_probabilities, observed_labels, num_bootstrap_reps,
     :param num_bootstrap_reps: Number of bootstrap replicates.  This may be 1,
         in which case no bootstrapping will be done.
     :param output_dir_name: Name of output directory.
+    :param downsampling_dict: Dictionary used to downsample classes.  See doc
+        for `deep_learning_utils.sample_by_class`.  If this is None, there will
+        be no downsampling.
     :param confidence_level: [used only if `num_bootstrap_reps > 1`]
         Confidence level for bootstrapping.
     """
@@ -327,14 +333,36 @@ def run_evaluation(forecast_probabilities, observed_labels, num_bootstrap_reps,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
+    num_examples = len(observed_labels)
+    positive_example_indices = numpy.where(observed_labels == 1)[0]
+    negative_example_indices = numpy.where(observed_labels == 0)[0]
+
+    if downsampling_dict is None:
+        these_indices = numpy.linspace(
+            0, num_examples - 1, num=num_examples, dtype=int)
+    else:
+        these_indices = dl_utils.sample_by_class(
+            sampling_fraction_by_class_dict=downsampling_dict,
+            target_name=DUMMY_TARGET_NAME, target_values=observed_labels,
+            num_examples_total=num_examples)
+
+        this_num_ex_by_class = numpy.unique(
+            observed_labels[these_indices], return_counts=True
+        )[-1]
+
+        print('Number of examples by class: {0:s}'.format(
+            str(this_num_ex_by_class)
+        ))
+
     all_prob_thresholds = model_eval.get_binarization_thresholds(
         threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
-        forecast_probabilities=forecast_probabilities,
+        forecast_probabilities=forecast_probabilities[these_indices],
         unique_forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS)
 
     best_prob_threshold, best_csi = model_eval.find_best_binarization_threshold(
-        forecast_probabilities=forecast_probabilities,
-        observed_labels=observed_labels, threshold_arg=all_prob_thresholds,
+        forecast_probabilities=forecast_probabilities[these_indices],
+        observed_labels=observed_labels[these_indices],
+        threshold_arg=all_prob_thresholds,
         criterion_function=model_eval.get_csi,
         optimization_direction=model_eval.MAX_OPTIMIZATION_STRING)
 
@@ -345,8 +373,8 @@ def run_evaluation(forecast_probabilities, observed_labels, num_bootstrap_reps,
     ))
 
     num_examples_by_bin = model_eval.get_points_in_reliability_curve(
-        forecast_probabilities=forecast_probabilities,
-        observed_labels=observed_labels,
+        forecast_probabilities=forecast_probabilities[these_indices],
+        observed_labels=observed_labels[these_indices],
         num_forecast_bins=model_eval.DEFAULT_NUM_RELIABILITY_BINS
     )[-1]
 
@@ -360,12 +388,43 @@ def run_evaluation(forecast_probabilities, observed_labels, num_bootstrap_reps,
         ))
 
         if num_bootstrap_reps == 1:
-            these_indices = numpy.linspace(
-                0, len(forecast_probabilities) - 1,
-                num=len(forecast_probabilities), dtype=int
-            )
+            if downsampling_dict is None:
+                these_indices = numpy.linspace(
+                    0, num_examples - 1, num=num_examples, dtype=int)
+            else:
+                these_indices = dl_utils.sample_by_class(
+                    sampling_fraction_by_class_dict=downsampling_dict,
+                    target_name=DUMMY_TARGET_NAME,
+                    target_values=observed_labels,
+                    num_examples_total=num_examples)
         else:
-            _, these_indices = bootstrapping.draw_sample(forecast_probabilities)
+            these_positive_indices = bootstrapping.draw_sample(
+                forecast_probabilities[positive_example_indices]
+            )[-1]
+            these_negative_indices = bootstrapping.draw_sample(
+                forecast_probabilities[negative_example_indices]
+            )[-1]
+
+            these_indices = numpy.concatenate((
+                these_positive_indices, these_negative_indices))
+
+            if downsampling_dict is not None:
+                these_subindices = dl_utils.sample_by_class(
+                    sampling_fraction_by_class_dict=downsampling_dict,
+                    target_name=DUMMY_TARGET_NAME,
+                    target_values=observed_labels[these_indices],
+                    num_examples_total=num_examples)
+
+                these_indices = these_indices[these_subindices]
+
+        if downsampling_dict is not None:
+            this_num_ex_by_class = numpy.unique(
+                observed_labels[these_indices], return_counts=True
+            )[-1]
+
+            print('Number of examples by class: {0:s}'.format(
+                str(this_num_ex_by_class)
+            ))
 
         this_evaluation_table = model_eval.eval_binary_classifn(
             forecast_probabilities=forecast_probabilities[these_indices],

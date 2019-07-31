@@ -170,17 +170,14 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
     print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
 
     if len(class_fraction_keys) > 1:
-        class_to_sampling_fraction_dict = dict(list(zip(
+        downsampling_dict = dict(list(zip(
             class_fraction_keys, class_fraction_values
         )))
     else:
-        class_to_sampling_fraction_dict = None
-
-    training_option_dict[
-        trainval_io.SAMPLING_FRACTIONS_KEY
-    ] = class_to_sampling_fraction_dict
+        downsampling_dict = None
 
     example_file_names = input_examples.find_many_example_files(
         top_directory_name=top_example_dir_name, shuffled=False,
@@ -276,7 +273,8 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
 
     model_eval_helper.run_evaluation(
         forecast_probabilities=forecast_probabilities,
-        observed_labels=observed_labels, num_bootstrap_reps=num_bootstrap_reps,
+        observed_labels=observed_labels, downsampling_dict=downsampling_dict,
+        num_bootstrap_reps=num_bootstrap_reps,
         confidence_level=confidence_level, output_dir_name=output_dir_name)
 
 
