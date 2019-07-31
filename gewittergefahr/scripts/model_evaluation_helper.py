@@ -359,7 +359,13 @@ def run_evaluation(forecast_probabilities, observed_labels, num_bootstrap_reps,
             i + 1, num_bootstrap_reps
         ))
 
-        _, these_indices = bootstrapping.draw_sample(forecast_probabilities)
+        if num_bootstrap_reps == 1:
+            these_indices = numpy.linspace(
+                0, len(forecast_probabilities) - 1,
+                num=len(forecast_probabilities), dtype=int
+            )
+        else:
+            _, these_indices = bootstrapping.draw_sample(forecast_probabilities)
 
         this_evaluation_table = model_eval.eval_binary_classifn(
             forecast_probabilities=forecast_probabilities[these_indices],
