@@ -252,7 +252,7 @@ def init_basemap(
     basemap_object = Basemap(
         projection='lcc', lat_1=standard_latitudes_deg[0],
         lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
-        rsphere=projections.EARTH_RADIUS_METRES, ellps='sphere',
+        rsphere=projections.DEFAULT_EARTH_RADIUS_METRES, ellps='sphere',
         resolution=resolution_string,
         llcrnrx=grid_point_x_matrix_metres[0, 0],
         llcrnry=grid_point_y_matrix_metres[0, 0],
