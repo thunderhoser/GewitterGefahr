@@ -343,11 +343,17 @@ def plot_subgrid(
         numpy.isnan(field_matrix_at_edges), field_matrix_at_edges
     )
 
+    if hasattr(colour_norm_object, 'boundaries'):
+        min_colour_value = colour_norm_object.boundaries[0]
+        max_colour_value = colour_norm_object.boundaries[-1]
+    else:
+        min_colour_value = colour_norm_object.vmin
+        max_colour_value = colour_norm_object.vmax
+
     basemap_object.pcolormesh(
         grid_cell_edges_x_metres, grid_cell_edges_y_metres,
         field_matrix_at_edges, cmap=colour_map_object, norm=colour_norm_object,
-        vmin=colour_norm_object.boundaries[0],
-        vmax=colour_norm_object.boundaries[1], shading='flat',
+        vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None', axes=axes_object, zorder=-1e9, alpha=opacity)
 
 
