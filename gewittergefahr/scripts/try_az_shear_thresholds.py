@@ -222,8 +222,8 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
             testing_io.INPUT_MATRICES_KEY][1]
         print(this_shear_matrix_s01.shape)
 
-        these_predictor_values = numpy.squeeze(
-            numpy.max(this_shear_matrix_s01, axis=(1, 2, 3))
+        these_predictor_values = numpy.max(
+            this_shear_matrix_s01, axis=(1, 2, 3)
         )
 
         predictor_values = numpy.concatenate((
