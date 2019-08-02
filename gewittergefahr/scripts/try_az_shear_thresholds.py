@@ -198,8 +198,10 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
         trainval_io.NUM_COLUMNS_KEY: num_radar_columns,
         trainval_io.UPSAMPLE_REFLECTIVITY_KEY: False,
         trainval_io.SOUNDING_FIELDS_KEY: None,
+        trainval_io.SOUNDING_HEIGHTS_KEY: None,
         trainval_io.NORMALIZATION_TYPE_KEY: None,
         trainval_io.TARGET_NAME_KEY: TARGET_NAME,
+        trainval_io.BINARIZE_TARGET_KEY: False,
         trainval_io.SAMPLING_FRACTIONS_KEY: None
     }
 
