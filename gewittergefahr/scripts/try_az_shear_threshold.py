@@ -157,8 +157,8 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
         num_radar_rows = None
         num_radar_columns = None
     else:
-        num_radar_rows = 2 * num_radar_rows
-        num_radar_columns = 2 * num_radar_columns
+        num_radar_rows = int(numpy.round(num_radar_rows / 2))
+        num_radar_columns = int(numpy.round(num_radar_columns / 2))
 
     if not (use_low_level or use_mid_level):
         error_string = (
@@ -218,6 +218,7 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
 
         this_shear_matrix_s01 = this_storm_object_dict[
             testing_io.INPUT_MATRICES_KEY][1]
+        print(this_shear_matrix_s01.shape)
 
         these_predictor_values = numpy.squeeze(
             numpy.max(this_shear_matrix_s01, axis=(1, 2, 3))
