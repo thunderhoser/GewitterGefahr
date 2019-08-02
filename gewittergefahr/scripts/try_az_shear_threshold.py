@@ -193,7 +193,7 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
         trainval_io.LAST_STORM_TIME_KEY:
             time_conversion.get_end_of_spc_date(last_spc_date_string),
         trainval_io.RADAR_FIELDS_KEY: radar_field_names,
-        trainval_io.RADAR_HEIGHTS_KEY: numpy.array([0], dtype=int),
+        trainval_io.RADAR_HEIGHTS_KEY: numpy.array([1000], dtype=int),
         trainval_io.NUM_ROWS_KEY: num_radar_rows,
         trainval_io.NUM_COLUMNS_KEY: num_radar_columns,
         trainval_io.UPSAMPLE_REFLECTIVITY_KEY: False,
