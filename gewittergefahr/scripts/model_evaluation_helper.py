@@ -19,6 +19,9 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.plotting import model_eval_plotting
 
+# TODO(thunderhoser): Look over this script and make sure I'm doing everything
+#  right.
+
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
@@ -333,6 +336,14 @@ def run_evaluation(
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
+    num_examples_by_class = numpy.unique(
+        observed_labels, return_counts=True
+    )[-1]
+
+    print('Number of examples by class (sans downsampling): {0:s}'.format(
+        str(num_examples_by_class)
+    ))
+
     num_examples = len(observed_labels)
     positive_example_indices = numpy.where(observed_labels == 1)[0]
     negative_example_indices = numpy.where(observed_labels == 0)[0]
@@ -431,7 +442,7 @@ def run_evaluation(
             observed_labels=observed_labels[these_indices],
             best_prob_threshold=best_prob_threshold,
             all_prob_thresholds=all_prob_thresholds,
-            climatology=numpy.mean(observed_labels)
+            climatology=numpy.mean(observed_labels[these_indices])
         )
 
         list_of_evaluation_tables.append(this_evaluation_table)
