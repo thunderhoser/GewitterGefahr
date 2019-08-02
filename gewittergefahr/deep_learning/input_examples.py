@@ -1187,7 +1187,12 @@ def find_target_files(top_target_dir_name, radar_file_name_matrix,
         target_file_names[i] = target_val_utils.find_target_file(
             top_directory_name=top_target_dir_name,
             event_type_string=event_type_string,
-            spc_date_string=this_spc_date_string, raise_error_if_missing=True)
+            spc_date_string=this_spc_date_string, raise_error_if_missing=False)
+
+        if os.path.isfile(target_file_names[i]):
+            continue
+
+        target_file_names[i] = None
 
     return target_file_names
 

@@ -267,6 +267,23 @@ def _run(top_storm_image_dir_name, radar_source, num_radar_dimensions,
     else:
         sounding_file_names = None
 
+    good_flags = numpy.array(
+        [f is not None for f in target_file_names], dtype=bool
+    )
+
+    good_indices = numpy.where(good_flags)[0]
+    target_file_names = [target_file_names[k] for k in good_indices]
+
+    if num_radar_dimensions < 0:
+        reflectivity_file_name_matrix = reflectivity_file_name_matrix[
+            good_indices, ...]
+        az_shear_file_name_matrix = az_shear_file_name_matrix[good_indices, ...]
+    else:
+        radar_file_name_matrix = radar_file_name_matrix[good_indices, ...]
+
+    if include_soundings:
+        sounding_file_names = [sounding_file_names[k] for k in good_indices]
+
     input_examples.create_examples(
         target_file_names=target_file_names, target_names=target_names,
         num_examples_per_in_file=num_examples_per_in_file,
