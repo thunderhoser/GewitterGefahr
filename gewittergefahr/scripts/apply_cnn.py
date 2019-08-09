@@ -84,7 +84,7 @@ INPUT_ARG_PARSER.add_argument(
     help=SPC_DATE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
+    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=int(1e12),
     help=NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
