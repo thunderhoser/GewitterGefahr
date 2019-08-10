@@ -1,4 +1,4 @@
-"""Evaluates performance of different az-shear thresholds for tornado."""
+"""Uses azimuthal-shear thresholds to make probabilistic tornado predictions."""
 
 import argparse
 import numpy
@@ -7,9 +7,9 @@ from scipy.stats import rankdata
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.deep_learning import input_examples
+from gewittergefahr.deep_learning import prediction_io
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
-from gewittergefahr.scripts import model_evaluation_helper as model_eval_helper
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
@@ -28,10 +28,6 @@ LOW_LEVEL_ARG_NAME = 'use_low_level'
 MID_LEVEL_ARG_NAME = 'use_mid_level'
 NUM_ROWS_ARG_NAME = 'num_radar_rows'
 NUM_COLUMNS_ARG_NAME = 'num_radar_columns'
-NUM_BOOTSTRAP_ARG_NAME = 'num_bootstrap_reps'
-CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
-CLASS_FRACTION_KEYS_ARG_NAME = 'class_fraction_keys'
-CLASS_FRACTION_VALUES_ARG_NAME = 'class_fraction_values'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 EXAMPLE_DIR_HELP_STRING = (
@@ -40,8 +36,8 @@ EXAMPLE_DIR_HELP_STRING = (
     '`input_examples.read_example_file`.')
 
 SPC_DATE_HELP_STRING = (
-    'SPC date (format "yyyymmdd").  This script will evaluate predictions on '
-    'examples from the period `{0:s}`...`{1:s}`.'
+    'SPC date (format "yyyymmdd").  Will create predictions for all examples in'
+    ' the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
 LEVEL_HELP_STRING = (
@@ -58,29 +54,10 @@ NUM_COLUMNS_HELP_STRING = (
     'Number of columns in each storm-centered radar grid.  If you want to use '
     'the full grid, leave this argument empty.')
 
-NUM_BOOTSTRAP_HELP_STRING = (
-    'Number of bootstrap replicates.  If you do not want bootstrapping, leave '
-    'this alone.')
-
-CONFIDENCE_LEVEL_HELP_STRING = (
-    '[used only if `{0:s}` > 1] Confidence level for bootstrapping, in range '
-    '0...1.'
-).format(NUM_BOOTSTRAP_ARG_NAME)
-
-CLASS_FRACTION_KEYS_HELP_STRING = (
-    'List of keys used to create input `class_to_sampling_fraction_dict` for '
-    '`deep_learning_utils.sample_by_class`.  If you do not want class-'
-    'conditional sampling, leave this alone.'
-)
-
-CLASS_FRACTION_VALUES_HELP_STRING = (
-    'List of values used to create input `class_to_sampling_fraction_dict` for '
-    '`deep_learning_utils.sample_by_class`.  If you do not want class-'
-    'conditional sampling, leave this alone.'
-)
-
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Results will be saved here.')
+    'Name of output directory.  Results will be written by '
+    '`prediction_io.write_ungridded_predictions`, to a location therein '
+    'determined by `prediction_io.find_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -110,31 +87,14 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_COLUMNS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_BOOTSTRAP_ARG_NAME, type=int, required=False, default=1,
-    help=NUM_BOOTSTRAP_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
-    help=CONFIDENCE_LEVEL_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + CLASS_FRACTION_KEYS_ARG_NAME, type=int, nargs='+',
-    required=False, default=[0], help=CLASS_FRACTION_KEYS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + CLASS_FRACTION_VALUES_ARG_NAME, type=float, nargs='+',
-    required=False, default=[0.], help=CLASS_FRACTION_VALUES_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
 def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
          use_low_level, use_mid_level, num_radar_rows, num_radar_columns,
-         num_bootstrap_reps, confidence_level, class_fraction_keys,
-         class_fraction_values, output_dir_name):
-    """Evaluates performance of different az-shear thresholds for tornado.
+         output_dir_name):
+    """Uses az-shear thresholds to make probabilistic tornado predictions.
 
     This is effectively the main method.
 
@@ -145,20 +105,16 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
     :param use_mid_level: Same.
     :param num_radar_rows: Same.
     :param num_radar_columns: Same.
-    :param num_bootstrap_reps: Same.
-    :param confidence_level: Same.
-    :param class_fraction_keys: Same.
-    :param class_fraction_values: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if `use_low_level == use_mid_level == False`.
     """
 
     if num_radar_rows <= 0 or num_radar_columns <= 0:
-        num_radar_rows = None
-        num_radar_columns = None
+        num_reflectivity_rows = None
+        num_reflectivity_columns = None
     else:
-        num_radar_rows = int(numpy.round(num_radar_rows / 2))
-        num_radar_columns = int(numpy.round(num_radar_columns / 2))
+        num_reflectivity_rows = int(numpy.round(num_radar_rows / 2))
+        num_reflectivity_columns = int(numpy.round(num_radar_columns / 2))
 
     if not (use_low_level or use_mid_level):
         error_string = (
@@ -172,13 +128,6 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
         radar_field_names.append(radar_utils.LOW_LEVEL_SHEAR_NAME)
     if use_mid_level:
         radar_field_names.append(radar_utils.MID_LEVEL_SHEAR_NAME)
-
-    if len(class_fraction_keys) > 1:
-        downsampling_dict = dict(list(zip(
-            class_fraction_keys, class_fraction_values
-        )))
-    else:
-        downsampling_dict = None
 
     example_file_names = input_examples.find_many_example_files(
         top_directory_name=top_example_dir_name, shuffled=False,
@@ -194,8 +143,8 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
             time_conversion.get_end_of_spc_date(last_spc_date_string),
         trainval_io.RADAR_FIELDS_KEY: radar_field_names,
         trainval_io.RADAR_HEIGHTS_KEY: numpy.array([1000], dtype=int),
-        trainval_io.NUM_ROWS_KEY: num_radar_rows,
-        trainval_io.NUM_COLUMNS_KEY: num_radar_columns,
+        trainval_io.NUM_ROWS_KEY: num_reflectivity_rows,
+        trainval_io.NUM_COLUMNS_KEY: num_reflectivity_columns,
         trainval_io.UPSAMPLE_REFLECTIVITY_KEY: False,
         trainval_io.SOUNDING_FIELDS_KEY: None,
         trainval_io.SOUNDING_HEIGHTS_KEY: None,
@@ -208,8 +157,10 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
     generator_object = testing_io.myrorss_generator_2d3d(
         option_dict=option_dict, num_examples_total=LARGE_INTEGER)
 
+    full_storm_id_strings = []
+    storm_times_unix_sec = numpy.array([], dtype=int)
     predictor_values = numpy.array([], dtype=float)
-    target_values = numpy.array([], dtype=int)
+    observed_labels = numpy.array([], dtype=int)
 
     for _ in range(len(example_file_names)):
         try:
@@ -217,6 +168,12 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
             print(SEPARATOR_STRING)
         except StopIteration:
             break
+
+        full_storm_id_strings += this_storm_object_dict[testing_io.FULL_IDS_KEY]
+        storm_times_unix_sec = numpy.concatenate((
+            storm_times_unix_sec,
+            this_storm_object_dict[testing_io.STORM_TIMES_KEY]
+        ))
 
         this_shear_matrix_s01 = this_storm_object_dict[
             testing_io.INPUT_MATRICES_KEY][1]
@@ -230,19 +187,39 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
             predictor_values, these_predictor_values
         ))
 
-        target_values = numpy.concatenate((
-            target_values, this_storm_object_dict[testing_io.TARGET_ARRAY_KEY]
+        observed_labels = numpy.concatenate((
+            observed_labels, this_storm_object_dict[testing_io.TARGET_ARRAY_KEY]
         ))
 
     forecast_probabilities = (
         rankdata(predictor_values, method='average') / len(predictor_values)
     )
 
-    model_eval_helper.run_evaluation(
-        forecast_probabilities=forecast_probabilities,
-        observed_labels=target_values, downsampling_dict=downsampling_dict,
-        num_bootstrap_reps=num_bootstrap_reps,
-        confidence_level=confidence_level, output_dir_name=output_dir_name)
+    forecast_probabilities = numpy.reshape(
+        forecast_probabilities, (len(forecast_probabilities), 1)
+    )
+
+    class_probability_matrix = numpy.hstack((
+        1. - forecast_probabilities, forecast_probabilities
+    ))
+
+    output_file_name = prediction_io.find_file(
+        top_prediction_dir_name=output_dir_name,
+        first_init_time_unix_sec=time_conversion.get_start_of_spc_date(
+            first_spc_date_string),
+        last_init_time_unix_sec=time_conversion.get_end_of_spc_date(
+            last_spc_date_string),
+        gridded=False, raise_error_if_missing=False
+    )
+
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
+
+    prediction_io.write_ungridded_predictions(
+        netcdf_file_name=output_file_name,
+        class_probability_matrix=class_probability_matrix,
+        observed_labels=observed_labels, storm_ids=full_storm_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec,
+        target_name=TARGET_NAME)
 
 
 if __name__ == '__main__':
@@ -256,14 +233,5 @@ if __name__ == '__main__':
         use_mid_level=bool(getattr(INPUT_ARG_OBJECT, MID_LEVEL_ARG_NAME)),
         num_radar_rows=getattr(INPUT_ARG_OBJECT, NUM_ROWS_ARG_NAME),
         num_radar_columns=getattr(INPUT_ARG_OBJECT, NUM_COLUMNS_ARG_NAME),
-        num_bootstrap_reps=getattr(INPUT_ARG_OBJECT, NUM_BOOTSTRAP_ARG_NAME),
-        confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
-        class_fraction_keys=numpy.array(
-            getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_KEYS_ARG_NAME), dtype=int
-        ),
-        class_fraction_values=numpy.array(
-            getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_VALUES_ARG_NAME),
-            dtype=float
-        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
