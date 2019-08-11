@@ -354,7 +354,7 @@ def plot_subgrid(
         grid_cell_edges_x_metres, grid_cell_edges_y_metres,
         field_matrix_at_edges, cmap=colour_map_object, norm=colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', axes=axes_object, zorder=-1e9, alpha=opacity)
+        edgecolors='None', axes=axes_object, zorder=-1e12, alpha=opacity)
 
 
 def plot_wind_barbs_on_subgrid(
