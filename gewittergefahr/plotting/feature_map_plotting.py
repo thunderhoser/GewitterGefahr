@@ -116,8 +116,9 @@ def plot_many_2d_feature_maps(
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
         figure_width_inches=figure_width_inches,
-        figure_height_inches=figure_height_inches, shared_x_axis=False,
-        shared_y_axis=False, keep_aspect_ratio=False)
+        figure_height_inches=figure_height_inches,
+        horizontal_spacing=0., vertical_spacing=0.,
+        shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=False)
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
