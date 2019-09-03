@@ -235,6 +235,7 @@ def _plot_3d_radar_scan(
     colour_bar_names = radar_plotting.radar_fields_and_heights_to_panel_names(
         field_names=radar_field_names, heights_m_agl=radar_heights_m_agl,
         include_units=True)
+    colour_bar_names = colour_bar_names.replace('\n', '')
 
     num_radar_fields = len(radar_field_names)
     num_radar_heights = len(radar_heights_m_agl)
@@ -361,13 +362,19 @@ def _plot_2d3d_radar_scan(
             radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
         )
 
-        plotting_utils.plot_colour_bar(
+        this_colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=refl_axes_object_matrix,
             data_matrix=list_of_predictor_matrices[0],
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', fraction_of_axis_length=0.8,
             extend_min=True, extend_max=True)
+
+        this_label_string = 'Reflectivity (dBZ) at {0:4.2f} km AGL'.format(
+            0.001 * refl_heights_m_agl[0]
+        )
+        this_colour_bar_object.ax.set_title(
+            this_label_string, fontweight='bold')
 
         if title_string is not None:
             this_title_string = '{0:s}; {1:s}'.format(
@@ -413,13 +420,19 @@ def _plot_2d3d_radar_scan(
                 radar_utils.LOW_LEVEL_SHEAR_NAME)
         )
 
-        plotting_utils.plot_colour_bar(
+        this_colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=shear_axes_object_matrix,
             data_matrix=list_of_predictor_matrices[1],
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', fraction_of_axis_length=0.8,
             extend_min=True, extend_max=True)
+
+        this_label_string = radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[
+            az_shear_field_names[0]
+        ]
+        this_colour_bar_object.ax.set_title(
+            this_label_string, fontweight='bold')
 
         if title_string is not None:
             pyplot.suptitle(title_string, fontsize=TITLE_FONT_SIZE)
