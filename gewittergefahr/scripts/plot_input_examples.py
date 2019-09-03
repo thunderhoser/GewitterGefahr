@@ -235,7 +235,7 @@ def _plot_3d_radar_scan(
     colour_bar_names = radar_plotting.radar_fields_and_heights_to_panel_names(
         field_names=radar_field_names, heights_m_agl=radar_heights_m_agl,
         include_units=True)
-    colour_bar_names = colour_bar_names.replace('\n', '')
+    colour_bar_names = [n.replace('\n', '') for n in colour_bar_names]
 
     num_radar_fields = len(radar_field_names)
     num_radar_heights = len(radar_heights_m_agl)
