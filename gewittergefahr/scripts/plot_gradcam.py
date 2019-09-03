@@ -32,7 +32,6 @@ HALF_NUM_CONTOURS = 10
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
-BAMS_FORMAT_ARG_NAME = 'bams_format'
 ALLOW_WHITESPACE_ARG_NAME = 'allow_whitespace'
 PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 PLOT_REGIONS_ARG_NAME = 'plot_regions_of_interest'
@@ -43,10 +42,6 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `gradcam.read_standard_file` or'
     ' `gradcam.read_pmm_file`.')
-
-BAMS_FORMAT_HELP_STRING = (
-    'Boolean flag.  If 1, figures will be plotted in the format used for BAMS '
-    '2019.  If you do not know what this means, just leave the argument alone.')
 
 ALLOW_WHITESPACE_HELP_STRING = (
     'Boolean flag.  If 0, will plot with no whitespace between panels or around'
@@ -79,10 +74,6 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
     help=INPUT_FILE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + BAMS_FORMAT_ARG_NAME, type=int, required=False, default=0,
-    help=BAMS_FORMAT_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + ALLOW_WHITESPACE_ARG_NAME, type=int, required=False, default=1,
@@ -222,7 +213,7 @@ def _plot_3d_radar_cam(
 
 def _plot_2d_radar_cam(
         colour_map_object, max_colour_percentile, figure_objects,
-        axes_object_matrices, bams_format, model_metadata_dict, output_dir_name,
+        axes_object_matrices, model_metadata_dict, output_dir_name,
         cam_matrix=None, guided_cam_matrix=None, significance_matrix=None,
         full_storm_id_string=None, storm_time_unix_sec=None):
     """Plots guided or unguided class-activation map for 2-D radar data.
@@ -235,7 +226,6 @@ def _plot_2d_radar_cam(
     :param max_colour_percentile: Same.
     :param figure_objects: Same.
     :param axes_object_matrices: Same.
-    :param bams_format: See documentation at top of file.
     :param model_metadata_dict: See doc for `_plot_3d_radar_cam`.
     :param output_dir_name: Same.
     :param cam_matrix: M-by-N numpy array of class activations.
@@ -256,7 +246,6 @@ def _plot_2d_radar_cam(
 
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
-    bams_format = bams_format and list_of_layer_operation_dicts is not None
 
     if list_of_layer_operation_dicts is None:
         training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
@@ -270,11 +259,6 @@ def _plot_2d_radar_cam(
     else:
         this_matrix = numpy.expand_dims(cam_matrix, axis=-1)
         this_matrix = numpy.repeat(this_matrix, repeats=num_channels, axis=-1)
-
-    if bams_format:
-        this_matrix = this_matrix[
-            ..., plot_input_examples.BAMS_CHANNEL_INDICES_TO_KEEP
-        ]
 
     max_contour_level = numpy.percentile(
         numpy.absolute(this_matrix), max_colour_percentile
@@ -304,11 +288,6 @@ def _plot_2d_radar_cam(
             this_matrix = numpy.expand_dims(significance_matrix, axis=-1)
             this_matrix = numpy.repeat(
                 this_matrix, repeats=num_channels, axis=-1)
-
-        if bams_format:
-            this_matrix = this_matrix[
-                ..., plot_input_examples.BAMS_CHANNEL_INDICES_TO_KEEP
-            ]
 
         significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=numpy.flip(this_matrix, axis=0),
@@ -341,14 +320,13 @@ def _plot_2d_radar_cam(
 
 
 def _plot_2d_regions(
-        figure_objects, axes_object_matrices, bams_format, model_metadata_dict,
+        figure_objects, axes_object_matrices, model_metadata_dict,
         list_of_polygon_objects, output_dir_name, full_storm_id_string=None,
         storm_time_unix_sec=None):
     """Plots regions of interest for 2-D radar data.
 
     :param figure_objects: See doc for `_plot_3d_radar_cam`.
     :param axes_object_matrices: Same.
-    :param bams_format: See documentation at top of file.
     :param model_metadata_dict: See doc for `_plot_3d_radar_cam`.
     :param list_of_polygon_objects: List of polygons (instances of
         `shapely.geometry.Polygon`), demarcating regions of interest.
@@ -366,13 +344,6 @@ def _plot_2d_regions(
 
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
-
-    bams_format = bams_format and list_of_layer_operation_dicts is not None
-    if bams_format:
-        list_of_layer_operation_dicts = [
-            list_of_layer_operation_dicts[k]
-            for k in plot_input_examples.BAMS_CHANNEL_INDICES_TO_KEEP
-        ]
 
     if list_of_layer_operation_dicts is None:
         num_channels = len(training_option_dict[trainval_io.RADAR_FIELDS_KEY])
@@ -415,7 +386,7 @@ def _plot_2d_regions(
     pyplot.close(figure_objects[figure_index])
 
 
-def _run(input_file_name, bams_format, allow_whitespace, plot_significance,
+def _run(input_file_name, allow_whitespace, plot_significance,
          plot_regions_of_interest, colour_map_name, max_colour_percentile,
          top_output_dir_name):
     """Plots Grad-CAM output (class-activation maps).
@@ -423,7 +394,6 @@ def _run(input_file_name, bams_format, allow_whitespace, plot_significance,
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
-    :param bams_format: Same.
     :param allow_whitespace: Same.
     :param plot_significance: Same.
     :param plot_regions_of_interest: Same.
@@ -521,7 +491,7 @@ def _run(input_file_name, bams_format, allow_whitespace, plot_significance,
         this_handle_dict = plot_input_examples.plot_one_example(
             list_of_predictor_matrices=list_of_input_matrices,
             model_metadata_dict=model_metadata_dict, plot_sounding=False,
-            bams_format=bams_format, allow_whitespace=allow_whitespace,
+            allow_whitespace=allow_whitespace,
             pmm_flag=pmm_flag, example_index=i,
             full_storm_id_string=full_storm_id_strings[i],
             storm_time_unix_sec=storm_times_unix_sec[i]
@@ -572,7 +542,6 @@ def _run(input_file_name, bams_format, allow_whitespace, plot_significance,
                         max_colour_percentile=max_colour_percentile,
                         figure_objects=these_figure_objects,
                         axes_object_matrices=these_axes_object_matrices,
-                        bams_format=bams_format,
                         model_metadata_dict=model_metadata_dict,
                         output_dir_name=unguided_cam_dir_name,
                         cam_matrix=list_of_cam_matrices[j][i, ...],
@@ -584,7 +553,6 @@ def _run(input_file_name, bams_format, allow_whitespace, plot_significance,
                     _plot_2d_regions(
                         figure_objects=these_figure_objects,
                         axes_object_matrices=these_axes_object_matrices,
-                        bams_format=bams_format,
                         model_metadata_dict=model_metadata_dict,
                         list_of_polygon_objects=
                         region_dict[gradcam.POLYGON_OBJECTS_KEY][j][i],
@@ -596,7 +564,7 @@ def _run(input_file_name, bams_format, allow_whitespace, plot_significance,
         this_handle_dict = plot_input_examples.plot_one_example(
             list_of_predictor_matrices=list_of_input_matrices,
             model_metadata_dict=model_metadata_dict, plot_sounding=False,
-            bams_format=bams_format, allow_whitespace=allow_whitespace,
+            allow_whitespace=allow_whitespace,
             pmm_flag=pmm_flag, example_index=i,
             full_storm_id_string=full_storm_id_strings[i],
             storm_time_unix_sec=storm_times_unix_sec[i]
@@ -646,7 +614,6 @@ def _run(input_file_name, bams_format, allow_whitespace, plot_significance,
                     max_colour_percentile=max_colour_percentile,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
-                    bams_format=bams_format,
                     model_metadata_dict=model_metadata_dict,
                     output_dir_name=guided_cam_dir_name,
                     guided_cam_matrix=list_of_guided_cam_matrices[j][i, ...],
@@ -661,7 +628,6 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
-        bams_format=bool(getattr(INPUT_ARG_OBJECT, BAMS_FORMAT_ARG_NAME)),
         allow_whitespace=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
         )),

@@ -14,7 +14,6 @@ MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
-BAMS_FORMAT_ARG_NAME = 'bams_format'
 ALLOW_WHITESPACE_ARG_NAME = 'allow_whitespace'
 PLOT_SOUNDINGS_ARG_NAME = 'plot_soundings'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -24,10 +23,6 @@ INPUT_FILE_HELP_STRING = (
     'This should be a Pickle file with one dictionary, containing the keys '
     '"{0:s}" and "{1:s}".'
 ).format(MEAN_INPUT_MATRICES_KEY, MODEL_FILE_KEY)
-
-BAMS_FORMAT_HELP_STRING = (
-    'Boolean flag.  If 1, figures will be plotted in the format used for BAMS '
-    '2019.  If you do not know what this means, just leave the argument alone.')
 
 ALLOW_WHITESPACE_HELP_STRING = (
     'Boolean flag.  If 0, will plot with no whitespace between panels or around'
@@ -44,10 +39,6 @@ INPUT_ARG_PARSER.add_argument(
     help=INPUT_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + BAMS_FORMAT_ARG_NAME, type=int, required=False, default=0,
-    help=BAMS_FORMAT_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + ALLOW_WHITESPACE_ARG_NAME, type=int, required=False, default=1,
     help=ALLOW_WHITESPACE_HELP_STRING)
 
@@ -60,14 +51,12 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _run(input_file_name, bams_format, allow_whitespace, plot_soundings,
-         output_dir_name):
+def _run(input_file_name, allow_whitespace, plot_soundings, output_dir_name):
     """Plots probability-matched mean (PMM) of many examples (storm objects).
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
-    :param bams_format: Same.
     :param allow_whitespace: Same.
     :param plot_soundings: Same.
     :param output_dir_name: Same.
@@ -102,8 +91,7 @@ def _run(input_file_name, bams_format, allow_whitespace, plot_soundings,
         list_of_predictor_matrices=list_of_mean_input_matrices,
         model_metadata_dict=model_metadata_dict,
         output_dir_name=output_dir_name, plot_soundings=plot_soundings,
-        bams_format=bams_format, allow_whitespace=allow_whitespace,
-        pmm_flag=True)
+        allow_whitespace=allow_whitespace, pmm_flag=True)
 
 
 if __name__ == '__main__':
@@ -111,7 +99,6 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
-        bams_format=bool(getattr(INPUT_ARG_OBJECT, BAMS_FORMAT_ARG_NAME)),
         allow_whitespace=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
         )),

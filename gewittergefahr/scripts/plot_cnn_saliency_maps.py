@@ -31,7 +31,6 @@ SOUNDING_IMAGE_SIZE_PX = int(1e7)
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 PLOT_SOUNDINGS_ARG_NAME = 'plot_soundings'
-BAMS_FORMAT_ARG_NAME = 'bams_format'
 ALLOW_WHITESPACE_ARG_NAME = 'allow_whitespace'
 PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
@@ -45,10 +44,6 @@ INPUT_FILE_HELP_STRING = (
 PLOT_SOUNDINGS_HELP_STRING = (
     'Boolean flag.  If 1, will plot saliency for soundings and radar scans.  '
     'If 0, only for radar scans.')
-
-BAMS_FORMAT_HELP_STRING = (
-    'Boolean flag.  If 1, figures will be plotted in the format used for BAMS '
-    '2019.  If you do not know what this means, just leave the argument alone.')
 
 ALLOW_WHITESPACE_HELP_STRING = (
     'Boolean flag.  If 0, will plot with no whitespace between panels or around'
@@ -82,10 +77,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_SOUNDINGS_ARG_NAME, type=int, required=False, default=1,
     help=PLOT_SOUNDINGS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + BAMS_FORMAT_ARG_NAME, type=int, required=False, default=0,
-    help=BAMS_FORMAT_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + ALLOW_WHITESPACE_ARG_NAME, type=int, required=False, default=1,
@@ -193,9 +184,9 @@ def _plot_3d_radar_saliency(
 
 
 def _plot_2d_radar_saliency(
-        saliency_matrix, colour_map_object, max_colour_value, bams_format,
-        figure_objects, axes_object_matrices, model_metadata_dict,
-        output_dir_name, significance_matrix=None, full_storm_id_string=None,
+        saliency_matrix, colour_map_object, max_colour_value, figure_objects,
+        axes_object_matrices, model_metadata_dict, output_dir_name,
+        significance_matrix=None, full_storm_id_string=None,
         storm_time_unix_sec=None):
     """Plots saliency map for 2-D radar data.
 
@@ -209,7 +200,6 @@ def _plot_2d_radar_saliency(
     :param saliency_matrix: M-by-N-by-C numpy array of saliency values.
     :param colour_map_object: See documentation at top of file.
     :param max_colour_value: Max value in colour scheme for saliency.
-    :param bams_format: See documentation at top of file.
     :param figure_objects: See doc for
         `plot_input_examples._plot_2d_radar_scan`.
     :param axes_object_matrices: Same.
@@ -233,20 +223,6 @@ def _plot_2d_radar_saliency(
     else:
         figure_index = 0
         radar_field_name = None
-
-    list_of_layer_operation_dicts = model_metadata_dict[
-        cnn.LAYER_OPERATIONS_KEY]
-    bams_format = bams_format and list_of_layer_operation_dicts is not None
-
-    if bams_format:
-        saliency_matrix = saliency_matrix[
-            ..., plot_input_examples.BAMS_CHANNEL_INDICES_TO_KEEP
-        ]
-
-        if significance_matrix is not None:
-            significance_matrix = significance_matrix[
-                ..., plot_input_examples.BAMS_CHANNEL_INDICES_TO_KEEP
-            ]
 
     saliency_plotting.plot_many_2d_grids_with_contours(
         saliency_matrix_3d=numpy.flip(saliency_matrix, axis=0),
@@ -420,16 +396,14 @@ def _plot_sounding_saliency(
     os.remove(right_panel_file_name)
 
 
-def _run(input_file_name, plot_soundings, bams_format, allow_whitespace,
-         plot_significance, colour_map_name, max_colour_percentile,
-         output_dir_name):
+def _run(input_file_name, plot_soundings, allow_whitespace, plot_significance,
+         colour_map_name, max_colour_percentile, output_dir_name):
     """Plots saliency maps for a CNN (convolutional neural network).
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
     :param plot_soundings: Same.
-    :param bams_format: Same.
     :param allow_whitespace: Same.
     :param plot_significance: Same.
     :param colour_map_name: Same.
@@ -526,7 +500,7 @@ def _run(input_file_name, plot_soundings, bams_format, allow_whitespace,
         this_handle_dict = plot_input_examples.plot_one_example(
             list_of_predictor_matrices=list_of_input_matrices,
             model_metadata_dict=model_metadata_dict, plot_sounding=False,
-            bams_format=bams_format, allow_whitespace=allow_whitespace,
+            allow_whitespace=allow_whitespace,
             pmm_flag=pmm_flag, example_index=i,
             full_storm_id_string=full_storm_id_strings[i],
             storm_time_unix_sec=storm_times_unix_sec[i]
@@ -570,7 +544,6 @@ def _run(input_file_name, plot_soundings, bams_format, allow_whitespace,
                     saliency_matrix=list_of_saliency_matrices[j][i, ...],
                     colour_map_object=colour_map_object,
                     max_colour_value=max_colour_value_by_example[i],
-                    bams_format=bams_format,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
                     model_metadata_dict=model_metadata_dict,
@@ -589,7 +562,6 @@ if __name__ == '__main__':
         plot_soundings=bool(getattr(
             INPUT_ARG_OBJECT, PLOT_SOUNDINGS_ARG_NAME
         )),
-        bams_format=bool(getattr(INPUT_ARG_OBJECT, BAMS_FORMAT_ARG_NAME)),
         allow_whitespace=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
         )),
