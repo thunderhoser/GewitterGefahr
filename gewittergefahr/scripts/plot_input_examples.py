@@ -198,10 +198,14 @@ def _plot_sounding(
         storm_elevations_m_asl=numpy.array([0.])
     )[0]
 
-    return sounding_plotting.plot_sounding(
+    figure_object, axes_object = sounding_plotting.plot_sounding(
         sounding_dict_for_metpy=metpy_dict,
         title_string=title_string if allow_whitespace else None
     )
+
+    axes_object.set_xlabel(r'Temperature ($^{\circ}$C)')
+    axes_object.set_ylabel('Pressure (mb)')
+    return figure_object, axes_object
 
 
 def _plot_3d_radar_scan(
