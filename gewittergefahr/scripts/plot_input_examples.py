@@ -937,6 +937,11 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         one model component.
     """
 
+    if num_radar_rows <= 0:
+        num_radar_rows = None
+    if num_radar_columns <= 0:
+        num_radar_columns = None
+
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
