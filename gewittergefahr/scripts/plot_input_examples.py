@@ -286,7 +286,9 @@ def _plot_3d_radar_scan(
                 orientation_string='horizontal', fraction_of_axis_length=0.8,
                 extend_min=True, extend_max=True)
 
-            this_colour_bar_object.set_label(colour_bar_names[j])
+            this_colour_bar_object.ax.set_title(
+                colour_bar_names[j], fontweight='bold'
+            )
 
             if title_string is not None:
                 this_title_string = '{0:s}; {1:s}'.format(
