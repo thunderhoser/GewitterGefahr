@@ -281,8 +281,8 @@ def _plot_3d_radar_scan(
                 data_matrix=this_radar_matrix,
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation_string='horizontal', extend_min=True,
-                extend_max=True)
+                orientation_string='horizontal', fraction_of_axis_length=0.85,
+                extend_min=True, extend_max=True)
 
             if title_string is not None:
                 this_title_string = '{0:s}; {1:s}'.format(
@@ -360,8 +360,8 @@ def _plot_2d3d_radar_scan(
             data_matrix=list_of_predictor_matrices[0],
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', extend_min=True,
-            extend_max=True)
+            orientation_string='horizontal', fraction_of_axis_length=0.85,
+            extend_min=True, extend_max=True)
 
         if title_string is not None:
             this_title_string = '{0:s}; {1:s}'.format(
@@ -391,7 +391,8 @@ def _plot_2d3d_radar_scan(
         radar_plotting.plot_many_2d_grids_without_coords(
             field_matrix=numpy.flip(list_of_predictor_matrices[1], axis=0),
             field_name_by_panel=az_shear_field_names,
-            panel_names=shear_panel_names, num_panel_rows=1,
+            panel_names=None, num_panel_rows=1,
+            # panel_names=shear_panel_names, num_panel_rows=1,
             figure_object=shear_figure_object,
             axes_object_matrix=shear_axes_object_matrix,
             plot_colour_bar_by_panel=numpy.full(
@@ -411,8 +412,8 @@ def _plot_2d3d_radar_scan(
             data_matrix=list_of_predictor_matrices[1],
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', extend_min=True,
-            extend_max=True)
+            orientation_string='horizontal', fraction_of_axis_length=0.85,
+            extend_min=True, extend_max=True)
 
         if title_string is not None:
             pyplot.suptitle(title_string, fontsize=TITLE_FONT_SIZE)
@@ -493,7 +494,8 @@ def _plot_2d_radar_scan(
     figure_object, axes_object_matrix, _ = (
         radar_plotting.plot_many_2d_grids_without_coords(
             field_matrix=numpy.flip(list_of_predictor_matrices[0], axis=0),
-            field_name_by_panel=field_name_by_panel, panel_names=panel_names,
+            field_name_by_panel=field_name_by_panel, panel_names=None,
+            # panel_names=panel_names,
             num_panel_rows=num_panel_rows, figure_object=figure_object,
             axes_object_matrix=axes_object_matrix,
             plot_colour_bar_by_panel=plot_cbar_by_panel,
@@ -726,6 +728,9 @@ def plot_one_example(
 
         title_string = 'Storm "{0:s}" at {1:s}'.format(
             full_storm_id_string, storm_time_string)
+
+    # TODO(thunderhoser): This is a HACK.
+    title_string = None
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     has_sounding = (
