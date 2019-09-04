@@ -283,17 +283,13 @@ def _plot_3d_radar_scan(
                 radar_plotting.get_default_colour_scheme(radar_field_names[j])
             )
 
-            this_colour_bar_object = plotting_utils.plot_colour_bar(
+            plotting_utils.plot_colour_bar(
                 axes_object_or_matrix=axes_object_matrices[j],
                 data_matrix=this_radar_matrix,
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation_string='horizontal', fraction_of_axis_length=0.8,
+                orientation_string='horizontal', fraction_of_axis_length=0.75,
                 extend_min=True, extend_max=True)
-
-            this_colour_bar_object.ax.set_title(
-                colour_bar_names[j], fontweight='bold'
-            )
 
             if title_string is not None:
                 this_title_string = '{0:s}; {1:s}'.format(
@@ -366,19 +362,13 @@ def _plot_2d3d_radar_scan(
             radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
         )
 
-        this_colour_bar_object = plotting_utils.plot_colour_bar(
+        plotting_utils.plot_colour_bar(
             axes_object_or_matrix=refl_axes_object_matrix,
             data_matrix=list_of_predictor_matrices[0],
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', fraction_of_axis_length=0.8,
+            orientation_string='horizontal', fraction_of_axis_length=0.75,
             extend_min=True, extend_max=True)
-
-        this_label_string = 'Reflectivity (dBZ) at {0:4.2f} km AGL'.format(
-            0.001 * refl_heights_m_agl[0]
-        )
-        this_colour_bar_object.ax.set_title(
-            this_label_string, fontweight='bold')
 
         if title_string is not None:
             this_title_string = '{0:s}; {1:s}'.format(
@@ -424,19 +414,13 @@ def _plot_2d3d_radar_scan(
                 radar_utils.LOW_LEVEL_SHEAR_NAME)
         )
 
-        this_colour_bar_object = plotting_utils.plot_colour_bar(
+        plotting_utils.plot_colour_bar(
             axes_object_or_matrix=shear_axes_object_matrix,
             data_matrix=list_of_predictor_matrices[1],
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', fraction_of_axis_length=0.8,
+            orientation_string='horizontal', fraction_of_axis_length=0.75,
             extend_min=True, extend_max=True)
-
-        this_label_string = radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[
-            az_shear_field_names[0]
-        ]
-        this_colour_bar_object.ax.set_title(
-            this_label_string, fontweight='bold')
 
         if title_string is not None:
             pyplot.suptitle(title_string, fontsize=TITLE_FONT_SIZE)
