@@ -1259,6 +1259,13 @@ def run_tracking(
     error_checking.assert_is_geq(min_polygon_size_pixels, 0)
     error_checking.assert_is_greater(min_echo_top_km, 0.)
 
+    print(echo_top_field_name)
+    print(radar_source_name)
+    print(first_spc_date_string)
+    print(last_spc_date_string)
+    print(first_time_unix_sec)
+    print(last_time_unix_sec)
+
     radar_file_names, radar_times_unix_sec = _find_input_radar_files(
         top_radar_dir_name=top_radar_dir_name,
         radar_field_name=echo_top_field_name,
