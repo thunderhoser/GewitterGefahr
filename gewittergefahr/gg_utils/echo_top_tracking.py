@@ -1259,6 +1259,7 @@ def run_tracking(
     error_checking.assert_is_geq(min_polygon_size_pixels, 0)
     error_checking.assert_is_greater(min_echo_top_km, 0.)
 
+    print(top_radar_dir_name)
     print(echo_top_field_name)
     print(radar_source_name)
     print(first_spc_date_string)
@@ -1274,6 +1275,9 @@ def run_tracking(
         last_spc_date_string=last_spc_date_string,
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec)
+
+    print(radar_file_names)
+    print(radar_times_unix_sec)
 
     radar_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT)
