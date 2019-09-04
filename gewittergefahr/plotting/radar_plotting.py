@@ -634,7 +634,7 @@ def plot_latlng_grid(
         grid_cell_edge_longitudes_deg, grid_cell_edge_latitudes_deg,
         field_matrix_at_edges, cmap=colour_map_object, norm=colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', axes=axes_object, zorder=-1e9)
+        edgecolors='None', axes=axes_object, zorder=-1e11)
 
 
 def plot_2d_grid_without_coords(
@@ -702,7 +702,7 @@ def plot_2d_grid_without_coords(
     axes_object.pcolormesh(
         field_matrix, cmap=colour_map_object, norm=colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', zorder=-1e9)
+        edgecolors='None', zorder=-1e11)
 
     x_coord_limits = axes_object.get_xlim()
     x_grid_coords = numpy.linspace(
