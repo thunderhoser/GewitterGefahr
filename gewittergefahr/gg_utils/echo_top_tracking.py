@@ -682,6 +682,11 @@ def _local_maxima_to_regions(
                     this_start_point, this_end_point
                 ).meters
 
+            print(radar_to_region_matrix.shape)
+            print(i)
+            print(j)
+            print(numpy.nanargmin(these_distances_metres))
+            print(these_region_indices[numpy.nanargmin(these_distances_metres)])
             radar_to_region_matrix[i, j] = these_region_indices[
                 numpy.nanargmin(these_distances_metres)
             ]
