@@ -30,7 +30,8 @@ from itertools import chain
 import numpy
 import pandas
 from geopy.distance import vincenty
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.filters import gaussian_filter, convolve
+from scipy.stats import mode as scipy_mode
 from skimage.measure import label as label_image
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
@@ -604,6 +605,60 @@ def _get_grid_points_in_storm(
     )
 
 
+def _make_regions_contiguous(radar_to_region_matrix):
+    """Makes regions (local maxima) contiguous.
+
+    :param radar_to_region_matrix: See output doc for
+        `_local_maxima_to_regions`.
+    :return: radar_to_region_matrix: Same but possibly with different values.
+    """
+
+    num_maxima = numpy.max(radar_to_region_matrix) + 1
+    num_grid_rows = radar_to_region_matrix.shape[0]
+    num_grid_columns = radar_to_region_matrix.shape[1]
+
+    weight_matrix = numpy.full((3, 3), 1.)
+    weight_matrix = weight_matrix / weight_matrix.size
+
+    for k in range(num_maxima):
+        this_orig_mask_matrix = radar_to_region_matrix == k
+        if numpy.sum(this_orig_mask_matrix) == 1:
+            continue
+
+        this_new_mask_matrix = convolve(
+            this_orig_mask_matrix.astype(float), weights=weight_matrix,
+            mode='constant', cval=0.)
+
+        this_new_mask_matrix = (
+            this_new_mask_matrix > weight_matrix[0, 0] + TOLERANCE
+        )
+
+        these_bad_rows, these_bad_columns = numpy.where(numpy.logical_and(
+            this_orig_mask_matrix, numpy.invert(this_new_mask_matrix)
+        ))
+
+        for i, j in zip(these_bad_rows, these_bad_columns):
+            i_min = max([i - 1, 0])
+            i_max = min([i + 1, num_grid_rows - 1])
+            j_min = max([j - 1, 0])
+            j_max = min([j + 1, num_grid_columns - 1])
+
+            this_region_matrix = (
+                radar_to_region_matrix[i_min:(i_max + 1), j_min:(j_max + 1)]
+            ).astype(float)
+
+            this_region_matrix[this_region_matrix == k] = numpy.nan
+            this_region_matrix[this_region_matrix == -1] = numpy.nan
+            this_mode_object = scipy_mode(
+                this_region_matrix, axis=None, nan_policy='omit')
+
+            radar_to_region_matrix[i, j] = int(numpy.round(
+                this_mode_object.mode
+            ))
+
+    return radar_to_region_matrix
+
+
 def _local_maxima_to_regions(
         local_max_dict, echo_top_matrix_km, min_echo_top_km,
         radar_latitudes_deg, radar_longitudes_deg):
@@ -685,7 +740,7 @@ def _local_maxima_to_regions(
             radar_to_region_matrix[i, j] = numpy.nanargmin(
                 these_distances_metres)
 
-    return radar_to_region_matrix
+    return _make_regions_contiguous(radar_to_region_matrix)
 
 
 def _local_maxima_to_polygons(local_max_dict, echo_top_matrix_km,

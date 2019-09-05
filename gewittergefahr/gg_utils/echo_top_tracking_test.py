@@ -145,6 +145,46 @@ THIRD_MIN_INTERMAX_DIST_METRES = 20000.
 THIRD_GRID_POINT_ROWS = numpy.array([2], dtype=int)
 THIRD_GRID_POINT_COLUMNS = numpy.array([2], dtype=int)
 
+# The following constants are used to test _local_maxima_to_regions.
+TOY_ECHO_TOP_MATRIX_KM = numpy.array([
+    [6, 6, 6, 0, 0, 0, 6, 0, 6, 0, 0, 0],
+    [0, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0],
+    [0, 6, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0],
+    [0, 0, 6, 6, 6, 6, 0, 6, 6, 6, 6, 0],
+    [0, 0, 0, 0, 6, 6, 6, 6, 0, 6, 6, 6],
+    [0, 0, 0, 6, 6, 6, 6, 0, 6, 6, 6, 6],
+    [0, 0, 0, 0, 0, 6, 6, 0, 0, 0, 6, 6],
+    [0, 0, 0, 0, 0, 0, 0, 6, 0, 6, 6, 0]
+], dtype=float)
+
+TOY_RADAR_LATITUDES_DEG = numpy.array([
+    53.5, 53.49, 53.48, 53.47, 53.46, 53.45, 53.44, 53.43
+])
+TOY_RADAR_LONGITUDES_DEG = numpy.array([
+    246.5, 246.52, 246.54, 246.56, 246.58, 246.6, 246.62, 246.64, 246.66,
+    246.68, 246.7, 246.72
+])
+
+TOY_LOCAL_MAX_DICT = {
+    temporal_tracking.LATITUDES_KEY:
+        numpy.array([53.479, 53.461, 53.45, 53.5, 53.501]),
+    temporal_tracking.LONGITUDES_KEY:
+        numpy.array([246.541, 246.619, 246.681, 246.62, 246.659])
+}
+
+TOY_RADAR_TO_REGION_MATRIX = numpy.array([
+    [1, 1, 1, 0, 0, 0, 4, 0, 5, 0, 0, 0],
+    [0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 1, 1, 2, 0, 2, 3, 3, 3, 0],
+    [0, 0, 0, 0, 2, 2, 2, 2, 0, 3, 3, 3],
+    [0, 0, 0, 2, 2, 2, 2, 0, 3, 3, 3, 3],
+    [0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 3, 3],
+    [0, 0, 0, 0, 0, 0, 0, 2, 0, 3, 3, 0]
+], dtype=int)
+
+TOY_RADAR_TO_REGION_MATRIX -= 1
+
 # The following constants are used to test _remove_small_polygons.
 THIS_LIST_OF_ROW_ARRAYS = [
     numpy.array([0, 0, 0, 0, 1, 1, 2, 2, 2], dtype=int),
@@ -373,6 +413,20 @@ class EchoTopTrackingTests(unittest.TestCase):
             these_columns, THIRD_GRID_POINT_COLUMNS
         ))
 
+    def test_local_maxima_to_regions(self):
+        """Ensures correct output from _local_maxima_to_regions."""
+
+        this_region_matrix = echo_top_tracking._local_maxima_to_regions(
+            local_max_dict=TOY_LOCAL_MAX_DICT,
+            echo_top_matrix_km=TOY_ECHO_TOP_MATRIX_KM,
+            min_echo_top_km=MIN_ECHO_TOP_KM,
+            radar_latitudes_deg=TOY_RADAR_LATITUDES_DEG,
+            radar_longitudes_deg=TOY_RADAR_LONGITUDES_DEG)
+
+        self.assertTrue(numpy.array_equal(
+            this_region_matrix, TOY_RADAR_TO_REGION_MATRIX
+        ))
+
     def test_remove_small_polygons_min0(self):
         """Ensures correct output from _remove_small_polygons.
 
@@ -464,10 +518,10 @@ class EchoTopTrackingTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             these_end_times_unix_sec, SECOND_TRACKING_END_TIMES_UNIX_SEC
         ))
-    
+
     def test_old_to_new_tracking_periods_first(self):
         """Ensures correct output from _old_to_new_tracking_periods.
-        
+
         In this case, using first max time interval.
         """
 
