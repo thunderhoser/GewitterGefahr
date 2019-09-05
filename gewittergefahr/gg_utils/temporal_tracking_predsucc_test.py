@@ -342,6 +342,18 @@ FIRST_SUCCESSOR_DICT_5SEC_0CHANGES = {
     19: []
 }
 
+FIRST_PREDECESSOR_DICT_5SEC_0SPLITS = {
+    0: [], 1: [], 2: [],
+    3: [0], 4: [2],
+    5: [0], 6: [1, 2],
+    7: [0], 8: [],
+    9: [], 10: [], 11: [8], 12: [],
+    13: [9], 14: [8], 15: [12],
+    16: [9], 17: [10],
+    18: [9, 10],
+    19: [13, 17]
+}
+
 FIRST_SUCCESSOR_DICT_5SEC_0SPLITS = {
     0: [7], 1: [6], 2: [6],
     3: [7], 4: [6],
@@ -352,6 +364,18 @@ FIRST_SUCCESSOR_DICT_5SEC_0SPLITS = {
     16: [19], 17: [19],
     18: [19],
     19: []
+}
+
+FIRST_PREDECESSOR_DICT_5SEC_0MERGERS = {
+    0: [], 1: [], 2: [],
+    3: [0], 4: [2],
+    5: [0], 6: [],
+    7: [0], 8: [6],
+    9: [0], 10: [0], 11: [6], 12: [6],
+    13: [3], 14: [6], 15: [6],
+    16: [5], 17: [5],
+    18: [],
+    19: [18]
 }
 
 FIRST_SUCCESSOR_DICT_5SEC_0MERGERS = {
@@ -414,6 +438,18 @@ FIRST_SUCCESSOR_DICT_5SEC_ALL_0CHANGES = {
     19: [19]
 }
 
+FIRST_PREDECESSOR_DICT_5SEC_ALL_0SPLITS = {
+    0: [0], 1: [1], 2: [2],
+    3: [0, 3], 4: [2, 4],
+    5: [0, 3, 5], 6: [1, 2, 4, 6],
+    7: [0, 3, 5, 7], 8: [8],
+    9: [9], 10: [10], 11: [8, 11], 12: [12],
+    13: [9, 13], 14: [8, 11, 14], 15: [12, 15],
+    16: [9, 13, 16], 17: [10, 17],
+    18: [9, 10, 13, 16, 17, 18],
+    19: [13, 16, 17, 18, 19]
+}
+
 FIRST_SUCCESSOR_DICT_5SEC_ALL_0SPLITS = {
     0: [0, 3, 5, 7], 1: [1, 6], 2: [2, 4, 6],
     3: [3, 5, 7], 4: [4, 6],
@@ -424,6 +460,18 @@ FIRST_SUCCESSOR_DICT_5SEC_ALL_0SPLITS = {
     16: [16, 18, 19], 17: [17, 18, 19],
     18: [18, 19],
     19: [19]
+}
+
+FIRST_PREDECESSOR_DICT_5SEC_ALL_0MERGERS = {
+    0: [0], 1: [1], 2: [2],
+    3: [0, 3], 4: [2, 4],
+    5: [0, 3, 5], 6: [6],
+    7: [0, 3, 5, 7], 8: [6, 8],
+    9: [0, 3, 5, 7, 9], 10: [0, 3, 5, 7, 10], 11: [6, 8, 11], 12: [6, 12],
+    13: [3, 5, 7, 9, 13], 14: [6, 8, 11, 14], 15: [6, 12, 15],
+    16: [5, 7, 9, 13, 16], 17: [5, 7, 10, 17],
+    18: [18],
+    19: [18, 19]
 }
 
 FIRST_SUCCESSOR_DICT_5SEC_ALL_0MERGERS = {
@@ -650,7 +698,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         """Ensures correct output from find_successors.
 
         In this case, working on the first table with max time difference =
-        5 seconds and returning all successors on path to earliest.
+        5 seconds and returning all successors on path to latest.
         """
 
         this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
@@ -761,6 +809,30 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
                 these_sucessor_rows, these_expected_rows
             ))
 
+    def test_find_predecessors_first_5sec_0splits(self):
+        """Ensures correct output from find_predecessors.
+
+        In this case, working on the first table with max time difference =
+        5 seconds and max splits = 0.
+        """
+
+        this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
+
+        for i in range(this_num_storm_objects):
+            these_predecessor_rows = temporal_tracking.find_predecessors(
+                storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
+                num_seconds_back=5, max_num_sec_id_changes=0,
+                change_type_string=temporal_tracking.SPLIT_STRING)
+
+            these_predecessor_rows = numpy.sort(these_predecessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                FIRST_PREDECESSOR_DICT_5SEC_0SPLITS[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_predecessor_rows, these_expected_rows
+            ))
+
     def test_find_successors_first_5sec_0splits(self):
         """Ensures correct output from find_successors.
 
@@ -783,6 +855,30 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
 
             self.assertTrue(numpy.array_equal(
                 these_sucessor_rows, these_expected_rows
+            ))
+
+    def test_find_predecessors_first_5sec_0mergers(self):
+        """Ensures correct output from find_predecessors.
+
+        In this case, working on the first table with max time difference =
+        5 seconds and max mergers = 0.
+        """
+
+        this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
+
+        for i in range(this_num_storm_objects):
+            these_predecessor_rows = temporal_tracking.find_predecessors(
+                storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
+                num_seconds_back=5, max_num_sec_id_changes=0,
+                change_type_string=temporal_tracking.MERGER_STRING)
+
+            these_predecessor_rows = numpy.sort(these_predecessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                FIRST_PREDECESSOR_DICT_5SEC_0MERGERS[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_predecessor_rows, these_expected_rows
             ))
 
     def test_find_successors_first_5sec_0mergers(self):
@@ -839,7 +935,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
 
         In this case, working on the first table with max time difference =
         5 seconds and max ID changes = 1.  Looking for all successors on path
-        to earliest.
+        to latest.
         """
 
         this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
@@ -901,7 +997,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
 
         In this case, working on the first table with max time difference =
         5 seconds and max ID changes = 0.  Looking for all successors on path
-        to earliest.
+        to latest.
         """
 
         this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
@@ -921,12 +1017,38 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
                 these_sucessor_rows, these_expected_rows
             ))
 
+    def test_find_predecessors_first_5sec_all_0splits(self):
+        """Ensures correct output from find_predecessors.
+
+        In this case, working on the first table with max time difference =
+        5 seconds and max splits = 0.  Looking for all predecessors on path to
+        earliest.
+        """
+
+        this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
+
+        for i in range(this_num_storm_objects):
+            these_predecessor_rows = temporal_tracking.find_predecessors(
+                storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
+                num_seconds_back=5, max_num_sec_id_changes=0,
+                change_type_string=temporal_tracking.SPLIT_STRING,
+                return_all_on_path=True)
+
+            these_predecessor_rows = numpy.sort(these_predecessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                FIRST_PREDECESSOR_DICT_5SEC_ALL_0SPLITS[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_predecessor_rows, these_expected_rows
+            ))
+
     def test_find_successors_first_5sec_all_0splits(self):
         """Ensures correct output from find_successors.
 
         In this case, working on the first table with max time difference =
         5 seconds and max splits = 0.  Looking for all successors on path to
-        earliest.
+        latest.
         """
 
         this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
@@ -947,12 +1069,38 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
                 these_sucessor_rows, these_expected_rows
             ))
 
+    def test_find_predecessors_first_5sec_all_0mergers(self):
+        """Ensures correct output from find_predecessors.
+
+        In this case, working on the first table with max time difference =
+        5 seconds and max mergers = 0.  Looking for all predecessors on path to
+        earliest.
+        """
+
+        this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
+
+        for i in range(this_num_storm_objects):
+            these_predecessor_rows = temporal_tracking.find_predecessors(
+                storm_object_table=FIRST_STORM_OBJECT_TABLE, target_row=i,
+                num_seconds_back=5, max_num_sec_id_changes=0,
+                change_type_string=temporal_tracking.MERGER_STRING,
+                return_all_on_path=True)
+
+            these_predecessor_rows = numpy.sort(these_predecessor_rows)
+            these_expected_rows = numpy.sort(numpy.array(
+                FIRST_PREDECESSOR_DICT_5SEC_ALL_0MERGERS[i], dtype=int
+            ))
+
+            self.assertTrue(numpy.array_equal(
+                these_predecessor_rows, these_expected_rows
+            ))
+
     def test_find_successors_first_5sec_all_0mergers(self):
         """Ensures correct output from find_successors.
 
         In this case, working on the first table with max time difference =
         5 seconds and max mergers = 0.  Looking for all successors on path to
-        earliest.
+        latest.
         """
 
         this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
@@ -1094,7 +1242,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         """Ensures correct output from find_successors.
 
         In this case, working on the first table with max time difference =
-        2 seconds and returning all successors on path to earliest.
+        2 seconds and returning all successors on path to latest.
         """
 
         this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)
@@ -1207,7 +1355,6 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
                 these_successor_rows, these_expected_rows
             ))
 
-
     def test_find_predecessors_first_1sec_all(self):
         """Ensures correct output from find_predecessors.
 
@@ -1235,7 +1382,7 @@ class TemporalTrackingPredsuccTests(unittest.TestCase):
         """Ensures correct output from find_successors.
 
         In this case, working on the first table with max time difference =
-        1 seconds and returning all successors on path to earliest.
+        1 seconds and returning all successors on path to latest.
         """
 
         this_num_storm_objects = len(FIRST_STORM_OBJECT_TABLE.index)

@@ -74,12 +74,13 @@ SECONDARY_ID_CHANGE_TYPE_STRINGS = [
 
 def __find_predecessors(
         storm_object_table, target_row, max_num_sec_id_changes,
-        return_all_on_path):
+        change_type_string, return_all_on_path):
     """Finds all predecessors of one storm object.
 
     :param storm_object_table: See doc for public method `find_predecessors`.
     :param target_row: Same.
     :param max_num_sec_id_changes: Same.
+    :param change_type_string: Same.
     :param return_all_on_path: Same.
     :return: predecessor_rows: Same.
     """
@@ -128,6 +129,26 @@ def __find_predecessors(
                 storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values[
                     this_row]
             )
+
+            if change_type_string == MERGER_STRING:
+                this_merger_flag = (
+                    storm_object_table[
+                        tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN
+                    ].values[this_row] != ''
+                )
+
+                these_change_flags = numpy.logical_and(
+                    these_change_flags, this_merger_flag)
+
+            if change_type_string == SPLIT_STRING:
+                these_split_flags = (
+                    storm_object_table[
+                        tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN
+                    ].values[these_previous_rows] != ''
+                )
+
+                these_change_flags = numpy.logical_and(
+                    these_change_flags, these_split_flags)
 
             these_previous_num_changes = (
                 this_num_changes + these_change_flags.astype(int)
@@ -1870,7 +1891,8 @@ def get_storm_ages(storm_object_table, tracking_start_times_unix_sec,
 
 def find_predecessors(
         storm_object_table, target_row, num_seconds_back,
-        max_num_sec_id_changes=LARGE_INTEGER, return_all_on_path=False):
+        max_num_sec_id_changes=LARGE_INTEGER,
+        change_type_string=ANY_CHANGE_STRING, return_all_on_path=False):
     """Finds all predecessors of one storm object.
 
     :param storm_object_table: pandas DataFrame with at least the following
@@ -1888,6 +1910,9 @@ def find_predecessors(
         given predecesssor.
     :param max_num_sec_id_changes: Max number of secondary-ID changes between
         target object and a given predecesssor.
+    :param change_type_string: Type of secondary-ID change for
+        `max_num_sec_id_changes`.  Must be accepted by
+        `_check_secondary_id_change_type`.
     :param return_all_on_path: Boolean flag.  If True, will return all
         predecessors on path to earliest predecessors.  If False, will return
         only earliest predecessors.
@@ -1906,6 +1931,8 @@ def find_predecessors(
     error_checking.assert_is_integer(max_num_sec_id_changes)
     error_checking.assert_is_geq(max_num_sec_id_changes, 0)
     error_checking.assert_is_boolean(return_all_on_path)
+
+    _check_secondary_id_change_type(change_type_string)
 
     last_time_unix_sec = (
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[target_row]
@@ -1927,6 +1954,7 @@ def find_predecessors(
     predecessor_subrows = __find_predecessors(
         storm_object_table=storm_object_table.iloc[recent_rows],
         target_row=target_subrow, max_num_sec_id_changes=max_num_sec_id_changes,
+        change_type_string=change_type_string,
         return_all_on_path=return_all_on_path)
 
     return recent_rows[predecessor_subrows]

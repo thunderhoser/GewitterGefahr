@@ -1397,10 +1397,23 @@ def _reverse_wind_linkages(storm_object_table, wind_to_storm_table):
             numpy.argmin(numpy.absolute(these_time_diffs_sec))
         ]
 
-        these_predecessor_rows = temporal_tracking.find_predecessors(
+        these_first_rows = temporal_tracking.find_predecessors(
             storm_object_table=storm_to_winds_table,
             target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
-            max_num_sec_id_changes=1, return_all_on_path=True)
+            max_num_sec_id_changes=1,
+            change_type_string=temporal_tracking.SPLIT_STRING,
+            return_all_on_path=True)
+
+        these_second_rows = temporal_tracking.find_predecessors(
+            storm_object_table=storm_to_winds_table,
+            target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
+            max_num_sec_id_changes=0,
+            change_type_string=temporal_tracking.MERGER_STRING,
+            return_all_on_path=True)
+
+        these_predecessor_rows = numpy.array(list(
+            set(these_first_rows.tolist()) & set(these_second_rows.tolist())
+        ), dtype=int)
 
         for j in these_predecessor_rows:
             this_flag = (
@@ -1571,10 +1584,23 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
             numpy.argmin(numpy.absolute(these_time_diffs_sec))
         ]
 
-        these_predecessor_rows = temporal_tracking.find_predecessors(
+        these_first_rows = temporal_tracking.find_predecessors(
             storm_object_table=storm_to_tornadoes_table,
             target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
-            max_num_sec_id_changes=1, return_all_on_path=True)
+            max_num_sec_id_changes=1,
+            change_type_string=temporal_tracking.SPLIT_STRING,
+            return_all_on_path=True)
+
+        these_second_rows = temporal_tracking.find_predecessors(
+            storm_object_table=storm_to_tornadoes_table,
+            target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
+            max_num_sec_id_changes=0,
+            change_type_string=temporal_tracking.MERGER_STRING,
+            return_all_on_path=True)
+
+        these_predecessor_rows = numpy.array(list(
+            set(these_first_rows.tolist()) & set(these_second_rows.tolist())
+        ), dtype=int)
 
         for j in these_predecessor_rows:
             this_flag = (

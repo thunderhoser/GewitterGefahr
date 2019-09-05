@@ -14,7 +14,7 @@ from gewittergefahr.plotting import storm_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
 TORNADIC_FLAG_COLUMN = 'is_tornadic'
-MAIN_TORNADIC_FLAG_COLUMN = 'is_main_tornadic_link'
+MAIN_TOR_FLAG_COLUMN = 'is_main_tornadic_link'
 POLYGON_COLUMN = 'polygon_object_xy_metres'
 
 TRIANGLE_X_COORDS_RELATIVE = numpy.array([-1, 0, 1, -1], dtype=float)
@@ -39,6 +39,9 @@ DEFAULT_MARKER_EDGE_WIDTH = 2
 END_MARKER_TYPE = 'x'
 END_MARKER_SIZE = 24
 END_MARKER_EDGE_WIDTH = 4
+MAIN_TOR_MARKER_TYPE = '*'
+MAIN_TOR_MARKER_SIZE = 48
+MAIN_TOR_MARKER_EDGE_WIDTH = 2
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -131,8 +134,8 @@ def _get_track1_for_simple_pred():
         `storm_plotting.plot_storm_tracks`.
     """
 
-    primary_id_strings = ['A'] * 10
-    secondary_id_strings = ['a', 'b', 'a', 'b', 'a', 'b', 'c', 'c', 'c', 'c']
+    primary_id_strings = ['foo'] * 10
+    secondary_id_strings = ['X', 'Y', 'X', 'Y', 'X', 'Y', 'Z', 'Z', 'Z', 'Z']
 
     valid_times_unix_sec = numpy.array(
         [0, 0, 1, 1, 2, 2, 3, 4, 5, 6], dtype=int
@@ -148,10 +151,10 @@ def _get_track1_for_simple_pred():
         [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], dtype=bool
     )
 
-    first_prev_sec_id_strings = ['', '', 'a', 'b', 'a', 'b', 'a', 'c', 'c', 'c']
-    second_prev_sec_id_strings = ['', '', '', '', '', '', 'b', '', '', '']
+    first_prev_sec_id_strings = ['', '', 'X', 'Y', 'X', 'Y', 'X', 'Z', 'Z', 'Z']
+    second_prev_sec_id_strings = ['', '', '', '', '', '', 'Y', '', '', '']
     first_next_sec_id_strings = [
-        'a', 'b', 'a', 'b', 'c', 'c', 'c', 'c', 'c', ''
+        'X', 'Y', 'X', 'Y', 'Z', 'Z', 'Z', 'Z', 'Z', ''
     ]
     second_next_sec_id_strings = ['', '', '', '', '', '', '', '', '', '']
 
@@ -162,7 +165,7 @@ def _get_track1_for_simple_pred():
         tracking_utils.CENTROID_X_COLUMN: centroid_x_coords,
         tracking_utils.CENTROID_Y_COLUMN: centroid_y_coords,
         TORNADIC_FLAG_COLUMN: tornadic_flags,
-        MAIN_TORNADIC_FLAG_COLUMN: main_tornadic_flags,
+        MAIN_TOR_FLAG_COLUMN: main_tornadic_flags,
         tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
             first_prev_sec_id_strings,
         tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
@@ -180,10 +183,10 @@ def _get_track2_for_simple_pred():
     :return: storm_object_table: See doc for `_get_track1_for_simple_pred`.
     """
 
-    primary_id_strings = ['A'] * 17
+    primary_id_strings = ['bar'] * 17
     secondary_id_strings = [
-        'a', 'a', 'a', 'c', 'b', 'c', 'b', 'c', 'b',
-        'd', 'e', 'd', 'e', 'd', 'e', 'd', 'e'
+        'A', 'A', 'A', 'B', 'C', 'B', 'C', 'B', 'C',
+        'D', 'E', 'D', 'E', 'D', 'E', 'D', 'E'
     ]
 
     valid_times_unix_sec = numpy.array(
@@ -205,18 +208,18 @@ def _get_track2_for_simple_pred():
     )
 
     first_prev_sec_id_strings = [
-        '', 'a', 'a', 'a', 'a', 'c', 'b', 'c', 'b',
-        'b', 'b', 'd', 'e', 'd', 'e', 'd', 'e'
+        '', 'A', 'A', 'A', 'A', 'B', 'C', 'B', 'C',
+        'C', 'C', 'D', 'E', 'D', 'E', 'D', 'E'
     ]
     second_prev_sec_id_strings = [
         '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''
     ]
     first_next_sec_id_strings = [
-        'a', 'a', 'c', 'c', 'b', 'c', 'b', '', 'd',
-        'd', 'e', 'd', 'e', 'd', 'e', '', ''
+        'A', 'A', 'B', 'B', 'C', 'B', 'C', '', 'D',
+        'D', 'E', 'D', 'E', 'D', 'E', '', ''
     ]
     second_next_sec_id_strings = [
-        '', '', 'b', '', '', '', '', '', 'e',
+        '', '', 'C', '', '', '', '', '', 'E',
         '', '', '', '', '', '', '', ''
     ]
 
@@ -227,7 +230,7 @@ def _get_track2_for_simple_pred():
         tracking_utils.CENTROID_X_COLUMN: centroid_x_coords,
         tracking_utils.CENTROID_Y_COLUMN: centroid_y_coords,
         TORNADIC_FLAG_COLUMN: tornadic_flags,
-        MAIN_TORNADIC_FLAG_COLUMN: main_tornadic_flags,
+        MAIN_TOR_FLAG_COLUMN: main_tornadic_flags,
         tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
             first_prev_sec_id_strings,
         tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
@@ -245,10 +248,10 @@ def _get_track_for_simple_succ():
     :return: storm_object_table: See doc for `_get_track1_for_simple_pred`.
     """
 
-    primary_id_strings = ['A'] * 21
+    primary_id_strings = ['moo'] * 21
     secondary_id_strings = [
-        'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'c', 'd', 'c', 'd', 'c', 'd',
-        'e', 'e', 'e', 'f', 'g', 'f', 'g'
+        'A', 'B', 'A', 'B', 'A', 'B', 'A', 'B', 'C', 'D', 'C', 'D', 'C', 'D',
+        'E', 'E', 'E', 'F', 'G', 'F', 'G'
     ]
 
     valid_times_unix_sec = numpy.array(
@@ -273,27 +276,27 @@ def _get_track_for_simple_succ():
     )
 
     first_prev_sec_id_strings = [
-        '', '', 'a', 'b', 'a', 'b', 'a', 'b',
-        '', 'a', 'c', 'd', 'c', 'd',
-        'c', 'e', 'e',
-        'e', 'e', 'f', 'g'
+        '', '', 'A', 'B', 'A', 'B', 'A', 'B',
+        '', 'A', 'C', 'D', 'C', 'D',
+        'C', 'E', 'E',
+        'E', 'E', 'F', 'G'
     ]
     second_prev_sec_id_strings = [
         '', '', '', '', '', '', '', '',
-        '', 'b', '', '', '', '',
-        'd', '', '',
+        '', 'B', '', '', '', '',
+        'D', '', '',
         '', '', '', ''
     ]
     first_next_sec_id_strings = [
-        'a', 'b', 'a', 'b', 'a', 'b', 'd', 'd',
-        'c', 'd', 'c', 'd', 'e', 'e',
-        'e', 'e', 'f',
-        'f', 'g', '', ''
+        'A', 'B', 'A', 'B', 'A', 'B', 'D', 'D',
+        'C', 'D', 'C', 'D', 'E', 'E',
+        'E', 'E', 'F',
+        'F', 'G', '', ''
     ]
     second_next_sec_id_strings = [
         '', '', '', '', '', '', '', '',
         '', '', '', '', '', '',
-        '', '', 'g',
+        '', '', 'G',
         '', '', '', ''
     ]
 
@@ -304,7 +307,7 @@ def _get_track_for_simple_succ():
         tracking_utils.CENTROID_X_COLUMN: centroid_x_coords,
         tracking_utils.CENTROID_Y_COLUMN: centroid_y_coords,
         TORNADIC_FLAG_COLUMN: tornadic_flags,
-        MAIN_TORNADIC_FLAG_COLUMN: main_tornadic_flags,
+        MAIN_TOR_FLAG_COLUMN: main_tornadic_flags,
         tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
             first_prev_sec_id_strings,
         tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
@@ -525,6 +528,8 @@ def _plot_attribution_one_track(storm_object_table, plot_legend):
         tracking_utils.CENTROID_X_COLUMN].values
     centroid_y_coords = storm_object_table[
         tracking_utils.CENTROID_Y_COLUMN].values
+    secondary_id_strings = storm_object_table[
+        tracking_utils.SECONDARY_ID_COLUMN].values
 
     storm_object_table = storm_object_table.assign(**{
         tracking_utils.CENTROID_LONGITUDE_COLUMN: centroid_x_coords,
@@ -547,21 +552,38 @@ def _plot_attribution_one_track(storm_object_table, plot_legend):
         start_marker_type=None, end_marker_type=None)
 
     tornadic_flags = storm_object_table[TORNADIC_FLAG_COLUMN].values
+    main_tornadic_flags = storm_object_table[MAIN_TOR_FLAG_COLUMN].values
     end_of_track_flags = numpy.array([
         s == '' for s in
         storm_object_table[tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN].values
     ], dtype=bool)
 
-    legend_handles = [None] * 2
-    legend_strings = [None] * 2
+    legend_handles = [None] * 3
+    legend_strings = [None] * 3
 
     for i in range(len(centroid_x_coords)):
-        if tornadic_flags[i]:
+        axes_object.text(
+            centroid_x_coords[i], centroid_y_coords[i] - 0.2,
+            secondary_id_strings[i], color=INTERP_COLOUR,
+            horizontalalignment='center', verticalalignment='top')
+
+        if tornadic_flags[i] or main_tornadic_flags[i]:
             this_colour = TORNADIC_COLOUR
         else:
             this_colour = NON_TORNADIC_COLOUR
 
-        if end_of_track_flags[i]:
+        if main_tornadic_flags[i]:
+            this_handle = axes_object.plot(
+                centroid_x_coords[i], centroid_y_coords[i], linestyle='None',
+                marker=MAIN_TOR_MARKER_TYPE, markersize=MAIN_TOR_MARKER_SIZE,
+                markerfacecolor=this_colour, markeredgecolor=this_colour,
+                markeredgewidth=MAIN_TOR_MARKER_EDGE_WIDTH
+            )[0]
+
+            legend_handles[0] = this_handle
+            legend_strings[0] = 'First object linked to tornado'
+
+        elif end_of_track_flags[i]:
             axes_object.plot(
                 centroid_x_coords[i], centroid_y_coords[i], linestyle='None',
                 marker=END_MARKER_TYPE, markersize=END_MARKER_SIZE,
@@ -575,23 +597,23 @@ def _plot_attribution_one_track(storm_object_table, plot_legend):
                 markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
             )[0]
 
-            if tornadic_flags[i] and legend_handles[0] is None:
-                legend_handles[0] = this_handle
-                legend_strings[0] = 'Linked to tornado'
-
-            if not tornadic_flags[i] and legend_handles[1] is None:
+            if tornadic_flags[i] and legend_handles[1] is None:
                 legend_handles[1] = this_handle
-                legend_strings[1] = 'Not linked to tornado'
+                legend_strings[1] = 'Also linked to tornado'
 
-    main_tornadic_index = numpy.where(
-        storm_object_table[MAIN_TORNADIC_FLAG_COLUMN].values
-    )[0][0]
+            if not tornadic_flags[i] and legend_handles[2] is None:
+                legend_handles[2] = this_handle
+                legend_strings[2] = 'Not linked to tornado'
 
-    axes_object.text(
-        centroid_x_coords[main_tornadic_index],
-        centroid_y_coords[main_tornadic_index] + 0.2, 'T',
-        color=TORNADIC_COLOUR, fontweight='bold',
-        horizontalalignment='center', verticalalignment='bottom')
+    # main_tornadic_index = numpy.where(
+    #     storm_object_table[MAIN_TOR_FLAG_COLUMN].values
+    # )[0][0]
+    #
+    # axes_object.text(
+    #     centroid_x_coords[main_tornadic_index],
+    #     centroid_y_coords[main_tornadic_index] + 0.2, 'T',
+    #     color=TORNADIC_COLOUR, fontsize=45, fontweight='bold',
+    #     horizontalalignment='center', verticalalignment='bottom')
 
     axes_object.xaxis.set_ticklabels([])
     axes_object.yaxis.set_ticklabels([])

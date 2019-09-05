@@ -182,14 +182,14 @@ def create_storm_objects():
 
     num_storm_objects = len(storm_object_table.index)
 
-    for k in range(num_storm_objects):
-        storm_object_table[linkage.STORM_VERTICES_X_COLUMN].values[k] = (
-            storm_object_table[linkage.STORM_CENTROID_X_COLUMN].values[k] +
+    for j in range(num_storm_objects):
+        storm_object_table[linkage.STORM_VERTICES_X_COLUMN].values[j] = (
+            storm_object_table[linkage.STORM_CENTROID_X_COLUMN].values[j] +
             X_VERTICES_RELATIVE
         )
 
-        storm_object_table[linkage.STORM_VERTICES_Y_COLUMN].values[k] = (
-            storm_object_table[linkage.STORM_CENTROID_Y_COLUMN].values[k] +
+        storm_object_table[linkage.STORM_VERTICES_Y_COLUMN].values[j] = (
+            storm_object_table[linkage.STORM_CENTROID_Y_COLUMN].values[j] +
             Y_VERTICES_RELATIVE
         )
 
@@ -446,10 +446,9 @@ for this_column in THESE_COLUMNS:
 
 STORM_ROW_TO_STATION_ID_STRINGS = {
     0: ['ii', 'iv', 'vi', 'viii'],
-    1: ['xvi'],
-    2: ['xii', 'xvi'],
+    2: ['xii'],
     3: ['ii', 'iv', 'vi', 'viii'],
-    4: ['xii', 'xvi'],
+    4: ['xii'],
     5: ['ii', 'iv', 'vi', 'viii'],
     6: ['x', 'xiv', 'xvi'],
     8: ['x', 'xiv'],
@@ -459,10 +458,9 @@ STORM_ROW_TO_STATION_ID_STRINGS = {
 
 STORM_ROW_TO_MAIN_OBJECT_FLAGS = {
     0: [0, 0, 0, 0],
-    1: [0],
-    2: [0, 0],
+    2: [0],
     3: [0, 0, 0, 0],
-    4: [1, 0],
+    4: [1],
     5: [1, 0, 1, 0],
     6: [0, 0, 1],
     8: [0, 0],
@@ -530,10 +528,9 @@ LATE_STORM_TO_WINDS_TABLE_PRELIM = copy.deepcopy(STORM_TO_WINDS_TABLE)
 
 ROW_TO_EARLY_KEEP_FLAGS = {
     0: [1, 1, 1, 1],
-    1: [1],
-    2: [1, 1],
+    2: [1],
     3: [1, 1, 1, 1],
-    4: [1, 1],
+    4: [1],
     5: [1, 1, 1, 1],
     6: [0, 0, 1],
     8: [0, 0],
@@ -543,10 +540,9 @@ ROW_TO_EARLY_KEEP_FLAGS = {
 
 ROW_TO_LATE_KEEP_FLAGS = {
     0: [0, 0, 0, 0],
-    1: [0],
-    2: [0, 0],
+    2: [0],
     3: [0, 0, 0, 0],
-    4: [0, 0],
+    4: [0],
     5: [0, 0, 0, 0],
     6: [1, 1, 0],
     8: [1, 1],
