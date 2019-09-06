@@ -743,8 +743,9 @@ def _local_maxima_to_regions(
     return _make_regions_contiguous(radar_to_region_matrix)
 
 
-def _local_maxima_to_polygons(local_max_dict, echo_top_matrix_km,
-                              min_echo_top_km, radar_metadata_dict):
+def _local_maxima_to_polygons(
+        local_max_dict, echo_top_matrix_km, min_echo_top_km,
+        radar_metadata_dict, recompute_centroids=True):
     """Converts local maxima at one time from points to polygons.
 
     P = number of local maxima
@@ -762,6 +763,9 @@ def _local_maxima_to_polygons(local_max_dict, echo_top_matrix_km,
         local maxima).
     :param radar_metadata_dict: Dictionary created by
         `myrorss_and_mrms_io.read_metadata_from_raw_file`.
+    :param recompute_centroids: Boolean flag.  If True, storm centroids (point
+        maxima) will become centroids of respective polygons.
+
     :return: local_max_dict: Same as input but with the following extra columns.
     local_max_dict["grid_point_rows_array_list"]: length-P list, where the [k]th
         element is a numpy array with row indices of grid points in the [k]th
@@ -877,6 +881,9 @@ def _local_maxima_to_polygons(local_max_dict, echo_top_matrix_km,
                 exterior_x_coords=these_vertex_longitudes_deg,
                 exterior_y_coords=these_vertex_latitudes_deg)
         )
+
+        if not recompute_centroids:
+            continue
 
         this_centroid_object_latlng = local_max_dict[
             temporal_tracking.POLYGON_OBJECTS_LATLNG_KEY
@@ -1341,7 +1348,7 @@ def run_tracking(
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
-        min_track_duration_seconds=0):
+        min_track_duration_seconds=0, recompute_centroids=True):
     """Runs echo-top-tracking.  This is effectively the main method.
 
     :param top_radar_dir_name: See doc for `_find_input_radar_files`.
@@ -1373,6 +1380,8 @@ def run_tracking(
     :param max_link_distance_m_s01: Same.
     :param min_track_duration_seconds: See doc for
         `temporal_tracking.remove_short_lived_storms`.
+    :param recompute_centroids: Boolean flag.  If True, storm centroids will be
+        polygon centroids rather than original point maxima.
     """
 
     if min_polygon_size_pixels is None:
@@ -1498,7 +1507,8 @@ def run_tracking(
             local_max_dict=local_max_dict_by_time[i],
             echo_top_matrix_km=this_echo_top_matrix_km,
             min_echo_top_km=min_echo_top_km,
-            radar_metadata_dict=this_metadata_dict)
+            radar_metadata_dict=this_metadata_dict,
+            recompute_centroids=recompute_centroids)
 
         local_max_dict_by_time[i] = _remove_small_polygons(
             local_max_dict=local_max_dict_by_time[i],

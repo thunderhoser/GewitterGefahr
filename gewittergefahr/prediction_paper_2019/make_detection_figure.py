@@ -22,7 +22,8 @@ from gewittergefahr.plotting import imagemagick_utils
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-MIN_POLYGON_SIZES_PX = numpy.array([0, 5], dtype=int)
+MIN_POLYGON_SIZES_PX = numpy.array([0, 0, 5], dtype=int)
+RECOMPUTE_CENTROID_FLAGS = numpy.array([0, 1, 1], dtype=bool)
 
 STORM_WIDTH = 2
 STORM_COLOUR = numpy.full(3, 0.)
@@ -206,13 +207,16 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
     spc_date_string = time_conversion.time_to_spc_date_string(
         valid_time_unix_sec)
 
-    num_polygon_sizes = len(MIN_POLYGON_SIZES_PX)
-    tracking_dir_names = [None] * num_polygon_sizes
+    num_trials = len(MIN_POLYGON_SIZES_PX)
+    tracking_dir_names = [None] * num_trials
 
-    for k in range(num_polygon_sizes):
+    for k in range(num_trials):
         tracking_dir_names[k] = (
-            '{0:s}/tracking/min_polygon_size_px={1:d}'
-        ).format(output_dir_name, MIN_POLYGON_SIZES_PX[k])
+            '{0:s}/tracking/min-polygon-size-px={1:d}_recompute-centroids={2:d}'
+        ).format(
+            output_dir_name, MIN_POLYGON_SIZES_PX[k],
+            int(RECOMPUTE_CENTROID_FLAGS[k])
+        )
 
         echo_top_tracking.run_tracking(
             top_radar_dir_name=top_radar_dir_name,
@@ -223,7 +227,8 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
             last_time_unix_sec=valid_time_unix_sec + 1,
             top_echo_classifn_dir_name=top_echo_classifn_dir_name,
             min_polygon_size_pixels=MIN_POLYGON_SIZES_PX[k],
-            min_track_duration_seconds=0)
+            recompute_centroids=RECOMPUTE_CENTROID_FLAGS[k]
+        )
         print(SEPARATOR_STRING)
 
     echo_top_file_name = myrorss_and_mrms_io.find_raw_file(
@@ -325,7 +330,7 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
 
     letter_label = 'b'
 
-    for k in range(num_polygon_sizes):
+    for k in range(num_trials):
         this_tracking_file_name = tracking_io.find_file(
             top_tracking_dir_name=tracking_dir_names[k],
             tracking_scale_metres2=
@@ -342,7 +347,7 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
             _plot_echo_tops(
                 echo_top_matrix_km_asl=echo_top_matrix_km_asl,
                 latitudes_deg=radar_latitudes_deg,
-                longitudes_deg=radar_longitudes_deg, plot_colour_bar=True,
+                longitudes_deg=radar_longitudes_deg, plot_colour_bar=k > 0,
                 convective_flag_matrix=convective_flag_matrix)
         )
 
@@ -352,8 +357,12 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
             line_width=STORM_WIDTH, line_colour=STORM_COLOUR)
 
         this_title_string = (
-            'Detection with min polygon size = {0:d} grid cells'
-        ).format(MIN_POLYGON_SIZES_PX[k])
+            'Min size = {0:d} grid cells, {1:s} storm centers'
+        ).format(
+            MIN_POLYGON_SIZES_PX[k],
+            'original' if RECOMPUTE_CENTROID_FLAGS[k] else 'recomputed'
+        )
+
         this_axes_object.set_title(this_title_string)
 
         letter_label = chr(ord(letter_label) + 1)
@@ -378,7 +387,7 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,
-        num_panel_rows=2, num_panel_columns=2)
+        num_panel_rows=2, num_panel_columns=3)
 
     imagemagick_utils.resize_image(
         input_file_name=concat_file_name, output_file_name=concat_file_name,
