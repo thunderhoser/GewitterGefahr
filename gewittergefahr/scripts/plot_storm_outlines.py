@@ -107,8 +107,8 @@ RADAR_CMAP_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
 
-DEFAULT_OUTLINE_COLOUR = numpy.array([228, 26, 28], dtype=int)
-DEFAULT_OUTLINE_OPACITY = 0.5
+DEFAULT_OUTLINE_COLOUR = numpy.full(3, 0.)
+DEFAULT_OUTLINE_OPACITY = 1.
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
