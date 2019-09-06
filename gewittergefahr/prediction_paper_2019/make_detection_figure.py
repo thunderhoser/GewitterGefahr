@@ -25,7 +25,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MIN_POLYGON_SIZES_PX = numpy.array([0, 0, 5], dtype=int)
 RECOMPUTE_CENTROID_FLAGS = numpy.array([0, 1, 1], dtype=bool)
 
-STORM_WIDTH = 2
+STORM_WIDTH = 4
 STORM_COLOUR = numpy.full(3, 0.)
 
 MARKER_TYPE = 'o'
@@ -355,6 +355,19 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
             storm_object_table=this_storm_object_table,
             axes_object=this_axes_object, basemap_object=this_basemap_object,
             line_width=STORM_WIDTH, line_colour=STORM_COLOUR)
+
+        these_x_metres, these_y_metres = this_basemap_object(
+            this_storm_object_table[
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
+            this_storm_object_table[
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values
+        )
+
+        this_axes_object.plot(
+            these_x_metres, these_y_metres, linestyle='None',
+            marker=MARKER_TYPE, markersize=MARKER_SIZE,
+            markerfacecolor=STORM_COLOUR, markeredgecolor=STORM_COLOUR,
+            markeredgewidth=MARKER_EDGE_WIDTH)
 
         this_title_string = (
             'Min size = {0:d} grid cells, {1:s} storm centers'
