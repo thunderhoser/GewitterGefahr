@@ -25,12 +25,13 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MIN_POLYGON_SIZES_PX = numpy.array([0, 0, 5], dtype=int)
 RECOMPUTE_CENTROID_FLAGS = numpy.array([0, 1, 1], dtype=bool)
 
-STORM_WIDTH = 4
-STORM_COLOUR = numpy.full(3, 0.)
+POLYGON_WIDTH = 3
+POLYGON_COLOUR = numpy.full(3, 0.)
 
-MARKER_TYPE = 'o'
+MARKER_TYPE = '*'
 MARKER_SIZE = 12
 MARKER_EDGE_WIDTH = 1
+MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -354,7 +355,7 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
         storm_plotting.plot_storm_outlines(
             storm_object_table=this_storm_object_table,
             axes_object=this_axes_object, basemap_object=this_basemap_object,
-            line_width=STORM_WIDTH, line_colour=STORM_COLOUR)
+            line_width=POLYGON_WIDTH, line_colour=POLYGON_COLOUR)
 
         these_x_metres, these_y_metres = this_basemap_object(
             this_storm_object_table[
@@ -366,7 +367,7 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
         this_axes_object.plot(
             these_x_metres, these_y_metres, linestyle='None',
             marker=MARKER_TYPE, markersize=MARKER_SIZE,
-            markerfacecolor=STORM_COLOUR, markeredgecolor=STORM_COLOUR,
+            markerfacecolor=MARKER_COLOUR, markeredgecolor=MARKER_COLOUR,
             markeredgewidth=MARKER_EDGE_WIDTH)
 
         this_title_string = (
