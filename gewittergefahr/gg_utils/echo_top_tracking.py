@@ -878,6 +878,17 @@ def _local_maxima_to_polygons(local_max_dict, echo_top_matrix_km,
                 exterior_y_coords=these_vertex_latitudes_deg)
         )
 
+        this_centroid_object_latlng = local_max_dict[
+            temporal_tracking.POLYGON_OBJECTS_LATLNG_KEY
+        ][k].centroid
+
+        local_max_dict[temporal_tracking.LATITUDES_KEY][k] = (
+            this_centroid_object_latlng.y
+        )
+        local_max_dict[temporal_tracking.LONGITUDES_KEY][k] = (
+            this_centroid_object_latlng.x
+        )
+
     return local_max_dict
 
 
@@ -1483,11 +1494,6 @@ def run_tracking(
             {temporal_tracking.VALID_TIME_KEY: radar_times_unix_sec[i]}
         )
 
-        local_max_dict_by_time[i] = _remove_redundant_local_maxima(
-            local_max_dict=local_max_dict_by_time[i],
-            projection_object=projection_object,
-            min_intermax_distance_metres=min_intermax_distance_metres)
-
         local_max_dict_by_time[i] = _local_maxima_to_polygons(
             local_max_dict=local_max_dict_by_time[i],
             echo_top_matrix_km=this_echo_top_matrix_km,
@@ -1497,6 +1503,11 @@ def run_tracking(
         local_max_dict_by_time[i] = _remove_small_polygons(
             local_max_dict=local_max_dict_by_time[i],
             min_size_pixels=min_polygon_size_pixels)
+
+        local_max_dict_by_time[i] = _remove_redundant_local_maxima(
+            local_max_dict=local_max_dict_by_time[i],
+            projection_object=projection_object,
+            min_intermax_distance_metres=min_intermax_distance_metres)
 
         if i == 0:
             this_current_to_prev_matrix = (
