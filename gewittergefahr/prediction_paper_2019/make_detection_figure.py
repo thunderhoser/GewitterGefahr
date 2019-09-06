@@ -371,10 +371,10 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
             markeredgewidth=MARKER_EDGE_WIDTH)
 
         this_title_string = (
-            'Min size = {0:d} grid cells, {1:s} storm centers'
+            'Minimum size = {0:d} grid cells, {1:s} storm centers'
         ).format(
             MIN_POLYGON_SIZES_PX[k],
-            'original' if RECOMPUTE_CENTROID_FLAGS[k] else 'recomputed'
+            'recomputed' if RECOMPUTE_CENTROID_FLAGS[k] else 'original'
         )
 
         this_axes_object.set_title(this_title_string)
