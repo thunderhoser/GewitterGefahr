@@ -29,7 +29,7 @@ POLYGON_WIDTH = 3
 POLYGON_COLOUR = numpy.full(3, 0.)
 
 MARKER_TYPE = '*'
-MARKER_SIZE = 12
+MARKER_SIZE = 18
 MARKER_EDGE_WIDTH = 1
 MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
