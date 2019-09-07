@@ -201,7 +201,7 @@ def _run(example_file_name, example_index, normalization_file_name,
         axes_object_matrix[k, 0].axis('off')
 
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object_matrix[NUM_PANEL_ROWS, 0],
+        axes_object_or_matrix=axes_object_matrix[NUM_PANEL_ROWS - 1, 0],
         data_matrix=feature_matrix[example_index, ..., 0],
         colour_map_object=COLOUR_MAP_OBJECT, min_value=-1 * max_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
