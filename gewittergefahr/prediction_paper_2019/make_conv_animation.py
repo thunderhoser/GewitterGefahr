@@ -346,7 +346,7 @@ def _run():
 
             for k in range(num_input_channels):
                 _plot_kernel(
-                    kernel_matrix_2d=KERNEL_MATRIX[k, ..., 0],
+                    kernel_matrix_2d=KERNEL_MATRIX[..., k, 0],
                     feature_matrix_2d=INPUT_FEATURE_MATRIX[..., k],
                     feature_row_at_center=i, feature_column_at_center=j,
                     axes_object=this_axes_object_matrix[k, 1]
@@ -362,7 +362,7 @@ def _run():
                 )
 
                 _plot_feature_to_kernel_lines(
-                    kernel_matrix_2d=KERNEL_MATRIX[k, ..., 0],
+                    kernel_matrix_2d=KERNEL_MATRIX[..., k, 0],
                     feature_matrix_2d=INPUT_FEATURE_MATRIX[..., k],
                     feature_row_at_center=i, feature_column_at_center=j,
                     kernel_axes_object=this_axes_object_matrix[k, 1],
