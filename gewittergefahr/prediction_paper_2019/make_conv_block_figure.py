@@ -8,6 +8,7 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import standalone_utils
+from gewittergefahr.deep_learning import architecture_utils
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.plotting import plotting_utils
@@ -113,8 +114,8 @@ def _plot_feature_map(feature_matrix_2d, axes_object):
     plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=feature_matrix_2d,
         colour_map_object=COLOUR_MAP_OBJECT, min_value=min_colour_value,
-        max_value=max_colour_value, orientation_string='vertical',
-        extend_min=True, extend_max=True)
+        max_value=max_colour_value, orientation_string='horizontal',
+        fraction_of_axis_length=0.5, extend_min=True, extend_max=True)
 
 
 def _run(example_file_name, example_index, normalization_file_name,
@@ -137,7 +138,7 @@ def _run(example_file_name, example_index, normalization_file_name,
     )
 
     if input_examples.REFL_IMAGE_MATRIX_KEY in example_dict:
-        input_feature_matrix = example_dict[
+        feature_matrix = example_dict[
             input_examples.REFL_IMAGE_MATRIX_KEY
         ][[example_index], ...]
     else:
@@ -145,42 +146,32 @@ def _run(example_file_name, example_index, normalization_file_name,
             RADAR_FIELD_NAME
         )
 
-        input_feature_matrix = example_dict[
+        feature_matrix = example_dict[
             input_examples.RADAR_IMAGE_MATRIX_KEY
         ][[example_index], ..., [field_index]]
 
-    input_feature_matrix = dl_utils.normalize_radar_images(
-        radar_image_matrix=input_feature_matrix, field_names=[RADAR_FIELD_NAME],
+    feature_matrix = dl_utils.normalize_radar_images(
+        radar_image_matrix=feature_matrix, field_names=[RADAR_FIELD_NAME],
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         normalization_param_file_name=normalization_file_name)
 
-    if len(input_feature_matrix.shape) == 4:
-        input_feature_matrix = input_feature_matrix[0, ..., 0]
+    if len(feature_matrix.shape) == 4:
+        feature_matrix = feature_matrix[0, ..., 0]
     else:
-        input_feature_matrix = input_feature_matrix[0, ..., 0, 0]
+        feature_matrix = feature_matrix[0, ..., 0, 0]
 
-    if len(input_feature_matrix.shape) == 2:
-        input_feature_matrix = numpy.expand_dims(input_feature_matrix, axis=-1)
-
-    print(input_feature_matrix.shape)
-    print(KERNEL_MATRIX.shape)
-
-    output_feature_matrix = standalone_utils.do_2d_convolution(
-        feature_matrix=input_feature_matrix, kernel_matrix=KERNEL_MATRIX,
-        pad_edges=True, stride_length_px=1)
-
-    output_feature_matrix = output_feature_matrix[0, ...]
-    num_output_channels = output_feature_matrix.shape[-1]
+    if len(feature_matrix.shape) == 2:
+        feature_matrix = numpy.expand_dims(feature_matrix, axis=-1)
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=NUM_PANEL_ROWS, num_columns=NUM_PANEL_COLUMNS,
         horizontal_spacing=0., vertical_spacing=0.,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
-    for k in range(num_output_channels):
+    for k in range(NUM_PANEL_ROWS):
         if k == 0:
             _plot_feature_map(
-                feature_matrix_2d=input_feature_matrix[..., 0],
+                feature_matrix_2d=feature_matrix[..., 0],
                 axes_object=axes_object_matrix[0, 0]
             )
 
@@ -188,10 +179,45 @@ def _run(example_file_name, example_index, normalization_file_name,
 
         axes_object_matrix[k, 0].axis('off')
 
-    for k in range(num_output_channels):
+    feature_matrix = standalone_utils.do_2d_convolution(
+        feature_matrix=feature_matrix, kernel_matrix=KERNEL_MATRIX,
+        pad_edges=False, stride_length_px=1
+    )[0, ...]
+
+    for k in range(NUM_PANEL_ROWS):
         _plot_feature_map(
-            feature_matrix_2d=output_feature_matrix[..., k],
+            feature_matrix_2d=feature_matrix[..., k],
             axes_object=axes_object_matrix[k, 1]
+        )
+
+    feature_matrix = standalone_utils.do_activation(
+        input_values=feature_matrix,
+        function_name=architecture_utils.RELU_FUNCTION_STRING, alpha=0.2)
+
+    for k in range(NUM_PANEL_ROWS):
+        _plot_feature_map(
+            feature_matrix_2d=feature_matrix[..., k],
+            axes_object=axes_object_matrix[k, 2]
+        )
+
+    feature_matrix = standalone_utils.do_batch_normalization(
+        feature_matrix=numpy.expand_dims(feature_matrix, axis=0)
+    )[0, ...]
+
+    for k in range(NUM_PANEL_ROWS):
+        _plot_feature_map(
+            feature_matrix_2d=feature_matrix[..., k],
+            axes_object=axes_object_matrix[k, 3]
+        )
+
+    feature_matrix = standalone_utils.do_2d_pooling(
+        feature_matrix=feature_matrix, stride_length_px=2,
+        pooling_type_string=standalone_utils.MAX_POOLING_TYPE_STRING)
+
+    for k in range(NUM_PANEL_ROWS):
+        _plot_feature_map(
+            feature_matrix_2d=feature_matrix[..., k],
+            axes_object=axes_object_matrix[k, 4]
         )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
