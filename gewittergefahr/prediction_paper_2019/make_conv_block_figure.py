@@ -191,7 +191,7 @@ def _run(example_file_name, example_index, normalization_file_name,
     for k in range(num_output_channels):
         _plot_feature_map(
             feature_matrix_2d=output_feature_matrix[..., k],
-            axes_object=axes_object_matrix[k, 0]
+            axes_object=axes_object_matrix[k, 1]
         )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
