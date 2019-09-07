@@ -178,7 +178,7 @@ def _run(example_file_name, example_index, normalization_file_name,
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=NUM_PANEL_ROWS, num_columns=NUM_PANEL_COLUMNS,
-        horizontal_spacing=0., vertical_spacing=-0.2,
+        horizontal_spacing=0., vertical_spacing=0.,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
     max_colour_value = numpy.percentile(

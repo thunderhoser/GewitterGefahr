@@ -195,7 +195,7 @@ def create_paneled_figure(
 
     error_checking.assert_is_geq(horizontal_spacing, 0.)
     error_checking.assert_is_less_than(horizontal_spacing, 1.)
-    # error_checking.assert_is_geq(vertical_spacing, 0.)
+    error_checking.assert_is_geq(vertical_spacing, 0.)
     error_checking.assert_is_less_than(vertical_spacing, 1.)
     error_checking.assert_is_boolean(shared_x_axis)
     error_checking.assert_is_boolean(shared_y_axis)
