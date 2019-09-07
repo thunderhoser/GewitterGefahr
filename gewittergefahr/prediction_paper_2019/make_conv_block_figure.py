@@ -113,11 +113,16 @@ def _plot_feature_map(feature_matrix_2d, axes_object):
     axes_object.set_xticks([])
     axes_object.set_yticks([])
 
-    plotting_utils.plot_linear_colour_bar(
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=feature_matrix_2d,
         colour_map_object=COLOUR_MAP_OBJECT, min_value=min_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
-        fraction_of_axis_length=0.5, extend_min=True, extend_max=True)
+        fraction_of_axis_length=0.9, extend_min=True, extend_max=True)
+
+    tick_values = colour_bar_object.ax.get_xticks()
+    tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_label_strings)
 
 
 def _run(example_file_name, example_index, normalization_file_name,
@@ -165,7 +170,6 @@ def _run(example_file_name, example_index, normalization_file_name,
         feature_matrix = feature_matrix[..., 0, 0]
 
     feature_matrix = numpy.expand_dims(feature_matrix, axis=-1)
-    print(feature_matrix.shape)
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=NUM_PANEL_ROWS, num_columns=NUM_PANEL_COLUMNS,
