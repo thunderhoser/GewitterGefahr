@@ -45,7 +45,7 @@ KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-2)
 
 COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 MAX_COLOUR_PERCENTILE = 99.
-COLOUR_BAR_FONT_SIZE = 20
+FONT_SIZE = 20
 
 NUM_PANEL_ROWS = 3
 NUM_PANEL_COLUMNS = 5
@@ -122,7 +122,7 @@ def _plot_feature_map(feature_matrix_2d, max_colour_value, plot_colour_bar,
         colour_map_object=COLOUR_MAP_OBJECT, min_value=min_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
         fraction_of_axis_length=0.9, extend_min=True, extend_max=True,
-        font_size=COLOUR_BAR_FONT_SIZE)
+        font_size=FONT_SIZE)
 
     tick_values = colour_bar_object.ax.get_xticks()
     tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
@@ -186,17 +186,32 @@ def _run(example_file_name, example_index, normalization_file_name,
         MAX_COLOUR_PERCENTILE
     )
 
+    axes_object_matrix[0, 0].set_title('Input', fontsize=FONT_SIZE)
+
     for k in range(NUM_PANEL_ROWS):
         if k == 0:
             _plot_feature_map(
                 feature_matrix_2d=feature_matrix[example_index, ..., k],
-                max_colour_value=max_colour_value, plot_colour_bar=True,
+                max_colour_value=max_colour_value, plot_colour_bar=False,
                 axes_object=axes_object_matrix[k, 0]
             )
 
             continue
 
         axes_object_matrix[k, 0].axis('off')
+
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object_matrix[NUM_PANEL_ROWS, 0],
+        data_matrix=feature_matrix[example_index, ..., 0],
+        colour_map_object=COLOUR_MAP_OBJECT, min_value=-1 * max_colour_value,
+        max_value=max_colour_value, orientation_string='horizontal',
+        fraction_of_axis_length=0.9, extend_min=True, extend_max=True,
+        font_size=FONT_SIZE)
+
+    tick_values = colour_bar_object.ax.get_xticks()
+    tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_label_strings)
 
     print('Doing convolution for all {0:d} examples...'.format(num_examples))
     new_feature_matrix = None
@@ -220,6 +235,8 @@ def _run(example_file_name, example_index, normalization_file_name,
         MAX_COLOUR_PERCENTILE
     )
 
+    axes_object_matrix[0, 1].set_title('After convolution', fontsize=FONT_SIZE)
+
     for k in range(NUM_PANEL_ROWS):
         _plot_feature_map(
             feature_matrix_2d=feature_matrix[example_index, ..., k],
@@ -238,6 +255,8 @@ def _run(example_file_name, example_index, normalization_file_name,
         MAX_COLOUR_PERCENTILE
     )
 
+    axes_object_matrix[0, 2].set_title('After activation', fontsize=FONT_SIZE)
+
     for k in range(NUM_PANEL_ROWS):
         _plot_feature_map(
             feature_matrix_2d=feature_matrix[example_index, ..., k],
@@ -253,6 +272,10 @@ def _run(example_file_name, example_index, normalization_file_name,
     max_colour_value = numpy.percentile(
         numpy.absolute(feature_matrix[example_index, ...]),
         MAX_COLOUR_PERCENTILE
+    )
+
+    axes_object_matrix[0, 3].set_title(
+        'After batch normalization', fontsize=FONT_SIZE
     )
 
     for k in range(NUM_PANEL_ROWS):
@@ -284,6 +307,8 @@ def _run(example_file_name, example_index, normalization_file_name,
         numpy.absolute(feature_matrix[example_index, ...]),
         MAX_COLOUR_PERCENTILE
     )
+
+    axes_object_matrix[0, 4].set_title('After max-pooling', fontsize=FONT_SIZE)
 
     for k in range(NUM_PANEL_ROWS):
         _plot_feature_map(
