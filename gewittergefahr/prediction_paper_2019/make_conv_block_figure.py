@@ -38,7 +38,7 @@ KERNEL_MATRIX = numpy.stack(
     (FIRST_KERNEL_MATRIX, SECOND_KERNEL_MATRIX, THIRD_KERNEL_MATRIX), axis=-1
 ).astype(float)
 
-KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=0)
+KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-2)
 
 NUM_PANEL_ROWS = 3
 NUM_PANEL_COLUMNS = 5

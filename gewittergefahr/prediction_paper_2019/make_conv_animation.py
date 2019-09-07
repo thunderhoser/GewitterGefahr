@@ -90,7 +90,7 @@ V_WIND_KERNEL_MATRIX = numpy.array([
 
 KERNEL_MATRIX = numpy.stack(
     (TEMPERATURE_KERNEL_MATRIX, U_WIND_KERNEL_MATRIX, V_WIND_KERNEL_MATRIX),
-    axis=0
+    axis=-1
 ).astype(float)
 
 KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-1)
