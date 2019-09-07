@@ -1,11 +1,13 @@
 """Makes figure to explain one convolution block."""
 
+import copy
 import argparse
 import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import standalone_utils
 from gewittergefahr.deep_learning import architecture_utils
@@ -128,6 +130,7 @@ def _run(example_file_name, example_index, normalization_file_name,
     :param output_file_name: Same.
     """
 
+    error_checking.assert_is_geq(example_index, 0)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     print('Reading data from: "{0:s}"...'.format(example_file_name))
@@ -138,9 +141,7 @@ def _run(example_file_name, example_index, normalization_file_name,
     )
 
     if input_examples.REFL_IMAGE_MATRIX_KEY in example_dict:
-        feature_matrix = example_dict[
-            input_examples.REFL_IMAGE_MATRIX_KEY
-        ][[example_index], ...]
+        feature_matrix = example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]
     else:
         field_index = example_dict[input_examples.RADAR_FIELDS_KEY].index(
             RADAR_FIELD_NAME
@@ -148,7 +149,10 @@ def _run(example_file_name, example_index, normalization_file_name,
 
         feature_matrix = example_dict[
             input_examples.RADAR_IMAGE_MATRIX_KEY
-        ][[example_index], ..., [field_index]]
+        ][..., [field_index]]
+
+    num_examples = feature_matrix.shape[0]
+    error_checking.assert_is_less_than(example_index, num_examples)
 
     feature_matrix = dl_utils.normalize_radar_images(
         radar_image_matrix=feature_matrix, field_names=[RADAR_FIELD_NAME],
@@ -156,12 +160,12 @@ def _run(example_file_name, example_index, normalization_file_name,
         normalization_param_file_name=normalization_file_name)
 
     if len(feature_matrix.shape) == 4:
-        feature_matrix = feature_matrix[0, ..., 0]
+        feature_matrix = feature_matrix[..., 0]
     else:
-        feature_matrix = feature_matrix[0, ..., 0, 0]
+        feature_matrix = feature_matrix[..., 0, 0]
 
-    if len(feature_matrix.shape) == 2:
-        feature_matrix = numpy.expand_dims(feature_matrix, axis=-1)
+    feature_matrix = numpy.expand_dims(feature_matrix, axis=-1)
+    print(feature_matrix.shape)
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=NUM_PANEL_ROWS, num_columns=NUM_PANEL_COLUMNS,
@@ -171,7 +175,7 @@ def _run(example_file_name, example_index, normalization_file_name,
     for k in range(NUM_PANEL_ROWS):
         if k == 0:
             _plot_feature_map(
-                feature_matrix_2d=feature_matrix[..., 0],
+                feature_matrix_2d=feature_matrix[example_index, ..., 0],
                 axes_object=axes_object_matrix[0, 0]
             )
 
@@ -179,46 +183,72 @@ def _run(example_file_name, example_index, normalization_file_name,
 
         axes_object_matrix[k, 0].axis('off')
 
-    feature_matrix = standalone_utils.do_2d_convolution(
-        feature_matrix=feature_matrix, kernel_matrix=KERNEL_MATRIX,
-        pad_edges=False, stride_length_px=1
-    )[0, ...]
+    print('Doing convolution for all {0:d} examples...'.format(num_examples))
+    new_feature_matrix = None
+
+    for i in range(num_examples):
+        this_feature_matrix = standalone_utils.do_2d_convolution(
+            feature_matrix=feature_matrix[i, ...], kernel_matrix=KERNEL_MATRIX,
+            pad_edges=False, stride_length_px=1
+        )[0, ...]
+
+        if new_feature_matrix is None:
+            new_feature_matrix = numpy.full(
+                (num_examples,) + this_feature_matrix.shape, numpy.nan
+            )
+
+        new_feature_matrix[i, ...] = this_feature_matrix
+
+    feature_matrix = copy.deepcopy(new_feature_matrix)
 
     for k in range(NUM_PANEL_ROWS):
         _plot_feature_map(
-            feature_matrix_2d=feature_matrix[..., k],
+            feature_matrix_2d=feature_matrix[example_index, ..., k],
             axes_object=axes_object_matrix[k, 1]
         )
 
+    print('Doing activation for all {0:d} examples...'.format(num_examples))
     feature_matrix = standalone_utils.do_activation(
         input_values=feature_matrix,
         function_name=architecture_utils.RELU_FUNCTION_STRING, alpha=0.2)
 
     for k in range(NUM_PANEL_ROWS):
         _plot_feature_map(
-            feature_matrix_2d=feature_matrix[..., k],
+            feature_matrix_2d=feature_matrix[example_index, ..., k],
             axes_object=axes_object_matrix[k, 2]
         )
 
+    print('Doing batch norm for all {0:d} examples...'.format(num_examples))
     feature_matrix = standalone_utils.do_batch_normalization(
-        feature_matrix=numpy.expand_dims(feature_matrix, axis=0)
-    )[0, ...]
-
-    print(feature_matrix)
+        feature_matrix=feature_matrix)
 
     for k in range(NUM_PANEL_ROWS):
         _plot_feature_map(
-            feature_matrix_2d=feature_matrix[..., k],
+            feature_matrix_2d=feature_matrix[example_index, ..., k],
             axes_object=axes_object_matrix[k, 3]
         )
 
-    feature_matrix = standalone_utils.do_2d_pooling(
-        feature_matrix=feature_matrix, stride_length_px=2,
-        pooling_type_string=standalone_utils.MAX_POOLING_TYPE_STRING)
+    print('Doing max-pooling for all {0:d} examples...'.format(num_examples))
+    new_feature_matrix = None
+
+    for i in range(num_examples):
+        this_feature_matrix = standalone_utils.do_2d_pooling(
+            feature_matrix=feature_matrix[i, ...], stride_length_px=2,
+            pooling_type_string=standalone_utils.MAX_POOLING_TYPE_STRING
+        )[0, ...]
+
+        if new_feature_matrix is None:
+            new_feature_matrix = numpy.full(
+                (num_examples,) + this_feature_matrix.shape, numpy.nan
+            )
+
+        new_feature_matrix[i, ...] = this_feature_matrix
+
+    feature_matrix = copy.deepcopy(new_feature_matrix)
 
     for k in range(NUM_PANEL_ROWS):
         _plot_feature_map(
-            feature_matrix_2d=feature_matrix[..., k],
+            feature_matrix_2d=feature_matrix[example_index, ..., k],
             axes_object=axes_object_matrix[k, 4]
         )
 
