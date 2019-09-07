@@ -1,6 +1,5 @@
 """Makes figure to explain one convolution block."""
 
-import copy
 import argparse
 import numpy
 import matplotlib
@@ -53,24 +52,24 @@ NUM_PANEL_COLUMNS = 5
 FIGURE_RESOLUTION_DPI = 300
 
 EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
-EXAMPLE_INDEX_ARG_NAME = 'example_index'
+EXAMPLE_INDICES_ARG_NAME = 'example_indices'
 NORMALIZATION_FILE_ARG_NAME = 'normalization_file_name'
-OUTPUT_FILE_ARG_NAME = 'output_file_name'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 EXAMPLE_FILE_HELP_STRING = (
     'Name of example file.  The reflectivity field for one example (storm '
     'object) will be read from here by `input_examples.read_example_file`.')
 
-EXAMPLE_INDEX_HELP_STRING = (
-    'Will read the [i]th example, where i = `{0:s}`.'
-).format(EXAMPLE_INDEX_ARG_NAME)
+EXAMPLE_INDICES_HELP_STRING = (
+    'List of example indices.  One figure will be created for each example.')
 
 NORMALIZATION_FILE_HELP_STRING = (
     'Path to normalization file.  Will be read by `deep_learning_utils.'
     'read_normalization_params_from_file` and used to normalize reflectivity '
     'field.')
 
-OUTPUT_FILE_HELP_STRING = 'Path to output file (figure will be saved here).'
+OUTPUT_DIR_HELP_STRING = (
+    'Name of output directory (figures will be saved here).')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -78,20 +77,20 @@ INPUT_ARG_PARSER.add_argument(
     help=EXAMPLE_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + EXAMPLE_INDEX_ARG_NAME, type=int, required=True,
-    help=EXAMPLE_INDEX_HELP_STRING)
+    '--' + EXAMPLE_INDICES_ARG_NAME, type=int, nargs='+', required=True,
+    help=EXAMPLE_INDICES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NORMALIZATION_FILE_ARG_NAME, type=str, required=True,
     help=NORMALIZATION_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
-    help=OUTPUT_FILE_HELP_STRING)
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_feature_map(feature_matrix_2d, max_colour_value, plot_colour_bar,
-                      axes_object):
+def _plot_one_feature_map(feature_matrix_2d, max_colour_value, plot_colour_bar,
+                          axes_object):
     """Plots one feature map.
 
     M = number of rows in grid
@@ -131,53 +130,23 @@ def _plot_feature_map(feature_matrix_2d, max_colour_value, plot_colour_bar,
     colour_bar_object.set_ticklabels(tick_label_strings)
 
 
-def _run(example_file_name, example_index, normalization_file_name,
-         output_file_name):
-    """Makes figure to explain one convolution block.
+def _plot_one_example(
+        input_feature_matrix, feature_matrix_after_conv,
+        feature_matrix_after_activn, feature_matrix_after_bn,
+        feature_matrix_after_pooling, output_file_name):
+    """Plots entire figure for one example (storm object).
 
-    :param example_file_name: See documentation at top of file.
-    :param example_index: Same.
-    :param normalization_file_name: Same.
-    :param output_file_name: Same.
+    :param input_feature_matrix: 2-D numpy array with input features.
+    :param feature_matrix_after_conv: 2-D numpy array with features after
+        convolution.
+    :param feature_matrix_after_activn: 2-D numpy array with features after
+        activation.
+    :param feature_matrix_after_bn: 2-D numpy array with features after batch
+        normalization.
+    :param feature_matrix_after_pooling: 2-D numpy array with features after
+        pooling.
+    :param output_file_name: Path to output file.  Figure will be saved here.
     """
-
-    error_checking.assert_is_geq(example_index, 0)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-
-    print('Reading data from: "{0:s}"...'.format(example_file_name))
-    example_dict = input_examples.read_example_file(
-        netcdf_file_name=example_file_name, read_all_target_vars=False,
-        target_name=DUMMY_TARGET_NAME, include_soundings=False,
-        radar_heights_to_keep_m_agl=numpy.array([RADAR_HEIGHT_M_ASL], dtype=int)
-    )
-
-    print(numpy.where(example_dict[input_examples.TARGET_VALUES_KEY] == 1))
-
-    if input_examples.REFL_IMAGE_MATRIX_KEY in example_dict:
-        feature_matrix = example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]
-    else:
-        field_index = example_dict[input_examples.RADAR_FIELDS_KEY].index(
-            RADAR_FIELD_NAME
-        )
-
-        feature_matrix = example_dict[
-            input_examples.RADAR_IMAGE_MATRIX_KEY
-        ][..., [field_index]]
-
-    num_examples = feature_matrix.shape[0]
-    error_checking.assert_is_less_than(example_index, num_examples)
-
-    feature_matrix = dl_utils.normalize_radar_images(
-        radar_image_matrix=feature_matrix, field_names=[RADAR_FIELD_NAME],
-        normalization_type_string=NORMALIZATION_TYPE_STRING,
-        normalization_param_file_name=normalization_file_name)
-
-    if len(feature_matrix.shape) == 4:
-        feature_matrix = feature_matrix[..., 0]
-    else:
-        feature_matrix = feature_matrix[..., 0, 0]
-
-    feature_matrix = numpy.expand_dims(feature_matrix, axis=-1)
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=NUM_PANEL_ROWS, num_columns=NUM_PANEL_COLUMNS,
@@ -185,16 +154,15 @@ def _run(example_file_name, example_index, normalization_file_name,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
     max_colour_value = numpy.percentile(
-        numpy.absolute(feature_matrix[example_index, ..., 0]),
-        MAX_COLOUR_PERCENTILE
+        numpy.absolute(input_feature_matrix), MAX_COLOUR_PERCENTILE
     )
 
     axes_object_matrix[0, 0].set_title('Input', fontsize=FONT_SIZE)
 
     for k in range(NUM_PANEL_ROWS):
         if k == 0:
-            _plot_feature_map(
-                feature_matrix_2d=feature_matrix[example_index, ..., k],
+            _plot_one_feature_map(
+                feature_matrix_2d=input_feature_matrix[..., k],
                 max_colour_value=max_colour_value, plot_colour_bar=False,
                 axes_object=axes_object_matrix[k, 0]
             )
@@ -205,7 +173,7 @@ def _run(example_file_name, example_index, normalization_file_name,
 
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object_matrix[NUM_PANEL_ROWS - 1, 0],
-        data_matrix=feature_matrix[example_index, ..., 0],
+        data_matrix=input_feature_matrix[..., 0],
         colour_map_object=COLOUR_MAP_OBJECT, min_value=-1 * max_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
         fraction_of_axis_length=0.9, extend_min=True, extend_max=True,
@@ -216,104 +184,57 @@ def _run(example_file_name, example_index, normalization_file_name,
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_label_strings)
 
-    print('Doing convolution for all {0:d} examples...'.format(num_examples))
-    new_feature_matrix = None
-
-    for i in range(num_examples):
-        this_feature_matrix = standalone_utils.do_2d_convolution(
-            feature_matrix=feature_matrix[i, ...], kernel_matrix=KERNEL_MATRIX,
-            pad_edges=False, stride_length_px=1
-        )[0, ...]
-
-        if new_feature_matrix is None:
-            new_feature_matrix = numpy.full(
-                (num_examples,) + this_feature_matrix.shape, numpy.nan
-            )
-
-        new_feature_matrix[i, ...] = this_feature_matrix
-
-    feature_matrix = copy.deepcopy(new_feature_matrix)
     max_colour_value = numpy.percentile(
-        numpy.absolute(feature_matrix[example_index, ...]),
-        MAX_COLOUR_PERCENTILE
+        numpy.absolute(feature_matrix_after_conv), MAX_COLOUR_PERCENTILE
     )
 
     axes_object_matrix[0, 1].set_title('After convolution', fontsize=FONT_SIZE)
 
     for k in range(NUM_PANEL_ROWS):
-        _plot_feature_map(
-            feature_matrix_2d=feature_matrix[example_index, ..., k],
+        _plot_one_feature_map(
+            feature_matrix_2d=feature_matrix_after_conv[..., k],
             max_colour_value=max_colour_value,
             plot_colour_bar=k == NUM_PANEL_ROWS - 1,
             axes_object=axes_object_matrix[k, 1]
         )
 
-    print('Doing activation for all {0:d} examples...'.format(num_examples))
-    feature_matrix = standalone_utils.do_activation(
-        input_values=feature_matrix,
-        function_name=architecture_utils.RELU_FUNCTION_STRING, alpha=0.2)
-
     max_colour_value = numpy.percentile(
-        numpy.absolute(feature_matrix[example_index, ...]),
-        MAX_COLOUR_PERCENTILE
+        numpy.absolute(feature_matrix_after_activn), MAX_COLOUR_PERCENTILE
     )
 
     axes_object_matrix[0, 2].set_title('After activation', fontsize=FONT_SIZE)
 
     for k in range(NUM_PANEL_ROWS):
-        _plot_feature_map(
-            feature_matrix_2d=feature_matrix[example_index, ..., k],
+        _plot_one_feature_map(
+            feature_matrix_2d=feature_matrix_after_activn[..., k],
             max_colour_value=max_colour_value,
             plot_colour_bar=k == NUM_PANEL_ROWS - 1,
             axes_object=axes_object_matrix[k, 2]
         )
 
-    print('Doing batch norm for all {0:d} examples...'.format(num_examples))
-    feature_matrix = standalone_utils.do_batch_normalization(
-        feature_matrix=feature_matrix)
-
     max_colour_value = numpy.percentile(
-        numpy.absolute(feature_matrix[example_index, ...]),
-        MAX_COLOUR_PERCENTILE
+        numpy.absolute(feature_matrix_after_bn), MAX_COLOUR_PERCENTILE
     )
 
     axes_object_matrix[0, 3].set_title('After batch norm', fontsize=FONT_SIZE)
 
     for k in range(NUM_PANEL_ROWS):
-        _plot_feature_map(
-            feature_matrix_2d=feature_matrix[example_index, ..., k],
+        _plot_one_feature_map(
+            feature_matrix_2d=feature_matrix_after_bn[..., k],
             max_colour_value=max_colour_value,
             plot_colour_bar=k == NUM_PANEL_ROWS - 1,
             axes_object=axes_object_matrix[k, 3]
         )
 
-    print('Doing max-pooling for all {0:d} examples...'.format(num_examples))
-    new_feature_matrix = None
-
-    for i in range(num_examples):
-        this_feature_matrix = standalone_utils.do_2d_pooling(
-            feature_matrix=feature_matrix[i, ...], stride_length_px=2,
-            pooling_type_string=standalone_utils.MAX_POOLING_TYPE_STRING
-        )[0, ...]
-
-        if new_feature_matrix is None:
-            new_feature_matrix = numpy.full(
-                (num_examples,) + this_feature_matrix.shape, numpy.nan
-            )
-
-        new_feature_matrix[i, ...] = this_feature_matrix
-
-    feature_matrix = copy.deepcopy(new_feature_matrix)
     max_colour_value = numpy.percentile(
-        numpy.absolute(feature_matrix[example_index, ...]),
-        MAX_COLOUR_PERCENTILE
+        numpy.absolute(feature_matrix_after_pooling), MAX_COLOUR_PERCENTILE
     )
 
     axes_object_matrix[0, 4].set_title('After max-pooling', fontsize=FONT_SIZE)
 
     for k in range(NUM_PANEL_ROWS):
-        _plot_feature_map(
-            feature_matrix_2d=feature_matrix[example_index, ..., k],
+        _plot_one_feature_map(
+            feature_matrix_2d=feature_matrix_after_pooling[..., k],
             max_colour_value=max_colour_value,
             plot_colour_bar=k == NUM_PANEL_ROWS - 1,
             axes_object=axes_object_matrix[k, 4]
@@ -327,13 +248,120 @@ def _run(example_file_name, example_index, normalization_file_name,
     pyplot.close(figure_object)
 
 
+def _run(example_file_name, example_indices, normalization_file_name,
+         output_dir_name):
+    """Makes figure to explain one convolution block.
+
+    :param example_file_name: See documentation at top of file.
+    :param example_indices: Same.
+    :param normalization_file_name: Same.
+    :param output_dir_name: Same.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
+
+    print('Reading data from: "{0:s}"...'.format(example_file_name))
+    example_dict = input_examples.read_example_file(
+        netcdf_file_name=example_file_name, read_all_target_vars=False,
+        target_name=DUMMY_TARGET_NAME, include_soundings=False,
+        radar_heights_to_keep_m_agl=numpy.array([RADAR_HEIGHT_M_ASL], dtype=int)
+    )
+
+    # print(numpy.where(example_dict[input_examples.TARGET_VALUES_KEY] == 1))
+
+    if input_examples.REFL_IMAGE_MATRIX_KEY in example_dict:
+        input_feature_matrix = example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]
+    else:
+        field_index = example_dict[input_examples.RADAR_FIELDS_KEY].index(
+            RADAR_FIELD_NAME
+        )
+
+        input_feature_matrix = example_dict[
+            input_examples.RADAR_IMAGE_MATRIX_KEY
+        ][..., [field_index]]
+
+    num_examples = input_feature_matrix.shape[0]
+    error_checking.assert_is_geq_numpy_array(example_indices, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        example_indices, num_examples)
+
+    input_feature_matrix = dl_utils.normalize_radar_images(
+        radar_image_matrix=input_feature_matrix, field_names=[RADAR_FIELD_NAME],
+        normalization_type_string=NORMALIZATION_TYPE_STRING,
+        normalization_param_file_name=normalization_file_name)
+
+    if len(input_feature_matrix.shape) == 4:
+        input_feature_matrix = input_feature_matrix[..., 0]
+    else:
+        input_feature_matrix = input_feature_matrix[..., 0, 0]
+
+    input_feature_matrix = numpy.expand_dims(input_feature_matrix, axis=-1)
+
+    print('Doing convolution for all {0:d} examples...'.format(num_examples))
+    feature_matrix_after_conv = None
+
+    for i in range(num_examples):
+        this_feature_matrix = standalone_utils.do_2d_convolution(
+            feature_matrix=input_feature_matrix[i, ...] + 0,
+            kernel_matrix=KERNEL_MATRIX, pad_edges=False, stride_length_px=1
+        )[0, ...]
+
+        if feature_matrix_after_conv is None:
+            feature_matrix_after_conv = numpy.full(
+                (num_examples,) + this_feature_matrix.shape, numpy.nan
+            )
+
+        feature_matrix_after_conv[i, ...] = this_feature_matrix
+
+    print('Doing activation for all {0:d} examples...'.format(num_examples))
+    feature_matrix_after_activn = standalone_utils.do_activation(
+        input_values=feature_matrix_after_conv + 0,
+        function_name=architecture_utils.RELU_FUNCTION_STRING, alpha=0.2)
+
+    print('Doing batch norm for all {0:d} examples...'.format(num_examples))
+    feature_matrix_after_bn = standalone_utils.do_batch_normalization(
+        feature_matrix=feature_matrix_after_activn + 0
+    )
+
+    print('Doing max-pooling for all {0:d} examples...\n'.format(num_examples))
+    feature_matrix_after_pooling = None
+
+    for i in range(num_examples):
+        this_feature_matrix = standalone_utils.do_2d_pooling(
+            feature_matrix=feature_matrix_after_bn[i, ...], stride_length_px=2,
+            pooling_type_string=standalone_utils.MAX_POOLING_TYPE_STRING
+        )[0, ...]
+
+        if feature_matrix_after_pooling is None:
+            feature_matrix_after_pooling = numpy.full(
+                (num_examples,) + this_feature_matrix.shape, numpy.nan
+            )
+
+        feature_matrix_after_pooling[i, ...] = this_feature_matrix
+
+    for i in example_indices:
+        this_output_file_name = '{0:s}/convolution_block{1:06d}.jpg'.format(
+            output_dir_name, i)
+
+        _plot_one_example(
+            input_feature_matrix=input_feature_matrix[i, ...],
+            feature_matrix_after_conv=feature_matrix_after_conv[i, ...],
+            feature_matrix_after_activn=feature_matrix_after_activn[i, ...],
+            feature_matrix_after_bn=feature_matrix_after_bn[i, ...],
+            feature_matrix_after_pooling=feature_matrix_after_pooling[i, ...],
+            output_file_name=this_output_file_name)
+
+
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
         example_file_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_FILE_ARG_NAME),
-        example_index=getattr(INPUT_ARG_OBJECT, EXAMPLE_INDEX_ARG_NAME),
+        example_indices=numpy.array(
+            getattr(INPUT_ARG_OBJECT, EXAMPLE_INDICES_ARG_NAME), dtype=int
+        ),
         normalization_file_name=getattr(
             INPUT_ARG_OBJECT, NORMALIZATION_FILE_ARG_NAME),
-        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
