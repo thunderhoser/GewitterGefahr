@@ -18,6 +18,7 @@ from gewittergefahr.plotting import plotting_utils
 RADAR_FIELD_NAME = radar_utils.REFL_NAME
 RADAR_HEIGHT_M_ASL = 3000
 NORMALIZATION_TYPE_STRING = dl_utils.Z_NORMALIZATION_TYPE_STRING
+DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 FIRST_KERNEL_MATRIX = numpy.array([
     [0, 1, 0],
@@ -145,10 +146,12 @@ def _run(example_file_name, example_index, normalization_file_name,
 
     print('Reading data from: "{0:s}"...'.format(example_file_name))
     example_dict = input_examples.read_example_file(
-        netcdf_file_name=example_file_name, read_all_target_vars=True,
-        include_soundings=False,
+        netcdf_file_name=example_file_name, read_all_target_vars=False,
+        target_name=DUMMY_TARGET_NAME, include_soundings=False,
         radar_heights_to_keep_m_agl=numpy.array([RADAR_HEIGHT_M_ASL], dtype=int)
     )
+
+    print(numpy.where(example_dict[input_examples.TARGET_VALUES_KEY] == 1))
 
     if input_examples.REFL_IMAGE_MATRIX_KEY in example_dict:
         feature_matrix = example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]
