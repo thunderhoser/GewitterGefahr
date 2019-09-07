@@ -162,6 +162,9 @@ def _run(example_file_name, example_index, normalization_file_name,
     if len(input_feature_matrix.shape) == 2:
         input_feature_matrix = numpy.expand_dims(input_feature_matrix, axis=-1)
 
+    print(input_feature_matrix.shape)
+    print(KERNEL_MATRIX.shape)
+
     output_feature_matrix = standalone_utils.do_2d_convolution(
         feature_matrix=input_feature_matrix, kernel_matrix=KERNEL_MATRIX,
         pad_edges=True, stride_length_px=1)
