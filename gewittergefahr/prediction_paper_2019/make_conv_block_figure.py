@@ -179,7 +179,7 @@ def _run(example_file_name, example_index, normalization_file_name,
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=NUM_PANEL_ROWS, num_columns=NUM_PANEL_COLUMNS,
         horizontal_spacing=0., vertical_spacing=0.,
-        shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
+        shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=False)
 
     max_colour_value = numpy.percentile(
         numpy.absolute(feature_matrix[example_index, ..., 0]),
@@ -274,9 +274,7 @@ def _run(example_file_name, example_index, normalization_file_name,
         MAX_COLOUR_PERCENTILE
     )
 
-    axes_object_matrix[0, 3].set_title(
-        'After batch normalization', fontsize=FONT_SIZE
-    )
+    axes_object_matrix[0, 3].set_title('After batch norm', fontsize=FONT_SIZE)
 
     for k in range(NUM_PANEL_ROWS):
         _plot_feature_map(
