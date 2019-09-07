@@ -204,6 +204,8 @@ def _run(example_file_name, example_index, normalization_file_name,
         feature_matrix=numpy.expand_dims(feature_matrix, axis=0)
     )[0, ...]
 
+    print(feature_matrix)
+
     for k in range(NUM_PANEL_ROWS):
         _plot_feature_map(
             feature_matrix_2d=feature_matrix[..., k],
