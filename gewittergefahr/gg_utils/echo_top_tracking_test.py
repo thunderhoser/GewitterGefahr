@@ -71,81 +71,9 @@ LOCAL_MAX_DICT_LARGE_DISTANCE = {
     temporal_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES[:-1]
 }
 
-# The following constants are used to test _get_grid_points_in_storm.
+# The following constants are used to test _local_maxima_to_regions.
 MIN_ECHO_TOP_KM = 5.
 
-ECHO_TOP_MATRIX_KM = numpy.array([
-    [0.7, 1.0, 0.4, 0.4, 2.1, 2.2, 4.2, 1.5, 3.5, 4.2, 0.5],
-    [3.9, 1.8, 8.1, 4.2, 2.3, 6.6, 6.9, 1.6, 2.8, 0.3, 3.0],
-    [1.7, 2.6, 4.6, 4.5, 5.7, 9.1, 7.5, 6.3, 3.1, 3.5, 4.0],
-    [2.8, 4.2, 5.0, 11.1, 9.6, 10.4, 7.3, 7.1, 4.8, 4.5, 2.3],
-    [3.1, 3.1, 8.2, 8.0, 8.6, 10.2, 6.2, 7.2, 9.7, 5.4, 1.5],
-    [4.2, 5.9, 7.5, 9.0, 9.3, 7.8, 10.7, 6.2, 5.1, 1.7, 4.5],
-    [0.5, 1.4, 2.0, 8.2, 11.5, 10.2, 8.1, 6.3, 7.2, 4.6, 2.0],
-    [3.1, 1.9, 5.4, 4.5, 0.1, 3.4, 2.7, 3.5, 2.9, 2.4, 3.2],
-    [0.0, 1.1, 3.4, 1.4, 4.3, 2.8, 0.1, 1.5, 1.3, 2.7, 3.3]
-])
-
-GRID_POINT_LATITUDES_DEG = numpy.array([
-    53.58, 53.56, 53.54, 53.52, 53.5, 53.48, 53.46, 53.44, 53.42
-])
-GRID_POINT_LONGITUDES_DEG = numpy.array([
-    246.4, 246.42, 246.44, 246.46, 246.48, 246.5, 246.52, 246.54, 246.56,
-    246.58, 246.6
-])
-
-FIRST_CENTROID_LATITUDE_DEG = 53.5
-FIRST_CENTROID_LONGITUDE_DEG = 246.5
-FIRST_MIN_INTERMAX_DIST_METRES = 20000.
-
-FIRST_GRID_POINT_ROWS = numpy.array([
-    1, 1,
-    2, 2, 2, 2,
-    3, 3, 3, 3, 3, 3,
-    4, 4, 4, 4, 4, 4, 4, 4,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    6, 6, 6, 6, 6, 6,
-    7
-], dtype=int)
-
-FIRST_GRID_POINT_COLUMNS = numpy.array([
-    5, 6,
-    4, 5, 6, 7,
-    2, 3, 4, 5, 6, 7,
-    2, 3, 4, 5, 6, 7, 8, 9,
-    1, 2, 3, 4, 5, 6, 7, 8,
-    3, 4, 5, 6, 7, 8,
-    2
-], dtype=int)
-
-SECOND_CENTROID_LATITUDE_DEG = 53.5
-SECOND_CENTROID_LONGITUDE_DEG = 246.5
-SECOND_MIN_INTERMAX_DIST_METRES = 5000.
-
-SECOND_GRID_POINT_ROWS = numpy.array([
-    2, 2, 2,
-    3, 3, 3, 3, 3, 3,
-    4, 4, 4, 4, 4, 4, 4,
-    5, 5, 5, 5, 5, 5, 5,
-    6, 6, 6
-], dtype=int)
-
-SECOND_GRID_POINT_COLUMNS = numpy.array([
-    4, 5, 6,
-    2, 3, 4, 5, 6, 7,
-    2, 3, 4, 5, 6, 7, 8,
-    2, 3, 4, 5, 6, 7, 8,
-    4, 5, 6
-], dtype=int)
-
-THIRD_CENTROID_LATITUDE_DEG = 53.542
-THIRD_CENTROID_LONGITUDE_DEG = 246.438
-THIRD_MIN_INTERMAX_DIST_METRES = 20000.
-
-THIRD_GRID_POINT_ROWS = numpy.array([2], dtype=int)
-THIRD_GRID_POINT_COLUMNS = numpy.array([2], dtype=int)
-
-# The following constants are used to test _local_maxima_to_regions.
 TOY_ECHO_TOP_MATRIX_KM = numpy.array([
     [6, 6, 6, 0, 0, 0, 6, 0, 6, 0, 0, 0],
     [0, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0],
@@ -352,66 +280,6 @@ class EchoTopTrackingTests(unittest.TestCase):
                 this_local_max_dict[this_key],
                 LOCAL_MAX_DICT_LARGE_DISTANCE[this_key], atol=TOLERANCE
             ))
-
-    def test_get_grid_points_in_storm_first(self):
-        """Ensures correct output from _get_grid_points_in_storm.
-
-        In this case, with first set of inputs.
-        """
-
-        these_rows, these_columns = echo_top_tracking._get_grid_points_in_storm(
-            centroid_latitude_deg=FIRST_CENTROID_LATITUDE_DEG,
-            centroid_longitude_deg=FIRST_CENTROID_LONGITUDE_DEG,
-            grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
-            grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
-            echo_top_matrix_km=ECHO_TOP_MATRIX_KM,
-            min_echo_top_km=MIN_ECHO_TOP_KM,
-            min_intermax_distance_metres=FIRST_MIN_INTERMAX_DIST_METRES)
-
-        self.assertTrue(numpy.array_equal(these_rows, FIRST_GRID_POINT_ROWS))
-        self.assertTrue(numpy.array_equal(
-            these_columns, FIRST_GRID_POINT_COLUMNS
-        ))
-
-    def test_get_grid_points_in_storm_second(self):
-        """Ensures correct output from _get_grid_points_in_storm.
-
-        In this case, with second set of inputs.
-        """
-
-        these_rows, these_columns = echo_top_tracking._get_grid_points_in_storm(
-            centroid_latitude_deg=SECOND_CENTROID_LATITUDE_DEG,
-            centroid_longitude_deg=SECOND_CENTROID_LONGITUDE_DEG,
-            grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
-            grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
-            echo_top_matrix_km=ECHO_TOP_MATRIX_KM,
-            min_echo_top_km=MIN_ECHO_TOP_KM,
-            min_intermax_distance_metres=SECOND_MIN_INTERMAX_DIST_METRES)
-
-        self.assertTrue(numpy.array_equal(these_rows, SECOND_GRID_POINT_ROWS))
-        self.assertTrue(numpy.array_equal(
-            these_columns, SECOND_GRID_POINT_COLUMNS
-        ))
-
-    def test_get_grid_points_in_storm_third(self):
-        """Ensures correct output from _get_grid_points_in_storm.
-
-        In this case, with third set of inputs.
-        """
-
-        these_rows, these_columns = echo_top_tracking._get_grid_points_in_storm(
-            centroid_latitude_deg=THIRD_CENTROID_LATITUDE_DEG,
-            centroid_longitude_deg=THIRD_CENTROID_LONGITUDE_DEG,
-            grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
-            grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
-            echo_top_matrix_km=ECHO_TOP_MATRIX_KM,
-            min_echo_top_km=MIN_ECHO_TOP_KM,
-            min_intermax_distance_metres=THIRD_MIN_INTERMAX_DIST_METRES)
-
-        self.assertTrue(numpy.array_equal(these_rows, THIRD_GRID_POINT_ROWS))
-        self.assertTrue(numpy.array_equal(
-            these_columns, THIRD_GRID_POINT_COLUMNS
-        ))
 
     def test_local_maxima_to_regions(self):
         """Ensures correct output from _local_maxima_to_regions."""

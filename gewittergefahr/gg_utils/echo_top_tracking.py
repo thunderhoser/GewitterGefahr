@@ -540,71 +540,6 @@ def _find_input_tracking_files(
             valid_times_by_date_unix_sec)
 
 
-def _get_grid_points_in_storm(
-        centroid_latitude_deg, centroid_longitude_deg, grid_point_latitudes_deg,
-        grid_point_longitudes_deg, echo_top_matrix_km, min_echo_top_km,
-        min_intermax_distance_metres):
-    """Converts local max (one point) to list of grid points in storm.
-
-    M = number of rows in radar grid
-    N = number of columns in radar grid
-    P = number of grid points in storm
-
-    :param centroid_latitude_deg: Latitude (deg N) of storm centroid.
-    :param centroid_longitude_deg: Longitude (deg E) of storm centroid.
-    :param grid_point_latitudes_deg: length-M numpy array of grid-point
-        latitudes (deg N).
-    :param grid_point_longitudes_deg: length-N numpy array of grid-point
-        longitudes (deg E).
-    :param echo_top_matrix_km: M-by-N numpy array of echo tops.
-    :param min_echo_top_km: Minimum echo top used to define storms.
-    :param min_intermax_distance_metres: Minimum distance between local maxima
-        (storm centroids).
-    :return: grid_rows: length-P numpy array of row indices.
-    :return: grid_columns: length-P numpy array of column indices.
-    """
-
-    echo_top_submatrix_km, row_offsets, column_offsets = (
-        grids.extract_latlng_subgrid(
-            data_matrix=echo_top_matrix_km,
-            grid_point_latitudes_deg=grid_point_latitudes_deg,
-            grid_point_longitudes_deg=grid_point_longitudes_deg,
-            center_latitude_deg=centroid_latitude_deg,
-            center_longitude_deg=centroid_longitude_deg,
-            max_distance_from_center_metres=min_intermax_distance_metres)
-    )
-
-    echo_top_submatrix_km[numpy.isnan(echo_top_submatrix_km)] = 0.
-
-    region_id_submatrix = label_image(
-        echo_top_submatrix_km >= min_echo_top_km, connectivity=2
-    )
-
-    centroid_subrow = numpy.argmin(numpy.absolute(
-        centroid_latitude_deg - grid_point_latitudes_deg[row_offsets]
-    ))
-
-    centroid_subcolumn = numpy.argmin(numpy.absolute(
-        centroid_longitude_deg - grid_point_longitudes_deg[column_offsets]
-    ))
-
-    centroid_region_id = region_id_submatrix[
-        centroid_subrow, centroid_subcolumn
-    ]
-
-    if centroid_region_id == 0:
-        grid_point_subrows = numpy.array([centroid_subrow], dtype=int)
-        grid_point_subcolumns = numpy.array([centroid_subcolumn], dtype=int)
-    else:
-        grid_point_subrows, grid_point_subcolumns = numpy.where(
-            region_id_submatrix == centroid_region_id)
-
-    return (
-        grid_point_subrows + row_offsets[0],
-        grid_point_subcolumns + column_offsets[0]
-    )
-
-
 def _make_regions_contiguous(radar_to_region_matrix):
     """Makes regions (local maxima) contiguous.
 
@@ -618,47 +553,37 @@ def _make_regions_contiguous(radar_to_region_matrix):
     num_grid_columns = radar_to_region_matrix.shape[1]
 
     for k in range(num_maxima):
-        print('Running filter for {0:d}th local max...'.format(k + 1))
-        exec_start_time_unix_sec = time.time()
+        rows_in_region, columns_in_region = numpy.where(
+            radar_to_region_matrix == k)
 
-        these_rows, these_columns = numpy.where(radar_to_region_matrix == k)
-
-        if len(these_rows) == 1:
-            print('Time elapsed = {0:.4f} seconds'.format(
-                time.time() - exec_start_time_unix_sec
-            ))
-
+        if len(rows_in_region) == 1:
             continue
 
-        these_bad_rows = []
-        these_bad_columns = []
+        isolated_rows = []
+        isolated_columns = []
 
-        for i, j in zip(these_rows, these_columns):
-            these_neigh_row_flags = numpy.logical_and(
-                these_rows >= i - 1, these_rows <= i + 1
+        for i, j in zip(rows_in_region, columns_in_region):
+            neigh_row_flags = numpy.logical_and(
+                rows_in_region >= i - 1, rows_in_region <= i + 1
             )
-            these_neigh_column_flags = numpy.logical_and(
-                these_columns >= j - 1, these_columns <= j + 1
+            neigh_column_flags = numpy.logical_and(
+                columns_in_region >= j - 1, columns_in_region <= j + 1
             )
 
-            this_num_neighbours = -1 + numpy.sum(numpy.logical_and(
-                these_neigh_row_flags, these_neigh_column_flags
+            num_neighbours = -1 + numpy.sum(numpy.logical_and(
+                neigh_row_flags, neigh_column_flags
             ))
 
-            if this_num_neighbours > 0:
+            if num_neighbours > 0:
                 continue
 
-            these_bad_rows.append(i)
-            these_bad_columns.append(j)
+            isolated_rows.append(i)
+            isolated_columns.append(j)
 
-        these_bad_rows = numpy.array(these_bad_rows, dtype=int)
-        these_bad_columns = numpy.array(these_bad_columns, dtype=int)
+        isolated_rows = numpy.array(isolated_rows, dtype=int)
+        isolated_columns = numpy.array(isolated_columns, dtype=int)
 
-        print('Time elapsed = {0:.4f} seconds'.format(
-            time.time() - exec_start_time_unix_sec
-        ))
-
-        for i, j in zip(these_bad_rows, these_bad_columns):
+        for i, j in zip(isolated_rows, isolated_columns):
             i_min = max([i - 1, 0])
             i_max = min([i + 1, num_grid_rows - 1])
             j_min = max([j - 1, 0])
@@ -697,6 +622,9 @@ def _local_maxima_to_regions(
         local max.  If radar_to_region_matrix[i, j] = -1, grid cell [i, j] is
         not part of a local max.
     """
+
+    print('Converting local maxima from points to regions...')
+    exec_start_time_unix_sec = time.time()
 
     num_grid_rows = echo_top_matrix_km.shape[0]
     num_grid_columns = echo_top_matrix_km.shape[1]
@@ -775,7 +703,13 @@ def _local_maxima_to_regions(
         radar_to_region_matrix[i, j] = numpy.nanargmin(
             these_distances_metres2)
 
-    return _make_regions_contiguous(radar_to_region_matrix)
+    radar_to_region_matrix = _make_regions_contiguous(radar_to_region_matrix)
+
+    print('Elapsed time = {0:.2f} seconds'.format(
+        time.time() - exec_start_time_unix_sec
+    ))
+
+    return radar_to_region_matrix
 
 
 def _local_maxima_to_polygons(
