@@ -723,6 +723,11 @@ def _local_maxima_to_regions(
             time.time() - exec_start_time_unix_sec
         ))
 
+    this_flag_matrix = numpy.any(region_mask_matrix, axis=0)
+    print('{0:d} of {1:d} grid cells are in a region.'.format(
+        numpy.sum(this_flag_matrix), this_flag_matrix.size
+    ))
+
     radar_to_region_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), -1, dtype=int
     )
