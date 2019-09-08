@@ -230,7 +230,7 @@ def _plot_kernel(kernel_matrix_2d, feature_matrix_2d, feature_row_at_center,
 
             axes_object.text(
                 j, i, this_label_string, fontsize=DEFAULT_FONT_SIZE,
-                color=SPECIAL_FONT_COLOUR,
+                color=DEFAULT_FONT_COLOUR,
                 horizontalalignment='center', verticalalignment='center')
 
 

@@ -24,6 +24,7 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
 """
 
 import copy
+import time
 import os.path
 import warnings
 from itertools import chain
@@ -684,10 +685,20 @@ def _local_maxima_to_regions(
         (num_maxima, num_grid_rows, num_grid_columns), 0, dtype=bool
     )
 
+    print('Finding connected regions...')
+    exec_start_time_unix_sec = time.time()
+
     region_id_matrix = label_image(
         echo_top_matrix_km >= min_echo_top_km, connectivity=2)
 
+    print('{0:.1f} seconds elapsed'.format(
+        time.time() - exec_start_time_unix_sec
+    ))
+
     for k in range(num_maxima):
+        print('Creating mask for {0:d}th local max...'.format(k + 1))
+        exec_start_time_unix_sec = time.time()
+
         this_row = numpy.argmin(numpy.absolute(
             local_max_dict[temporal_tracking.LATITUDES_KEY][k] -
             radar_latitudes_deg
@@ -709,9 +720,16 @@ def _local_maxima_to_regions(
 
         region_mask_matrix[k, ...][these_rows, these_columns] = True
 
+        print('{0:.1f} seconds elapsed'.format(
+            time.time() - exec_start_time_unix_sec
+        ))
+
     radar_to_region_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), -1, dtype=int
     )
+
+    print('Converting masks to regions...')
+    exec_start_time_unix_sec = time.time()
 
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
@@ -740,7 +758,20 @@ def _local_maxima_to_regions(
             radar_to_region_matrix[i, j] = numpy.nanargmin(
                 these_distances_metres)
 
-    return _make_regions_contiguous(radar_to_region_matrix)
+    print('{0:.1f} seconds elapsed'.format(
+        time.time() - exec_start_time_unix_sec
+    ))
+
+    print('Making regions contiguous')
+    exec_start_time_unix_sec = time.time()
+
+    radar_to_region_matrix = _make_regions_contiguous(radar_to_region_matrix)
+
+    print('{0:.1f} seconds elapsed'.format(
+        time.time() - exec_start_time_unix_sec
+    ))
+
+    return radar_to_region_matrix
 
 
 def _local_maxima_to_polygons(
