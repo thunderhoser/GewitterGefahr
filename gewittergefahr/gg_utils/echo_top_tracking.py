@@ -623,12 +623,15 @@ def _local_maxima_to_regions(
         not part of a local max.
     """
 
-    print('Converting local maxima from points to regions...')
+    num_maxima = len(local_max_dict[temporal_tracking.LATITUDES_KEY])
+
+    print('Converting {0:d} local maxima from points to regions...'.format(
+        num_maxima
+    ))
     exec_start_time_unix_sec = time.time()
 
     num_grid_rows = echo_top_matrix_km.shape[0]
     num_grid_columns = echo_top_matrix_km.shape[1]
-    num_maxima = len(local_max_dict[temporal_tracking.LATITUDES_KEY])
     region_mask_matrix = numpy.full(
         (num_maxima, num_grid_rows, num_grid_columns), 0, dtype=bool
     )
