@@ -30,7 +30,6 @@ import warnings
 from itertools import chain
 import numpy
 import pandas
-from geopy.distance import vincenty
 from scipy.ndimage.filters import gaussian_filter, convolve
 from scipy.stats import mode as scipy_mode
 from skimage.measure import label as label_image
@@ -731,6 +730,31 @@ def _local_maxima_to_regions(
     print('Converting masks to regions...')
     exec_start_time_unix_sec = time.time()
 
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg=numpy.mean(radar_latitudes_deg),
+        central_longitude_deg=numpy.mean(radar_longitudes_deg)
+    )
+
+    radar_lat_matrix_deg, radar_lng_matrix_deg = (
+        grids.latlng_vectors_to_matrices(
+            unique_latitudes_deg=radar_latitudes_deg,
+            unique_longitudes_deg=radar_longitudes_deg)
+    )
+
+    radar_x_matrix_metres, radar_y_matrix_metres = (
+        projections.project_latlng_to_xy(
+            latitudes_deg=radar_lat_matrix_deg,
+            longitudes_deg=radar_lng_matrix_deg,
+            projection_object=projection_object)
+    )
+
+    point_x_coords_metres, point_y_coords_metres = (
+        projections.project_latlng_to_xy(
+            latitudes_deg=local_max_dict[temporal_tracking.LATITUDES_KEY],
+            longitudes_deg=local_max_dict[temporal_tracking.LONGITUDES_KEY],
+            projection_object=projection_object)
+    )
+
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
             these_flags = region_mask_matrix[:, i, j]
@@ -742,27 +766,19 @@ def _local_maxima_to_regions(
                 radar_to_region_matrix[i, j] = these_region_indices[0]
                 continue
 
-            these_distances_metres = numpy.full(num_maxima, numpy.nan)
-            this_start_point = (radar_latitudes_deg[i], radar_longitudes_deg[j])
-
-            for k in these_region_indices:
-                this_end_point = (
-                    local_max_dict[temporal_tracking.LATITUDES_KEY][k],
-                    local_max_dict[temporal_tracking.LONGITUDES_KEY][k]
-                )
-
-                these_distances_metres[k] = vincenty(
-                    this_start_point, this_end_point
-                ).meters
+            these_distances_metres2 = (
+                (radar_x_matrix_metres[i, j] - point_x_coords_metres) ** 2 +
+                (radar_y_matrix_metres[i, j] - point_y_coords_metres) ** 2
+            )
 
             radar_to_region_matrix[i, j] = numpy.nanargmin(
-                these_distances_metres)
+                these_distances_metres2)
 
     print('{0:.1f} seconds elapsed'.format(
         time.time() - exec_start_time_unix_sec
     ))
 
-    print('Making regions contiguous')
+    print('Making regions contiguous...')
     exec_start_time_unix_sec = time.time()
 
     radar_to_region_matrix = _make_regions_contiguous(radar_to_region_matrix)
