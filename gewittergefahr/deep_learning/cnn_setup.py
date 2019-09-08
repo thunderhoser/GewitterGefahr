@@ -105,32 +105,32 @@ def _create_sounding_layers(
     current_num_spatial_filters = None
 
     for i in range(num_conv_layer_sets):
-        # if current_layer_object is None:
-        #     if do_separable_conv:
-        #         current_num_spatial_filters = first_num_spatial_filters + 0
-        #     else:
-        #         current_num_filters = first_num_filters + 0
-        # else:
-        #     if do_separable_conv:
-        #         current_num_spatial_filters *= 2
-        #     else:
-        #         current_num_filters *= 2
+        if current_layer_object is None:
+            if do_separable_conv:
+                current_num_spatial_filters = first_num_spatial_filters + 0
+            else:
+                current_num_filters = first_num_filters + 0
+        else:
+            if do_separable_conv:
+                current_num_spatial_filters *= 2
+            else:
+                current_num_filters *= 2
 
         for _ in range(num_conv_layers_per_set):
             if current_layer_object is None:
                 this_input_layer_object = input_layer_object
 
-                if do_separable_conv:
-                    current_num_spatial_filters = first_num_spatial_filters + 0
-                else:
-                    current_num_filters = first_num_filters + 0
+                # if do_separable_conv:
+                #     current_num_spatial_filters = first_num_spatial_filters + 0
+                # else:
+                #     current_num_filters = first_num_filters + 0
             else:
                 this_input_layer_object = current_layer_object
 
-                if do_separable_conv:
-                    current_num_spatial_filters *= 2
-                else:
-                    current_num_filters *= 2
+                # if do_separable_conv:
+                #     current_num_spatial_filters *= 2
+                # else:
+                #     current_num_filters *= 2
 
             if do_separable_conv:
                 current_layer_object = (
@@ -1270,13 +1270,16 @@ def create_3d_cnn(
     radar_layer_object = None
     current_num_filters = None
 
-    for _ in range(num_conv_layer_sets):
+    for i in range(num_conv_layer_sets):
+        if current_num_filters is None:
+            current_num_filters = first_num_radar_filters + 0
+        else:
+            current_num_filters *= 2
+
         for _ in range(num_conv_layers_per_set):
-            if current_num_filters is None:
-                current_num_filters = first_num_radar_filters + 0
+            if radar_layer_object is None:
                 this_input_layer_object = radar_input_layer_object
             else:
-                current_num_filters *= 2
                 this_input_layer_object = radar_layer_object
 
             radar_layer_object = architecture_utils.get_3d_conv_layer(
