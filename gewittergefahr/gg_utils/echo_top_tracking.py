@@ -30,7 +30,7 @@ import warnings
 from itertools import chain
 import numpy
 import pandas
-from scipy.ndimage.filters import gaussian_filter, convolve
+from scipy.ndimage.filters import gaussian_filter
 from scipy.stats import mode as scipy_mode
 from skimage.measure import label as label_image
 from gewittergefahr.gg_io import myrorss_and_mrms_io
@@ -617,31 +617,45 @@ def _make_regions_contiguous(radar_to_region_matrix):
     num_grid_rows = radar_to_region_matrix.shape[0]
     num_grid_columns = radar_to_region_matrix.shape[1]
 
-    weight_matrix = numpy.full((3, 3), 1.)
-    weight_matrix = weight_matrix / weight_matrix.size
-
     for k in range(num_maxima):
-        this_orig_mask_matrix = radar_to_region_matrix == k
-        if numpy.sum(this_orig_mask_matrix) == 1:
-            continue
-
         print('Running filter for {0:d}th local max...'.format(k + 1))
         exec_start_time_unix_sec = time.time()
 
-        this_new_mask_matrix = convolve(
-            this_orig_mask_matrix.astype(float), weights=weight_matrix,
-            mode='constant', cval=0.)
+        these_rows, these_columns = numpy.where(radar_to_region_matrix == k)
+
+        if len(these_rows) == 1:
+            print('Time elapsed = {0:.4f} seconds'.format(
+                time.time() - exec_start_time_unix_sec
+            ))
+
+            continue
+
+        these_bad_rows = []
+        these_bad_columns = []
+
+        for i, j in zip(these_rows, these_columns):
+            these_neigh_row_flags = numpy.logical_and(
+                these_rows >= i - 1, these_rows <= i + 1
+            )
+            these_neigh_column_flags = numpy.logical_and(
+                these_columns >= j - 1, these_columns <= j + 1
+            )
+
+            this_num_neighbours = -1 + numpy.sum(numpy.logical_and(
+                these_neigh_row_flags, these_neigh_column_flags
+            ))
+
+            if this_num_neighbours > 0:
+                continue
+
+            these_bad_rows.append(i)
+            these_bad_columns.append(j)
+
+        these_bad_rows = numpy.array(these_bad_rows, dtype=int)
+        these_bad_columns = numpy.array(these_bad_columns, dtype=int)
 
         print('Time elapsed = {0:.4f} seconds'.format(
             time.time() - exec_start_time_unix_sec
-        ))
-
-        this_new_mask_matrix = (
-            this_new_mask_matrix > weight_matrix[0, 0] + TOLERANCE
-        )
-
-        these_bad_rows, these_bad_columns = numpy.where(numpy.logical_and(
-            this_orig_mask_matrix, numpy.invert(this_new_mask_matrix)
         ))
 
         for i, j in zip(these_bad_rows, these_bad_columns):
