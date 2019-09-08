@@ -106,6 +106,9 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     :param output_dir_name: Same.
     """
 
+    if refl_masking_threshold_dbz <= 0:
+        refl_masking_threshold_dbz = None
+
     # Process input args.
     first_training_time_unix_sec = time_conversion.string_to_unix_sec(
         first_training_time_string, TIME_FORMAT)
