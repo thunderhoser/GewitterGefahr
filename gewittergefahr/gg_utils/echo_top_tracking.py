@@ -625,10 +625,10 @@ def _local_maxima_to_regions(
 
     num_maxima = len(local_max_dict[temporal_tracking.LATITUDES_KEY])
 
-    print('Converting {0:d} local maxima from points to regions...'.format(
-        num_maxima
-    ))
-    exec_start_time_unix_sec = time.time()
+    # print('Converting {0:d} local maxima from points to regions...'.format(
+    #     num_maxima
+    # ))
+    # exec_start_time_unix_sec = time.time()
 
     num_grid_rows = echo_top_matrix_km.shape[0]
     num_grid_columns = echo_top_matrix_km.shape[1]
@@ -636,8 +636,18 @@ def _local_maxima_to_regions(
         (num_maxima, num_grid_rows, num_grid_columns), 0, dtype=bool
     )
 
+    print('Finding connected regions...')
+    exec_start_time_unix_sec = time.time()
+
     region_id_matrix = label_image(
         echo_top_matrix_km >= min_echo_top_km, connectivity=2)
+
+    print('Elapsed time = {0:.2f} seconds'.format(
+        time.time() - exec_start_time_unix_sec
+    ))
+
+    print('Converting regions to masks...')
+    exec_start_time_unix_sec = time.time()
 
     for k in range(num_maxima):
         this_row = numpy.argmin(numpy.absolute(
@@ -661,6 +671,13 @@ def _local_maxima_to_regions(
 
         region_mask_matrix[k, ...][these_rows, these_columns] = True
 
+    print('Elapsed time = {0:.2f} seconds'.format(
+        time.time() - exec_start_time_unix_sec
+    ))
+
+    print('Converting regions from lat-long to x-y...')
+    exec_start_time_unix_sec = time.time()
+
     this_flag_matrix = numpy.any(region_mask_matrix, axis=0)
     rows_in_region, columns_in_region = numpy.where(this_flag_matrix)
 
@@ -683,9 +700,16 @@ def _local_maxima_to_regions(
             projection_object=projection_object)
     )
 
+    print('Elapsed time = {0:.2f} seconds'.format(
+        time.time() - exec_start_time_unix_sec
+    ))
+
     radar_to_region_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), -1, dtype=int
     )
+
+    print('Doing tie-breaker...')
+    exec_start_time_unix_sec = time.time()
 
     for k in range(len(rows_in_region)):
         i = rows_in_region[k]
@@ -705,6 +729,13 @@ def _local_maxima_to_regions(
 
         radar_to_region_matrix[i, j] = numpy.nanargmin(
             these_distances_metres2)
+
+    print('Elapsed time = {0:.2f} seconds'.format(
+        time.time() - exec_start_time_unix_sec
+    ))
+
+    print('Making regions contiguous...')
+    exec_start_time_unix_sec = time.time()
 
     radar_to_region_matrix = _make_regions_contiguous(radar_to_region_matrix)
 
