@@ -727,7 +727,7 @@ def _local_maxima_to_regions(
         (num_grid_rows, num_grid_columns), -1, dtype=int
     )
 
-    print('Converting masks to regions...')
+    print('Converting lat-long to x-y coords...')
     exec_start_time_unix_sec = time.time()
 
     projection_object = projections.init_azimuthal_equidistant_projection(
@@ -754,6 +754,13 @@ def _local_maxima_to_regions(
             longitudes_deg=local_max_dict[temporal_tracking.LONGITUDES_KEY],
             projection_object=projection_object)
     )
+
+    print('{0:.1f} seconds elapsed'.format(
+        time.time() - exec_start_time_unix_sec
+    ))
+
+    print('Converting masks to regions...')
+    exec_start_time_unix_sec = time.time()
 
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
