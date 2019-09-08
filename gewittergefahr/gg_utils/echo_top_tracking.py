@@ -724,13 +724,7 @@ def _local_maxima_to_regions(
         ))
 
     this_flag_matrix = numpy.any(region_mask_matrix, axis=0)
-    print('{0:d} of {1:d} grid cells are in a region.'.format(
-        numpy.sum(this_flag_matrix), this_flag_matrix.size
-    ))
-
-    radar_to_region_matrix = numpy.full(
-        (num_grid_rows, num_grid_columns), -1, dtype=int
-    )
+    rows_in_region, columns_in_region = numpy.where(this_flag_matrix)
 
     print('Converting lat-long to x-y coords...')
     exec_start_time_unix_sec = time.time()
@@ -740,16 +734,10 @@ def _local_maxima_to_regions(
         central_longitude_deg=numpy.mean(radar_longitudes_deg)
     )
 
-    radar_lat_matrix_deg, radar_lng_matrix_deg = (
-        grids.latlng_vectors_to_matrices(
-            unique_latitudes_deg=radar_latitudes_deg,
-            unique_longitudes_deg=radar_longitudes_deg)
-    )
-
-    radar_x_matrix_metres, radar_y_matrix_metres = (
+    x_coords_in_region_metres, y_coords_in_region_metres = (
         projections.project_latlng_to_xy(
-            latitudes_deg=radar_lat_matrix_deg,
-            longitudes_deg=radar_lng_matrix_deg,
+            latitudes_deg=radar_latitudes_deg[rows_in_region],
+            longitudes_deg=radar_longitudes_deg[columns_in_region],
             projection_object=projection_object)
     )
 
@@ -764,27 +752,31 @@ def _local_maxima_to_regions(
         time.time() - exec_start_time_unix_sec
     ))
 
+    radar_to_region_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), -1, dtype=int
+    )
+
     print('Converting masks to regions...')
     exec_start_time_unix_sec = time.time()
 
-    for i in range(num_grid_rows):
-        for j in range(num_grid_columns):
-            these_flags = region_mask_matrix[:, i, j]
-            if not numpy.any(these_flags):
-                continue
+    for k in range(len(rows_in_region)):
+        i = rows_in_region[k]
+        j = columns_in_region[k]
 
-            these_region_indices = numpy.where(these_flags)[0]
-            if len(these_region_indices) == 1:
-                radar_to_region_matrix[i, j] = these_region_indices[0]
-                continue
+        these_flags = region_mask_matrix[:, i, j]
+        these_region_indices = numpy.where(these_flags)[0]
 
-            these_distances_metres2 = (
-                (radar_x_matrix_metres[i, j] - point_x_coords_metres) ** 2 +
-                (radar_y_matrix_metres[i, j] - point_y_coords_metres) ** 2
-            )
+        if len(these_region_indices) == 1:
+            radar_to_region_matrix[i, j] = these_region_indices[0]
+            continue
 
-            radar_to_region_matrix[i, j] = numpy.nanargmin(
-                these_distances_metres2)
+        these_distances_metres2 = (
+            (x_coords_in_region_metres[k] - point_x_coords_metres) ** 2 +
+            (y_coords_in_region_metres[k] - point_y_coords_metres) ** 2
+        )
+
+        radar_to_region_matrix[i, j] = numpy.nanargmin(
+            these_distances_metres2)
 
     print('{0:.1f} seconds elapsed'.format(
         time.time() - exec_start_time_unix_sec
