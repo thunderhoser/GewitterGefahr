@@ -29,8 +29,8 @@ COLOUR_LIST = [
 ]
 
 COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap(COLOUR_LIST)
-DEFAULT_FONT_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
-SPECIAL_FONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+DEFAULT_FONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+SPECIAL_FONT_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 FEATURE_TO_KERNEL_LINE_COLOUR = numpy.full(3, 152. / 255)
 
 PANEL_LETTER_FONT_SIZE = 30
@@ -108,7 +108,7 @@ OUTPUT_DIR_NAME = (
 
 
 def _plot_feature_map(feature_matrix_2d, kernel_row, kernel_column,
-                      axes_object):
+                      is_output_map, axes_object):
     """Plots one feature map.
 
     M = number of rows in grid
@@ -117,6 +117,7 @@ def _plot_feature_map(feature_matrix_2d, kernel_row, kernel_column,
     :param feature_matrix_2d: M-by-N numpy array of feature values.
     :param kernel_row: Row index at center of kernel.
     :param kernel_column: Column index at center of kernel.
+    :param is_output_map: Boolean flag.
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     """
@@ -124,10 +125,16 @@ def _plot_feature_map(feature_matrix_2d, kernel_row, kernel_column,
     num_rows = feature_matrix_2d.shape[0]
     num_columns = feature_matrix_2d.shape[1]
 
-    first_highlighted_row = max([kernel_row - 1, 0])
-    last_highlighted_row = min([kernel_row + 1, num_rows - 1])
-    first_highlighted_column = max([kernel_column - 1, 0])
-    last_highlighted_column = min([kernel_column + 1, num_columns - 1])
+    if is_output_map:
+        first_highlighted_row = kernel_row
+        last_highlighted_row = kernel_row
+        first_highlighted_column = kernel_column
+        last_highlighted_column = kernel_column
+    else:
+        first_highlighted_row = max([kernel_row - 1, 0])
+        last_highlighted_row = min([kernel_row + 1, num_rows - 1])
+        first_highlighted_column = max([kernel_column - 1, 0])
+        last_highlighted_column = min([kernel_column + 1, num_columns - 1])
 
     dummy_matrix = numpy.full(feature_matrix_2d.shape, numpy.nan)
     dummy_matrix[
@@ -148,12 +155,11 @@ def _plot_feature_map(feature_matrix_2d, kernel_row, kernel_column,
 
     for i in range(num_rows):
         for j in range(num_columns):
-            if i == kernel_row and j == kernel_column:
-                this_colour = DEFAULT_FONT_COLOUR
-            else:
+            if i == kernel_row and j == kernel_column and is_output_map:
                 this_colour = SPECIAL_FONT_COLOUR
+            else:
+                this_colour = DEFAULT_FONT_COLOUR
 
-            # this_label_string = '{0:.1f}'.format(feature_matrix_2d[i, j])
             this_label_string = '{0:d}'.format(
                 int(numpy.round(feature_matrix_2d[i, j]))
             )
@@ -322,7 +328,7 @@ def _run():
             for k in range(num_input_channels):
                 _plot_feature_map(
                     feature_matrix_2d=INPUT_FEATURE_MATRIX[..., k],
-                    kernel_row=i, kernel_column=j,
+                    kernel_row=i, kernel_column=j, is_output_map=False,
                     axes_object=this_axes_object_matrix[k, 0]
                 )
 
@@ -340,7 +346,7 @@ def _run():
 
             _plot_feature_map(
                 feature_matrix_2d=output_feature_matrix,
-                kernel_row=i, kernel_column=j,
+                kernel_row=i, kernel_column=j, is_output_map=True,
                 axes_object=this_axes_object_matrix[1, 2]
             )
 

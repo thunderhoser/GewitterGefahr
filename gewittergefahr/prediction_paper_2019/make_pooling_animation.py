@@ -54,8 +54,8 @@ COLOUR_LIST = [
 ]
 
 COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap(COLOUR_LIST)
-DEFAULT_FONT_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
-SPECIAL_FONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+DEFAULT_FONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+SPECIAL_FONT_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 
 PANEL_LETTER_FONT_SIZE = 30
 INTERPANEL_LINE_WIDTH = 2
