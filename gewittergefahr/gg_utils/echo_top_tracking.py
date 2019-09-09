@@ -720,12 +720,23 @@ def _local_maxima_to_regions(
             radar_to_region_matrix[i, j] = these_region_indices[0]
             continue
 
-        these_distances_metres2 = (
-            (x_coords_in_region_metres[k] - point_x_coords_metres) ** 2 +
-            (y_coords_in_region_metres[k] - point_y_coords_metres) ** 2
+        these_x_diffs_metres = (
+            x_coords_in_region_metres[k] -
+            point_x_coords_metres[these_region_indices]
         )
 
-        radar_to_region_matrix[i, j] = numpy.nanargmin(these_distances_metres2)
+        these_y_diffs_metres = (
+            y_coords_in_region_metres[k] -
+            point_y_coords_metres[these_region_indices]
+        )
+
+        these_distances_metres2 = (
+            these_x_diffs_metres ** 2 + these_y_diffs_metres ** 2
+        )
+
+        radar_to_region_matrix[i, j] = these_region_indices[
+            numpy.nanargmin(these_distances_metres2)
+        ]
 
     print(numpy.where(radar_to_region_matrix == 65))
 
