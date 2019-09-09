@@ -65,6 +65,17 @@ NUM_PANEL_ROWS = 3
 NUM_PANEL_COLUMNS = 2
 FIGURE_RESOLUTION_DPI = 300
 
+FIGURE_CAPTION = (
+    'Schematic for 2-D maximum-pooling.\n'
+    '[a-c] Input feature maps, produced by convolution.\n'
+    '[d-f] Output feature maps, one for each input map.  At each position of '
+    'the\n'
+    'pooling window (green square in panels a-c), the output value '
+    '(highlighted\n'
+    'green in panels d-f) is the maximum of all values inside the pooling '
+    'window.'
+)
+
 # OUTPUT_DIR_NAME = (
 #     '/condo/swatwork/ralager/prediction_paper_2019/pooling_animation'
 # )
@@ -246,6 +257,11 @@ def _run():
                     input_fm_axes_object=this_axes_object_matrix[k, 0],
                     output_fm_axes_object=this_axes_object_matrix[k, 1]
                 )
+
+            this_figure_object.text(
+                0.5, 0., FIGURE_CAPTION, fontsize=DEFAULT_FONT_SIZE,
+                color='k', horizontalalignment='center',
+                verticalalignment='top')
 
             image_file_names.append(
                 '{0:s}/pooling_animation_row{1:d}_column{2:d}.jpg'.format(
