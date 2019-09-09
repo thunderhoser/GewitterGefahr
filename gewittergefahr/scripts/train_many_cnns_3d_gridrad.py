@@ -73,7 +73,7 @@ def _write_metadata_one_cnn(model_object, argument_dict):
     )
 
     monitor_string = argument_dict[dl_helper.MONITOR_ARG_NAME]
-    weight_loss_function = argument_dict[dl_helper.WEIGHT_LOSS_ARG_NAME]
+    weight_loss_function = bool(argument_dict[dl_helper.WEIGHT_LOSS_ARG_NAME])
     refl_masking_threshold_dbz = argument_dict[REFLECTIVITY_MASK_KEY]
 
     x_translations_pixels = numpy.array(
@@ -87,8 +87,8 @@ def _write_metadata_one_cnn(model_object, argument_dict):
     )
     noise_standard_deviation = argument_dict[dl_helper.NOISE_STDEV_ARG_NAME]
     num_noisings = argument_dict[dl_helper.NUM_NOISINGS_ARG_NAME]
-    flip_in_x = argument_dict[dl_helper.FLIP_X_ARG_NAME]
-    flip_in_y = argument_dict[dl_helper.FLIP_Y_ARG_NAME]
+    flip_in_x = bool(argument_dict[dl_helper.FLIP_X_ARG_NAME])
+    flip_in_y = bool(argument_dict[dl_helper.FLIP_Y_ARG_NAME])
 
     top_training_dir_name = argument_dict[dl_helper.TRAINING_DIR_ARG_NAME]
     first_training_time_string = argument_dict[
