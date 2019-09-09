@@ -130,9 +130,12 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     else:
         downsampling_dict = None
 
-    if (len(x_translations_pixels) == 1 and
-            x_translations_pixels + y_translations_pixels == 0
-       ):
+    translate_flag = (
+        len(x_translations_pixels) > 1
+        or x_translations_pixels[0] != 0 or y_translations_pixels[0] != 0
+    )
+
+    if not translate_flag:
         x_translations_pixels = None
         y_translations_pixels = None
 
