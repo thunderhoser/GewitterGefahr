@@ -188,7 +188,7 @@ def _plot_one_example(
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[0, 0],
         label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-        x_coord_normalized=0.2, y_coord_normalized=1.08
+        x_coord_normalized=0.2, y_coord_normalized=1.1
     )
     
     this_matrix = numpy.stack(
@@ -213,7 +213,7 @@ def _plot_one_example(
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 1],
             label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.2, y_coord_normalized=1.08
+            x_coord_normalized=0.2, y_coord_normalized=1.1
         )
 
     axes_object_matrix[0, 2].set_title('After activation', fontsize=FONT_SIZE)
@@ -231,7 +231,7 @@ def _plot_one_example(
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 2],
             label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.2, y_coord_normalized=1.08
+            x_coord_normalized=0.2, y_coord_normalized=1.1
         )
 
     max_colour_value = numpy.percentile(
@@ -253,7 +253,7 @@ def _plot_one_example(
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 3],
             label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.2, y_coord_normalized=1.08
+            x_coord_normalized=0.2, y_coord_normalized=1.1
         )
 
     max_colour_value = numpy.percentile(
@@ -275,7 +275,7 @@ def _plot_one_example(
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 4],
             label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.2, y_coord_normalized=1.08
+            x_coord_normalized=0.2, y_coord_normalized=1.1
         )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
