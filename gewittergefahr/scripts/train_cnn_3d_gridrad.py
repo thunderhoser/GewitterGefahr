@@ -122,6 +122,8 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     pickle.dump(INPUT_ARG_OBJECT.__dict__, argument_file_handle)
     argument_file_handle.close()
 
+    return
+
     if refl_masking_threshold_dbz <= 0:
         refl_masking_threshold_dbz = None
 
