@@ -183,14 +183,14 @@ def _plot_one_example(
     tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_label_strings)
-
+    
     letter_label = 'a'
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[0, 0],
-        label_string='({0:s})'.format(letter_label),
-        x_coord_normalized=0., y_coord_normalized=1.05
+        label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
+        x_coord_normalized=0.2, y_coord_normalized=1.08
     )
-
+    
     this_matrix = numpy.stack(
         (feature_matrix_after_conv, feature_matrix_after_activn), axis=0
     )
@@ -212,8 +212,8 @@ def _plot_one_example(
 
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 1],
-            label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=0., y_coord_normalized=1.05
+            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
+            x_coord_normalized=0.2, y_coord_normalized=1.08
         )
 
     axes_object_matrix[0, 2].set_title('After activation', fontsize=FONT_SIZE)
@@ -230,8 +230,8 @@ def _plot_one_example(
 
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 2],
-            label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=0., y_coord_normalized=1.05
+            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
+            x_coord_normalized=0.2, y_coord_normalized=1.08
         )
 
     max_colour_value = numpy.percentile(
@@ -249,11 +249,11 @@ def _plot_one_example(
         )
 
         letter_label = chr(ord(letter_label) + 1)
-
+        
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 3],
-            label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=0., y_coord_normalized=1.05
+            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
+            x_coord_normalized=0.2, y_coord_normalized=1.08
         )
 
     max_colour_value = numpy.percentile(
@@ -274,8 +274,8 @@ def _plot_one_example(
 
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 4],
-            label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=0., y_coord_normalized=1.05
+            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
+            x_coord_normalized=0.2, y_coord_normalized=1.08
         )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
