@@ -575,10 +575,9 @@ def _make_regions_contiguous(radar_to_region_matrix):
             )
 
             if k == 65:
-                print(j - 1)
-                print(j + 1)
-                print(columns_in_region)
-                print(numpy.sum(neigh_column_flags))
+                print(columns_in_region >= j - 1)
+                print(columns_in_region <= j + 1)
+                print(neigh_column_flags)
                 print('\n\n')
 
             num_neighbours = -1 + numpy.sum(numpy.logical_and(
