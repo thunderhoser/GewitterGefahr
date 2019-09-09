@@ -114,7 +114,7 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     print('Writing input args to: "{0:s}"...'.format(argument_file_name))
 
     argument_file_handle = open(argument_file_name, 'wb')
-    pickle.dump(INPUT_ARG_PARSER.__dict__, argument_file_handle)
+    pickle.dump(INPUT_ARG_OBJECT.__dict__, argument_file_handle)
     argument_file_handle.close()
 
     return
