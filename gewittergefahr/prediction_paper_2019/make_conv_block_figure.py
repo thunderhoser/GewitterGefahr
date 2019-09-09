@@ -53,6 +53,8 @@ FIGURE_RESOLUTION_DPI = 300
 
 EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
 EXAMPLE_INDICES_ARG_NAME = 'example_indices'
+NUM_ROWS_ARG_NAME = 'num_radar_rows'
+NUM_COLUMNS_ARG_NAME = 'num_radar_columns'
 NORMALIZATION_FILE_ARG_NAME = 'normalization_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -62,6 +64,14 @@ EXAMPLE_FILE_HELP_STRING = (
 
 EXAMPLE_INDICES_HELP_STRING = (
     'List of example indices.  One figure will be created for each example.')
+
+NUM_ROWS_HELP_STRING = (
+    'Number of rows in radar grid.  To use the number of rows in the file, '
+    'leave this alone.')
+
+NUM_COLUMNS_HELP_STRING = (
+    'Number of columns in radar grid.  To use the number of rows in the file, '
+    'leave this alone.')
 
 NORMALIZATION_FILE_HELP_STRING = (
     'Path to normalization file.  Will be read by `deep_learning_utils.'
@@ -79,6 +89,14 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + EXAMPLE_INDICES_ARG_NAME, type=int, nargs='+', required=True,
     help=EXAMPLE_INDICES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_ROWS_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_ROWS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_COLUMNS_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_COLUMNS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NORMALIZATION_FILE_ARG_NAME, type=str, required=True,
@@ -286,15 +304,22 @@ def _plot_one_example(
     pyplot.close(figure_object)
 
 
-def _run(example_file_name, example_indices, normalization_file_name,
-         output_dir_name):
+def _run(example_file_name, example_indices, num_radar_rows, num_radar_columns,
+         normalization_file_name, output_dir_name):
     """Makes figure to explain one convolution block.
 
     :param example_file_name: See documentation at top of file.
     :param example_indices: Same.
+    :param num_radar_rows: Same.
+    :param num_radar_columns: Same.
     :param normalization_file_name: Same.
     :param output_dir_name: Same.
     """
+
+    if num_radar_rows <= 0:
+        num_radar_rows = None
+    if num_radar_columns <= 0:
+        num_radar_columns = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -303,6 +328,7 @@ def _run(example_file_name, example_indices, normalization_file_name,
     example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_name, read_all_target_vars=False,
         target_name=DUMMY_TARGET_NAME, include_soundings=False,
+        num_rows_to_keep=num_radar_rows, num_columns_to_keep=num_radar_columns,
         radar_heights_to_keep_m_agl=numpy.array([RADAR_HEIGHT_M_ASL], dtype=int)
     )
 
@@ -399,6 +425,8 @@ if __name__ == '__main__':
         example_indices=numpy.array(
             getattr(INPUT_ARG_OBJECT, EXAMPLE_INDICES_ARG_NAME), dtype=int
         ),
+        num_radar_rows=getattr(INPUT_ARG_OBJECT, NUM_ROWS_ARG_NAME),
+        num_radar_columns=getattr(INPUT_ARG_OBJECT, NUM_COLUMNS_ARG_NAME),
         normalization_file_name=getattr(
             INPUT_ARG_OBJECT, NORMALIZATION_FILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
