@@ -667,8 +667,6 @@ def _local_maxima_to_regions(
 
         region_mask_matrix[k, ...][these_rows, these_columns] = True
 
-    print(numpy.sum(region_mask_matrix[65, ...]))
-
     print('Elapsed time = {0:.2f} seconds'.format(
         time.time() - exec_start_time_unix_sec
     ))
@@ -738,17 +736,13 @@ def _local_maxima_to_regions(
             numpy.nanargmin(these_distances_metres2)
         ]
 
-    print(numpy.where(radar_to_region_matrix == 65))
-
     print('Elapsed time = {0:.2f} seconds'.format(
         time.time() - exec_start_time_unix_sec
     ))
 
     print('Making regions contiguous...')
     exec_start_time_unix_sec = time.time()
-
     radar_to_region_matrix = _make_regions_contiguous(radar_to_region_matrix)
-    print(numpy.sum(radar_to_region_matrix == 65))
 
     print('Elapsed time = {0:.2f} seconds'.format(
         time.time() - exec_start_time_unix_sec
@@ -845,15 +839,6 @@ def _local_maxima_to_polygons(
         (local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][k],
          local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][k]
         ) = numpy.where(radar_to_region_matrix == k)
-
-        this_num_grid_points = len(
-            local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][k]
-        )
-
-        if this_num_grid_points == 0:
-            print('No grid points in {0:d}th of {1:d} regions.'.format(
-                k + 1, num_maxima
-            ))
 
         these_vertex_rows, these_vertex_columns = (
             polygons.grid_points_in_poly_to_vertices(
