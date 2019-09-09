@@ -578,6 +578,9 @@ def _make_regions_contiguous(radar_to_region_matrix):
                 neigh_row_flags, neigh_column_flags
             ))
 
+            if k == 65:
+                print(num_neighbours)
+
             if num_neighbours > 0:
                 continue
 
