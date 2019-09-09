@@ -667,6 +667,8 @@ def _local_maxima_to_regions(
 
         region_mask_matrix[k, ...][these_rows, these_columns] = True
 
+    print(numpy.sum(region_mask_matrix[65, ...]))
+
     print('Elapsed time = {0:.2f} seconds'.format(
         time.time() - exec_start_time_unix_sec
     ))
@@ -724,6 +726,8 @@ def _local_maxima_to_regions(
         )
 
         radar_to_region_matrix[i, j] = numpy.nanargmin(these_distances_metres2)
+
+    print(numpy.sum(radar_to_region_matrix == 65))
 
     print('Elapsed time = {0:.2f} seconds'.format(
         time.time() - exec_start_time_unix_sec
