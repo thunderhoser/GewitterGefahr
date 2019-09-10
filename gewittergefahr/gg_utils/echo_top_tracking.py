@@ -623,10 +623,7 @@ def _local_maxima_to_regions(
         not part of a local max.
     """
 
-    num_grid_rows = echo_top_matrix_km.shape[0]
-    num_grid_columns = echo_top_matrix_km.shape[1]
     num_maxima = len(local_max_dict[temporal_tracking.LATITUDES_KEY])
-
     print('Finding connected regions for {0:d} local maxima...'.format(
         num_maxima
     ))
@@ -642,11 +639,9 @@ def _local_maxima_to_regions(
     print('Converting regions to masks...')
     exec_start_time_unix_sec = time.time()
 
-    grid_rows_by_region = [None] * num_maxima
-    grid_columns_by_region = [None] * num_maxima
-    in_any_region_matrix = numpy.full(
-        (num_grid_rows, num_grid_columns), 0, dtype=bool
-    )
+    region_to_grid_rows = [None] * num_maxima
+    region_to_grid_columns = [None] * num_maxima
+    grid_cell_to_regions = {}
 
     for k in range(num_maxima):
         this_row = numpy.argmin(numpy.absolute(
@@ -662,15 +657,22 @@ def _local_maxima_to_regions(
         this_region_id = orig_region_id_matrix[this_row, this_column]
 
         if this_region_id == 0:
-            grid_rows_by_region[k] = numpy.array([this_row], dtype=int)
-            grid_columns_by_region[k] = numpy.array([this_column], dtype=int)
+            region_to_grid_rows[k] = numpy.array([this_row], dtype=int)
+            region_to_grid_columns[k] = numpy.array([this_column], dtype=int)
         else:
-            grid_rows_by_region[k], grid_columns_by_region[k] = numpy.where(
+            region_to_grid_rows[k], region_to_grid_columns[k] = numpy.where(
                 orig_region_id_matrix == this_region_id)
 
-        in_any_region_matrix[
-            grid_rows_by_region[k], grid_columns_by_region[k]
-        ] = True
+        for i, j in zip(region_to_grid_rows[k], region_to_grid_columns[k]):
+            if (i, j) in grid_cell_to_regions:
+                grid_cell_to_regions[i, j].append(k)
+            else:
+                grid_cell_to_regions[i, j] = [k]
+
+    for this_key in grid_cell_to_regions:
+        grid_cell_to_regions[this_key] = numpy.array(
+            grid_cell_to_regions[this_key], dtype=int
+        )
 
     print('Elapsed time = {0:.2f} seconds'.format(
         time.time() - exec_start_time_unix_sec
@@ -679,8 +681,9 @@ def _local_maxima_to_regions(
     print('Converting regions from lat-long to x-y...')
     exec_start_time_unix_sec = time.time()
 
-    rows_in_any_region, columns_in_any_region = numpy.where(
-        in_any_region_matrix)
+    these_keys = list(grid_cell_to_regions.keys())
+    rows_in_any_region = numpy.array([a[0] for a in these_keys], dtype=int)
+    columns_in_any_region = numpy.array([a[1] for a in these_keys], dtype=int)
 
     projection_object = projections.init_azimuthal_equidistant_projection(
         central_latitude_deg=numpy.mean(radar_latitudes_deg),
@@ -705,6 +708,8 @@ def _local_maxima_to_regions(
         time.time() - exec_start_time_unix_sec
     ))
 
+    num_grid_rows = echo_top_matrix_km.shape[0]
+    num_grid_columns = echo_top_matrix_km.shape[1]
     radar_to_region_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), -1, dtype=int
     )
@@ -715,18 +720,8 @@ def _local_maxima_to_regions(
     for m in range(len(rows_in_any_region)):
         i = rows_in_any_region[m]
         j = columns_in_any_region[m]
-        these_region_indices = []
+        these_region_indices = grid_cell_to_regions[i, j]
 
-        for k in range(num_maxima):
-            this_flag = numpy.any(numpy.logical_and(
-                grid_rows_by_region[k] == i, grid_columns_by_region[k] == j
-            ))
-            if not this_flag:
-                continue
-
-            these_region_indices.append(k)
-
-        these_region_indices = numpy.array(these_region_indices, dtype=int)
         if len(these_region_indices) == 1:
             radar_to_region_matrix[i, j] = these_region_indices[0]
             continue
