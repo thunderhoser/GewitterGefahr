@@ -540,34 +540,48 @@ def _find_input_tracking_files(
             valid_times_by_date_unix_sec)
 
 
-def _make_regions_contiguous(radar_to_region_matrix):
+def _make_regions_contiguous(
+        region_to_grid_rows, region_to_grid_columns, grid_cell_to_region,
+        num_grid_rows, num_grid_columns):
     """Makes regions (local maxima) contiguous.
 
-    :param radar_to_region_matrix: See output doc for
-        `_local_maxima_to_regions`.
-    :return: radar_to_region_matrix: Same but possibly with different values.
+    M = number of rows in radar grid
+    N = number of columns in radar grid
+
+    :param region_to_grid_rows: 1-D list, where the [k]th element is a numpy
+        array with row indices of grid cells in the [k]th region.
+    :param region_to_grid_columns: Same but for columns.
+    :param grid_cell_to_region: Double-indexed dictionary.  If key [i, j] has
+        value k, grid cell [i, j] belongs to region k.
+    :param num_grid_rows: M in the above discussion.
+    :param num_grid_columns: N in the above discussion.
+    :return: radar_to_region_matrix: M-by-N numpy array of region indices, where
+        -1 means "not part of a region".
     """
 
-    num_maxima = numpy.max(radar_to_region_matrix) + 1
-    num_grid_rows = radar_to_region_matrix.shape[0]
-    num_grid_columns = radar_to_region_matrix.shape[1]
+    num_maxima = len(region_to_grid_rows)
+    radar_to_region_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), -1, dtype=int
+    )
 
     for k in range(num_maxima):
-        rows_in_region, columns_in_region = numpy.where(
-            radar_to_region_matrix == k)
+        radar_to_region_matrix[
+            region_to_grid_rows[k], region_to_grid_columns[k]
+        ] = k
 
-        if len(rows_in_region) == 1:
+        if len(region_to_grid_rows[k]) == 1:
             continue
 
         isolated_rows = []
         isolated_columns = []
 
-        for i, j in zip(rows_in_region, columns_in_region):
+        for i, j in zip(region_to_grid_rows[k], region_to_grid_columns[k]):
             neigh_row_flags = numpy.logical_and(
-                rows_in_region >= i - 1, rows_in_region <= i + 1
+                region_to_grid_rows[k] >= i - 1, region_to_grid_rows[k] <= i + 1
             )
             neigh_column_flags = numpy.logical_and(
-                columns_in_region >= j - 1, columns_in_region <= j + 1
+                region_to_grid_columns[k] >= j - 1,
+                region_to_grid_columns[k] <= j + 1
             )
 
             num_neighbours = -1 + numpy.sum(numpy.logical_and(
@@ -584,19 +598,21 @@ def _make_regions_contiguous(radar_to_region_matrix):
         isolated_columns = numpy.array(isolated_columns, dtype=int)
 
         for i, j in zip(isolated_rows, isolated_columns):
-            i_min = max([i - 1, 0])
-            i_max = min([i + 1, num_grid_rows - 1])
-            j_min = max([j - 1, 0])
-            j_max = min([j + 1, num_grid_columns - 1])
+            these_region_indices = []
 
-            this_region_matrix = (
-                radar_to_region_matrix[i_min:(i_max + 1), j_min:(j_max + 1)]
-            ).astype(float)
+            for i_new in range(i - 1, i + 2):
+                for j_new in range(j - 1, j + 2):
+                    if (i_new, j_new) in grid_cell_to_region:
+                        these_region_indices.append(
+                            grid_cell_to_region[i_new, j_new]
+                        )
+                    else:
+                        these_region_indices.append(numpy.nan)
 
-            this_region_matrix[this_region_matrix == k] = numpy.nan
-            this_region_matrix[this_region_matrix == -1] = numpy.nan
+            these_region_indices = numpy.array(these_region_indices)
+            these_region_indices[these_region_indices == k] = numpy.nan
             this_mode_object = scipy_mode(
-                this_region_matrix, axis=None, nan_policy='omit')
+                these_region_indices, axis=None, nan_policy='omit')
 
             radar_to_region_matrix[i, j] = int(numpy.round(
                 this_mode_object.mode
@@ -708,14 +724,12 @@ def _local_maxima_to_regions(
         time.time() - exec_start_time_unix_sec
     ))
 
-    num_grid_rows = echo_top_matrix_km.shape[0]
-    num_grid_columns = echo_top_matrix_km.shape[1]
-    radar_to_region_matrix = numpy.full(
-        (num_grid_rows, num_grid_columns), -1, dtype=int
-    )
-
     print('Doing tie-breaker...')
     exec_start_time_unix_sec = time.time()
+
+    region_to_grid_rows = [numpy.array([], dtype=int)] * num_maxima
+    region_to_grid_columns = [numpy.array([], dtype=int)] * num_maxima
+    grid_cell_to_region = {}
 
     for m in range(len(rows_in_any_region)):
         i = rows_in_any_region[m]
@@ -723,26 +737,31 @@ def _local_maxima_to_regions(
         these_region_indices = grid_cell_to_regions[i, j]
 
         if len(these_region_indices) == 1:
-            radar_to_region_matrix[i, j] = these_region_indices[0]
-            continue
+            k = these_region_indices[0]
+        else:
+            these_x_diffs_metres = (
+                x_in_any_region_metres[m] -
+                point_x_coords_metres[these_region_indices]
+            )
 
-        these_x_diffs_metres = (
-            x_in_any_region_metres[m] -
-            point_x_coords_metres[these_region_indices]
-        )
+            these_y_diffs_metres = (
+                y_in_any_region_metres[m] -
+                point_y_coords_metres[these_region_indices]
+            )
 
-        these_y_diffs_metres = (
-            y_in_any_region_metres[m] -
-            point_y_coords_metres[these_region_indices]
-        )
+            these_distances_metres2 = (
+                these_x_diffs_metres ** 2 + these_y_diffs_metres ** 2
+            )
 
-        these_distances_metres2 = (
-            these_x_diffs_metres ** 2 + these_y_diffs_metres ** 2
-        )
+            k = these_region_indices[numpy.nanargmin(these_distances_metres2)]
 
-        radar_to_region_matrix[i, j] = these_region_indices[
-            numpy.nanargmin(these_distances_metres2)
-        ]
+        region_to_grid_rows[k] = numpy.concatenate((
+            region_to_grid_rows[k], numpy.array([i], dtype=int)
+        ))
+        region_to_grid_columns[k] = numpy.concatenate((
+            region_to_grid_columns[k], numpy.array([j], dtype=int)
+        ))
+        grid_cell_to_region[i, j] = k
 
     print('Elapsed time = {0:.2f} seconds'.format(
         time.time() - exec_start_time_unix_sec
@@ -750,7 +769,13 @@ def _local_maxima_to_regions(
 
     print('Making regions contiguous...')
     exec_start_time_unix_sec = time.time()
-    radar_to_region_matrix = _make_regions_contiguous(radar_to_region_matrix)
+    radar_to_region_matrix = _make_regions_contiguous(
+        region_to_grid_rows=region_to_grid_rows,
+        region_to_grid_columns=region_to_grid_columns,
+        grid_cell_to_region=grid_cell_to_region,
+        num_grid_rows=echo_top_matrix_km.shape[0],
+        num_grid_columns=echo_top_matrix_km.shape[1]
+    )
 
     print('Elapsed time = {0:.2f} seconds'.format(
         time.time() - exec_start_time_unix_sec
