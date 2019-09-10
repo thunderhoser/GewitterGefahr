@@ -580,6 +580,11 @@ def _make_regions_contiguous(radar_to_region_matrix):
             isolated_rows.append(i)
             isolated_columns.append(j)
 
+        if len(isolated_rows) == len(rows_in_region):
+            print(isolated_rows)
+            print(isolated_columns)
+            print('\n\n******\n\n')
+
         isolated_rows = numpy.array(isolated_rows, dtype=int)
         isolated_columns = numpy.array(isolated_columns, dtype=int)
 
