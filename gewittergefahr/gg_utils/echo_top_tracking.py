@@ -626,16 +626,13 @@ def _local_maxima_to_regions(
     num_grid_rows = echo_top_matrix_km.shape[0]
     num_grid_columns = echo_top_matrix_km.shape[1]
     num_maxima = len(local_max_dict[temporal_tracking.LATITUDES_KEY])
-    region_mask_matrix = numpy.full(
-        (num_maxima, num_grid_rows, num_grid_columns), 0, dtype=bool
-    )
 
     print('Finding connected regions for {0:d} local maxima...'.format(
         num_maxima
     ))
     exec_start_time_unix_sec = time.time()
 
-    region_id_matrix = label_image(
+    orig_region_id_matrix = label_image(
         echo_top_matrix_km >= min_echo_top_km, connectivity=2)
 
     print('Elapsed time = {0:.2f} seconds'.format(
@@ -644,6 +641,12 @@ def _local_maxima_to_regions(
 
     print('Converting regions to masks...')
     exec_start_time_unix_sec = time.time()
+
+    grid_rows_by_region = [None] * num_maxima
+    grid_columns_by_region = [None] * num_maxima
+    in_any_region_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), 0, dtype=bool
+    )
 
     for k in range(num_maxima):
         this_row = numpy.argmin(numpy.absolute(
@@ -656,16 +659,18 @@ def _local_maxima_to_regions(
             radar_longitudes_deg
         ))
 
-        this_region_id = region_id_matrix[this_row, this_column]
+        this_region_id = orig_region_id_matrix[this_row, this_column]
 
         if this_region_id == 0:
-            these_rows = numpy.array([this_row], dtype=int)
-            these_columns = numpy.array([this_column], dtype=int)
+            grid_rows_by_region[k] = numpy.array([this_row], dtype=int)
+            grid_columns_by_region[k] = numpy.array([this_column], dtype=int)
         else:
-            these_rows, these_columns = numpy.where(
-                region_id_matrix == this_region_id)
+            grid_rows_by_region[k], grid_columns_by_region[k] = numpy.where(
+                orig_region_id_matrix == this_region_id)
 
-        region_mask_matrix[k, ...][these_rows, these_columns] = True
+        in_any_region_matrix[
+            grid_rows_by_region[k], grid_columns_by_region[k]
+        ] = True
 
     print('Elapsed time = {0:.2f} seconds'.format(
         time.time() - exec_start_time_unix_sec
@@ -674,18 +679,18 @@ def _local_maxima_to_regions(
     print('Converting regions from lat-long to x-y...')
     exec_start_time_unix_sec = time.time()
 
-    this_flag_matrix = numpy.any(region_mask_matrix, axis=0)
-    rows_in_region, columns_in_region = numpy.where(this_flag_matrix)
+    rows_in_any_region, columns_in_any_region = numpy.where(
+        in_any_region_matrix)
 
     projection_object = projections.init_azimuthal_equidistant_projection(
         central_latitude_deg=numpy.mean(radar_latitudes_deg),
         central_longitude_deg=numpy.mean(radar_longitudes_deg)
     )
 
-    x_coords_in_region_metres, y_coords_in_region_metres = (
+    x_in_any_region_metres, y_in_any_region_metres = (
         projections.project_latlng_to_xy(
-            latitudes_deg=radar_latitudes_deg[rows_in_region],
-            longitudes_deg=radar_longitudes_deg[columns_in_region],
+            latitudes_deg=radar_latitudes_deg[rows_in_any_region],
+            longitudes_deg=radar_longitudes_deg[columns_in_any_region],
             projection_object=projection_object)
     )
 
@@ -707,24 +712,32 @@ def _local_maxima_to_regions(
     print('Doing tie-breaker...')
     exec_start_time_unix_sec = time.time()
 
-    for k in range(len(rows_in_region)):
-        i = rows_in_region[k]
-        j = columns_in_region[k]
+    for m in range(len(rows_in_any_region)):
+        i = rows_in_any_region[m]
+        j = columns_in_any_region[m]
+        these_region_indices = []
 
-        these_flags = region_mask_matrix[:, i, j]
-        these_region_indices = numpy.where(these_flags)[0]
+        for k in range(num_maxima):
+            this_flag = numpy.any(numpy.logical_and(
+                grid_rows_by_region[k] == i, grid_columns_by_region[k] == j
+            ))
+            if not this_flag:
+                continue
 
+            these_region_indices.append(k)
+
+        these_region_indices = numpy.array(these_region_indices, dtype=int)
         if len(these_region_indices) == 1:
             radar_to_region_matrix[i, j] = these_region_indices[0]
             continue
 
         these_x_diffs_metres = (
-            x_coords_in_region_metres[k] -
+            x_in_any_region_metres[m] -
             point_x_coords_metres[these_region_indices]
         )
 
         these_y_diffs_metres = (
-            y_coords_in_region_metres[k] -
+            y_in_any_region_metres[m] -
             point_y_coords_metres[these_region_indices]
         )
 
