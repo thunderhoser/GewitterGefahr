@@ -580,11 +580,6 @@ def _make_regions_contiguous(radar_to_region_matrix):
             isolated_rows.append(i)
             isolated_columns.append(j)
 
-        if len(isolated_rows) == len(rows_in_region):
-            print(isolated_rows)
-            print(isolated_columns)
-            print('\n\n******\n\n')
-
         isolated_rows = numpy.array(isolated_rows, dtype=int)
         isolated_columns = numpy.array(isolated_columns, dtype=int)
 
@@ -848,10 +843,17 @@ def _local_maxima_to_polygons(
         num_maxima, numpy.nan, dtype=object
     )
 
+    good_indices = []
+
     for k in range(num_maxima):
         (local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][k],
          local_max_dict[temporal_tracking.GRID_POINT_COLUMNS_KEY][k]
         ) = numpy.where(radar_to_region_matrix == k)
+
+        if len(local_max_dict[temporal_tracking.GRID_POINT_ROWS_KEY][k]) == 0:
+            continue
+
+        good_indices.append(k)
 
         these_vertex_rows, these_vertex_columns = (
             polygons.grid_points_in_poly_to_vertices(
@@ -916,6 +918,26 @@ def _local_maxima_to_polygons(
         local_max_dict[temporal_tracking.LONGITUDES_KEY][k] = (
             this_centroid_object_latlng.x
         )
+
+    if len(good_indices) == num_maxima:
+        return local_max_dict
+
+    print((
+        'REMOVED {0:d} of {1:d} regions (presumably because it was not '
+        'contiguous).'
+    ).format(
+        num_maxima - len(good_indices), num_maxima
+    ))
+
+    good_indices = numpy.array(good_indices, dtype=int)
+
+    for this_key in local_max_dict:
+        if isinstance(local_max_dict[this_key], list):
+            local_max_dict[this_key] = [
+                local_max_dict[this_key][k] for k in good_indices
+            ]
+        elif isinstance(local_max_dict[this_key], numpy.ndarray):
+            local_max_dict[this_key] = local_max_dict[this_key][good_indices]
 
     return local_max_dict
 
