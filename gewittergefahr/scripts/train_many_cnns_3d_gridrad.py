@@ -312,6 +312,10 @@ def _train_one_cnn(gpu_queue, argument_dict):
                 cnn.NUM_EX_PER_VALIDN_BATCH_KEY]
         )
 
+        session_object.close()
+        del session_object
+        gpu_queue.put(gpu_index)
+
     except Exception as this_exception:
         if gpu_index >= 0:
             gpu_queue.put(gpu_index)
