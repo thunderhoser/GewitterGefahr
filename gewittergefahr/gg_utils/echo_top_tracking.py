@@ -24,7 +24,6 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
 """
 
 import copy
-import time
 import os.path
 import warnings
 from itertools import chain
@@ -639,23 +638,12 @@ def _local_maxima_to_regions(
         not part of a local max.
     """
 
-    num_maxima = len(local_max_dict[temporal_tracking.LATITUDES_KEY])
-    print('Finding connected regions for {0:d} local maxima...'.format(
-        num_maxima
-    ))
-    exec_start_time_unix_sec = time.time()
-
     orig_region_id_matrix = label_image(
         echo_top_matrix_km >= min_echo_top_km, connectivity=2)
     rows_in_any_region, columns_in_any_region = numpy.where(
         orig_region_id_matrix > 0)
 
-    print('Elapsed time = {0:.2f} seconds'.format(
-        time.time() - exec_start_time_unix_sec
-    ))
-
-    print('Converting regions to masks...')
-    exec_start_time_unix_sec = time.time()
+    num_maxima = len(local_max_dict[temporal_tracking.LATITUDES_KEY])
 
     region_to_grid_rows = [None] * num_maxima
     region_to_grid_columns = [None] * num_maxima
@@ -697,13 +685,6 @@ def _local_maxima_to_regions(
             grid_cell_to_regions[this_key], dtype=int
         )
 
-    print('Elapsed time = {0:.2f} seconds'.format(
-        time.time() - exec_start_time_unix_sec
-    ))
-
-    print('Converting regions from lat-long to x-y...')
-    exec_start_time_unix_sec = time.time()
-
     these_keys = list(grid_cell_to_regions.keys())
     rows_in_any_region = numpy.array([a[0] for a in these_keys], dtype=int)
     columns_in_any_region = numpy.array([a[1] for a in these_keys], dtype=int)
@@ -726,13 +707,6 @@ def _local_maxima_to_regions(
             longitudes_deg=local_max_dict[temporal_tracking.LONGITUDES_KEY],
             projection_object=projection_object)
     )
-
-    print('Elapsed time = {0:.2f} seconds'.format(
-        time.time() - exec_start_time_unix_sec
-    ))
-
-    print('Doing tie-breaker...')
-    exec_start_time_unix_sec = time.time()
 
     region_to_grid_rows = [numpy.array([], dtype=int)] * num_maxima
     region_to_grid_columns = [numpy.array([], dtype=int)] * num_maxima
@@ -770,26 +744,13 @@ def _local_maxima_to_regions(
         ))
         grid_cell_to_region[i, j] = k
 
-    print('Elapsed time = {0:.2f} seconds'.format(
-        time.time() - exec_start_time_unix_sec
-    ))
-
-    print('Making regions contiguous...')
-    exec_start_time_unix_sec = time.time()
-
-    radar_to_region_matrix = _make_regions_contiguous(
+    return _make_regions_contiguous(
         region_to_grid_rows=region_to_grid_rows,
         region_to_grid_columns=region_to_grid_columns,
         grid_cell_to_region=grid_cell_to_region,
         num_grid_rows=echo_top_matrix_km.shape[0],
         num_grid_columns=echo_top_matrix_km.shape[1]
     )
-
-    print('Elapsed time = {0:.2f} seconds'.format(
-        time.time() - exec_start_time_unix_sec
-    ))
-
-    return radar_to_region_matrix
 
 
 def _local_maxima_to_polygons(
