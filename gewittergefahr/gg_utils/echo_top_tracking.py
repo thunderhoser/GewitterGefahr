@@ -647,6 +647,8 @@ def _local_maxima_to_regions(
 
     orig_region_id_matrix = label_image(
         echo_top_matrix_km >= min_echo_top_km, connectivity=2)
+    rows_in_any_region, columns_in_any_region = numpy.where(
+        orig_region_id_matrix > 0)
 
     print('Elapsed time = {0:.2f} seconds'.format(
         time.time() - exec_start_time_unix_sec
@@ -676,8 +678,13 @@ def _local_maxima_to_regions(
             region_to_grid_rows[k] = numpy.array([this_row], dtype=int)
             region_to_grid_columns[k] = numpy.array([this_column], dtype=int)
         else:
-            region_to_grid_rows[k], region_to_grid_columns[k] = numpy.where(
-                orig_region_id_matrix == this_region_id)
+            these_subindices = numpy.where(
+                orig_region_id_matrix[rows_in_any_region, columns_in_any_region]
+                == this_region_id
+            )
+
+            region_to_grid_rows[k] = rows_in_any_region[these_subindices]
+            region_to_grid_columns[k] = columns_in_any_region[these_subindices]
 
         for i, j in zip(region_to_grid_rows[k], region_to_grid_columns[k]):
             if (i, j) in grid_cell_to_regions:
@@ -769,6 +776,7 @@ def _local_maxima_to_regions(
 
     print('Making regions contiguous...')
     exec_start_time_unix_sec = time.time()
+
     radar_to_region_matrix = _make_regions_contiguous(
         region_to_grid_rows=region_to_grid_rows,
         region_to_grid_columns=region_to_grid_columns,
