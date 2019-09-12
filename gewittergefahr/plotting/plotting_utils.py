@@ -671,8 +671,8 @@ def plot_meridians(
 def plot_colour_bar(
         axes_object_or_matrix, data_matrix, colour_map_object,
         colour_norm_object, orientation_string=DEFAULT_CBAR_ORIENTATION_STRING,
-        extend_min=True, extend_max=True, fraction_of_axis_length=1.,
-        font_size=FONT_SIZE):
+        padding=None, extend_min=True, extend_max=True,
+        fraction_of_axis_length=1., font_size=FONT_SIZE):
     """Plots colour bar.
 
     :param axes_object_or_matrix: Either one axis handle (instance of
@@ -684,6 +684,9 @@ def plot_colour_bar(
         colour-bar space, which goes from 0...1).  This should be an instance of
         `matplotlib.colors.Normalize`.
     :param orientation_string: Orientation ("vertical" or "horizontal").
+    :param padding: Padding between colour bar and main plot (in range 0...1).
+        To use the default (there are different defaults for vertical and horiz
+        colour bars), leave this alone.
     :param extend_min: Boolean flag.  If True, values below the minimum
         specified by `colour_norm_object` are possible, so the colour bar will
         be plotted with an arrow at the bottom.
@@ -718,10 +721,15 @@ def plot_colour_bar(
     else:
         extend_arg = 'neither'
 
-    if orientation_string == 'horizontal':
-        padding_arg = HORIZONTAL_CBAR_PADDING
-    else:
-        padding_arg = VERTICAL_CBAR_PADDING
+    if padding is None:
+        if orientation_string == 'horizontal':
+            padding = HORIZONTAL_CBAR_PADDING
+        else:
+            padding = VERTICAL_CBAR_PADDING
+
+    # error_checking.assert_is_geq(padding, 0.)
+    # error_checking.assert_is_leq(padding, 1.)
+    error_checking.assert_is_real_number(padding)
 
     if isinstance(axes_object_or_matrix, numpy.ndarray):
         axes_arg = axes_object_or_matrix.ravel().tolist()
@@ -730,7 +738,7 @@ def plot_colour_bar(
 
     colour_bar_object = pyplot.colorbar(
         ax=axes_arg, mappable=scalar_mappable_object,
-        orientation=orientation_string, pad=padding_arg, extend=extend_arg,
+        orientation=orientation_string, pad=padding, extend=extend_arg,
         shrink=fraction_of_axis_length)
 
     colour_bar_object.ax.tick_params(labelsize=font_size)
@@ -746,8 +754,8 @@ def plot_colour_bar(
 def plot_linear_colour_bar(
         axes_object_or_matrix, data_matrix, colour_map_object, min_value,
         max_value, orientation_string=DEFAULT_CBAR_ORIENTATION_STRING,
-        extend_min=True, extend_max=True, fraction_of_axis_length=1.,
-        font_size=FONT_SIZE):
+        padding=None, extend_min=True, extend_max=True,
+        fraction_of_axis_length=1., font_size=FONT_SIZE):
     """Plots colour bar with linear scale.
 
     :param axes_object_or_matrix: See doc for `plot_colour_bar`.
@@ -756,6 +764,7 @@ def plot_linear_colour_bar(
     :param min_value: Minimum value in colour bar.
     :param max_value: Max value in colour bar.
     :param orientation_string: See doc for `plot_colour_bar`.
+    :param padding: Same.
     :param extend_min: Same.
     :param extend_max: Same.
     :param fraction_of_axis_length: Same.
@@ -771,6 +780,6 @@ def plot_linear_colour_bar(
         axes_object_or_matrix=axes_object_or_matrix, data_matrix=data_matrix,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
-        orientation_string=orientation_string,
+        orientation_string=orientation_string, padding=padding,
         extend_min=extend_min, extend_max=extend_max,
         fraction_of_axis_length=fraction_of_axis_length, font_size=font_size)

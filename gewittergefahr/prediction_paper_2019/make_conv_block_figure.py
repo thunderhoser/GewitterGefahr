@@ -146,7 +146,7 @@ def _plot_one_feature_map(feature_matrix_2d, max_colour_value, plot_colour_bar,
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=feature_matrix_2d,
         colour_map_object=COLOUR_MAP_OBJECT, min_value=min_colour_value,
-        max_value=max_colour_value, orientation_string='horizontal',
+        max_value=max_colour_value, orientation_string='horizontal', padding=0.,
         fraction_of_axis_length=0.9, extend_min=True, extend_max=True,
         font_size=FONT_SIZE)
 
@@ -203,7 +203,7 @@ def _plot_one_example(
         axes_object_or_matrix=axes_object_matrix[num_output_channels - 1, 0],
         data_matrix=input_feature_matrix[..., 0],
         colour_map_object=COLOUR_MAP_OBJECT, min_value=-1 * max_colour_value,
-        max_value=max_colour_value, orientation_string='horizontal',
+        max_value=max_colour_value, orientation_string='horizontal', padding=0.,
         fraction_of_axis_length=0.9, extend_min=True, extend_max=True,
         font_size=FONT_SIZE)
 
