@@ -36,6 +36,36 @@ INPUT_FEATURE_MATRIX = numpy.stack(
     (TEMPERATURE_MATRIX, U_WIND_MATRIX, V_WIND_MATRIX), axis=-1
 )
 
+TEMPERATURE_KERNEL_MATRIX = numpy.array([
+    [0, 1, 0],
+    [1, -4, 1],
+    [0, 1, 0]
+])
+
+U_WIND_KERNEL_MATRIX = numpy.array([
+    [1, 0, -1],
+    [0, 0, 0],
+    [-1, 0, 1]
+])
+
+V_WIND_KERNEL_MATRIX = numpy.array([
+    [-1, -1, -1],
+    [-1, 8, -1],
+    [-1, -1, -1]
+])
+
+KERNEL_MATRIX = numpy.stack(
+    (TEMPERATURE_KERNEL_MATRIX, U_WIND_KERNEL_MATRIX, V_WIND_KERNEL_MATRIX),
+    axis=-1
+).astype(float)
+
+KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-1)
+
+INPUT_FEATURE_MATRIX = standalone_utils.do_2d_convolution(
+    feature_matrix=INPUT_FEATURE_MATRIX, kernel_matrix=KERNEL_MATRIX,
+    pad_edges=True, stride_length_px=1
+)[0, ...]
+
 DEFAULT_FONT_SIZE = 25
 DEFAULT_LINE_WIDTH = 4
 
@@ -53,6 +83,8 @@ COLOUR_LIST = [
     numpy.array([27, 158, 119], dtype=float) / 255
 ]
 
+COLOUR_LIST[1] = matplotlib.colors.to_rgba(COLOUR_LIST[1], 0.5)
+
 COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap(COLOUR_LIST)
 DEFAULT_FONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 SPECIAL_FONT_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
@@ -61,19 +93,16 @@ PANEL_LETTER_FONT_SIZE = 30
 INTERPANEL_LINE_WIDTH = 2
 INTERPANEL_LINE_COLOUR = numpy.full(3, 152. / 255)
 
-NUM_PANEL_ROWS = 3
 NUM_PANEL_COLUMNS = 2
 FIGURE_RESOLUTION_DPI = 300
 
 FIGURE_CAPTION = (
     'Schematic for 2-D maximum-pooling.\n'
-    '[a-c] Input feature maps, produced by convolution.\n'
-    '[d-f] Output feature maps, one for each input map.  At each position of '
-    'the\n'
-    'pooling window (green square in panels a-c), the output value '
-    '(highlighted\n'
-    'green in panels d-f) is the maximum of all values inside the pooling '
-    'window.'
+    '[a] Input feature map, produced by convolution.\n'
+    '[b] Output feature map.  At each position of the pooling\n'
+    'window (highlighted in panel a), the output value\n'
+    '(highlighted in panel b) is the maximum of all values\n'
+    'inside the pooling window.'
 )
 
 # OUTPUT_DIR_NAME = (
@@ -163,8 +192,8 @@ def _plot_interpanel_lines(
     last_input_column = first_input_column + 2
 
     this_connection_object = ConnectionPatch(
-        xyA=(pooled_column, pooled_row),
-        xyB=(last_input_column, first_input_row),
+        xyA=(pooled_column, pooled_row - 0.075),
+        xyB=(first_input_column, last_input_row),
         coordsA='data', coordsB='data',
         axesA=output_fm_axes_object, axesB=input_fm_axes_object,
         color=INTERPANEL_LINE_COLOUR, linewidth=INTERPANEL_LINE_WIDTH,
@@ -174,7 +203,7 @@ def _plot_interpanel_lines(
     output_fm_axes_object.add_artist(this_connection_object)
 
     this_connection_object = ConnectionPatch(
-        xyA=(pooled_column, pooled_row),
+        xyA=(pooled_column, pooled_row - 0.075),
         xyB=(last_input_column, last_input_row),
         coordsA='data', coordsB='data',
         axesA=output_fm_axes_object, axesB=input_fm_axes_object,
@@ -202,14 +231,14 @@ def _run():
 
     num_output_rows = output_feature_matrix.shape[0]
     num_output_columns = output_feature_matrix.shape[1]
-    num_input_channels = INPUT_FEATURE_MATRIX.shape[2]
+    num_channels = INPUT_FEATURE_MATRIX.shape[2]
     image_file_names = []
 
     for i in range(num_output_rows):
         for j in range(num_output_columns):
             this_figure_object, this_axes_object_matrix = (
                 plotting_utils.create_paneled_figure(
-                    num_rows=NUM_PANEL_ROWS, num_columns=NUM_PANEL_COLUMNS,
+                    num_rows=2, num_columns=num_channels,
                     horizontal_spacing=0.2, vertical_spacing=0.,
                     shared_x_axis=False, shared_y_axis=False,
                     keep_aspect_ratio=True)
@@ -217,11 +246,11 @@ def _run():
 
             letter_label = None
 
-            for k in range(num_input_channels):
+            for k in range(num_channels):
                 _plot_feature_map(
                     feature_matrix_2d=INPUT_FEATURE_MATRIX[..., k],
                     pooled_row=i, pooled_column=j, pooled=False,
-                    axes_object=this_axes_object_matrix[k, 0]
+                    axes_object=this_axes_object_matrix[0, k]
                 )
 
                 if letter_label is None:
@@ -230,32 +259,32 @@ def _run():
                     letter_label = chr(ord(letter_label) + 1)
 
                 plotting_utils.label_axes(
-                    axes_object=this_axes_object_matrix[k, 0],
+                    axes_object=this_axes_object_matrix[0, k],
                     label_string='({0:s})'.format(letter_label),
                     font_size=PANEL_LETTER_FONT_SIZE,
-                    y_coord_normalized=0.85, x_coord_normalized=-0.02
+                    y_coord_normalized=0.9, x_coord_normalized=-0.02
                 )
 
-            for k in range(num_input_channels):
+            for k in range(num_channels):
                 _plot_feature_map(
                     feature_matrix_2d=output_feature_matrix[..., k],
                     pooled_row=i, pooled_column=j, pooled=True,
-                    axes_object=this_axes_object_matrix[k, 1]
+                    axes_object=this_axes_object_matrix[1, k]
                 )
 
                 letter_label = chr(ord(letter_label) + 1)
 
                 plotting_utils.label_axes(
-                    axes_object=this_axes_object_matrix[k, 1],
+                    axes_object=this_axes_object_matrix[1, k],
                     label_string='({0:s})'.format(letter_label),
                     font_size=PANEL_LETTER_FONT_SIZE,
-                    y_coord_normalized=0.85, x_coord_normalized=-0.02
+                    y_coord_normalized=0.9, x_coord_normalized=-0.02
                 )
 
                 _plot_interpanel_lines(
                     pooled_row=i, pooled_column=j,
-                    input_fm_axes_object=this_axes_object_matrix[k, 0],
-                    output_fm_axes_object=this_axes_object_matrix[k, 1]
+                    input_fm_axes_object=this_axes_object_matrix[0, k],
+                    output_fm_axes_object=this_axes_object_matrix[1, k]
                 )
 
             this_figure_object.text(

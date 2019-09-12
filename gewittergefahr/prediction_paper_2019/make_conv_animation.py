@@ -28,6 +28,8 @@ COLOUR_LIST = [
     numpy.array([27, 158, 119], dtype=float) / 255
 ]
 
+COLOUR_LIST[1] = matplotlib.colors.to_rgba(COLOUR_LIST[1], 0.5)
+
 COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap(COLOUR_LIST)
 DEFAULT_FONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 SPECIAL_FONT_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
@@ -326,6 +328,9 @@ def _run():
     num_input_channels = INPUT_FEATURE_MATRIX.shape[2]
     image_file_names = []
 
+    kernel_width_ratio = float(KERNEL_MATRIX.shape[1]) / num_grid_columns
+    kernel_height_ratio = float(KERNEL_MATRIX.shape[0]) / num_grid_rows
+
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
             this_figure_object, this_axes_object_matrix = (
@@ -356,7 +361,7 @@ def _run():
                     axes_object=this_axes_object_matrix[k, 0],
                     label_string='({0:s})'.format(letter_label),
                     font_size=PANEL_LETTER_FONT_SIZE,
-                    y_coord_normalized=1.02, x_coord_normalized=0.1
+                    y_coord_normalized=1.04, x_coord_normalized=0.1
                 )
 
             _plot_feature_map(
@@ -366,6 +371,21 @@ def _run():
             )
 
             for k in range(num_input_channels):
+                this_bbox_object = this_axes_object_matrix[k, 1].get_position()
+                this_width = kernel_width_ratio * (
+                    this_bbox_object.x1 - this_bbox_object.x0
+                )
+                this_height = kernel_height_ratio * (
+                    this_bbox_object.y1 - this_bbox_object.y0
+                )
+
+                this_bbox_object.x0 += 0.5 * this_width
+                this_bbox_object.y0 += 0.005
+                this_bbox_object.x1 = this_bbox_object.x0 + this_width
+                this_bbox_object.y1 = this_bbox_object.y0 + this_height
+
+                this_axes_object_matrix[k, 1].set_position(this_bbox_object)
+
                 _plot_kernel(
                     kernel_matrix_2d=KERNEL_MATRIX[..., k, 0],
                     feature_matrix_2d=INPUT_FEATURE_MATRIX[..., k],
@@ -379,7 +399,7 @@ def _run():
                     axes_object=this_axes_object_matrix[k, 1],
                     label_string='({0:s})'.format(letter_label),
                     font_size=PANEL_LETTER_FONT_SIZE,
-                    y_coord_normalized=1.02, x_coord_normalized=0.1
+                    y_coord_normalized=1.04, x_coord_normalized=0.2
                 )
 
                 _plot_feature_to_kernel_lines(
@@ -396,7 +416,7 @@ def _run():
                 axes_object=this_axes_object_matrix[1, 2],
                 label_string='({0:s})'.format(letter_label),
                 font_size=PANEL_LETTER_FONT_SIZE,
-                y_coord_normalized=1.02, x_coord_normalized=0.1
+                y_coord_normalized=1.04, x_coord_normalized=0.1
             )
 
             this_figure_object.text(
