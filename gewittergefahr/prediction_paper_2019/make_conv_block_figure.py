@@ -19,35 +19,43 @@ RADAR_HEIGHT_M_ASL = 3000
 NORMALIZATION_TYPE_STRING = dl_utils.Z_NORMALIZATION_TYPE_STRING
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
-FIRST_KERNEL_MATRIX = numpy.array([
+# FIRST_KERNEL_MATRIX = numpy.array([
+#     [0, 1, 0],
+#     [1, -4, 1],
+#     [0, 1, 0]
+# ])
+#
+# SECOND_KERNEL_MATRIX = numpy.array([
+#     [1, 0, -1],
+#     [0, 0, 0],
+#     [-1, 0, 1]
+# ])
+#
+# THIRD_KERNEL_MATRIX = numpy.array([
+#     [-1, -1, -1],
+#     [-1, 8, -1],
+#     [-1, -1, -1]
+# ])
+#
+# KERNEL_MATRIX = numpy.stack(
+#     (FIRST_KERNEL_MATRIX, SECOND_KERNEL_MATRIX, THIRD_KERNEL_MATRIX), axis=-1
+# ).astype(float)
+#
+# KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-2)
+
+KERNEL_MATRIX = numpy.array([
     [0, 1, 0],
     [1, -4, 1],
     [0, 1, 0]
 ])
 
-SECOND_KERNEL_MATRIX = numpy.array([
-    [1, 0, -1],
-    [0, 0, 0],
-    [-1, 0, 1]
-])
-
-THIRD_KERNEL_MATRIX = numpy.array([
-    [-1, -1, -1],
-    [-1, 8, -1],
-    [-1, -1, -1]
-])
-
-KERNEL_MATRIX = numpy.stack(
-    (FIRST_KERNEL_MATRIX, SECOND_KERNEL_MATRIX, THIRD_KERNEL_MATRIX), axis=-1
-).astype(float)
-
-KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-2)
+KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-1)
+KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-1)
 
 COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 MAX_COLOUR_PERCENTILE = 99.
 FONT_SIZE = 20
 
-NUM_PANEL_ROWS = 3
 NUM_PANEL_COLUMNS = 5
 FIGURE_RESOLUTION_DPI = 300
 
@@ -166,8 +174,10 @@ def _plot_one_example(
     :param output_file_name: Path to output file.  Figure will be saved here.
     """
 
+    num_output_channels = feature_matrix_after_conv.shape[-1]
+
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
-        num_rows=NUM_PANEL_ROWS, num_columns=NUM_PANEL_COLUMNS,
+        num_rows=num_output_channels, num_columns=NUM_PANEL_COLUMNS,
         horizontal_spacing=0., vertical_spacing=0.,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
@@ -177,7 +187,7 @@ def _plot_one_example(
 
     axes_object_matrix[0, 0].set_title('Input', fontsize=FONT_SIZE)
 
-    for k in range(NUM_PANEL_ROWS):
+    for k in range(num_output_channels):
         if k == 0:
             _plot_one_feature_map(
                 feature_matrix_2d=input_feature_matrix[..., k],
@@ -190,7 +200,7 @@ def _plot_one_example(
         axes_object_matrix[k, 0].axis('off')
 
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object_matrix[NUM_PANEL_ROWS - 1, 0],
+        axes_object_or_matrix=axes_object_matrix[num_output_channels - 1, 0],
         data_matrix=input_feature_matrix[..., 0],
         colour_map_object=COLOUR_MAP_OBJECT, min_value=-1 * max_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
@@ -201,14 +211,14 @@ def _plot_one_example(
     tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_label_strings)
-    
+
     letter_label = 'a'
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[0, 0],
         label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
         x_coord_normalized=0.2, y_coord_normalized=1.1
     )
-    
+
     this_matrix = numpy.stack(
         (feature_matrix_after_conv, feature_matrix_after_activn), axis=0
     )
@@ -218,11 +228,11 @@ def _plot_one_example(
 
     axes_object_matrix[0, 1].set_title('After convolution', fontsize=FONT_SIZE)
 
-    for k in range(NUM_PANEL_ROWS):
+    for k in range(num_output_channels):
         _plot_one_feature_map(
             feature_matrix_2d=feature_matrix_after_conv[..., k],
             max_colour_value=max_colour_value,
-            plot_colour_bar=k == NUM_PANEL_ROWS - 1,
+            plot_colour_bar=k == num_output_channels - 1,
             axes_object=axes_object_matrix[k, 1]
         )
 
@@ -236,11 +246,11 @@ def _plot_one_example(
 
     axes_object_matrix[0, 2].set_title('After activation', fontsize=FONT_SIZE)
 
-    for k in range(NUM_PANEL_ROWS):
+    for k in range(num_output_channels):
         _plot_one_feature_map(
             feature_matrix_2d=feature_matrix_after_activn[..., k],
             max_colour_value=max_colour_value,
-            plot_colour_bar=k == NUM_PANEL_ROWS - 1,
+            plot_colour_bar=k == num_output_channels - 1,
             axes_object=axes_object_matrix[k, 2]
         )
 
@@ -258,16 +268,16 @@ def _plot_one_example(
 
     axes_object_matrix[0, 3].set_title('After batch norm', fontsize=FONT_SIZE)
 
-    for k in range(NUM_PANEL_ROWS):
+    for k in range(num_output_channels):
         _plot_one_feature_map(
             feature_matrix_2d=feature_matrix_after_bn[..., k],
             max_colour_value=max_colour_value,
-            plot_colour_bar=k == NUM_PANEL_ROWS - 1,
+            plot_colour_bar=k == num_output_channels - 1,
             axes_object=axes_object_matrix[k, 3]
         )
 
         letter_label = chr(ord(letter_label) + 1)
-        
+
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 3],
             label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
@@ -280,11 +290,11 @@ def _plot_one_example(
 
     axes_object_matrix[0, 4].set_title('After max-pooling', fontsize=FONT_SIZE)
 
-    for k in range(NUM_PANEL_ROWS):
+    for k in range(num_output_channels):
         _plot_one_feature_map(
             feature_matrix_2d=feature_matrix_after_pooling[..., k],
             max_colour_value=max_colour_value,
-            plot_colour_bar=k == NUM_PANEL_ROWS - 1,
+            plot_colour_bar=k == num_output_channels - 1,
             axes_object=axes_object_matrix[k, 4]
         )
 
