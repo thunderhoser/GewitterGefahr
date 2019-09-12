@@ -272,7 +272,10 @@ def _create_dense_layers(
         num_classes
     )[:2]
 
-    layer_object = dense_layer_object(layer_object)
+    if num_dense_layers == 1:
+        layer_object = dense_layer_object(flattening_layer_object)
+    else:
+        layer_object = dense_layer_object(layer_object)
 
     if dropout_fraction is not None and num_dense_layers == 1:
         layer_object = architecture_utils.get_dropout_layer(
