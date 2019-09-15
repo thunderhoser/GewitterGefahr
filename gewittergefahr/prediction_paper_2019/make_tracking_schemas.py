@@ -684,6 +684,7 @@ def _run():
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=OUTPUT_DIR_NAME)
 
+    # Linkage with extrapolation.
     figure_object, axes_object = _make_linkage_schema(True)
     this_file_name = '{0:s}/linkage_with_extrap_standalone.jpg'.format(
         OUTPUT_DIR_NAME)
@@ -705,6 +706,7 @@ def _run():
     )
     pyplot.close(figure_object)
 
+    # Linkage without extrapolation.
     figure_object, axes_object = _make_linkage_schema(False)
     this_file_name = '{0:s}/linkage_sans_extrap_standalone.jpg'.format(
         OUTPUT_DIR_NAME)
@@ -728,6 +730,7 @@ def _run():
     )
     pyplot.close(figure_object)
 
+    # Pruning with 3-way split.
     figure_object, axes_object = _make_3way_split_schema()
     axes_object.set_title('Pruning with 3-way split')
     this_file_name = '{0:s}/pruning_3way_split_standalone.jpg'.format(
@@ -751,6 +754,7 @@ def _run():
     )
     pyplot.close(figure_object)
 
+    # Pruning with hybrid split and merger.
     figure_object, axes_object = _make_splitmerge_schema()
     axes_object.set_title('Pruning with hybrid split and merger')
     this_file_name = '{0:s}/pruning_splitmerge_standalone.jpg'.format(
@@ -774,6 +778,7 @@ def _run():
     )
     pyplot.close(figure_object)
 
+    # Concatenate all panels into one figure.
     concat_file_name = '{0:s}/tracking_schemas.jpg'.format(OUTPUT_DIR_NAME)
     print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
 
