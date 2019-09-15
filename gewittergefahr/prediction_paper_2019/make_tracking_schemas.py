@@ -18,13 +18,19 @@ FIRST_TRACK_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
 SECOND_TRACK_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 THIRD_TRACK_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 
-TRACK_WIDTH = 2
+FONT_SIZE = 30
+TEXT_OFFSET_KM = 0.75
+
+TRACK_WIDTH = 4
 DEFAULT_MARKER_TYPE = 'o'
-DEFAULT_MARKER_SIZE = 16
-DEFAULT_MARKER_EDGE_WIDTH = 2
-END_MARKER_TYPE = 'x'
+DEFAULT_MARKER_SIZE = 24
+DEFAULT_MARKER_EDGE_WIDTH = 4
+END_MARKER_TYPE = 's'
 END_MARKER_SIZE = 24
-END_MARKER_EDGE_WIDTH = 4
+END_MARKER_EDGE_WIDTH = 0
+EXTRAP_MARKER_TYPE = 'x'
+EXTRAP_MARKER_SIZE = 24
+EXTRAP_MARKER_EDGE_WIDTH = 6
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -250,6 +256,8 @@ def _make_linkage_schema(extrapolate):
     )
 
     num_storm_tracks = len(early_track_table.index)
+    legend_handles = []
+    legend_strings = []
 
     for i in range(num_storm_tracks):
         these_x_coords = early_track_table[
@@ -265,55 +273,84 @@ def _make_linkage_schema(extrapolate):
             these_x_coords, these_y_coords, color=this_colour_tuple,
             linestyle='-', linewidth=TRACK_WIDTH)
 
+        if i == 0:
+            this_handle = axes_object.plot(
+                these_x_coords[:-1], these_y_coords[:-1], linestyle='None',
+                marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
+                markerfacecolor='white', markeredgecolor='k',
+                markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
+            )[0]
+
+            legend_handles.append(this_handle)
+            legend_strings.append(r'Storm before $t_1$')
+
         axes_object.plot(
             these_x_coords[:-1], these_y_coords[:-1], linestyle='None',
             marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
-            markerfacecolor=this_colour_tuple,
-            markeredgecolor=this_colour_tuple,
+            markerfacecolor='white', markeredgecolor=this_colour_tuple,
             markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH)
 
         these_extrap_x_coords = these_x_coords[-1] + (
-            these_x_coords[-1] - these_x_coords[-2:]
+            these_x_coords[-1] - these_x_coords[-2:][::-1]
         )
         these_extrap_y_coords = these_y_coords[-1] + (
-            these_y_coords[-1] - these_y_coords[-2:]
+            these_y_coords[-1] - these_y_coords[-2:][::-1]
         )
 
         this_full_id_string = early_track_table[
             tracking_utils.FULL_ID_COLUMN].values[i]
-        this_label_string = r'$t_1$'
-        this_label_string = '{0:s} at {1:s}'.format(
-            this_full_id_string, this_label_string)
 
         axes_object.text(
-            these_extrap_x_coords[1], these_extrap_y_coords[1] - 0.5,
-            this_label_string, color=this_colour_tuple,
+            these_extrap_x_coords[0], these_extrap_y_coords[0] - TEXT_OFFSET_KM,
+            this_full_id_string, color=this_colour_tuple,
+            fontsize=FONT_SIZE, fontweight='bold',
             horizontalalignment='center', verticalalignment='top')
 
         if extrapolate:
-            axes_object.plot(
-                these_extrap_x_coords, these_extrap_y_coords,
-                color=this_colour_tuple, linestyle='--', linewidth=TRACK_WIDTH,
-                marker=END_MARKER_TYPE, markersize=END_MARKER_SIZE,
-                markerfacecolor=this_colour_tuple,
-                markeredgecolor=this_colour_tuple,
-                markeredgewidth=END_MARKER_EDGE_WIDTH)
+            if i == 2:
+                this_handle = axes_object.plot(
+                    these_extrap_x_coords[1], these_extrap_y_coords[1],
+                    linestyle='None', marker=EXTRAP_MARKER_TYPE,
+                    markersize=EXTRAP_MARKER_SIZE,
+                    markerfacecolor='k', markeredgecolor='k',
+                    markeredgewidth=EXTRAP_MARKER_EDGE_WIDTH
+                )[0]
 
-            this_label_string = r'$t_2$'
-            this_label_string = '{0:s} at {1:s}'.format(
-                this_full_id_string, this_label_string)
+                legend_handles.append(this_handle)
+                legend_strings.append(r'Storm extrap to $t_2$')
 
-            axes_object.text(
-                these_extrap_x_coords[0], these_extrap_y_coords[0] - 0.5,
-                this_label_string, color=this_colour_tuple,
-                horizontalalignment='center', verticalalignment='top')
-        else:
             axes_object.plot(
                 these_extrap_x_coords[1], these_extrap_y_coords[1],
-                linestyle='None', marker=END_MARKER_TYPE,
-                markersize=END_MARKER_SIZE, markerfacecolor=this_colour_tuple,
+                linestyle='None', marker=EXTRAP_MARKER_TYPE,
+                markersize=EXTRAP_MARKER_SIZE,
+                markerfacecolor=this_colour_tuple,
                 markeredgecolor=this_colour_tuple,
-                markeredgewidth=END_MARKER_EDGE_WIDTH)
+                markeredgewidth=EXTRAP_MARKER_EDGE_WIDTH)
+
+            axes_object.text(
+                these_extrap_x_coords[1],
+                these_extrap_y_coords[1] - TEXT_OFFSET_KM,
+                this_full_id_string, color=this_colour_tuple,
+                fontsize=FONT_SIZE, fontweight='bold',
+                horizontalalignment='center', verticalalignment='top')
+
+        if i == 1:
+            this_handle = axes_object.plot(
+                these_x_coords[-1], these_y_coords[-1], linestyle='None',
+                marker=END_MARKER_TYPE, markersize=END_MARKER_SIZE,
+                markerfacecolor='k', markeredgecolor='k',
+                markeredgewidth=END_MARKER_EDGE_WIDTH
+            )[0]
+
+            legend_handles.insert(1, this_handle)
+            legend_strings.insert(1, r'Storm at $t_1$')
+
+        axes_object.plot(
+            these_x_coords[-1], these_y_coords[-1], linestyle='None',
+            marker=END_MARKER_TYPE, markersize=END_MARKER_SIZE,
+            markerfacecolor=this_colour_tuple,
+            markeredgecolor=this_colour_tuple,
+            markeredgewidth=END_MARKER_EDGE_WIDTH)
 
     this_late_x_coord = late_storm_object_table[
         tracking_utils.CENTROID_X_COLUMN].values[0]
@@ -325,10 +362,14 @@ def _make_linkage_schema(extrapolate):
     this_early_y_coord = early_track_table[
         tracking_utils.TRACK_Y_COORDS_COLUMN].values[2][-1]
 
-    axes_object.plot(
+    this_handle = axes_object.plot(
         [this_early_x_coord, this_late_x_coord],
         [this_early_y_coord, this_late_y_coord],
-        color=MAIN_TRACK_COLOUR, linestyle='-', linewidth=TRACK_WIDTH)
+        color=MAIN_TRACK_COLOUR, linestyle='dashed', linewidth=TRACK_WIDTH
+    )[0]
+
+    legend_handles.append(this_handle)
+    legend_strings.append('New linkage')
 
     if extrapolate:
         this_early_x_coord = early_track_table[
@@ -339,25 +380,31 @@ def _make_linkage_schema(extrapolate):
         axes_object.plot(
             [this_early_x_coord, this_late_x_coord],
             [this_early_y_coord, this_late_y_coord],
-            color=MAIN_TRACK_COLOUR, linestyle='-', linewidth=TRACK_WIDTH)
+            color=MAIN_TRACK_COLOUR, linestyle='dashed', linewidth=TRACK_WIDTH)
 
-    axes_object.plot(
+    this_handle = axes_object.plot(
         this_late_x_coord, this_late_y_coord, linestyle='None',
         marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
         markerfacecolor=MAIN_TRACK_COLOUR,
         markeredgecolor=MAIN_TRACK_COLOUR,
-        markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH)
+        markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
+    )[0]
+
+    legend_handles.insert(-1, this_handle)
+    legend_strings.insert(-1, r'Storm at $t_2$')
 
     axes_object.text(
-        this_late_x_coord + 0.5, this_late_y_coord, r'D at $t_2$',
-        color=MAIN_TRACK_COLOUR, horizontalalignment='left',
-        verticalalignment='center')
+        this_late_x_coord + TEXT_OFFSET_KM, this_late_y_coord, 'D',
+        color=MAIN_TRACK_COLOUR, fontsize=FONT_SIZE, fontweight='bold',
+        horizontalalignment='left', verticalalignment='center')
 
     axes_object.grid(
         b=True, which='major', axis='both', linestyle='-', linewidth=0.5)
 
     axes_object.set_xlabel(r'$x$-distance (km)')
     axes_object.set_ylabel(r'$y$-distance (km)')
+    axes_object.legend(legend_handles, legend_strings, loc=(0.02, 0.175))
+
     return figure_object, axes_object
 
 
@@ -371,6 +418,8 @@ def _make_3way_split_schema():
     )
 
     num_early_tracks = len(early_track_table.index)
+    legend_handles = []
+    legend_strings = []
 
     for i in range(num_early_tracks):
         these_x_coords = early_track_table[
@@ -386,30 +435,37 @@ def _make_3way_split_schema():
             these_x_coords, these_y_coords, color=this_colour_tuple,
             linestyle='-', linewidth=TRACK_WIDTH)
 
-        axes_object.plot(
+        this_handle = axes_object.plot(
             these_x_coords[:-1], these_y_coords[:-1], linestyle='None',
             marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
-            markerfacecolor=this_colour_tuple,
-            markeredgecolor=this_colour_tuple,
-            markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH)
+            markerfacecolor='white', markeredgecolor=this_colour_tuple,
+            markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
+        )[0]
 
-        axes_object.plot(
+        if i == 0:
+            legend_handles.append(this_handle)
+            legend_strings.append('Storm before $t_1$')
+
+        this_handle = axes_object.plot(
             these_x_coords[-1], these_y_coords[-1], linestyle='None',
             marker=END_MARKER_TYPE, markersize=END_MARKER_SIZE,
             markerfacecolor=this_colour_tuple,
             markeredgecolor=this_colour_tuple,
-            markeredgewidth=END_MARKER_EDGE_WIDTH)
+            markeredgewidth=END_MARKER_EDGE_WIDTH
+        )[0]
+
+        if i == 0:
+            legend_handles.append(this_handle)
+            legend_strings.append('Storm at $t_1$')
 
         this_full_id_string = early_track_table[
             tracking_utils.FULL_ID_COLUMN].values[i]
-        this_label_string = r'$t_1$'
-        this_label_string = '{0:s} at {1:s}'.format(
-            this_full_id_string, this_label_string)
 
         axes_object.text(
-            these_x_coords[-1], these_y_coords[-1] - 0.5, this_label_string,
-            color=this_colour_tuple, horizontalalignment='center',
-            verticalalignment='top')
+            these_x_coords[-1], these_y_coords[-1] - TEXT_OFFSET_KM / 3,
+            this_full_id_string, color=this_colour_tuple,
+            fontsize=FONT_SIZE, fontweight='bold',
+            horizontalalignment='center', verticalalignment='top')
 
     num_late_tracks = len(late_track_table.index)
 
@@ -424,19 +480,34 @@ def _make_3way_split_schema():
         these_y_coords = late_track_table[
             tracking_utils.TRACK_Y_COORDS_COLUMN].values[i]
 
-        axes_object.plot(
+        this_handle = axes_object.plot(
             [last_early_x_coord, these_x_coords[0]],
             [last_early_y_coord, these_y_coords[0]],
-            color=MAIN_TRACK_COLOUR, linestyle='--' if i == 0 else '-',
+            color=MAIN_TRACK_COLOUR, linestyle='dashed' if i == 0 else '-',
             linewidth=TRACK_WIDTH
-        )
+        )[0]
+
+        if i == 0:
+            legend_handles.append(this_handle)
+            legend_strings.append('Severed link')
 
         this_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
             late_track_table[TRACK_COLOUR_COLUMN].values[i]
         )
 
+        if i == 0:
+            this_handle = axes_object.plot(
+                these_x_coords[0], these_y_coords[0], linestyle='None',
+                marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
+                markerfacecolor='k', markeredgecolor='k',
+                markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
+            )[0]
+
+            legend_handles.insert(-1, this_handle)
+            legend_strings.insert(-1, 'Storm at $t_2$')
+
         axes_object.plot(
-            these_x_coords, these_y_coords, linestyle='None',
+            these_x_coords[0], these_y_coords[0], linestyle='None',
             marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
             markerfacecolor=this_colour_tuple,
             markeredgecolor=this_colour_tuple,
@@ -444,25 +515,16 @@ def _make_3way_split_schema():
 
         this_full_id_string = late_track_table[
             tracking_utils.FULL_ID_COLUMN].values[i]
-        this_label_string = r'$t_2$'
-        this_label_string = '{0:s} at {1:s}'.format(
-            this_full_id_string, this_label_string)
 
         axes_object.text(
-            these_x_coords[0], these_y_coords[0] - 0.5, this_label_string,
-            color=this_colour_tuple, horizontalalignment='center',
-            verticalalignment='top')
+            these_x_coords[0], these_y_coords[0] - TEXT_OFFSET_KM / 3,
+            this_full_id_string, color=this_colour_tuple,
+            fontsize=FONT_SIZE, fontweight='bold',
+            horizontalalignment='center', verticalalignment='top')
 
-    axes_object.set_xlabel(r'$x$-distance (km)', color=ALMOST_WHITE_COLOUR)
-    axes_object.set_ylabel(r'$y$-distance (km)', color=ALMOST_WHITE_COLOUR)
-    axes_object.set_xticklabels(
-        numpy.round(axes_object.get_xticks()).astype(int),
-        color=ALMOST_WHITE_COLOUR
-    )
-    axes_object.set_yticklabels(
-        numpy.round(axes_object.get_yticks()).astype(int),
-        color=ALMOST_WHITE_COLOUR
-    )
+    axes_object.set_xticks([], [])
+    axes_object.set_yticks([], [])
+    axes_object.legend(legend_handles, legend_strings, loc='upper left')
 
     return figure_object, axes_object
 
@@ -479,6 +541,8 @@ def _make_splitmerge_schema():
     )
 
     num_early_tracks = len(early_track_table.index)
+    legend_handles = []
+    legend_strings = []
 
     for i in range(num_early_tracks):
         these_x_coords = early_track_table[
@@ -494,12 +558,33 @@ def _make_splitmerge_schema():
             these_x_coords, these_y_coords, color=this_colour_tuple,
             linestyle='-', linewidth=TRACK_WIDTH)
 
+        if i == 0:
+            this_handle = axes_object.plot(
+                these_x_coords[:-1], these_y_coords[:-1], linestyle='None',
+                marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
+                markerfacecolor='white', markeredgecolor='k',
+                markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
+            )[0]
+
+            legend_handles.append(this_handle)
+            legend_strings.append(r'Storm before $t_1$')
+
         axes_object.plot(
             these_x_coords[:-1], these_y_coords[:-1], linestyle='None',
             marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
-            markerfacecolor=this_colour_tuple,
-            markeredgecolor=this_colour_tuple,
+            markerfacecolor='white', markeredgecolor=this_colour_tuple,
             markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH)
+
+        if i == 0:
+            this_handle = axes_object.plot(
+                these_x_coords[-1], these_y_coords[-1], linestyle='None',
+                marker=END_MARKER_TYPE, markersize=END_MARKER_SIZE,
+                markerfacecolor='k', markeredgecolor='k',
+                markeredgewidth=END_MARKER_EDGE_WIDTH
+            )[0]
+
+            legend_handles.append(this_handle)
+            legend_strings.append(r'Storm at $t_1$')
 
         axes_object.plot(
             these_x_coords[-1], these_y_coords[-1], linestyle='None',
@@ -510,14 +595,12 @@ def _make_splitmerge_schema():
 
         this_full_id_string = early_track_table[
             tracking_utils.FULL_ID_COLUMN].values[i]
-        this_label_string = r'$t_1$'
-        this_label_string = '{0:s} at {1:s}'.format(
-            this_full_id_string, this_label_string)
 
         axes_object.text(
-            these_x_coords[-1], these_y_coords[-1] - 0.5, this_label_string,
-            color=this_colour_tuple, horizontalalignment='center',
-            verticalalignment='top')
+            these_x_coords[-1], these_y_coords[-1] - TEXT_OFFSET_KM,
+            this_full_id_string, color=this_colour_tuple,
+            fontsize=FONT_SIZE, fontweight='bold',
+            horizontalalignment='center', verticalalignment='top')
 
     num_late_objects = len(late_storm_object_table.index)
 
@@ -527,22 +610,24 @@ def _make_splitmerge_schema():
         this_y_coord = late_storm_object_table[
             tracking_utils.CENTROID_Y_COLUMN].values[j]
 
-        axes_object.plot(
+        this_handle = axes_object.plot(
             this_x_coord, this_y_coord, linestyle='None',
             marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
             markerfacecolor=MAIN_TRACK_COLOUR,
             markeredgecolor=MAIN_TRACK_COLOUR,
-            markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH)
+            markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
+        )[0]
+
+        if j == 0:
+            legend_handles.append(this_handle)
+            legend_strings.append(r'Storm at $t_2$')
 
         this_full_id_string = late_storm_object_table[
             tracking_utils.FULL_ID_COLUMN].values[j]
-        this_label_string = r'$t_2$'
-        this_label_string = '{0:s} at {1:s}'.format(
-            this_full_id_string, this_label_string)
 
         axes_object.text(
-            this_x_coord, this_y_coord - 0.5, this_label_string,
-            color=MAIN_TRACK_COLOUR,
+            this_x_coord, this_y_coord - TEXT_OFFSET_KM, this_full_id_string,
+            color=MAIN_TRACK_COLOUR, fontsize=FONT_SIZE, fontweight='bold',
             horizontalalignment='center', verticalalignment='top')
 
         if j == 0:
@@ -562,11 +647,15 @@ def _make_splitmerge_schema():
             this_last_y_coord = early_track_table[
                 tracking_utils.TRACK_Y_COORDS_COLUMN].values[1][-1]
 
-            axes_object.plot(
+            this_handle = axes_object.plot(
                 [this_last_x_coord, this_x_coord],
                 [this_last_y_coord, this_y_coord],
-                color=MAIN_TRACK_COLOUR, linestyle='--', linewidth=TRACK_WIDTH
-            )
+                color=MAIN_TRACK_COLOUR, linestyle='dashed',
+                linewidth=TRACK_WIDTH
+            )[0]
+
+            legend_handles.append(this_handle)
+            legend_strings.append('Severed link')
         else:
             this_last_x_coord = early_track_table[
                 tracking_utils.TRACK_X_COORDS_COLUMN].values[1][-1]
@@ -579,16 +668,9 @@ def _make_splitmerge_schema():
                 color=MAIN_TRACK_COLOUR, linestyle='-', linewidth=TRACK_WIDTH
             )
 
-    axes_object.set_xlabel(r'$x$-distance (km)', color=ALMOST_WHITE_COLOUR)
-    axes_object.set_ylabel(r'$y$-distance (km)', color=ALMOST_WHITE_COLOUR)
-    axes_object.set_xticklabels(
-        numpy.round(axes_object.get_xticks()).astype(int),
-        color=ALMOST_WHITE_COLOUR
-    )
-    axes_object.set_yticklabels(
-        numpy.round(axes_object.get_yticks()).astype(int),
-        color=ALMOST_WHITE_COLOUR
-    )
+    axes_object.set_xticks([], [])
+    axes_object.set_yticks([], [])
+    axes_object.legend(legend_handles, legend_strings, loc=(0.02, 0.175))
 
     return figure_object, axes_object
 
@@ -603,9 +685,17 @@ def _run():
         directory_name=OUTPUT_DIR_NAME)
 
     figure_object, axes_object = _make_linkage_schema(True)
+    this_file_name = '{0:s}/linkage_with_extrap_standalone.jpg'.format(
+        OUTPUT_DIR_NAME)
+
+    print('Saving figure to: "{0:s}"...'.format(this_file_name))
+    figure_object.savefig(
+        this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+
     plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
     axes_object.set_title('Linkage with extrapolation')
-
     panel_file_names = ['{0:s}/linkage_with_extrap.jpg'.format(OUTPUT_DIR_NAME)]
 
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
@@ -616,9 +706,17 @@ def _run():
     pyplot.close(figure_object)
 
     figure_object, axes_object = _make_linkage_schema(False)
+    this_file_name = '{0:s}/linkage_sans_extrap_standalone.jpg'.format(
+        OUTPUT_DIR_NAME)
+
+    print('Saving figure to: "{0:s}"...'.format(this_file_name))
+    figure_object.savefig(
+        this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+
     plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
     axes_object.set_title('Linkage without extrapolation')
-
     panel_file_names.append(
         '{0:s}/linkage_sans_extrap.jpg'.format(OUTPUT_DIR_NAME)
     )
@@ -631,9 +729,17 @@ def _run():
     pyplot.close(figure_object)
 
     figure_object, axes_object = _make_3way_split_schema()
-    plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
     axes_object.set_title('Pruning with 3-way split')
+    this_file_name = '{0:s}/pruning_3way_split_standalone.jpg'.format(
+        OUTPUT_DIR_NAME)
 
+    print('Saving figure to: "{0:s}"...'.format(this_file_name))
+    figure_object.savefig(
+        this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
     panel_file_names.append(
         '{0:s}/pruning_3way_split.jpg'.format(OUTPUT_DIR_NAME)
     )
@@ -646,9 +752,17 @@ def _run():
     pyplot.close(figure_object)
 
     figure_object, axes_object = _make_splitmerge_schema()
-    plotting_utils.label_axes(axes_object=axes_object, label_string='(d)')
     axes_object.set_title('Pruning with hybrid split and merger')
+    this_file_name = '{0:s}/pruning_splitmerge_standalone.jpg'.format(
+        OUTPUT_DIR_NAME)
 
+    print('Saving figure to: "{0:s}"...'.format(this_file_name))
+    figure_object.savefig(
+        this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(d)')
     panel_file_names.append(
         '{0:s}/pruning_splitmerge.jpg'.format(OUTPUT_DIR_NAME)
     )
