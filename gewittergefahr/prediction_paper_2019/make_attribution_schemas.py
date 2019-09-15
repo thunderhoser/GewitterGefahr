@@ -14,7 +14,7 @@ from gewittergefahr.plotting import storm_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
 TORNADIC_FLAG_COLUMN = 'is_tornadic'
-MAIN_TOR_FLAG_COLUMN = 'is_main_tornadic_link'
+SPECIAL_FLAG_COLUMN = 'is_main_tornadic_link'
 POLYGON_COLUMN = 'polygon_object_xy_metres'
 
 TRIANGLE_X_COORDS_RELATIVE = numpy.array([-1, 0, 1, -1], dtype=float)
@@ -31,17 +31,17 @@ STORM_OBJECT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 TORNADIC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 NON_TORNADIC_COLOUR = TRACK_COLOUR
 
-TRACK_WIDTH = 2
+FONT_SIZE = 30
+TEXT_OFFSET = 0.25
+
+TRACK_WIDTH = 4
 POLYGON_OPACITY = 0.5
 DEFAULT_MARKER_TYPE = 'o'
-DEFAULT_MARKER_SIZE = 16
-DEFAULT_MARKER_EDGE_WIDTH = 2
-END_MARKER_TYPE = 'x'
-END_MARKER_SIZE = 24
-END_MARKER_EDGE_WIDTH = 4
-MAIN_TOR_MARKER_TYPE = '*'
-MAIN_TOR_MARKER_SIZE = 48
-MAIN_TOR_MARKER_EDGE_WIDTH = 2
+DEFAULT_MARKER_SIZE = 24
+DEFAULT_MARKER_EDGE_WIDTH = 4
+TORNADIC_MARKER_TYPE = '*'
+TORNADIC_MARKER_SIZE = 48
+TORNADIC_MARKER_EDGE_WIDTH = 0
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -165,7 +165,7 @@ def _get_track1_for_simple_pred():
         tracking_utils.CENTROID_X_COLUMN: centroid_x_coords,
         tracking_utils.CENTROID_Y_COLUMN: centroid_y_coords,
         TORNADIC_FLAG_COLUMN: tornadic_flags,
-        MAIN_TOR_FLAG_COLUMN: main_tornadic_flags,
+        SPECIAL_FLAG_COLUMN: main_tornadic_flags,
         tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
             first_prev_sec_id_strings,
         tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
@@ -230,7 +230,7 @@ def _get_track2_for_simple_pred():
         tracking_utils.CENTROID_X_COLUMN: centroid_x_coords,
         tracking_utils.CENTROID_Y_COLUMN: centroid_y_coords,
         TORNADIC_FLAG_COLUMN: tornadic_flags,
-        MAIN_TOR_FLAG_COLUMN: main_tornadic_flags,
+        SPECIAL_FLAG_COLUMN: main_tornadic_flags,
         tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
             first_prev_sec_id_strings,
         tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
@@ -307,7 +307,7 @@ def _get_track_for_simple_succ():
         tracking_utils.CENTROID_X_COLUMN: centroid_x_coords,
         tracking_utils.CENTROID_Y_COLUMN: centroid_y_coords,
         TORNADIC_FLAG_COLUMN: tornadic_flags,
-        MAIN_TOR_FLAG_COLUMN: main_tornadic_flags,
+        SPECIAL_FLAG_COLUMN: main_tornadic_flags,
         tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
             first_prev_sec_id_strings,
         tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
@@ -552,48 +552,42 @@ def _plot_attribution_one_track(storm_object_table, plot_legend):
         start_marker_type=None, end_marker_type=None)
 
     tornadic_flags = storm_object_table[TORNADIC_FLAG_COLUMN].values
-    main_tornadic_flags = storm_object_table[MAIN_TOR_FLAG_COLUMN].values
-    end_of_track_flags = numpy.array([
-        s == '' for s in
-        storm_object_table[tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN].values
-    ], dtype=bool)
+    main_tornadic_flags = storm_object_table[SPECIAL_FLAG_COLUMN].values
 
     legend_handles = [None] * 3
     legend_strings = [None] * 3
 
     for i in range(len(centroid_x_coords)):
-        axes_object.text(
-            centroid_x_coords[i], centroid_y_coords[i] - 0.2,
-            secondary_id_strings[i], color=INTERP_COLOUR,
-            horizontalalignment='center', verticalalignment='top')
-
-        if tornadic_flags[i] or main_tornadic_flags[i]:
-            this_colour = TORNADIC_COLOUR
-        else:
-            this_colour = NON_TORNADIC_COLOUR
-
         if main_tornadic_flags[i]:
             this_handle = axes_object.plot(
                 centroid_x_coords[i], centroid_y_coords[i], linestyle='None',
-                marker=MAIN_TOR_MARKER_TYPE, markersize=MAIN_TOR_MARKER_SIZE,
-                markerfacecolor=this_colour, markeredgecolor=this_colour,
-                markeredgewidth=MAIN_TOR_MARKER_EDGE_WIDTH
+                marker=TORNADIC_MARKER_TYPE, markersize=TORNADIC_MARKER_SIZE,
+                markerfacecolor=TORNADIC_COLOUR,
+                markeredgecolor=TORNADIC_COLOUR,
+                markeredgewidth=TORNADIC_MARKER_EDGE_WIDTH
             )[0]
 
             legend_handles[0] = this_handle
-            legend_strings[0] = 'First object linked to tornado'
+            legend_strings[0] = 'Object initially linked\nto tornado'
 
-        elif end_of_track_flags[i]:
-            axes_object.plot(
-                centroid_x_coords[i], centroid_y_coords[i], linestyle='None',
-                marker=END_MARKER_TYPE, markersize=END_MARKER_SIZE,
-                markerfacecolor=this_colour, markeredgecolor=this_colour,
-                markeredgewidth=END_MARKER_EDGE_WIDTH)
+            axes_object.text(
+                centroid_x_coords[i], centroid_y_coords[i] - TEXT_OFFSET,
+                secondary_id_strings[i], color=TORNADIC_COLOUR,
+                fontsize=FONT_SIZE, fontweight='bold',
+                horizontalalignment='center', verticalalignment='top')
         else:
+            if tornadic_flags[i]:
+                this_edge_colour = TORNADIC_COLOUR
+                this_face_colour = TORNADIC_COLOUR
+            else:
+                this_edge_colour = NON_TORNADIC_COLOUR
+                this_face_colour = 'white'
+
             this_handle = axes_object.plot(
                 centroid_x_coords[i], centroid_y_coords[i], linestyle='None',
                 marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
-                markerfacecolor=this_colour, markeredgecolor=this_colour,
+                markerfacecolor=this_face_colour,
+                markeredgecolor=this_edge_colour,
                 markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
             )[0]
 
@@ -605,15 +599,11 @@ def _plot_attribution_one_track(storm_object_table, plot_legend):
                 legend_handles[2] = this_handle
                 legend_strings[2] = 'Not linked to tornado'
 
-    # main_tornadic_index = numpy.where(
-    #     storm_object_table[MAIN_TOR_FLAG_COLUMN].values
-    # )[0][0]
-    #
-    # axes_object.text(
-    #     centroid_x_coords[main_tornadic_index],
-    #     centroid_y_coords[main_tornadic_index] + 0.2, 'T',
-    #     color=TORNADIC_COLOUR, fontsize=45, fontweight='bold',
-    #     horizontalalignment='center', verticalalignment='bottom')
+            axes_object.text(
+                centroid_x_coords[i], centroid_y_coords[i] - TEXT_OFFSET,
+                secondary_id_strings[i], color=this_edge_colour,
+                fontsize=FONT_SIZE, fontweight='bold',
+                horizontalalignment='center', verticalalignment='top')
 
     axes_object.xaxis.set_ticklabels([])
     axes_object.yaxis.set_ticklabels([])
@@ -636,16 +626,26 @@ def _run():
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=OUTPUT_DIR_NAME)
 
+    # Interpolation with merger.
     figure_object, axes_object = _plot_interp_two_times(
         early_storm_object_table=_get_interp_data_for_merger()[0],
         late_storm_object_table=_get_interp_data_for_merger()[1],
         plot_legend=True
     )
 
+    this_file_name = '{0:s}/interp_with_merger_standalone.jpg'.format(
+        OUTPUT_DIR_NAME)
+
+    print('Saving figure to: "{0:s}"...'.format(this_file_name))
+    figure_object.savefig(
+        this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+
     plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
     axes_object.set_title('Interpolation with merger')
-
     panel_file_names = ['{0:s}/interp_with_merger.jpg'.format(OUTPUT_DIR_NAME)]
+
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
     figure_object.savefig(
         panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
@@ -653,15 +653,24 @@ def _run():
     )
     pyplot.close(figure_object)
 
+    # Interpolation with split.
     figure_object, axes_object = _plot_interp_two_times(
         early_storm_object_table=_get_interp_data_for_split()[0],
         late_storm_object_table=_get_interp_data_for_split()[1],
         plot_legend=False
     )
 
+    this_file_name = '{0:s}/interp_with_split_standalone.jpg'.format(
+        OUTPUT_DIR_NAME)
+
+    print('Saving figure to: "{0:s}"...'.format(this_file_name))
+    figure_object.savefig(
+        this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+
     plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
     axes_object.set_title('Interpolation with split')
-
     panel_file_names.append(
         '{0:s}/interp_with_split.jpg'.format(OUTPUT_DIR_NAME)
     )
@@ -673,13 +682,22 @@ def _run():
     )
     pyplot.close(figure_object)
 
+    # Simple successors.
     figure_object, axes_object = _plot_attribution_one_track(
         storm_object_table=_get_track_for_simple_succ(), plot_legend=True
     )
 
+    this_file_name = '{0:s}/simple_successors_standalone.jpg'.format(
+        OUTPUT_DIR_NAME)
+
+    print('Saving figure to: "{0:s}"...'.format(this_file_name))
+    figure_object.savefig(
+        this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+
     plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
     axes_object.set_title('Linking to simple successors')
-
     panel_file_names.append(
         '{0:s}/simple_successors.jpg'.format(OUTPUT_DIR_NAME)
     )
@@ -691,13 +709,23 @@ def _run():
     )
     pyplot.close(figure_object)
 
+    # Simple predecessors, example 1.
     figure_object, axes_object = _plot_attribution_one_track(
         storm_object_table=_get_track1_for_simple_pred(), plot_legend=False
     )
 
+    axes_object.set_title('Simple predecessors, example 1')
+    this_file_name = '{0:s}/simple_predecessors_track1_standalone.jpg'.format(
+        OUTPUT_DIR_NAME)
+
+    print('Saving figure to: "{0:s}"...'.format(this_file_name))
+    figure_object.savefig(
+        this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+
     plotting_utils.label_axes(axes_object=axes_object, label_string='(d)')
     axes_object.set_title('Linking to simple predecessors, example 1')
-
     panel_file_names.append(
         '{0:s}/simple_predecessors_track1.jpg'.format(OUTPUT_DIR_NAME)
     )
@@ -709,13 +737,23 @@ def _run():
     )
     pyplot.close(figure_object)
 
+    # Simple predecessors, example 2.
     figure_object, axes_object = _plot_attribution_one_track(
         storm_object_table=_get_track2_for_simple_pred(), plot_legend=False
     )
 
+    axes_object.set_title('Simple predecessors, example 2')
+    this_file_name = '{0:s}/simple_predecessors_track2_standalone.jpg'.format(
+        OUTPUT_DIR_NAME)
+
+    print('Saving figure to: "{0:s}"...'.format(this_file_name))
+    figure_object.savefig(
+        this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+
     plotting_utils.label_axes(axes_object=axes_object, label_string='(e)')
     axes_object.set_title('Linking to simple predecessors, example 2')
-
     panel_file_names.append(
         '{0:s}/simple_predecessors_track2.jpg'.format(OUTPUT_DIR_NAME)
     )
@@ -727,6 +765,7 @@ def _run():
     )
     pyplot.close(figure_object)
 
+    # Concatenate all panels into one figure.
     concat_file_name = '{0:s}/attribution_schemas.jpg'.format(OUTPUT_DIR_NAME)
     print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
 
