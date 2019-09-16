@@ -1156,12 +1156,13 @@ def _shuffle_tracking_data(
         storm_object_table_by_date[current_date_index - 2] = pandas.DataFrame()
 
     # Shuffle data into memory.
-    for j in [current_date_index - 1, current_date_index,
-              current_date_index + 1]:
+    these_indices = numpy.linspace(
+        current_date_index - 1, current_date_index + 2, num=4, dtype=int)
 
+    for j in these_indices:
         if j < 0 or j >= num_spc_dates:
             continue
-        if not storm_object_table_by_date[j].empty:
+        if storm_object_table_by_date[j] is not None:
             continue
 
         storm_object_table_by_date[j] = tracking_io.read_many_files(
@@ -1761,7 +1762,7 @@ def reanalyze_across_spc_dates(
 
         return
 
-    storm_object_table_by_date = [pandas.DataFrame()] * num_spc_dates
+    storm_object_table_by_date = [None] * num_spc_dates
 
     for i in range(num_spc_dates + 1):
         storm_object_table_by_date = _shuffle_tracking_data(
@@ -1779,9 +1780,11 @@ def reanalyze_across_spc_dates(
                 valid_times_by_date_unix_sec[i + 1]
             )
 
+            indices_to_concat = numpy.array([i, i + 1], dtype=int)
             concat_storm_object_table = pandas.concat(
-                [storm_object_table_by_date[k] for k in [i, i + 1]],
-                axis=0, ignore_index=True)
+                [storm_object_table_by_date[k] for k in indices_to_concat],
+                axis=0, ignore_index=True
+            )
 
             concat_storm_object_table = track_reanalysis.join_collinear_tracks(
                 storm_object_table=concat_storm_object_table,
@@ -1791,6 +1794,12 @@ def reanalyze_across_spc_dates(
                 max_join_error_m_s01=max_velocity_diff_m_s01,
                 max_join_distance_m_s01=max_link_distance_m_s01)
             print(SEPARATOR_STRING)
+
+            for k in indices_to_concat:
+                storm_object_table_by_date[k] = concat_storm_object_table.loc[
+                    concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
+                    spc_date_strings[k]
+                ]
 
             if i == 0:
                 this_first_time_unix_sec = numpy.min(
@@ -1808,6 +1817,16 @@ def reanalyze_across_spc_dates(
                     tracking_utils.VALID_TIME_COLUMN].values
             )
 
+            indices_to_concat = numpy.array([i, i + 1, i + 2], dtype=int)
+            indices_to_concat = indices_to_concat[
+                indices_to_concat < num_spc_dates
+            ]
+
+            concat_storm_object_table = pandas.concat(
+                [storm_object_table_by_date[k] for k in indices_to_concat],
+                axis=0, ignore_index=True
+            )
+
             concat_storm_object_table = track_reanalysis.join_collinear_tracks(
                 storm_object_table=concat_storm_object_table,
                 first_late_time_unix_sec=this_first_time_unix_sec,
@@ -1816,26 +1835,20 @@ def reanalyze_across_spc_dates(
                 max_join_error_m_s01=max_join_error_m_s01)
             print(SEPARATOR_STRING)
 
-            storm_object_table_by_date[i] = concat_storm_object_table.loc[
-                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-                spc_date_strings[i]
-            ]
+            for k in indices_to_concat:
+                storm_object_table_by_date[k] = concat_storm_object_table.loc[
+                    concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
+                    spc_date_strings[k]
+                ]
 
-            storm_object_table_by_date[i + 1] = concat_storm_object_table.loc[
-                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-                spc_date_strings[i + 1]
-            ]
-
-        if i == 0:
-            indices_to_concat = numpy.array([i, i + 1], dtype=int)
-        elif i == num_spc_dates - 1:
-            indices_to_concat = numpy.array([i - 1, i], dtype=int)
-        else:
-            indices_to_concat = numpy.array([i - 1, i, i + 1], dtype=int)
+        indices_to_concat = numpy.array([i - 1, i, i + 1], dtype=int)
+        indices_to_concat = indices_to_concat[indices_to_concat >= 0]
+        indices_to_concat = indices_to_concat[indices_to_concat < num_spc_dates]
 
         concat_storm_object_table = pandas.concat(
             [storm_object_table_by_date[k] for k in indices_to_concat],
-            axis=0, ignore_index=True)
+            axis=0, ignore_index=True
+        )
 
         print('Removing tracks that last < {0:d} seconds...'.format(
             int(min_track_duration_seconds)
