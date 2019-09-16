@@ -45,8 +45,17 @@ NON_TORNADIC_STORM_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
 NON_INTERP_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 INTERP_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
 
-FONT_SIZE = 30
+DEFAULT_FONT_SIZE = 40
+SMALL_LEGEND_FONT_SIZE = 30
 TEXT_OFFSET = 0.25
+
+pyplot.rc('font', size=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
+pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 TRACK_WIDTH = 4
 POLYGON_OPACITY = 0.5
@@ -73,15 +82,29 @@ OUTPUT_DIR_NAME = (
 def _get_data_for_interp_with_merger():
     """Creates synthetic data for interpolation with storm merger.
 
-    :return: storm_object_table: See input doc for
-        `storm_plotting.plot_storm_tracks`.
+    :return: storm_object_table: pandas DataFrame with the following columns.
+        Each row is one storm object.
+    storm_object_table.primary_id_string: Primary storm ID.
+    storm_object_table.secondary_id_string: Secondary storm ID.
+    storm_object_table.valid_time_unix_sec: Valid time.
+    storm_object_table.centroid_x_metres: x-coordinate of centroid.
+    storm_object_table.centroid_y_metres: y-coordinate of centroid.
+    storm_object_table.polygon_object_xy_metres: Storm outline (instance of
+        `shapely.geometry.Polygon`).
+    storm_object_table.first_prev_secondary_id_string: Secondary ID of first
+        predecessor ("" if no predecessors).
+    storm_object_table.second_prev_secondary_id_string: Secondary ID of second
+        predecessor ("" if only one predecessor).
+    storm_object_table.first_next_secondary_id_string: Secondary ID of first
+        successor ("" if no successors).
+    storm_object_table.second_next_secondary_id_string: Secondary ID of second
+        successor ("" if no successors).
+
     :return: tornado_table: pandas DataFrame with the following columns.
     tornado_table.valid_time_unix_sec: Valid time.
     tornado_table.x_coord_metres: x-coordinate.
     tornado_table.y_coord_metres: y-coordinate.
     """
-
-    # TODO(thunderhoser): Fix doc.
 
     primary_id_strings = ['foo'] * 5
     secondary_id_strings = ['A', 'A', 'A', 'B', 'C']
@@ -207,8 +230,14 @@ def _get_data_for_interp_with_split():
 def _get_track1_for_simple_pred():
     """Creates synthetic data for simple predecessors.
 
-    :return: storm_object_table: See input doc for
-        `storm_plotting.plot_storm_tracks`.
+    :return: storm_object_table: Same as table produced by
+        `_get_data_for_interp_with_split`, except without column
+        "polygon_object_xy_metres" and with the following extra columns.
+    storm_object_table.is_tornadic: Boolean flag (True if storm object is
+        linked to a tornado).
+    storm_object_table.is_main_tornadic_link: Boolean flag (True if storm object
+        is the main one linked to a tornado, rather than being linked to tornado
+        as a predecessor or successor).
     """
 
     primary_id_strings = ['foo'] * 10
@@ -397,12 +426,13 @@ def _get_track_for_simple_succ():
     })
 
 
-def _plot_interp_two_times(storm_object_table, tornado_table,
+def _plot_interp_two_times(storm_object_table, tornado_table, legend_font_size,
                            legend_position_string):
     """Plots interpolation for one pair of times.
 
     :param storm_object_table: See doc for `_get_interp_data_for_merger`.
     :param tornado_table: Same.
+    :param legend_font_size: Font size in legend.
     :param legend_position_string: Legend position.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
@@ -465,7 +495,7 @@ def _plot_interp_two_times(storm_object_table, tornado_table,
         axes_object.text(
             centroid_x_coords[i], centroid_y_coords[i] - TEXT_OFFSET,
             secondary_id_strings[i], color=TRACK_COLOUR,
-            fontsize=FONT_SIZE, fontweight='bold',
+            fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
             horizontalalignment='center', verticalalignment='top')
 
     storm_times_minutes = storm_object_table[
@@ -587,12 +617,14 @@ def _plot_interp_two_times(storm_object_table, tornado_table,
 
     axes_object.set_yticks([], [])
     axes_object.legend(
-        legend_handles, legend_strings, loc=legend_position_string)
+        legend_handles, legend_strings, fontsize=legend_font_size,
+        loc=legend_position_string)
 
     return figure_object, axes_object
 
 
-def _plot_attribution_one_track(storm_object_table, plot_legend, plot_x_ticks):
+def _plot_attribution_one_track(storm_object_table, plot_legend, plot_x_ticks,
+                                legend_font_size=None, legend_location=None):
     """Plots tornado attribution for one storm track.
 
     :param storm_object_table: pandas DataFrame created by
@@ -600,6 +632,10 @@ def _plot_attribution_one_track(storm_object_table, plot_legend, plot_x_ticks):
         `_get_track_for_simple_succ`.
     :param plot_legend: Boolean flag.
     :param plot_x_ticks: Boolean flag.
+    :param legend_font_size: Font size in legend (used only if
+        `plot_legend == True`).
+    :param legend_location: Legend location (used only if
+        `plot_legend == True`).
     :return: figure_object: See doc for `_plot_interp_two_times`.
     :return: axes_object: Same.
     """
@@ -654,7 +690,7 @@ def _plot_attribution_one_track(storm_object_table, plot_legend, plot_x_ticks):
             axes_object.text(
                 centroid_x_coords[i], centroid_y_coords[i] - TEXT_OFFSET,
                 secondary_id_strings[i], color=TORNADIC_STORM_COLOUR,
-                fontsize=FONT_SIZE, fontweight='bold',
+                fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
                 horizontalalignment='center', verticalalignment='top')
         else:
             if tornadic_flags[i]:
@@ -683,7 +719,7 @@ def _plot_attribution_one_track(storm_object_table, plot_legend, plot_x_ticks):
             axes_object.text(
                 centroid_x_coords[i], centroid_y_coords[i] - TEXT_OFFSET,
                 secondary_id_strings[i], color=this_edge_colour,
-                fontsize=FONT_SIZE, fontweight='bold',
+                fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
                 horizontalalignment='center', verticalalignment='top')
 
     if plot_x_ticks:
@@ -706,7 +742,9 @@ def _plot_attribution_one_track(storm_object_table, plot_legend, plot_x_ticks):
     axes_object.set_yticks([], [])
 
     if plot_legend:
-        axes_object.legend(legend_handles, legend_strings, loc='lower right')
+        axes_object.legend(
+            legend_handles, legend_strings, fontsize=legend_font_size,
+            loc=legend_location)
 
     return figure_object, axes_object
 
@@ -724,7 +762,7 @@ def _run():
     figure_object, axes_object = _plot_interp_two_times(
         storm_object_table=_get_data_for_interp_with_merger()[0],
         tornado_table=_get_data_for_interp_with_merger()[1],
-        legend_position_string='upper left'
+        legend_font_size=DEFAULT_FONT_SIZE, legend_position_string='upper left'
     )
 
     axes_object.set_title('Interpolation with merger')
@@ -751,6 +789,7 @@ def _run():
     figure_object, axes_object = _plot_interp_two_times(
         storm_object_table=_get_data_for_interp_with_split()[0],
         tornado_table=_get_data_for_interp_with_split()[1],
+        legend_font_size=SMALL_LEGEND_FONT_SIZE,
         legend_position_string='upper right'
     )
 
@@ -779,7 +818,8 @@ def _run():
     # Simple successors.
     figure_object, axes_object = _plot_attribution_one_track(
         storm_object_table=_get_track_for_simple_succ(),
-        plot_legend=True, plot_x_ticks=True
+        plot_legend=True, plot_x_ticks=True,
+        legend_font_size=SMALL_LEGEND_FONT_SIZE, legend_location='lower right'
     )
 
     this_file_name = '{0:s}/simple_successors_standalone.jpg'.format(
@@ -807,7 +847,8 @@ def _run():
     # Simple predecessors, example 1.
     figure_object, axes_object = _plot_attribution_one_track(
         storm_object_table=_get_track1_for_simple_pred(),
-        plot_legend=True, plot_x_ticks=False
+        plot_legend=True, plot_x_ticks=False,
+        legend_font_size=DEFAULT_FONT_SIZE, legend_location=(0.28, 0.1)
     )
 
     axes_object.set_title('Simple predecessors, example 1')

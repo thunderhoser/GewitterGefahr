@@ -18,8 +18,17 @@ FIRST_TRACK_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
 SECOND_TRACK_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 THIRD_TRACK_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 
-FONT_SIZE = 30
+DEFAULT_FONT_SIZE = 40
+SMALL_LEGEND_FONT_SIZE = 30
 TEXT_OFFSET_KM = 0.75
+
+pyplot.rc('font', size=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
+pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 TRACK_WIDTH = 4
 DEFAULT_MARKER_TYPE = 'o'
@@ -303,7 +312,7 @@ def _make_linkage_schema(extrapolate):
         axes_object.text(
             these_extrap_x_coords[0], these_extrap_y_coords[0] - TEXT_OFFSET_KM,
             this_full_id_string, color=this_colour_tuple,
-            fontsize=FONT_SIZE, fontweight='bold',
+            fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
             horizontalalignment='center', verticalalignment='top')
 
         if extrapolate:
@@ -331,7 +340,7 @@ def _make_linkage_schema(extrapolate):
                 these_extrap_x_coords[1],
                 these_extrap_y_coords[1] - TEXT_OFFSET_KM,
                 this_full_id_string, color=this_colour_tuple,
-                fontsize=FONT_SIZE, fontweight='bold',
+                fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
                 horizontalalignment='center', verticalalignment='top')
 
         if i == 1:
@@ -395,7 +404,7 @@ def _make_linkage_schema(extrapolate):
 
     axes_object.text(
         this_late_x_coord + TEXT_OFFSET_KM, this_late_y_coord, 'D',
-        color=MAIN_TRACK_COLOUR, fontsize=FONT_SIZE, fontweight='bold',
+        color=MAIN_TRACK_COLOUR, fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
         horizontalalignment='left', verticalalignment='center')
 
     axes_object.grid(
@@ -403,7 +412,16 @@ def _make_linkage_schema(extrapolate):
 
     axes_object.set_xlabel(r'$x$-distance (km)')
     axes_object.set_ylabel(r'$y$-distance (km)')
-    axes_object.legend(legend_handles, legend_strings, loc=(0.02, 0.175))
+
+    if extrapolate:
+        legend_font_size = SMALL_LEGEND_FONT_SIZE
+    else:
+        legend_font_size = DEFAULT_FONT_SIZE
+
+    axes_object.legend(
+        legend_handles, legend_strings, fontsize=legend_font_size,
+        loc=(0.02, 0.175)
+    )
 
     return figure_object, axes_object
 
@@ -464,7 +482,7 @@ def _make_3way_split_schema():
         axes_object.text(
             these_x_coords[-1], these_y_coords[-1] - TEXT_OFFSET_KM / 3,
             this_full_id_string, color=this_colour_tuple,
-            fontsize=FONT_SIZE, fontweight='bold',
+            fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
             horizontalalignment='center', verticalalignment='top')
 
     num_late_tracks = len(late_track_table.index)
@@ -519,7 +537,7 @@ def _make_3way_split_schema():
         axes_object.text(
             these_x_coords[0], these_y_coords[0] - TEXT_OFFSET_KM / 3,
             this_full_id_string, color=this_colour_tuple,
-            fontsize=FONT_SIZE, fontweight='bold',
+            fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
             horizontalalignment='center', verticalalignment='top')
 
     axes_object.set_xticks([], [])
@@ -599,7 +617,7 @@ def _make_splitmerge_schema():
         axes_object.text(
             these_x_coords[-1], these_y_coords[-1] - TEXT_OFFSET_KM,
             this_full_id_string, color=this_colour_tuple,
-            fontsize=FONT_SIZE, fontweight='bold',
+            fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
             horizontalalignment='center', verticalalignment='top')
 
     num_late_objects = len(late_storm_object_table.index)
@@ -627,7 +645,7 @@ def _make_splitmerge_schema():
 
         axes_object.text(
             this_x_coord, this_y_coord - TEXT_OFFSET_KM, this_full_id_string,
-            color=MAIN_TRACK_COLOUR, fontsize=FONT_SIZE, fontweight='bold',
+            color=MAIN_TRACK_COLOUR, fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
             horizontalalignment='center', verticalalignment='top')
 
         if j == 0:
