@@ -17,19 +17,33 @@ TORNADIC_FLAG_COLUMN = 'is_tornadic'
 SPECIAL_FLAG_COLUMN = 'is_main_tornadic_link'
 POLYGON_COLUMN = 'polygon_object_xy_metres'
 
-TRIANGLE_X_COORDS_RELATIVE = numpy.array([-1, 0, 1, -1], dtype=float)
-TRIANGLE_Y_COORDS_RELATIVE = numpy.array([-1, 1, -1, -1], dtype=float)
-SQUARE_X_COORDS_RELATIVE = numpy.array([-1, -1, 1, 1, -1], dtype=float)
-SQUARE_Y_COORDS_RELATIVE = numpy.array([-1, 1, 1, -1, -1], dtype=float)
-DIAMOND_X_COORDS_RELATIVE = numpy.array([0, -1, 0, 1, 0], dtype=float)
-DIAMOND_Y_COORDS_RELATIVE = numpy.array([-1, 0, 1, 0, -1], dtype=float)
+TORNADO_TIME_COLUMN = 'valid_time_unix_sec'
+TORNADO_X_COLUMN = 'x_coord_metres'
+TORNADO_Y_COLUMN = 'y_coord_metres'
 
-INTERP_COLOUR = numpy.full(3, 0.)
+SQUARE_X_COORDS = 2 * numpy.array([-1, -1, 1, 1, -1], dtype=float)
+SQUARE_Y_COORDS = numpy.array([-1, 1, 1, -1, -1], dtype=float)
+
+THIS_NUM = numpy.sqrt(3) / 2
+HEXAGON_X_COORDS = 2 * numpy.array([1, 0.5, -0.5, -1, -0.5, 0.5, 1])
+HEXAGON_Y_COORDS = numpy.array([
+    0, -THIS_NUM, -THIS_NUM, 0, THIS_NUM, THIS_NUM, 0
+])
+
+THIS_NUM = numpy.sqrt(2) / 2
+OCTAGON_X_COORDS = 2 * numpy.array([
+    1, THIS_NUM, 0, -THIS_NUM, -1, -THIS_NUM, 0, THIS_NUM, 1
+])
+OCTAGON_Y_COORDS = numpy.array([
+    0, THIS_NUM, 1, THIS_NUM, 0, -THIS_NUM, -1, -THIS_NUM, 0
+])
+
+TRACK_COLOUR = numpy.full(3, 0.)
 MIDPOINT_COLOUR = numpy.full(3, 152. / 255)
-TRACK_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
-STORM_OBJECT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
-TORNADIC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
-NON_TORNADIC_COLOUR = TRACK_COLOUR
+TORNADIC_STORM_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
+NON_TORNADIC_STORM_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
+NON_INTERP_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+INTERP_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
 
 FONT_SIZE = 30
 TEXT_OFFSET = 0.25
@@ -39,9 +53,12 @@ POLYGON_OPACITY = 0.5
 DEFAULT_MARKER_TYPE = 'o'
 DEFAULT_MARKER_SIZE = 24
 DEFAULT_MARKER_EDGE_WIDTH = 4
-TORNADIC_MARKER_TYPE = '*'
-TORNADIC_MARKER_SIZE = 48
-TORNADIC_MARKER_EDGE_WIDTH = 0
+TORNADIC_STORM_MARKER_TYPE = '*'
+TORNADIC_STORM_MARKER_SIZE = 48
+TORNADIC_STORM_MARKER_EDGE_WIDTH = 0
+TORNADO_MARKER_TYPE = 'v'
+TORNADO_MARKER_SIZE = 48
+TORNADO_MARKER_EDGE_WIDTH = 0
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -53,78 +70,138 @@ OUTPUT_DIR_NAME = (
 )
 
 
-def _get_interp_data_for_merger():
+def _get_data_for_interp_with_merger():
     """Creates synthetic data for interpolation with storm merger.
 
-    :return: early_storm_object_table: pandas DataFrame with the following
-        columns.
-    early_storm_object_table.centroid_x_metres: x-coordinate.
-    early_storm_object_table.centroid_y_metres: y-coordinate.
-    early_storm_object_table.polygon_object_xy_metres: Storm outline (instance
-        of `shapely.geometry.Polygon`).
-
-    :return: late_storm_object_table: Same but for late period.
+    :return: storm_object_table: See input doc for
+        `storm_plotting.plot_storm_tracks`.
+    :return: tornado_table: pandas DataFrame with the following columns.
+    tornado_table.valid_time_unix_sec: Valid time.
+    tornado_table.x_coord_metres: x-coordinate.
+    tornado_table.y_coord_metres: y-coordinate.
     """
 
-    first_polygon_object = polygons.vertex_arrays_to_polygon_object(
-        exterior_x_coords=5 + TRIANGLE_X_COORDS_RELATIVE,
-        exterior_y_coords=10 + TRIANGLE_Y_COORDS_RELATIVE)
+    # TODO(thunderhoser): Fix doc.
 
-    second_polygon_object = polygons.vertex_arrays_to_polygon_object(
-        exterior_x_coords=7 + SQUARE_X_COORDS_RELATIVE,
-        exterior_y_coords=4 + SQUARE_Y_COORDS_RELATIVE)
+    primary_id_strings = ['foo'] * 5
+    secondary_id_strings = ['A', 'A', 'A', 'B', 'C']
 
-    early_storm_object_table = pandas.DataFrame.from_dict({
-        tracking_utils.CENTROID_X_COLUMN: numpy.array([5, 7], dtype=float),
-        tracking_utils.CENTROID_Y_COLUMN: numpy.array([10, 4], dtype=float),
-        POLYGON_COLUMN: [first_polygon_object, second_polygon_object]
+    valid_times_unix_sec = numpy.array([5, 10, 15, 20, 20], dtype=int)
+    centroid_x_coords = numpy.array([2, 7, 12, 17, 17], dtype=float)
+    centroid_y_coords = numpy.array([5, 5, 5, 8, 2], dtype=float)
+
+    first_prev_sec_id_strings = ['', 'A', 'A', 'A', 'A']
+    second_prev_sec_id_strings = ['', '', '', '', '']
+    first_next_sec_id_strings = ['A', 'A', 'B', '', '']
+    second_next_sec_id_strings = ['', '', 'C', '', '']
+
+    num_storm_objects = len(secondary_id_strings)
+    polygon_objects_xy = [None] * num_storm_objects
+
+    for i in range(num_storm_objects):
+        if secondary_id_strings[i] == 'B':
+            these_x_coords = OCTAGON_X_COORDS
+            these_y_coords = OCTAGON_Y_COORDS
+        elif secondary_id_strings[i] == 'C':
+            these_x_coords = HEXAGON_X_COORDS
+            these_y_coords = HEXAGON_Y_COORDS
+        else:
+            these_x_coords = SQUARE_X_COORDS
+            these_y_coords = SQUARE_Y_COORDS
+
+        polygon_objects_xy[i] = polygons.vertex_arrays_to_polygon_object(
+            exterior_x_coords=centroid_x_coords[i] + these_x_coords / 2,
+            exterior_y_coords=centroid_y_coords[i] + these_y_coords / 2
+        )
+
+    storm_object_table = pandas.DataFrame.from_dict({
+        tracking_utils.PRIMARY_ID_COLUMN: primary_id_strings,
+        tracking_utils.SECONDARY_ID_COLUMN: secondary_id_strings,
+        tracking_utils.VALID_TIME_COLUMN: valid_times_unix_sec,
+        tracking_utils.CENTROID_X_COLUMN: centroid_x_coords,
+        tracking_utils.CENTROID_Y_COLUMN: centroid_y_coords,
+        tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
+            first_prev_sec_id_strings,
+        tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
+            second_prev_sec_id_strings,
+        tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN:
+            first_next_sec_id_strings,
+        tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN:
+            second_next_sec_id_strings,
+        POLYGON_COLUMN: polygon_objects_xy
     })
 
-    this_polygon_object = polygons.vertex_arrays_to_polygon_object(
-        exterior_x_coords=15 + DIAMOND_X_COORDS_RELATIVE,
-        exterior_y_coords=6 + DIAMOND_Y_COORDS_RELATIVE)
-
-    late_storm_object_table = pandas.DataFrame.from_dict({
-        tracking_utils.CENTROID_X_COLUMN: numpy.full(1, 15.),
-        tracking_utils.CENTROID_Y_COLUMN: numpy.full(1, 6.),
-        POLYGON_COLUMN: [this_polygon_object]
+    tornado_table = pandas.DataFrame.from_dict({
+        TORNADO_TIME_COLUMN: numpy.array([18], dtype=int),
+        TORNADO_X_COLUMN: numpy.array([15.]),
+        TORNADO_Y_COLUMN: numpy.array([3.])
     })
 
-    return early_storm_object_table, late_storm_object_table
+    return storm_object_table, tornado_table
 
 
-def _get_interp_data_for_split():
+def _get_data_for_interp_with_split():
     """Creates synthetic data for interpolation with storm split.
 
-    :return: early_storm_object_table: See doc for `_get_interp_data_for_merger`.
-    :return: late_storm_object_table: Same.
+    :return: storm_object_table: See doc for `_get_data_for_interp_with_merger`.
+    :return: tornado_table: Same.
     """
 
-    this_polygon_object = polygons.vertex_arrays_to_polygon_object(
-        exterior_x_coords=5 + DIAMOND_X_COORDS_RELATIVE,
-        exterior_y_coords=5 + DIAMOND_Y_COORDS_RELATIVE)
+    primary_id_strings = ['foo'] * 6
+    secondary_id_strings = ['A', 'B', 'A', 'B', 'C', 'C']
 
-    early_storm_object_table = pandas.DataFrame.from_dict({
-        tracking_utils.CENTROID_X_COLUMN: numpy.full(1, 5.),
-        tracking_utils.CENTROID_Y_COLUMN: numpy.full(1, 5.),
-        POLYGON_COLUMN: [this_polygon_object]
+    valid_times_unix_sec = numpy.array([5, 5, 10, 10, 15, 20], dtype=int)
+    centroid_x_coords = numpy.array([2, 2, 7, 7, 12, 17], dtype=float)
+    centroid_y_coords = numpy.array([8, 2, 8, 2, 5, 5], dtype=float)
+
+    first_prev_sec_id_strings = ['', '', 'A', 'B', 'A', 'C']
+    second_prev_sec_id_strings = ['', '', '', '', 'B', '']
+    first_next_sec_id_strings = ['A', 'B', 'C', 'C', 'C', '']
+    second_next_sec_id_strings = ['', '', '', '', '', '']
+
+    num_storm_objects = len(secondary_id_strings)
+    polygon_objects_xy = [None] * num_storm_objects
+
+    for i in range(num_storm_objects):
+        if secondary_id_strings[i] == 'A':
+            these_x_coords = OCTAGON_X_COORDS
+            these_y_coords = OCTAGON_Y_COORDS
+        elif secondary_id_strings[i] == 'B':
+            these_x_coords = HEXAGON_X_COORDS
+            these_y_coords = HEXAGON_Y_COORDS
+        else:
+            these_x_coords = SQUARE_X_COORDS
+            these_y_coords = SQUARE_Y_COORDS
+
+        polygon_objects_xy[i] = polygons.vertex_arrays_to_polygon_object(
+            exterior_x_coords=centroid_x_coords[i] + these_x_coords / 2,
+            exterior_y_coords=centroid_y_coords[i] + these_y_coords / 2
+        )
+
+    storm_object_table = pandas.DataFrame.from_dict({
+        tracking_utils.PRIMARY_ID_COLUMN: primary_id_strings,
+        tracking_utils.SECONDARY_ID_COLUMN: secondary_id_strings,
+        tracking_utils.VALID_TIME_COLUMN: valid_times_unix_sec,
+        tracking_utils.CENTROID_X_COLUMN: centroid_x_coords,
+        tracking_utils.CENTROID_Y_COLUMN: centroid_y_coords,
+        tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN:
+            first_prev_sec_id_strings,
+        tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN:
+            second_prev_sec_id_strings,
+        tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN:
+            first_next_sec_id_strings,
+        tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN:
+            second_next_sec_id_strings,
+        POLYGON_COLUMN: polygon_objects_xy
     })
 
-    first_polygon_object = polygons.vertex_arrays_to_polygon_object(
-        exterior_x_coords=17 + TRIANGLE_X_COORDS_RELATIVE,
-        exterior_y_coords=8 + TRIANGLE_Y_COORDS_RELATIVE)
-
-    second_polygon_object = polygons.vertex_arrays_to_polygon_object(
-        exterior_x_coords=16 + SQUARE_X_COORDS_RELATIVE,
-        exterior_y_coords=3 + SQUARE_Y_COORDS_RELATIVE)
-
-    late_storm_object_table = pandas.DataFrame.from_dict({
-        tracking_utils.CENTROID_X_COLUMN: numpy.array([17, 16], dtype=float),
-        tracking_utils.CENTROID_Y_COLUMN: numpy.array([8, 3], dtype=float),
-        POLYGON_COLUMN: [first_polygon_object, second_polygon_object]
+    tornado_table = pandas.DataFrame.from_dict({
+        TORNADO_TIME_COLUMN: numpy.array([12], dtype=int),
+        TORNADO_X_COLUMN: numpy.array([9.]),
+        TORNADO_Y_COLUMN: numpy.array([3.])
     })
 
-    return early_storm_object_table, late_storm_object_table
+    return storm_object_table, tornado_table
 
 
 def _get_track1_for_simple_pred():
@@ -138,7 +215,7 @@ def _get_track1_for_simple_pred():
     secondary_id_strings = ['X', 'Y', 'X', 'Y', 'X', 'Y', 'Z', 'Z', 'Z', 'Z']
 
     valid_times_unix_sec = numpy.array(
-        [0, 0, 1, 1, 2, 2, 3, 4, 5, 6], dtype=int
+        [5, 5, 10, 10, 15, 15, 20, 25, 30, 35], dtype=int
     )
     centroid_x_coords = numpy.array(
         [2, 2, 7, 7, 12, 12, 17, 22, 27, 32], dtype=float
@@ -190,7 +267,8 @@ def _get_track2_for_simple_pred():
     ]
 
     valid_times_unix_sec = numpy.array(
-        [0, 1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9], dtype=int
+        [5, 10, 15, 20, 20, 25, 25, 30, 30, 35, 35, 40, 40, 45, 45, 50, 50],
+        dtype=int
     )
     centroid_x_coords = numpy.array(
         [2, 6, 10, 14, 14, 18, 18, 22, 22, 26, 26, 30, 30, 34, 34, 38, 38],
@@ -254,10 +332,10 @@ def _get_track_for_simple_succ():
         'E', 'E', 'E', 'F', 'G', 'F', 'G'
     ]
 
-    valid_times_unix_sec = numpy.array(
-        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 8, 9, 10, 10, 11, 11],
-        dtype=int
-    )
+    valid_times_unix_sec = numpy.array([
+        5, 5, 10, 10, 15, 15, 20, 20, 25, 25, 30, 30, 35, 35, 40, 45, 50, 55,
+        55, 60, 60
+    ], dtype=int)
     centroid_x_coords = numpy.array([
         5, 5, 10, 10, 15, 15, 20, 20, 25, 25, 30, 30, 35, 35, 40, 45, 50, 55,
         55, 60, 60
@@ -319,162 +397,160 @@ def _get_track_for_simple_succ():
     })
 
 
-def _plot_interp_two_times(early_storm_object_table, late_storm_object_table,
-                           plot_legend):
+def _plot_interp_two_times(storm_object_table, tornado_table,
+                           legend_position_string):
     """Plots interpolation for one pair of times.
 
-    :param early_storm_object_table: See doc for `_get_interp_data_for_merger`.
-    :param late_storm_object_table: Same.
-    :param plot_legend: Boolean flag.
+    :param storm_object_table: See doc for `_get_interp_data_for_merger`.
+    :param tornado_table: Same.
+    :param legend_position_string: Legend position.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
     :return: axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    figure_object, axes_object = pyplot.subplots(
-        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    centroid_x_coords = storm_object_table[
+        tracking_utils.CENTROID_X_COLUMN].values
+    centroid_y_coords = storm_object_table[
+        tracking_utils.CENTROID_Y_COLUMN].values
+    secondary_id_strings = storm_object_table[
+        tracking_utils.SECONDARY_ID_COLUMN].values
+
+    storm_object_table = storm_object_table.assign(**{
+        tracking_utils.CENTROID_LONGITUDE_COLUMN: centroid_x_coords,
+        tracking_utils.CENTROID_LATITUDE_COLUMN: centroid_y_coords
+    })
+
+    figure_object, axes_object, basemap_object = (
+        plotting_utils.create_equidist_cylindrical_map(
+            min_latitude_deg=numpy.min(centroid_y_coords),
+            max_latitude_deg=numpy.max(centroid_y_coords),
+            min_longitude_deg=numpy.min(centroid_x_coords),
+            max_longitude_deg=numpy.max(centroid_x_coords)
+        )
     )
 
-    num_early_objects = len(early_storm_object_table.index)
-    num_late_objects = len(late_storm_object_table.index)
+    storm_plotting.plot_storm_tracks(
+        storm_object_table=storm_object_table, axes_object=axes_object,
+        basemap_object=basemap_object, colour_map_object=None,
+        line_colour=TRACK_COLOUR, line_width=TRACK_WIDTH,
+        start_marker_type=None, end_marker_type=None)
 
+    num_storm_objects = len(storm_object_table.index)
     legend_handles = []
     legend_strings = []
 
-    for i in range(num_early_objects):
+    for i in range(num_storm_objects):
         this_patch_object = PolygonPatch(
-            early_storm_object_table[POLYGON_COLUMN].values[i],
-            lw=0, ec=STORM_OBJECT_COLOUR, fc=STORM_OBJECT_COLOUR,
+            storm_object_table[POLYGON_COLUMN].values[i],
+            lw=0, ec=NON_INTERP_COLOUR, fc=NON_INTERP_COLOUR,
             alpha=POLYGON_OPACITY)
+
         axes_object.add_patch(this_patch_object)
 
-        if i == 0:
-            legend_handles.append(this_patch_object)
-            legend_strings.append('Storm outline')
-
-        this_early_x_coord = early_storm_object_table[
-            tracking_utils.CENTROID_X_COLUMN].values[i]
-        this_early_y_coord = early_storm_object_table[
-            tracking_utils.CENTROID_Y_COLUMN].values[i]
-
-        axes_object.text(
-            this_early_x_coord, this_early_y_coord - 0.2, r'$t_1$',
-            color=INTERP_COLOUR, horizontalalignment='center',
-            verticalalignment='top')
-
-        for j in range(num_late_objects):
-            this_late_x_coord = late_storm_object_table[
-                tracking_utils.CENTROID_X_COLUMN].values[j]
-            this_late_y_coord = late_storm_object_table[
-                tracking_utils.CENTROID_Y_COLUMN].values[j]
-
-            if i == 0:
-                this_patch_object = PolygonPatch(
-                    late_storm_object_table[POLYGON_COLUMN].values[j],
-                    lw=0, ec=STORM_OBJECT_COLOUR, fc=STORM_OBJECT_COLOUR,
-                    alpha=POLYGON_OPACITY)
-                axes_object.add_patch(this_patch_object)
-
-                axes_object.text(
-                    this_late_x_coord, this_late_y_coord - 0.2, r'$t_2$',
-                    color=INTERP_COLOUR, horizontalalignment='center',
-                    verticalalignment='top')
-
-            this_handle = axes_object.plot(
-                [this_early_x_coord, this_late_x_coord],
-                [this_early_y_coord, this_late_y_coord],
-                color=TRACK_COLOUR, linestyle='-', linewidth=TRACK_WIDTH
-            )[0]
-
-            if i == 0 and j == 0:
-                legend_handles.append(this_handle)
-                legend_strings.append('Storm track')
-
     this_handle = axes_object.plot(
-        early_storm_object_table[tracking_utils.CENTROID_X_COLUMN].values,
-        early_storm_object_table[tracking_utils.CENTROID_Y_COLUMN].values,
+        storm_object_table[tracking_utils.CENTROID_X_COLUMN].values,
+        storm_object_table[tracking_utils.CENTROID_Y_COLUMN].values,
         linestyle='None', marker=DEFAULT_MARKER_TYPE,
-        markersize=DEFAULT_MARKER_SIZE, markerfacecolor=STORM_OBJECT_COLOUR,
-        markeredgecolor=STORM_OBJECT_COLOUR,
-        markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
-    )[0]
-
-    legend_handles.insert(0, this_handle)
-    legend_strings.insert(0, 'Storm center')
-
-    axes_object.plot(
-        late_storm_object_table[tracking_utils.CENTROID_X_COLUMN].values,
-        late_storm_object_table[tracking_utils.CENTROID_Y_COLUMN].values,
-        linestyle='None', marker=DEFAULT_MARKER_TYPE,
-        markersize=DEFAULT_MARKER_SIZE, markerfacecolor=STORM_OBJECT_COLOUR,
-        markeredgecolor=STORM_OBJECT_COLOUR,
-        markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH)
-
-    if num_early_objects > 1:
-        original_x_coords = early_storm_object_table[
-            tracking_utils.CENTROID_X_COLUMN].values
-        original_y_coords = early_storm_object_table[
-            tracking_utils.CENTROID_Y_COLUMN].values
-
-        simple_x_coord = late_storm_object_table[
-            tracking_utils.CENTROID_X_COLUMN].values[0]
-        simple_y_coord = late_storm_object_table[
-            tracking_utils.CENTROID_Y_COLUMN].values[0]
-        interp_polygon_object_xy = late_storm_object_table[
-            POLYGON_COLUMN].values[0]
-    else:
-        simple_x_coord = early_storm_object_table[
-            tracking_utils.CENTROID_X_COLUMN].values[0]
-        simple_y_coord = early_storm_object_table[
-            tracking_utils.CENTROID_Y_COLUMN].values[0]
-        interp_polygon_object_xy = early_storm_object_table[
-            POLYGON_COLUMN].values[0]
-
-        original_x_coords = late_storm_object_table[
-            tracking_utils.CENTROID_X_COLUMN].values
-        original_y_coords = late_storm_object_table[
-            tracking_utils.CENTROID_Y_COLUMN].values
-
-    midpoint_x_coord = numpy.mean(original_x_coords)
-    midpoint_y_coord = numpy.mean(original_y_coords)
-
-    these_x_coords = numpy.array([
-        original_x_coords[0], midpoint_x_coord, original_x_coords[1]
-    ])
-    these_y_coords = numpy.array([
-        original_y_coords[0], midpoint_y_coord, original_y_coords[1]
-    ])
-
-    axes_object.plot(
-        these_x_coords, these_y_coords, color=MIDPOINT_COLOUR,
-        linestyle='--', linewidth=TRACK_WIDTH
-    )
-
-    this_handle = axes_object.plot(
-        midpoint_x_coord, midpoint_y_coord, linestyle='None',
-        marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
-        markerfacecolor=MIDPOINT_COLOUR, markeredgecolor=MIDPOINT_COLOUR,
+        markersize=DEFAULT_MARKER_SIZE, markerfacecolor=NON_INTERP_COLOUR,
+        markeredgecolor=NON_INTERP_COLOUR,
         markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append('Virtual storm center')
+    legend_strings.append('Actual storm')
 
-    interp_x_coord = 0.5 * (simple_x_coord + midpoint_x_coord)
-    interp_y_coord = 0.5 * (simple_y_coord + midpoint_y_coord)
+    for i in range(num_storm_objects):
+        axes_object.text(
+            centroid_x_coords[i], centroid_y_coords[i] - TEXT_OFFSET,
+            secondary_id_strings[i], color=TRACK_COLOUR,
+            fontsize=FONT_SIZE, fontweight='bold',
+            horizontalalignment='center', verticalalignment='top')
 
-    these_x_coords = numpy.array([
-        midpoint_x_coord, interp_x_coord, simple_x_coord
-    ])
-    these_y_coords = numpy.array([
-        midpoint_y_coord, interp_y_coord, simple_y_coord
-    ])
+    storm_times_minutes = storm_object_table[
+        tracking_utils.VALID_TIME_COLUMN].values
+    tornado_time_minutes = tornado_table[TORNADO_TIME_COLUMN].values[0]
 
-    axes_object.plot(
-        these_x_coords, these_y_coords, color=INTERP_COLOUR,
-        linestyle='--', linewidth=TRACK_WIDTH
+    previous_time_minutes = numpy.max(
+        storm_times_minutes[storm_times_minutes < tornado_time_minutes]
     )
+    next_time_minutes = numpy.min(
+        storm_times_minutes[storm_times_minutes > tornado_time_minutes]
+    )
+
+    previous_object_indices = numpy.where(
+        storm_times_minutes == previous_time_minutes
+    )[0]
+    next_object_indices = numpy.where(
+        storm_times_minutes == next_time_minutes
+    )[0]
+
+    previous_x_coord = numpy.mean(centroid_x_coords[previous_object_indices])
+    previous_y_coord = numpy.mean(centroid_y_coords[previous_object_indices])
+    next_x_coord = numpy.mean(centroid_x_coords[next_object_indices])
+    next_y_coord = numpy.mean(centroid_y_coords[next_object_indices])
+
+    if len(next_object_indices) == 1:
+        midpoint_x_coord = previous_x_coord
+        midpoint_y_coord = previous_y_coord
+        midpoint_label_string = (
+            'Midpoint of {0:s} and {1:s}\n(at {2:d} minutes)'
+        ).format(
+            secondary_id_strings[previous_object_indices[0]],
+            secondary_id_strings[previous_object_indices[1]],
+            storm_times_minutes[previous_object_indices[0]]
+        )
+    else:
+        midpoint_x_coord = next_x_coord
+        midpoint_y_coord = next_y_coord
+        midpoint_label_string = (
+            'Midpoint of {0:s} and {1:s}\n(at {2:d} minutes)'
+        ).format(
+            secondary_id_strings[next_object_indices[0]],
+            secondary_id_strings[next_object_indices[1]],
+            storm_times_minutes[next_object_indices[0]]
+        )
+
+    this_handle = axes_object.plot(
+        midpoint_x_coord, midpoint_y_coord, linestyle='None',
+        marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
+        markerfacecolor='white', markeredgecolor=MIDPOINT_COLOUR,
+        markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
+    )[0]
+
+    legend_handles.append(this_handle)
+    legend_strings.append(midpoint_label_string)
+
+    interp_x_coord = 0.5 * (previous_x_coord + next_x_coord)
+    interp_y_coord = 0.5 * (previous_y_coord + next_y_coord)
+
+    if len(next_object_indices) == 1:
+        x_offset = interp_x_coord - next_x_coord
+        y_offset = interp_y_coord - next_y_coord
+        interp_polygon_object_xy = storm_object_table[POLYGON_COLUMN].values[
+            next_object_indices[0]
+        ]
+    else:
+        x_offset = interp_x_coord - previous_x_coord
+        y_offset = interp_y_coord - previous_y_coord
+        interp_polygon_object_xy = storm_object_table[POLYGON_COLUMN].values[
+            previous_object_indices[0]
+        ]
+
+    interp_polygon_object_xy = polygons.vertex_arrays_to_polygon_object(
+        exterior_x_coords=(
+            x_offset + numpy.array(interp_polygon_object_xy.exterior.xy[0])
+        ),
+        exterior_y_coords=(
+            y_offset + numpy.array(interp_polygon_object_xy.exterior.xy[1])
+        )
+    )
+
+    this_patch_object = PolygonPatch(
+        interp_polygon_object_xy, lw=0, ec=INTERP_COLOUR, fc=INTERP_COLOUR,
+        alpha=POLYGON_OPACITY)
+    axes_object.add_patch(this_patch_object)
 
     this_handle = axes_object.plot(
         interp_x_coord, interp_y_coord, linestyle='None',
@@ -484,42 +560,46 @@ def _plot_interp_two_times(early_storm_object_table, late_storm_object_table,
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append('Interp storm center')
+    legend_strings.append('Interpolated storm')
 
-    interp_polygon_object_xy = polygons.vertex_arrays_to_polygon_object(
-        exterior_x_coords=(
-            interp_x_coord - simple_x_coord +
-            numpy.array(interp_polygon_object_xy.exterior.xy[0])
-        ),
-        exterior_y_coords=(
-            interp_y_coord - simple_y_coord +
-            numpy.array(interp_polygon_object_xy.exterior.xy[1])
-        ),
+    this_handle = axes_object.plot(
+        tornado_table[TORNADO_X_COLUMN].values[0],
+        tornado_table[TORNADO_Y_COLUMN].values[0], linestyle='None',
+        marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
+        markerfacecolor=INTERP_COLOUR, markeredgecolor=INTERP_COLOUR,
+        markeredgewidth=TORNADO_MARKER_EDGE_WIDTH
+    )[0]
+
+    legend_handles.append(this_handle)
+    legend_strings.append(
+        'Tornado\n(at {0:d} minutes)'.format(tornado_time_minutes)
     )
 
-    this_patch_object = PolygonPatch(
-        interp_polygon_object_xy, lw=0, ec=STORM_OBJECT_COLOUR,
-        fc=STORM_OBJECT_COLOUR, alpha=POLYGON_OPACITY)
-    axes_object.add_patch(this_patch_object)
+    x_tick_values, unique_indices = numpy.unique(
+        centroid_x_coords, return_index=True)
+    x_tick_labels = [
+        '{0:d}'.format(storm_times_minutes[i]) for i in unique_indices
+    ]
 
-    axes_object.xaxis.set_ticklabels([])
-    axes_object.yaxis.set_ticklabels([])
-    axes_object.xaxis.set_ticks_position('none')
-    axes_object.yaxis.set_ticks_position('none')
+    axes_object.set_xticks(x_tick_values)
+    axes_object.set_xticklabels(x_tick_labels)
+    axes_object.set_xlabel('Storm time (minutes)')
 
-    if plot_legend:
-        axes_object.legend(legend_handles, legend_strings, loc='upper right')
+    axes_object.set_yticks([], [])
+    axes_object.legend(
+        legend_handles, legend_strings, loc=legend_position_string)
 
     return figure_object, axes_object
 
 
-def _plot_attribution_one_track(storm_object_table, plot_legend):
+def _plot_attribution_one_track(storm_object_table, plot_legend, plot_x_ticks):
     """Plots tornado attribution for one storm track.
 
     :param storm_object_table: pandas DataFrame created by
         `_get_track1_for_simple_pred`, `_get_track2_for_simple_pred`, or
         `_get_track_for_simple_succ`.
     :param plot_legend: Boolean flag.
+    :param plot_x_ticks: Boolean flag.
     :return: figure_object: See doc for `_plot_interp_two_times`.
     :return: axes_object: Same.
     """
@@ -548,7 +628,7 @@ def _plot_attribution_one_track(storm_object_table, plot_legend):
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=None,
-        line_colour=INTERP_COLOUR, line_width=TRACK_WIDTH,
+        line_colour=TRACK_COLOUR, line_width=TRACK_WIDTH,
         start_marker_type=None, end_marker_type=None)
 
     tornadic_flags = storm_object_table[TORNADIC_FLAG_COLUMN].values
@@ -561,10 +641,11 @@ def _plot_attribution_one_track(storm_object_table, plot_legend):
         if main_tornadic_flags[i]:
             this_handle = axes_object.plot(
                 centroid_x_coords[i], centroid_y_coords[i], linestyle='None',
-                marker=TORNADIC_MARKER_TYPE, markersize=TORNADIC_MARKER_SIZE,
-                markerfacecolor=TORNADIC_COLOUR,
-                markeredgecolor=TORNADIC_COLOUR,
-                markeredgewidth=TORNADIC_MARKER_EDGE_WIDTH
+                marker=TORNADIC_STORM_MARKER_TYPE,
+                markersize=TORNADIC_STORM_MARKER_SIZE,
+                markerfacecolor=TORNADIC_STORM_COLOUR,
+                markeredgecolor=TORNADIC_STORM_COLOUR,
+                markeredgewidth=TORNADIC_STORM_MARKER_EDGE_WIDTH
             )[0]
 
             legend_handles[0] = this_handle
@@ -572,15 +653,15 @@ def _plot_attribution_one_track(storm_object_table, plot_legend):
 
             axes_object.text(
                 centroid_x_coords[i], centroid_y_coords[i] - TEXT_OFFSET,
-                secondary_id_strings[i], color=TORNADIC_COLOUR,
+                secondary_id_strings[i], color=TORNADIC_STORM_COLOUR,
                 fontsize=FONT_SIZE, fontweight='bold',
                 horizontalalignment='center', verticalalignment='top')
         else:
             if tornadic_flags[i]:
-                this_edge_colour = TORNADIC_COLOUR
-                this_face_colour = TORNADIC_COLOUR
+                this_edge_colour = TORNADIC_STORM_COLOUR
+                this_face_colour = TORNADIC_STORM_COLOUR
             else:
-                this_edge_colour = NON_TORNADIC_COLOUR
+                this_edge_colour = NON_TORNADIC_STORM_COLOUR
                 this_face_colour = 'white'
 
             this_handle = axes_object.plot(
@@ -605,11 +686,24 @@ def _plot_attribution_one_track(storm_object_table, plot_legend):
                 fontsize=FONT_SIZE, fontweight='bold',
                 horizontalalignment='center', verticalalignment='top')
 
-    axes_object.xaxis.set_ticklabels([])
-    axes_object.yaxis.set_ticklabels([])
-    axes_object.xaxis.set_ticks_position('none')
-    axes_object.yaxis.set_ticks_position('none')
-    axes_object.set_xlabel(r'Time $\longrightarrow$')
+    if plot_x_ticks:
+        storm_times_minutes = storm_object_table[
+            tracking_utils.VALID_TIME_COLUMN].values
+
+        x_tick_values, unique_indices = numpy.unique(
+            centroid_x_coords, return_index=True)
+        x_tick_labels = [
+            '{0:d}'.format(storm_times_minutes[i]) for i in unique_indices
+        ]
+
+        axes_object.set_xticks(x_tick_values)
+        axes_object.set_xticklabels(x_tick_labels)
+        axes_object.set_xlabel('Storm time (minutes)')
+    else:
+        axes_object.set_xticks([], [])
+        axes_object.set_xlabel(r'Time $\longrightarrow$')
+
+    axes_object.set_yticks([], [])
 
     if plot_legend:
         axes_object.legend(legend_handles, legend_strings, loc='lower right')
@@ -628,11 +722,12 @@ def _run():
 
     # Interpolation with merger.
     figure_object, axes_object = _plot_interp_two_times(
-        early_storm_object_table=_get_interp_data_for_merger()[0],
-        late_storm_object_table=_get_interp_data_for_merger()[1],
-        plot_legend=True
+        storm_object_table=_get_data_for_interp_with_merger()[0],
+        tornado_table=_get_data_for_interp_with_merger()[1],
+        legend_position_string='upper left'
     )
 
+    axes_object.set_title('Interpolation with merger')
     this_file_name = '{0:s}/interp_with_merger_standalone.jpg'.format(
         OUTPUT_DIR_NAME)
 
@@ -643,7 +738,6 @@ def _run():
     )
 
     plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
-    axes_object.set_title('Interpolation with merger')
     panel_file_names = ['{0:s}/interp_with_merger.jpg'.format(OUTPUT_DIR_NAME)]
 
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
@@ -655,11 +749,12 @@ def _run():
 
     # Interpolation with split.
     figure_object, axes_object = _plot_interp_two_times(
-        early_storm_object_table=_get_interp_data_for_split()[0],
-        late_storm_object_table=_get_interp_data_for_split()[1],
-        plot_legend=False
+        storm_object_table=_get_data_for_interp_with_split()[0],
+        tornado_table=_get_data_for_interp_with_split()[1],
+        legend_position_string='upper right'
     )
 
+    axes_object.set_title('Interpolation with split')
     this_file_name = '{0:s}/interp_with_split_standalone.jpg'.format(
         OUTPUT_DIR_NAME)
 
@@ -670,7 +765,6 @@ def _run():
     )
 
     plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
-    axes_object.set_title('Interpolation with split')
     panel_file_names.append(
         '{0:s}/interp_with_split.jpg'.format(OUTPUT_DIR_NAME)
     )
@@ -684,7 +778,8 @@ def _run():
 
     # Simple successors.
     figure_object, axes_object = _plot_attribution_one_track(
-        storm_object_table=_get_track_for_simple_succ(), plot_legend=True
+        storm_object_table=_get_track_for_simple_succ(),
+        plot_legend=True, plot_x_ticks=True
     )
 
     this_file_name = '{0:s}/simple_successors_standalone.jpg'.format(
@@ -711,7 +806,8 @@ def _run():
 
     # Simple predecessors, example 1.
     figure_object, axes_object = _plot_attribution_one_track(
-        storm_object_table=_get_track1_for_simple_pred(), plot_legend=False
+        storm_object_table=_get_track1_for_simple_pred(),
+        plot_legend=True, plot_x_ticks=False
     )
 
     axes_object.set_title('Simple predecessors, example 1')
@@ -739,7 +835,8 @@ def _run():
 
     # Simple predecessors, example 2.
     figure_object, axes_object = _plot_attribution_one_track(
-        storm_object_table=_get_track2_for_simple_pred(), plot_legend=False
+        storm_object_table=_get_track2_for_simple_pred(),
+        plot_legend=False, plot_x_ticks=False
     )
 
     axes_object.set_title('Simple predecessors, example 2')
