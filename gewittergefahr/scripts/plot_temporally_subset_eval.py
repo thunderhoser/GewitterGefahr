@@ -24,10 +24,12 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
-LINE_WIDTH = 3
 HISTOGRAM_EDGE_WIDTH = 1.5
-MARKER_TYPE = 'o'
-MARKER_SIZE = 14
+MARKER_SIZE = 16
+AUC_MARKER_TYPE = 'o'
+POD_MARKER_TYPE = 's'
+FAR_MARKER_TYPE = 's'
+CSI_MARKER_TYPE = 'o'
 
 AUC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 POD_COLOUR = AUC_COLOUR
@@ -37,11 +39,6 @@ CSI_COLOUR = FAR_COLOUR
 HISTOGRAM_FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
 HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
-
-AUC_LINE_STYLE = 'solid'
-POD_LINE_STYLE = 'dashed'
-FAR_LINE_STYLE = 'dashed'
-CSI_LINE_STYLE = 'solid'
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -124,57 +121,41 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
         numpy.invert(numpy.isnan(auc_by_chunk))
     )[0]
 
-    main_axes_object.plot(
-        x_values[real_indices], auc_by_chunk[real_indices], linestyle='None',
-        marker=MARKER_TYPE, markersize=MARKER_SIZE,
-        markerfacecolor=AUC_COLOUR, markeredgecolor=AUC_COLOUR,
-        markeredgewidth=0)
-
     this_handle = main_axes_object.plot(
-        x_values[real_indices], auc_by_chunk[real_indices], color=AUC_COLOUR,
-        linestyle=AUC_LINE_STYLE, linewidth=LINE_WIDTH
+        x_values[real_indices], auc_by_chunk[real_indices], linestyle='None',
+        marker=AUC_MARKER_TYPE, markersize=MARKER_SIZE,
+        markerfacecolor=AUC_COLOUR, markeredgecolor=AUC_COLOUR,
+        markeredgewidth=0
     )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('AUC')
 
-    main_axes_object.plot(
-        x_values[real_indices], pod_by_chunk[real_indices], linestyle='None',
-        marker=MARKER_TYPE, markersize=MARKER_SIZE,
-        markerfacecolor=POD_COLOUR, markeredgecolor=POD_COLOUR,
-        markeredgewidth=0)
-
     this_handle = main_axes_object.plot(
-        x_values[real_indices], pod_by_chunk[real_indices], color=POD_COLOUR,
-        linestyle=POD_LINE_STYLE, linewidth=LINE_WIDTH
+        x_values[real_indices], pod_by_chunk[real_indices], linestyle='None',
+        marker=POD_MARKER_TYPE, markersize=MARKER_SIZE,
+        markerfacecolor=POD_COLOUR, markeredgecolor=POD_COLOUR,
+        markeredgewidth=0
     )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('POD')
 
-    main_axes_object.plot(
-        x_values[real_indices], far_by_chunk[real_indices], linestyle='None',
-        marker=MARKER_TYPE, markersize=MARKER_SIZE,
-        markerfacecolor=FAR_COLOUR, markeredgecolor=FAR_COLOUR,
-        markeredgewidth=0)
-
     this_handle = main_axes_object.plot(
-        x_values[real_indices], far_by_chunk[real_indices], color=FAR_COLOUR,
-        linestyle=FAR_LINE_STYLE, linewidth=LINE_WIDTH
+        x_values[real_indices], far_by_chunk[real_indices], linestyle='None',
+        marker=FAR_MARKER_TYPE, markersize=MARKER_SIZE,
+        markerfacecolor=FAR_COLOUR, markeredgecolor=FAR_COLOUR,
+        markeredgewidth=0
     )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('FAR')
 
-    main_axes_object.plot(
-        x_values[real_indices], csi_by_chunk[real_indices], linestyle='None',
-        marker=MARKER_TYPE, markersize=MARKER_SIZE,
-        markerfacecolor=CSI_COLOUR, markeredgecolor=CSI_COLOUR,
-        markeredgewidth=0)
-
     this_handle = main_axes_object.plot(
-        x_values[real_indices], csi_by_chunk[real_indices], color=CSI_COLOUR,
-        linestyle=CSI_LINE_STYLE, linewidth=LINE_WIDTH
+        x_values[real_indices], csi_by_chunk[real_indices], linestyle='None',
+        marker=CSI_MARKER_TYPE, markersize=MARKER_SIZE,
+        markerfacecolor=CSI_COLOUR, markeredgecolor=CSI_COLOUR,
+        markeredgewidth=0
     )[0]
 
     legend_handles.append(this_handle)
@@ -187,6 +168,9 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     )
 
     main_axes_object.set_ylabel('Score')
+    main_axes_object.set_xlim([
+        numpy.min(x_values) - 0.5, numpy.max(x_values) + 0.5
+    ])
 
     y_values = numpy.maximum(numpy.log10(num_examples_by_chunk), 0.)
     histogram_axes_object.bar(
