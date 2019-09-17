@@ -290,7 +290,7 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
         output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight'
     )
-    figure_object.close()
+    pyplot.close(figure_object)
 
 
 def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
@@ -385,7 +385,7 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
         output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight'
     )
-    figure_object.close()
+    pyplot.close(figure_object)
 
 
 def _run(top_evaluation_dir_name, num_months_per_chunk, num_hours_per_chunk,
