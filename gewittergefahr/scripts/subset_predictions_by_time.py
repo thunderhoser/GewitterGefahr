@@ -24,6 +24,7 @@ INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by '
     '`prediction_io.read_ungridded_predictions`.')
 
+# TODO(thunderhoser): Don't need these arguments anymore.
 NUM_MONTHS_HELP_STRING = (
     'Number of months in each chunk.  Must be in the following list.\n{0:s}'
 ).format(str(VALID_MONTH_COUNTS))

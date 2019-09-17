@@ -8,6 +8,7 @@ from gewittergefahr.scripts import model_evaluation_helper as model_eval_helper
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 PREDICTION_FILE_ARG_NAME = 'input_prediction_file_name'
+THRESHOLD_ARG_NAME = 'binarization_threshold'
 NUM_BOOTSTRAP_ARG_NAME = 'num_bootstrap_reps'
 CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 CLASS_FRACTION_KEYS_ARG_NAME = 'class_fraction_keys'
@@ -17,6 +18,11 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 PREDICTION_FILE_HELP_STRING = (
     'Path to input file, containing CNN predictions.  Will be read by '
     '`prediction_io.read_ungridded_predictions`.')
+
+THRESHOLD_HELP_STRING = (
+    'Binarization threshold (used to turn probabilities into deterministic '
+    'predictions).  If you make this negative, will use threshold that yields '
+    'the best CSI.')
 
 NUM_BOOTSTRAP_HELP_STRING = (
     'Number of bootstrap replicates.  If you do not want bootstrapping, leave '
@@ -48,6 +54,10 @@ INPUT_ARG_PARSER.add_argument(
     help=PREDICTION_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + THRESHOLD_ARG_NAME, type=float, required=False, default=-1.,
+    help=THRESHOLD_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + NUM_BOOTSTRAP_ARG_NAME, type=int, required=False, default=1,
     help=NUM_BOOTSTRAP_HELP_STRING)
 
@@ -68,13 +78,15 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _run(prediction_file_name, num_bootstrap_reps, confidence_level,
-         class_fraction_keys, class_fraction_values, output_dir_name):
+def _run(prediction_file_name, binarization_threshold, num_bootstrap_reps,
+         confidence_level, class_fraction_keys, class_fraction_values,
+         output_dir_name):
     """Evaluates CNN predictions.
 
     This is effectively the main method.
 
     :param prediction_file_name: Same.
+    :param binarization_threshold: Same.
     :param num_bootstrap_reps: Same.
     :param confidence_level: Same.
     :param class_fraction_keys: Same.
@@ -82,6 +94,9 @@ def _run(prediction_file_name, num_bootstrap_reps, confidence_level,
     :param output_dir_name: Same.
     :raises: ValueError: if file contains multi-class predictions.
     """
+
+    if binarization_threshold < 0:
+        binarization_threshold = None
 
     print('Reading data from: "{0:s}"...'.format(prediction_file_name))
     prediction_dict = prediction_io.read_ungridded_predictions(
@@ -111,6 +126,7 @@ def _run(prediction_file_name, num_bootstrap_reps, confidence_level,
     model_eval_helper.run_evaluation(
         forecast_probabilities=forecast_probabilities,
         observed_labels=observed_labels, downsampling_dict=downsampling_dict,
+        best_prob_threshold=binarization_threshold,
         num_bootstrap_reps=num_bootstrap_reps,
         confidence_level=confidence_level, output_dir_name=output_dir_name)
 
@@ -121,6 +137,7 @@ if __name__ == '__main__':
     _run(
         prediction_file_name=getattr(
             INPUT_ARG_OBJECT, PREDICTION_FILE_ARG_NAME),
+        binarization_threshold=getattr(INPUT_ARG_OBJECT, THRESHOLD_ARG_NAME),
         num_bootstrap_reps=getattr(INPUT_ARG_OBJECT, NUM_BOOTSTRAP_ARG_NAME),
         confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         class_fraction_keys=numpy.array(

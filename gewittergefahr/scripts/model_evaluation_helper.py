@@ -298,7 +298,8 @@ def _plot_attributes_diagram(
 
 def run_evaluation(
         forecast_probabilities, observed_labels, num_bootstrap_reps,
-        output_dir_name, downsampling_dict=None, confidence_level=None):
+        output_dir_name, best_prob_threshold=None, downsampling_dict=None,
+        confidence_level=None):
     """Evaluates forecast-observation pairs from any forecasting method.
 
     Specifically, this method does the following:
@@ -316,15 +317,15 @@ def run_evaluation(
     :param num_bootstrap_reps: Number of bootstrap replicates.  This may be 1,
         in which case no bootstrapping will be done.
     :param output_dir_name: Name of output directory.
+    :param best_prob_threshold: Best probability threshold (used to turn
+        probabilities into deterministic predictions).  If None, will use
+        threshold that yields the best CSI.
     :param downsampling_dict: Dictionary used to downsample classes.  See doc
         for `deep_learning_utils.sample_by_class`.  If this is None, there will
         be no downsampling.
     :param confidence_level: [used only if `num_bootstrap_reps > 1`]
         Confidence level for bootstrapping.
     """
-
-    # TODO(thunderhoser): Make binarization threshold an input argument to this
-    # method.
 
     error_checking.assert_is_integer(num_bootstrap_reps)
     num_bootstrap_reps = max([num_bootstrap_reps, 1])
@@ -370,15 +371,30 @@ def run_evaluation(
         forecast_probabilities=forecast_probabilities[these_indices],
         unique_forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS)
 
-    best_prob_threshold, best_csi = model_eval.find_best_binarization_threshold(
-        forecast_probabilities=forecast_probabilities[these_indices],
-        observed_labels=observed_labels[these_indices],
-        threshold_arg=all_prob_thresholds,
-        criterion_function=model_eval.get_csi,
-        optimization_direction=model_eval.MAX_OPTIMIZATION_STRING)
+    if best_prob_threshold is None:
+        best_prob_threshold, best_csi = (
+            model_eval.find_best_binarization_threshold(
+                forecast_probabilities=forecast_probabilities[these_indices],
+                observed_labels=observed_labels[these_indices],
+                threshold_arg=all_prob_thresholds,
+                criterion_function=model_eval.get_csi,
+                optimization_direction=model_eval.MAX_OPTIMIZATION_STRING)
+        )
+    else:
+        these_forecast_labels = model_eval.binarize_forecast_probs(
+            forecast_probabilities=forecast_probabilities[these_indices],
+            binarization_threshold=best_prob_threshold)
+
+        this_contingency_dict = model_eval.get_contingency_table(
+            forecast_labels=these_forecast_labels,
+            observed_labels=observed_labels[these_indices]
+        )
+
+        best_csi = model_eval.get_csi(this_contingency_dict)
 
     print((
-        'Best probability threshold = {0:.4f} ... corresponding CSI = {1:.4f}'
+        'Best probability threshold = {0:.4f} ... corresponding CSI = '
+        '{1:.4f}'
     ).format(
         best_prob_threshold, best_csi
     ))
