@@ -10,6 +10,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
+from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.scripts import subset_predictions_by_time as subsetting
@@ -296,8 +297,6 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
     num_chunks = len(chunk_to_months_dict.keys())
 
     num_bootstrap_reps = None
-    min_percentile = 50. * (1 - CONFIDENCE_LEVEL)
-    max_percentile = 50. * (1 + CONFIDENCE_LEVEL)
 
     auc_matrix = numpy.full((num_chunks, 3), numpy.nan)
     pod_matrix = numpy.full((num_chunks, 3), numpy.nan)
@@ -346,18 +345,27 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
         )
         these_csi = this_evaluation_table[model_eval.CSI_KEY].values
 
-        auc_matrix[i, 0] = numpy.percentile(these_auc, min_percentile)
-        auc_matrix[i, 1] = numpy.mean(these_auc)
-        auc_matrix[i, 2] = numpy.percentile(these_auc, max_percentile)
-        pod_matrix[i, 0] = numpy.percentile(these_pod, min_percentile)
-        pod_matrix[i, 1] = numpy.mean(these_pod)
-        pod_matrix[i, 2] = numpy.percentile(these_pod, max_percentile)
-        far_matrix[i, 0] = numpy.percentile(these_far, min_percentile)
-        far_matrix[i, 1] = numpy.mean(these_far)
-        far_matrix[i, 2] = numpy.percentile(these_far, max_percentile)
-        csi_matrix[i, 0] = numpy.percentile(these_csi, min_percentile)
-        csi_matrix[i, 1] = numpy.mean(these_csi)
-        csi_matrix[i, 2] = numpy.percentile(these_csi, max_percentile)
+        auc_matrix[i, 1] = numpy.nanmean(these_auc)
+        pod_matrix[i, 1] = numpy.nanmean(these_pod)
+        far_matrix[i, 1] = numpy.nanmean(these_far)
+        csi_matrix[i, 1] = numpy.nanmean(these_csi)
+
+        auc_matrix[i, 0], auc_matrix[i, 2] = (
+            bootstrapping.get_confidence_interval(
+                stat_values=these_auc, confidence_level=CONFIDENCE_LEVEL)
+        )
+        pod_matrix[i, 0], pod_matrix[i, 2] = (
+            bootstrapping.get_confidence_interval(
+                stat_values=these_pod, confidence_level=CONFIDENCE_LEVEL)
+        )
+        far_matrix[i, 0], far_matrix[i, 2] = (
+            bootstrapping.get_confidence_interval(
+                stat_values=these_far, confidence_level=CONFIDENCE_LEVEL)
+        )
+        csi_matrix[i, 0], csi_matrix[i, 2] = (
+            bootstrapping.get_confidence_interval(
+                stat_values=these_csi, confidence_level=CONFIDENCE_LEVEL)
+        )
 
     figure_object, axes_object = _plot_scores(
         auc_matrix=auc_matrix, pod_matrix=pod_matrix, far_matrix=far_matrix,
@@ -406,8 +414,6 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
     num_chunks = len(chunk_to_hours_dict.keys())
 
     num_bootstrap_reps = None
-    min_percentile = 50. * (1 - CONFIDENCE_LEVEL)
-    max_percentile = 50. * (1 + CONFIDENCE_LEVEL)
 
     auc_matrix = numpy.full((num_chunks, 3), numpy.nan)
     pod_matrix = numpy.full((num_chunks, 3), numpy.nan)
@@ -455,18 +461,27 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
         )
         these_csi = this_evaluation_table[model_eval.CSI_KEY].values
 
-        auc_matrix[i, 0] = numpy.percentile(these_auc, min_percentile)
-        auc_matrix[i, 1] = numpy.mean(these_auc)
-        auc_matrix[i, 2] = numpy.percentile(these_auc, max_percentile)
-        pod_matrix[i, 0] = numpy.percentile(these_pod, min_percentile)
-        pod_matrix[i, 1] = numpy.mean(these_pod)
-        pod_matrix[i, 2] = numpy.percentile(these_pod, max_percentile)
-        far_matrix[i, 0] = numpy.percentile(these_far, min_percentile)
-        far_matrix[i, 1] = numpy.mean(these_far)
-        far_matrix[i, 2] = numpy.percentile(these_far, max_percentile)
-        csi_matrix[i, 0] = numpy.percentile(these_csi, min_percentile)
-        csi_matrix[i, 1] = numpy.mean(these_csi)
-        csi_matrix[i, 2] = numpy.percentile(these_csi, max_percentile)
+        auc_matrix[i, 1] = numpy.nanmean(these_auc)
+        pod_matrix[i, 1] = numpy.nanmean(these_pod)
+        far_matrix[i, 1] = numpy.nanmean(these_far)
+        csi_matrix[i, 1] = numpy.nanmean(these_csi)
+
+        auc_matrix[i, 0], auc_matrix[i, 2] = (
+            bootstrapping.get_confidence_interval(
+                stat_values=these_auc, confidence_level=CONFIDENCE_LEVEL)
+        )
+        pod_matrix[i, 0], pod_matrix[i, 2] = (
+            bootstrapping.get_confidence_interval(
+                stat_values=these_pod, confidence_level=CONFIDENCE_LEVEL)
+        )
+        far_matrix[i, 0], far_matrix[i, 2] = (
+            bootstrapping.get_confidence_interval(
+                stat_values=these_far, confidence_level=CONFIDENCE_LEVEL)
+        )
+        csi_matrix[i, 0], csi_matrix[i, 2] = (
+            bootstrapping.get_confidence_interval(
+                stat_values=these_csi, confidence_level=CONFIDENCE_LEVEL)
+        )
 
     figure_object, axes_object = _plot_scores(
         auc_matrix=auc_matrix, pod_matrix=pod_matrix, far_matrix=far_matrix,

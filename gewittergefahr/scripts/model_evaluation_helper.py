@@ -93,11 +93,11 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
                 stat_values=pofd_matrix[:, j], confidence_level=confidence_level
             )
 
-            ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][j] = numpy.mean(
+            ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][j] = numpy.nanmean(
                 pod_matrix[:, j]
             )
 
-            ci_mean_dict[model_eval.POFD_BY_THRESHOLD_KEY][j] = numpy.mean(
+            ci_mean_dict[model_eval.POFD_BY_THRESHOLD_KEY][j] = numpy.nanmean(
                 pofd_matrix[:, j]
             )
 
@@ -179,11 +179,11 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
                 confidence_level=confidence_level
             )
 
-            ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][j] = numpy.mean(
+            ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][j] = numpy.nanmean(
                 pod_matrix[:, j]
             )
 
-            ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY][j] = numpy.mean(
+            ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY][j] = numpy.nanmean(
                 success_ratio_matrix[:, j]
             )
 
@@ -270,11 +270,11 @@ def _plot_attributes_diagram(
                 confidence_level=confidence_level
             )
 
-            ci_mean_dict[model_eval.EVENT_FREQ_BY_BIN_KEY][j] = numpy.mean(
+            ci_mean_dict[model_eval.EVENT_FREQ_BY_BIN_KEY][j] = numpy.nanmean(
                 mean_forecast_prob_matrix[:, j]
             )
 
-            ci_mean_dict[model_eval.EVENT_FREQ_BY_BIN_KEY][j] = numpy.mean(
+            ci_mean_dict[model_eval.EVENT_FREQ_BY_BIN_KEY][j] = numpy.nanmean(
                 event_frequency_matrix[:, j]
             )
 

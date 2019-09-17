@@ -870,13 +870,6 @@ def plot_bootstrapped_attributes_diagram(
     :param histogram_bar_edge_width: Same.
     """
 
-    print(num_examples_by_bin)
-    print('\n\n***************\n\n')
-    print(ci_mean_dict[model_eval.EVENT_FREQ_BY_BIN_KEY])
-    print('\n\n***************\n\n')
-    print(ci_mean_dict[model_eval.MEAN_FORECAST_BY_BIN_KEY])
-    print('\n\n***************\n\n')
-
     plot_attributes_diagram(
         figure_object=figure_object, axes_object=axes_object,
         mean_forecast_by_bin=ci_mean_dict[model_eval.MEAN_FORECAST_BY_BIN_KEY],
