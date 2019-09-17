@@ -187,14 +187,13 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     main_axes_object.set_ylabel('Score')
 
     num_chunks = len(auc_by_chunk)
-    chunk_indices = numpy.linspace(
-        0, num_chunks - 1, num=num_chunks, dtype=float)
+    x_values = numpy.linspace(0, num_chunks - 1, num=num_chunks, dtype=float)
+    y_values = numpy.maximum(numpy.log10(num_examples_by_chunk), 0.)
 
     histogram_axes_object.bar(
-        x=chunk_indices, height=numpy.log10(num_examples_by_chunk), width=1.,
+        x=x_values, height=y_values, width=1.,
         color=HISTOGRAM_FACE_COLOUR, edgecolor=HISTOGRAM_EDGE_COLOUR,
-        linewidth=HISTOGRAM_EDGE_WIDTH
-    )
+        linewidth=HISTOGRAM_EDGE_WIDTH)
 
     histogram_axes_object.set_ylabel(r'Number of examples (log$_{10}$)')
 
