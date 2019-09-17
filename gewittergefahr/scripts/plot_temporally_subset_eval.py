@@ -29,19 +29,23 @@ HISTOGRAM_EDGE_WIDTH = 1.5
 MARKER_TYPE = 'o'
 MARKER_SIZE = 14
 
-AUC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
-POD_COLOUR = AUC_COLOUR
-FAR_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
-CSI_COLOUR = FAR_COLOUR
+# AUC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
+# POD_COLOUR = AUC_COLOUR
+# FAR_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+# CSI_COLOUR = FAR_COLOUR
+#
+# HISTOGRAM_FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
+# HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
+# HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
 
-HISTOGRAM_FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
+AUC_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
+POD_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
+FAR_COLOUR = numpy.array([178, 223, 138], dtype=float) / 255
+CSI_COLOUR = numpy.array([51, 160, 44], dtype=float) / 255
+
+HISTOGRAM_FACE_COLOUR = numpy.full(3, 152. / 255)
 HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
-
-AUC_LINE_STYLE = 'solid'
-POD_LINE_STYLE = 'dashed'
-FAR_LINE_STYLE = 'dashed'
-CSI_LINE_STYLE = 'solid'
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -132,7 +136,7 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
 
     this_handle = main_axes_object.plot(
         x_values[real_indices], auc_by_chunk[real_indices], color=AUC_COLOUR,
-        linestyle=AUC_LINE_STYLE, linewidth=LINE_WIDTH
+        linewidth=LINE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
@@ -146,7 +150,7 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
 
     this_handle = main_axes_object.plot(
         x_values[real_indices], pod_by_chunk[real_indices], color=POD_COLOUR,
-        linestyle=POD_LINE_STYLE, linewidth=LINE_WIDTH
+        linewidth=LINE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
@@ -160,7 +164,7 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
 
     this_handle = main_axes_object.plot(
         x_values[real_indices], far_by_chunk[real_indices], color=FAR_COLOUR,
-        linestyle=FAR_LINE_STYLE, linewidth=LINE_WIDTH
+        linewidth=LINE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
@@ -174,7 +178,7 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
 
     this_handle = main_axes_object.plot(
         x_values[real_indices], csi_by_chunk[real_indices], color=CSI_COLOUR,
-        linestyle=CSI_LINE_STYLE, linewidth=LINE_WIDTH
+        linewidth=LINE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
