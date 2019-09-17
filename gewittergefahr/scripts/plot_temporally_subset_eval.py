@@ -140,10 +140,10 @@ def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
     else:
         marker_size = MARKER_SIZE_WITH_BOOTSTRAP
 
-    print('Mean AUC values = {0:s}'.format(str(auc_matrix[real_indices, 1])))
-    print('Mean POD values = {0:s}'.format(str(pod_matrix[real_indices, 1])))
-    print('Mean FAR values = {0:s}'.format(str(far_matrix[real_indices, 1])))
-    print('Mean CSI values = {0:s}'.format(str(csi_matrix[real_indices, 1])))
+    print('AUC values = {0:s}'.format(str(auc_matrix)))
+    print('POD values = {0:s}'.format(str(pod_matrix)))
+    print('FAR values = {0:s}'.format(str(far_matrix)))
+    print('CSI values = {0:s}'.format(str(csi_matrix)))
 
     main_axes_object.plot(
         x_values[real_indices], auc_matrix[real_indices, 1], linestyle='None',
