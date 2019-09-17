@@ -8,7 +8,7 @@ import warnings
 import argparse
 import numpy
 import matplotlib
-# matplotlib.use('agg')
+matplotlib.use('agg')
 import matplotlib.colors
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import model_evaluation as model_eval
