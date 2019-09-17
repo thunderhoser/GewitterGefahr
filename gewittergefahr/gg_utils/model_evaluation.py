@@ -1300,9 +1300,9 @@ def write_binary_classifn_results(
     :param observed_labels: Same.
     :param best_prob_threshold: Same.
     :param all_prob_thresholds: Same.
-    :param evaluation_table: See doc for
-        `model_evaluation.eval_binary_classifn`.  The only difference is that
-        this table may have multiple rows (one per bootstrap replicate).
+    :param evaluation_table: See doc for `eval_binary_classifn`.  The only
+        difference is that this table may have multiple rows (one per bootstrap
+        replicate).
     """
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
