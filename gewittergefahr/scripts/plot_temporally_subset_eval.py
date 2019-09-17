@@ -43,8 +43,7 @@ POD_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
 FAR_COLOUR = numpy.array([178, 223, 138], dtype=float) / 255
 CSI_COLOUR = numpy.array([51, 160, 44], dtype=float) / 255
 
-HISTOGRAM_FACE_COLOUR = numpy.full(3, 152. / 255)
-HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
+HISTOGRAM_FACE_COLOUR = numpy.full(3, 1.)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
 
 FIGURE_WIDTH_INCHES = 15
