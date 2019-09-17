@@ -118,61 +118,63 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     main_axes_object.set_zorder(histogram_axes_object.get_zorder() + 1)
     main_axes_object.patch.set_visible(False)
 
+    num_chunks = len(auc_by_chunk)
+    x_values = numpy.linspace(0, num_chunks - 1, num=num_chunks, dtype=float)
     real_indices = numpy.where(
         numpy.invert(numpy.isnan(auc_by_chunk))
     )[0]
 
     main_axes_object.plot(
-        auc_by_chunk[real_indices], linestyle='None',
+        x_values[real_indices], auc_by_chunk[real_indices], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=AUC_COLOUR, markeredgecolor=AUC_COLOUR,
         markeredgewidth=0)
 
     this_handle = main_axes_object.plot(
-        auc_by_chunk[real_indices], color=AUC_COLOUR, linestyle=AUC_LINE_STYLE,
-        linewidth=LINE_WIDTH
+        x_values[real_indices], auc_by_chunk[real_indices], color=AUC_COLOUR,
+        linestyle=AUC_LINE_STYLE, linewidth=LINE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('AUC')
 
     main_axes_object.plot(
-        pod_by_chunk[real_indices], linestyle='None',
+        x_values[real_indices], pod_by_chunk[real_indices], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=POD_COLOUR, markeredgecolor=POD_COLOUR,
         markeredgewidth=0)
 
     this_handle = main_axes_object.plot(
-        pod_by_chunk[real_indices], color=POD_COLOUR, linestyle=POD_LINE_STYLE,
-        linewidth=LINE_WIDTH
+        x_values[real_indices], pod_by_chunk[real_indices], color=POD_COLOUR,
+        linestyle=POD_LINE_STYLE, linewidth=LINE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('POD')
 
     main_axes_object.plot(
-        far_by_chunk[real_indices], linestyle='None',
+        x_values[real_indices], far_by_chunk[real_indices], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=FAR_COLOUR, markeredgecolor=FAR_COLOUR,
         markeredgewidth=0)
 
     this_handle = main_axes_object.plot(
-        far_by_chunk[real_indices], color=FAR_COLOUR, linestyle=FAR_LINE_STYLE,
-        linewidth=LINE_WIDTH
+        x_values[real_indices], far_by_chunk[real_indices], color=FAR_COLOUR,
+        linestyle=FAR_LINE_STYLE, linewidth=LINE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('FAR')
 
     main_axes_object.plot(
-        csi_by_chunk[real_indices], linestyle='None',
+        x_values[real_indices], csi_by_chunk[real_indices], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=CSI_COLOUR, markeredgecolor=CSI_COLOUR,
         markeredgewidth=0)
 
     this_handle = main_axes_object.plot(
-        csi_by_chunk[real_indices], color=CSI_COLOUR, linestyle=CSI_LINE_STYLE,
-        linewidth=LINE_WIDTH
+        x_values[real_indices], csi_by_chunk[real_indices], color=CSI_COLOUR,
+        linestyle=CSI_LINE_STYLE, linewidth=LINE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
@@ -186,10 +188,7 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
 
     main_axes_object.set_ylabel('Score')
 
-    num_chunks = len(auc_by_chunk)
-    x_values = numpy.linspace(0, num_chunks - 1, num=num_chunks, dtype=float)
     y_values = numpy.maximum(numpy.log10(num_examples_by_chunk), 0.)
-
     histogram_axes_object.bar(
         x=x_values, height=y_values, width=1.,
         color=HISTOGRAM_FACE_COLOUR, edgecolor=HISTOGRAM_EDGE_COLOUR,
