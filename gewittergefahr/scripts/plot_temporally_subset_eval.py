@@ -15,6 +15,8 @@ from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.scripts import subset_predictions_by_time as subsetting
 
+CONFIDENCE_LEVEL = 0.95
+
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
@@ -92,17 +94,19 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
-                 num_examples_by_chunk):
+def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
+                 num_examples_by_chunk, num_bootstrap_reps):
     """Plots scores for either monthly or hourly chunks.
 
     N = number of chunks
 
-    :param auc_by_chunk: length-N numpy array of AUC values.
-    :param pod_by_chunk: length-N numpy array of POD values.
-    :param far_by_chunk: length-N numpy array of FAR values.
-    :param csi_by_chunk: length-N numpy array of CSI values.
+    :param auc_matrix: N-by-3 numpy array of AUC values.  The [i]th row contains
+        [min, mean, max] for the [i]th chunk.
+    :param pod_matrix: Same but for POD.
+    :param far_matrix: Same but for FAR.
+    :param csi_matrix: Same but for CSI.
     :param num_examples_by_chunk: length-N numpy array of example counts.
+    :param num_bootstrap_reps: Number of bootstrap replicates.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
     :return: main_axes_object: Handle for main axes (instance of
@@ -121,34 +125,49 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     main_axes_object.set_zorder(histogram_axes_object.get_zorder() + 1)
     main_axes_object.patch.set_visible(False)
 
-    num_chunks = len(auc_by_chunk)
+    num_chunks = auc_matrix.shape[0]
     x_values = numpy.linspace(0, num_chunks - 1, num=num_chunks, dtype=float)
     real_indices = numpy.where(
-        numpy.invert(numpy.isnan(auc_by_chunk))
+        numpy.invert(numpy.isnan(auc_matrix[:, 0]))
     )[0]
-
-    main_axes_object.plot(
-        x_values[real_indices], auc_by_chunk[real_indices], linestyle='None',
-        marker=MARKER_TYPE, markersize=MARKER_SIZE,
-        markerfacecolor=AUC_COLOUR, markeredgecolor=AUC_COLOUR,
-        markeredgewidth=0)
 
     this_handle = main_axes_object.plot(
-        x_values[real_indices], auc_by_chunk[real_indices], color=AUC_COLOUR,
-        linewidth=LINE_WIDTH
+        x_values[real_indices], auc_matrix[real_indices, 1],
+        color=AUC_COLOUR, linewidth=LINE_WIDTH
     )[0]
+
+    if num_bootstrap_reps == 1:
+        main_axes_object.plot(
+            x_values[real_indices], auc_matrix[real_indices, 1],
+            linestyle='None', marker=MARKER_TYPE, markersize=MARKER_SIZE,
+            markerfacecolor=AUC_COLOUR, markeredgecolor=AUC_COLOUR,
+            markeredgewidth=0)
+    else:
+        negative_errors = (
+            auc_matrix[real_indices, 1] - auc_matrix[real_indices, 0]
+        )
+        positive_errors = (
+            auc_matrix[real_indices, 2] - auc_matrix[real_indices, 1]
+        )
+        error_matrix = numpy.vstack((negative_errors, positive_errors))
+
+        main_axes_object.errorbar(
+            x_values[real_indices], auc_matrix[real_indices, 1],
+            yerr=error_matrix, linestyle='None', marker=MARKER_TYPE,
+            markersize=MARKER_SIZE, markerfacecolor=AUC_COLOUR,
+            markeredgecolor=AUC_COLOUR, markeredgewidth=0)
 
     legend_handles.append(this_handle)
     legend_strings.append('AUC')
 
     main_axes_object.plot(
-        x_values[real_indices], pod_by_chunk[real_indices], linestyle='None',
+        x_values[real_indices], pod_matrix[real_indices, 1], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=POD_COLOUR, markeredgecolor=POD_COLOUR,
         markeredgewidth=0)
 
     this_handle = main_axes_object.plot(
-        x_values[real_indices], pod_by_chunk[real_indices], color=POD_COLOUR,
+        x_values[real_indices], pod_matrix[real_indices, 1], color=POD_COLOUR,
         linewidth=LINE_WIDTH
     )[0]
 
@@ -156,13 +175,13 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     legend_strings.append('POD')
 
     main_axes_object.plot(
-        x_values[real_indices], far_by_chunk[real_indices], linestyle='None',
+        x_values[real_indices], far_matrix[real_indices, 1], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=FAR_COLOUR, markeredgecolor=FAR_COLOUR,
         markeredgewidth=0)
 
     this_handle = main_axes_object.plot(
-        x_values[real_indices], far_by_chunk[real_indices], color=FAR_COLOUR,
+        x_values[real_indices], far_matrix[real_indices, 1], color=FAR_COLOUR,
         linewidth=LINE_WIDTH
     )[0]
 
@@ -170,13 +189,13 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     legend_strings.append('FAR')
 
     main_axes_object.plot(
-        x_values[real_indices], csi_by_chunk[real_indices], linestyle='None',
+        x_values[real_indices], csi_matrix[real_indices, 1], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=CSI_COLOUR, markeredgecolor=CSI_COLOUR,
         markeredgewidth=0)
 
     this_handle = main_axes_object.plot(
-        x_values[real_indices], csi_by_chunk[real_indices], color=CSI_COLOUR,
+        x_values[real_indices], csi_matrix[real_indices, 1], color=CSI_COLOUR,
         linewidth=LINE_WIDTH
     )[0]
 
@@ -218,10 +237,14 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
         num_months_per_chunk)
     num_chunks = len(chunk_to_months_dict.keys())
 
-    auc_by_chunk = numpy.full(num_chunks, numpy.nan)
-    pod_by_chunk = numpy.full(num_chunks, numpy.nan)
-    far_by_chunk = numpy.full(num_chunks, numpy.nan)
-    csi_by_chunk = numpy.full(num_chunks, numpy.nan)
+    num_bootstrap_reps = None
+    min_percentile = 50. * (1 - CONFIDENCE_LEVEL)
+    max_percentile = 50. * (1 + CONFIDENCE_LEVEL)
+
+    auc_matrix = numpy.full((num_chunks, 3), numpy.nan)
+    pod_matrix = numpy.full((num_chunks, 3), numpy.nan)
+    far_matrix = numpy.full((num_chunks, 3), numpy.nan)
+    csi_matrix = numpy.full((num_chunks, 3), numpy.nan)
     num_examples_by_chunk = numpy.full(num_chunks, 0, dtype=int)
 
     for i in range(num_chunks):
@@ -251,24 +274,36 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
 
         this_evaluation_table = this_evaluation_dict[
             model_eval.EVALUATION_TABLE_KEY]
+        this_num_bootstrap_reps = len(this_evaluation_table.index)
 
-        auc_by_chunk[i] = numpy.mean(
-            this_evaluation_table[model_eval.AUC_KEY].values
+        if num_bootstrap_reps is None:
+            num_bootstrap_reps = this_num_bootstrap_reps
+        assert num_bootstrap_reps == this_num_bootstrap_reps
+
+        these_auc = this_evaluation_table[model_eval.AUC_KEY].values
+        these_pod = this_evaluation_table[model_eval.POD_KEY].values
+        these_far = (
+            1. - this_evaluation_table[model_eval.SUCCESS_RATIO_KEY].values
         )
-        pod_by_chunk[i] = numpy.mean(
-            this_evaluation_table[model_eval.POD_KEY].values
-        )
-        far_by_chunk[i] = 1. - numpy.mean(
-            this_evaluation_table[model_eval.SUCCESS_RATIO_KEY].values
-        )
-        csi_by_chunk[i] = numpy.mean(
-            this_evaluation_table[model_eval.CSI_KEY]
-        )
+        these_csi = this_evaluation_table[model_eval.CSI_KEY].values
+
+        auc_matrix[i, 0] = numpy.percentile(these_auc, min_percentile)
+        auc_matrix[i, 1] = numpy.mean(these_auc)
+        auc_matrix[i, 2] = numpy.percentile(these_auc, max_percentile)
+        pod_matrix[i, 0] = numpy.percentile(these_pod, min_percentile)
+        pod_matrix[i, 1] = numpy.mean(these_pod)
+        pod_matrix[i, 2] = numpy.percentile(these_pod, max_percentile)
+        far_matrix[i, 0] = numpy.percentile(these_far, min_percentile)
+        far_matrix[i, 1] = numpy.mean(these_far)
+        far_matrix[i, 2] = numpy.percentile(these_far, max_percentile)
+        csi_matrix[i, 0] = numpy.percentile(these_csi, min_percentile)
+        csi_matrix[i, 1] = numpy.mean(these_csi)
+        csi_matrix[i, 2] = numpy.percentile(these_csi, max_percentile)
 
     figure_object, axes_object = _plot_scores(
-        auc_by_chunk=auc_by_chunk, pod_by_chunk=pod_by_chunk,
-        far_by_chunk=far_by_chunk, csi_by_chunk=csi_by_chunk,
-        num_examples_by_chunk=num_examples_by_chunk
+        auc_matrix=auc_matrix, pod_matrix=pod_matrix, far_matrix=far_matrix,
+        csi_matrix=csi_matrix, num_examples_by_chunk=num_examples_by_chunk,
+        num_bootstrap_reps=num_bootstrap_reps
     )[:-1]
 
     # TODO(thunderhoser): This code is hacky.
@@ -311,10 +346,14 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
         num_hours_per_chunk)
     num_chunks = len(chunk_to_hours_dict.keys())
 
-    auc_by_chunk = numpy.full(num_chunks, numpy.nan)
-    pod_by_chunk = numpy.full(num_chunks, numpy.nan)
-    far_by_chunk = numpy.full(num_chunks, numpy.nan)
-    csi_by_chunk = numpy.full(num_chunks, numpy.nan)
+    num_bootstrap_reps = None
+    min_percentile = 50. * (1 - CONFIDENCE_LEVEL)
+    max_percentile = 50. * (1 + CONFIDENCE_LEVEL)
+
+    auc_matrix = numpy.full((num_chunks, 3), numpy.nan)
+    pod_matrix = numpy.full((num_chunks, 3), numpy.nan)
+    far_matrix = numpy.full((num_chunks, 3), numpy.nan)
+    csi_matrix = numpy.full((num_chunks, 3), numpy.nan)
     num_examples_by_chunk = numpy.full(num_chunks, 0, dtype=int)
 
     for i in range(num_chunks):
@@ -344,24 +383,36 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
 
         this_evaluation_table = this_evaluation_dict[
             model_eval.EVALUATION_TABLE_KEY]
+        this_num_bootstrap_reps = len(this_evaluation_table.index)
 
-        auc_by_chunk[i] = numpy.mean(
-            this_evaluation_table[model_eval.AUC_KEY].values
+        if num_bootstrap_reps is None:
+            num_bootstrap_reps = this_num_bootstrap_reps
+        assert num_bootstrap_reps == this_num_bootstrap_reps
+
+        these_auc = this_evaluation_table[model_eval.AUC_KEY].values
+        these_pod = this_evaluation_table[model_eval.POD_KEY].values
+        these_far = (
+            1. - this_evaluation_table[model_eval.SUCCESS_RATIO_KEY].values
         )
-        pod_by_chunk[i] = numpy.mean(
-            this_evaluation_table[model_eval.POD_KEY].values
-        )
-        far_by_chunk[i] = 1. - numpy.mean(
-            this_evaluation_table[model_eval.SUCCESS_RATIO_KEY].values
-        )
-        csi_by_chunk[i] = numpy.mean(
-            this_evaluation_table[model_eval.CSI_KEY]
-        )
+        these_csi = this_evaluation_table[model_eval.CSI_KEY].values
+
+        auc_matrix[i, 0] = numpy.percentile(these_auc, min_percentile)
+        auc_matrix[i, 1] = numpy.mean(these_auc)
+        auc_matrix[i, 2] = numpy.percentile(these_auc, max_percentile)
+        pod_matrix[i, 0] = numpy.percentile(these_pod, min_percentile)
+        pod_matrix[i, 1] = numpy.mean(these_pod)
+        pod_matrix[i, 2] = numpy.percentile(these_pod, max_percentile)
+        far_matrix[i, 0] = numpy.percentile(these_far, min_percentile)
+        far_matrix[i, 1] = numpy.mean(these_far)
+        far_matrix[i, 2] = numpy.percentile(these_far, max_percentile)
+        csi_matrix[i, 0] = numpy.percentile(these_csi, min_percentile)
+        csi_matrix[i, 1] = numpy.mean(these_csi)
+        csi_matrix[i, 2] = numpy.percentile(these_csi, max_percentile)
 
     figure_object, axes_object = _plot_scores(
-        auc_by_chunk=auc_by_chunk, pod_by_chunk=pod_by_chunk,
-        far_by_chunk=far_by_chunk, csi_by_chunk=csi_by_chunk,
-        num_examples_by_chunk=num_examples_by_chunk
+        auc_matrix=auc_matrix, pod_matrix=pod_matrix, far_matrix=far_matrix,
+        csi_matrix=csi_matrix, num_examples_by_chunk=num_examples_by_chunk,
+        num_bootstrap_reps=num_bootstrap_reps
     )[:-1]
 
     x_tick_labels = [None] * num_chunks
