@@ -9,6 +9,7 @@ import argparse
 import numpy
 import matplotlib
 # matplotlib.use('agg')
+import matplotlib.colors
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
@@ -30,16 +31,18 @@ INSET_AXES_BOTTOM_EDGE = 0.225
 INSET_AXES_WIDTH = 0.25
 INSET_AXES_HEIGHT = 0.25
 
-LINE_WIDTH = 4
-HISTOGRAM_EDGE_WIDTH = 2
+LINE_WIDTH = 3
+HISTOGRAM_EDGE_WIDTH = 1.5
 MARKER_TYPE = 'o'
-MARKER_SIZE = 16
+MARKER_SIZE = 14
 
 AUC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 POD_COLOUR = AUC_COLOUR
 FAR_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 CSI_COLOUR = FAR_COLOUR
+
 HISTOGRAM_FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
+HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
 
 AUC_LINE_STYLE = 'solid'
@@ -106,29 +109,33 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     :param num_examples_by_chunk: length-N numpy array of example counts.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
-    :return: axes_object: Handle for main axes (instance of
+    :return: main_axes_object: Handle for main axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    :return: inset_axes_object: Handle for inset axes with histogram.
+    :return: histogram_axes_object: Handle for histogram axes.
     """
 
     legend_handles = []
     legend_strings = []
 
-    figure_object, axes_object = pyplot.subplots(
+    figure_object, main_axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
+
+    histogram_axes_object = main_axes_object.twinx()
+    main_axes_object.set_zorder(histogram_axes_object.get_zorder() + 1)
+    main_axes_object.patch.set_visible(False)
 
     real_indices = numpy.where(
         numpy.invert(numpy.isnan(auc_by_chunk))
     )[0]
 
-    axes_object.plot(
+    main_axes_object.plot(
         auc_by_chunk[real_indices], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=AUC_COLOUR, markeredgecolor=AUC_COLOUR,
         markeredgewidth=0)
 
-    this_handle = axes_object.plot(
+    this_handle = main_axes_object.plot(
         auc_by_chunk[real_indices], color=AUC_COLOUR, linestyle=AUC_LINE_STYLE,
         linewidth=LINE_WIDTH
     )[0]
@@ -136,13 +143,13 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     legend_handles.append(this_handle)
     legend_strings.append('AUC')
 
-    axes_object.plot(
+    main_axes_object.plot(
         pod_by_chunk[real_indices], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=POD_COLOUR, markeredgecolor=POD_COLOUR,
         markeredgewidth=0)
 
-    this_handle = axes_object.plot(
+    this_handle = main_axes_object.plot(
         pod_by_chunk[real_indices], color=POD_COLOUR, linestyle=POD_LINE_STYLE,
         linewidth=LINE_WIDTH
     )[0]
@@ -150,13 +157,13 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     legend_handles.append(this_handle)
     legend_strings.append('POD')
 
-    axes_object.plot(
+    main_axes_object.plot(
         far_by_chunk[real_indices], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=FAR_COLOUR, markeredgecolor=FAR_COLOUR,
         markeredgewidth=0)
 
-    this_handle = axes_object.plot(
+    this_handle = main_axes_object.plot(
         far_by_chunk[real_indices], color=FAR_COLOUR, linestyle=FAR_LINE_STYLE,
         linewidth=LINE_WIDTH
     )[0]
@@ -164,13 +171,13 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     legend_handles.append(this_handle)
     legend_strings.append('FAR')
 
-    axes_object.plot(
+    main_axes_object.plot(
         csi_by_chunk[real_indices], linestyle='None',
         marker=MARKER_TYPE, markersize=MARKER_SIZE,
         markerfacecolor=CSI_COLOUR, markeredgecolor=CSI_COLOUR,
         markeredgewidth=0)
 
-    this_handle = axes_object.plot(
+    this_handle = main_axes_object.plot(
         csi_by_chunk[real_indices], color=CSI_COLOUR, linestyle=CSI_LINE_STYLE,
         linewidth=LINE_WIDTH
     )[0]
@@ -178,47 +185,27 @@ def _plot_scores(auc_by_chunk, pod_by_chunk, far_by_chunk, csi_by_chunk,
     legend_handles.append(this_handle)
     legend_strings.append('CSI')
 
-    axes_object.legend(
+    main_axes_object.legend(
         legend_handles, legend_strings, loc='lower center',
         bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
         ncol=len(legend_handles)
     )
 
-    inset_axes_object = figure_object.add_axes([
-        INSET_AXES_LEFT_EDGE, INSET_AXES_BOTTOM_EDGE,
-        INSET_AXES_WIDTH, INSET_AXES_HEIGHT
-    ])
+    main_axes_object.set_ylabel('Score')
 
     num_chunks = len(auc_by_chunk)
     chunk_indices = numpy.linspace(
         0, num_chunks - 1, num=num_chunks, dtype=float)
 
-    inset_axes_object.bar(
+    histogram_axes_object.bar(
         x=chunk_indices, height=numpy.log10(num_examples_by_chunk), width=1.,
         color=HISTOGRAM_FACE_COLOUR, edgecolor=HISTOGRAM_EDGE_COLOUR,
         linewidth=HISTOGRAM_EDGE_WIDTH
     )
 
-    inset_axes_object.set_ylabel(r'log$_{10}$ number of examples')
+    histogram_axes_object.set_ylabel(r'Number of examples (log$_{10}$)')
 
-    y_tick_values = inset_axes_object.get_yticks()
-    y_tick_values = numpy.linspace(
-        numpy.min(y_tick_values), numpy.max(y_tick_values),
-        num=numpy.max(y_tick_values) - numpy.min(y_tick_values) + 1
-    )
-    inset_axes_object.set_yticks(y_tick_values)
-
-    inset_axes_children = [
-        inset_axes_object.title, inset_axes_object.xaxis.label,
-        inset_axes_object.yaxis.label
-    ]
-    inset_axes_children += inset_axes_object.get_xticklabels()
-    inset_axes_children += inset_axes_object.get_yticklabels()
-
-    for this_child in inset_axes_children:
-        this_child.set_fontsize(INSET_FONT_SIZE)
-
-    return figure_object, axes_object, inset_axes_object
+    return figure_object, main_axes_object, histogram_axes_object
 
 
 def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
@@ -281,10 +268,11 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
             this_evaluation_table[model_eval.CSI_KEY]
         )
 
-    figure_object, axes_object, inset_axes_object = _plot_scores(
+    figure_object, axes_object = _plot_scores(
         auc_by_chunk=auc_by_chunk, pod_by_chunk=pod_by_chunk,
         far_by_chunk=far_by_chunk, csi_by_chunk=csi_by_chunk,
-        num_examples_by_chunk=num_examples_by_chunk)
+        num_examples_by_chunk=num_examples_by_chunk
+    )[:-1]
 
     # TODO(thunderhoser): This code is hacky.
     if num_months_per_chunk == 1:
@@ -301,9 +289,7 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
         0, num_chunks - 1, num=num_chunks, dtype=float)
 
     axes_object.set_xticks(x_tick_values)
-    axes_object.set_xticklabels(x_tick_labels)
-    inset_axes_object.set_xticks(x_tick_values)
-    inset_axes_object.set_xticklabels(x_tick_labels, rotation=90.)
+    axes_object.set_xticklabels(x_tick_labels, rotation=90.)
 
     output_file_name = '{0:s}/scores_by_month.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -375,12 +361,12 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
             this_evaluation_table[model_eval.CSI_KEY]
         )
 
-    figure_object, axes_object, inset_axes_object = _plot_scores(
+    figure_object, axes_object = _plot_scores(
         auc_by_chunk=auc_by_chunk, pod_by_chunk=pod_by_chunk,
         far_by_chunk=far_by_chunk, csi_by_chunk=csi_by_chunk,
-        num_examples_by_chunk=num_examples_by_chunk)
+        num_examples_by_chunk=num_examples_by_chunk
+    )[:-1]
 
-    # TODO(thunderhoser): This code is hacky.
     x_tick_labels = [None] * num_chunks
 
     for i in range(num_chunks):
@@ -399,9 +385,6 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
     axes_object.set_xlabel('Hour')
-
-    inset_axes_object.set_xticks(x_tick_values)
-    inset_axes_object.set_xticklabels(x_tick_labels, rotation=90.)
 
     output_file_name = '{0:s}/scores_by_hour.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -437,7 +420,7 @@ def _run(top_evaluation_dir_name, num_months_per_chunk, num_hours_per_chunk,
     if num_hours_per_chunk > 0:
         _plot_by_hour(
             top_evaluation_dir_name=top_evaluation_dir_name,
-            num_months_per_chunk=num_hours_per_chunk,
+            num_hours_per_chunk=num_hours_per_chunk,
             output_dir_name=output_dir_name)
 
 
