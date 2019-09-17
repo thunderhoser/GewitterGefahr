@@ -131,136 +131,104 @@ def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
 
     num_chunks = auc_matrix.shape[0]
     x_values = numpy.linspace(0, num_chunks - 1, num=num_chunks, dtype=float)
-    real_indices = numpy.where(
-        numpy.invert(numpy.isnan(auc_matrix[:, 0]))
-    )[0]
 
     if num_bootstrap_reps == 1:
         marker_size = MARKER_SIZE_SANS_BOOTSTRAP
     else:
         marker_size = MARKER_SIZE_WITH_BOOTSTRAP
 
-    print('AUC values = {0:s}'.format(str(auc_matrix)))
-    print('POD values = {0:s}'.format(str(pod_matrix)))
-    print('FAR values = {0:s}'.format(str(far_matrix)))
-    print('CSI values = {0:s}'.format(str(csi_matrix)))
+    # print('AUC values = {0:s}'.format(str(auc_matrix)))
+    # print('POD values = {0:s}'.format(str(pod_matrix)))
+    # print('FAR values = {0:s}'.format(str(far_matrix)))
+    # print('CSI values = {0:s}'.format(str(csi_matrix)))
 
     main_axes_object.plot(
-        x_values[real_indices], auc_matrix[real_indices, 1], linestyle='None',
-        marker=MARKER_TYPE, markersize=marker_size,
-        markerfacecolor=AUC_COLOUR, markeredgecolor=AUC_COLOUR,
-        markeredgewidth=0)
+        x_values, auc_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
+        markersize=marker_size, markerfacecolor=AUC_COLOUR,
+        markeredgecolor=AUC_COLOUR, markeredgewidth=0)
 
     if num_bootstrap_reps == 1:
         this_handle = main_axes_object.plot(
-            x_values[real_indices], auc_matrix[real_indices, 1],
-            color=AUC_COLOUR, linewidth=LINE_WIDTH
+            x_values, auc_matrix[:, 1], color=AUC_COLOUR, linewidth=LINE_WIDTH
         )[0]
     else:
-        negative_errors = (
-            auc_matrix[real_indices, 1] - auc_matrix[real_indices, 0]
-        )
-        positive_errors = (
-            auc_matrix[real_indices, 2] - auc_matrix[real_indices, 1]
-        )
+        negative_errors = auc_matrix[:, 1] - auc_matrix[:, 0]
+        positive_errors = auc_matrix[:, 2] - auc_matrix[:, 1]
         error_matrix = numpy.vstack((negative_errors, positive_errors))
 
         this_handle = main_axes_object.errorbar(
-            x_values[real_indices], auc_matrix[real_indices, 1],
-            yerr=error_matrix, color=AUC_COLOUR, linewidth=LINE_WIDTH,
-            elinewidth=ERROR_BAR_WIDTH, capsize=ERROR_CAP_LENGTH,
-            capthick=ERROR_BAR_WIDTH
+            x_values, auc_matrix[:, 1], yerr=error_matrix, color=AUC_COLOUR,
+            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
+            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
         )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('AUC')
 
     main_axes_object.plot(
-        x_values[real_indices], pod_matrix[real_indices, 1], linestyle='None',
-        marker=MARKER_TYPE, markersize=marker_size,
-        markerfacecolor=POD_COLOUR, markeredgecolor=POD_COLOUR,
-        markeredgewidth=0)
+        x_values, pod_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
+        markersize=marker_size, markerfacecolor=POD_COLOUR,
+        markeredgecolor=POD_COLOUR, markeredgewidth=0)
 
     if num_bootstrap_reps == 1:
         this_handle = main_axes_object.plot(
-            x_values[real_indices], pod_matrix[real_indices, 1],
-            color=POD_COLOUR, linewidth=LINE_WIDTH
+            x_values, pod_matrix[:, 1], color=POD_COLOUR, linewidth=LINE_WIDTH
         )[0]
     else:
-        negative_errors = (
-            pod_matrix[real_indices, 1] - pod_matrix[real_indices, 0]
-        )
-        positive_errors = (
-            pod_matrix[real_indices, 2] - pod_matrix[real_indices, 1]
-        )
+        negative_errors = pod_matrix[:, 1] - pod_matrix[:, 0]
+        positive_errors = pod_matrix[:, 2] - pod_matrix[:, 1]
         error_matrix = numpy.vstack((negative_errors, positive_errors))
 
         this_handle = main_axes_object.errorbar(
-            x_values[real_indices], pod_matrix[real_indices, 1],
-            yerr=error_matrix, color=POD_COLOUR, linewidth=LINE_WIDTH,
-            elinewidth=ERROR_BAR_WIDTH, capsize=ERROR_CAP_LENGTH,
-            capthick=ERROR_BAR_WIDTH
+            x_values, pod_matrix[:, 1], yerr=error_matrix, color=POD_COLOUR,
+            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
+            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
         )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('POD')
 
     main_axes_object.plot(
-        x_values[real_indices], far_matrix[real_indices, 1], linestyle='None',
-        marker=MARKER_TYPE, markersize=marker_size,
-        markerfacecolor=FAR_COLOUR, markeredgecolor=FAR_COLOUR,
-        markeredgewidth=0)
+        x_values, far_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
+        markersize=marker_size, markerfacecolor=FAR_COLOUR,
+        markeredgecolor=FAR_COLOUR, markeredgewidth=0)
 
     if num_bootstrap_reps == 1:
         this_handle = main_axes_object.plot(
-            x_values[real_indices], far_matrix[real_indices, 1],
-            color=FAR_COLOUR,
-            linewidth=LINE_WIDTH
+            x_values, far_matrix[:, 1], color=FAR_COLOUR, linewidth=LINE_WIDTH
         )[0]
     else:
-        negative_errors = (
-            far_matrix[real_indices, 1] - far_matrix[real_indices, 0]
-        )
-        positive_errors = (
-            far_matrix[real_indices, 2] - far_matrix[real_indices, 1]
-        )
+        negative_errors = far_matrix[:, 1] - far_matrix[:, 0]
+        positive_errors = far_matrix[:, 2] - far_matrix[:, 1]
         error_matrix = numpy.vstack((negative_errors, positive_errors))
 
         this_handle = main_axes_object.errorbar(
-            x_values[real_indices], far_matrix[real_indices, 1],
-            yerr=error_matrix, color=FAR_COLOUR, linewidth=LINE_WIDTH,
-            elinewidth=ERROR_BAR_WIDTH, capsize=ERROR_CAP_LENGTH,
-            capthick=ERROR_BAR_WIDTH
+            x_values, far_matrix[:, 1], yerr=error_matrix, color=FAR_COLOUR,
+            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
+            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
         )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('FAR')
 
     main_axes_object.plot(
-        x_values[real_indices], csi_matrix[real_indices, 1], linestyle='None',
-        marker=MARKER_TYPE, markersize=marker_size,
-        markerfacecolor=CSI_COLOUR, markeredgecolor=CSI_COLOUR,
-        markeredgewidth=0)
+        x_values, csi_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
+        markersize=marker_size, markerfacecolor=CSI_COLOUR,
+        markeredgecolor=CSI_COLOUR, markeredgewidth=0)
 
     if num_bootstrap_reps == 1:
         this_handle = main_axes_object.plot(
-            x_values[real_indices], csi_matrix[real_indices, 1],
-            color=CSI_COLOUR, linewidth=LINE_WIDTH
+            x_values, csi_matrix[:, 1], color=CSI_COLOUR, linewidth=LINE_WIDTH
         )[0]
     else:
-        negative_errors = (
-            csi_matrix[real_indices, 1] - csi_matrix[real_indices, 0]
-        )
-        positive_errors = (
-            csi_matrix[real_indices, 2] - csi_matrix[real_indices, 1]
-        )
+        negative_errors = csi_matrix[:, 1] - csi_matrix[:, 0]
+        positive_errors = csi_matrix[:, 2] - csi_matrix[:, 1]
         error_matrix = numpy.vstack((negative_errors, positive_errors))
 
         this_handle = main_axes_object.errorbar(
-            x_values[real_indices], csi_matrix[real_indices, 1],
-            yerr=error_matrix, color=CSI_COLOUR, linewidth=LINE_WIDTH,
-            elinewidth=ERROR_BAR_WIDTH, capsize=ERROR_CAP_LENGTH,
-            capthick=ERROR_BAR_WIDTH
+            x_values, csi_matrix[:, 1], yerr=error_matrix, color=CSI_COLOUR,
+            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
+            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
         )[0]
 
     legend_handles.append(this_handle)
@@ -279,9 +247,8 @@ def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
 
     y_values = numpy.maximum(numpy.log10(num_examples_by_chunk), 0.)
     histogram_axes_object.bar(
-        x=x_values, height=y_values, width=1.,
-        color=HISTOGRAM_FACE_COLOUR, edgecolor=HISTOGRAM_EDGE_COLOUR,
-        linewidth=HISTOGRAM_EDGE_WIDTH)
+        x=x_values, height=y_values, width=1., color=HISTOGRAM_FACE_COLOUR,
+        edgecolor=HISTOGRAM_EDGE_COLOUR, linewidth=HISTOGRAM_EDGE_WIDTH)
 
     histogram_axes_object.set_ylabel(r'Number of examples (log$_{10}$)')
 
