@@ -278,6 +278,7 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
 
         if num_bootstrap_reps is None:
             num_bootstrap_reps = this_num_bootstrap_reps
+        print(this_num_bootstrap_reps)
         assert num_bootstrap_reps == this_num_bootstrap_reps
 
         these_auc = this_evaluation_table[model_eval.AUC_KEY].values
