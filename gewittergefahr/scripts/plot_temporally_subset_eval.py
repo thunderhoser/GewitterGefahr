@@ -15,21 +15,14 @@ from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.scripts import subset_predictions_by_time as subsetting
 
-DEFAULT_FONT_SIZE = 30
-INSET_FONT_SIZE = 15
-
-pyplot.rc('font', size=DEFAULT_FONT_SIZE)
-pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
-pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
-pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
-pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
-pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
-pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
-
-INSET_AXES_LEFT_EDGE = 0.625
-INSET_AXES_BOTTOM_EDGE = 0.225
-INSET_AXES_WIDTH = 0.25
-INSET_AXES_HEIGHT = 0.25
+FONT_SIZE = 30
+pyplot.rc('font', size=FONT_SIZE)
+pyplot.rc('axes', titlesize=FONT_SIZE)
+pyplot.rc('axes', labelsize=FONT_SIZE)
+pyplot.rc('xtick', labelsize=FONT_SIZE)
+pyplot.rc('ytick', labelsize=FONT_SIZE)
+pyplot.rc('legend', fontsize=FONT_SIZE)
+pyplot.rc('figure', titlesize=FONT_SIZE)
 
 LINE_WIDTH = 3
 HISTOGRAM_EDGE_WIDTH = 1.5
