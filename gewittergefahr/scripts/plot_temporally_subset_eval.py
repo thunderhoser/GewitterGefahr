@@ -140,6 +140,11 @@ def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
     else:
         marker_size = MARKER_SIZE_WITH_BOOTSTRAP
 
+    print('Mean AUC values = {0:s}'.format(str(auc_matrix[real_indices, 1])))
+    print('Mean POD values = {0:s}'.format(str(pod_matrix[real_indices, 1])))
+    print('Mean FAR values = {0:s}'.format(str(far_matrix[real_indices, 1])))
+    print('Mean CSI values = {0:s}'.format(str(csi_matrix[real_indices, 1])))
+
     main_axes_object.plot(
         x_values[real_indices], auc_matrix[real_indices, 1], linestyle='None',
         marker=MARKER_TYPE, markersize=marker_size,
@@ -335,7 +340,6 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
 
         if num_bootstrap_reps is None:
             num_bootstrap_reps = this_num_bootstrap_reps
-        print(this_num_bootstrap_reps)
         assert num_bootstrap_reps == this_num_bootstrap_reps
 
         these_auc = this_evaluation_table[model_eval.AUC_KEY].values
