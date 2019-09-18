@@ -23,7 +23,8 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
-# TODO(thunderhoser): Some terminology in this module is a bit weird.
+# TODO(thunderhoser): Some of the terminology in this file is too verbose, and
+# some of the methods have way too many input args.
 
 DEFAULT_ROC_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 DEFAULT_ROC_WIDTH = 3.
@@ -155,12 +156,24 @@ def _confidence_interval_to_polygon(
     """
 
     nan_flags_top = numpy.logical_or(
-        numpy.isnan(x_coords_top), numpy.isnan(y_coords_top))
-    real_indices_top = numpy.where(numpy.invert(nan_flags_top))[0]
+        numpy.isnan(x_coords_top), numpy.isnan(y_coords_top)
+    )
+    if numpy.all(nan_flags_top):
+        return None
 
     nan_flags_bottom = numpy.logical_or(
-        numpy.isnan(x_coords_bottom), numpy.isnan(y_coords_bottom))
-    real_indices_bottom = numpy.where(numpy.invert(nan_flags_bottom))[0]
+        numpy.isnan(x_coords_bottom), numpy.isnan(y_coords_bottom)
+    )
+    if numpy.all(nan_flags_bottom):
+        return None
+
+    real_indices_top = numpy.where(
+        numpy.invert(nan_flags_top)
+    )[0]
+
+    real_indices_bottom = numpy.where(
+        numpy.invert(nan_flags_bottom)
+    )[0]
 
     if for_performance_diagram:
         y_coords_top = y_coords_top[real_indices_top]
@@ -172,7 +185,8 @@ def _confidence_interval_to_polygon(
         sort_indices_bottom = numpy.argsort(-y_coords_bottom)
         y_coords_bottom = y_coords_bottom[sort_indices_bottom]
         x_coords_bottom = x_coords_bottom[real_indices_bottom][
-            sort_indices_bottom]
+            sort_indices_bottom
+        ]
     else:
         x_coords_top = x_coords_top[real_indices_top]
         sort_indices_top = numpy.argsort(-x_coords_top)
@@ -183,12 +197,15 @@ def _confidence_interval_to_polygon(
         sort_indices_bottom = numpy.argsort(x_coords_bottom)
         x_coords_bottom = x_coords_bottom[sort_indices_bottom]
         y_coords_bottom = y_coords_bottom[real_indices_bottom][
-            sort_indices_bottom]
+            sort_indices_bottom
+        ]
 
     polygon_x_coords = numpy.concatenate((
-        x_coords_top, x_coords_bottom, numpy.array([x_coords_top[0]])))
+        x_coords_top, x_coords_bottom, numpy.array([x_coords_top[0]])
+    ))
     polygon_y_coords = numpy.concatenate((
-        y_coords_top, y_coords_bottom, numpy.array([y_coords_top[0]])))
+        y_coords_top, y_coords_bottom, numpy.array([y_coords_top[0]])
+    ))
 
     return polygons.vertex_arrays_to_polygon_object(
         polygon_x_coords, polygon_y_coords)
@@ -371,10 +388,12 @@ def plot_roc_curve(
         pod_by_threshold, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
         pod_by_threshold, 1., allow_nan=True)
+
     num_thresholds = len(pod_by_threshold)
+    expected_dim = numpy.array([num_thresholds], dtype=int)
 
     error_checking.assert_is_numpy_array(
-        pofd_by_threshold, exact_dimensions=numpy.array([num_thresholds]))
+        pofd_by_threshold, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(
         pofd_by_threshold, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
@@ -383,7 +402,9 @@ def plot_roc_curve(
     pofd_matrix, pod_matrix = model_eval.get_pofd_pod_grid()
     peirce_score_matrix = pod_matrix - pofd_matrix
 
-    this_colour_map_object, this_colour_norm_object = _get_peirce_colour_scheme()
+    this_colour_map_object, this_colour_norm_object = (
+        _get_peirce_colour_scheme()
+    )
 
     pyplot.contourf(
         pofd_matrix, pod_matrix, peirce_score_matrix, LEVELS_FOR_CSI_CONTOURS,
@@ -468,6 +489,9 @@ def plot_bootstrapped_roc_curve(
         y_coords_top=ci_top_dict[model_eval.POD_BY_THRESHOLD_KEY]
     )
 
+    if polygon_object is None:
+        return
+
     polygon_colour = matplotlib.colors.to_rgba(
         plotting_utils.colour_from_numpy_to_tuple(line_colour),
         TRANSPARENCY_FOR_CONFIDENCE_INTERVAL
@@ -508,11 +532,12 @@ def plot_performance_diagram(
         pod_by_threshold, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
         pod_by_threshold, 1., allow_nan=True)
+
     num_thresholds = len(pod_by_threshold)
+    expected_dim = numpy.array([num_thresholds], dtype=int)
 
     error_checking.assert_is_numpy_array(
-        success_ratio_by_threshold,
-        exact_dimensions=numpy.array([num_thresholds]))
+        success_ratio_by_threshold, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(
         success_ratio_by_threshold, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
@@ -618,6 +643,9 @@ def plot_bootstrapped_performance_diagram(
         y_coords_top=ci_top_dict[model_eval.POD_BY_THRESHOLD_KEY],
         for_performance_diagram=True)
 
+    if polygon_object is None:
+        return
+
     polygon_colour = matplotlib.colors.to_rgba(
         plotting_utils.colour_from_numpy_to_tuple(line_colour),
         TRANSPARENCY_FOR_CONFIDENCE_INTERVAL
@@ -657,10 +685,12 @@ def plot_reliability_curve(
         mean_forecast_by_bin, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
         mean_forecast_by_bin, 1., allow_nan=True)
+
     num_bins = len(mean_forecast_by_bin)
+    expected_dim = numpy.array([num_bins], dtype=int)
 
     error_checking.assert_is_numpy_array(
-        event_frequency_by_bin, exact_dimensions=numpy.array([num_bins]))
+        event_frequency_by_bin, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(
         event_frequency_by_bin, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
@@ -677,8 +707,7 @@ def plot_reliability_curve(
     )
 
     nan_flags = numpy.logical_or(
-        numpy.isnan(mean_forecast_by_bin),
-        numpy.isnan(event_frequency_by_bin)
+        numpy.isnan(mean_forecast_by_bin), numpy.isnan(event_frequency_by_bin)
     )
 
     if not numpy.all(nan_flags):
@@ -744,6 +773,9 @@ def plot_bootstrapped_reliability_curve(
         y_coords_top=ci_top_dict[model_eval.EVENT_FREQ_BY_BIN_KEY]
     )
 
+    if polygon_object is None:
+        return
+
     polygon_colour = matplotlib.colors.to_rgba(
         plotting_utils.colour_from_numpy_to_tuple(line_colour),
         TRANSPARENCY_FOR_CONFIDENCE_INTERVAL
@@ -798,16 +830,19 @@ def plot_attributes_diagram(
         event_frequency_by_bin, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
         event_frequency_by_bin, 1., allow_nan=True)
-    num_bins = len(event_frequency_by_bin)
+
+    num_bins = len(mean_forecast_by_bin)
+    expected_dim = numpy.array([num_bins], dtype=int)
 
     error_checking.assert_is_integer_numpy_array(num_examples_by_bin)
     error_checking.assert_is_numpy_array(
-        num_examples_by_bin, exact_dimensions=numpy.array([num_bins]))
+        num_examples_by_bin, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(num_examples_by_bin, 0)
 
     non_empty_bin_indices = numpy.where(num_examples_by_bin > 0)[0]
     error_checking.assert_is_numpy_array_without_nan(
-        event_frequency_by_bin[non_empty_bin_indices])
+        event_frequency_by_bin[non_empty_bin_indices]
+    )
 
     climatology = numpy.average(
         event_frequency_by_bin[non_empty_bin_indices],
@@ -892,6 +927,9 @@ def plot_bootstrapped_attributes_diagram(
         x_coords_top=ci_top_dict[model_eval.MEAN_FORECAST_BY_BIN_KEY],
         y_coords_top=ci_top_dict[model_eval.EVENT_FREQ_BY_BIN_KEY]
     )
+
+    if polygon_object is None:
+        return
 
     polygon_colour = matplotlib.colors.to_rgba(
         plotting_utils.colour_from_numpy_to_tuple(reliability_line_colour),
