@@ -22,7 +22,7 @@ from gewittergefahr.plotting import model_eval_plotting
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
-FORECAST_PRECISION_FOR_THRESHOLDS = 1e-4
+FORECAST_PRECISION = 1e-4
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 FIGURE_RESOLUTION_DPI = 300
@@ -373,7 +373,7 @@ def run_evaluation(
     all_prob_thresholds = model_eval.get_binarization_thresholds(
         threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
         forecast_probabilities=forecast_probabilities[these_indices],
-        unique_forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS)
+        forecast_precision=FORECAST_PRECISION)
 
     if best_prob_threshold is None:
         best_prob_threshold, best_csi = (

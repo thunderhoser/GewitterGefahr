@@ -24,15 +24,11 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): All classification metrics are currently for binary
-# classification only.  Need to allow multiclass.
-
-# TODO(thunderhoser): May create different modules for binary classification,
-# multiclass classification, and regression.
+# TODO(thunderhoser): This file works for binary classification only.
 
 TOLERANCE = 1e-6
-MIN_FORECAST_PROB_FOR_XENTROPY = numpy.finfo(float).eps
-MAX_FORECAST_PROB_FOR_XENTROPY = 1. - numpy.finfo(float).eps
+MIN_PROB_FOR_XENTROPY = numpy.finfo(float).eps
+MAX_PROB_FOR_XENTROPY = 1. - numpy.finfo(float).eps
 
 MIN_OPTIMIZATION_STRING = 'min'
 MAX_OPTIMIZATION_STRING = 'max'
@@ -83,7 +79,6 @@ EVALUATION_TABLE_COLUMNS = [
     EVENT_FREQ_BY_BIN_KEY, RELIABILITY_KEY, RESOLUTION_KEY, BSS_KEY
 ]
 
-
 EVALUATION_DICT_KEYS = [
     FORECAST_PROBABILITIES_KEY, OBSERVED_LABELS_KEY, BEST_THRESHOLD_KEY,
     ALL_THRESHOLDS_KEY, EVALUATION_TABLE_KEY
@@ -93,7 +88,7 @@ MIN_BINARIZATION_THRESHOLD = 0.
 MAX_BINARIZATION_THRESHOLD = 1. + TOLERANCE
 
 DEFAULT_NUM_RELIABILITY_BINS = 20
-DEFAULT_PRECISION_FOR_THRESHOLDS = 1e-4
+DEFAULT_FORECAST_PRECISION = 1e-4
 THRESHOLD_ARG_FOR_UNIQUE_FORECASTS = 'unique_forecasts'
 
 DEFAULT_GRID_SPACING = 0.01
@@ -115,11 +110,13 @@ def _check_forecast_probs_and_observed_labels(
         forecast_probabilities, num_dimensions=1)
     error_checking.assert_is_geq_numpy_array(forecast_probabilities, 0.)
     error_checking.assert_is_leq_numpy_array(forecast_probabilities, 1.)
+
     num_forecasts = len(forecast_probabilities)
+    expected_dim = numpy.array([num_forecasts], dtype=int)
 
     error_checking.assert_is_integer_numpy_array(observed_labels)
     error_checking.assert_is_numpy_array(
-        observed_labels, exact_dimensions=numpy.array([num_forecasts]))
+        observed_labels, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(observed_labels, 0)
     error_checking.assert_is_leq_numpy_array(observed_labels, 1)
 
@@ -138,11 +135,13 @@ def _check_forecast_and_observed_labels(forecast_labels, observed_labels):
     error_checking.assert_is_numpy_array(forecast_labels, num_dimensions=1)
     error_checking.assert_is_geq_numpy_array(forecast_labels, 0)
     error_checking.assert_is_leq_numpy_array(forecast_labels, 1)
+
     num_forecasts = len(forecast_labels)
+    expected_dim = numpy.array([num_forecasts], dtype=int)
 
     error_checking.assert_is_integer_numpy_array(observed_labels)
     error_checking.assert_is_numpy_array(
-        observed_labels, exact_dimensions=numpy.array([num_forecasts]))
+        observed_labels, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(observed_labels, 0)
     error_checking.assert_is_leq_numpy_array(observed_labels, 1)
 
@@ -164,13 +163,16 @@ def _pad_binarization_thresholds(thresholds):
     """
 
     thresholds = numpy.sort(thresholds)
+
     if thresholds[0] > MIN_BINARIZATION_THRESHOLD:
         thresholds = numpy.concatenate((
-            numpy.array([MIN_BINARIZATION_THRESHOLD]), thresholds))
+            numpy.array([MIN_BINARIZATION_THRESHOLD]), thresholds
+        ))
 
     if thresholds[-1] < MAX_BINARIZATION_THRESHOLD:
         thresholds = numpy.concatenate((
-            thresholds, numpy.array([MAX_BINARIZATION_THRESHOLD])))
+            thresholds, numpy.array([MAX_BINARIZATION_THRESHOLD])
+        ))
 
     return thresholds
 
@@ -188,15 +190,15 @@ def _split_forecast_probs_into_bins(forecast_probabilities, num_bins):
         bin.
     """
 
-    bin_index_by_forecast, _ = histograms.create_histogram(
+    return histograms.create_histogram(
         input_values=forecast_probabilities, num_bins=num_bins, min_value=0.,
-        max_value=1.)
-    return bin_index_by_forecast
+        max_value=1.
+    )[0]
 
 
 def get_binarization_thresholds(
         threshold_arg, forecast_probabilities=None,
-        unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS):
+        forecast_precision=DEFAULT_FORECAST_PRECISION):
     """Returns list of binarization thresholds.
 
     To understand the role of binarization thresholds, see
@@ -213,10 +215,10 @@ def get_binarization_thresholds(
     :param forecast_probabilities:
         [used only if threshold_arg = "unique_forecasts"]
         1-D numpy array of forecast probabilities to binarize.
-    :param unique_forecast_precision:
+    :param forecast_precision:
         [used only if threshold_arg = "unique_forecasts"]
         Before computing unique forecast probabilities, they will all be rounded
-        to the nearest `unique_forecast_precision`.  This prevents the number of
+        to the nearest `forecast_precision`.  This prevents the number of
         thresholds from becoming ridiculous (millions).
     :return: binarization_thresholds: 1-D numpy array of binarization
         thresholds.
@@ -232,11 +234,12 @@ def get_binarization_thresholds(
 
             raise ValueError(error_string)
 
-        error_checking.assert_is_geq(unique_forecast_precision, 0.)
-        error_checking.assert_is_leq(unique_forecast_precision, 0.01)
+        error_checking.assert_is_geq(forecast_precision, 0.)
+        error_checking.assert_is_leq(forecast_precision, 0.01)
 
         binarization_thresholds = numpy.unique(rounder.round_to_nearest(
-            copy.deepcopy(forecast_probabilities), unique_forecast_precision))
+            forecast_probabilities + 0., forecast_precision
+        ))
 
     elif isinstance(threshold_arg, numpy.ndarray):
         binarization_thresholds = copy.deepcopy(threshold_arg)
@@ -253,7 +256,8 @@ def get_binarization_thresholds(
         error_checking.assert_is_integer(num_thresholds)
         error_checking.assert_is_geq(num_thresholds, 2)
 
-        binarization_thresholds = numpy.linspace(0., 1., num=num_thresholds)
+        binarization_thresholds = numpy.linspace(
+            0, 1, num=num_thresholds, dtype=float)
 
     return _pad_binarization_thresholds(binarization_thresholds)
 
@@ -282,18 +286,16 @@ def binarize_forecast_probs(forecast_probabilities, binarization_threshold):
     error_checking.assert_is_leq(
         binarization_threshold, MAX_BINARIZATION_THRESHOLD)
 
-    forecast_labels = numpy.full(len(forecast_probabilities), False, dtype=bool)
-    positive_label_indices = numpy.where(
-        forecast_probabilities >= binarization_threshold)[0]
-    forecast_labels[positive_label_indices] = True
+    forecast_labels = numpy.full(len(forecast_probabilities), 0, dtype=int)
+    forecast_labels[forecast_probabilities >= binarization_threshold] = 1
 
-    return forecast_labels.astype(int)
+    return forecast_labels
 
 
 def find_best_binarization_threshold(
         forecast_probabilities, observed_labels, threshold_arg,
         criterion_function, optimization_direction=MAX_OPTIMIZATION_STRING,
-        unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS):
+        forecast_precision=DEFAULT_FORECAST_PRECISION):
     """Finds the best binarization threshold.
 
     :param forecast_probabilities: See documentation for
@@ -306,7 +308,7 @@ def find_best_binarization_threshold(
         returns a single float.  See `get_csi` in this module for an example.
     :param optimization_direction: Direction in which criterion function is
         optimized.  Options are "min" and "max".
-    :param unique_forecast_precision: See doc for `get_binarization_thresholds`.
+    :param forecast_precision: See doc for `get_binarization_thresholds`.
     :return: best_threshold: Best binarization threshold.
     :return: best_criterion_value: Value of criterion function at said
         threshold.
@@ -327,7 +329,7 @@ def find_best_binarization_threshold(
     possible_thresholds = get_binarization_thresholds(
         threshold_arg=threshold_arg,
         forecast_probabilities=forecast_probabilities,
-        unique_forecast_precision=unique_forecast_precision)
+        forecast_precision=forecast_precision)
 
     num_thresholds = len(possible_thresholds)
     criterion_values = numpy.full(num_thresholds, numpy.nan)
@@ -335,7 +337,8 @@ def find_best_binarization_threshold(
     for i in range(num_thresholds):
         these_forecast_labels = binarize_forecast_probs(
             forecast_probabilities=forecast_probabilities,
-            binarization_threshold=possible_thresholds[i])
+            binarization_threshold=possible_thresholds[i]
+        )
 
         this_contingency_table_as_dict = get_contingency_table(
             forecast_labels=these_forecast_labels,
@@ -346,11 +349,13 @@ def find_best_binarization_threshold(
     if optimization_direction == MAX_OPTIMIZATION_STRING:
         best_criterion_value = numpy.nanmax(criterion_values)
         best_probability_threshold = possible_thresholds[
-            numpy.nanargmax(criterion_values)]
+            numpy.nanargmax(criterion_values)
+        ]
     else:
         best_criterion_value = numpy.nanmin(criterion_values)
         best_probability_threshold = possible_thresholds[
-            numpy.nanargmin(criterion_values)]
+            numpy.nanargmin(criterion_values)
+        ]
 
     return best_probability_threshold, best_criterion_value
 
@@ -373,13 +378,17 @@ def get_contingency_table(forecast_labels, observed_labels):
     _check_forecast_and_observed_labels(forecast_labels, observed_labels)
 
     true_positive_indices = numpy.where(numpy.logical_and(
-        forecast_labels == 1, observed_labels == 1))[0]
+        forecast_labels == 1, observed_labels == 1
+    ))[0]
     false_positive_indices = numpy.where(numpy.logical_and(
-        forecast_labels == 1, observed_labels == 0))[0]
+        forecast_labels == 1, observed_labels == 0
+    ))[0]
     false_negative_indices = numpy.where(numpy.logical_and(
-        forecast_labels == 0, observed_labels == 1))[0]
+        forecast_labels == 0, observed_labels == 1
+    ))[0]
     true_negative_indices = numpy.where(numpy.logical_and(
-        forecast_labels == 0, observed_labels == 0))[0]
+        forecast_labels == 0, observed_labels == 0
+    ))[0]
 
     return {
         NUM_TRUE_POSITIVES_KEY: len(true_positive_indices),
@@ -405,9 +414,8 @@ def get_pod(contingency_table_as_dict):
     if denominator == 0:
         return numpy.nan
 
-    return (
-        float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / denominator
-    )
+    numerator = float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY])
+    return numerator / denominator
 
 
 def get_fom(contingency_table_as_dict):
@@ -437,9 +445,8 @@ def get_pofd(contingency_table_as_dict):
     if denominator == 0:
         return numpy.nan
 
-    return (
-        float(contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]) / denominator
-    )
+    numerator = float(contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY])
+    return numerator / denominator
 
 
 def get_npv(contingency_table_as_dict):
@@ -469,9 +476,8 @@ def get_success_ratio(contingency_table_as_dict):
     if denominator == 0:
         return numpy.nan
 
-    return (
-        float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / denominator
-    )
+    numerator = float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY])
+    return numerator / denominator
 
 
 def get_far(contingency_table_as_dict):
@@ -501,9 +507,8 @@ def get_dfr(contingency_table_as_dict):
     if denominator == 0:
         return numpy.nan
 
-    return (
-        float(contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]) / denominator
-    )
+    numerator = float(contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+    return numerator / denominator
 
 
 def get_focn(contingency_table_as_dict):
@@ -560,9 +565,8 @@ def get_csi(contingency_table_as_dict):
     if denominator == 0:
         return numpy.nan
 
-    return (
-        float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / denominator
-    )
+    numerator = float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY])
+    return numerator / denominator
 
 
 def get_frequency_bias(contingency_table_as_dict):
@@ -598,7 +602,8 @@ def get_peirce_score(contingency_table_as_dict):
     """
 
     return (
-        get_pod(contingency_table_as_dict) - get_pofd(contingency_table_as_dict)
+        get_pod(contingency_table_as_dict) -
+        get_pofd(contingency_table_as_dict)
     )
 
 
@@ -610,35 +615,34 @@ def get_heidke_score(contingency_table_as_dict):
     :return: heidke_score: Heidke score.
     """
 
+    numerator = 2 * float(
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] *
+        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] -
+        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] *
+        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
+    )
+
+    num_positives = (
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]
+    )
+    num_negatives = (
+        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
+    )
+    num_events = (
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
+    )
+    num_non_events = (
+        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]
+    )
+
+    denominator = num_positives * num_non_events + num_negatives * num_events
+
     try:
-        numerator = 2 * (
-            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] *
-            contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] -
-            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] *
-            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
-        )
-
-        num_positives = (
-            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]
-        )
-        num_negatives = (
-            contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
-            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
-        )
-        num_events = (
-            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
-        )
-        num_non_events = (
-            contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
-            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]
-        )
-
-        return float(numerator) / (
-            num_positives * num_non_events + num_negatives * num_events
-        )
-
+        return numerator / denominator
     except ZeroDivisionError:
         return numpy.nan
 
@@ -675,9 +679,9 @@ def get_cross_entropy(forecast_probabilities=None, observed_labels=None):
         forecast_probabilities, observed_labels)
 
     forecast_probabilities = numpy.maximum(
-        forecast_probabilities, MIN_FORECAST_PROB_FOR_XENTROPY)
+        forecast_probabilities, MIN_PROB_FOR_XENTROPY)
     forecast_probabilities = numpy.minimum(
-        forecast_probabilities, MAX_FORECAST_PROB_FOR_XENTROPY)
+        forecast_probabilities, MAX_PROB_FOR_XENTROPY)
 
     observed_labels = observed_labels.astype(numpy.float)
 
@@ -689,7 +693,7 @@ def get_cross_entropy(forecast_probabilities=None, observed_labels=None):
 
 def get_points_in_roc_curve(
         forecast_probabilities=None, observed_labels=None, threshold_arg=None,
-        unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS):
+        forecast_precision=DEFAULT_FORECAST_PRECISION):
     """Determines points in ROC (receiver operating characteristic) curve.
 
     N = number of forecasts
@@ -700,7 +704,7 @@ def get_points_in_roc_curve(
     :param observed_labels: See doc for
         `_check_forecast_probs_and_observed_labels`.
     :param threshold_arg: See documentation for get_binarization_thresholds.
-    :param unique_forecast_precision: See doc for get_binarization_thresholds.
+    :param forecast_precision: See doc for get_binarization_thresholds.
     :return: pofd_by_threshold: length-T numpy array of POFD values, to be
         plotted on the x-axis.
     :return: pod_by_threshold: length-T numpy array of POD values, to be plotted
@@ -713,7 +717,7 @@ def get_points_in_roc_curve(
     binarization_thresholds = get_binarization_thresholds(
         threshold_arg=threshold_arg,
         forecast_probabilities=forecast_probabilities,
-        unique_forecast_precision=unique_forecast_precision)
+        forecast_precision=forecast_precision)
 
     num_thresholds = len(binarization_thresholds)
     pofd_by_threshold = numpy.full(num_thresholds, numpy.nan)
@@ -751,10 +755,12 @@ def get_area_under_roc_curve(pofd_by_threshold, pod_by_threshold):
         pofd_by_threshold, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
         pofd_by_threshold, 1., allow_nan=True)
+
     num_thresholds = len(pofd_by_threshold)
+    expected_dim = numpy.array([num_thresholds], dtype=int)
 
     error_checking.assert_is_numpy_array(
-        pod_by_threshold, exact_dimensions=numpy.array([num_thresholds]))
+        pod_by_threshold, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(
         pod_by_threshold, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
@@ -765,12 +771,14 @@ def get_area_under_roc_curve(pofd_by_threshold, pod_by_threshold):
     pod_by_threshold = pod_by_threshold[sort_indices]
 
     nan_flags = numpy.logical_or(
-        numpy.isnan(pofd_by_threshold), numpy.isnan(pod_by_threshold)
+        numpy.isnan(pofd_by_threshold),
+        numpy.isnan(pod_by_threshold)
     )
     if numpy.all(nan_flags):
         return numpy.nan
 
     real_indices = numpy.where(numpy.invert(nan_flags))[0]
+
     return sklearn.metrics.auc(
         pofd_by_threshold[real_indices], pod_by_threshold[real_indices]
     )
@@ -783,12 +791,13 @@ def get_random_roc_curve():
     :return: pod_by_threshold: length-2 numpy array of POD values.
     """
 
-    return numpy.array([0., 1.]), numpy.array([0., 1.])
+    this_array = numpy.array([0, 1], dtype=float)
+    return this_array, this_array
 
 
 def get_points_in_performance_diagram(
         forecast_probabilities=None, observed_labels=None, threshold_arg=None,
-        unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS):
+        forecast_precision=DEFAULT_FORECAST_PRECISION):
     """Determines points in performance diagram (Roebber 2009).
 
     T = number of binarization thresholds
@@ -798,7 +807,7 @@ def get_points_in_performance_diagram(
     :param observed_labels: See doc for
         `_check_forecast_probs_and_observed_labels`.
     :param threshold_arg: See doc for get_binarization_thresholds.
-    :param unique_forecast_precision: See doc for get_binarization_thresholds.
+    :param forecast_precision: See doc for get_binarization_thresholds.
     :return: success_ratio_by_threshold: length-T numpy array of success ratios,
         to be plotted on the x-axis.
     :return: pod_by_threshold: length-T numpy array of POD values, to be plotted
@@ -811,7 +820,7 @@ def get_points_in_performance_diagram(
     binarization_thresholds = get_binarization_thresholds(
         threshold_arg=threshold_arg,
         forecast_probabilities=forecast_probabilities,
-        unique_forecast_precision=unique_forecast_precision)
+        forecast_precision=forecast_precision)
 
     num_thresholds = len(binarization_thresholds)
     success_ratio_by_threshold = numpy.full(num_thresholds, numpy.nan)
@@ -847,10 +856,12 @@ def get_area_under_perf_diagram(success_ratio_by_threshold, pod_by_threshold):
         success_ratio_by_threshold, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
         success_ratio_by_threshold, 1., allow_nan=True)
+
     num_thresholds = len(success_ratio_by_threshold)
+    expected_dim = numpy.array([num_thresholds], dtype=int)
 
     error_checking.assert_is_numpy_array(
-        pod_by_threshold, exact_dimensions=numpy.array([num_thresholds]))
+        pod_by_threshold, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(
         pod_by_threshold, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
@@ -861,12 +872,14 @@ def get_area_under_perf_diagram(success_ratio_by_threshold, pod_by_threshold):
     pod_by_threshold = pod_by_threshold[sort_indices]
 
     nan_flags = numpy.logical_or(
-        numpy.isnan(success_ratio_by_threshold), numpy.isnan(pod_by_threshold)
+        numpy.isnan(success_ratio_by_threshold),
+        numpy.isnan(pod_by_threshold)
     )
     if numpy.all(nan_flags):
         return numpy.nan
 
     real_indices = numpy.where(numpy.invert(nan_flags))[0]
+
     return sklearn.metrics.auc(
         success_ratio_by_threshold[real_indices],
         pod_by_threshold[real_indices]
@@ -901,13 +914,15 @@ def get_sr_pod_grid(success_ratio_spacing=DEFAULT_GRID_SPACING,
     num_success_ratios = int(numpy.ceil(1. / success_ratio_spacing))
     num_pod_values = int(numpy.ceil(1. / pod_spacing))
 
-    unique_success_ratios = success_ratio_spacing / 2 + numpy.linspace(
-        0., 1., num=num_success_ratios + 1
-    )[:-1]
+    unique_success_ratios = numpy.linspace(
+        0, 1, num=num_success_ratios + 1, dtype=float)
+    unique_success_ratios = (
+        unique_success_ratios[:-1] + success_ratio_spacing / 2
+    )
 
-    unique_pod_values = pod_spacing / 2 + numpy.linspace(
-        0., 1., num=num_pod_values + 1
-    )[:-1]
+    unique_pod_values = numpy.linspace(
+        0, 1, num=num_pod_values + 1, dtype=float)
+    unique_pod_values = unique_pod_values[:-1] + pod_spacing / 2
 
     return numpy.meshgrid(unique_success_ratios, unique_pod_values[::-1])
 
@@ -936,13 +951,13 @@ def get_pofd_pod_grid(pofd_spacing=DEFAULT_GRID_SPACING,
     num_pofd_values = int(numpy.ceil(1. / pofd_spacing))
     num_pod_values = int(numpy.ceil(1. / pod_spacing))
 
-    unique_pofd_values = pofd_spacing / 2 + numpy.linspace(
-        0., 1., num=num_pofd_values + 1
-    )[:-1]
+    unique_pofd_values = numpy.linspace(
+        0, 1, num=num_pofd_values + 1, dtype=float)
+    unique_pofd_values = unique_pofd_values[:-1] + pofd_spacing / 2
 
-    unique_pod_values = pod_spacing / 2 + numpy.linspace(
-        0., 1., num=num_pod_values + 1
-    )[:-1]
+    unique_pod_values = numpy.linspace(
+        0, 1, num=num_pod_values + 1, dtype=float)
+    unique_pod_values = unique_pod_values[:-1] + pod_spacing / 2
 
     return numpy.meshgrid(unique_pofd_values, unique_pod_values[::-1])
 
@@ -961,9 +976,9 @@ def frequency_bias_from_sr_and_pod(success_ratio_array, pod_array):
     error_checking.assert_is_geq_numpy_array(success_ratio_array, 0.)
     error_checking.assert_is_leq_numpy_array(success_ratio_array, 1.)
 
-    success_ratio_dimensions = numpy.asarray(success_ratio_array.shape)
+    expected_dim = numpy.array(success_ratio_array.shape, dtype=int)
     error_checking.assert_is_numpy_array(
-        pod_array, exact_dimensions=success_ratio_dimensions)
+        pod_array, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(pod_array, 0.)
     error_checking.assert_is_leq_numpy_array(pod_array, 1.)
 
@@ -986,9 +1001,9 @@ def csi_from_sr_and_pod(success_ratio_array, pod_array):
     error_checking.assert_is_leq_numpy_array(
         success_ratio_array, 1., allow_nan=True)
 
-    success_ratio_dimensions = numpy.asarray(success_ratio_array.shape)
+    expected_dim = numpy.array(success_ratio_array.shape)
     error_checking.assert_is_numpy_array(
-        pod_array, exact_dimensions=success_ratio_dimensions)
+        pod_array, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(pod_array, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(pod_array, 1., allow_nan=True)
 
@@ -1073,16 +1088,17 @@ def get_brier_skill_score(
         mean_forecast_prob_by_bin, 1., allow_nan=True)
 
     num_forecast_bins = len(mean_forecast_prob_by_bin)
+    expected_dim = numpy.array([num_forecast_bins], dtype=int)
+
     error_checking.assert_is_numpy_array(
-        mean_observed_label_by_bin,
-        exact_dimensions=numpy.array([num_forecast_bins]))
+        mean_observed_label_by_bin, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(
         mean_observed_label_by_bin, 0., allow_nan=True)
     error_checking.assert_is_leq_numpy_array(
         mean_observed_label_by_bin, 1., allow_nan=True)
 
     error_checking.assert_is_numpy_array(
-        num_examples_by_bin, exact_dimensions=numpy.array([num_forecast_bins]))
+        num_examples_by_bin, exact_dimensions=expected_dim)
     error_checking.assert_is_integer_numpy_array(num_examples_by_bin)
     error_checking.assert_is_geq_numpy_array(num_examples_by_bin, 0)
 
@@ -1090,12 +1106,18 @@ def get_brier_skill_score(
     error_checking.assert_is_leq(climatology, 1.)
 
     uncertainty = climatology * (1. - climatology)
-    reliability = (numpy.nansum(num_examples_by_bin * (
-        mean_forecast_prob_by_bin - mean_observed_label_by_bin) ** 2) /
-                   numpy.sum(num_examples_by_bin))
-    resolution = (numpy.nansum(num_examples_by_bin * (
-        mean_observed_label_by_bin - climatology) ** 2) /
-                  numpy.sum(num_examples_by_bin))
+
+    this_numerator = numpy.nansum(
+        num_examples_by_bin *
+        (mean_forecast_prob_by_bin - mean_observed_label_by_bin) ** 2
+    )
+    reliability = this_numerator / numpy.sum(num_examples_by_bin)
+
+    this_numerator = numpy.nansum(
+        num_examples_by_bin *
+        (mean_observed_label_by_bin - climatology) ** 2
+    )
+    resolution = this_numerator / numpy.sum(num_examples_by_bin)
     brier_score = uncertainty + reliability - resolution
 
     try:
@@ -1103,10 +1125,13 @@ def get_brier_skill_score(
     except ZeroDivisionError:
         brier_skill_score = numpy.nan
 
-    return {BSS_KEY: brier_skill_score,
-            BRIER_SCORE_KEY: brier_score,
-            RELIABILITY_KEY: reliability, RESOLUTION_KEY: resolution,
-            UNCERTAINTY_KEY: uncertainty}
+    return {
+        BSS_KEY: brier_skill_score,
+        BRIER_SCORE_KEY: brier_score,
+        RELIABILITY_KEY: reliability,
+        RESOLUTION_KEY: resolution,
+        UNCERTAINTY_KEY: uncertainty
+    }
 
 
 def get_perfect_reliability_curve():
@@ -1118,7 +1143,8 @@ def get_perfect_reliability_curve():
         labels (conditional event frequencies).
     """
 
-    return numpy.array([0., 1.]), numpy.array([0., 1.])
+    this_array = numpy.array([0, 1], dtype=float)
+    return this_array, this_array
 
 
 def get_no_skill_reliability_curve(mean_observed_label):
@@ -1135,9 +1161,12 @@ def get_no_skill_reliability_curve(mean_observed_label):
     error_checking.assert_is_geq(mean_observed_label, 0.)
     error_checking.assert_is_leq(mean_observed_label, 1.)
 
-    y_values = numpy.array(
-        [mean_observed_label, 1 + mean_observed_label]) / 2
-    return numpy.array([0., 1.]), y_values
+    x_values = numpy.array([0, 1], dtype=float)
+    y_values = 0.5 * numpy.array([
+        mean_observed_label, 1. + mean_observed_label
+    ])
+
+    return x_values, y_values
 
 
 def get_skill_areas_in_reliability_curve(mean_observed_label):
@@ -1147,29 +1176,31 @@ def get_skill_areas_in_reliability_curve(mean_observed_label):
 
     :param mean_observed_label: Mean observed label (event frequency) for the
         full dataset (not just for one forecast bin).
-    :return: x_vertices_for_left_skill_area: length-5 numpy array with x-
-        coordinates of vertices in left-skill area (where x <=
-        mean_observed_label).
-    :return: y_vertices_for_left_skill_area: Same but for y-coordinates.
-    :return: x_vertices_for_right_skill_area: length-5 numpy array with x-
-        coordinates of vertices in right-skill area (where x >=
-        mean_observed_label).
-    :return: y_vertices_for_right_skill_area: Same but for y-coordinates.
+    :return: x_coords_left_skill_area: length-5 numpy array with x-coords of
+        vertices in left-skill area (where x <= mean_observed_label).
+    :return: y_coords_left_skill_area: Same but for y-coords.
+    :return: x_coords_right_skill_area: length-5 numpy array with x-coords of
+        vertices in right-skill area (where x >= mean_observed_label).
+    :return: y_coords_right_skill_area: Same but for y-coords.
     """
 
-    x_vertices_for_left_skill_area = numpy.array(
-        [0., mean_observed_label, mean_observed_label, 0., 0.])
-    y_vertices_for_left_skill_area = numpy.array(
-        [0., 0., mean_observed_label, mean_observed_label / 2, 0.])
+    x_coords_left_skill_area = numpy.array([
+        0, mean_observed_label, mean_observed_label, 0, 0
+    ])
+    y_coords_left_skill_area = numpy.array([
+        0, 0, mean_observed_label, mean_observed_label / 2, 0
+    ])
 
-    x_vertices_for_right_skill_area = numpy.array(
-        [mean_observed_label, 1., 1., mean_observed_label, mean_observed_label])
-    y_vertices_for_right_skill_area = numpy.array(
-        [mean_observed_label, (1 + mean_observed_label) / 2,
-         1., 1., mean_observed_label])
+    x_coords_right_skill_area = numpy.array([
+        mean_observed_label, 1, 1, mean_observed_label, mean_observed_label
+    ])
+    y_coords_right_skill_area = numpy.array([
+        mean_observed_label, (1 + mean_observed_label) / 2, 1, 1,
+        mean_observed_label
+    ])
 
-    return (x_vertices_for_left_skill_area, y_vertices_for_left_skill_area,
-            x_vertices_for_right_skill_area, y_vertices_for_right_skill_area)
+    return (x_coords_left_skill_area, y_coords_left_skill_area,
+            x_coords_right_skill_area, y_coords_right_skill_area)
 
 
 def get_climatology_line_for_reliability_curve(mean_observed_label):
@@ -1184,7 +1215,9 @@ def get_climatology_line_for_reliability_curve(mean_observed_label):
     :return: y_values: length-2 numpy array of y-values in climatology line.
     """
 
-    return numpy.full(2, mean_observed_label), numpy.array([0., 1.])
+    x_values = numpy.full(2, mean_observed_label, dtype=float)
+    y_values = numpy.array([0, 1], dtype=float)
+    return x_values, y_values
 
 
 def get_no_resolution_line_for_reliability_curve(mean_observed_label):
@@ -1198,7 +1231,9 @@ def get_no_resolution_line_for_reliability_curve(mean_observed_label):
     :return: y_values: length-2 numpy array of y-values in no-resolution line.
     """
 
-    return numpy.array([0., 1.]), numpy.full(2, mean_observed_label)
+    x_values = numpy.array([0, 1], dtype=float)
+    y_values = numpy.full(2, mean_observed_label, dtype=float)
+    return x_values, y_values
 
 
 def eval_binary_classifn(

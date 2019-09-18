@@ -45,14 +45,6 @@ HISTOGRAM_FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
 HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
 
-# AUC_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
-# POD_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
-# FAR_COLOUR = numpy.array([178, 223, 138], dtype=float) / 255
-# CSI_COLOUR = numpy.array([51, 160, 44], dtype=float) / 255
-#
-# HISTOGRAM_FACE_COLOUR = numpy.full(3, 1.)
-# HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
-
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
