@@ -226,9 +226,6 @@ def _plot_attributes_diagram(
         evaluation_table[model_eval.EVENT_FREQ_BY_BIN_KEY].values.tolist()
     ))
 
-    print(mean_forecast_prob_matrix)
-    print(event_frequency_matrix)
-
     mean_bss = numpy.mean(evaluation_table[model_eval.BSS_KEY].values)
     title_string = 'BSS = {0:.3f}'.format(mean_bss)
 
@@ -280,6 +277,10 @@ def _plot_attributes_diagram(
             ci_mean_dict[model_eval.EVENT_FREQ_BY_BIN_KEY][j] = numpy.nanmean(
                 event_frequency_matrix[:, j]
             )
+
+        print(ci_top_dict)
+        print(ci_bottom_dict)
+        print(ci_mean_dict)
 
         model_eval_plotting.plot_bootstrapped_attributes_diagram(
             figure_object=figure_object, axes_object=axes_object,
