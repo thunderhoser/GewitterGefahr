@@ -9,13 +9,14 @@ import argparse
 import numpy
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.colors
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.scripts import subset_predictions_by_time as subsetting
 
-CONFIDENCE_LEVEL = 0.95
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
@@ -35,22 +36,22 @@ MARKER_TYPE = 'o'
 MARKER_SIZE_SANS_BOOTSTRAP = 14
 MARKER_SIZE_WITH_BOOTSTRAP = 8
 
-# AUC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
-# POD_COLOUR = AUC_COLOUR
-# FAR_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
-# CSI_COLOUR = FAR_COLOUR
-#
-# HISTOGRAM_FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
-# HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
-# HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
+AUC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
+CSI_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+POD_COLOUR = AUC_COLOUR
+FAR_COLOUR = CSI_COLOUR
 
-AUC_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
-POD_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
-FAR_COLOUR = numpy.array([178, 223, 138], dtype=float) / 255
-CSI_COLOUR = numpy.array([51, 160, 44], dtype=float) / 255
-
-HISTOGRAM_FACE_COLOUR = numpy.full(3, 1.)
+HISTOGRAM_FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
+HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
 HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
+
+# AUC_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
+# POD_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
+# FAR_COLOUR = numpy.array([178, 223, 138], dtype=float) / 255
+# CSI_COLOUR = numpy.array([51, 160, 44], dtype=float) / 255
+#
+# HISTOGRAM_FACE_COLOUR = numpy.full(3, 1.)
+# HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -59,6 +60,7 @@ FIGURE_RESOLUTION_DPI = 300
 INPUT_DIR_ARG_NAME = 'input_evaluation_dir_name'
 NUM_MONTHS_ARG_NAME = 'num_months_per_chunk'
 NUM_HOURS_ARG_NAME = 'num_hours_per_chunk'
+CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 # TODO(thunderhoser): Fix this.
@@ -77,6 +79,8 @@ NUM_HOURS_HELP_STRING = (
     ' not want to plot by hour, make this negative.\n{0:s}'
 ).format(str(subsetting.VALID_HOUR_COUNTS))
 
+CONFIDENCE_LEVEL_HELP_STRING = 'Confidence level for error bars.'
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
 
@@ -94,33 +98,33 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_HOURS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
+    help=CONFIDENCE_LEVEL_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
-                 num_examples_by_chunk, num_bootstrap_reps):
-    """Plots scores for either monthly or hourly chunks.
+def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
+                      num_bootstrap_reps):
+    """Plots AUC and CSI either by hour or by month.
 
-    N = number of chunks
+    N = number of monthly or hourly chunks
 
     :param auc_matrix: N-by-3 numpy array of AUC values.  The [i]th row contains
         [min, mean, max] for the [i]th chunk.
-    :param pod_matrix: Same but for POD.
-    :param far_matrix: Same but for FAR.
     :param csi_matrix: Same but for CSI.
-    :param num_examples_by_chunk: length-N numpy array of example counts.
+    :param num_examples_by_chunk: length-N numpy array with number of examples
+        for each chunk.
     :param num_bootstrap_reps: Number of bootstrap replicates.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
-    :return: main_axes_object: Handle for main axes (instance of
+    :return: axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    :return: histogram_axes_object: Handle for histogram axes.
     """
 
-    legend_handles = []
-    legend_strings = []
-
+    # Housekeeping.
     figure_object, main_axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
@@ -137,16 +141,13 @@ def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
     else:
         marker_size = MARKER_SIZE_WITH_BOOTSTRAP
 
-    # print('AUC values = {0:s}'.format(str(auc_matrix)))
-    # print('POD values = {0:s}'.format(str(pod_matrix)))
-    # print('FAR values = {0:s}'.format(str(far_matrix)))
-    # print('CSI values = {0:s}'.format(str(csi_matrix)))
-
+    # Plot mean AUC.
     main_axes_object.plot(
         x_values, auc_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
         markersize=marker_size, markerfacecolor=AUC_COLOUR,
         markeredgecolor=AUC_COLOUR, markeredgewidth=0)
 
+    # Plot confidence interval for AUC.
     if num_bootstrap_reps == 1:
         this_handle = main_axes_object.plot(
             x_values, auc_matrix[:, 1], color=AUC_COLOUR, linewidth=LINE_WIDTH
@@ -162,60 +163,16 @@ def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
             capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
         )[0]
 
-    legend_handles.append(this_handle)
-    legend_strings.append('AUC')
+    legend_handles = [this_handle]
+    legend_strings = ['AUC']
 
-    main_axes_object.plot(
-        x_values, pod_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
-        markersize=marker_size, markerfacecolor=POD_COLOUR,
-        markeredgecolor=POD_COLOUR, markeredgewidth=0)
-
-    if num_bootstrap_reps == 1:
-        this_handle = main_axes_object.plot(
-            x_values, pod_matrix[:, 1], color=POD_COLOUR, linewidth=LINE_WIDTH
-        )[0]
-    else:
-        negative_errors = pod_matrix[:, 1] - pod_matrix[:, 0]
-        positive_errors = pod_matrix[:, 2] - pod_matrix[:, 1]
-        error_matrix = numpy.vstack((negative_errors, positive_errors))
-
-        this_handle = main_axes_object.errorbar(
-            x_values, pod_matrix[:, 1], yerr=error_matrix, color=POD_COLOUR,
-            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
-            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
-        )[0]
-
-    legend_handles.append(this_handle)
-    legend_strings.append('POD')
-
-    main_axes_object.plot(
-        x_values, far_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
-        markersize=marker_size, markerfacecolor=FAR_COLOUR,
-        markeredgecolor=FAR_COLOUR, markeredgewidth=0)
-
-    if num_bootstrap_reps == 1:
-        this_handle = main_axes_object.plot(
-            x_values, far_matrix[:, 1], color=FAR_COLOUR, linewidth=LINE_WIDTH
-        )[0]
-    else:
-        negative_errors = far_matrix[:, 1] - far_matrix[:, 0]
-        positive_errors = far_matrix[:, 2] - far_matrix[:, 1]
-        error_matrix = numpy.vstack((negative_errors, positive_errors))
-
-        this_handle = main_axes_object.errorbar(
-            x_values, far_matrix[:, 1], yerr=error_matrix, color=FAR_COLOUR,
-            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
-            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
-        )[0]
-
-    legend_handles.append(this_handle)
-    legend_strings.append('FAR')
-
+    # Plot mean CSI.
     main_axes_object.plot(
         x_values, csi_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
         markersize=marker_size, markerfacecolor=CSI_COLOUR,
         markeredgecolor=CSI_COLOUR, markeredgewidth=0)
 
+    # Plot confidence interval for CSI.
     if num_bootstrap_reps == 1:
         this_handle = main_axes_object.plot(
             x_values, csi_matrix[:, 1], color=CSI_COLOUR, linewidth=LINE_WIDTH
@@ -234,6 +191,7 @@ def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
     legend_handles.append(this_handle)
     legend_strings.append('CSI')
 
+    # Plot legend and axis labels for scores.
     main_axes_object.legend(
         legend_handles, legend_strings, loc='lower center',
         bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
@@ -245,6 +203,7 @@ def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
         numpy.min(x_values) - 0.5, numpy.max(x_values) + 0.5
     ])
 
+    # Plot histogram of example counts.
     y_values = numpy.maximum(numpy.log10(num_examples_by_chunk), 0.)
     histogram_axes_object.bar(
         x=x_values, height=y_values, width=1., color=HISTOGRAM_FACE_COLOUR,
@@ -252,29 +211,137 @@ def _plot_scores(auc_matrix, pod_matrix, far_matrix, csi_matrix,
 
     histogram_axes_object.set_ylabel(r'Number of examples (log$_{10}$)')
 
-    return figure_object, main_axes_object, histogram_axes_object
+    return figure_object, main_axes_object
+
+
+def _plot_pod_and_far(pod_matrix, far_matrix, num_positive_ex_by_chunk,
+                      num_bootstrap_reps):
+    """Plots POD and FAR either by hour or by month.
+
+    N = number of monthly or hourly chunks
+
+    :param pod_matrix: N-by-3 numpy array of POD values.  The [i]th row contains
+        [min, mean, max] for the [i]th chunk.
+    :param far_matrix: Same but for FAR.
+    :param num_positive_ex_by_chunk: length-N numpy array with number of
+        positive examples for each chunk.
+    :param num_bootstrap_reps: Number of bootstrap replicates.
+    :return: figure_object: See doc for `_plot_auc_and_csi`.
+    :return: axes_object: Same.
+    """
+
+    # Housekeeping.
+    figure_object, main_axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    histogram_axes_object = main_axes_object.twinx()
+    main_axes_object.set_zorder(histogram_axes_object.get_zorder() + 1)
+    main_axes_object.patch.set_visible(False)
+
+    num_chunks = pod_matrix.shape[0]
+    x_values = numpy.linspace(0, num_chunks - 1, num=num_chunks, dtype=float)
+
+    if num_bootstrap_reps == 1:
+        marker_size = MARKER_SIZE_SANS_BOOTSTRAP
+    else:
+        marker_size = MARKER_SIZE_WITH_BOOTSTRAP
+
+    # Plot mean POD.
+    main_axes_object.plot(
+        x_values, pod_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
+        markersize=marker_size, markerfacecolor=POD_COLOUR,
+        markeredgecolor=POD_COLOUR, markeredgewidth=0)
+
+    # Plot confidence interval for POD.
+    if num_bootstrap_reps == 1:
+        this_handle = main_axes_object.plot(
+            x_values, pod_matrix[:, 1], color=POD_COLOUR, linewidth=LINE_WIDTH
+        )[0]
+    else:
+        negative_errors = pod_matrix[:, 1] - pod_matrix[:, 0]
+        positive_errors = pod_matrix[:, 2] - pod_matrix[:, 1]
+        error_matrix = numpy.vstack((negative_errors, positive_errors))
+
+        this_handle = main_axes_object.errorbar(
+            x_values, pod_matrix[:, 1], yerr=error_matrix, color=POD_COLOUR,
+            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
+            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
+        )[0]
+
+    legend_handles = [this_handle]
+    legend_strings = ['POD']
+
+    # Plot mean FAR.
+    main_axes_object.plot(
+        x_values, far_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
+        markersize=marker_size, markerfacecolor=FAR_COLOUR,
+        markeredgecolor=FAR_COLOUR, markeredgewidth=0)
+
+    # Plot confidence interval for FAR.
+    if num_bootstrap_reps == 1:
+        this_handle = main_axes_object.plot(
+            x_values, far_matrix[:, 1], color=FAR_COLOUR, linewidth=LINE_WIDTH
+        )[0]
+    else:
+        negative_errors = far_matrix[:, 1] - far_matrix[:, 0]
+        positive_errors = far_matrix[:, 2] - far_matrix[:, 1]
+        error_matrix = numpy.vstack((negative_errors, positive_errors))
+
+        this_handle = main_axes_object.errorbar(
+            x_values, far_matrix[:, 1], yerr=error_matrix, color=FAR_COLOUR,
+            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
+            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
+        )[0]
+
+    legend_handles.append(this_handle)
+    legend_strings.append('FAR')
+
+    # Plot legend and axis labels for scores.
+    main_axes_object.legend(
+        legend_handles, legend_strings, loc='lower center',
+        bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
+        ncol=len(legend_handles)
+    )
+
+    main_axes_object.set_ylabel('Score')
+    main_axes_object.set_xlim([
+        numpy.min(x_values) - 0.5, numpy.max(x_values) + 0.5
+    ])
+
+    # Plot histogram of positive-example counts.
+    histogram_axes_object.bar(
+        x=x_values, height=num_positive_ex_by_chunk, width=1.,
+        color=HISTOGRAM_FACE_COLOUR, edgecolor=HISTOGRAM_EDGE_COLOUR,
+        linewidth=HISTOGRAM_EDGE_WIDTH)
+
+    histogram_axes_object.set_ylabel('Number of positive examples')
+
+    return figure_object, main_axes_object
 
 
 def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
-                   output_dir_name):
+                   confidence_level, output_dir_name):
     """Plots model evaluation by month.
 
     :param top_evaluation_dir_name: See documentation at top of file.
     :param num_months_per_chunk: Same.
+    :param confidence_level: Same.
     :param output_dir_name: Same.
     """
 
     chunk_to_months_dict = subsetting._get_months_in_each_chunk(
         num_months_per_chunk)
-    num_chunks = len(chunk_to_months_dict.keys())
 
     num_bootstrap_reps = None
+    num_chunks = len(chunk_to_months_dict.keys())
 
     auc_matrix = numpy.full((num_chunks, 3), numpy.nan)
     pod_matrix = numpy.full((num_chunks, 3), numpy.nan)
     far_matrix = numpy.full((num_chunks, 3), numpy.nan)
     csi_matrix = numpy.full((num_chunks, 3), numpy.nan)
     num_examples_by_chunk = numpy.full(num_chunks, 0, dtype=int)
+    num_positive_ex_by_chunk = numpy.full(num_chunks, 0, dtype=int)
 
     for i in range(num_chunks):
         this_subdir_name = '-'.join([
@@ -298,7 +365,10 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
             this_eval_file_name)
 
         num_examples_by_chunk[i] = len(
-            this_evaluation_dict[model_eval.FORECAST_PROBABILITIES_KEY]
+            this_evaluation_dict[model_eval.OBSERVED_LABELS_KEY]
+        )
+        num_positive_ex_by_chunk[i] = numpy.sum(
+            this_evaluation_dict[model_eval.OBSERVED_LABELS_KEY]
         )
 
         this_evaluation_table = this_evaluation_dict[
@@ -323,26 +393,23 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
 
         auc_matrix[i, 0], auc_matrix[i, 2] = (
             bootstrapping.get_confidence_interval(
-                stat_values=these_auc, confidence_level=CONFIDENCE_LEVEL)
+                stat_values=these_auc, confidence_level=confidence_level)
         )
         pod_matrix[i, 0], pod_matrix[i, 2] = (
             bootstrapping.get_confidence_interval(
-                stat_values=these_pod, confidence_level=CONFIDENCE_LEVEL)
+                stat_values=these_pod, confidence_level=confidence_level)
         )
         far_matrix[i, 0], far_matrix[i, 2] = (
             bootstrapping.get_confidence_interval(
-                stat_values=these_far, confidence_level=CONFIDENCE_LEVEL)
+                stat_values=these_far, confidence_level=confidence_level)
         )
         csi_matrix[i, 0], csi_matrix[i, 2] = (
             bootstrapping.get_confidence_interval(
-                stat_values=these_csi, confidence_level=CONFIDENCE_LEVEL)
+                stat_values=these_csi, confidence_level=confidence_level)
         )
 
-    figure_object, axes_object = _plot_scores(
-        auc_matrix=auc_matrix, pod_matrix=pod_matrix, far_matrix=far_matrix,
-        csi_matrix=csi_matrix, num_examples_by_chunk=num_examples_by_chunk,
-        num_bootstrap_reps=num_bootstrap_reps
-    )[:-1]
+    x_tick_values = numpy.linspace(
+        0, num_chunks - 1, num=num_chunks, dtype=float)
 
     # TODO(thunderhoser): This code is hacky.
     if num_months_per_chunk == 1:
@@ -355,13 +422,32 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
     else:
         x_tick_labels = None
 
-    x_tick_values = numpy.linspace(
-        0, num_chunks - 1, num=num_chunks, dtype=float)
+    figure_object, axes_object = _plot_auc_and_csi(
+        auc_matrix=auc_matrix, csi_matrix=csi_matrix,
+        num_examples_by_chunk=num_examples_by_chunk,
+        num_bootstrap_reps=num_bootstrap_reps)
 
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
 
-    output_file_name = '{0:s}/scores_by_month.jpg'.format(output_dir_name)
+    output_file_name = '{0:s}/monthly_auc_and_csi.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    figure_object, axes_object = _plot_pod_and_far(
+        pod_matrix=pod_matrix, far_matrix=far_matrix,
+        num_positive_ex_by_chunk=num_positive_ex_by_chunk,
+        num_bootstrap_reps=num_bootstrap_reps)
+
+    axes_object.set_xticks(x_tick_values)
+    axes_object.set_xticklabels(x_tick_labels, rotation=90.)
+
+    output_file_name = '{0:s}/monthly_pod_and_far.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
 
     figure_object.savefig(
@@ -372,25 +458,27 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
 
 
 def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
-                  output_dir_name):
+                  confidence_level, output_dir_name):
     """Plots model evaluation by hour.
 
     :param top_evaluation_dir_name: See documentation at top of file.
     :param num_hours_per_chunk: Same.
+    :param confidence_level: Same.
     :param output_dir_name: Same.
     """
 
     chunk_to_hours_dict = subsetting._get_hours_in_each_chunk(
         num_hours_per_chunk)
-    num_chunks = len(chunk_to_hours_dict.keys())
 
     num_bootstrap_reps = None
+    num_chunks = len(chunk_to_hours_dict.keys())
 
     auc_matrix = numpy.full((num_chunks, 3), numpy.nan)
     pod_matrix = numpy.full((num_chunks, 3), numpy.nan)
     far_matrix = numpy.full((num_chunks, 3), numpy.nan)
     csi_matrix = numpy.full((num_chunks, 3), numpy.nan)
     num_examples_by_chunk = numpy.full(num_chunks, 0, dtype=int)
+    num_positive_ex_by_chunk = numpy.full(num_chunks, 0, dtype=int)
 
     for i in range(num_chunks):
         this_subdir_name = '-'.join([
@@ -414,7 +502,10 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
             this_eval_file_name)
 
         num_examples_by_chunk[i] = len(
-            this_evaluation_dict[model_eval.FORECAST_PROBABILITIES_KEY]
+            this_evaluation_dict[model_eval.OBSERVED_LABELS_KEY]
+        )
+        num_positive_ex_by_chunk[i] = numpy.sum(
+            this_evaluation_dict[model_eval.OBSERVED_LABELS_KEY]
         )
 
         this_evaluation_table = this_evaluation_dict[
@@ -439,28 +530,24 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
 
         auc_matrix[i, 0], auc_matrix[i, 2] = (
             bootstrapping.get_confidence_interval(
-                stat_values=these_auc, confidence_level=CONFIDENCE_LEVEL)
+                stat_values=these_auc, confidence_level=confidence_level)
         )
         pod_matrix[i, 0], pod_matrix[i, 2] = (
             bootstrapping.get_confidence_interval(
-                stat_values=these_pod, confidence_level=CONFIDENCE_LEVEL)
+                stat_values=these_pod, confidence_level=confidence_level)
         )
         far_matrix[i, 0], far_matrix[i, 2] = (
             bootstrapping.get_confidence_interval(
-                stat_values=these_far, confidence_level=CONFIDENCE_LEVEL)
+                stat_values=these_far, confidence_level=confidence_level)
         )
         csi_matrix[i, 0], csi_matrix[i, 2] = (
             bootstrapping.get_confidence_interval(
-                stat_values=these_csi, confidence_level=CONFIDENCE_LEVEL)
+                stat_values=these_csi, confidence_level=confidence_level)
         )
 
-    figure_object, axes_object = _plot_scores(
-        auc_matrix=auc_matrix, pod_matrix=pod_matrix, far_matrix=far_matrix,
-        csi_matrix=csi_matrix, num_examples_by_chunk=num_examples_by_chunk,
-        num_bootstrap_reps=num_bootstrap_reps
-    )[:-1]
-
     x_tick_labels = [None] * num_chunks
+    x_tick_values = numpy.linspace(
+        0, num_chunks - 1, num=num_chunks, dtype=float)
 
     for i in range(num_chunks):
         these_hours = chunk_to_hours_dict[i]
@@ -472,14 +559,34 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
                 numpy.min(these_hours), numpy.max(these_hours)
             )
 
-    x_tick_values = numpy.linspace(
-        0, num_chunks - 1, num=num_chunks, dtype=float)
+    figure_object, axes_object = _plot_auc_and_csi(
+        auc_matrix=auc_matrix, csi_matrix=csi_matrix,
+        num_examples_by_chunk=num_examples_by_chunk,
+        num_bootstrap_reps=num_bootstrap_reps)
 
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
     axes_object.set_xlabel('Hour')
 
-    output_file_name = '{0:s}/scores_by_hour.jpg'.format(output_dir_name)
+    output_file_name = '{0:s}/hourly_auc_and_csi.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+    figure_object, axes_object = _plot_pod_and_far(
+        pod_matrix=pod_matrix, far_matrix=far_matrix,
+        num_positive_ex_by_chunk=num_positive_ex_by_chunk,
+        num_bootstrap_reps=num_bootstrap_reps)
+
+    axes_object.set_xticks(x_tick_values)
+    axes_object.set_xticklabels(x_tick_labels, rotation=90.)
+    axes_object.set_xlabel('Hour')
+
+    output_file_name = '{0:s}/hourly_pod_and_far.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
 
     figure_object.savefig(
@@ -490,7 +597,7 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
 
 
 def _run(top_evaluation_dir_name, num_months_per_chunk, num_hours_per_chunk,
-         output_dir_name):
+         confidence_level, output_dir_name):
     """Plots temporally subset model evaluation.
 
     This is effectively the main method.
@@ -498,6 +605,7 @@ def _run(top_evaluation_dir_name, num_months_per_chunk, num_hours_per_chunk,
     :param top_evaluation_dir_name: See documentation at top of file.
     :param num_months_per_chunk: Same.
     :param num_hours_per_chunk: Same.
+    :param confidence_level: Same.
     :param output_dir_name: Same.
     """
 
@@ -508,13 +616,13 @@ def _run(top_evaluation_dir_name, num_months_per_chunk, num_hours_per_chunk,
         _plot_by_month(
             top_evaluation_dir_name=top_evaluation_dir_name,
             num_months_per_chunk=num_months_per_chunk,
-            output_dir_name=output_dir_name)
+            confidence_level=confidence_level, output_dir_name=output_dir_name)
 
     if num_hours_per_chunk > 0:
         _plot_by_hour(
             top_evaluation_dir_name=top_evaluation_dir_name,
             num_hours_per_chunk=num_hours_per_chunk,
-            output_dir_name=output_dir_name)
+            confidence_level=confidence_level, output_dir_name=output_dir_name)
 
 
 if __name__ == '__main__':
@@ -524,5 +632,6 @@ if __name__ == '__main__':
         top_evaluation_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         num_months_per_chunk=getattr(INPUT_ARG_OBJECT, NUM_MONTHS_ARG_NAME),
         num_hours_per_chunk=getattr(INPUT_ARG_OBJECT, NUM_HOURS_ARG_NAME),
+        confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
