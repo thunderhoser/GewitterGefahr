@@ -110,7 +110,8 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
     pyplot.title(title_string)
 
     print('Saving ROC curve to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                   bbox_inches='tight')
     pyplot.close()
 
 
@@ -196,7 +197,8 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
     pyplot.title(title_string)
 
     print('Saving performance diagram to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                   bbox_inches='tight')
     pyplot.close()
 
 
@@ -293,7 +295,8 @@ def _plot_attributes_diagram(
     axes_object.set_title(title_string)
 
     print('Saving attributes diagram to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                   bbox_inches='tight')
     pyplot.close()
 
 
