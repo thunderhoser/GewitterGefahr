@@ -226,6 +226,9 @@ def _plot_attributes_diagram(
         evaluation_table[model_eval.EVENT_FREQ_BY_BIN_KEY].values.tolist()
     ))
 
+    print(mean_forecast_prob_matrix)
+    print(event_frequency_matrix)
+
     mean_bss = numpy.mean(evaluation_table[model_eval.BSS_KEY].values)
     title_string = 'BSS = {0:.3f}'.format(mean_bss)
 
