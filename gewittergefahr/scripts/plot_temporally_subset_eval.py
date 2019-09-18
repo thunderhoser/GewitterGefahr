@@ -183,25 +183,29 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     legend_handles.append(this_handle)
     legend_strings.append('CSI')
 
-    # Plot legend and axis labels for scores.
-    main_axes_object.legend(
-        legend_handles, legend_strings, loc='lower center',
-        bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
-        ncol=len(legend_handles)
-    )
-
-    main_axes_object.set_ylabel('Score')
+    main_axes_object.set_ylabel('AUC or CSI')
     main_axes_object.set_xlim([
         numpy.min(x_values) - 0.5, numpy.max(x_values) + 0.5
     ])
 
     # Plot histogram of example counts.
     y_values = numpy.maximum(numpy.log10(num_examples_by_chunk), 0.)
-    histogram_axes_object.bar(
-        x=x_values, height=y_values, width=1., color=HISTOGRAM_FACE_COLOUR,
-        edgecolor=HISTOGRAM_EDGE_COLOUR, linewidth=HISTOGRAM_EDGE_WIDTH)
 
+    this_handle = histogram_axes_object.bar(
+        x=x_values, height=y_values, width=1., color=HISTOGRAM_FACE_COLOUR,
+        edgecolor=HISTOGRAM_EDGE_COLOUR, linewidth=HISTOGRAM_EDGE_WIDTH
+    )[0]
+
+    legend_handles.append(this_handle)
+    legend_strings.append(r'Number of examples (log$_{10}$)')
     histogram_axes_object.set_ylabel(r'Number of examples (log$_{10}$)')
+
+    # Plot legend.
+    main_axes_object.legend(
+        legend_handles, legend_strings, loc='lower center',
+        bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
+        ncol=len(legend_handles)
+    )
 
     return figure_object, main_axes_object
 
