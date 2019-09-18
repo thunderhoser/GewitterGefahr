@@ -293,25 +293,28 @@ def _plot_pod_and_far(pod_matrix, far_matrix, num_positive_ex_by_chunk,
     legend_handles.append(this_handle)
     legend_strings.append('FAR')
 
-    # Plot legend and axis labels for scores.
-    main_axes_object.legend(
-        legend_handles, legend_strings, loc='lower center',
-        bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
-        ncol=len(legend_handles)
-    )
-
-    main_axes_object.set_ylabel('Score')
+    main_axes_object.set_ylabel('POD or FAR')
     main_axes_object.set_xlim([
         numpy.min(x_values) - 0.5, numpy.max(x_values) + 0.5
     ])
 
     # Plot histogram of positive-example counts.
-    histogram_axes_object.bar(
+    this_handle = histogram_axes_object.bar(
         x=x_values, height=num_positive_ex_by_chunk, width=1.,
         color=HISTOGRAM_FACE_COLOUR, edgecolor=HISTOGRAM_EDGE_COLOUR,
-        linewidth=HISTOGRAM_EDGE_WIDTH)
+        linewidth=HISTOGRAM_EDGE_WIDTH
+    )[0]
 
+    legend_handles.append(this_handle)
+    legend_strings.append('Number of positive examples')
     histogram_axes_object.set_ylabel('Number of positive examples')
+
+    # Plot legend.
+    main_axes_object.legend(
+        legend_handles, legend_strings, loc='lower center',
+        bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
+        ncol=len(legend_handles)
+    )
 
     return figure_object, main_axes_object
 
