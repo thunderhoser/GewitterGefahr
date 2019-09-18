@@ -572,7 +572,7 @@ def plot_bootstrapped_performance_diagram(
         return
 
     polygon_colour = matplotlib.colors.to_rgba(
-        plotting_utils.colour_from_numpy_to_tuple(PERF_DIAGRAM_WIDTH),
+        plotting_utils.colour_from_numpy_to_tuple(PERF_DIAGRAM_COLOUR),
         POLYGON_OPACITY
     )
 
