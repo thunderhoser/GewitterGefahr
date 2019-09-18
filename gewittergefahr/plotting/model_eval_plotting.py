@@ -710,9 +710,6 @@ def plot_reliability_curve(
         numpy.isnan(mean_forecast_by_bin), numpy.isnan(event_frequency_by_bin)
     )
 
-    print(mean_forecast_by_bin)
-    print(event_frequency_by_bin)
-
     if not numpy.all(nan_flags):
         real_indices = numpy.where(numpy.invert(nan_flags))[0]
 
