@@ -19,9 +19,6 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.plotting import model_eval_plotting
 
-# TODO(thunderhoser): Look over this script and make sure I'm doing everything
-#  right.
-
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
@@ -270,8 +267,8 @@ def _plot_attributes_diagram(
                 confidence_level=confidence_level
             )
 
-            ci_mean_dict[model_eval.EVENT_FREQ_BY_BIN_KEY][j] = numpy.nanmean(
-                mean_forecast_prob_matrix[:, j]
+            ci_mean_dict[model_eval.MEAN_FORECAST_BY_BIN_KEY][j] = (
+                numpy.nanmean(mean_forecast_prob_matrix[:, j])
             )
 
             ci_mean_dict[model_eval.EVENT_FREQ_BY_BIN_KEY][j] = numpy.nanmean(
