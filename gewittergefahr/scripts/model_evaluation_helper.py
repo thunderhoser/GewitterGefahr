@@ -47,7 +47,7 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
         evaluation_table[model_eval.POFD_BY_THRESHOLD_KEY].values.tolist()
     ))
 
-    mean_auc = numpy.mean(evaluation_table[model_eval.AUC_KEY].values)
+    mean_auc = numpy.nanmean(evaluation_table[model_eval.AUC_KEY].values)
     title_string = 'AUC = {0:.3f}'.format(mean_auc)
 
     num_bootstrap_reps = pod_matrix.shape[0]
@@ -133,7 +133,7 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
         evaluation_table[model_eval.SR_BY_THRESHOLD_KEY].values.tolist()
     ))
 
-    mean_aupd = numpy.mean(evaluation_table[model_eval.AUPD_KEY].values)
+    mean_aupd = numpy.nanmean(evaluation_table[model_eval.AUPD_KEY].values)
     title_string = 'AUPD = {0:.3f}'.format(mean_aupd)
 
     num_bootstrap_reps = pod_matrix.shape[0]
@@ -225,7 +225,7 @@ def _plot_attributes_diagram(
         evaluation_table[model_eval.EVENT_FREQ_BY_BIN_KEY].values.tolist()
     ))
 
-    mean_bss = numpy.mean(evaluation_table[model_eval.BSS_KEY].values)
+    mean_bss = numpy.nanmean(evaluation_table[model_eval.BSS_KEY].values)
     title_string = 'BSS = {0:.3f}'.format(mean_bss)
 
     num_bootstrap_reps = mean_forecast_prob_matrix.shape[0]
