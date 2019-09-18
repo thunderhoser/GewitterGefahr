@@ -21,6 +21,11 @@ STORM_TIMES_KEY = 'storm_times_unix_sec'
 PROBABILITY_MATRIX_KEY = 'class_probability_matrix'
 OBSERVED_LABELS_KEY = 'observed_labels'
 
+REQUIRED_KEYS_FOR_UNGRIDDED = [
+    TARGET_NAME_KEY, STORM_IDS_KEY, STORM_TIMES_KEY, PROBABILITY_MATRIX_KEY,
+    OBSERVED_LABELS_KEY
+]
+
 INIT_TIMES_KEY = 'init_times_unix_sec'
 MIN_LEAD_TIME_KEY = 'min_lead_time_seconds'
 MAX_LEAD_TIME_KEY = 'max_lead_time_seconds'
@@ -32,7 +37,7 @@ XY_PROBABILITIES_KEY = 'sparse_prob_matrices_xy'
 LATLNG_PROBABILITIES_KEY = 'sparse_prob_matrices_latlng'
 PROJECTION_KEY = 'projection_object'
 
-REQUIRED_KEYS = [
+REQUIRED_KEYS_FOR_GRIDDED = [
     INIT_TIMES_KEY, MIN_LEAD_TIME_KEY, MAX_LEAD_TIME_KEY, GRID_X_COORDS_KEY,
     GRID_Y_COORDS_KEY, XY_PROBABILITIES_KEY, PROJECTION_KEY
 ]
@@ -40,6 +45,45 @@ REQUIRED_KEYS = [
 LATLNG_KEYS = [
     GRID_LATITUDES_KEY, GRID_LONGITUDES_KEY, LATLNG_PROBABILITIES_KEY
 ]
+
+
+def subset_ungridded_predictions(prediction_dict, desired_storm_indices):
+    """Subsets ungridded predictions.
+
+    :param prediction_dict: See doc for `read_ungridded_predictions`.
+    :param desired_storm_indices: 1-D numpy array with indices of desired storm
+        objects.
+    :return: small_prediction_dict: Same as input but maybe with fewer storm
+        objects.
+    :raises: ValueError: if dictionary is missing any expected keys.
+    """
+
+    missing_keys = list(
+        set(REQUIRED_KEYS_FOR_UNGRIDDED) - set(prediction_dict.keys())
+    )
+
+    if len(missing_keys) > 0:
+        error_string = (
+            '\n{0:s}\nKeys listed above were expected, but not found, in '
+            'dictionary.'
+        ).format(str(missing_keys))
+
+        raise ValueError(error_string)
+
+    small_prediction_dict = dict()
+
+    for this_key in prediction_dict:
+        if isinstance(prediction_dict[this_key], list):
+            small_prediction_dict[this_key] = [
+                prediction_dict[this_key][k] for k in desired_storm_indices
+            ]
+        elif isinstance(prediction_dict[this_key], numpy.ndarray):
+            small_prediction_dict[this_key] = prediction_dict[this_key][
+                desired_storm_indices, ...]
+        else:
+            small_prediction_dict[this_key] = prediction_dict[this_key]
+
+    return small_prediction_dict
 
 
 def find_file(
@@ -303,9 +347,9 @@ def write_gridded_predictions(gridded_forecast_dict, pickle_file_name):
     # MYRORSS format -- or NetCDF, anyways).
 
     if any([k in gridded_forecast_dict for k in LATLNG_KEYS]):
-        these_required_keys = REQUIRED_KEYS + LATLNG_KEYS
+        these_required_keys = REQUIRED_KEYS_FOR_GRIDDED + LATLNG_KEYS
     else:
-        these_required_keys = REQUIRED_KEYS
+        these_required_keys = REQUIRED_KEYS_FOR_GRIDDED
 
     missing_keys = list(
         set(these_required_keys) - set(gridded_forecast_dict.keys())
@@ -338,9 +382,9 @@ def read_gridded_predictions(pickle_file_name):
     pickle_file_handle.close()
 
     if any([k in gridded_forecast_dict for k in LATLNG_KEYS]):
-        these_required_keys = REQUIRED_KEYS + LATLNG_KEYS
+        these_required_keys = REQUIRED_KEYS_FOR_GRIDDED + LATLNG_KEYS
     else:
-        these_required_keys = REQUIRED_KEYS
+        these_required_keys = REQUIRED_KEYS_FOR_GRIDDED
 
     missing_keys = list(
         set(these_required_keys) - set(gridded_forecast_dict.keys())
