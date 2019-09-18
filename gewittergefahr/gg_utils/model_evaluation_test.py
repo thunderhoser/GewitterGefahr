@@ -552,6 +552,7 @@ class ModelEvaluationTests(unittest.TestCase):
         this_cross_entropy = model_eval.get_cross_entropy(
             forecast_probabilities=FORECAST_PROBS_FOR_BS_AND_XENTROPY,
             observed_labels=OBSERVED_LABELS)
+
         self.assertTrue(numpy.isclose(
             this_cross_entropy, CROSS_ENTROPY, atol=TOLERANCE))
 

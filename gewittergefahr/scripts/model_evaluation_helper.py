@@ -425,9 +425,13 @@ def run_evaluation(
                     target_values=observed_labels,
                     num_examples_total=num_examples)
         else:
-            these_positive_indices = bootstrapping.draw_sample(
-                forecast_probabilities[positive_example_indices]
-            )[-1]
+            if len(positive_example_indices) > 0:
+                these_positive_indices = bootstrapping.draw_sample(
+                    forecast_probabilities[positive_example_indices]
+                )[-1]
+            else:
+                these_positive_indices = numpy.array([], dtype=int)
+
             these_negative_indices = bootstrapping.draw_sample(
                 forecast_probabilities[negative_example_indices]
             )[-1]

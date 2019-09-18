@@ -397,12 +397,17 @@ def get_pod(contingency_table_as_dict):
     :return: probability_of_detection: POD.
     """
 
-    try:
-        return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / (
-            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
-    except ZeroDivisionError:
+    denominator = (
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
+    )
+
+    if denominator == 0:
         return numpy.nan
+
+    return (
+        float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / denominator
+    )
 
 
 def get_fom(contingency_table_as_dict):
@@ -424,12 +429,17 @@ def get_pofd(contingency_table_as_dict):
     :return: probability_of_false_detection: POFD.
     """
 
-    try:
-        return float(contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]) / (
-            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
-            contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY])
-    except ZeroDivisionError:
+    denominator = (
+        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY]
+    )
+
+    if denominator == 0:
         return numpy.nan
+
+    return (
+        float(contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]) / denominator
+    )
 
 
 def get_npv(contingency_table_as_dict):
@@ -451,12 +461,17 @@ def get_success_ratio(contingency_table_as_dict):
     :return: success_ratio: Success ratio.
     """
 
-    try:
-        return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / (
-            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY])
-    except ZeroDivisionError:
+    denominator = (
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]
+    )
+
+    if denominator == 0:
         return numpy.nan
+
+    return (
+        float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / denominator
+    )
 
 
 def get_far(contingency_table_as_dict):
@@ -478,12 +493,17 @@ def get_dfr(contingency_table_as_dict):
     :return: detection_failure_ratio: DFR.
     """
 
-    try:
-        return float(contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]) / (
-            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY] +
-            contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY])
-    except ZeroDivisionError:
+    denominator = (
+        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY] +
+        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY]
+    )
+
+    if denominator == 0:
         return numpy.nan
+
+    return (
+        float(contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]) / denominator
+    )
 
 
 def get_focn(contingency_table_as_dict):
@@ -505,15 +525,22 @@ def get_accuracy(contingency_table_as_dict):
     :return: accuracy: Accuracy.
     """
 
-    try:
-        return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-                     contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY]) / (
-                         contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-                         contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
-                         contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY] +
-                         contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY])
-    except ZeroDivisionError:
+    denominator = (
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY] +
+        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY]
+    )
+
+    if denominator == 0:
         return numpy.nan
+
+    numerator = float(
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY]
+    )
+
+    return numerator / denominator
 
 
 def get_csi(contingency_table_as_dict):
@@ -524,13 +551,18 @@ def get_csi(contingency_table_as_dict):
     :return: critical_success_index: CSI.
     """
 
-    try:
-        return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / (
-            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
-            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
-    except ZeroDivisionError:
+    denominator = (
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
+    )
+
+    if denominator == 0:
         return numpy.nan
+
+    return (
+        float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / denominator
+    )
 
 
 def get_frequency_bias(contingency_table_as_dict):
@@ -541,13 +573,20 @@ def get_frequency_bias(contingency_table_as_dict):
     :return: frequency_bias: Frequency bias.
     """
 
-    try:
-        return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-                     contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]) / (
-                         contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-                         contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
-    except ZeroDivisionError:
+    denominator = (
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
+    )
+
+    if denominator == 0:
         return numpy.nan
+
+    numerator = float(
+        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]
+    )
+
+    return numerator / denominator
 
 
 def get_peirce_score(contingency_table_as_dict):
@@ -558,8 +597,9 @@ def get_peirce_score(contingency_table_as_dict):
     :return: peirce_score: Peirce score.
     """
 
-    return (get_pod(contingency_table_as_dict) -
-            get_pofd(contingency_table_as_dict))
+    return (
+        get_pod(contingency_table_as_dict) - get_pofd(contingency_table_as_dict)
+    )
 
 
 def get_heidke_score(contingency_table_as_dict):
@@ -571,22 +611,34 @@ def get_heidke_score(contingency_table_as_dict):
     """
 
     try:
-        numerator = 2 * (contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] *
-                         contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] -
-                         contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] *
-                         contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+        numerator = 2 * (
+            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] *
+            contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] -
+            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] *
+            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
+        )
 
-        num_positives = (contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-                         contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY])
-        num_negatives = (contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
-                         contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
-        num_events = (contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-                      contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
-        num_non_events = (contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
-                          contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY])
+        num_positives = (
+            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]
+        )
+        num_negatives = (
+            contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
+            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
+        )
+        num_events = (
+            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]
+        )
+        num_non_events = (
+            contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
+            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]
+        )
 
         return float(numerator) / (
-            num_positives * num_non_events + num_negatives * num_events)
+            num_positives * num_non_events + num_negatives * num_events
+        )
+
     except ZeroDivisionError:
         return numpy.nan
 
@@ -622,17 +674,17 @@ def get_cross_entropy(forecast_probabilities=None, observed_labels=None):
     _check_forecast_probs_and_observed_labels(
         forecast_probabilities, observed_labels)
 
-    forecast_probabilities[
-        forecast_probabilities <
-        MIN_FORECAST_PROB_FOR_XENTROPY] = MIN_FORECAST_PROB_FOR_XENTROPY
-    forecast_probabilities[
-        forecast_probabilities >
-        MAX_FORECAST_PROB_FOR_XENTROPY] = MAX_FORECAST_PROB_FOR_XENTROPY
+    forecast_probabilities = numpy.maximum(
+        forecast_probabilities, MIN_FORECAST_PROB_FOR_XENTROPY)
+    forecast_probabilities = numpy.minimum(
+        forecast_probabilities, MAX_FORECAST_PROB_FOR_XENTROPY)
+
     observed_labels = observed_labels.astype(numpy.float)
 
     return -numpy.mean(
         observed_labels * numpy.log2(forecast_probabilities) +
-        (1 - observed_labels) * numpy.log2(1 - forecast_probabilities))
+        (1 - observed_labels) * numpy.log2(1 - forecast_probabilities)
+    )
 
 
 def get_points_in_roc_curve(
@@ -669,7 +721,8 @@ def get_points_in_roc_curve(
 
     for i in range(num_thresholds):
         these_forecast_labels = binarize_forecast_probs(
-            forecast_probabilities, binarization_thresholds[i])
+            forecast_probabilities, binarization_thresholds[i]
+        )
         this_contingency_table_as_dict = get_contingency_table(
             these_forecast_labels, observed_labels)
 
@@ -712,13 +765,15 @@ def get_area_under_roc_curve(pofd_by_threshold, pod_by_threshold):
     pod_by_threshold = pod_by_threshold[sort_indices]
 
     nan_flags = numpy.logical_or(
-        numpy.isnan(pofd_by_threshold), numpy.isnan(pod_by_threshold))
+        numpy.isnan(pofd_by_threshold), numpy.isnan(pod_by_threshold)
+    )
     if numpy.all(nan_flags):
         return numpy.nan
 
     real_indices = numpy.where(numpy.invert(nan_flags))[0]
     return sklearn.metrics.auc(
-        pofd_by_threshold[real_indices], pod_by_threshold[real_indices])
+        pofd_by_threshold[real_indices], pod_by_threshold[real_indices]
+    )
 
 
 def get_random_roc_curve():
@@ -764,7 +819,8 @@ def get_points_in_performance_diagram(
 
     for i in range(num_thresholds):
         these_forecast_labels = binarize_forecast_probs(
-            forecast_probabilities, binarization_thresholds[i])
+            forecast_probabilities, binarization_thresholds[i]
+        )
         this_contingency_table_as_dict = get_contingency_table(
             these_forecast_labels, observed_labels)
 
@@ -805,14 +861,16 @@ def get_area_under_perf_diagram(success_ratio_by_threshold, pod_by_threshold):
     pod_by_threshold = pod_by_threshold[sort_indices]
 
     nan_flags = numpy.logical_or(
-        numpy.isnan(success_ratio_by_threshold), numpy.isnan(pod_by_threshold))
+        numpy.isnan(success_ratio_by_threshold), numpy.isnan(pod_by_threshold)
+    )
     if numpy.all(nan_flags):
         return numpy.nan
 
     real_indices = numpy.where(numpy.invert(nan_flags))[0]
     return sklearn.metrics.auc(
         success_ratio_by_threshold[real_indices],
-        pod_by_threshold[real_indices])
+        pod_by_threshold[real_indices]
+    )
 
 
 def get_sr_pod_grid(success_ratio_spacing=DEFAULT_GRID_SPACING,
@@ -973,9 +1031,11 @@ def get_points_in_reliability_curve(
 
         num_examples_by_bin[i] = len(these_example_indices)
         mean_forecast_prob_by_bin[i] = numpy.mean(
-            forecast_probabilities[these_example_indices])
+            forecast_probabilities[these_example_indices]
+        )
         mean_observed_label_by_bin[i] = numpy.mean(
-            observed_labels[these_example_indices].astype(float))
+            observed_labels[these_example_indices].astype(float)
+        )
 
     return (mean_forecast_prob_by_bin, mean_observed_label_by_bin,
             num_examples_by_bin)
