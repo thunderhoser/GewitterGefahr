@@ -27,14 +27,14 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
-LINE_WIDTH = 3
+LINE_WIDTH = 4
 HISTOGRAM_EDGE_WIDTH = 1.5
-ERROR_BAR_WIDTH = 2
+ERROR_BAR_WIDTH = 3
 ERROR_CAP_LENGTH = 6
 
 MARKER_TYPE = 'o'
-MARKER_SIZE_SANS_BOOTSTRAP = 14
-MARKER_SIZE_WITH_BOOTSTRAP = 8
+MARKER_SIZE_SANS_BOOTSTRAP = 16
+MARKER_SIZE_WITH_BOOTSTRAP = 10
 
 AUC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 CSI_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255

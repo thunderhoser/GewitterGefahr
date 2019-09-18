@@ -277,10 +277,6 @@ def _plot_attributes_diagram(
                 event_frequency_matrix[:, j]
             )
 
-        print(ci_top_dict)
-        print(ci_bottom_dict)
-        print(ci_mean_dict)
-
         model_eval_plotting.plot_bootstrapped_attributes_diagram(
             figure_object=figure_object, axes_object=axes_object,
             ci_bottom_dict=ci_bottom_dict, ci_mean_dict=ci_mean_dict,
