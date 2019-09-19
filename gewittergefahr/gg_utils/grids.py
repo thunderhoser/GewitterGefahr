@@ -691,7 +691,7 @@ def get_latlng_grid_points_in_radius(
 
 def create_equidistant_grid(
         min_latitude_deg, max_latitude_deg, min_longitude_deg,
-        max_longitude_deg, x_spacing_metres, y_spacing_metres):
+        max_longitude_deg, x_spacing_metres, y_spacing_metres, azimuthal=True):
     """Creates equidistant grid.
 
     M = number of rows
@@ -703,6 +703,8 @@ def create_equidistant_grid(
     :param max_longitude_deg: Max longitude (deg E) in grid.
     :param x_spacing_metres: Spacing between grid points in adjacent columns.
     :param y_spacing_metres: Spacing between grid points in adjacent rows.
+    :param azimuthal: Boolean flag.  If True, will create azimuthal equidistant
+        grid.  If False, will create Lambert conformal grid.
     :return: grid_dict: Dictionary with the following keys.
     grid_dict['grid_point_x_coords_metres']: length-N numpy array with unique
         x-coordinates at grid points.
@@ -718,6 +720,7 @@ def create_equidistant_grid(
     error_checking.assert_is_greater(max_latitude_deg, min_latitude_deg)
     error_checking.assert_is_greater(x_spacing_metres, 0.)
     error_checking.assert_is_greater(y_spacing_metres, 0.)
+    error_checking.assert_is_boolean(azimuthal)
 
     min_longitude_deg = lng_conversion.convert_lng_negative_in_west(
         min_longitude_deg, allow_nan=False)
@@ -746,9 +749,16 @@ def create_equidistant_grid(
     # Create projection.
     central_latitude_deg = 0.5 * (min_latitude_deg + max_latitude_deg)
     central_longitude_deg = 0.5 * (min_longitude_deg + max_longitude_deg)
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=central_latitude_deg,
-        central_longitude_deg=central_longitude_deg)
+
+    if azimuthal:
+        projection_object = projections.init_azimuthal_equidistant_projection(
+            central_latitude_deg=central_latitude_deg,
+            central_longitude_deg=central_longitude_deg)
+    else:
+        projection_object = projections.init_lcc_projection(
+            standard_latitudes_deg=numpy.full(2, central_latitude_deg),
+            central_longitude_deg=central_longitude_deg
+        )
 
     # Convert lat-long grid to preliminary x-y grid.
     prelim_x_matrix_metres, prelim_y_matrix_metres = (

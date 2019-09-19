@@ -149,7 +149,7 @@ def _run(input_file_name, top_tracking_dir_name, min_latitude_deg,
         min_longitude_deg=min_longitude_deg,
         max_longitude_deg=max_longitude_deg,
         x_spacing_metres=grid_spacing_metres,
-        y_spacing_metres=grid_spacing_metres)
+        y_spacing_metres=grid_spacing_metres, azimuthal=False)
 
     grid_metafile_name = grids.find_equidistant_metafile(
         directory_name=output_dir_name, raise_error_if_missing=False)
