@@ -56,7 +56,7 @@ CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
-    'Name ofinput directory.  Evaluation files therein will be found by '
+    'Name of input directory.  Evaluation files therein will be found by '
     '`model_evaluation.find_file` and read by '
     '`model_evaluation.read_evaluation`.')
 
