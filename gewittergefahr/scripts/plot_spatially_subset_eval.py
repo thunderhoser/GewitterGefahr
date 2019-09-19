@@ -183,11 +183,16 @@ def _plot_one_score(
     min_colour_value = numpy.nanpercentile(
         score_matrix, 100. - max_colour_percentile)
 
+    print(max_colour_value)
+    print(min_colour_value)
+    print(numpy.nanmin(score_matrix_at_edges))
+    print(numpy.nanmax(score_matrix_at_edges))
+
     basemap_object.pcolormesh(
         edge_x_coords_metres, edge_y_coords_metres,
         score_matrix_at_edges, cmap=colour_map_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', axes=axes_object, zorder=-1e12)
+        edgecolors='None', axes=axes_object)
 
     return figure_object, axes_object
 
@@ -274,8 +279,6 @@ def _run(evaluation_dir_name, colour_map_name, max_colour_percentile,
     print(SEPARATOR_STRING)
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
-
-    print(numpy.any(numpy.invert(numpy.isnan(auc_matrix))))
 
     figure_object, axes_object = _plot_one_score(
         score_matrix=auc_matrix, grid_metadata_dict=grid_metadata_dict,
