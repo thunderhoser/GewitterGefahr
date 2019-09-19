@@ -148,6 +148,33 @@ def _plot_one_score(
         numpy.isnan(score_matrix_at_edges), score_matrix_at_edges
     )
 
+    pyproj_x_metres, pyproj_y_metres = projections.project_latlng_to_xy(
+        latitudes_deg=standard_latitudes_deg,
+        longitudes_deg=numpy.full(2, central_longitude_deg),
+        projection_object=grid_metadata_dict[grids.PROJECTION_KEY]
+    )
+
+    pyproj_x_metres = pyproj_x_metres[0]
+    pyproj_y_metres = pyproj_y_metres[0]
+
+    basemap_object = Basemap(
+        projection='lcc', lat_1=standard_latitudes_deg[0],
+        lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
+        rsphere=projections.DEFAULT_EARTH_RADIUS_METRES,
+        ellps=projections.SPHERE_NAME, resolution=RESOLUTION_STRING,
+        llcrnrx=numpy.min(edge_x_coords_metres),
+        llcrnry=numpy.min(edge_y_coords_metres),
+        urcrnrx=numpy.max(edge_x_coords_metres),
+        urcrnry=numpy.max(edge_y_coords_metres)
+    )
+
+    basemap_x_metres, basemap_y_metres = basemap_object(
+        central_longitude_deg, standard_latitudes_deg[0]
+    )
+
+    edge_x_coords_metres += basemap_x_metres - pyproj_x_metres
+    edge_y_coords_metres += basemap_y_metres - pyproj_y_metres
+
     basemap_object = Basemap(
         projection='lcc', lat_1=standard_latitudes_deg[0],
         lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
