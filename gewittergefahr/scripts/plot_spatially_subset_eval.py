@@ -106,12 +106,17 @@ def _get_lcc_params(projection_object):
 def _get_basemap(grid_metadata_dict):
     """Creates basemap.
 
+    M = number of rows in grid
+    M = number of columns in grid
+
     :param grid_metadata_dict: Dictionary returned by
         `grids.read_equidistant_metafile`.
-    :return:
+    :return: basemap_object: Basemap handle (instance of
+        `mpl_toolkits.basemap.Basemap`).
+    :return: basemap_x_matrix_metres: M-by-N numpy array of x-coordinates under
+        Basemap projection (different than pyproj projection).
+    :return: basemap_y_matrix_metres: Same but for y-coordinates.
     """
-
-    # TODO(thunderhoser): Fix doc.
 
     x_matrix_metres, y_matrix_metres = grids.xy_vectors_to_matrices(
         x_unique_metres=grid_metadata_dict[grids.X_COORDS_KEY],
@@ -134,10 +139,8 @@ def _get_basemap(grid_metadata_dict):
         lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
         rsphere=projections.DEFAULT_EARTH_RADIUS_METRES,
         ellps=projections.SPHERE_NAME, resolution=RESOLUTION_STRING,
-        llcrnrlat=numpy.min(latitude_matrix_deg),
-        llcrnrlon=numpy.min(longitude_matrix_deg),
-        urcrnrlat=numpy.max(latitude_matrix_deg),
-        urcrnrlon=numpy.max(longitude_matrix_deg)
+        llcrnrlat=x_matrix_metres[0, 0], llcrnrlon=y_matrix_metres[0, 0],
+        urcrnrlat=x_matrix_metres[-1, -1], urcrnrlon=y_matrix_metres[-1, -1]
     )
 
     basemap_x_matrix_metres, basemap_y_matrix_metres = basemap_object(
@@ -147,18 +150,19 @@ def _get_basemap(grid_metadata_dict):
 
 
 def _plot_one_score(
-        score_matrix, grid_metadata_dict, colour_map_object,
-        max_colour_percentile):
+        score_matrix, grid_metadata_dict, colour_map_object, min_colour_value,
+        max_colour_value):
     """Plots one score.
-    
+
     M = number of rows in grid
     N = number of columns in grid
-    
+
     :param score_matrix: M-by-N numpy array with values of a given score.
     :param grid_metadata_dict: Dictionary returned by
         `grids.read_equidistant_metafile`.
     :param colour_map_object: See documentation at top of file.
-    :param max_colour_percentile: Same.
+    :param min_colour_value: Minimum value in colour scheme.
+    :param max_colour_value: Max value in colour scheme.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
     :return: axes_object: Axes handle (instance of
@@ -217,20 +221,17 @@ def _plot_one_score(
         basemap_object=basemap_object, axes_object=axes_object,
         num_meridians=NUM_MERIDIANS)
 
-    max_colour_value = numpy.nanpercentile(score_matrix, max_colour_percentile)
-    min_colour_value = numpy.nanpercentile(
-        score_matrix, 100. - max_colour_percentile)
-
-    print(max_colour_value)
-    print(min_colour_value)
-    print(numpy.nanmin(score_matrix_at_edges))
-    print(numpy.nanmax(score_matrix_at_edges))
-
     basemap_object.pcolormesh(
         edge_x_coords_metres, edge_y_coords_metres,
         score_matrix_at_edges, cmap=colour_map_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None', axes=axes_object)
+
+    plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=score_matrix,
+        colour_map_object=colour_map_object, min_value=min_colour_value,
+        max_value=max_colour_value, orientation_string='horizontal',
+        extend_min=True, extend_max=True)
 
     return figure_object, axes_object
 
@@ -271,19 +272,19 @@ def _run(evaluation_dir_name, colour_map_name, max_colour_percentile,
     num_positive_examples_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), 0, dtype=int
     )
-    
+
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
             this_eval_file_name = model_eval.find_file(
                 directory_name=evaluation_dir_name, grid_row=i, grid_column=j,
                 raise_error_if_missing=False)
-            
+
             if not os.path.isfile(this_eval_file_name):
                 warning_string = (
                     'Cannot find file (this may or may not be a problem).  '
                     'Expected at: "{0:s}"'
                 ).format(this_eval_file_name)
-                
+
                 warnings.warn(warning_string)
                 continue
 
@@ -318,15 +319,82 @@ def _run(evaluation_dir_name, colour_map_name, max_colour_percentile,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
+    # Plot AUC.
+    max_colour_value = numpy.nanpercentile(auc_matrix, max_colour_percentile)
+    min_colour_value = numpy.maximum(
+        numpy.nanpercentile(auc_matrix, 100. - max_colour_percentile),
+        0.5
+    )
+
     figure_object, axes_object = _plot_one_score(
         score_matrix=auc_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=colour_map_object,
-        max_colour_percentile=max_colour_percentile)
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value)
+
+    axes_object.set_title('AUC (area under ROC curve)')
+    output_file_name = '{0:s}/spatial_auc_plot.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
 
     figure_object.savefig(
-        '{0:s}/shitpiss.jpg'.format(output_dir_name), dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-        bbox_inches='tight'
-    )
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight')
+    pyplot.close(figure_object)
+
+    # Plot CSI.
+    max_colour_value = numpy.nanpercentile(csi_matrix, max_colour_percentile)
+    min_colour_value = numpy.nanpercentile(
+        csi_matrix, 100. - max_colour_percentile)
+
+    figure_object, axes_object = _plot_one_score(
+        score_matrix=csi_matrix, grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=colour_map_object,
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value)
+
+    axes_object.set_title('CSI (critical success index)')
+    output_file_name = '{0:s}/spatial_csi_plot.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight')
+    pyplot.close(figure_object)
+
+    # Plot POD.
+    max_colour_value = numpy.nanpercentile(pod_matrix, max_colour_percentile)
+    min_colour_value = numpy.nanpercentile(
+        pod_matrix, 100. - max_colour_percentile)
+
+    figure_object, axes_object = _plot_one_score(
+        score_matrix=pod_matrix, grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=colour_map_object,
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value)
+
+    axes_object.set_title('POD (probability of detection)')
+    output_file_name = '{0:s}/spatial_pod_plot.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight')
+    pyplot.close(figure_object)
+
+    # Plot FAR.
+    max_colour_value = numpy.nanpercentile(far_matrix, max_colour_percentile)
+    min_colour_value = numpy.nanpercentile(
+        far_matrix, 100. - max_colour_percentile)
+
+    figure_object, axes_object = _plot_one_score(
+        score_matrix=far_matrix, grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=colour_map_object,
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value)
+
+    axes_object.set_title('FAR (false-alarm rate)')
+    output_file_name = '{0:s}/spatial_far_plot.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight')
     pyplot.close(figure_object)
 
 
