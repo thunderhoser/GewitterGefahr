@@ -5,11 +5,14 @@ DEFINITIONS
 "Grid point" = center of grid cell (as opposed to edges of the grid cell).
 """
 
+import pickle
+import os.path
 import numpy
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import number_rounding
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
@@ -25,6 +28,8 @@ Y_COORD_MATRIX_KEY = 'y_coord_matrix_metres'
 X_COORDS_KEY = 'x_coords_metres'
 Y_COORDS_KEY = 'y_coords_metres'
 PROJECTION_KEY = 'projection_object'
+
+EQUIDISTANT_METADATA_KEYS = [X_COORDS_KEY, Y_COORDS_KEY, PROJECTION_KEY]
 
 
 def _check_input_events(
@@ -891,3 +896,83 @@ def find_events_in_grid_cell(
         ))
 
     return desired_indices
+
+
+def find_equidistant_metafile(directory_name, raise_error_if_missing=True):
+    """Finds metafile for equidistant grid.
+
+    :param directory_name: Directory name.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: metafile_name: Path to metafile.  If file is missing and
+        `raise_error_if_missing = False`, this will be the expected path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    metafile_name = '{0:s}/equidistant_grid.p'.format(directory_name)
+
+    if raise_error_if_missing and not os.path.isfile(metafile_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            metafile_name)
+        raise ValueError(error_string)
+
+    return metafile_name
+
+
+def write_equidistant_metafile(grid_dict, pickle_file_name):
+    """Writes metadata for equidistant grid to Pickle file.
+
+    :param grid_dict: See doc for `create_equidistant_grid`.
+    :param pickle_file_name: Path to output file.
+    :raises: ValueError: if any keys are missing from dictionary.
+    """
+
+    missing_keys = list(
+        set(EQUIDISTANT_METADATA_KEYS) - set(grid_dict.keys())
+    )
+
+    if len(missing_keys) > 0:
+        error_string = (
+            '\n{0:s}\nKeys listed above were expected, but not found, in '
+            'dictionary.'
+        ).format(str(missing_keys))
+
+        raise ValueError(error_string)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(grid_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_equidistant_metafile(pickle_file_name):
+    """Reads metadata for equidistant grid from Pickle file.
+
+    :param pickle_file_name: Path to output file.
+    :return: grid_dict: See doc for `create_equidistant_grid`.
+    :raises: ValueError: if any keys are missing from dictionary.
+    """
+
+    error_checking.assert_is_string(pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    grid_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    missing_keys = list(
+        set(EQUIDISTANT_METADATA_KEYS) - set(grid_dict.keys())
+    )
+
+    if len(missing_keys) == 0:
+        return grid_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
