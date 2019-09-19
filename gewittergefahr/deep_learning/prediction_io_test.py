@@ -6,6 +6,7 @@ import numpy
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.deep_learning import prediction_io
 
+# The following constants are used to test subset_ungridded_predictions.
 TARGET_NAME = 'foo'
 
 THESE_ID_STRINGS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
@@ -75,6 +76,19 @@ SMALL_PREDICTION_DICT_WITH_OBS = copy.deepcopy(SMALL_PREDICTION_DICT_SANS_OBS)
 SMALL_PREDICTION_DICT_WITH_OBS[
     prediction_io.OBSERVED_LABELS_KEY] = THESE_OBSERVED_LABELS
 
+# The following constants are used to test find_ungridded_file.
+DIRECTORY_NAME = 'hello'
+MONTHS_IN_SUBSET = numpy.array([5], dtype=int)
+HOURS_IN_SUBSET = numpy.array([6, 17, 22, 23], dtype=int)
+GRID_ROW = 0
+GRID_COLUMN = 300
+
+NON_SUBSET_FILE_NAME = 'hello/ungridded_predictions.nc'
+MONTHLY_SUBSET_FILE_NAME = 'hello/ungridded_predictions_months=05.nc'
+HOURLY_SUBSET_FILE_NAME = 'hello/ungridded_predictions_hours=06-17-22-23.nc'
+SPATIAL_SUBSET_FILE_NAME = (
+    'hello/ungridded_predictions_grid-row=0000_grid-column=0300.nc')
+
 
 def _compare_ungridded_predictions(first_dict, second_dict):
     """Compare two dictionaries with ungridded predictions.
@@ -135,6 +149,62 @@ class PredictionIoTests(unittest.TestCase):
         self.assertTrue(_compare_ungridded_predictions(
             this_prediction_dict, SMALL_PREDICTION_DICT_WITH_OBS
         ))
+
+    def test_find_ungridded_file_no_subset(self):
+        """Ensures correct output from find_ungridded_file.
+
+        In this case there is no spatial or temporal subsetting.
+        """
+
+        this_file_name = prediction_io.find_ungridded_file(
+            directory_name=DIRECTORY_NAME,
+            months_in_subset=None, hours_in_subset=None,
+            grid_row=None, grid_column=None,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == NON_SUBSET_FILE_NAME)
+
+    def test_find_ungridded_file_monthly_subset(self):
+        """Ensures correct output from find_ungridded_file.
+
+        In this case the file is subset by month.
+        """
+
+        this_file_name = prediction_io.find_ungridded_file(
+            directory_name=DIRECTORY_NAME,
+            months_in_subset=MONTHS_IN_SUBSET, hours_in_subset=None,
+            grid_row=None, grid_column=None,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == MONTHLY_SUBSET_FILE_NAME)
+
+    def test_find_ungridded_file_hourly_subset(self):
+        """Ensures correct output from find_ungridded_file.
+
+        In this case the file is subset by hour.
+        """
+
+        this_file_name = prediction_io.find_ungridded_file(
+            directory_name=DIRECTORY_NAME,
+            months_in_subset=None, hours_in_subset=HOURS_IN_SUBSET,
+            grid_row=None, grid_column=None,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == HOURLY_SUBSET_FILE_NAME)
+
+    def test_find_ungridded_file_spatial_subset(self):
+        """Ensures correct output from find_ungridded_file.
+
+        In this case the file is subset spatially.
+        """
+
+        this_file_name = prediction_io.find_ungridded_file(
+            directory_name=DIRECTORY_NAME,
+            months_in_subset=None, hours_in_subset=None,
+            grid_row=GRID_ROW, grid_column=GRID_COLUMN,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == SPATIAL_SUBSET_FILE_NAME)
 
 
 if __name__ == '__main__':

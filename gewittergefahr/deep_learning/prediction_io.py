@@ -10,6 +10,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+UNGRIDDED_FILE_NAME_PREFIX = 'ungridded_predictions'
+GRIDDED_FILE_NAME_PREFIX = 'gridded_predictions'
 
 EXAMPLE_DIMENSION_KEY = 'storm_object'
 CLASS_DIMENSION_KEY = 'class'
@@ -87,7 +89,7 @@ def subset_ungridded_predictions(prediction_dict, desired_storm_indices):
 
 
 def find_ungridded_file(
-        directory_name, raise_error_if_missing=False, months_in_subset=None,
+        directory_name, raise_error_if_missing=True, months_in_subset=None,
         hours_in_subset=None, grid_row=None, grid_column=None):
     """Finds file with ungridded predictions.
 
@@ -142,7 +144,8 @@ def find_ungridded_file(
         error_checking.assert_is_integer(grid_column)
         error_checking.assert_is_geq(grid_column, 0)
 
-    prediction_file_name = '{0:s}/ungridded_predictions'.format(directory_name)
+    prediction_file_name = '{0:s}/{1:s}'.format(
+        directory_name, UNGRIDDED_FILE_NAME_PREFIX)
 
     if months_in_subset is not None:
         month_array_string = '-'.join([
@@ -193,8 +196,8 @@ def find_gridded_file(
         last_init_time_unix_sec, first_init_time_unix_sec)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    prediction_file_name = '{0:s}/gridded_predictions_{1:s}_{2:s}.p'.format(
-        directory_name,
+    prediction_file_name = '{0:s}/{1:s}_{2:s}_{3:s}.p'.format(
+        directory_name, GRIDDED_FILE_NAME_PREFIX,
         time_conversion.unix_sec_to_string(
             first_init_time_unix_sec, FILE_NAME_TIME_FORMAT),
         time_conversion.unix_sec_to_string(
