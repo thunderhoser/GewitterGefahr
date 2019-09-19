@@ -141,7 +141,7 @@ def _run(evaluation_dir_name, output_dir_name):
         num_meridians=NUM_MERIDIANS)
 
     figure_object.savefig(
-        '{0:s}/shitpiss.jpg', dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        '{0:s}/shitpiss.jpg'.format(output_dir_name), dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight'
     )
     pyplot.close(figure_object)
