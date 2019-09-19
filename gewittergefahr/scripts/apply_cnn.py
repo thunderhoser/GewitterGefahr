@@ -64,7 +64,7 @@ CLASS_FRACTION_VALUES_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be written by '
     '`prediction_io.write_ungridded_predictions`, to a location therein '
-    'determined by `prediction_io.find_file`.')
+    'determined by `prediction_io.find_ungridded_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -264,14 +264,8 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
                 (class_probability_matrix, this_probability_matrix), axis=0
             )
 
-    output_file_name = prediction_io.find_file(
-        top_prediction_dir_name=output_dir_name,
-        first_init_time_unix_sec=time_conversion.get_start_of_spc_date(
-            first_spc_date_string),
-        last_init_time_unix_sec=time_conversion.get_end_of_spc_date(
-            last_spc_date_string),
-        gridded=False, raise_error_if_missing=False
-    )
+    output_file_name = prediction_io.find_ungridded_file(
+        directory_name=output_dir_name, raise_error_if_missing=False)
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
 

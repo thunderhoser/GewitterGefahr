@@ -19,7 +19,7 @@ OUTPUT_DIR_ARG_NAME = 'output_prediction_dir_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Forecast grids will be found therein by '
-    '`prediction_io.find_file` and read by '
+    '`prediction_io.find_gridded_file` and read by '
     '`prediction_io.read_gridded_predictions`.')
 
 INIT_TIME_HELP_STRING = (
@@ -33,7 +33,7 @@ INIT_TIME_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  The final grid will be written by'
     '`prediction_io.write_gridded_predictions`, to an exact location determined'
-    ' by `prediction_io.find_file`.')
+    ' by `prediction_io.find_gridded_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -53,16 +53,16 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _run(top_input_dir_name, first_init_time_string, last_init_time_string,
-         top_output_dir_name):
+def _run(input_dir_name, first_init_time_string, last_init_time_string,
+         output_dir_name):
     """Combines forecasts from different initial times.
 
     This is effectively the main method.
 
-    :param top_input_dir_name: See documentation at top of file.
+    :param input_dir_name: See documentation at top of file.
     :param first_init_time_string: Same.
     :param last_init_time_string: Same.
-    :param top_output_dir_name: Same.
+    :param output_dir_name: Same.
     """
 
     first_init_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -79,10 +79,10 @@ def _run(top_input_dir_name, first_init_time_string, last_init_time_string,
     gridded_forecast_dict = None
 
     for this_time_unix_sec in init_times_unix_sec:
-        this_file_name = prediction_io.find_file(
-            top_prediction_dir_name=top_input_dir_name,
+        this_file_name = prediction_io.find_gridded_file(
+            directory_name=input_dir_name,
             first_init_time_unix_sec=this_time_unix_sec,
-            last_init_time_unix_sec=this_time_unix_sec, gridded=True,
+            last_init_time_unix_sec=this_time_unix_sec,
             raise_error_if_missing=True)
 
         print('Reading data from: "{0:s}"...'.format(this_file_name))
@@ -131,10 +131,10 @@ def _run(top_input_dir_name, first_init_time_string, last_init_time_string,
         [probability_matrix]
     )
 
-    output_file_name = prediction_io.find_file(
-        top_prediction_dir_name=top_output_dir_name,
+    output_file_name = prediction_io.find_gridded_file(
+        directory_name=output_dir_name,
         first_init_time_unix_sec=init_times_unix_sec[0],
-        last_init_time_unix_sec=init_times_unix_sec[-1], gridded=True,
+        last_init_time_unix_sec=init_times_unix_sec[-1],
         raise_error_if_missing=False)
 
     print('Writing final grid to: "{0:s}"...'.format(output_file_name))
@@ -148,10 +148,10 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_init_time_string=getattr(
             INPUT_ARG_OBJECT, FIRST_INIT_TIME_ARG_NAME),
         last_init_time_string=getattr(
             INPUT_ARG_OBJECT, LAST_INIT_TIME_ARG_NAME),
-        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

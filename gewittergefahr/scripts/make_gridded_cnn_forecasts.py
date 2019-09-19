@@ -27,7 +27,7 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
     'Path to file with storm-based predictions (which will be gridded by this '
-    'script).  File will be read by `prediction_io.read_file`.')
+    'script).  File will be read by `prediction_io.read_gridded_predictions`.')
 
 TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with tracking data.  Files therein will be '
@@ -61,7 +61,7 @@ EFOLD_RADIUS_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Gridded predictions will be written here by '
     '`prediction_io.write_gridded_predictions`, to an exact location determined'
-    ' by `prediction_io.find_file`.')
+    ' by `prediction_io.find_gridded_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -116,7 +116,7 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
          tracking_scale_metres2, x_spacing_metres, y_spacing_metres,
          effective_radius_metres, smoothing_method_name,
          smoothing_cutoff_radius_metres, smoothing_efold_radius_metres,
-         top_output_dir_name):
+         output_dir_name):
     """Projects CNN forecasts onto the RAP grid.
 
     This is effectively the same method.
@@ -130,7 +130,7 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
     :param smoothing_method_name: Same.
     :param smoothing_cutoff_radius_metres: Same.
     :param smoothing_efold_radius_metres: Same.
-    :param top_output_dir_name: Same.
+    :param output_dir_name: Same.
     """
 
     print('Reading data from: "{0:s}"...'.format(input_prediction_file_name))
@@ -232,13 +232,13 @@ def _run(input_prediction_file_name, top_tracking_dir_name,
 
     print(SEPARATOR_STRING)
 
-    output_file_name = prediction_io.find_file(
-        top_prediction_dir_name=top_output_dir_name,
+    output_file_name = prediction_io.find_gridded_file(
+        directory_name=output_dir_name,
         first_init_time_unix_sec=numpy.min(
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values),
         last_init_time_unix_sec=numpy.max(
             storm_object_table[tracking_utils.VALID_TIME_COLUMN].values),
-        gridded=True, raise_error_if_missing=False
+        raise_error_if_missing=False
     )
 
     print((
@@ -273,5 +273,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, CUTOFF_RADIUS_ARG_NAME),
         smoothing_efold_radius_metres=getattr(
             INPUT_ARG_OBJECT, EFOLD_RADIUS_ARG_NAME),
-        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

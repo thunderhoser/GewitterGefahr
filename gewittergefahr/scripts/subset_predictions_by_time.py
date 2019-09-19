@@ -1,9 +1,7 @@
 """Subsets ungridded predictions by time."""
 
-import os.path
 import argparse
 from gewittergefahr.gg_utils import temporal_subsetting
-from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import prediction_io
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -11,7 +9,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 INPUT_FILE_ARG_NAME = 'input_file_name'
 NUM_MONTHS_ARG_NAME = 'num_months_per_chunk'
 NUM_HOURS_ARG_NAME = 'num_hours_per_chunk'
-OUTPUT_DIR_ARG_NAME = 'top_output_dir_name'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
     'Path to input file (with predictions to be subset).  Will be read by '
@@ -27,12 +25,11 @@ NUM_HOURS_HELP_STRING = (
     ' not want to subset by hour, make this negative.\n{0:s}'
 ).format(str(temporal_subsetting.VALID_HOUR_COUNTS))
 
-# TODO(thunderhoser): Fix this documentation.
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Output files (each subset by month or'
     ' hour) will be saved to subdirectories herein.  Exact file locations will '
-    'be determined by `prediction_io.find_file`, and files will be written by '
-    '`prediction_io.write_ungridded_predictions`.')
+    'be determined by `prediction_io.find_ungridded_file`, and files will be '
+    'written by `prediction_io.write_ungridded_predictions`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -53,7 +50,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(input_file_name, num_months_per_chunk, num_hours_per_chunk,
-         top_output_dir_name):
+         output_dir_name):
     """Subsets ungridded predictions by time.
 
     This is effectively the main method.
@@ -61,7 +58,7 @@ def _run(input_file_name, num_months_per_chunk, num_hours_per_chunk,
     :param input_file_name: See documentation at top of file.
     :param num_months_per_chunk: Same.
     :param num_hours_per_chunk: Same.
-    :param top_output_dir_name: Same.
+    :param output_dir_name: Same.
     """
 
     if num_months_per_chunk > 0:
@@ -87,7 +84,6 @@ def _run(input_file_name, num_months_per_chunk, num_hours_per_chunk,
     storm_times_unix_sec = prediction_dict[prediction_io.STORM_TIMES_KEY]
 
     storm_months = None
-    pathless_input_file_name = os.path.split(input_file_name)[-1]
 
     for i in range(num_monthly_chunks):
         these_storm_indices, storm_months = (
@@ -101,14 +97,10 @@ def _run(input_file_name, num_months_per_chunk, num_hours_per_chunk,
             prediction_dict=prediction_dict,
             desired_storm_indices=these_storm_indices)
 
-        this_subdir_name = '-'.join([
-            '{0:02d}'.format(m) for m in chunk_to_months_dict[i]
-        ])
-        this_output_file_name = '{0:s}/months={1:s}/{2:s}'.format(
-            top_output_dir_name, this_subdir_name, pathless_input_file_name)
-
-        file_system_utils.mkdir_recursive_if_necessary(
-            file_name=this_output_file_name)
+        this_output_file_name = prediction_io.find_ungridded_file(
+            directory_name=output_dir_name,
+            months_in_subset=chunk_to_months_dict[i],
+            raise_error_if_missing=False)
 
         print('Writing temporal subset to: "{0:s}"...'.format(
             this_output_file_name
@@ -142,14 +134,10 @@ def _run(input_file_name, num_months_per_chunk, num_hours_per_chunk,
             prediction_dict=prediction_dict,
             desired_storm_indices=these_storm_indices)
 
-        this_subdir_name = '-'.join([
-            '{0:02d}'.format(h) for h in chunk_to_hours_dict[i]
-        ])
-        this_output_file_name = '{0:s}/hours={1:s}/{2:s}'.format(
-            top_output_dir_name, this_subdir_name, pathless_input_file_name)
-
-        file_system_utils.mkdir_recursive_if_necessary(
-            file_name=this_output_file_name)
+        this_output_file_name = prediction_io.find_ungridded_file(
+            directory_name=output_dir_name,
+            hours_in_subset=chunk_to_hours_dict[i],
+            raise_error_if_missing=False)
 
         print('Writing temporal subset to: "{0:s}"...'.format(
             this_output_file_name
@@ -178,5 +166,5 @@ if __name__ == '__main__':
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
         num_months_per_chunk=getattr(INPUT_ARG_OBJECT, NUM_MONTHS_ARG_NAME),
         num_hours_per_chunk=getattr(INPUT_ARG_OBJECT, NUM_HOURS_ARG_NAME),
-        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

@@ -86,20 +86,99 @@ def subset_ungridded_predictions(prediction_dict, desired_storm_indices):
     return small_prediction_dict
 
 
-def find_file(
-        top_prediction_dir_name, first_init_time_unix_sec,
-        last_init_time_unix_sec, gridded, raise_error_if_missing=False):
-    """Finds gridded or ungridded prediction files.
+def find_ungridded_file(
+        directory_name, raise_error_if_missing=False, months_in_subset=None,
+        hours_in_subset=None, grid_row=None, grid_column=None):
+    """Finds file with ungridded predictions.
 
-    :param top_prediction_dir_name: Name of top-level directory with prediction
-        files.
-    :param first_init_time_unix_sec: First initial time in file.  The "initial
-        time" is the time of the storm object for which the prediction is being
-        made.  This is different than the valid-time window (time range for
-        which the prediction is valid).
+    If file is a temporal subset, `months_in_subset` or `hours_in_subset` must
+    be specified.
+
+    If file is a spatial subset, `grid_row` and `grid_column` must be specified.
+
+    :param directory_name: Directory name.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :param months_in_subset: 1-D numpy array of months in subset (range 1...12).
+    :param hours_in_subset: 1-D numpy array of hours in subset (range 0...23).
+    :param grid_row: Grid row in subset (integer).
+    :param grid_column: Grid column in subset (integer).
+    :return: prediction_file_name: Path to prediction file.  If file is missing
+        and `raise_error_if_missing = False`, this will be the expected path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    is_temporal_subset = False
+
+    if months_in_subset is not None:
+        is_temporal_subset = True
+        hours_in_subset = None
+        grid_row = None
+        grid_column = None
+
+        error_checking.assert_is_integer_numpy_array(months_in_subset)
+        error_checking.assert_is_numpy_array(months_in_subset, num_dimensions=1)
+        error_checking.assert_is_geq_numpy_array(months_in_subset, 1)
+        error_checking.assert_is_leq_numpy_array(months_in_subset, 12)
+
+    if hours_in_subset is not None:
+        is_temporal_subset = True
+        grid_row = None
+        grid_column = None
+
+        error_checking.assert_is_integer_numpy_array(hours_in_subset)
+        error_checking.assert_is_numpy_array(hours_in_subset, num_dimensions=1)
+        error_checking.assert_is_geq_numpy_array(hours_in_subset, 0)
+        error_checking.assert_is_leq_numpy_array(hours_in_subset, 23)
+
+    is_spatial_subset = (
+        not is_temporal_subset
+        and grid_row is not None and grid_column is not None
+    )
+
+    if is_spatial_subset:
+        error_checking.assert_is_integer(grid_row)
+        error_checking.assert_is_geq(grid_row, 0)
+        error_checking.assert_is_integer(grid_column)
+        error_checking.assert_is_geq(grid_column, 0)
+
+    prediction_file_name = '{0:s}/ungridded_predictions'.format(directory_name)
+
+    if months_in_subset is not None:
+        month_array_string = '-'.join([
+            '{0:02d}'.format(m) for m in months_in_subset
+        ])
+        prediction_file_name += '_months={0:s}'.format(month_array_string)
+
+    if hours_in_subset is not None:
+        hour_array_string = '-'.join([
+            '{0:02d}'.format(h) for h in hours_in_subset
+        ])
+        prediction_file_name += '_hours={0:s}'.format(hour_array_string)
+
+    if is_spatial_subset:
+        prediction_file_name += '_grid-row={0:04d}_grid-column={1:04d}'.format(
+            grid_row, grid_column)
+
+    prediction_file_name += '.nc'
+
+    if raise_error_if_missing and not os.path.isfile(prediction_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            prediction_file_name)
+        raise ValueError(error_string)
+
+    return prediction_file_name
+
+
+def find_gridded_file(
+        directory_name, first_init_time_unix_sec, last_init_time_unix_sec,
+        raise_error_if_missing=False):
+    """Finds file with gridded predictions.
+
+    :param directory_name: Directory name.
+    :param first_init_time_unix_sec: First initial time (forecast-initialization
+        time, not valid time) in file.
     :param last_init_time_unix_sec: Last initial time in file.
-    :param gridded: Boolean flag.  If True, will look for gridded file.  If
-        False, will look for ungridded file.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
     :return: prediction_file_name: Path to prediction file.  If file is missing
@@ -107,30 +186,19 @@ def find_file(
     :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
     """
 
-    # TODO(thunderhoser): Put lead time in file names.
-
-    error_checking.assert_is_string(top_prediction_dir_name)
+    error_checking.assert_is_string(directory_name)
     error_checking.assert_is_integer(first_init_time_unix_sec)
     error_checking.assert_is_integer(last_init_time_unix_sec)
     error_checking.assert_is_geq(
         last_init_time_unix_sec, first_init_time_unix_sec)
-
-    error_checking.assert_is_boolean(gridded)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    spc_date_string = time_conversion.time_to_spc_date_string(
-        first_init_time_unix_sec)
-
-    prediction_file_name = (
-        '{0:s}/{1:s}/{2:s}/{3:s}_predictions_{4:s}_{5:s}{6:s}'
-    ).format(
-        top_prediction_dir_name, spc_date_string[:4], spc_date_string,
-        'gridded' if gridded else 'ungridded',
+    prediction_file_name = '{0:s}/gridded_predictions_{1:s}_{2:s}.p'.format(
+        directory_name,
         time_conversion.unix_sec_to_string(
             first_init_time_unix_sec, FILE_NAME_TIME_FORMAT),
         time_conversion.unix_sec_to_string(
-            last_init_time_unix_sec, FILE_NAME_TIME_FORMAT),
-        '.p' if gridded else '.nc'
+            last_init_time_unix_sec, FILE_NAME_TIME_FORMAT)
     )
 
     if raise_error_if_missing and not os.path.isfile(prediction_file_name):
@@ -266,13 +334,12 @@ def read_ungridded_predictions(netcdf_file_name):
             TARGET_NAME_KEY: str(getattr(dataset_object, TARGET_NAME_KEY)),
             STORM_IDS_KEY: [],
             STORM_TIMES_KEY: numpy.array([], dtype=int),
-            PROBABILITY_MATRIX_KEY: numpy.full((0, num_classes), numpy.nan)
+            PROBABILITY_MATRIX_KEY: numpy.full((0, num_classes), numpy.nan),
+            OBSERVED_LABELS_KEY: None
         }
 
         if OBSERVED_LABELS_KEY in dataset_object.variables:
-            prediction_dict.update({
-                OBSERVED_LABELS_KEY: numpy.array([], dtype=int)
-            })
+            prediction_dict[OBSERVED_LABELS_KEY] = numpy.array([], dtype=int)
 
         dataset_object.close()
         return prediction_dict
@@ -287,14 +354,14 @@ def read_ungridded_predictions(netcdf_file_name):
             dataset_object.variables[STORM_TIMES_KEY][:], dtype=int
         ),
         PROBABILITY_MATRIX_KEY:
-            dataset_object.variables[PROBABILITY_MATRIX_KEY][:]
+            dataset_object.variables[PROBABILITY_MATRIX_KEY][:],
+        OBSERVED_LABELS_KEY: None
     }
 
     if OBSERVED_LABELS_KEY in dataset_object.variables:
-        prediction_dict.update({
-            OBSERVED_LABELS_KEY:
-                dataset_object.variables[OBSERVED_LABELS_KEY][:].astype(int)
-        })
+        prediction_dict[OBSERVED_LABELS_KEY] = (
+            dataset_object.variables[OBSERVED_LABELS_KEY][:].astype(int)
+        )
 
     dataset_object.close()
     return prediction_dict
