@@ -177,13 +177,13 @@ def get_events_in_hours(desired_hours, verbose, event_hours=None,
 
     error_checking.assert_is_integer_numpy_array(event_hours)
     error_checking.assert_is_numpy_array(event_hours, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(event_hours, 1)
+    error_checking.assert_is_geq_numpy_array(event_hours, 0)
     error_checking.assert_is_less_than_numpy_array(
         event_hours, NUM_HOURS_IN_DAY)
 
     error_checking.assert_is_integer_numpy_array(desired_hours)
     error_checking.assert_is_numpy_array(desired_hours, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(desired_hours, 1)
+    error_checking.assert_is_geq_numpy_array(desired_hours, 0)
     error_checking.assert_is_less_than_numpy_array(
         desired_hours, NUM_HOURS_IN_DAY)
 
