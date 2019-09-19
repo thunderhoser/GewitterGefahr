@@ -208,8 +208,8 @@ def _run(input_file_name, top_tracking_dir_name, min_latitude_deg,
             projection_object=projection_object)
     )
 
-    num_grid_rows = len(grid_point_x_coords_metres)
-    num_grid_columns = len(grid_point_y_coords_metres)
+    num_grid_rows = len(grid_point_y_coords_metres)
+    num_grid_columns = len(grid_point_x_coords_metres)
 
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
