@@ -299,8 +299,8 @@ def _plot_attributes_diagram(
 
 def run_evaluation(
         forecast_probabilities, observed_labels, num_bootstrap_reps,
-        main_output_file_name, best_prob_threshold=None, downsampling_dict=None,
-        confidence_level=None):
+        main_output_file_name, create_plots=True, best_prob_threshold=None,
+        downsampling_dict=None, confidence_level=None):
     """Evaluates forecast-observation pairs from any forecasting method.
 
     Specifically, this method does the following:
@@ -319,6 +319,7 @@ def run_evaluation(
         in which case no bootstrapping will be done.
     :param main_output_file_name: Path to main output file (will be written by
         `model_evaluation.write_evaluation`).
+    :param create_plots: Boolean flag.  If True, will create plots.
     :param best_prob_threshold: Best probability threshold (used to turn
         probabilities into deterministic predictions).  If None, will use
         threshold that yields the best CSI.
@@ -329,6 +330,7 @@ def run_evaluation(
         Confidence level for bootstrapping.
     """
 
+    error_checking.assert_is_boolean(create_plots)
     error_checking.assert_is_integer(num_bootstrap_reps)
     num_bootstrap_reps = max([num_bootstrap_reps, 1])
 
@@ -338,10 +340,6 @@ def run_evaluation(
 
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=main_output_file_name)
-
-    figure_dir_name = os.path.splitext(main_output_file_name)[0]
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=figure_dir_name)
 
     num_examples_by_class = numpy.unique(
         observed_labels, return_counts=True
@@ -488,23 +486,28 @@ def run_evaluation(
     evaluation_table = pandas.concat(
         list_of_evaluation_tables, axis=0, ignore_index=True)
 
-    _plot_roc_curve(
-        evaluation_table=evaluation_table,
-        output_file_name='{0:s}/roc_curve.jpg'.format(figure_dir_name),
-        confidence_level=confidence_level)
+    if create_plots:
+        figure_dir_name = os.path.splitext(main_output_file_name)[0]
+        file_system_utils.mkdir_recursive_if_necessary(
+            directory_name=figure_dir_name)
 
-    _plot_performance_diagram(
-        evaluation_table=evaluation_table,
-        output_file_name='{0:s}/performance_diagram.jpg'.format(
-            figure_dir_name),
-        confidence_level=confidence_level)
+        _plot_roc_curve(
+            evaluation_table=evaluation_table,
+            output_file_name='{0:s}/roc_curve.jpg'.format(figure_dir_name),
+            confidence_level=confidence_level)
 
-    _plot_attributes_diagram(
-        evaluation_table=evaluation_table,
-        num_examples_by_bin=num_examples_by_bin,
-        output_file_name='{0:s}/attributes_diagram.jpg'.format(
-            figure_dir_name),
-        confidence_level=confidence_level)
+        _plot_performance_diagram(
+            evaluation_table=evaluation_table,
+            output_file_name='{0:s}/performance_diagram.jpg'.format(
+                figure_dir_name),
+            confidence_level=confidence_level)
+
+        _plot_attributes_diagram(
+            evaluation_table=evaluation_table,
+            num_examples_by_bin=num_examples_by_bin,
+            output_file_name='{0:s}/attributes_diagram.jpg'.format(
+                figure_dir_name),
+            confidence_level=confidence_level)
 
     print('Writing results to: "{0:s}"...'.format(main_output_file_name))
 

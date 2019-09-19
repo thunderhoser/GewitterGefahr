@@ -12,6 +12,7 @@ PREDICTION_FILE_ARG_NAME = 'input_prediction_file_name'
 THRESHOLD_ARG_NAME = 'binarization_threshold'
 NUM_BOOTSTRAP_ARG_NAME = 'num_bootstrap_reps'
 CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
+CREATE_PLOTS_ARG_NAME = 'create_plots'
 CLASS_FRACTION_KEYS_ARG_NAME = 'class_fraction_keys'
 CLASS_FRACTION_VALUES_ARG_NAME = 'class_fraction_values'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -33,6 +34,10 @@ CONFIDENCE_LEVEL_HELP_STRING = (
     '[used only if `{0:s}` > 1] Confidence level for bootstrapping, in range '
     '0...1.'
 ).format(NUM_BOOTSTRAP_ARG_NAME)
+
+CREATE_PLOTS_HELP_STRING = (
+    'Boolean flag.  If 1, will create plots.  If 0, will create only the main '
+    'Pickle file.')
 
 CLASS_FRACTION_KEYS_HELP_STRING = (
     'List of keys used to create input `class_to_sampling_fraction_dict` for '
@@ -67,6 +72,10 @@ INPUT_ARG_PARSER.add_argument(
     help=CONFIDENCE_LEVEL_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + CREATE_PLOTS_ARG_NAME, type=int, required=False, default=1,
+    help=CREATE_PLOTS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + CLASS_FRACTION_KEYS_ARG_NAME, type=int, nargs='+',
     required=False, default=[0], help=CLASS_FRACTION_KEYS_HELP_STRING)
 
@@ -80,8 +89,8 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(prediction_file_name, binarization_threshold, num_bootstrap_reps,
-         confidence_level, class_fraction_keys, class_fraction_values,
-         output_dir_name):
+         confidence_level, create_plots, class_fraction_keys,
+         class_fraction_values, output_dir_name):
     """Evaluates CNN predictions.
 
     This is effectively the main method.
@@ -90,6 +99,7 @@ def _run(prediction_file_name, binarization_threshold, num_bootstrap_reps,
     :param binarization_threshold: Same.
     :param num_bootstrap_reps: Same.
     :param confidence_level: Same.
+    :param create_plots: Same.
     :param class_fraction_keys: Same.
     :param class_fraction_values: Same.
     :param output_dir_name: Same.
@@ -134,7 +144,7 @@ def _run(prediction_file_name, binarization_threshold, num_bootstrap_reps,
         best_prob_threshold=binarization_threshold,
         num_bootstrap_reps=num_bootstrap_reps,
         confidence_level=confidence_level,
-        main_output_file_name=main_output_file_name)
+        main_output_file_name=main_output_file_name, create_plots=create_plots)
 
 
 if __name__ == '__main__':
@@ -146,6 +156,7 @@ if __name__ == '__main__':
         binarization_threshold=getattr(INPUT_ARG_OBJECT, THRESHOLD_ARG_NAME),
         num_bootstrap_reps=getattr(INPUT_ARG_OBJECT, NUM_BOOTSTRAP_ARG_NAME),
         confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
+        create_plots=bool(getattr(INPUT_ARG_OBJECT, CREATE_PLOTS_ARG_NAME)),
         class_fraction_keys=numpy.array(
             getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_KEYS_ARG_NAME), dtype=int
         ),
