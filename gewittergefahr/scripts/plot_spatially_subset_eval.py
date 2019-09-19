@@ -103,6 +103,47 @@ def _get_lcc_params(projection_object):
     return standard_latitudes_deg, central_longitude_deg
 
 
+def _get_basemap(grid_metadata_dict):
+    """Creates basemap.
+
+    :param grid_metadata_dict: Dictionary returned by
+        `grids.read_equidistant_metafile`.
+    :return:
+    """
+
+    # TODO(thunderhoser): Fix doc.
+
+    x_matrix_metres, y_matrix_metres = grids.xy_vectors_to_matrices(
+        x_unique_metres=grid_metadata_dict[grids.X_COORDS_KEY],
+        y_unique_metres=grid_metadata_dict[grids.Y_COORDS_KEY]
+    )
+
+    projection_object = grid_metadata_dict[grids.PROJECTION_KEY]
+
+    latitude_matrix_deg, longitude_matrix_deg = (
+        projections.project_xy_to_latlng(
+            x_coords_metres=x_matrix_metres, y_coords_metres=y_matrix_metres,
+            projection_object=projection_object)
+    )
+
+    standard_latitudes_deg, central_longitude_deg = _get_lcc_params(
+        projection_object)
+
+    basemap_object = Basemap(
+        projection='lcc', lat_1=standard_latitudes_deg[0],
+        lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
+        rsphere=projections.DEFAULT_EARTH_RADIUS_METRES,
+        ellps=projections.SPHERE_NAME, resolution=RESOLUTION_STRING,
+        llcrnrx=x_matrix_metres[0, 0], llcrnry=y_matrix_metres[0, 0],
+        urcrnrx=x_matrix_metres[-1, -1], urcrnry=y_matrix_metres[-1, -1]
+    )
+
+    basemap_x_matrix_metres, basemap_y_matrix_metres = basemap_object(
+        longitude_matrix_deg, latitude_matrix_deg)
+
+    return basemap_object, basemap_x_matrix_metres, basemap_y_matrix_metres
+
+
 def _plot_one_score(
         score_matrix, grid_metadata_dict, colour_map_object,
         max_colour_percentile):
@@ -122,68 +163,36 @@ def _plot_one_score(
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    standard_latitudes_deg, central_longitude_deg = _get_lcc_params(
-        grid_metadata_dict[grids.PROJECTION_KEY]
-    )
-
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
 
-    point_x_coords_metres = grid_metadata_dict[grids.X_COORDS_KEY]
-    point_y_coords_metres = grid_metadata_dict[grids.Y_COORDS_KEY]
-    x_spacing_metres = point_x_coords_metres[1] - point_x_coords_metres[0]
-    y_spacing_metres = point_y_coords_metres[1] - point_y_coords_metres[0]
+    basemap_object, basemap_x_matrix_metres, basemap_y_matrix_metres = (
+        _get_basemap(grid_metadata_dict)
+    )
+
+    num_grid_rows = score_matrix.shape[0]
+    num_grid_columns = score_matrix.shape[1]
+    x_spacing_metres = (
+        (basemap_x_matrix_metres[0, -1] - basemap_x_matrix_metres[0, 0]) /
+        (num_grid_columns - 1)
+    )
+    y_spacing_metres = (
+        (basemap_y_matrix_metres[-1, 0] - basemap_y_matrix_metres[0, 0]) /
+        (num_grid_rows - 1)
+    )
 
     score_matrix_at_edges, edge_x_coords_metres, edge_y_coords_metres = (
         grids.xy_field_grid_points_to_edges(
             field_matrix=score_matrix,
-            x_min_metres=point_x_coords_metres[0],
-            y_min_metres=point_y_coords_metres[0],
+            x_min_metres=basemap_x_matrix_metres[0, 0],
+            y_min_metres=basemap_y_matrix_metres[0, 0],
             x_spacing_metres=x_spacing_metres,
             y_spacing_metres=y_spacing_metres)
     )
 
     score_matrix_at_edges = numpy.ma.masked_where(
         numpy.isnan(score_matrix_at_edges), score_matrix_at_edges
-    )
-
-    pyproj_x_metres, pyproj_y_metres = projections.project_latlng_to_xy(
-        latitudes_deg=standard_latitudes_deg,
-        longitudes_deg=numpy.full(2, central_longitude_deg),
-        projection_object=grid_metadata_dict[grids.PROJECTION_KEY]
-    )
-
-    pyproj_x_metres = pyproj_x_metres[0]
-    pyproj_y_metres = pyproj_y_metres[0]
-
-    basemap_object = Basemap(
-        projection='lcc', lat_1=standard_latitudes_deg[0],
-        lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
-        rsphere=projections.DEFAULT_EARTH_RADIUS_METRES,
-        ellps=projections.SPHERE_NAME, resolution=RESOLUTION_STRING,
-        llcrnrx=numpy.min(edge_x_coords_metres),
-        llcrnry=numpy.min(edge_y_coords_metres),
-        urcrnrx=numpy.max(edge_x_coords_metres),
-        urcrnry=numpy.max(edge_y_coords_metres)
-    )
-
-    basemap_x_metres, basemap_y_metres = basemap_object(
-        central_longitude_deg, standard_latitudes_deg[0]
-    )
-
-    edge_x_coords_metres += basemap_x_metres - pyproj_x_metres
-    edge_y_coords_metres += basemap_y_metres - pyproj_y_metres
-
-    basemap_object = Basemap(
-        projection='lcc', lat_1=standard_latitudes_deg[0],
-        lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
-        rsphere=projections.DEFAULT_EARTH_RADIUS_METRES,
-        ellps=projections.SPHERE_NAME, resolution=RESOLUTION_STRING,
-        llcrnrx=numpy.min(edge_x_coords_metres),
-        llcrnry=numpy.min(edge_y_coords_metres),
-        urcrnrx=numpy.max(edge_x_coords_metres),
-        urcrnry=numpy.max(edge_y_coords_metres)
     )
 
     plotting_utils.plot_coastlines(
