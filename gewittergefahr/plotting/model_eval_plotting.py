@@ -715,6 +715,7 @@ def plot_attributes_diagram(
         num_examples_by_bin, exact_dimensions=expected_dim)
     error_checking.assert_is_geq_numpy_array(num_examples_by_bin, 0)
 
+    print(num_examples_by_bin)
     non_empty_bin_indices = numpy.where(num_examples_by_bin > 0)[0]
     error_checking.assert_is_numpy_array_without_nan(
         event_frequency_by_bin[non_empty_bin_indices]
