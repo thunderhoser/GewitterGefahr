@@ -14,6 +14,7 @@ from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import imagemagick_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -27,6 +28,10 @@ BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
+
+NUM_PANEL_ROWS = 3
+NUM_PANEL_COLUMNS = 2
+CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
 SCORE_CMAP_ARG_NAME = 'score_colour_map_name'
@@ -330,6 +335,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
     print(SEPARATOR_STRING)
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
+    
+    panel_file_names = []
 
     # Plot AUC.
     max_colour_value = numpy.nanpercentile(auc_matrix, max_colour_percentile)
@@ -344,11 +351,11 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value)
 
     axes_object.set_title('AUC (area under ROC curve)')
-    output_file_name = '{0:s}/spatial_auc_plot.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    panel_file_names.append('{0:s}/auc.jpg'.format(output_dir_name))
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight')
     pyplot.close(figure_object)
 
@@ -363,11 +370,11 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value)
 
     axes_object.set_title('CSI (critical success index)')
-    output_file_name = '{0:s}/spatial_csi_plot.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    panel_file_names.append('{0:s}/csi.jpg'.format(output_dir_name))
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight')
     pyplot.close(figure_object)
 
@@ -382,11 +389,11 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value)
 
     axes_object.set_title('POD (probability of detection)')
-    output_file_name = '{0:s}/spatial_pod_plot.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    panel_file_names.append('{0:s}/pod.jpg'.format(output_dir_name))
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight')
     pyplot.close(figure_object)
 
@@ -401,56 +408,70 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value)
 
     axes_object.set_title('FAR (false-alarm rate)')
-    output_file_name = '{0:s}/spatial_far_plot.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    panel_file_names.append('{0:s}/far.jpg'.format(output_dir_name))
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight')
     pyplot.close(figure_object)
 
     # Plot number of examples.
-    log_num_examples_matrix = numpy.maximum(
-        numpy.log10(num_examples_matrix), 0.
-    )
+    this_data_matrix = numpy.maximum(numpy.log10(num_examples_matrix), 0.)
+    this_data_matrix[this_data_matrix == 0] = numpy.nan
     max_colour_value = numpy.nanpercentile(
-        log_num_examples_matrix, max_colour_percentile)
+        this_data_matrix, max_colour_percentile)
 
     figure_object, axes_object = _plot_one_value(
-        data_matrix=log_num_examples_matrix,
-        grid_metadata_dict=grid_metadata_dict,
+        data_matrix=this_data_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=num_ex_colour_map_object,
         min_colour_value=0., max_colour_value=max_colour_value)
 
     axes_object.set_title(r'Number of examples (log$_{10}$)')
-    output_file_name = '{0:s}/num_examples_plot.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    panel_file_names.append('{0:s}/num_examples.jpg'.format(output_dir_name))
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight')
     pyplot.close(figure_object)
 
     # Plot FAR.
+    this_data_matrix = num_positive_examples_matrix.astype(float)
+    this_data_matrix[this_data_matrix == 0] = numpy.nan
+
     max_colour_value = numpy.nanpercentile(
-        num_positive_examples_matrix, max_colour_percentile)
+        this_data_matrix, max_colour_percentile)
     min_colour_value = numpy.nanpercentile(
-        num_positive_examples_matrix, 100. - max_colour_percentile)
+        this_data_matrix, 100. - max_colour_percentile)
 
     figure_object, axes_object = _plot_one_value(
-        data_matrix=num_positive_examples_matrix,
-        grid_metadata_dict=grid_metadata_dict,
+        data_matrix=this_data_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=num_ex_colour_map_object,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value)
 
     axes_object.set_title('Number of positive examples')
-    output_file_name = '{0:s}/num_positive_examples.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    panel_file_names.append(
+        '{0:s}/num_positive_examples.jpg'.format(output_dir_name)
+    )
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight')
     pyplot.close(figure_object)
+
+    concat_file_name = '{0:s}/spatially_subset_evaluation.jpg'.format(
+        output_dir_name)
+    print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names, output_file_name=concat_file_name,
+        num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS)
+
+    imagemagick_utils.resize_image(
+        input_file_name=concat_file_name, output_file_name=concat_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
 
 
 if __name__ == '__main__':
