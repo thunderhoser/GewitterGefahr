@@ -9,14 +9,22 @@ import numpy
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import error_checking
+
+TOLERANCE = 1e-6
 
 DEGREES_LAT_TO_METRES = 60 * 1852
 DEGREES_TO_RADIANS = numpy.pi / 180
 
-GRID_POINT_X_MATRIX_KEY = 'grid_point_x_matrix_metres'
-GRID_POINT_Y_MATRIX_KEY = 'grid_point_y_matrix_metres'
-PROJECTION_OBJECT_KEY = 'projection_object'
+DUMMY_LATITUDE_SPACING_DEG = 0.01
+DUMMY_LONGITUDE_SPACING_DEG = 0.01
+
+X_COORD_MATRIX_KEY = 'x_coord_matrix_metres'
+Y_COORD_MATRIX_KEY = 'y_coord_matrix_metres'
+X_COORDS_KEY = 'x_coords_metres'
+Y_COORDS_KEY = 'y_coords_metres'
+PROJECTION_KEY = 'projection_object'
 
 
 def _check_input_events(
@@ -637,9 +645,9 @@ def get_latlng_grid_points_in_radius(
             projection_object=projection_object)
 
         grid_point_dict = {
-            GRID_POINT_X_MATRIX_KEY: grid_point_x_matrix_metres,
-            GRID_POINT_Y_MATRIX_KEY: grid_point_y_matrix_metres,
-            PROJECTION_OBJECT_KEY: projection_object
+            X_COORD_MATRIX_KEY: grid_point_x_matrix_metres,
+            Y_COORD_MATRIX_KEY: grid_point_y_matrix_metres,
+            PROJECTION_KEY: projection_object
         }
 
     error_checking.assert_is_valid_latitude(test_latitude_deg)
@@ -651,26 +659,235 @@ def get_latlng_grid_points_in_radius(
     ) = projections.project_latlng_to_xy(
         latitudes_deg=numpy.array([test_latitude_deg]),
         longitudes_deg=numpy.array([test_longitude_deg]),
-        projection_object=grid_point_dict[PROJECTION_OBJECT_KEY])
+        projection_object=grid_point_dict[PROJECTION_KEY])
     test_x_coord_metres = test_x_coords_metres[0]
     test_y_coord_metres = test_y_coords_metres[0]
 
     valid_x_flags = numpy.absolute(
-        grid_point_dict[GRID_POINT_X_MATRIX_KEY] - test_x_coord_metres
+        grid_point_dict[X_COORD_MATRIX_KEY] - test_x_coord_metres
     ) <= effective_radius_metres
     valid_y_flags = numpy.absolute(
-        grid_point_dict[GRID_POINT_Y_MATRIX_KEY] - test_y_coord_metres
+        grid_point_dict[Y_COORD_MATRIX_KEY] - test_y_coord_metres
     ) <= effective_radius_metres
     rows_to_try, columns_to_try = numpy.where(numpy.logical_and(
         valid_x_flags, valid_y_flags))
 
     distances_to_try_metres = numpy.sqrt(
-        (grid_point_dict[GRID_POINT_X_MATRIX_KEY][rows_to_try, columns_to_try] -
+        (grid_point_dict[X_COORD_MATRIX_KEY][rows_to_try, columns_to_try] -
          test_x_coord_metres) ** 2 +
-        (grid_point_dict[GRID_POINT_Y_MATRIX_KEY][rows_to_try, columns_to_try] -
+        (grid_point_dict[Y_COORD_MATRIX_KEY][rows_to_try, columns_to_try] -
          test_y_coord_metres) ** 2)
     valid_indices = numpy.where(
         distances_to_try_metres <= effective_radius_metres)[0]
 
     return (rows_to_try[valid_indices], columns_to_try[valid_indices],
             grid_point_dict)
+
+
+def create_equidistant_grid(
+        min_latitude_deg, max_latitude_deg, min_longitude_deg,
+        max_longitude_deg, x_spacing_metres, y_spacing_metres):
+    """Creates equidistant grid.
+
+    M = number of rows
+    N = number of columns
+
+    :param min_latitude_deg: Minimum latitude (deg N) in grid.
+    :param max_latitude_deg: Max latitude (deg N) in grid.
+    :param min_longitude_deg: Minimum longitude (deg E) in grid.
+    :param max_longitude_deg: Max longitude (deg E) in grid.
+    :param x_spacing_metres: Spacing between grid points in adjacent columns.
+    :param y_spacing_metres: Spacing between grid points in adjacent rows.
+    :return: grid_dict: Dictionary with the following keys.
+    grid_dict['grid_point_x_coords_metres']: length-N numpy array with unique
+        x-coordinates at grid points.
+    grid_dict['grid_point_y_coords_metres']: length-M numpy array with unique
+        y-coordinates at grid points.
+    grid_dict['projection_object']: Instance of `pyproj.Proj` (used to convert
+        between lat-long coordinates and the x-y coordinates of the grid).
+    """
+
+    # Check input args.
+    error_checking.assert_is_valid_latitude(min_latitude_deg)
+    error_checking.assert_is_valid_latitude(max_latitude_deg)
+    error_checking.assert_is_greater(max_latitude_deg, min_latitude_deg)
+    error_checking.assert_is_greater(x_spacing_metres, 0.)
+    error_checking.assert_is_greater(y_spacing_metres, 0.)
+
+    min_longitude_deg = lng_conversion.convert_lng_negative_in_west(
+        min_longitude_deg, allow_nan=False)
+    max_longitude_deg = lng_conversion.convert_lng_negative_in_west(
+        max_longitude_deg, allow_nan=False)
+    error_checking.assert_is_greater(max_longitude_deg, min_longitude_deg)
+
+    # Create lat-long grid.
+    num_grid_rows = 1 + int(numpy.round(
+        (max_latitude_deg - min_latitude_deg) / DUMMY_LATITUDE_SPACING_DEG
+    ))
+    num_grid_columns = 1 + int(numpy.round(
+        (max_longitude_deg - min_longitude_deg) / DUMMY_LONGITUDE_SPACING_DEG
+    ))
+
+    unique_latitudes_deg, unique_longitudes_deg = get_latlng_grid_points(
+        min_latitude_deg=min_latitude_deg, min_longitude_deg=min_longitude_deg,
+        lat_spacing_deg=DUMMY_LATITUDE_SPACING_DEG,
+        lng_spacing_deg=DUMMY_LONGITUDE_SPACING_DEG,
+        num_rows=num_grid_rows, num_columns=num_grid_columns)
+
+    latitude_matrix_deg, longitude_matrix_deg = latlng_vectors_to_matrices(
+        unique_latitudes_deg=unique_latitudes_deg,
+        unique_longitudes_deg=unique_longitudes_deg)
+
+    # Create projection.
+    central_latitude_deg = 0.5 * (min_latitude_deg + max_latitude_deg)
+    central_longitude_deg = 0.5 * (min_longitude_deg + max_longitude_deg)
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg=central_latitude_deg,
+        central_longitude_deg=central_longitude_deg)
+
+    # Convert lat-long grid to preliminary x-y grid.
+    prelim_x_matrix_metres, prelim_y_matrix_metres = (
+        projections.project_latlng_to_xy(
+            latitudes_deg=latitude_matrix_deg,
+            longitudes_deg=longitude_matrix_deg,
+            projection_object=projection_object)
+    )
+
+    # Find corners of preliminary x-y grid.
+    x_min_metres = numpy.min(prelim_x_matrix_metres)
+    x_max_metres = numpy.max(prelim_x_matrix_metres)
+    y_min_metres = numpy.min(prelim_y_matrix_metres)
+    y_max_metres = numpy.max(prelim_y_matrix_metres)
+
+    # Find corners of final x-y grid.
+    x_min_metres = number_rounding.floor_to_nearest(
+        x_min_metres, x_spacing_metres)
+    x_max_metres = number_rounding.ceiling_to_nearest(
+        x_max_metres, x_spacing_metres)
+    y_min_metres = number_rounding.floor_to_nearest(
+        y_min_metres, y_spacing_metres)
+    y_max_metres = number_rounding.ceiling_to_nearest(
+        y_max_metres, y_spacing_metres)
+
+    # Create final x-y grid.
+    num_grid_rows = 1 + int(numpy.round(
+        (y_max_metres - y_min_metres) / y_spacing_metres
+    ))
+    num_grid_columns = 1 + int(numpy.round(
+        (x_max_metres - x_min_metres) / x_spacing_metres
+    ))
+
+    unique_x_coords_metres, unique_y_coords_metres = get_xy_grid_points(
+        x_min_metres=x_min_metres, y_min_metres=y_min_metres,
+        x_spacing_metres=x_spacing_metres, y_spacing_metres=y_spacing_metres,
+        num_rows=num_grid_rows, num_columns=num_grid_columns)
+
+    return {
+        X_COORDS_KEY: unique_x_coords_metres,
+        Y_COORDS_KEY: unique_y_coords_metres,
+        PROJECTION_KEY: projection_object
+    }
+
+
+def find_events_in_grid_cell(
+        event_x_coords_metres, event_y_coords_metres, grid_edge_x_coords_metres,
+        grid_edge_y_coords_metres, row_index, column_index, verbose):
+    """Finds events in a certain grid cell.
+
+    E = number of events
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param event_x_coords_metres: length-E numpy array of x-coordinates.
+    :param event_y_coords_metres: length-E numpy array of y-coordinates.
+    :param grid_edge_x_coords_metres: length-(N + 1) numpy array with
+        x-coordinates at edges of grid cells.
+    :param grid_edge_y_coords_metres: length-(M + 1) numpy array with
+        y-coordinates at edges of grid cells.
+    :param row_index: Will find events in [i]th row of grid, where
+        i = `row_index.`
+    :param column_index: Will find events in [j]th column of grid, where
+        j = `column_index.`
+    :param verbose: Boolean flag.  If True, messages will be printed to command
+        window.
+    :return: desired_indices: 1-D numpy array with indices of events in desired
+        grid cell.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(event_x_coords_metres)
+    error_checking.assert_is_numpy_array(
+        event_x_coords_metres, num_dimensions=1)
+
+    num_events = len(event_x_coords_metres)
+    these_expected_dim = numpy.array([num_events], dtype=int)
+
+    error_checking.assert_is_numpy_array_without_nan(event_y_coords_metres)
+    error_checking.assert_is_numpy_array(
+        event_y_coords_metres, exact_dimensions=these_expected_dim)
+
+    error_checking.assert_is_numpy_array(
+        grid_edge_x_coords_metres, num_dimensions=1)
+    error_checking.assert_is_greater_numpy_array(
+        numpy.diff(grid_edge_x_coords_metres), 0
+    )
+
+    error_checking.assert_is_numpy_array(
+        grid_edge_y_coords_metres, num_dimensions=1)
+    error_checking.assert_is_greater_numpy_array(
+        numpy.diff(grid_edge_y_coords_metres), 0
+    )
+
+    error_checking.assert_is_integer(row_index)
+    error_checking.assert_is_geq(row_index, 0)
+    error_checking.assert_is_integer(column_index)
+    error_checking.assert_is_geq(column_index, 0)
+    error_checking.assert_is_boolean(verbose)
+
+    x_min_metres = grid_edge_x_coords_metres[column_index]
+    x_max_metres = grid_edge_x_coords_metres[column_index + 1]
+    y_min_metres = grid_edge_y_coords_metres[row_index]
+    y_max_metres = grid_edge_y_coords_metres[row_index + 1]
+
+    if row_index == len(grid_edge_y_coords_metres) - 2:
+        y_max_metres += TOLERANCE
+    if column_index == len(grid_edge_x_coords_metres) - 2:
+        x_max_metres += TOLERANCE
+
+    # TODO(thunderhoser): If need be, I could speed this up by computing
+    # `row_flags` only once per row and `column_flags` only once per column.
+    row_flags = numpy.logical_and(
+        event_y_coords_metres >= y_min_metres,
+        event_y_coords_metres < y_max_metres
+    )
+
+    if not numpy.any(row_flags):
+        if verbose:
+            print('0 of {0:d} events are in grid cell ({1:d}, {2:d})!'.format(
+                num_events, row_index, column_index
+            ))
+
+        return numpy.array([], dtype=int)
+
+    column_flags = numpy.logical_and(
+        event_x_coords_metres >= x_min_metres,
+        event_x_coords_metres < x_max_metres
+    )
+
+    if not numpy.any(column_flags):
+        if verbose:
+            print('0 of {0:d} events are in grid cell ({1:d}, {2:d})!'.format(
+                num_events, row_index, column_index
+            ))
+
+        return numpy.array([], dtype=int)
+
+    desired_indices = numpy.where(numpy.logical_and(
+        row_flags, column_flags
+    ))[0]
+
+    if verbose:
+        print('{0:d} of {1:d} events are in grid cell ({2:d}, {3:d})!'.format(
+            len(desired_indices), num_events, row_index, column_index
+        ))
+
+    return desired_indices
