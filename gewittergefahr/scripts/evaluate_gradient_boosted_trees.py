@@ -79,7 +79,8 @@ def _evaluate_model(
     model_eval_helper.run_evaluation(
         forecast_probabilities=forecast_probabilities,
         observed_labels=target_values, num_bootstrap_reps=1,
-        output_dir_name=output_dir_name)
+        main_output_file_name='{0:s}/model_evaluation.p'.format(output_dir_name)
+    )
 
 
 if __name__ == '__main__':

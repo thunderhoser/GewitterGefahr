@@ -7,6 +7,7 @@ multiclass classification).
 """
 
 import copy
+import os.path
 import numpy
 import pandas
 import matplotlib
@@ -34,7 +35,7 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
     """Plots ROC curve.
 
     :param evaluation_table: See doc for
-        `model_evaluation.eval_binary_classifn`.  The only difference is that
+        `model_evaluation.run_evaluation`.  The only difference is that
         this table may have multiple rows (one per bootstrap replicate).
     :param output_file_name: Path to output file (figure will be saved here).
     :param confidence_level: Confidence level for bootstrapping.
@@ -120,7 +121,7 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
     """Plots performance diagram.
 
     :param evaluation_table: See doc for
-        `model_evaluation.eval_binary_classifn`.  The only difference is that
+        `model_evaluation.run_evaluation`.  The only difference is that
         this table may have multiple rows (one per bootstrap replicate).
     :param output_file_name: Path to output file (figure will be saved here).
     :param confidence_level: Confidence level for bootstrapping.
@@ -298,7 +299,7 @@ def _plot_attributes_diagram(
 
 def run_evaluation(
         forecast_probabilities, observed_labels, num_bootstrap_reps,
-        output_dir_name, best_prob_threshold=None, downsampling_dict=None,
+        main_output_file_name, best_prob_threshold=None, downsampling_dict=None,
         confidence_level=None):
     """Evaluates forecast-observation pairs from any forecasting method.
 
@@ -316,7 +317,8 @@ def run_evaluation(
         "yes", 0 for "no").
     :param num_bootstrap_reps: Number of bootstrap replicates.  This may be 1,
         in which case no bootstrapping will be done.
-    :param output_dir_name: Name of output directory.
+    :param main_output_file_name: Path to main output file (will be written by
+        `model_evaluation.write_evaluation`).
     :param best_prob_threshold: Best probability threshold (used to turn
         probabilities into deterministic predictions).  If None, will use
         threshold that yields the best CSI.
@@ -335,7 +337,11 @@ def run_evaluation(
         error_checking.assert_is_less_than(confidence_level, 1.)
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        file_name=main_output_file_name)
+
+    figure_dir_name = os.path.splitext(main_output_file_name)[0]
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=figure_dir_name)
 
     num_examples_by_class = numpy.unique(
         observed_labels, return_counts=True
@@ -457,7 +463,7 @@ def run_evaluation(
                 str(this_num_ex_by_class)
             ))
 
-        this_evaluation_table = model_eval.eval_binary_classifn(
+        this_evaluation_table = model_eval.run_evaluation(
             forecast_probabilities=forecast_probabilities[these_indices],
             observed_labels=observed_labels[these_indices],
             best_prob_threshold=best_prob_threshold,
@@ -484,27 +490,26 @@ def run_evaluation(
 
     _plot_roc_curve(
         evaluation_table=evaluation_table,
-        output_file_name='{0:s}/roc_curve.jpg'.format(output_dir_name),
+        output_file_name='{0:s}/roc_curve.jpg'.format(figure_dir_name),
         confidence_level=confidence_level)
 
     _plot_performance_diagram(
         evaluation_table=evaluation_table,
         output_file_name='{0:s}/performance_diagram.jpg'.format(
-            output_dir_name),
+            figure_dir_name),
         confidence_level=confidence_level)
 
     _plot_attributes_diagram(
         evaluation_table=evaluation_table,
         num_examples_by_bin=num_examples_by_bin,
         output_file_name='{0:s}/attributes_diagram.jpg'.format(
-            output_dir_name),
+            figure_dir_name),
         confidence_level=confidence_level)
 
-    output_file_name = '{0:s}/evaluation_results.p'.format(output_dir_name)
-    print('Writing results to: "{0:s}"...'.format(output_file_name))
+    print('Writing results to: "{0:s}"...'.format(main_output_file_name))
 
-    model_eval.write_binary_classifn_results(
-        pickle_file_name=output_file_name,
+    model_eval.write_evaluation(
+        pickle_file_name=main_output_file_name,
         forecast_probabilities=forecast_probabilities,
         observed_labels=observed_labels,
         best_prob_threshold=best_prob_threshold,

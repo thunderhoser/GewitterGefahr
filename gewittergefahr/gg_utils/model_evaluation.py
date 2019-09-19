@@ -16,6 +16,7 @@ Lagerquist, R., McGovern, A., and Smith, T., 2017: Machine learning for real-
 
 import copy
 import pickle
+import os.path
 import numpy
 import pandas
 import sklearn.metrics
@@ -23,6 +24,7 @@ from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import prediction_io
 
 # TODO(thunderhoser): This file works for binary classification only.
 
@@ -1236,10 +1238,10 @@ def get_no_resolution_line_for_reliability_curve(mean_observed_label):
     return x_values, y_values
 
 
-def eval_binary_classifn(
+def run_evaluation(
         forecast_probabilities, observed_labels, best_prob_threshold,
         all_prob_thresholds, climatology):
-    """Evaluates binary classification.
+    """Runs full evaluation (for binary-classification problem).
 
     The input args `forecast_probabilities` and `observed_labels` may contain
     all data or just one bootstrap replicate.
@@ -1383,19 +1385,64 @@ def eval_binary_classifn(
     })
 
 
-def write_binary_classifn_results(
+def find_file(input_prediction_file_name, output_dir_name,
+              raise_error_if_missing=True):
+    """Finds file with full evaluation (for binary classification).
+
+    :param input_prediction_file_name: Path to prediction file (readable by
+        `prediction_io.read_ungridded_predictions`).
+    :param output_dir_name: Name of output directory (evaluation file will go
+        here).
+    :param raise_error_if_missing: Boolean flag.  If evaluation file is missing
+        and `raise_error_if_missing = True`, this method will error out.
+    :return: evaluation_file_name: Path to evaluation file.  If file is missing
+        and `raise_error_if_missing = False`, this will be the expected path.
+    :raises: ValueError: if evaluation file is missing and
+        `raise_error_if_missing = True`.
+    :raises: ValueError: if name of prediction file is not in expected format.
+    """
+
+    error_checking.assert_is_string(input_prediction_file_name)
+    error_checking.assert_is_string(output_dir_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    pathless_file_name = os.path.split(input_prediction_file_name)[-1]
+    naked_file_name = os.path.splitext(pathless_file_name)[0]
+
+    if prediction_io.UNGRIDDED_FILE_NAME_PREFIX not in naked_file_name:
+        error_string = (
+            'Expected the string "{0:s}" in naked file name (without path or '
+            'extension) for ungridded predictions: "{1:s}"'
+        ).format(prediction_io.UNGRIDDED_FILE_NAME_PREFIX, naked_file_name)
+
+        raise ValueError(error_string)
+
+    naked_file_name = naked_file_name.replace(
+        prediction_io.UNGRIDDED_FILE_NAME_PREFIX, 'model_evaluation')
+    evaluation_file_name = '{0:s}/{1:s}.p'.format(
+        output_dir_name, naked_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(evaluation_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            evaluation_file_name)
+        raise ValueError(error_string)
+
+    return evaluation_file_name
+
+
+def write_evaluation(
         pickle_file_name, forecast_probabilities, observed_labels,
         best_prob_threshold, all_prob_thresholds, evaluation_table):
-    """Writes results for binary classification to Pickle file.
+    """Writes full evaluation (for binary classification) to Pickle file.
 
     E = number of examples
 
     :param pickle_file_name: Path to output file.
-    :param forecast_probabilities: See doc for `eval_binary_classifn`.
+    :param forecast_probabilities: See doc for `run_evaluation`.
     :param observed_labels: Same.
     :param best_prob_threshold: Same.
     :param all_prob_thresholds: Same.
-    :param evaluation_table: See doc for `eval_binary_classifn`.  The only
+    :param evaluation_table: See doc for `run_evaluation`.  The only
         difference is that this table may have multiple rows (one per bootstrap
         replicate).
     """
@@ -1429,15 +1476,14 @@ def write_binary_classifn_results(
     pickle_file_handle.close()
 
 
-def read_binary_classifn_results(pickle_file_name):
-    """Reads results for binary classification from Pickle file.
+def read_evaluation(pickle_file_name):
+    """Reads full evaluation (for binary classification) from Pickle file.
 
     E = number of examples
 
     :param pickle_file_name: Path to input file.
     :return: evaluation_dict: Dictionary with the following keys.
-    evaluation_dict['forecast_probabilities']: See doc for
-        `read_binary_classifn_results`.
+    evaluation_dict['forecast_probabilities']: See doc for `read_evaluation`.
     evaluation_dict['observed_labels']: Same.
     evaluation_dict['best_prob_threshold']: Same.
     evaluation_dict['all_prob_thresholds']: Same.

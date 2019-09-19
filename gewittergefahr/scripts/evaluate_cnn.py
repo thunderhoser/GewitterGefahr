@@ -2,6 +2,7 @@
 
 import argparse
 import numpy
+from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.deep_learning import prediction_io
 from gewittergefahr.scripts import model_evaluation_helper as model_eval_helper
 
@@ -123,12 +124,17 @@ def _run(prediction_file_name, binarization_threshold, num_bootstrap_reps,
     else:
         downsampling_dict = None
 
+    main_output_file_name = model_eval.find_file(
+        input_prediction_file_name=prediction_file_name,
+        output_dir_name=output_dir_name, raise_error_if_missing=False)
+
     model_eval_helper.run_evaluation(
         forecast_probabilities=forecast_probabilities,
         observed_labels=observed_labels, downsampling_dict=downsampling_dict,
         best_prob_threshold=binarization_threshold,
         num_bootstrap_reps=num_bootstrap_reps,
-        confidence_level=confidence_level, output_dir_name=output_dir_name)
+        confidence_level=confidence_level,
+        main_output_file_name=main_output_file_name)
 
 
 if __name__ == '__main__':
@@ -141,9 +147,11 @@ if __name__ == '__main__':
         num_bootstrap_reps=getattr(INPUT_ARG_OBJECT, NUM_BOOTSTRAP_ARG_NAME),
         confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         class_fraction_keys=numpy.array(
-            getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_KEYS_ARG_NAME), dtype=int),
+            getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_KEYS_ARG_NAME), dtype=int
+        ),
         class_fraction_values=numpy.array(
             getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_VALUES_ARG_NAME),
-            dtype=float),
+            dtype=float
+        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
