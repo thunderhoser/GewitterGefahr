@@ -435,14 +435,14 @@ def run_evaluation(
         else:
             if len(positive_example_indices) > 0:
                 these_positive_indices = bootstrapping.draw_sample(
-                    forecast_probabilities[positive_example_indices]
-                )[-1]
+                    positive_example_indices
+                )[0]
             else:
                 these_positive_indices = numpy.array([], dtype=int)
 
             these_negative_indices = bootstrapping.draw_sample(
-                forecast_probabilities[negative_example_indices]
-            )[-1]
+                negative_example_indices
+            )[0]
 
             these_indices = numpy.concatenate((
                 these_positive_indices, these_negative_indices))
