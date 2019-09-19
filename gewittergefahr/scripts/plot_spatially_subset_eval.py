@@ -275,6 +275,8 @@ def _run(evaluation_dir_name, colour_map_name, max_colour_percentile,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
+    print(numpy.any(numpy.invert(numpy.isnan(auc_matrix))))
+
     figure_object, axes_object = _plot_one_score(
         score_matrix=auc_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=colour_map_object,
