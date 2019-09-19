@@ -164,7 +164,7 @@ def _get_basemap(grid_metadata_dict):
 
 def _plot_one_value(
         data_matrix, grid_metadata_dict, colour_map_object, min_colour_value,
-        max_colour_value):
+        max_colour_value, plot_cbar_min_arrow, plot_cbar_max_arrow):
     """Plots one value (score, num examples, or num positive examples).
 
     M = number of rows in grid
@@ -176,6 +176,10 @@ def _plot_one_value(
     :param colour_map_object: See documentation at top of file.
     :param min_colour_value: Minimum value in colour scheme.
     :param max_colour_value: Max value in colour scheme.
+    :param plot_cbar_min_arrow: Boolean flag.  If True, will plot arrow at
+        bottom of colour bar (to signify that lower values are possible).
+    :param plot_cbar_max_arrow: Boolean flag.  If True, will plot arrow at top
+        of colour bar (to signify that higher values are possible).
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
     :return: axes_object: Axes handle (instance of
@@ -246,7 +250,7 @@ def _plot_one_value(
         axes_object_or_matrix=axes_object, data_matrix=data_matrix,
         colour_map_object=colour_map_object, min_value=min_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
-        extend_min=True, extend_max=True)
+        extend_min=plot_cbar_min_arrow, extend_max=plot_cbar_max_arrow)
 
     return figure_object, axes_object
 
@@ -348,7 +352,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
     figure_object, axes_object = _plot_one_value(
         data_matrix=auc_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=score_colour_map_object,
-        min_colour_value=min_colour_value, max_colour_value=max_colour_value)
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
+        plot_cbar_min_arrow=True, plot_cbar_max_arrow=max_colour_value < 1.)
 
     axes_object.set_title('AUC (area under ROC curve)')
     panel_file_names.append('{0:s}/auc.jpg'.format(output_dir_name))
@@ -367,7 +372,9 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
     figure_object, axes_object = _plot_one_value(
         data_matrix=csi_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=score_colour_map_object,
-        min_colour_value=min_colour_value, max_colour_value=max_colour_value)
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
+        plot_cbar_min_arrow=min_colour_value > 0.,
+        plot_cbar_max_arrow=max_colour_value < 1.)
 
     axes_object.set_title('CSI (critical success index)')
     panel_file_names.append('{0:s}/csi.jpg'.format(output_dir_name))
@@ -386,7 +393,9 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
     figure_object, axes_object = _plot_one_value(
         data_matrix=pod_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=score_colour_map_object,
-        min_colour_value=min_colour_value, max_colour_value=max_colour_value)
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
+        plot_cbar_min_arrow=min_colour_value > 0.,
+        plot_cbar_max_arrow=max_colour_value < 1.)
 
     axes_object.set_title('POD (probability of detection)')
     panel_file_names.append('{0:s}/pod.jpg'.format(output_dir_name))
@@ -405,7 +414,9 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
     figure_object, axes_object = _plot_one_value(
         data_matrix=far_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=score_colour_map_object,
-        min_colour_value=min_colour_value, max_colour_value=max_colour_value)
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
+        plot_cbar_min_arrow=min_colour_value > 0.,
+        plot_cbar_max_arrow=max_colour_value < 1.)
 
     axes_object.set_title('FAR (false-alarm rate)')
     panel_file_names.append('{0:s}/far.jpg'.format(output_dir_name))
@@ -425,7 +436,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
     figure_object, axes_object = _plot_one_value(
         data_matrix=this_data_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=num_ex_colour_map_object,
-        min_colour_value=0., max_colour_value=max_colour_value)
+        min_colour_value=0., max_colour_value=max_colour_value,
+        plot_cbar_min_arrow=False, plot_cbar_max_arrow=True)
 
     axes_object.set_title(r'Number of examples (log$_{10}$)')
     panel_file_names.append('{0:s}/num_examples.jpg'.format(output_dir_name))
@@ -448,7 +460,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
     figure_object, axes_object = _plot_one_value(
         data_matrix=this_data_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=num_ex_colour_map_object,
-        min_colour_value=min_colour_value, max_colour_value=max_colour_value)
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
+        plot_cbar_min_arrow=True, plot_cbar_max_arrow=True)
 
     axes_object.set_title('Number of positive examples')
     panel_file_names.append(
