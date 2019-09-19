@@ -48,7 +48,7 @@ def _run(evaluation_dir_name, output_dir_name):
     grid_metadata_dict = grids.read_equidistant_metafile(grid_metafile_name)
 
     projection_object = grid_metadata_dict[grids.PROJECTION_KEY]
-    print(projection_object)
+    print(dir(projection_object))
 
 
 if __name__ == '__main__':
