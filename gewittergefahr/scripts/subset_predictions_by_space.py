@@ -220,6 +220,9 @@ def _run(input_file_name, top_tracking_dir_name, min_latitude_deg,
                 grid_edge_y_coords_metres=grid_edge_y_coords_metres,
                 row_index=i, column_index=j, verbose=True)
 
+            if len(these_indices) == 0:
+                continue
+
             this_prediction_dict = prediction_io.subset_ungridded_predictions(
                 prediction_dict=prediction_dict,
                 desired_storm_indices=these_indices)

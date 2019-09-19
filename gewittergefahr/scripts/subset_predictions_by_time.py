@@ -130,6 +130,9 @@ def _run(input_file_name, num_months_per_chunk, num_hours_per_chunk,
                 desired_hours=chunk_to_hours_dict[i], verbose=True)
         )
 
+        if len(these_storm_indices) == 0:
+            continue
+
         this_prediction_dict = prediction_io.subset_ungridded_predictions(
             prediction_dict=prediction_dict,
             desired_storm_indices=these_storm_indices)

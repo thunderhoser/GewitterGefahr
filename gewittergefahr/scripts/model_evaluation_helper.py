@@ -328,7 +328,14 @@ def run_evaluation(
         be no downsampling.
     :param confidence_level: [used only if `num_bootstrap_reps > 1`]
         Confidence level for bootstrapping.
+    :raises: ValueError: if input arrays contain zero examples.
     """
+
+    # TODO(thunderhoser): Put more input-checking here.
+
+    num_examples = len(observed_labels)
+    if num_examples == 0:
+        raise ValueError('There are no examples to evaluate!')
 
     error_checking.assert_is_boolean(create_plots)
     error_checking.assert_is_integer(num_bootstrap_reps)
@@ -349,7 +356,6 @@ def run_evaluation(
         str(num_examples_by_class)
     ))
 
-    num_examples = len(observed_labels)
     positive_example_indices = numpy.where(observed_labels == 1)[0]
     negative_example_indices = numpy.where(observed_labels == 0)[0]
 
