@@ -1385,8 +1385,9 @@ def run_evaluation(
     })
 
 
-def find_file(input_prediction_file_name, output_dir_name,
-              raise_error_if_missing=True):
+def find_file_from_prediction_file(
+        input_prediction_file_name, output_dir_name,
+        raise_error_if_missing=True):
     """Finds file with full evaluation (for binary classification).
 
     :param input_prediction_file_name: Path to prediction file (readable by
@@ -1428,6 +1429,33 @@ def find_file(input_prediction_file_name, output_dir_name,
         raise ValueError(error_string)
 
     return evaluation_file_name
+
+
+def find_file(
+        directory_name, raise_error_if_missing=True, months_in_subset=None,
+        hours_in_subset=None, grid_row=None, grid_column=None):
+    """Finds file with full evaluation (for binary classification).
+
+    :param directory_name: See doc for `prediction_io.find_ungridded_file`.
+    :param raise_error_if_missing: Same.
+    :param months_in_subset: Same.
+    :param hours_in_subset: Same.
+    :param grid_row: Same.
+    :param grid_column: Same.
+    :return: evaluation_file_name: Path to evaluation file.  If file is missing
+        and `raise_error_if_missing = False`, this will be the expected path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    prediction_file_name = prediction_io.find_ungridded_file(
+        directory_name=directory_name, months_in_subset=months_in_subset,
+        hours_in_subset=hours_in_subset, grid_row=grid_row,
+        grid_column=grid_column, raise_error_if_missing=False)
+
+    return find_file_from_prediction_file(
+        input_prediction_file_name=prediction_file_name,
+        output_dir_name=directory_name,
+        raise_error_if_missing=raise_error_if_missing)
 
 
 def write_evaluation(

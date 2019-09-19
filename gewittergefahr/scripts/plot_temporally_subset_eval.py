@@ -12,9 +12,9 @@ matplotlib.use('agg')
 import matplotlib.colors
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import bootstrapping
+from gewittergefahr.gg_utils import temporal_subsetting
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
-from gewittergefahr.scripts import subset_predictions_by_time as subsetting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -55,21 +55,20 @@ NUM_HOURS_ARG_NAME = 'num_hours_per_chunk'
 CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-# TODO(thunderhoser): Fix this.
 INPUT_DIR_HELP_STRING = (
-    'Name of top-level input directory.  Evaluation files will be found therein'
-    ' by FOO and read by `model_evaluation.read_binary_classifn_results`.')
+    'Name ofinput directory.  Evaluation files therein will be found by '
+    '`model_evaluation.find_file` and read by '
+    '`model_evaluation.read_evaluation`.')
 
-# TODO(thunderhoser): Allow negative option in subset_predictions_by_time.py.
 NUM_MONTHS_HELP_STRING = (
     'Number of months in each chunk.  Must be in the list below.  Or, if you do'
     ' not want to plot by month, make this negative.\n{0:s}'
-).format(str(subsetting.VALID_MONTH_COUNTS))
+).format(str(temporal_subsetting.VALID_MONTH_COUNTS))
 
 NUM_HOURS_HELP_STRING = (
     'Number of hours in each chunk.  Must be in the list below.  Or, if you do'
     ' not want to plot by hour, make this negative.\n{0:s}'
-).format(str(subsetting.VALID_HOUR_COUNTS))
+).format(str(temporal_subsetting.VALID_HOUR_COUNTS))
 
 CONFIDENCE_LEVEL_HELP_STRING = 'Confidence level for error bars.'
 
@@ -319,18 +318,18 @@ def _plot_pod_and_far(pod_matrix, far_matrix, num_positive_ex_by_chunk,
     return figure_object, main_axes_object
 
 
-def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
+def _plot_by_month(evaluation_dir_name, num_months_per_chunk,
                    confidence_level, output_dir_name):
     """Plots model evaluation by month.
 
-    :param top_evaluation_dir_name: See documentation at top of file.
+    :param evaluation_dir_name: See documentation at top of file.
     :param num_months_per_chunk: Same.
     :param confidence_level: Same.
     :param output_dir_name: Same.
     """
 
-    chunk_to_months_dict = subsetting._get_months_in_each_chunk(
-        num_months_per_chunk)
+    chunk_to_months_dict = temporal_subsetting.get_monthly_chunks(
+        num_months_per_chunk=num_months_per_chunk, verbose=False)
 
     num_bootstrap_reps = None
     num_chunks = len(chunk_to_months_dict.keys())
@@ -343,12 +342,10 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
     num_positive_ex_by_chunk = numpy.full(num_chunks, 0, dtype=int)
 
     for i in range(num_chunks):
-        this_subdir_name = '-'.join([
-            '{0:02d}'.format(m) for m in chunk_to_months_dict[i]
-        ])
-
-        this_eval_file_name = '{0:s}/months={1:s}/evaluation_results.p'.format(
-            top_evaluation_dir_name, this_subdir_name)
+        this_eval_file_name = model_eval.find_file(
+            directory_name=evaluation_dir_name,
+            months_in_subset=chunk_to_months_dict[i],
+            raise_error_if_missing=False)
 
         if not os.path.isfile(this_eval_file_name):
             warning_string = (
@@ -360,8 +357,7 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
             continue
 
         print('Reading data from: "{0:s}"...'.format(this_eval_file_name))
-        this_evaluation_dict = model_eval.read_binary_classifn_results(
-            this_eval_file_name)
+        this_evaluation_dict = model_eval.read_evaluation(this_eval_file_name)
 
         num_examples_by_chunk[i] = len(
             this_evaluation_dict[model_eval.OBSERVED_LABELS_KEY]
@@ -456,18 +452,18 @@ def _plot_by_month(top_evaluation_dir_name, num_months_per_chunk,
     pyplot.close(figure_object)
 
 
-def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
+def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
                   confidence_level, output_dir_name):
     """Plots model evaluation by hour.
 
-    :param top_evaluation_dir_name: See documentation at top of file.
+    :param evaluation_dir_name: See documentation at top of file.
     :param num_hours_per_chunk: Same.
     :param confidence_level: Same.
     :param output_dir_name: Same.
     """
 
-    chunk_to_hours_dict = subsetting._get_hours_in_each_chunk(
-        num_hours_per_chunk)
+    chunk_to_hours_dict = temporal_subsetting.get_hourly_chunks(
+        num_hours_per_chunk=num_hours_per_chunk, verbose=False)
 
     num_bootstrap_reps = None
     num_chunks = len(chunk_to_hours_dict.keys())
@@ -480,12 +476,10 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
     num_positive_ex_by_chunk = numpy.full(num_chunks, 0, dtype=int)
 
     for i in range(num_chunks):
-        this_subdir_name = '-'.join([
-            '{0:02d}'.format(h) for h in chunk_to_hours_dict[i]
-        ])
-
-        this_eval_file_name = '{0:s}/hours={1:s}/evaluation_results.p'.format(
-            top_evaluation_dir_name, this_subdir_name)
+        this_eval_file_name = model_eval.find_file(
+            directory_name=evaluation_dir_name,
+            hours_in_subset=chunk_to_hours_dict[i],
+            raise_error_if_missing=False)
 
         if not os.path.isfile(this_eval_file_name):
             warning_string = (
@@ -497,8 +491,7 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
             continue
 
         print('Reading data from: "{0:s}"...'.format(this_eval_file_name))
-        this_evaluation_dict = model_eval.read_binary_classifn_results(
-            this_eval_file_name)
+        this_evaluation_dict = model_eval.read_evaluation(this_eval_file_name)
 
         num_examples_by_chunk[i] = len(
             this_evaluation_dict[model_eval.OBSERVED_LABELS_KEY]
@@ -595,13 +588,13 @@ def _plot_by_hour(top_evaluation_dir_name, num_hours_per_chunk,
     pyplot.close(figure_object)
 
 
-def _run(top_evaluation_dir_name, num_months_per_chunk, num_hours_per_chunk,
+def _run(evaluation_dir_name, num_months_per_chunk, num_hours_per_chunk,
          confidence_level, output_dir_name):
     """Plots temporally subset model evaluation.
 
     This is effectively the main method.
 
-    :param top_evaluation_dir_name: See documentation at top of file.
+    :param evaluation_dir_name: See documentation at top of file.
     :param num_months_per_chunk: Same.
     :param num_hours_per_chunk: Same.
     :param confidence_level: Same.
@@ -613,13 +606,13 @@ def _run(top_evaluation_dir_name, num_months_per_chunk, num_hours_per_chunk,
 
     if num_months_per_chunk > 0:
         _plot_by_month(
-            top_evaluation_dir_name=top_evaluation_dir_name,
+            evaluation_dir_name=evaluation_dir_name,
             num_months_per_chunk=num_months_per_chunk,
             confidence_level=confidence_level, output_dir_name=output_dir_name)
 
     if num_hours_per_chunk > 0:
         _plot_by_hour(
-            top_evaluation_dir_name=top_evaluation_dir_name,
+            evaluation_dir_name=evaluation_dir_name,
             num_hours_per_chunk=num_hours_per_chunk,
             confidence_level=confidence_level, output_dir_name=output_dir_name)
 
@@ -628,7 +621,7 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_evaluation_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        evaluation_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         num_months_per_chunk=getattr(INPUT_ARG_OBJECT, NUM_MONTHS_ARG_NAME),
         num_hours_per_chunk=getattr(INPUT_ARG_OBJECT, NUM_HOURS_ARG_NAME),
         confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),

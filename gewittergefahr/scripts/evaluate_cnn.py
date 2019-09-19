@@ -124,7 +124,7 @@ def _run(prediction_file_name, binarization_threshold, num_bootstrap_reps,
     else:
         downsampling_dict = None
 
-    main_output_file_name = model_eval.find_file(
+    main_output_file_name = model_eval.find_file_from_prediction_file(
         input_prediction_file_name=prediction_file_name,
         output_dir_name=output_dir_name, raise_error_if_missing=False)
 
