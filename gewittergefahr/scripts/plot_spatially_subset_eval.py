@@ -29,7 +29,8 @@ FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
-COLOUR_MAP_ARG_NAME = 'colour_map_name'
+SCORE_CMAP_ARG_NAME = 'score_colour_map_name'
+NUM_EXAMPLES_CMAP_ARG_NAME = 'num_ex_colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -38,14 +39,17 @@ INPUT_DIR_HELP_STRING = (
     '`model_evaluation.find_file` and read by '
     '`model_evaluation.read_evaluation`.')
 
-COLOUR_MAP_HELP_STRING = (
-    'Name of colour map (must be accepted by `pyplot.get_cmap`.  Will be used '
-    'to plot all scores.')
+SCORE_CMAP_HELP_STRING = (
+    'Name of colour map for scores (must be accepted by `pyplot.get_cmap`).')
+
+NUM_EXAMPLES_CMAP_HELP_STRING = (
+    'Name of colour map for number of examples (must be accepted by '
+    '`pyplot.get_cmap`).')
 
 MAX_PERCENTILE_HELP_STRING = (
     'Used to determine min and max values in each colour map.  Max value will '
-    'be [q]th percentile of all scores, and min value will be [100 - q]th '
-    'percentile, where q = `{0:s}`.'
+    'be [q]th percentile over all grid cells, and min value will be [100 - q]th'
+    ' percentile, where q = `{0:s}`.'
 ).format(MAX_PERCENTILE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
@@ -57,8 +61,12 @@ INPUT_ARG_PARSER.add_argument(
     help=INPUT_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='plasma',
-    help=COLOUR_MAP_HELP_STRING)
+    '--' + SCORE_CMAP_ARG_NAME, type=str, required=False, default='plasma',
+    help=SCORE_CMAP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_EXAMPLES_CMAP_ARG_NAME, type=str, required=False,
+    default='viridis', help=NUM_EXAMPLES_CMAP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False, default=99.,
@@ -149,15 +157,15 @@ def _get_basemap(grid_metadata_dict):
     return basemap_object, basemap_x_matrix_metres, basemap_y_matrix_metres
 
 
-def _plot_one_score(
-        score_matrix, grid_metadata_dict, colour_map_object, min_colour_value,
+def _plot_one_value(
+        data_matrix, grid_metadata_dict, colour_map_object, min_colour_value,
         max_colour_value):
-    """Plots one score.
+    """Plots one value (score, num examples, or num positive examples).
 
     M = number of rows in grid
     N = number of columns in grid
 
-    :param score_matrix: M-by-N numpy array with values of a given score.
+    :param data_matrix: M-by-N numpy array of values to plot.
     :param grid_metadata_dict: Dictionary returned by
         `grids.read_equidistant_metafile`.
     :param colour_map_object: See documentation at top of file.
@@ -177,8 +185,8 @@ def _plot_one_score(
         _get_basemap(grid_metadata_dict)
     )
 
-    num_grid_rows = score_matrix.shape[0]
-    num_grid_columns = score_matrix.shape[1]
+    num_grid_rows = data_matrix.shape[0]
+    num_grid_columns = data_matrix.shape[1]
     x_spacing_metres = (
         (basemap_x_matrix_metres[0, -1] - basemap_x_matrix_metres[0, 0]) /
         (num_grid_columns - 1)
@@ -188,20 +196,20 @@ def _plot_one_score(
         (num_grid_rows - 1)
     )
 
-    score_matrix_at_edges, edge_x_coords_metres, edge_y_coords_metres = (
+    data_matrix_at_edges, edge_x_coords_metres, edge_y_coords_metres = (
         grids.xy_field_grid_points_to_edges(
-            field_matrix=score_matrix,
+            field_matrix=data_matrix,
             x_min_metres=basemap_x_matrix_metres[0, 0],
             y_min_metres=basemap_y_matrix_metres[0, 0],
             x_spacing_metres=x_spacing_metres,
             y_spacing_metres=y_spacing_metres)
     )
 
-    score_matrix_at_edges = numpy.ma.masked_where(
-        numpy.isnan(score_matrix_at_edges), score_matrix_at_edges
+    data_matrix_at_edges = numpy.ma.masked_where(
+        numpy.isnan(data_matrix_at_edges), data_matrix_at_edges
     )
 
-    # score_matrix_at_edges[numpy.isnan(score_matrix_at_edges)] = -1
+    # data_matrix_at_edges[numpy.isnan(data_matrix_at_edges)] = -1
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -225,12 +233,12 @@ def _plot_one_score(
 
     basemap_object.pcolormesh(
         edge_x_coords_metres, edge_y_coords_metres,
-        score_matrix_at_edges, cmap=colour_map_object,
+        data_matrix_at_edges, cmap=colour_map_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None', axes=axes_object, zorder=-1e12)
 
     plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object, data_matrix=score_matrix,
+        axes_object_or_matrix=axes_object, data_matrix=data_matrix,
         colour_map_object=colour_map_object, min_value=min_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
         extend_min=True, extend_max=True)
@@ -238,19 +246,21 @@ def _plot_one_score(
     return figure_object, axes_object
 
 
-def _run(evaluation_dir_name, colour_map_name, max_colour_percentile,
-         output_dir_name):
+def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
+         max_colour_percentile, output_dir_name):
     """Plots spatially subset model evaluation.
 
     This is effectively the main method.
 
     :param evaluation_dir_name: See documentation at top of file.
-    :param colour_map_name: Same.
+    :param score_colour_map_name: Same.
+    :param num_ex_colour_map_name: Same.
     :param max_colour_percentile: Same.
     :param output_dir_name: Same.
     """
 
-    colour_map_object = pyplot.get_cmap(colour_map_name)
+    score_colour_map_object = pyplot.get_cmap(score_colour_map_name)
+    num_ex_colour_map_object = pyplot.get_cmap(num_ex_colour_map_name)
     error_checking.assert_is_geq(max_colour_percentile, 90.)
     error_checking.assert_is_leq(max_colour_percentile, 100.)
 
@@ -328,9 +338,9 @@ def _run(evaluation_dir_name, colour_map_name, max_colour_percentile,
         0.5
     )
 
-    figure_object, axes_object = _plot_one_score(
-        score_matrix=auc_matrix, grid_metadata_dict=grid_metadata_dict,
-        colour_map_object=colour_map_object,
+    figure_object, axes_object = _plot_one_value(
+        data_matrix=auc_matrix, grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=score_colour_map_object,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value)
 
     axes_object.set_title('AUC (area under ROC curve)')
@@ -347,9 +357,9 @@ def _run(evaluation_dir_name, colour_map_name, max_colour_percentile,
     min_colour_value = numpy.nanpercentile(
         csi_matrix, 100. - max_colour_percentile)
 
-    figure_object, axes_object = _plot_one_score(
-        score_matrix=csi_matrix, grid_metadata_dict=grid_metadata_dict,
-        colour_map_object=colour_map_object,
+    figure_object, axes_object = _plot_one_value(
+        data_matrix=csi_matrix, grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=score_colour_map_object,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value)
 
     axes_object.set_title('CSI (critical success index)')
@@ -366,9 +376,9 @@ def _run(evaluation_dir_name, colour_map_name, max_colour_percentile,
     min_colour_value = numpy.nanpercentile(
         pod_matrix, 100. - max_colour_percentile)
 
-    figure_object, axes_object = _plot_one_score(
-        score_matrix=pod_matrix, grid_metadata_dict=grid_metadata_dict,
-        colour_map_object=colour_map_object,
+    figure_object, axes_object = _plot_one_value(
+        data_matrix=pod_matrix, grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=score_colour_map_object,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value)
 
     axes_object.set_title('POD (probability of detection)')
@@ -385,13 +395,56 @@ def _run(evaluation_dir_name, colour_map_name, max_colour_percentile,
     min_colour_value = numpy.nanpercentile(
         far_matrix, 100. - max_colour_percentile)
 
-    figure_object, axes_object = _plot_one_score(
-        score_matrix=far_matrix, grid_metadata_dict=grid_metadata_dict,
-        colour_map_object=colour_map_object,
+    figure_object, axes_object = _plot_one_value(
+        data_matrix=far_matrix, grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=score_colour_map_object,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value)
 
     axes_object.set_title('FAR (false-alarm rate)')
     output_file_name = '{0:s}/spatial_far_plot.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight')
+    pyplot.close(figure_object)
+
+    # Plot number of examples.
+    log_num_examples_matrix = numpy.maximum(
+        numpy.log10(num_examples_matrix), 0.
+    )
+    max_colour_value = numpy.nanpercentile(
+        log_num_examples_matrix, max_colour_percentile)
+
+    figure_object, axes_object = _plot_one_value(
+        data_matrix=log_num_examples_matrix,
+        grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=num_ex_colour_map_object,
+        min_colour_value=0., max_colour_value=max_colour_value)
+
+    axes_object.set_title(r'Number of examples (log$_{10}$)')
+    output_file_name = '{0:s}/num_examples_plot.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight')
+    pyplot.close(figure_object)
+
+    # Plot FAR.
+    max_colour_value = numpy.nanpercentile(
+        num_positive_examples_matrix, max_colour_percentile)
+    min_colour_value = numpy.nanpercentile(
+        num_positive_examples_matrix, 100. - max_colour_percentile)
+
+    figure_object, axes_object = _plot_one_value(
+        data_matrix=num_positive_examples_matrix,
+        grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=num_ex_colour_map_object,
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value)
+
+    axes_object.set_title('Number of positive examples')
+    output_file_name = '{0:s}/num_positive_examples.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
 
     figure_object.savefig(
@@ -405,7 +458,9 @@ if __name__ == '__main__':
 
     _run(
         evaluation_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
-        colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
+        score_colour_map_name=getattr(INPUT_ARG_OBJECT, SCORE_CMAP_ARG_NAME),
+        num_ex_colour_map_name=getattr(
+            INPUT_ARG_OBJECT, NUM_EXAMPLES_CMAP_ARG_NAME),
         max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
