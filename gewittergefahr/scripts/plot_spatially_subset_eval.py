@@ -197,11 +197,11 @@ def _plot_one_score(
             y_spacing_metres=y_spacing_metres)
     )
 
-    # score_matrix_at_edges = numpy.ma.masked_where(
-    #     numpy.isnan(score_matrix_at_edges), score_matrix_at_edges
-    # )
+    score_matrix_at_edges = numpy.ma.masked_where(
+        numpy.isnan(score_matrix_at_edges), score_matrix_at_edges
+    )
 
-    score_matrix_at_edges[numpy.isnan(score_matrix_at_edges)] = -1
+    # score_matrix_at_edges[numpy.isnan(score_matrix_at_edges)] = -1
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
