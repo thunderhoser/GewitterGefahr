@@ -134,8 +134,10 @@ def _get_basemap(grid_metadata_dict):
         lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
         rsphere=projections.DEFAULT_EARTH_RADIUS_METRES,
         ellps=projections.SPHERE_NAME, resolution=RESOLUTION_STRING,
-        llcrnrx=x_matrix_metres[0, 0], llcrnry=y_matrix_metres[0, 0],
-        urcrnrx=x_matrix_metres[-1, -1], urcrnry=y_matrix_metres[-1, -1]
+        llcrnrlat=numpy.min(latitude_matrix_deg),
+        llcrnrlon=numpy.min(longitude_matrix_deg),
+        urcrnrlat=numpy.max(latitude_matrix_deg),
+        urcrnrlon=numpy.max(longitude_matrix_deg)
     )
 
     basemap_x_matrix_metres, basemap_y_matrix_metres = basemap_object(
