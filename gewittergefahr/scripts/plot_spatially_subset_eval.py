@@ -197,9 +197,11 @@ def _plot_one_score(
             y_spacing_metres=y_spacing_metres)
     )
 
-    score_matrix_at_edges = numpy.ma.masked_where(
-        numpy.isnan(score_matrix_at_edges), score_matrix_at_edges
-    )
+    # score_matrix_at_edges = numpy.ma.masked_where(
+    #     numpy.isnan(score_matrix_at_edges), score_matrix_at_edges
+    # )
+
+    score_matrix_at_edges[numpy.isnan(score_matrix_at_edges)] = -1
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -225,7 +227,7 @@ def _plot_one_score(
         edge_x_coords_metres, edge_y_coords_metres,
         score_matrix_at_edges, cmap=colour_map_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', axes=axes_object)
+        edgecolors='None', axes=axes_object, zorder=-1e12)
 
     plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=score_matrix,
