@@ -283,16 +283,15 @@ def _plot_3d_radar_scan(
                 data_matrix=this_radar_matrix,
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation_string='horizontal', extend_min=True,
-                extend_max=True)
+                orientation_string='horizontal', padding=0.01,
+                extend_min=True, extend_max=True)
 
             this_field_name_verbose = radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[
                 radar_field_names[j]
             ]
 
             if title_string is None:
-                pyplot.suptitle(
-                    this_field_name_verbose, fontsize=TITLE_FONT_SIZE)
+                pyplot.suptitle(this_field_name_verbose)
             else:
                 this_colour_bar_object.set_label(this_field_name_verbose)
 
