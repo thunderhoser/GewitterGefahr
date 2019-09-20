@@ -260,7 +260,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         output_file_name='{0:s}/far.jpg'.format(output_dir_name)
     )
 
-    this_offset = numpy.percentile(
+    this_offset = numpy.nanpercentile(
         numpy.absolute(frequency_bias_matrix - 1.), max_colour_percentile
     )
     min_colour_value = 1. - this_offset
