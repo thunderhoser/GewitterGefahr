@@ -14,6 +14,7 @@ from matplotlib import pyplot
 from descartes import PolygonPatch
 from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import temporal_subsetting
+from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
@@ -170,15 +171,25 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
 
     # Plot confidence interval for CSI.
     if num_bootstrap_reps >= 1:
-        csi_polygon_object = (
-            model_eval_plotting._confidence_interval_to_polygon(
-                x_coords_bottom=x_values, y_coords_bottom=csi_matrix[:, 0],
-                x_coords_top=x_values, y_coords_top=csi_matrix[:, 2],
-                for_performance_diagram=True)
-        )
+        these_x = numpy.concatenate((
+            x_values, x_values[::-1], x_values[[0]]
+        ))
+        these_y = numpy.concatenate((
+            csi_matrix[:, 2], csi_matrix[:, 0][::-1], csi_matrix[0, 2]
+        ))
+
+        csi_polygon_object = polygons.vertex_arrays_to_polygon_object(
+            polygon_x_coords=these_x, polygon_y_coords=these_y)
+
+        # csi_polygon_object = (
+        #     model_eval_plotting._confidence_interval_to_polygon(
+        #         x_coords_bottom=x_values, y_coords_bottom=csi_matrix[:, 0],
+        #         x_coords_top=x_values, y_coords_top=csi_matrix[:, 2],
+        #         for_performance_diagram=True)
+        # )
 
         csi_polygon_colour = matplotlib.colors.to_rgba(
-            plotting_utils.colour_from_numpy_to_tuple(AUC_COLOUR),
+            plotting_utils.colour_from_numpy_to_tuple(CSI_COLOUR),
             POLYGON_OPACITY
         )
 
@@ -202,8 +213,8 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append(r'Numbeer of storm objects (log$_{10}$)')
-    histogram_axes_object.set_ylabel(r'Numbeer of storm objects (log$_{10}$)')
+    legend_strings.append(r'Number of storm objects (log$_{10}$)')
+    histogram_axes_object.set_ylabel(r'Number of storm objects (log$_{10}$)')
 
     if plot_legend:
         main_axes_object.legend(
@@ -312,8 +323,8 @@ def _plot_pod_and_far(pod_matrix, far_matrix, num_positive_ex_by_chunk,
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append('Numbeer of tornadic storm objects')
-    histogram_axes_object.set_ylabel('Numbeer of tornadic storm objects')
+    legend_strings.append('Number of tornadic storm objects')
+    histogram_axes_object.set_ylabel('Number of tornadic storm objects')
 
     if plot_legend:
         main_axes_object.legend(
