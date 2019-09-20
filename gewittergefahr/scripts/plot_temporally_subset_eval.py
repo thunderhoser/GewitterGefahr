@@ -15,6 +15,7 @@ from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import temporal_subsetting
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.plotting import imagemagick_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -48,6 +49,7 @@ HISTOGRAM_EDGE_COLOUR = numpy.full(3, 0.)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 300
+CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_DIR_ARG_NAME = 'input_evaluation_dir_name'
 NUM_MONTHS_ARG_NAME = 'num_months_per_chunk'
@@ -61,13 +63,11 @@ INPUT_DIR_HELP_STRING = (
     '`model_evaluation.read_evaluation`.')
 
 NUM_MONTHS_HELP_STRING = (
-    'Number of months in each chunk.  Must be in the list below.  Or, if you do'
-    ' not want to plot by month, make this negative.\n{0:s}'
+    'Number of months per chunk.  Must be in the list below.\n{0:s}'
 ).format(str(temporal_subsetting.VALID_MONTH_COUNTS))
 
 NUM_HOURS_HELP_STRING = (
-    'Number of hours in each chunk.  Must be in the list below.  Or, if you do'
-    ' not want to plot by hour, make this negative.\n{0:s}'
+    'Number of hours per chunk.  Must be in the list below.\n{0:s}'
 ).format(str(temporal_subsetting.VALID_HOUR_COUNTS))
 
 CONFIDENCE_LEVEL_HELP_STRING = 'Confidence level for error bars.'
@@ -98,7 +98,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
-                      num_bootstrap_reps):
+                      num_bootstrap_reps, plot_legend):
     """Plots AUC and CSI either by hour or by month.
 
     N = number of monthly or hourly chunks
@@ -109,6 +109,7 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     :param num_examples_by_chunk: length-N numpy array with number of examples
         for each chunk.
     :param num_bootstrap_reps: Number of bootstrap replicates.
+    :param plot_legend: Boolean flag.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
     :return: axes_object: Axes handle (instance of
@@ -199,18 +200,18 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     legend_strings.append(r'Number of examples (log$_{10}$)')
     histogram_axes_object.set_ylabel(r'Number of examples (log$_{10}$)')
 
-    # Plot legend.
-    main_axes_object.legend(
-        legend_handles, legend_strings, loc='lower center',
-        bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
-        ncol=len(legend_handles)
-    )
+    if plot_legend:
+        main_axes_object.legend(
+            legend_handles, legend_strings, loc='lower center',
+            bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
+            ncol=len(legend_handles)
+        )
 
     return figure_object, main_axes_object
 
 
 def _plot_pod_and_far(pod_matrix, far_matrix, num_positive_ex_by_chunk,
-                      num_bootstrap_reps):
+                      num_bootstrap_reps, plot_legend):
     """Plots POD and FAR either by hour or by month.
 
     N = number of monthly or hourly chunks
@@ -221,6 +222,7 @@ def _plot_pod_and_far(pod_matrix, far_matrix, num_positive_ex_by_chunk,
     :param num_positive_ex_by_chunk: length-N numpy array with number of
         positive examples for each chunk.
     :param num_bootstrap_reps: Number of bootstrap replicates.
+    :param plot_legend: Boolean flag.
     :return: figure_object: See doc for `_plot_auc_and_csi`.
     :return: axes_object: Same.
     """
@@ -308,12 +310,12 @@ def _plot_pod_and_far(pod_matrix, far_matrix, num_positive_ex_by_chunk,
     legend_strings.append('Number of positive examples')
     histogram_axes_object.set_ylabel('Number of positive examples')
 
-    # Plot legend.
-    main_axes_object.legend(
-        legend_handles, legend_strings, loc='lower center',
-        bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
-        ncol=len(legend_handles)
-    )
+    if plot_legend:
+        main_axes_object.legend(
+            legend_handles, legend_strings, loc='lower center',
+            bbox_to_anchor=(0.5, 1), fancybox=True, shadow=True,
+            ncol=len(legend_handles)
+        )
 
     return figure_object, main_axes_object
 
@@ -326,6 +328,7 @@ def _plot_by_month(evaluation_dir_name, num_months_per_chunk,
     :param num_months_per_chunk: Same.
     :param confidence_level: Same.
     :param output_dir_name: Same.
+    :return: output_file_names: Paths to figures saved by this method.
     """
 
     chunk_to_months_dict = temporal_subsetting.get_monthly_chunks(
@@ -420,16 +423,16 @@ def _plot_by_month(evaluation_dir_name, num_months_per_chunk,
     figure_object, axes_object = _plot_auc_and_csi(
         auc_matrix=auc_matrix, csi_matrix=csi_matrix,
         num_examples_by_chunk=num_examples_by_chunk,
-        num_bootstrap_reps=num_bootstrap_reps)
+        num_bootstrap_reps=num_bootstrap_reps, plot_legend=True)
 
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
 
-    output_file_name = '{0:s}/monthly_auc_and_csi.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    auc_csi_file_name = '{0:s}/monthly_auc_and_csi.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(auc_csi_file_name))
 
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        auc_csi_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight'
     )
     pyplot.close(figure_object)
@@ -437,19 +440,21 @@ def _plot_by_month(evaluation_dir_name, num_months_per_chunk,
     figure_object, axes_object = _plot_pod_and_far(
         pod_matrix=pod_matrix, far_matrix=far_matrix,
         num_positive_ex_by_chunk=num_positive_ex_by_chunk,
-        num_bootstrap_reps=num_bootstrap_reps)
+        num_bootstrap_reps=num_bootstrap_reps, plot_legend=True)
 
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
 
-    output_file_name = '{0:s}/monthly_pod_and_far.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    pod_far_file_name = '{0:s}/monthly_pod_and_far.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(pod_far_file_name))
 
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        pod_far_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight'
     )
     pyplot.close(figure_object)
+
+    return [auc_csi_file_name, pod_far_file_name]
 
 
 def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
@@ -460,6 +465,7 @@ def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
     :param num_hours_per_chunk: Same.
     :param confidence_level: Same.
     :param output_dir_name: Same.
+    :return: output_file_names: Paths to figures saved by this method.
     """
 
     chunk_to_hours_dict = temporal_subsetting.get_hourly_chunks(
@@ -554,17 +560,17 @@ def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
     figure_object, axes_object = _plot_auc_and_csi(
         auc_matrix=auc_matrix, csi_matrix=csi_matrix,
         num_examples_by_chunk=num_examples_by_chunk,
-        num_bootstrap_reps=num_bootstrap_reps)
+        num_bootstrap_reps=num_bootstrap_reps, plot_legend=False)
 
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
     axes_object.set_xlabel('Hour')
 
-    output_file_name = '{0:s}/hourly_auc_and_csi.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    auc_csi_file_name = '{0:s}/hourly_auc_and_csi.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(auc_csi_file_name))
 
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        auc_csi_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight'
     )
     pyplot.close(figure_object)
@@ -572,20 +578,22 @@ def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
     figure_object, axes_object = _plot_pod_and_far(
         pod_matrix=pod_matrix, far_matrix=far_matrix,
         num_positive_ex_by_chunk=num_positive_ex_by_chunk,
-        num_bootstrap_reps=num_bootstrap_reps)
+        num_bootstrap_reps=num_bootstrap_reps, plot_legend=False)
 
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
     axes_object.set_xlabel('Hour')
 
-    output_file_name = '{0:s}/hourly_pod_and_far.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    pod_far_file_name = '{0:s}/hourly_pod_and_far.jpg'.format(output_dir_name)
+    print('Saving figure to: "{0:s}"...'.format(pod_far_file_name))
 
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        pod_far_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
         bbox_inches='tight'
     )
     pyplot.close(figure_object)
+
+    return [auc_csi_file_name, pod_far_file_name]
 
 
 def _run(evaluation_dir_name, num_months_per_chunk, num_hours_per_chunk,
@@ -604,17 +612,27 @@ def _run(evaluation_dir_name, num_months_per_chunk, num_hours_per_chunk,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    if num_months_per_chunk > 0:
-        _plot_by_month(
-            evaluation_dir_name=evaluation_dir_name,
-            num_months_per_chunk=num_months_per_chunk,
-            confidence_level=confidence_level, output_dir_name=output_dir_name)
+    panel_file_names = _plot_by_month(
+        evaluation_dir_name=evaluation_dir_name,
+        num_months_per_chunk=num_months_per_chunk,
+        confidence_level=confidence_level, output_dir_name=output_dir_name)
 
-    if num_hours_per_chunk > 0:
-        _plot_by_hour(
-            evaluation_dir_name=evaluation_dir_name,
-            num_hours_per_chunk=num_hours_per_chunk,
-            confidence_level=confidence_level, output_dir_name=output_dir_name)
+    panel_file_names += _plot_by_hour(
+        evaluation_dir_name=evaluation_dir_name,
+        num_hours_per_chunk=num_hours_per_chunk,
+        confidence_level=confidence_level, output_dir_name=output_dir_name)
+
+    concat_file_name = '{0:s}/temporally_subset_eval.jpg'.format(
+        output_dir_name)
+
+    print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names, output_file_name=concat_file_name,
+        num_panel_rows=2, num_panel_columns=2)
+
+    imagemagick_utils.resize_image(
+        input_file_name=concat_file_name, output_file_name=concat_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
 
 
 if __name__ == '__main__':
