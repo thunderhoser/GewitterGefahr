@@ -175,7 +175,7 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
             x_values, x_values[::-1], x_values[[0]]
         ))
         these_y = numpy.concatenate((
-            csi_matrix[:, 2], csi_matrix[:, 0][::-1], csi_matrix[0, 2]
+            csi_matrix[:, 2], csi_matrix[:, 0][::-1], csi_matrix[:, 2][[0]]
         ))
 
         csi_polygon_object = polygons.vertex_arrays_to_polygon_object(
