@@ -239,14 +239,6 @@ def _plot_3d_radar_scan(
     num_radar_fields = len(radar_field_names)
     num_radar_heights = len(radar_heights_m_agl)
 
-    colour_bar_names = radar_plotting.radar_fields_and_heights_to_panel_names(
-        field_names=radar_field_names,
-        heights_m_agl=numpy.full(num_radar_fields, 0, dtype=int),
-        include_units=True
-    )
-
-    colour_bar_names = [n.replace('\n', ' ') for n in colour_bar_names]
-
     num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_radar_heights)
     ))
@@ -286,13 +278,17 @@ def _plot_3d_radar_scan(
                 radar_plotting.get_default_colour_scheme(radar_field_names[j])
             )
 
-            plotting_utils.plot_colour_bar(
+            this_colour_bar_object = plotting_utils.plot_colour_bar(
                 axes_object_or_matrix=axes_object_matrices[j],
                 data_matrix=this_radar_matrix,
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation_string='horizontal', fraction_of_axis_length=0.75,
-                extend_min=True, extend_max=True)
+                orientation_string='horizontal', extend_min=True,
+                extend_max=True)
+
+            this_colour_bar_object.set_label(
+                radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[radar_field_names[j]]
+            )
 
             if title_string is not None:
                 this_title_string = '{0:s}; {1:s}'.format(
