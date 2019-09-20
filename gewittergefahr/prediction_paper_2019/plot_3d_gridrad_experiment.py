@@ -14,6 +14,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
 FIGURE_RESOLUTION_DPI = 300
+BIAS_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 
 DROPOUT_RATES = numpy.linspace(0.25, 0.75, num=5)
 L2_WEIGHTS = numpy.logspace(-3, -1, num=5)
@@ -57,6 +58,79 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
+
+
+def _plot_one_score(
+        score_matrix, colour_map_object, min_colour_value, max_colour_value,
+        colour_bar_label, output_file_name):
+    """Plots one score.
+
+    :param score_matrix: 4-D numpy array of scores, where the first axis
+        represents dropout rate; second represents L2 weight; third represents
+        num dense layers; and fourth is data augmentation (yes or no).
+    :param colour_map_object: See documentation at top of file.
+    :param min_colour_value: Minimum value in colour scheme.
+    :param max_colour_value: Max value in colour scheme.
+    :param colour_bar_label: Label string for colour bar.
+    :param output_file_name: Path to output file (figure will be saved here).
+    """
+
+    num_dense_layer_counts = len(DENSE_LAYER_COUNTS)
+    num_data_aug_flags = len(DATA_AUGMENTATION_FLAGS)
+
+    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
+        num_rows=num_dense_layer_counts, num_columns=num_data_aug_flags,
+        horizontal_spacing=0.05, vertical_spacing=0.05,
+        shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
+
+    x_axis_label = r'L$_2$ weight (log$_{10}$)'
+    y_axis_label = 'Dropout rate'
+    x_tick_labels = ['{0:.1f}'.format(w) for w in numpy.log10(L2_WEIGHTS)]
+    y_tick_labels = ['{0:.3f}'.format(d) for d in DROPOUT_RATES]
+
+    for k in range(num_dense_layer_counts):
+        for m in range(num_data_aug_flags):
+            evaluation_utils.plot_scores_2d(
+                score_matrix=score_matrix[..., k, m],
+                min_colour_value=min_colour_value,
+                max_colour_value=max_colour_value,
+                x_tick_label_strings=x_tick_labels,
+                y_tick_label_strings=y_tick_labels,
+                colour_map_object=colour_map_object,
+                axes_object=axes_object_matrix[k, m]
+            )
+
+            if k == num_dense_layer_counts - 1:
+                axes_object_matrix[k, m].set_xlabel(x_axis_label)
+            else:
+                axes_object_matrix[k, m].set_xticks([], [])
+
+            if m == 0:
+                axes_object_matrix[k, m].set_ylabel(y_axis_label)
+            else:
+                axes_object_matrix[k, m].set_yticks([], [])
+
+            this_title_string = '{0:d} dense layer{1:s}, DA {2:s}'.format(
+                DENSE_LAYER_COUNTS[k],
+                's' if DENSE_LAYER_COUNTS[k] > 1 else '',
+                'on' if DATA_AUGMENTATION_FLAGS[m] else 'off'
+            )
+
+            axes_object_matrix[k, m].set_title(this_title_string)
+
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object_matrix, data_matrix=score_matrix,
+        colour_map_object=colour_map_object,
+        min_value=min_colour_value, max_value=max_colour_value,
+        orientation_string='vertical', extend_min=True, extend_max=True)
+
+    colour_bar_object.set_label(colour_bar_label)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight')
+    pyplot.close(figure_object)
 
 
 def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
@@ -142,76 +216,59 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
                             model_eval.FREQUENCY_BIAS_KEY].values
                     )
 
-    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
-        num_rows=num_dense_layer_counts, num_columns=num_data_aug_flags,
-        horizontal_spacing=0.05, vertical_spacing=0.05,
-        shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
+    _plot_one_score(
+        score_matrix=auc_matrix, colour_map_object=main_colour_map_object,
+        min_colour_value=numpy.nanpercentile(auc_matrix, max_colour_percentile),
+        max_colour_value=numpy.nanpercentile(
+            auc_matrix, 100. - max_colour_percentile
+        ),
+        colour_bar_label='AUC (area under ROC curve)',
+        output_file_name='{0:s}/auc.jpg'.format(output_dir_name)
+    )
 
-    max_colour_value = numpy.nanpercentile(auc_matrix, max_colour_percentile)
-    min_colour_value = numpy.nanpercentile(
-        auc_matrix, 100. - max_colour_percentile)
+    _plot_one_score(
+        score_matrix=csi_matrix, colour_map_object=main_colour_map_object,
+        min_colour_value=numpy.nanpercentile(csi_matrix, max_colour_percentile),
+        max_colour_value=numpy.nanpercentile(
+            csi_matrix, 100. - max_colour_percentile
+        ),
+        colour_bar_label='CSI (critical success index)',
+        output_file_name='{0:s}/csi.jpg'.format(output_dir_name)
+    )
 
-    x_tick_labels = ['{0:.1f}'.format(w) for w in numpy.log10(L2_WEIGHTS)]
-    dummy_x_tick_labels = ['' for l in x_tick_labels]
+    _plot_one_score(
+        score_matrix=pod_matrix, colour_map_object=main_colour_map_object,
+        min_colour_value=numpy.nanpercentile(pod_matrix, max_colour_percentile),
+        max_colour_value=numpy.nanpercentile(
+            pod_matrix, 100. - max_colour_percentile
+        ),
+        colour_bar_label='POD (probability of detection)',
+        output_file_name='{0:s}/pod.jpg'.format(output_dir_name)
+    )
 
-    y_tick_labels = ['{0:.3f}'.format(d) for d in DROPOUT_RATES]
-    dummy_y_tick_labels = ['' for l in y_tick_labels]
+    _plot_one_score(
+        score_matrix=far_matrix, colour_map_object=main_colour_map_object,
+        min_colour_value=numpy.nanpercentile(far_matrix, max_colour_percentile),
+        max_colour_value=numpy.nanpercentile(
+            far_matrix, 100. - max_colour_percentile
+        ),
+        colour_bar_label='FAR (false-alarm rate)',
+        output_file_name='{0:s}/far.jpg'.format(output_dir_name)
+    )
 
-    x_axis_label = r'L$_2$ weight (log$_{10}$)'
-    y_axis_label = 'Dropout rate'
+    this_offset = numpy.percentile(
+        numpy.absolute(frequency_bias_matrix - 1.), max_colour_percentile
+    )
+    min_colour_value = 1. - this_offset
+    max_colour_value = 1. + this_offset
 
-    for k in range(num_dense_layer_counts):
-        for m in range(num_data_aug_flags):
-            these_x_tick_labels = (
-                x_tick_labels if k == num_dense_layer_counts - 1
-                else dummy_x_tick_labels
-            )
-            these_y_tick_labels = (
-                y_tick_labels if m == 0 else dummy_y_tick_labels
-            )
-
-            evaluation_utils.plot_scores_2d(
-                score_matrix=auc_matrix[..., k, m],
-                min_colour_value=min_colour_value,
-                max_colour_value=max_colour_value,
-                x_tick_label_strings=x_tick_labels,
-                y_tick_label_strings=y_tick_labels,
-                colour_map_object=main_colour_map_object,
-                axes_object=axes_object_matrix[k, m]
-            )
-
-            if k == num_dense_layer_counts - 1:
-                axes_object_matrix[k, m].set_xlabel(x_axis_label)
-            else:
-                axes_object_matrix[k, m].set_xticks([], [])
-
-            if m == 0:
-                axes_object_matrix[k, m].set_ylabel(y_axis_label)
-            else:
-                axes_object_matrix[k, m].set_yticks([], [])
-
-            this_title_string = '{0:d} dense layer{1:s}, DA {2:s}'.format(
-                DENSE_LAYER_COUNTS[k],
-                's' if DENSE_LAYER_COUNTS[k] > 1 else '',
-                'on' if DATA_AUGMENTATION_FLAGS[m] else 'off'
-            )
-
-            axes_object_matrix[k, m].set_title(this_title_string)
-
-    plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object_matrix, data_matrix=auc_matrix,
-        colour_map_object=main_colour_map_object,
-        min_value=min_colour_value, max_value=max_colour_value,
-        orientation_string='vertical', extend_min=True, extend_max=True)
-
-    pyplot.suptitle('AUC (area under ROC curve)')
-    output_file_name = '{0:s}/auc.jpg'.format(output_dir_name)
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
-
-    figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-        bbox_inches='tight')
-    pyplot.close(figure_object)
+    _plot_one_score(
+        score_matrix=frequency_bias_matrix,
+        colour_map_object=BIAS_COLOUR_MAP_OBJECT,
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
+        colour_bar_label='Frequency bias',
+        output_file_name='{0:s}/frequency_bias.jpg'.format(output_dir_name)
+    )
 
 
 if __name__ == '__main__':
