@@ -189,23 +189,20 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
             else:
                 axes_object_matrix[k, m].set_yticks([], [])
 
-            this_title_string = '{0:d} dense layers, DA {1:s}'.format(
+            this_title_string = '{0:d} dense layer{1:s}, DA {2:s}'.format(
                 DENSE_LAYER_COUNTS[k],
+                's' if DENSE_LAYER_COUNTS[k] > 1 else '',
                 'on' if DATA_AUGMENTATION_FLAGS[m] else 'off'
             )
 
             axes_object_matrix[k, m].set_title(this_title_string)
 
-            if m != num_data_aug_flags - 1:
-                continue
-
-            plotting_utils.plot_linear_colour_bar(
-                axes_object_or_matrix=axes_object_matrix[k, m],
-                data_matrix=auc_matrix[..., k, m],
-                colour_map_object=main_colour_map_object,
-                min_value=min_colour_value, max_value=max_colour_value,
-                orientation_string='vertical', fraction_of_axis_length=0.85,
-                extend_min=True, extend_max=True)
+    plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object_matrix, data_matrix=auc_matrix,
+        colour_map_object=main_colour_map_object,
+        min_value=min_colour_value, max_value=max_colour_value,
+        orientation_string='vertical', fraction_of_axis_length=0.85,
+        extend_min=True, extend_max=True)
 
     output_file_name = '{0:s}/auc.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
