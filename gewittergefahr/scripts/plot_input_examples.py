@@ -286,11 +286,16 @@ def _plot_3d_radar_scan(
                 orientation_string='horizontal', extend_min=True,
                 extend_max=True)
 
-            this_colour_bar_object.set_label(
-                radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[radar_field_names[j]]
-            )
+            this_field_name_verbose = radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[
+                radar_field_names[j]
+            ]
 
-            if title_string is not None:
+            if title_string is None:
+                pyplot.suptitle(
+                    this_field_name_verbose, fontsize=TITLE_FONT_SIZE)
+            else:
+                this_colour_bar_object.set_label(this_field_name_verbose)
+
                 this_title_string = '{0:s}; {1:s}'.format(
                     title_string, radar_field_names[j]
                 )
