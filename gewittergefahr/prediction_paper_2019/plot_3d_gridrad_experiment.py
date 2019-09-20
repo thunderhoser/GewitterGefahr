@@ -15,8 +15,16 @@ from gewittergefahr.plotting import plotting_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-FIGURE_RESOLUTION_DPI = 300
+MARKER_COLOUR = numpy.full(3, 0.)
+BEST_MODEL_MARKER_TYPE = '*'
+BEST_MODEL_MARKER_SIZE = 32
+BEST_MODEL_MARKER_WIDTH = 0
+CORRUPT_MODEL_MARKER_TYPE = 'x'
+CORRUPT_MODEL_MARKER_SIZE = 32
+CORRUPT_MODEL_MARKER_WIDTH = 4
+
 BIAS_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
+FIGURE_RESOLUTION_DPI = 300
 
 DROPOUT_RATES = numpy.linspace(0.25, 0.75, num=5)
 L2_WEIGHTS = numpy.logspace(-3, -1, num=5)
@@ -64,7 +72,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_one_score(
         score_matrix, colour_map_object, min_colour_value, max_colour_value,
-        colour_bar_label, output_file_name):
+        colour_bar_label, best_model_index, output_file_name):
     """Plots one score.
 
     :param score_matrix: 4-D numpy array of scores, where the first axis
@@ -74,6 +82,7 @@ def _plot_one_score(
     :param min_colour_value: Minimum value in colour scheme.
     :param max_colour_value: Max value in colour scheme.
     :param colour_bar_label: Label string for colour bar.
+    :param best_model_index: Linear index of best model.
     :param output_file_name: Path to output file (figure will be saved here).
     """
 
@@ -89,6 +98,9 @@ def _plot_one_score(
     y_axis_label = 'Dropout rate'
     x_tick_labels = ['{0:.1f}'.format(w) for w in numpy.log10(L2_WEIGHTS)]
     y_tick_labels = ['{0:.3f}'.format(d) for d in DROPOUT_RATES]
+
+    best_model_index_tuple = numpy.unravel_index(
+        best_model_index, score_matrix.shape)
 
     for k in range(num_dense_layer_counts):
         for m in range(num_data_aug_flags):
@@ -119,6 +131,30 @@ def _plot_one_score(
             )
 
             axes_object_matrix[k, m].set_title(this_title_string)
+
+    i = best_model_index_tuple[0][0]
+    j = best_model_index_tuple[1][0]
+    k = best_model_index_tuple[2][0]
+    m = best_model_index_tuple[3][0]
+
+    axes_object_matrix[k, m].plot(
+        j, i, linestyle='None', marker=BEST_MODEL_MARKER_TYPE,
+        markersize=BEST_MODEL_MARKER_SIZE,
+        markerfacecolor=MARKER_COLOUR, markeredgecolor=MARKER_COLOUR,
+        markeredgewidth=BEST_MODEL_MARKER_WIDTH)
+
+    corrupt_model_indices = numpy.where(
+        numpy.isnan(numpy.ravel(score_matrix))
+    )[0]
+
+    for this_linear_index in corrupt_model_indices:
+        i, j, k, m = numpy.unravel_index(this_linear_index, score_matrix.shape)
+
+        axes_object_matrix[k, m].plot(
+            j, i, linestyle='None', marker=CORRUPT_MODEL_MARKER_TYPE,
+            markersize=CORRUPT_MODEL_MARKER_SIZE,
+            markerfacecolor=MARKER_COLOUR, markeredgecolor=MARKER_COLOUR,
+            markeredgewidth=CORRUPT_MODEL_MARKER_WIDTH)
 
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object_matrix, data_matrix=score_matrix,
@@ -219,6 +255,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
                     )
 
     print(SEPARATOR_STRING)
+    best_model_index = numpy.argmax(numpy.ravel(csi_matrix))
 
     _plot_one_score(
         score_matrix=auc_matrix, colour_map_object=main_colour_map_object,
@@ -226,6 +263,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         min_colour_value=numpy.nanpercentile(
             auc_matrix, 100. - max_colour_percentile
         ),
+        best_model_index=best_model_index,
         colour_bar_label='AUC (area under ROC curve)',
         output_file_name='{0:s}/auc.jpg'.format(output_dir_name)
     )
@@ -236,6 +274,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         min_colour_value=numpy.nanpercentile(
             csi_matrix, 100. - max_colour_percentile
         ),
+        best_model_index=best_model_index,
         colour_bar_label='CSI (critical success index)',
         output_file_name='{0:s}/csi.jpg'.format(output_dir_name)
     )
@@ -246,6 +285,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         min_colour_value=numpy.nanpercentile(
             pod_matrix, 100. - max_colour_percentile
         ),
+        best_model_index=best_model_index,
         colour_bar_label='POD (probability of detection)',
         output_file_name='{0:s}/pod.jpg'.format(output_dir_name)
     )
@@ -256,6 +296,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         min_colour_value=numpy.nanpercentile(
             far_matrix, 100. - max_colour_percentile
         ),
+        best_model_index=best_model_index,
         colour_bar_label='FAR (false-alarm rate)',
         output_file_name='{0:s}/far.jpg'.format(output_dir_name)
     )
@@ -270,6 +311,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         score_matrix=frequency_bias_matrix,
         colour_map_object=BIAS_COLOUR_MAP_OBJECT,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value,
+        best_model_index=best_model_index,
         colour_bar_label='Frequency bias',
         output_file_name='{0:s}/frequency_bias.jpg'.format(output_dir_name)
     )
