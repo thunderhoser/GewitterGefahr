@@ -184,11 +184,9 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
             if these_y_tick_labels[0] != '':
                 axes_object_matrix[k, m].set_ylabel(y_axis_label)
 
-            this_title_string = (
-                '{0:d} dense layers, data augmentation {1:s}'
-            ).format(
+            this_title_string = '{0:d} dense layers, DA {1:s}'.format(
                 DENSE_LAYER_COUNTS[k],
-                'ON' if DATA_AUGMENTATION_FLAGS[m] else 'OFF'
+                'on' if DATA_AUGMENTATION_FLAGS[m] else 'off'
             )
 
             axes_object_matrix[k, m].set_title(this_title_string)
@@ -201,7 +199,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
                 data_matrix=auc_matrix[..., k, m],
                 colour_map_object=main_colour_map_object,
                 min_value=min_colour_value, max_value=max_colour_value,
-                orientation_string='vertical',
+                orientation_string='vertical', fraction_of_axis_length=0.85,
                 extend_min=True, extend_max=True)
 
     output_file_name = '{0:s}/auc.jpg'.format(output_dir_name)
