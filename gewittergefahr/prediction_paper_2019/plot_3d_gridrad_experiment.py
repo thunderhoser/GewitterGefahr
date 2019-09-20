@@ -144,6 +144,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_dense_layer_counts, num_columns=num_data_aug_flags,
+        horizontal_spacing=0.05, vertical_spacing=0.05,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
     max_colour_value = numpy.nanpercentile(auc_matrix, max_colour_percentile)
@@ -201,9 +202,9 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         axes_object_or_matrix=axes_object_matrix, data_matrix=auc_matrix,
         colour_map_object=main_colour_map_object,
         min_value=min_colour_value, max_value=max_colour_value,
-        orientation_string='vertical', fraction_of_axis_length=0.85,
-        extend_min=True, extend_max=True)
+        orientation_string='vertical', extend_min=True, extend_max=True)
 
+    pyplot.suptitle('AUC (area under ROC curve)')
     output_file_name = '{0:s}/auc.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
 
