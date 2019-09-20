@@ -132,10 +132,10 @@ def _plot_one_score(
 
             axes_object_matrix[k, m].set_title(this_title_string)
 
-    i = best_model_index_tuple[0][0]
-    j = best_model_index_tuple[1][0]
-    k = best_model_index_tuple[2][0]
-    m = best_model_index_tuple[3][0]
+    i = best_model_index_tuple[0]
+    j = best_model_index_tuple[1]
+    k = best_model_index_tuple[2]
+    m = best_model_index_tuple[3]
 
     axes_object_matrix[k, m].plot(
         j, i, linestyle='None', marker=BEST_MODEL_MARKER_TYPE,
