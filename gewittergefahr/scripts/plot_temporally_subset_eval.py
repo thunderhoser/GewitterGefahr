@@ -589,7 +589,7 @@ def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
 
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
-    axes_object.set_xlabel('Hour')
+    axes_object.set_xlabel('Hour (UTC)')
 
     auc_csi_file_name = '{0:s}/hourly_auc_and_csi.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(auc_csi_file_name))
@@ -607,7 +607,7 @@ def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
 
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
-    axes_object.set_xlabel('Hour')
+    axes_object.set_xlabel('Hour (UTC)')
 
     pod_far_file_name = '{0:s}/hourly_pod_and_far.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(pod_far_file_name))

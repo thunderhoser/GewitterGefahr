@@ -339,8 +339,55 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
     print(SEPARATOR_STRING)
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
-    
+
     panel_file_names = []
+
+    # Plot number of examples.
+    this_data_matrix = numpy.maximum(numpy.log10(num_examples_matrix), 0.)
+    this_data_matrix[this_data_matrix == 0] = numpy.nan
+    max_colour_value = numpy.nanpercentile(
+        this_data_matrix, max_colour_percentile)
+
+    figure_object, axes_object = _plot_one_value(
+        data_matrix=this_data_matrix, grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=num_ex_colour_map_object,
+        min_colour_value=0., max_colour_value=max_colour_value,
+        plot_cbar_min_arrow=False, plot_cbar_max_arrow=True)
+
+    axes_object.set_title(r'Number of storm objects (log$_{10}$)')
+    panel_file_names.append('{0:s}/num_examples.jpg'.format(output_dir_name))
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
+
+    figure_object.savefig(
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight')
+    pyplot.close(figure_object)
+
+    # Plot number of positive examples.
+    this_data_matrix = num_positive_examples_matrix.astype(float)
+    this_data_matrix[this_data_matrix == 0] = numpy.nan
+
+    max_colour_value = numpy.nanpercentile(
+        this_data_matrix, max_colour_percentile)
+    min_colour_value = numpy.nanpercentile(
+        this_data_matrix, 100. - max_colour_percentile)
+
+    figure_object, axes_object = _plot_one_value(
+        data_matrix=this_data_matrix, grid_metadata_dict=grid_metadata_dict,
+        colour_map_object=num_ex_colour_map_object,
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
+        plot_cbar_min_arrow=True, plot_cbar_max_arrow=True)
+
+    axes_object.set_title('Number of tornadic storm objects')
+    panel_file_names.append(
+        '{0:s}/num_positive_examples.jpg'.format(output_dir_name)
+    )
+    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
+
+    figure_object.savefig(
+        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight')
+    pyplot.close(figure_object)
 
     # Plot AUC.
     max_colour_value = numpy.nanpercentile(auc_matrix, max_colour_percentile)
@@ -418,7 +465,7 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         plot_cbar_min_arrow=min_colour_value > 0.,
         plot_cbar_max_arrow=max_colour_value < 1.)
 
-    axes_object.set_title('FAR (false-alarm rate)')
+    axes_object.set_title('FAR (false-alarm ratio)')
     panel_file_names.append('{0:s}/far.jpg'.format(output_dir_name))
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
@@ -427,53 +474,7 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         bbox_inches='tight')
     pyplot.close(figure_object)
 
-    # Plot number of examples.
-    this_data_matrix = numpy.maximum(numpy.log10(num_examples_matrix), 0.)
-    this_data_matrix[this_data_matrix == 0] = numpy.nan
-    max_colour_value = numpy.nanpercentile(
-        this_data_matrix, max_colour_percentile)
-
-    figure_object, axes_object = _plot_one_value(
-        data_matrix=this_data_matrix, grid_metadata_dict=grid_metadata_dict,
-        colour_map_object=num_ex_colour_map_object,
-        min_colour_value=0., max_colour_value=max_colour_value,
-        plot_cbar_min_arrow=False, plot_cbar_max_arrow=True)
-
-    axes_object.set_title(r'Number of examples (log$_{10}$)')
-    panel_file_names.append('{0:s}/num_examples.jpg'.format(output_dir_name))
-    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
-
-    figure_object.savefig(
-        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-        bbox_inches='tight')
-    pyplot.close(figure_object)
-
-    # Plot FAR.
-    this_data_matrix = num_positive_examples_matrix.astype(float)
-    this_data_matrix[this_data_matrix == 0] = numpy.nan
-
-    max_colour_value = numpy.nanpercentile(
-        this_data_matrix, max_colour_percentile)
-    min_colour_value = numpy.nanpercentile(
-        this_data_matrix, 100. - max_colour_percentile)
-
-    figure_object, axes_object = _plot_one_value(
-        data_matrix=this_data_matrix, grid_metadata_dict=grid_metadata_dict,
-        colour_map_object=num_ex_colour_map_object,
-        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
-        plot_cbar_min_arrow=True, plot_cbar_max_arrow=True)
-
-    axes_object.set_title('Number of positive examples')
-    panel_file_names.append(
-        '{0:s}/num_positive_examples.jpg'.format(output_dir_name)
-    )
-    print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
-
-    figure_object.savefig(
-        panel_file_names[-1], dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-        bbox_inches='tight')
-    pyplot.close(figure_object)
-
+    # Concatenate panels.
     concat_file_name = '{0:s}/spatially_subset_evaluation.jpg'.format(
         output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
