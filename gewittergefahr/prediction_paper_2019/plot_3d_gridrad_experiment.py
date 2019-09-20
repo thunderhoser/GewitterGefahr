@@ -255,7 +255,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
                     )
 
     print(SEPARATOR_STRING)
-    best_model_index = numpy.argmax(numpy.ravel(csi_matrix))
+    best_model_index = numpy.nanargmax(numpy.ravel(csi_matrix))
 
     _plot_one_score(
         score_matrix=auc_matrix, colour_map_object=main_colour_map_object,
