@@ -12,6 +12,7 @@ from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import imagemagick_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -26,14 +27,16 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 
 MARKER_COLOUR = numpy.full(3, 0.)
 BEST_MODEL_MARKER_TYPE = '*'
-BEST_MODEL_MARKER_SIZE = 64
+BEST_MODEL_MARKER_SIZE = 48
 BEST_MODEL_MARKER_WIDTH = 0
 CORRUPT_MODEL_MARKER_TYPE = 'x'
 CORRUPT_MODEL_MARKER_SIZE = 32
 CORRUPT_MODEL_MARKER_WIDTH = 4
 
 BIAS_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
+
 FIGURE_RESOLUTION_DPI = 300
+CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 DROPOUT_RATES = numpy.linspace(0.25, 0.75, num=5)
 L2_WEIGHTS = numpy.logspace(-3, -1, num=5)
@@ -268,6 +271,8 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
     print(SEPARATOR_STRING)
     best_model_index = numpy.nanargmax(numpy.ravel(csi_matrix))
 
+    auc_file_name = '{0:s}/auc.jpg'.format(output_dir_name)
+
     _plot_one_score(
         score_matrix=auc_matrix, colour_map_object=main_colour_map_object,
         max_colour_value=numpy.nanpercentile(auc_matrix, max_colour_percentile),
@@ -276,8 +281,10 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         ),
         best_model_index=best_model_index,
         colour_bar_label='AUC (area under ROC curve)',
-        output_file_name='{0:s}/auc.jpg'.format(output_dir_name)
+        output_file_name=auc_file_name
     )
+
+    csi_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
 
     _plot_one_score(
         score_matrix=csi_matrix, colour_map_object=main_colour_map_object,
@@ -287,7 +294,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         ),
         best_model_index=best_model_index,
         colour_bar_label='CSI (critical success index)',
-        output_file_name='{0:s}/csi.jpg'.format(output_dir_name)
+        output_file_name=csi_file_name
     )
 
     _plot_one_score(
@@ -326,6 +333,18 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         colour_bar_label='Frequency bias',
         output_file_name='{0:s}/frequency_bias.jpg'.format(output_dir_name)
     )
+
+    auc_csi_file_name = '{0:s}/auc_csi.jpg'.format(output_dir_name)
+    print('Concatenating figures into: "{0:s}"...'.format(auc_csi_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=[csi_file_name, auc_file_name],
+        output_file_name=auc_csi_file_name,
+        num_panel_rows=1, num_panel_columns=2)
+
+    imagemagick_utils.resize_image(
+        input_file_name=auc_csi_file_name, output_file_name=auc_csi_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
 
 
 if __name__ == '__main__':
