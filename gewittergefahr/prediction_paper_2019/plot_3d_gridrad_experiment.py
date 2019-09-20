@@ -15,6 +15,15 @@ from gewittergefahr.plotting import plotting_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+FONT_SIZE = 20
+pyplot.rc('font', size=FONT_SIZE)
+pyplot.rc('axes', titlesize=FONT_SIZE)
+pyplot.rc('axes', labelsize=FONT_SIZE)
+pyplot.rc('xtick', labelsize=FONT_SIZE)
+pyplot.rc('ytick', labelsize=FONT_SIZE)
+pyplot.rc('legend', fontsize=FONT_SIZE)
+pyplot.rc('figure', titlesize=FONT_SIZE)
+
 MARKER_COLOUR = numpy.full(3, 0.)
 BEST_MODEL_MARKER_TYPE = '*'
 BEST_MODEL_MARKER_SIZE = 64
@@ -91,7 +100,7 @@ def _plot_one_score(
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_dense_layer_counts * num_data_aug_flags, num_columns=1,
-        horizontal_spacing=0.05, vertical_spacing=0.05,
+        horizontal_spacing=0.1, vertical_spacing=0.1,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
     axes_object_matrix = numpy.reshape(
