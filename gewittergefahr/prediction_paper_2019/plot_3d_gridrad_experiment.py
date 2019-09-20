@@ -90,9 +90,13 @@ def _plot_one_score(
     num_data_aug_flags = len(DATA_AUGMENTATION_FLAGS)
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
-        num_rows=num_dense_layer_counts, num_columns=num_data_aug_flags,
+        num_rows=num_dense_layer_counts * num_data_aug_flags, num_columns=1,
         horizontal_spacing=0.05, vertical_spacing=0.05,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
+
+    axes_object_matrix = numpy.reshape(
+        axes_object_matrix, (num_dense_layer_counts, num_data_aug_flags)
+    )
 
     x_axis_label = r'L$_2$ weight (log$_{10}$)'
     y_axis_label = 'Dropout rate'
@@ -114,15 +118,12 @@ def _plot_one_score(
                 axes_object=axes_object_matrix[k, m]
             )
 
-            if k == num_dense_layer_counts - 1:
+            axes_object_matrix[k, m].set_ylabel(y_axis_label)
+
+            if k == num_dense_layer_counts - 1 and m == num_data_aug_flags - 1:
                 axes_object_matrix[k, m].set_xlabel(x_axis_label)
             else:
                 axes_object_matrix[k, m].set_xticks([], [])
-
-            if m == 0:
-                axes_object_matrix[k, m].set_ylabel(y_axis_label)
-            else:
-                axes_object_matrix[k, m].set_yticks([], [])
 
             this_title_string = '{0:d} dense layer{1:s}, DA {2:s}'.format(
                 DENSE_LAYER_COUNTS[k],
