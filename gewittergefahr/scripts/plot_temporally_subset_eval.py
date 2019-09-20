@@ -11,22 +11,16 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.colors
 from matplotlib import pyplot
+from descartes import PolygonPatch
 from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import temporal_subsetting
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import model_eval_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-
-FONT_SIZE = 30
-pyplot.rc('font', size=FONT_SIZE)
-pyplot.rc('axes', titlesize=FONT_SIZE)
-pyplot.rc('axes', labelsize=FONT_SIZE)
-pyplot.rc('xtick', labelsize=FONT_SIZE)
-pyplot.rc('ytick', labelsize=FONT_SIZE)
-pyplot.rc('legend', fontsize=FONT_SIZE)
-pyplot.rc('figure', titlesize=FONT_SIZE)
 
 LINE_WIDTH = 4
 HISTOGRAM_EDGE_WIDTH = 1.5
@@ -41,6 +35,7 @@ AUC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 CSI_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 POD_COLOUR = AUC_COLOUR
 FAR_COLOUR = CSI_COLOUR
+POLYGON_OPACITY = 0.5
 
 HISTOGRAM_FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
 HISTOGRAM_FACE_COLOUR = matplotlib.colors.to_rgba(HISTOGRAM_FACE_COLOUR, 0.5)
@@ -134,54 +129,64 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
         marker_size = MARKER_SIZE_WITH_BOOTSTRAP
 
     # Plot mean AUC.
-    main_axes_object.plot(
-        x_values, auc_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
-        markersize=marker_size, markerfacecolor=AUC_COLOUR,
-        markeredgecolor=AUC_COLOUR, markeredgewidth=0)
-
-    # Plot confidence interval for AUC.
-    if num_bootstrap_reps == 1:
-        this_handle = main_axes_object.plot(
-            x_values, auc_matrix[:, 1], color=AUC_COLOUR, linewidth=LINE_WIDTH
-        )[0]
-    else:
-        negative_errors = auc_matrix[:, 1] - auc_matrix[:, 0]
-        positive_errors = auc_matrix[:, 2] - auc_matrix[:, 1]
-        error_matrix = numpy.vstack((negative_errors, positive_errors))
-
-        this_handle = main_axes_object.errorbar(
-            x_values, auc_matrix[:, 1], yerr=error_matrix, color=AUC_COLOUR,
-            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
-            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
-        )[0]
+    this_handle = main_axes_object.plot(
+        x_values, auc_matrix[:, 1], color=AUC_COLOUR, linewidth=LINE_WIDTH,
+        marker=MARKER_TYPE, markersize=marker_size, markerfacecolor=AUC_COLOUR,
+        markeredgecolor=AUC_COLOUR, markeredgewidth=0
+    )[0]
 
     legend_handles = [this_handle]
     legend_strings = ['AUC']
 
+    # Plot confidence interval for AUC.
+    if num_bootstrap_reps >= 1:
+        auc_polygon_object = (
+            model_eval_plotting._confidence_interval_to_polygon(
+                x_coords_bottom=x_values, y_coords_bottom=auc_matrix[:, 0],
+                x_coords_top=x_values, y_coords_top=auc_matrix[:, 2],
+                for_performance_diagram=True)
+        )
+
+        auc_polygon_colour = matplotlib.colors.to_rgba(
+            plotting_utils.colour_from_numpy_to_tuple(AUC_COLOUR),
+            POLYGON_OPACITY
+        )
+
+        auc_patch_object = PolygonPatch(
+            auc_polygon_object, lw=0, ec=auc_polygon_colour,
+            fc=auc_polygon_colour)
+
+        main_axes_object.add_patch(auc_patch_object)
+
     # Plot mean CSI.
-    main_axes_object.plot(
-        x_values, csi_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
-        markersize=marker_size, markerfacecolor=CSI_COLOUR,
-        markeredgecolor=CSI_COLOUR, markeredgewidth=0)
-
-    # Plot confidence interval for CSI.
-    if num_bootstrap_reps == 1:
-        this_handle = main_axes_object.plot(
-            x_values, csi_matrix[:, 1], color=CSI_COLOUR, linewidth=LINE_WIDTH
-        )[0]
-    else:
-        negative_errors = csi_matrix[:, 1] - csi_matrix[:, 0]
-        positive_errors = csi_matrix[:, 2] - csi_matrix[:, 1]
-        error_matrix = numpy.vstack((negative_errors, positive_errors))
-
-        this_handle = main_axes_object.errorbar(
-            x_values, csi_matrix[:, 1], yerr=error_matrix, color=CSI_COLOUR,
-            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
-            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
-        )[0]
+    this_handle = main_axes_object.plot(
+        x_values, csi_matrix[:, 1], color=CSI_COLOUR, linewidth=LINE_WIDTH,
+        marker=MARKER_TYPE, markersize=marker_size, markerfacecolor=CSI_COLOUR,
+        markeredgecolor=CSI_COLOUR, markeredgewidth=0
+    )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('CSI')
+
+    # Plot confidence interval for CSI.
+    if num_bootstrap_reps >= 1:
+        csi_polygon_object = (
+            model_eval_plotting._confidence_interval_to_polygon(
+                x_coords_bottom=x_values, y_coords_bottom=csi_matrix[:, 0],
+                x_coords_top=x_values, y_coords_top=csi_matrix[:, 2],
+                for_performance_diagram=True)
+        )
+
+        csi_polygon_colour = matplotlib.colors.to_rgba(
+            plotting_utils.colour_from_numpy_to_tuple(AUC_COLOUR),
+            POLYGON_OPACITY
+        )
+
+        csi_patch_object = PolygonPatch(
+            csi_polygon_object, lw=0, ec=csi_polygon_colour,
+            fc=csi_polygon_colour)
+
+        main_axes_object.add_patch(csi_patch_object)
 
     main_axes_object.set_ylabel('AUC or CSI')
     main_axes_object.set_xlim([
@@ -197,8 +202,8 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append(r'Number of examples (log$_{10}$)')
-    histogram_axes_object.set_ylabel(r'Number of examples (log$_{10}$)')
+    legend_strings.append(r'Numbeer of storm objects (log$_{10}$)')
+    histogram_axes_object.set_ylabel(r'Numbeer of storm objects (log$_{10}$)')
 
     if plot_legend:
         main_axes_object.legend(
@@ -307,8 +312,8 @@ def _plot_pod_and_far(pod_matrix, far_matrix, num_positive_ex_by_chunk,
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append('Number of positive examples')
-    histogram_axes_object.set_ylabel('Number of positive examples')
+    legend_strings.append('Numbeer of tornadic storm objects')
+    histogram_axes_object.set_ylabel('Numbeer of tornadic storm objects')
 
     if plot_legend:
         main_axes_object.legend(
