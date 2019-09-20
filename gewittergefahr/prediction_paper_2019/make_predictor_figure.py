@@ -5,9 +5,9 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import testing_io
@@ -19,6 +19,8 @@ from gewittergefahr.scripts import plot_input_examples as plot_examples
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
+
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 SOUNDING_FIELD_NAMES = [
@@ -49,11 +51,11 @@ FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 GRIDRAD_DIR_ARG_NAME = 'gridrad_example_dir_name'
-GRIDRAD_METAFILE_ARG_NAME = 'gridrad_storm_metafile_name'
-GRIDRAD_INDEX_ARG_NAME = 'gridrad_example_index'
+GRIDRAD_ID_ARG_NAME = 'gridrad_full_id_string'
+GRIDRAD_TIME_ARG_NAME = 'gridrad_time_string'
 MYRORSS_DIR_ARG_NAME = 'myrorss_example_dir_name'
-MYRORSS_METAFILE_ARG_NAME = 'myrorss_storm_metafile_name'
-MYRORSS_INDEX_ARG_NAME = 'myrorss_example_index'
+MYRORSS_ID_ARG_NAME = 'myrorss_full_id_string'
+MYRORSS_TIME_ARG_NAME = 'myrorss_time_string'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 GRIDRAD_DIR_HELP_STRING = (
@@ -61,23 +63,19 @@ GRIDRAD_DIR_HELP_STRING = (
     'found by `input_examples.find_example_file` and read by '
     '`input_examples.read_example_file`.')
 
-GRIDRAD_METAFILE_HELP_STRING = (
-    'Name of file with storm metadata (IDs and times) for GridRad examples.  '
-    'Will be read by `storm_tracking_io.read_ids_and_times`.')
+GRIDRAD_ID_HELP_STRING = 'Full ID of GridRad storm object.'
 
-GRIDRAD_INDEX_HELP_STRING = (
-    'Index of GridRad example.  Will use only the [k]th example in `{0:s}`, '
-    'where k = `{1:s}`.'
-).format(GRIDRAD_METAFILE_ARG_NAME, GRIDRAD_INDEX_ARG_NAME)
+GRIDRAD_TIME_HELP_STRING = (
+    'Valid time (format "yyyy-mm-dd-HHMMSS") of GridRad storm object.')
 
 MYRORSS_DIR_HELP_STRING = 'Same as `{0:s}` but for MYRORSS.'.format(
     GRIDRAD_DIR_ARG_NAME)
 
-MYRORSS_METAFILE_HELP_STRING = 'Same as `{0:s}` but for MYRORSS.'.format(
-    GRIDRAD_METAFILE_ARG_NAME)
+MYRORSS_ID_HELP_STRING = 'Same as `{0:s}` but for MYRORSS.'.format(
+    GRIDRAD_ID_ARG_NAME)
 
-MYRORSS_INDEX_HELP_STRING = 'Same as `{0:s}` but for MYRORSS.'.format(
-    GRIDRAD_INDEX_ARG_NAME)
+MYRORSS_TIME_HELP_STRING = 'Same as `{0:s}` but for MYRORSS.'.format(
+    GRIDRAD_TIME_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
@@ -88,45 +86,45 @@ INPUT_ARG_PARSER.add_argument(
     help=GRIDRAD_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + GRIDRAD_METAFILE_ARG_NAME, type=str, required=True,
-    help=GRIDRAD_METAFILE_HELP_STRING)
+    '--' + GRIDRAD_ID_ARG_NAME, type=str, required=True,
+    help=GRIDRAD_ID_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + GRIDRAD_INDEX_ARG_NAME, type=int, required=True,
-    help=GRIDRAD_INDEX_HELP_STRING)
+    '--' + GRIDRAD_TIME_ARG_NAME, type=str, required=True,
+    help=GRIDRAD_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MYRORSS_DIR_ARG_NAME, type=str, required=True,
     help=MYRORSS_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MYRORSS_METAFILE_ARG_NAME, type=str, required=True,
-    help=MYRORSS_METAFILE_HELP_STRING)
+    '--' + MYRORSS_ID_ARG_NAME, type=str, required=True,
+    help=MYRORSS_ID_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MYRORSS_INDEX_ARG_NAME, type=int, required=True,
-    help=MYRORSS_INDEX_HELP_STRING)
+    '--' + MYRORSS_TIME_ARG_NAME, type=str, required=True,
+    help=MYRORSS_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _read_one_example(top_example_dir_name, storm_metafile_name, example_index,
-                      source_name, radar_field_name, include_sounding):
+def _read_one_example(
+        top_example_dir_name, full_storm_id_string, storm_time_unix_sec,
+        source_name, radar_field_name, include_sounding):
     """Reads one example (storm object).
 
     T = number of input tensors to model
 
     :param top_example_dir_name: See documentation at top of file.
-    :param storm_metafile_name: Same.
-    :param example_index: Same.
+    :param full_storm_id_string: Full storm ID.
+    :param storm_time_unix_sec: Valid time of storm.
     :param source_name: Radar source (must be accepted by
         `radar_utils.check_data_source`).
     :param radar_field_name: Name of radar field (must be accepted by
         `radar_utils.check_field_name`).
-    :param include_sounding: Boolean flag.  Determines whether or not sounding
-        will be read.
+    :param include_sounding: Boolean flag.
     :return: list_of_predictor_matrices: length-T list of numpy arrays, where
         the [i]th array is the [i]th input tensor to the model.  The first axis
         of each array has length = 1.
@@ -139,10 +137,6 @@ def _read_one_example(top_example_dir_name, storm_metafile_name, example_index,
     else:
         num_radar_rows = NUM_MYRORSS_ROWS
         num_radar_columns = NUM_MYRORSS_COLUMNS
-
-    print('Reading data from: "{0:s}"...'.format(storm_metafile_name))
-    all_id_strings, all_times_unix_sec = tracking_io.read_ids_and_times(
-        storm_metafile_name)
 
     training_option_dict = dict()
     training_option_dict[trainval_io.RADAR_FIELDS_KEY] = [radar_field_name]
@@ -171,8 +165,8 @@ def _read_one_example(top_example_dir_name, storm_metafile_name, example_index,
     print(MINOR_SEPARATOR_STRING)
 
     list_of_predictor_matrices = testing_io.read_specific_examples(
-        desired_full_id_strings=[all_id_strings[example_index]],
-        desired_times_unix_sec=all_times_unix_sec[[example_index]],
+        desired_full_id_strings=[full_storm_id_string],
+        desired_times_unix_sec=numpy.array([storm_time_unix_sec], dtype=int),
         option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
         top_example_dir_name=top_example_dir_name,
         list_of_layer_operation_dicts=None
@@ -181,24 +175,29 @@ def _read_one_example(top_example_dir_name, storm_metafile_name, example_index,
     return list_of_predictor_matrices, model_metadata_dict
 
 
-def _run(gridrad_example_dir_name, gridrad_storm_metafile_name,
-         gridrad_example_index, myrorss_example_dir_name,
-         myrorss_storm_metafile_name, myrorss_example_index, output_dir_name):
+def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
+         myrorss_example_dir_name, myrorss_full_id_string, myrorss_time_string,
+         output_dir_name):
     """Makes figure with GridRad and MYRORSS predictors.
 
     This is effectively the main method.
 
     :param gridrad_example_dir_name: See documentation at top of file.
-    :param gridrad_storm_metafile_name: Same.
-    :param gridrad_example_index: Same.
+    :param gridrad_full_id_string: Same.
+    :param gridrad_time_string: Same.
     :param myrorss_example_dir_name: Same.
-    :param myrorss_storm_metafile_name: Same.
-    :param myrorss_example_index: Same.
+    :param myrorss_full_id_string: Same.
+    :param myrorss_time_string: Same.
     :param output_dir_name: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
+
+    gridrad_time_unix_sec = time_conversion.string_to_unix_sec(
+        gridrad_time_string, TIME_FORMAT)
+    myrorss_time_unix_sec = time_conversion.string_to_unix_sec(
+        myrorss_time_string, TIME_FORMAT)
 
     letter_label = None
     num_gridrad_fields = len(GRIDRAD_FIELD_NAMES)
@@ -207,10 +206,11 @@ def _run(gridrad_example_dir_name, gridrad_storm_metafile_name,
     for j in range(num_gridrad_fields):
         these_predictor_matrices, this_metadata_dict = _read_one_example(
             top_example_dir_name=gridrad_example_dir_name,
-            storm_metafile_name=gridrad_storm_metafile_name,
-            example_index=gridrad_example_index,
+            full_storm_id_string=gridrad_full_id_string,
+            storm_time_unix_sec=gridrad_time_unix_sec,
             source_name=radar_utils.GRIDRAD_SOURCE_ID,
             radar_field_name=GRIDRAD_FIELD_NAMES[j], include_sounding=False)
+
         print(MINOR_SEPARATOR_STRING)
 
         this_handle_dict = plot_examples.plot_one_example(
@@ -271,11 +271,12 @@ def _run(gridrad_example_dir_name, gridrad_storm_metafile_name,
     for j in range(num_myrorss_shear_fields):
         these_predictor_matrices, this_metadata_dict = _read_one_example(
             top_example_dir_name=myrorss_example_dir_name,
-            storm_metafile_name=myrorss_storm_metafile_name,
-            example_index=myrorss_example_index,
+            full_storm_id_string=myrorss_full_id_string,
+            storm_time_unix_sec=myrorss_time_unix_sec,
             source_name=radar_utils.MYRORSS_SOURCE_ID,
             radar_field_name=MYRORSS_SHEAR_FIELD_NAMES[j],
             include_sounding=j == 0)
+
         print(MINOR_SEPARATOR_STRING)
 
         this_handle_dict = plot_examples.plot_one_example(
@@ -404,13 +405,11 @@ if __name__ == '__main__':
     _run(
         gridrad_example_dir_name=getattr(
             INPUT_ARG_OBJECT, GRIDRAD_DIR_ARG_NAME),
-        gridrad_storm_metafile_name=getattr(
-            INPUT_ARG_OBJECT, GRIDRAD_METAFILE_ARG_NAME),
-        gridrad_example_index=getattr(INPUT_ARG_OBJECT, GRIDRAD_INDEX_ARG_NAME),
+        gridrad_full_id_string=getattr(INPUT_ARG_OBJECT, GRIDRAD_ID_ARG_NAME),
+        gridrad_time_string=getattr(INPUT_ARG_OBJECT, GRIDRAD_TIME_ARG_NAME),
         myrorss_example_dir_name=getattr(
             INPUT_ARG_OBJECT, MYRORSS_DIR_ARG_NAME),
-        myrorss_storm_metafile_name=getattr(
-            INPUT_ARG_OBJECT, MYRORSS_METAFILE_ARG_NAME),
-        myrorss_example_index=getattr(INPUT_ARG_OBJECT, MYRORSS_INDEX_ARG_NAME),
+        myrorss_full_id_string=getattr(INPUT_ARG_OBJECT, MYRORSS_ID_ARG_NAME),
+        myrorss_time_string=getattr(INPUT_ARG_OBJECT, MYRORSS_TIME_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
