@@ -173,16 +173,21 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
                 score_matrix=auc_matrix[..., k, m],
                 min_colour_value=min_colour_value,
                 max_colour_value=max_colour_value,
-                x_tick_label_strings=these_x_tick_labels,
-                y_tick_label_strings=these_y_tick_labels,
+                x_tick_label_strings=x_tick_labels,
+                y_tick_label_strings=y_tick_labels,
                 colour_map_object=main_colour_map_object,
                 axes_object=axes_object_matrix[k, m]
             )
 
-            if these_x_tick_labels[0] != '':
+            if k == num_dense_layer_counts - 1:
                 axes_object_matrix[k, m].set_xlabel(x_axis_label)
-            if these_y_tick_labels[0] != '':
+            else:
+                axes_object_matrix[k, m].set_xticks([], [])
+
+            if m == 0:
                 axes_object_matrix[k, m].set_ylabel(y_axis_label)
+            else:
+                axes_object_matrix[k, m].set_yticks([], [])
 
             this_title_string = '{0:d} dense layers, DA {1:s}'.format(
                 DENSE_LAYER_COUNTS[k],
