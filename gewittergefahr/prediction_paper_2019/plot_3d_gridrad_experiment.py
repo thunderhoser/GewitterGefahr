@@ -170,7 +170,8 @@ def _plot_one_score(
         axes_object_or_matrix=axes_object_matrix, data_matrix=score_matrix,
         colour_map_object=colour_map_object,
         min_value=min_colour_value, max_value=max_colour_value,
-        orientation_string='vertical', extend_min=True, extend_max=True)
+        orientation_string='vertical', extend_min=True, extend_max=True,
+        font_size=FONT_SIZE)
 
     colour_bar_object.set_label(colour_bar_label)
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
