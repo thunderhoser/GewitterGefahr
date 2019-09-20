@@ -179,7 +179,7 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
         ))
 
         csi_polygon_object = polygons.vertex_arrays_to_polygon_object(
-            polygon_x_coords=these_x, polygon_y_coords=these_y)
+            exterior_x_coords=these_x, exterior_y_coords=these_y)
 
         # csi_polygon_object = (
         #     model_eval_plotting._confidence_interval_to_polygon(
