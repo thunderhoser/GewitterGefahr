@@ -13,6 +13,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 FIGURE_RESOLUTION_DPI = 300
 BIAS_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 
@@ -216,10 +218,12 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
                             model_eval.FREQUENCY_BIAS_KEY].values
                     )
 
+    print(SEPARATOR_STRING)
+
     _plot_one_score(
         score_matrix=auc_matrix, colour_map_object=main_colour_map_object,
-        min_colour_value=numpy.nanpercentile(auc_matrix, max_colour_percentile),
-        max_colour_value=numpy.nanpercentile(
+        max_colour_value=numpy.nanpercentile(auc_matrix, max_colour_percentile),
+        min_colour_value=numpy.nanpercentile(
             auc_matrix, 100. - max_colour_percentile
         ),
         colour_bar_label='AUC (area under ROC curve)',
@@ -228,8 +232,8 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
 
     _plot_one_score(
         score_matrix=csi_matrix, colour_map_object=main_colour_map_object,
-        min_colour_value=numpy.nanpercentile(csi_matrix, max_colour_percentile),
-        max_colour_value=numpy.nanpercentile(
+        max_colour_value=numpy.nanpercentile(csi_matrix, max_colour_percentile),
+        min_colour_value=numpy.nanpercentile(
             csi_matrix, 100. - max_colour_percentile
         ),
         colour_bar_label='CSI (critical success index)',
@@ -238,8 +242,8 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
 
     _plot_one_score(
         score_matrix=pod_matrix, colour_map_object=main_colour_map_object,
-        min_colour_value=numpy.nanpercentile(pod_matrix, max_colour_percentile),
-        max_colour_value=numpy.nanpercentile(
+        max_colour_value=numpy.nanpercentile(pod_matrix, max_colour_percentile),
+        min_colour_value=numpy.nanpercentile(
             pod_matrix, 100. - max_colour_percentile
         ),
         colour_bar_label='POD (probability of detection)',
@@ -248,8 +252,8 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
 
     _plot_one_score(
         score_matrix=far_matrix, colour_map_object=main_colour_map_object,
-        min_colour_value=numpy.nanpercentile(far_matrix, max_colour_percentile),
-        max_colour_value=numpy.nanpercentile(
+        max_colour_value=numpy.nanpercentile(far_matrix, max_colour_percentile),
+        min_colour_value=numpy.nanpercentile(
             far_matrix, 100. - max_colour_percentile
         ),
         colour_bar_label='FAR (false-alarm rate)',
