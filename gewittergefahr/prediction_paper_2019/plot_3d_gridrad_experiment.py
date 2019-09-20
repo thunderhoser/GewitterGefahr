@@ -100,7 +100,7 @@ def _plot_one_score(
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_dense_layer_counts * num_data_aug_flags, num_columns=1,
-        horizontal_spacing=0.1, vertical_spacing=0.1,
+        horizontal_spacing=0.05, vertical_spacing=0.15,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
     axes_object_matrix = numpy.reshape(
