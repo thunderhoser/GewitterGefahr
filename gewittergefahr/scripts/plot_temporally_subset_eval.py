@@ -18,19 +18,14 @@ from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
-from gewittergefahr.plotting import model_eval_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+MARKER_TYPE = 'o'
+MARKER_SIZE = 16
 LINE_WIDTH = 4
 HISTOGRAM_EDGE_WIDTH = 1.5
-ERROR_BAR_WIDTH = 3
-ERROR_CAP_LENGTH = 6
-
-MARKER_TYPE = 'o'
-MARKER_SIZE_SANS_BOOTSTRAP = 16
-MARKER_SIZE_WITH_BOOTSTRAP = 10
 
 AUC_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 CSI_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
@@ -93,6 +88,40 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _confidence_interval_to_polygon(x_values, y_values_bottom, y_values_top):
+    """Turns confidence interval into polygon.
+
+    P = number of points
+
+    :param x_values: length-P numpy array of x-values.
+    :param y_values_bottom: length-P numpy array of y-values at bottom of
+        confidence interval.
+    :param y_values_top: Same but top of confidence interval.
+    :return: polygon_object: Instance of `shapely.geometry.Polygon`.
+    """
+
+    real_indices = numpy.where(
+        numpy.invert(numpy.isnan(y_values_bottom))
+    )[0]
+
+    if len(real_indices) == 0:
+        return None
+
+    real_x_values = x_values[real_indices]
+    real_y_values_bottom = y_values_bottom[real_indices]
+    real_y_values_top = y_values_top[real_indices]
+
+    these_x = numpy.concatenate((
+        real_x_values, real_x_values[::-1], real_x_values[[0]]
+    ))
+    these_y = numpy.concatenate((
+        real_y_values_top, real_y_values_bottom[::-1], real_y_values_top[[0]]
+    ))
+
+    return polygons.vertex_arrays_to_polygon_object(
+        exterior_x_coords=these_x, exterior_y_coords=these_y)
+
+
 def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
                       num_bootstrap_reps, plot_legend):
     """Plots AUC and CSI either by hour or by month.
@@ -124,15 +153,10 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     num_chunks = auc_matrix.shape[0]
     x_values = numpy.linspace(0, num_chunks - 1, num=num_chunks, dtype=float)
 
-    if num_bootstrap_reps == 1:
-        marker_size = MARKER_SIZE_SANS_BOOTSTRAP
-    else:
-        marker_size = MARKER_SIZE_WITH_BOOTSTRAP
-
     # Plot mean AUC.
     this_handle = main_axes_object.plot(
         x_values, auc_matrix[:, 1], color=AUC_COLOUR, linewidth=LINE_WIDTH,
-        marker=MARKER_TYPE, markersize=marker_size, markerfacecolor=AUC_COLOUR,
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markerfacecolor=AUC_COLOUR,
         markeredgecolor=AUC_COLOUR, markeredgewidth=0
     )[0]
 
@@ -140,12 +164,10 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     legend_strings = ['AUC']
 
     # Plot confidence interval for AUC.
-    if num_bootstrap_reps >= 1:
-        auc_polygon_object = (
-            model_eval_plotting._confidence_interval_to_polygon(
-                x_coords_bottom=x_values, y_coords_bottom=auc_matrix[:, 0],
-                x_coords_top=x_values, y_coords_top=auc_matrix[:, 2],
-                for_performance_diagram=True)
+    if num_bootstrap_reps > 1:
+        auc_polygon_object = _confidence_interval_to_polygon(
+            x_values=x_values, y_values_bottom=auc_matrix[:, 0],
+            y_values_top=auc_matrix[:, 2]
         )
 
         auc_polygon_colour = matplotlib.colors.to_rgba(
@@ -162,7 +184,7 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     # Plot mean CSI.
     this_handle = main_axes_object.plot(
         x_values, csi_matrix[:, 1], color=CSI_COLOUR, linewidth=LINE_WIDTH,
-        marker=MARKER_TYPE, markersize=marker_size, markerfacecolor=CSI_COLOUR,
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markerfacecolor=CSI_COLOUR,
         markeredgecolor=CSI_COLOUR, markeredgewidth=0
     )[0]
 
@@ -170,23 +192,11 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     legend_strings.append('CSI')
 
     # Plot confidence interval for CSI.
-    if num_bootstrap_reps >= 1:
-        these_x = numpy.concatenate((
-            x_values, x_values[::-1], x_values[[0]]
-        ))
-        these_y = numpy.concatenate((
-            csi_matrix[:, 2], csi_matrix[:, 0][::-1], csi_matrix[:, 2][[0]]
-        ))
-
-        csi_polygon_object = polygons.vertex_arrays_to_polygon_object(
-            exterior_x_coords=these_x, exterior_y_coords=these_y)
-
-        # csi_polygon_object = (
-        #     model_eval_plotting._confidence_interval_to_polygon(
-        #         x_coords_bottom=x_values, y_coords_bottom=csi_matrix[:, 0],
-        #         x_coords_top=x_values, y_coords_top=csi_matrix[:, 2],
-        #         for_performance_diagram=True)
-        # )
+    if num_bootstrap_reps > 1:
+        csi_polygon_object = _confidence_interval_to_polygon(
+            x_values=x_values, y_values_bottom=csi_matrix[:, 0],
+            y_values_top=csi_matrix[:, 2]
+        )
 
         csi_polygon_colour = matplotlib.colors.to_rgba(
             plotting_utils.colour_from_numpy_to_tuple(CSI_COLOUR),
@@ -255,60 +265,59 @@ def _plot_pod_and_far(pod_matrix, far_matrix, num_positive_ex_by_chunk,
     num_chunks = pod_matrix.shape[0]
     x_values = numpy.linspace(0, num_chunks - 1, num=num_chunks, dtype=float)
 
-    if num_bootstrap_reps == 1:
-        marker_size = MARKER_SIZE_SANS_BOOTSTRAP
-    else:
-        marker_size = MARKER_SIZE_WITH_BOOTSTRAP
-
     # Plot mean POD.
-    main_axes_object.plot(
-        x_values, pod_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
-        markersize=marker_size, markerfacecolor=POD_COLOUR,
-        markeredgecolor=POD_COLOUR, markeredgewidth=0)
-
-    # Plot confidence interval for POD.
-    if num_bootstrap_reps == 1:
-        this_handle = main_axes_object.plot(
-            x_values, pod_matrix[:, 1], color=POD_COLOUR, linewidth=LINE_WIDTH
-        )[0]
-    else:
-        negative_errors = pod_matrix[:, 1] - pod_matrix[:, 0]
-        positive_errors = pod_matrix[:, 2] - pod_matrix[:, 1]
-        error_matrix = numpy.vstack((negative_errors, positive_errors))
-
-        this_handle = main_axes_object.errorbar(
-            x_values, pod_matrix[:, 1], yerr=error_matrix, color=POD_COLOUR,
-            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
-            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
-        )[0]
+    this_handle = main_axes_object.plot(
+        x_values, pod_matrix[:, 1], color=POD_COLOUR, linewidth=LINE_WIDTH,
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markerfacecolor=POD_COLOUR,
+        markeredgecolor=POD_COLOUR, markeredgewidth=0
+    )[0]
 
     legend_handles = [this_handle]
     legend_strings = ['POD']
 
+    if num_bootstrap_reps > 1:
+        pod_polygon_object = _confidence_interval_to_polygon(
+            x_values=x_values, y_values_bottom=pod_matrix[:, 0],
+            y_values_top=pod_matrix[:, 2]
+        )
+
+        pod_polygon_colour = matplotlib.colors.to_rgba(
+            plotting_utils.colour_from_numpy_to_tuple(POD_COLOUR),
+            POLYGON_OPACITY
+        )
+
+        pod_patch_object = PolygonPatch(
+            pod_polygon_object, lw=0, ec=pod_polygon_colour,
+            fc=pod_polygon_colour)
+
+        main_axes_object.add_patch(pod_patch_object)
+
     # Plot mean FAR.
-    main_axes_object.plot(
-        x_values, far_matrix[:, 1], linestyle='None', marker=MARKER_TYPE,
-        markersize=marker_size, markerfacecolor=FAR_COLOUR,
-        markeredgecolor=FAR_COLOUR, markeredgewidth=0)
-
-    # Plot confidence interval for FAR.
-    if num_bootstrap_reps == 1:
-        this_handle = main_axes_object.plot(
-            x_values, far_matrix[:, 1], color=FAR_COLOUR, linewidth=LINE_WIDTH
-        )[0]
-    else:
-        negative_errors = far_matrix[:, 1] - far_matrix[:, 0]
-        positive_errors = far_matrix[:, 2] - far_matrix[:, 1]
-        error_matrix = numpy.vstack((negative_errors, positive_errors))
-
-        this_handle = main_axes_object.errorbar(
-            x_values, far_matrix[:, 1], yerr=error_matrix, color=FAR_COLOUR,
-            linewidth=LINE_WIDTH, elinewidth=ERROR_BAR_WIDTH,
-            capsize=ERROR_CAP_LENGTH, capthick=ERROR_BAR_WIDTH
-        )[0]
+    this_handle = main_axes_object.plot(
+        x_values, far_matrix[:, 1], color=FAR_COLOUR, linewidth=LINE_WIDTH,
+        marker=MARKER_TYPE, markersize=MARKER_SIZE, markerfacecolor=FAR_COLOUR,
+        markeredgecolor=FAR_COLOUR, markeredgewidth=0
+    )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append('FAR')
+
+    if num_bootstrap_reps > 1:
+        far_polygon_object = _confidence_interval_to_polygon(
+            x_values=x_values, y_values_bottom=far_matrix[:, 0],
+            y_values_top=far_matrix[:, 2]
+        )
+
+        far_polygon_colour = matplotlib.colors.to_rgba(
+            plotting_utils.colour_from_numpy_to_tuple(FAR_COLOUR),
+            POLYGON_OPACITY
+        )
+
+        far_patch_object = PolygonPatch(
+            far_polygon_object, lw=0, ec=far_polygon_colour,
+            fc=far_polygon_colour)
+
+        main_axes_object.add_patch(far_patch_object)
 
     main_axes_object.set_ylabel('POD or FAR')
     main_axes_object.set_xlim([
