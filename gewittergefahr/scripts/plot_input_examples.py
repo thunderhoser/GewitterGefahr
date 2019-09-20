@@ -236,13 +236,16 @@ def _plot_3d_radar_scan(
     radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
 
-    colour_bar_names = radar_plotting.radar_fields_and_heights_to_panel_names(
-        field_names=radar_field_names, heights_m_agl=radar_heights_m_agl,
-        include_units=True)
-    colour_bar_names = [n.replace('\n', ' ') for n in colour_bar_names]
-
     num_radar_fields = len(radar_field_names)
     num_radar_heights = len(radar_heights_m_agl)
+
+    colour_bar_names = radar_plotting.radar_fields_and_heights_to_panel_names(
+        field_names=radar_field_names,
+        heights_m_agl=numpy.full(num_radar_fields, 0, dtype=int),
+        include_units=True
+    )
+
+    colour_bar_names = [n.replace('\n', ' ') for n in colour_bar_names]
 
     num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_radar_heights)
