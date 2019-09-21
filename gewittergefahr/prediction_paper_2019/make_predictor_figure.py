@@ -247,8 +247,9 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
         this_axes_object = this_handle_dict[
             plot_examples.RADAR_AXES_KEY][0][0, 0]
 
-        this_axes_object.set_title('')
-        this_figure_object.suptitle(this_title_string, fontsize=DEFAULT_FONT_SIZE)
+        this_figure_object.suptitle('')
+        this_axes_object.set_title(
+            this_title_string, fontsize=DEFAULT_FONT_SIZE)
 
         # this_axes_object.set_yticklabels(
         #     this_axes_object.get_yticks(), color=ALMOST_WHITE_COLOUR
@@ -341,8 +342,9 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             this_axes_object = this_handle_dict[
                 plot_examples.RADAR_AXES_KEY][0][0, 0]
 
-            this_axes_object.set_title('')
-            this_figure_object.suptitle(this_title_string, fontsize=DEFAULT_FONT_SIZE)
+            this_figure_object.suptitle('')
+            this_axes_object.set_title(
+                this_title_string, fontsize=DEFAULT_FONT_SIZE)
 
             letter_label = chr(ord(letter_label) + 1)
             plotting_utils.label_axes(
@@ -381,8 +383,9 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
         this_axes_object = this_handle_dict[
             plot_examples.RADAR_AXES_KEY][1][0, 0]
 
-        this_axes_object.set_title('')
-        this_figure_object.suptitle(this_title_string, fontsize=DEFAULT_FONT_SIZE)
+        this_figure_object.suptitle('')
+        this_axes_object.set_title(
+            this_title_string, fontsize=DEFAULT_FONT_SIZE)
 
         letter_label = chr(ord(letter_label) + 1)
         plotting_utils.label_axes(
