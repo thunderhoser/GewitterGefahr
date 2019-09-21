@@ -65,7 +65,7 @@ SPC_DATE_HELP_STRING = (
 
 TARRED_MYRORSS_DIR_HELP_STRING = (
     'Name of top-level directory with tarred MYRORSS data (one tar file per SPC'
-    ' date).')
+    ' date).  If data are already untarred, make this empty.')
 
 UNTARRED_MYRORSS_DIR_HELP_STRING = (
     'Name of top-level directory for untarred MYRORSS data.  Tar files will be '
@@ -203,6 +203,8 @@ def _extract_storm_images(
     :param top_output_dir_name: Same.
     """
 
+    if tarred_myrorss_dir_name in ['', 'None']:
+        tarred_myrorss_dir_name = None
     if target_name in ['', 'None']:
         target_name = None
 
@@ -225,38 +227,42 @@ def _extract_storm_images(
         data_source=radar_utils.MYRORSS_SOURCE_ID,
         field_name=radar_utils.REFL_NAME)
 
-    # Untar files with azimuthal shear.
-    az_shear_field_names = list(
-        set(radar_field_names) & set(ALL_AZ_SHEAR_FIELD_NAMES)
-    )
-
-    if len(az_shear_field_names):
-        az_shear_tar_file_name = (
-            '{0:s}/{1:s}/azimuthal_shear_only/{2:s}.tar'
-        ).format(tarred_myrorss_dir_name, spc_date_string[:4], spc_date_string)
-
-        myrorss_io.unzip_1day_tar_file(
-            tar_file_name=az_shear_tar_file_name,
-            field_names=az_shear_field_names, spc_date_string=spc_date_string,
-            top_target_directory_name=untarred_myrorss_dir_name)
-        print(SEPARATOR_STRING)
-
-    # Untar files with other radar fields.
-    non_shear_field_names = list(
-        set(radar_field_names) - set(ALL_AZ_SHEAR_FIELD_NAMES)
-    )
-
-    if len(non_shear_field_names):
-        non_shear_tar_file_name = '{0:s}/{1:s}/{2:s}.tar'.format(
-            tarred_myrorss_dir_name, spc_date_string[:4], spc_date_string
+    # Untar files.
+    if tarred_myrorss_dir_name is not None:
+        az_shear_field_names = list(
+            set(radar_field_names) & set(ALL_AZ_SHEAR_FIELD_NAMES)
         )
 
-        myrorss_io.unzip_1day_tar_file(
-            tar_file_name=non_shear_tar_file_name,
-            field_names=non_shear_field_names, spc_date_string=spc_date_string,
-            top_target_directory_name=untarred_myrorss_dir_name,
-            refl_heights_m_asl=refl_heights_m_asl)
-        print(SEPARATOR_STRING)
+        if len(az_shear_field_names) > 0:
+            az_shear_tar_file_name = (
+                '{0:s}/{1:s}/azimuthal_shear_only/{2:s}.tar'
+            ).format(
+                tarred_myrorss_dir_name, spc_date_string[:4], spc_date_string
+            )
+
+            myrorss_io.unzip_1day_tar_file(
+                tar_file_name=az_shear_tar_file_name,
+                field_names=az_shear_field_names,
+                spc_date_string=spc_date_string,
+                top_target_directory_name=untarred_myrorss_dir_name)
+            print(SEPARATOR_STRING)
+
+        non_shear_field_names = list(
+            set(radar_field_names) - set(ALL_AZ_SHEAR_FIELD_NAMES)
+        )
+
+        if len(non_shear_field_names) > 0:
+            non_shear_tar_file_name = '{0:s}/{1:s}/{2:s}.tar'.format(
+                tarred_myrorss_dir_name, spc_date_string[:4], spc_date_string
+            )
+
+            myrorss_io.unzip_1day_tar_file(
+                tar_file_name=non_shear_tar_file_name,
+                field_names=non_shear_field_names,
+                spc_date_string=spc_date_string,
+                top_target_directory_name=untarred_myrorss_dir_name,
+                refl_heights_m_asl=refl_heights_m_asl)
+            print(SEPARATOR_STRING)
 
     # Read storm tracks for the given SPC date.
     tracking_file_names = tracking_io.find_files_one_spc_date(
