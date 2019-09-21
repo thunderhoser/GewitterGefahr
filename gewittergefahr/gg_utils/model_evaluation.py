@@ -1539,3 +1539,62 @@ def read_evaluation(pickle_file_name):
     )
 
     return evaluation_dict
+
+
+def combine_evaluation_files(input_file_names):
+    """Combines evaluation files (each with different bootstrap replicates).
+
+    :param input_file_names: 1-D list of paths to input files (will be read by
+        `read_evaluation`).
+    :return: evaluation_dict: Dictionary with the following keys.
+    evaluation_dict['forecast_probabilities']: See doc for `read_evaluation`.
+    evaluation_dict['observed_labels']: Same.
+    evaluation_dict['best_prob_threshold']: Same.
+    evaluation_dict['all_prob_thresholds']: Same.
+    evaluation_dict['evaluation_table']: Same.
+    """
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(input_file_names), num_dimensions=1
+    )
+
+    evaluation_dict = None
+    list_of_evaluation_tables = []
+
+    for this_file_name in input_file_names:
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
+        this_evaluation_dict = read_evaluation(this_file_name)
+
+        if evaluation_dict is None:
+            evaluation_dict = copy.deepcopy(this_evaluation_dict)
+            continue
+
+        for this_key in evaluation_dict:
+            if this_key == EVALUATION_TABLE_KEY:
+                continue
+
+            if isinstance(evaluation_dict[this_key], numpy.ndarray):
+                assert numpy.allclose(
+                    evaluation_dict[this_key], this_evaluation_dict[this_key],
+                    atol=TOLERANCE
+                )
+            else:
+                assert numpy.isclose(
+                    evaluation_dict[this_key], this_evaluation_dict[this_key],
+                    atol=TOLERANCE
+                )
+
+        list_of_evaluation_tables.append(
+            this_evaluation_dict[EVALUATION_TABLE_KEY]
+        )
+        if len(list_of_evaluation_tables) == 1:
+            continue
+
+        list_of_evaluation_tables[-1] = list_of_evaluation_tables[-1].align(
+            list_of_evaluation_tables[0], axis=1
+        )[0]
+
+    evaluation_dict[EVALUATION_TABLE_KEY] = pandas.concat(
+        list_of_evaluation_tables, axis=0, ignore_index=True)
+
+    return evaluation_dict
