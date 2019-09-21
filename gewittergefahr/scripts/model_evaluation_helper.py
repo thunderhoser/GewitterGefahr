@@ -31,7 +31,8 @@ BOUNDING_BOX_DICT = {
     'facecolor': 'white',
     'alpha': 0.5,
     'edgecolor': 'black',
-    'linewidth': 2
+    'linewidth': 2,
+    'boxstyle': 'round'
 }
 
 FIGURE_RESOLUTION_DPI = 300
