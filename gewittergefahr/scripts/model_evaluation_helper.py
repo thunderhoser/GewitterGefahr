@@ -18,6 +18,7 @@ from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import model_eval_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -48,9 +49,6 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
         evaluation_table[model_eval.POFD_BY_THRESHOLD_KEY].values.tolist()
     ))
 
-    mean_auc = numpy.nanmean(evaluation_table[model_eval.AUC_KEY].values)
-    title_string = 'AUC = {0:.3f}'.format(mean_auc)
-
     num_bootstrap_reps = pod_matrix.shape[0]
     num_prob_thresholds = pod_matrix.shape[1]
 
@@ -59,9 +57,13 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
             stat_values=evaluation_table[model_eval.AUC_KEY].values,
             confidence_level=confidence_level)
 
-        title_string += ' [{0:.3f}, {1:.3f}]'.format(min_auc, max_auc)
+        annotation_string = 'Area under curve = [{0:.3f}, {1:.3f}]'.format(
+            min_auc, max_auc)
+    else:
+        mean_auc = numpy.nanmean(evaluation_table[model_eval.AUC_KEY].values)
+        annotation_string = 'Area under curve = {0:.3f}'.format(mean_auc)
 
-    print(title_string)
+    print(annotation_string)
 
     _, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -108,7 +110,12 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
             pofd_by_threshold=pofd_matrix[0, :]
         )
 
-    pyplot.title(title_string)
+    axes_object.text(
+        0.99, 0.01, annotation_string, color='k', horizontalalignment='right',
+        verticalalignment='bottom', transform=axes_object.transAxes)
+
+    axes_object.set_title('ROC curve')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
 
     print('Saving ROC curve to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
@@ -135,7 +142,7 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
     ))
 
     mean_aupd = numpy.nanmean(evaluation_table[model_eval.AUPD_KEY].values)
-    title_string = 'AUPD = {0:.3f}'.format(mean_aupd)
+    annotation_string = 'Area under curve = {0:.3f}'.format(mean_aupd)
 
     num_bootstrap_reps = pod_matrix.shape[0]
     num_prob_thresholds = pod_matrix.shape[1]
@@ -145,9 +152,10 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
             stat_values=evaluation_table[model_eval.AUPD_KEY].values,
             confidence_level=confidence_level)
 
-        title_string += ' [{0:.3f}, {1:.3f}]'.format(min_aupd, max_aupd)
+        annotation_string = 'Area under curve = [{0:.3f}, {1:.3f}]'.format(
+            min_aupd, max_aupd)
 
-    print(title_string)
+    print(annotation_string)
 
     _, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -195,7 +203,12 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
             success_ratio_by_threshold=success_ratio_matrix[0, :]
         )
 
-    pyplot.title(title_string)
+    axes_object.text(
+        0.99, 0.99, annotation_string, color='k', horizontalalignment='right',
+        verticalalignment='top', transform=axes_object.transAxes)
+
+    axes_object.set_title('Performance diagram')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
 
     print('Saving performance diagram to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
@@ -227,7 +240,7 @@ def _plot_attributes_diagram(
     ))
 
     mean_bss = numpy.nanmean(evaluation_table[model_eval.BSS_KEY].values)
-    title_string = 'BSS = {0:.3f}'.format(mean_bss)
+    annotation_string = 'Brier skill score = {0:.3f}'.format(mean_bss)
 
     num_bootstrap_reps = mean_forecast_prob_matrix.shape[0]
     num_bins = mean_forecast_prob_matrix.shape[1]
@@ -237,9 +250,10 @@ def _plot_attributes_diagram(
             stat_values=evaluation_table[model_eval.BSS_KEY].values,
             confidence_level=confidence_level)
 
-        title_string += ' [{0:.3f}, {1:.3f}]'.format(min_bss, max_bss)
+        annotation_string = 'Brier skill score = [{0:.3f}, {1:.3f}]'.format(
+            min_bss, max_bss)
 
-    print(title_string)
+    print(annotation_string)
 
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -289,7 +303,12 @@ def _plot_attributes_diagram(
             event_frequency_by_bin=event_frequency_matrix[0, :],
             num_examples_by_bin=num_examples_by_bin)
 
-    axes_object.set_title(title_string)
+    axes_object.text(
+        0.01, 0.99, annotation_string, color='k', horizontalalignment='left',
+        verticalalignment='top', transform=axes_object.transAxes)
+
+    axes_object.set_title('Attributes diagram')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
 
     print('Saving attributes diagram to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
@@ -328,7 +347,7 @@ def run_evaluation(
         be no downsampling.
     :param confidence_level: [used only if `num_bootstrap_reps > 1`]
         Confidence level for bootstrapping.
-    :raises: ValueError: if input arrays contain zero examples.
+
     """
 
     # TODO(thunderhoser): Put more input-checking here.
