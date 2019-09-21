@@ -1005,7 +1005,8 @@ def plot_3d_grid_without_coords(
             plot_2d_grid_without_coords(
                 field_matrix=field_matrix[..., this_height_index],
                 field_name=field_name, axes_object=axes_object_matrix[i, j],
-                annotation_string=this_annotation_string,
+                # annotation_string=this_annotation_string,
+                annotation_string=None,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object, font_size=font_size)
 
