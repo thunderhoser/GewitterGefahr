@@ -1387,7 +1387,7 @@ def extract_storm_images_myrorss_or_mrms(
                 ))
             else:
                 exec_start_time_unix_sec = time.time()
-                
+
                 these_center_rows, these_center_columns = (
                     _centroids_latlng_to_rowcol(
                         centroid_latitudes_deg=this_storm_object_table[
