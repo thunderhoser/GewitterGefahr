@@ -44,14 +44,16 @@ MYRORSS_SHEAR_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
 ]
 
-FONT_SIZE = 50
-pyplot.rc('font', size=FONT_SIZE)
-pyplot.rc('axes', titlesize=FONT_SIZE)
-pyplot.rc('axes', labelsize=FONT_SIZE)
-pyplot.rc('xtick', labelsize=FONT_SIZE)
-pyplot.rc('ytick', labelsize=FONT_SIZE)
-pyplot.rc('legend', fontsize=FONT_SIZE)
-pyplot.rc('figure', titlesize=FONT_SIZE)
+DEFAULT_FONT_SIZE = 45
+PANEL_LETTER_FONT_SIZE = 75
+
+pyplot.rc('font', size=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
+pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 X_LABEL_COORD_NORMALIZED = -0.075
 Y_LABEL_COORD_NORMALIZED = 1.
@@ -234,7 +236,8 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             )[0]
         )
 
-        this_title_string = this_title_string.replace('\n', ' ')
+        this_title_string = this_title_string.replace('\n', ' ').replace(
+            '.00 km AGL', ' km')
         this_title_string = 'GridRad {0:s}{1:s}'.format(
             this_title_string[0].lower(), this_title_string[1:]
         )
@@ -245,7 +248,7 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             plot_examples.RADAR_AXES_KEY][0][0, 0]
 
         this_axes_object.set_title('')
-        this_figure_object.suptitle(this_title_string, fontsize=FONT_SIZE)
+        this_figure_object.suptitle(this_title_string, fontsize=DEFAULT_FONT_SIZE)
 
         # this_axes_object.set_yticklabels(
         #     this_axes_object.get_yticks(), color=ALMOST_WHITE_COLOUR
@@ -259,6 +262,7 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
         plotting_utils.label_axes(
             axes_object=this_axes_object,
             label_string='({0:s})'.format(letter_label),
+            font_size=PANEL_LETTER_FONT_SIZE,
             x_coord_normalized=X_LABEL_COORD_NORMALIZED,
             y_coord_normalized=Y_LABEL_COORD_NORMALIZED
         )
@@ -303,6 +307,7 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             plotting_utils.label_axes(
                 axes_object=this_axes_object,
                 label_string='({0:s})'.format(letter_label),
+                font_size=PANEL_LETTER_FONT_SIZE,
                 x_coord_normalized=X_LABEL_COORD_NORMALIZED,
                 y_coord_normalized=Y_LABEL_COORD_NORMALIZED
             )
@@ -325,7 +330,8 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
                 )[0]
             )
 
-            this_title_string = this_title_string.replace('\n', ' ')
+            this_title_string = this_title_string.replace('\n', ' ').replace(
+                '.00 km AGL', ' km')
             this_title_string = 'MYRORSS {0:s}{1:s}'.format(
                 this_title_string[0].lower(), this_title_string[1:]
             )
@@ -336,12 +342,13 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
                 plot_examples.RADAR_AXES_KEY][0][0, 0]
 
             this_axes_object.set_title('')
-            this_figure_object.suptitle(this_title_string, fontsize=FONT_SIZE)
+            this_figure_object.suptitle(this_title_string, fontsize=DEFAULT_FONT_SIZE)
 
             letter_label = chr(ord(letter_label) + 1)
             plotting_utils.label_axes(
                 axes_object=this_axes_object,
                 label_string='({0:s})'.format(letter_label),
+                font_size=PANEL_LETTER_FONT_SIZE,
                 x_coord_normalized=X_LABEL_COORD_NORMALIZED,
                 y_coord_normalized=Y_LABEL_COORD_NORMALIZED
             )
@@ -375,12 +382,13 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             plot_examples.RADAR_AXES_KEY][1][0, 0]
 
         this_axes_object.set_title('')
-        this_figure_object.suptitle(this_title_string, fontsize=FONT_SIZE)
+        this_figure_object.suptitle(this_title_string, fontsize=DEFAULT_FONT_SIZE)
 
         letter_label = chr(ord(letter_label) + 1)
         plotting_utils.label_axes(
             axes_object=this_axes_object,
             label_string='({0:s})'.format(letter_label),
+            font_size=PANEL_LETTER_FONT_SIZE,
             x_coord_normalized=X_LABEL_COORD_NORMALIZED,
             y_coord_normalized=Y_LABEL_COORD_NORMALIZED
         )
