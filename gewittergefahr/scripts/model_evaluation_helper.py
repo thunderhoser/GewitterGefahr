@@ -27,6 +27,13 @@ MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 FORECAST_PRECISION = 1e-4
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
+BOUNDING_BOX_DICT = {
+    'facecolor': 'white',
+    'alpha': 0.5,
+    'edgecolor': 'black',
+    'linewidth': 2
+}
+
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -111,8 +118,9 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
         )
 
     axes_object.text(
-        0.99, 0.01, annotation_string, color='k', horizontalalignment='right',
-        verticalalignment='bottom', transform=axes_object.transAxes)
+        0.99, 0.01, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        horizontalalignment='right', verticalalignment='bottom',
+        transform=axes_object.transAxes)
 
     axes_object.set_title('ROC curve')
     plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
@@ -204,8 +212,9 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
         )
 
     axes_object.text(
-        0.99, 0.99, annotation_string, color='k', horizontalalignment='right',
-        verticalalignment='top', transform=axes_object.transAxes)
+        0.99, 0.99, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        horizontalalignment='right', verticalalignment='top',
+        transform=axes_object.transAxes)
 
     axes_object.set_title('Performance diagram')
     plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
@@ -304,8 +313,9 @@ def _plot_attributes_diagram(
             num_examples_by_bin=num_examples_by_bin)
 
     axes_object.text(
-        0.01, 0.99, annotation_string, color='k', horizontalalignment='left',
-        verticalalignment='top', transform=axes_object.transAxes)
+        0.01, 0.99, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        horizontalalignment='left', verticalalignment='top',
+        transform=axes_object.transAxes)
 
     axes_object.set_title('Attributes diagram')
     plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
