@@ -119,7 +119,7 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
         )
 
     axes_object.text(
-        0.99, 0.01, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
         horizontalalignment='right', verticalalignment='bottom',
         transform=axes_object.transAxes)
 
@@ -215,7 +215,7 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
         )
 
     axes_object.text(
-        0.99, 0.99, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        0.98, 0.98, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
         horizontalalignment='right', verticalalignment='top',
         transform=axes_object.transAxes)
 
@@ -318,7 +318,7 @@ def _plot_attributes_diagram(
             num_examples_by_bin=num_examples_by_bin)
 
     axes_object.text(
-        0.01, 0.99, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        0.02, 0.98, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
         horizontalalignment='left', verticalalignment='top',
         transform=axes_object.transAxes)
 
