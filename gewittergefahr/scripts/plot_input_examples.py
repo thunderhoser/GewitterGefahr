@@ -284,7 +284,7 @@ def _plot_3d_radar_scan(
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation_string='horizontal', padding=0.01,
-                extend_min=True, extend_max=True)
+                fraction_of_axis_length=0.75, extend_min=True, extend_max=True)
 
             this_field_name_verbose = radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[
                 radar_field_names[j]
@@ -370,8 +370,8 @@ def _plot_2d3d_radar_scan(
             data_matrix=list_of_predictor_matrices[0],
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', fraction_of_axis_length=0.75,
-            extend_min=True, extend_max=True)
+            orientation_string='horizontal', padding=0.01,
+            fraction_of_axis_length=0.75, extend_min=True, extend_max=True)
 
         if title_string is not None:
             this_title_string = '{0:s}; {1:s}'.format(
@@ -422,8 +422,8 @@ def _plot_2d3d_radar_scan(
             data_matrix=list_of_predictor_matrices[1],
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal', fraction_of_axis_length=0.75,
-            extend_min=True, extend_max=True)
+            orientation_string='horizontal', padding=0.01,
+            fraction_of_axis_length=0.75, extend_min=True, extend_max=True)
 
         if title_string is not None:
             pyplot.suptitle(title_string, fontsize=TITLE_FONT_SIZE)

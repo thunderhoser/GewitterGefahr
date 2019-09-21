@@ -30,10 +30,9 @@ SOUNDING_FIELD_NAMES = [
 ]
 SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL
 
-RADAR_HEIGHTS_M_AGL = numpy.array([3000], dtype=int)
-
 NUM_GRIDRAD_ROWS = 32
 NUM_GRIDRAD_COLUMNS = 32
+RADAR_HEIGHTS_M_AGL = numpy.array([3000], dtype=int)
 GRIDRAD_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
     radar_utils.VORTICITY_NAME, radar_utils.DIVERGENCE_NAME
@@ -44,6 +43,15 @@ NUM_MYRORSS_COLUMNS = 64
 MYRORSS_SHEAR_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
 ]
+
+FONT_SIZE = 50
+pyplot.rc('font', size=FONT_SIZE)
+pyplot.rc('axes', titlesize=FONT_SIZE)
+pyplot.rc('axes', labelsize=FONT_SIZE)
+pyplot.rc('xtick', labelsize=FONT_SIZE)
+pyplot.rc('ytick', labelsize=FONT_SIZE)
+pyplot.rc('legend', fontsize=FONT_SIZE)
+pyplot.rc('figure', titlesize=FONT_SIZE)
 
 X_LABEL_COORD_NORMALIZED = -0.075
 Y_LABEL_COORD_NORMALIZED = 1.
@@ -235,7 +243,9 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             plot_examples.RADAR_FIGURES_KEY][0]
         this_axes_object = this_handle_dict[
             plot_examples.RADAR_AXES_KEY][0][0, 0]
-        this_axes_object.set_title(this_title_string)
+
+        this_axes_object.set_title('')
+        this_figure_object.suptitle(this_title_string, fontsize=FONT_SIZE)
 
         # this_axes_object.set_yticklabels(
         #     this_axes_object.get_yticks(), color=ALMOST_WHITE_COLOUR
@@ -324,7 +334,9 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
                 plot_examples.RADAR_FIGURES_KEY][0]
             this_axes_object = this_handle_dict[
                 plot_examples.RADAR_AXES_KEY][0][0, 0]
-            this_axes_object.set_title(this_title_string)
+
+            this_axes_object.set_title('')
+            this_figure_object.suptitle(this_title_string, fontsize=FONT_SIZE)
 
             letter_label = chr(ord(letter_label) + 1)
             plotting_utils.label_axes(
@@ -361,7 +373,9 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             plot_examples.RADAR_FIGURES_KEY][1]
         this_axes_object = this_handle_dict[
             plot_examples.RADAR_AXES_KEY][1][0, 0]
-        this_axes_object.set_title(this_title_string)
+
+        this_axes_object.set_title('')
+        this_figure_object.suptitle(this_title_string, fontsize=FONT_SIZE)
 
         letter_label = chr(ord(letter_label) + 1)
         plotting_utils.label_axes(
