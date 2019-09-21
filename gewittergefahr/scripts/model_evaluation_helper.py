@@ -123,7 +123,9 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
         transform=axes_object.transAxes)
 
     axes_object.set_title('ROC curve')
-    plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
+    plotting_utils.label_axes(
+        axes_object=axes_object, label_string='(a)', y_coord_normalized=1.025
+    )
 
     print('Saving ROC curve to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
@@ -217,7 +219,9 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
         transform=axes_object.transAxes)
 
     axes_object.set_title('Performance diagram')
-    plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
+    plotting_utils.label_axes(
+        axes_object=axes_object, label_string='(b)', y_coord_normalized=1.025
+    )
 
     print('Saving performance diagram to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
@@ -318,7 +322,9 @@ def _plot_attributes_diagram(
         transform=axes_object.transAxes)
 
     axes_object.set_title('Attributes diagram')
-    plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
+    plotting_utils.label_axes(
+        axes_object=axes_object, label_string='(c)', y_coord_normalized=1.025
+    )
 
     print('Saving attributes diagram to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
