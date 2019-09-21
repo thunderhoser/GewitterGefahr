@@ -1313,6 +1313,12 @@ def extract_storm_images_myrorss_or_mrms(
                 )
             )
 
+            print('Took {0:.2f} seconds to read data.'.format(
+                time.time() - exec_start_time_unix_sec
+            ))
+
+            exec_start_time_unix_sec = time.time()
+
             (this_full_radar_matrix, these_full_latitudes_deg,
              these_full_longitudes_deg
             ) = radar_s2f.sparse_to_full_grid(
@@ -1320,7 +1326,7 @@ def extract_storm_images_myrorss_or_mrms(
                 metadata_dict=this_metadata_dict)
 
             print((
-                'Took {0:.2f} seconds to read data and convert to full grid.'
+                'Took {0:.2f} seconds to convert from sparse to full grid.'
             ).format(
                 time.time() - exec_start_time_unix_sec
             ))
