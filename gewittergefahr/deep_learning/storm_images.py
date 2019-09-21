@@ -3,6 +3,7 @@
 import os
 import copy
 import glob
+import time
 import numpy
 from scipy.interpolate import interp1d as scipy_interp1d
 import netCDF4
@@ -1212,6 +1213,7 @@ def extract_storm_images_myrorss_or_mrms(
             valid_spc_date_string=valid_spc_date_strings[i])
 
         this_storm_object_table = storm_object_table.iloc[these_storm_indices]
+        exec_start_time_unix_sec = time.time()
 
         print('Finding storm elevations at {0:s}...'.format(
             valid_time_strings[i]
@@ -1228,6 +1230,10 @@ def extract_storm_images_myrorss_or_mrms(
             ELEVATION_COLUMN: these_elevations_m_asl
         })
 
+        print('Took {0:.2f} seconds to get storm elevations.'.format(
+            time.time() - exec_start_time_unix_sec
+        ))
+
         if rotate_grids:
             if any_azimuthal_shear:
                 print((
@@ -1237,12 +1243,18 @@ def extract_storm_images_myrorss_or_mrms(
                     rotated_grid_spacing_metres / 2, valid_time_strings[i]
                 ))
 
+                exec_start_time_unix_sec = time.time()
+
                 this_storm_object_table = _rotate_grids_many_storm_objects(
                     storm_object_table=this_storm_object_table,
                     num_storm_image_rows=num_storm_image_rows * 2,
                     num_storm_image_columns=num_storm_image_columns * 2,
                     storm_grid_spacing_metres=rotated_grid_spacing_metres / 2,
                     for_azimuthal_shear=True)
+
+                print('Took {0:.2f} seconds to create grids.'.format(
+                    time.time() - exec_start_time_unix_sec
+                ))
 
             if any_non_azimuthal_shear:
                 print((
@@ -1252,12 +1264,18 @@ def extract_storm_images_myrorss_or_mrms(
                     rotated_grid_spacing_metres, valid_time_strings[i]
                 ))
 
+                exec_start_time_unix_sec = time.time()
+
                 this_storm_object_table = _rotate_grids_many_storm_objects(
                     storm_object_table=this_storm_object_table,
                     num_storm_image_rows=num_storm_image_rows,
                     num_storm_image_columns=num_storm_image_columns,
                     storm_grid_spacing_metres=rotated_grid_spacing_metres,
                     for_azimuthal_shear=False)
+
+                print('Took {0:.2f} seconds to create grids.'.format(
+                    time.time() - exec_start_time_unix_sec
+                ))
 
         this_num_storms = len(this_storm_object_table.index)
         this_refl_matrix_sea_relative_dbz = numpy.full(
@@ -1275,6 +1293,8 @@ def extract_storm_images_myrorss_or_mrms(
                 int(numpy.round(height_by_pair_m_asl[j])),
                 valid_time_strings[i]
             ))
+
+            exec_start_time_unix_sec = time.time()
 
             this_metadata_dict = (
                 myrorss_and_mrms_io.read_metadata_from_raw_file(
@@ -1298,6 +1318,12 @@ def extract_storm_images_myrorss_or_mrms(
             ) = radar_s2f.sparse_to_full_grid(
                 sparse_grid_table=this_sparse_grid_table,
                 metadata_dict=this_metadata_dict)
+
+            print((
+                'Took {0:.2f} seconds to read data and convert to full grid.'
+            ).format(
+                time.time() - exec_start_time_unix_sec
+            ))
 
             this_full_radar_matrix[
                 numpy.isnan(this_full_radar_matrix)
@@ -1329,6 +1355,8 @@ def extract_storm_images_myrorss_or_mrms(
             )
 
             if rotate_grids:
+                exec_start_time_unix_sec = time.time()
+
                 for k in range(this_num_storms):
                     if field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
                         this_rotated_lat_matrix_deg = this_storm_object_table[
@@ -1350,7 +1378,16 @@ def extract_storm_images_myrorss_or_mrms(
                         these_full_longitudes_deg,
                         rotated_gp_lat_matrix_deg=this_rotated_lat_matrix_deg,
                         rotated_gp_lng_matrix_deg=this_rotated_lng_matrix_deg)
+
+                print((
+                    'Took {0:.2f} seconds to extract rotated storm-centered '
+                    'grids.'
+                ).format(
+                    time.time() - exec_start_time_unix_sec
+                ))
             else:
+                exec_start_time_unix_sec = time.time()
+                
                 these_center_rows, these_center_columns = (
                     _centroids_latlng_to_rowcol(
                         centroid_latitudes_deg=this_storm_object_table[
@@ -1377,6 +1414,13 @@ def extract_storm_images_myrorss_or_mrms(
                             num_storm_image_rows=this_num_image_rows,
                             num_storm_image_columns=this_num_image_columns)
                     )
+
+                print((
+                    'Took {0:.2f} seconds to extract unrotated storm-centered '
+                    'grids.'
+                ).format(
+                    time.time() - exec_start_time_unix_sec
+                ))
 
             if field_name_by_pair[j] == radar_utils.REFL_NAME:
                 this_height_index = numpy.where(
