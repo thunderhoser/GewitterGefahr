@@ -55,7 +55,7 @@ pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
 pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
 pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
-X_LABEL_COORD_NORMALIZED = -0.075
+X_LABEL_COORD_NORMALIZED = 0.
 Y_LABEL_COORD_NORMALIZED = 1.
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
