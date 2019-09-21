@@ -4,6 +4,7 @@ Radar data may come from either MYRORSS (Multi-year Reanalysis of Remotely
 Sensed Storms) or MRMS (Multi-radar Multi-sensor).
 """
 
+import copy
 import numpy
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import grids
@@ -19,75 +20,45 @@ def _convert(sparse_grid_table, field_name, num_grid_rows, num_grid_columns,
              ignore_if_below=None):
     """Converts data from sparse to full grid.
 
-    M = number of rows (unique grid-point latitudes)
-    N = number of columns (unique grid-point longitudes)
+    M = number of rows in grid
+    N = number of columns in grid
 
     :param sparse_grid_table: pandas DataFrame created by
         `myrorss_and_mrms_io.read_data_from_sparse_grid_file`.
-    :param field_name: Name of radar field.  This should also be a column name
-        in `sparse_grid_table`.
-    :param num_grid_rows: Number of rows in grid.
-    :param num_grid_columns: Number of columns in grid.
-    :param ignore_if_below: This method will ignore values of `field_name` <
-        `ignore_if_below`.  If None, this method will consider all values.
-    :return: full_matrix: M-by-N numpy array of radar values.
+    :param field_name: Name of radar field.  Must be a column in
+        `sparse_grid_table`.
+    :param num_grid_rows: M in the above discussion.
+    :param num_grid_columns: N in the above discussion.
+    :param ignore_if_below: Minimum value to consider.  This method will ignore
+        all values < `ignore_if_below` -- in other words, will not put them in
+        the full grid.  If `ignore_if_below is None`, this method will put all
+        values in the full grid.
+    :return: full_radar_matrix: M-by-N numpy array with values of `field_name`.
     """
 
-    if ignore_if_below is None:
-        num_sparse_values = len(sparse_grid_table.index)
-        sparse_indices_to_consider = numpy.linspace(
-            0, num_sparse_values - 1, num=num_sparse_values, dtype=int
-        )
-    else:
-        sparse_indices_to_consider = numpy.where(
+    if ignore_if_below is not None:
+        these_indices = numpy.where(
             sparse_grid_table[field_name].values >= ignore_if_below
         )[0]
+        sparse_grid_table = sparse_grid_table.iloc[these_indices]
 
-    new_sparse_grid_table = sparse_grid_table.iloc[sparse_indices_to_consider]
-
-    data_start_indices = numpy.ravel_multi_index(
-        (new_sparse_grid_table[myrorss_and_mrms_io.GRID_ROW_COLUMN].values,
-         new_sparse_grid_table[myrorss_and_mrms_io.GRID_COLUMN_COLUMN].values),
-        (num_grid_rows, num_grid_columns)
+    start_indices_tuple = (
+        sparse_grid_table[myrorss_and_mrms_io.GRID_ROW_COLUMN].values,
+        sparse_grid_table[myrorss_and_mrms_io.GRID_COLUMN_COLUMN].values
     )
-
-    data_end_indices = (
-        data_start_indices +
-        new_sparse_grid_table[myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN].values
-        - 1
+    start_indices_flat = numpy.ravel_multi_index(
+        start_indices_tuple, (num_grid_rows, num_grid_columns)
     )
-
-    num_data_runs = len(data_start_indices)
-    num_data_values = numpy.sum(
-        new_sparse_grid_table[myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN].values
-    ).astype(int)
-
-    data_indices = numpy.full(num_data_values, numpy.nan, dtype=int)
-    data_values = numpy.full(num_data_values, numpy.nan)
-    num_values_added = 0
-
-    for i in range(num_data_runs):
-        these_data_indices = numpy.linspace(
-            data_start_indices[i], data_end_indices[i],
-            num=data_end_indices[i] - data_start_indices[i] + 1, dtype=int
-        )
-
-        this_num_values = len(these_data_indices)
-
-        these_array_indices = numpy.linspace(
-            num_values_added, num_values_added + this_num_values - 1,
-            num=this_num_values, dtype=int
-        )
-
-        num_values_added += this_num_values
-
-        data_indices[these_array_indices] = these_data_indices
-        data_values[these_array_indices] = new_sparse_grid_table[
-            field_name
-        ].values[i]
+    end_indices_flat = (
+        start_indices_flat +
+        sparse_grid_table[myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN].values - 1
+    )
+    data_values_flat = sparse_grid_table[field_name].values
 
     full_matrix = numpy.full(num_grid_rows * num_grid_columns, numpy.nan)
-    full_matrix[data_indices] = data_values
+
+    for i, j, k in zip(start_indices_flat, end_indices_flat, data_values_flat):
+        full_matrix[i:(j + 1)] = k
 
     return numpy.reshape(full_matrix, (num_grid_rows, num_grid_columns))
 
@@ -132,7 +103,7 @@ def sparse_to_full_grid(sparse_grid_table, metadata_dict, ignore_if_below=None):
     )
 
     full_matrix = _convert(
-        sparse_grid_table=sparse_grid_table,
+        sparse_grid_table=copy.deepcopy(sparse_grid_table),
         field_name=metadata_dict[radar_utils.FIELD_NAME_COLUMN],
         num_grid_rows=metadata_dict[radar_utils.NUM_LAT_COLUMN],
         num_grid_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN],
