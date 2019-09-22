@@ -40,9 +40,13 @@ TIME_INTERVAL_SECONDS = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 FORECAST_PROBABILITY_COLUMN = 'forecast_probability'
 
-PROBABILITY_BACKGROUND_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
-PROBABILITY_BACKGROUND_OPACITY = 0.75
-PROBABILITY_FONT_COLOUR = numpy.full(3, 0.)
+BOUNDING_BOX_DICT = {
+    'facecolor': numpy.full(3, 152. / 255),
+    'alpha': 0.75,
+    'edgecolor': 'black',
+    'linewidth': 2,
+    'boxstyle': 'round'
+}
 
 FONT_SIZE = 20
 FONT_COLOUR = numpy.full(3, 0.)
@@ -367,21 +371,11 @@ def _plot_one_example_one_time(
                 valid_time_unix_sec, TORNADO_TIME_FORMAT)
         )
 
-        bounding_box_dict = {
-            'facecolor': plotting_utils.colour_from_numpy_to_tuple(
-                PROBABILITY_BACKGROUND_COLOUR),
-            'alpha': PROBABILITY_BACKGROUND_OPACITY,
-            'edgecolor': 'k',
-            'linewidth': 1
-        }
-
         axes_object.text(
             this_longitude_deg, this_latitude_deg, label_string,
-            fontsize=FONT_SIZE,
-            color=plotting_utils.colour_from_numpy_to_tuple(
-                PROBABILITY_FONT_COLOUR),
-            fontweight='bold', bbox=bounding_box_dict,
-            horizontalalignment='center', verticalalignment='top', zorder=1e10)
+            fontsize=FONT_SIZE, color=FONT_COLOUR, fontweight='bold',
+            bbox=BOUNDING_BOX_DICT, zorder=1e10,
+            horizontalalignment='center', verticalalignment='top')
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
     tornado_longitudes_deg = tornado_table[
