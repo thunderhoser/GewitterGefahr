@@ -74,8 +74,7 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MAIN_ACTIVATION_FILE_HELP_STRING = (
     'Path to main activation file (to be read by `model_activation.read_file`),'
-    ' containing model predictions for one or more examples (storm objects).  '
-    'Each storm object in this file will be plotted.')
+    ' containing model predictions for one or more examples (storm objects).')
 
 EXAMPLE_INDEX_HELP_STRING = (
     'Will plot all examples in `{0:s}` from the [i]th to [j]th, where i = '
@@ -127,9 +126,6 @@ OUTPUT_DIR_HELP_STRING = (
 
 DEFAULT_TORNADO_DIR_NAME = (
     '/condo/swatwork/ralager/tornado_observations/processed')
-DEFAULT_TRACKING_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/new_tracks/'
-    'reanalyzed')
 DEFAULT_MYRORSS_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format')
 
@@ -155,8 +151,8 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_TORNADO_DIR_NAME, help=TORNADO_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TRACKING_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TRACKING_DIR_NAME, help=TRACKING_DIR_HELP_STRING)
+    '--' + TRACKING_DIR_ARG_NAME, type=str, required=True,
+    help=TRACKING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MYRORSS_DIR_ARG_NAME, type=str, required=False,

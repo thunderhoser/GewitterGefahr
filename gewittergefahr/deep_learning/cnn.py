@@ -17,6 +17,7 @@ C = number of radar field/height pairs
 """
 
 import copy
+import os.path
 import pickle
 import numpy
 import netCDF4
@@ -24,12 +25,10 @@ import keras.losses
 import keras.optimizers
 import keras.models
 import keras.callbacks
-from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import keras_metrics
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.gg_io import netcdf_io
-from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -366,34 +365,18 @@ def read_model_metadata(pickle_file_name):
     :return: metadata_dict: See doc for `write_model_metadata`.
     """
 
+    error_checking.assert_is_string(pickle_file_name)
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/condo/swatwork/ralager', '/glade/work/ryanlage')
+
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/glade/work/ryanlage', '/condo/swatwork/ralager')
+
     pickle_file_handle = open(pickle_file_name, 'rb')
     metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
-
-    if LAYER_OPERATIONS_KEY not in metadata_dict:
-        metadata_dict[LAYER_OPERATIONS_KEY] = None
-
-    if NUM_EX_PER_VALIDN_BATCH_KEY not in metadata_dict:
-        metadata_dict[NUM_EX_PER_VALIDN_BATCH_KEY] = metadata_dict[
-            TRAINING_OPTION_DICT_KEY
-        ][trainval_io.NUM_EXAMPLES_PER_BATCH_KEY]
-
-    if (trainval_io.SHUFFLE_TARGET_KEY not in
-            metadata_dict[TRAINING_OPTION_DICT_KEY]
-       ):
-        metadata_dict[TRAINING_OPTION_DICT_KEY][
-            trainval_io.SHUFFLE_TARGET_KEY
-        ] = False
-
-    if (trainval_io.UPSAMPLE_REFLECTIVITY_KEY not in
-            metadata_dict[TRAINING_OPTION_DICT_KEY]
-    ):
-        metadata_dict[TRAINING_OPTION_DICT_KEY][
-            trainval_io.UPSAMPLE_REFLECTIVITY_KEY
-        ] = False
-
-    if 'use_2d3d_convolution' in metadata_dict:
-        metadata_dict[CONV_2D3D_KEY] = metadata_dict['use_2d3d_convolution']
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
