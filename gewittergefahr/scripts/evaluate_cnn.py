@@ -149,6 +149,12 @@ def _compute_scores(
         best_prob_threshold, best_csi
     ))
 
+    num_examples_by_forecast_bin = model_eval.get_points_in_reliability_curve(
+        forecast_probabilities=forecast_probabilities[these_indices],
+        observed_labels=observed_labels[these_indices],
+        num_forecast_bins=model_eval.DEFAULT_NUM_RELIABILITY_BINS
+    )[-1]
+
     list_of_evaluation_tables = []
 
     for i in range(num_bootstrap_reps):
@@ -234,6 +240,7 @@ def _compute_scores(
         observed_labels=observed_labels,
         best_prob_threshold=best_prob_threshold,
         all_prob_thresholds=all_prob_thresholds,
+        num_examples_by_forecast_bin=num_examples_by_forecast_bin,
         evaluation_table=evaluation_table)
 
 

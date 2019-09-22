@@ -59,6 +59,7 @@ FORECAST_PROBABILITIES_KEY = 'forecast_probabilities'
 OBSERVED_LABELS_KEY = 'observed_labels'
 BEST_THRESHOLD_KEY = 'best_prob_threshold'
 ALL_THRESHOLDS_KEY = 'all_prob_thresholds'
+NUM_EXAMPLES_BY_BIN_KEY = 'num_examples_by_forecast_bin'
 POD_KEY = 'pod'
 POFD_KEY = 'pofd'
 SUCCESS_RATIO_KEY = 'success_ratio'
@@ -83,7 +84,7 @@ EVALUATION_TABLE_COLUMNS = [
 
 EVALUATION_DICT_KEYS = [
     FORECAST_PROBABILITIES_KEY, OBSERVED_LABELS_KEY, BEST_THRESHOLD_KEY,
-    ALL_THRESHOLDS_KEY, EVALUATION_TABLE_KEY
+    ALL_THRESHOLDS_KEY, NUM_EXAMPLES_BY_BIN_KEY, EVALUATION_TABLE_KEY
 ]
 
 MIN_BINARIZATION_THRESHOLD = 0.
@@ -1460,20 +1461,26 @@ def find_file(
 
 def write_evaluation(
         pickle_file_name, forecast_probabilities, observed_labels,
-        best_prob_threshold, all_prob_thresholds, evaluation_table):
+        best_prob_threshold, all_prob_thresholds, num_examples_by_forecast_bin,
+        evaluation_table):
     """Writes full evaluation (for binary classification) to Pickle file.
 
     E = number of examples
+    K = number of bins with respect to forecast probability
 
     :param pickle_file_name: Path to output file.
     :param forecast_probabilities: See doc for `run_evaluation`.
     :param observed_labels: Same.
     :param best_prob_threshold: Same.
     :param all_prob_thresholds: Same.
+    :param num_examples_by_forecast_bin: length-K numpy array with number of
+        examples in each bin.
     :param evaluation_table: See doc for `run_evaluation`.  The only
         difference is that this table may have multiple rows (one per bootstrap
         replicate).
     """
+
+    # TODO(thunderhoser): Might want to put downsampling info in this file.
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
 
@@ -1481,12 +1488,16 @@ def write_evaluation(
         forecast_probabilities=forecast_probabilities,
         observed_labels=observed_labels)
 
-    get_binarization_thresholds(threshold_arg=all_prob_thresholds)
-
     error_checking.assert_is_geq(
         best_prob_threshold, MIN_BINARIZATION_THRESHOLD)
     error_checking.assert_is_leq(
         best_prob_threshold, MAX_BINARIZATION_THRESHOLD)
+    get_binarization_thresholds(threshold_arg=all_prob_thresholds)
+
+    error_checking.assert_is_integer_numpy_array(num_examples_by_forecast_bin)
+    error_checking.assert_is_numpy_array(
+        num_examples_by_forecast_bin, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(num_examples_by_forecast_bin, 0)
 
     error_checking.assert_columns_in_dataframe(
         evaluation_table, EVALUATION_TABLE_COLUMNS)
@@ -1496,6 +1507,7 @@ def write_evaluation(
         OBSERVED_LABELS_KEY: observed_labels,
         BEST_THRESHOLD_KEY: best_prob_threshold,
         ALL_THRESHOLDS_KEY: all_prob_thresholds,
+        NUM_EXAMPLES_BY_BIN_KEY: num_examples_by_forecast_bin,
         EVALUATION_TABLE_KEY: evaluation_table
     }
 
@@ -1515,6 +1527,7 @@ def read_evaluation(pickle_file_name):
     evaluation_dict['observed_labels']: Same.
     evaluation_dict['best_prob_threshold']: Same.
     evaluation_dict['all_prob_thresholds']: Same.
+    evaluation_dict['num_examples_by_forecast_bin']: Same.
     evaluation_dict['evaluation_table']: Same.
     """
 
@@ -1551,6 +1564,7 @@ def combine_evaluation_files(input_file_names):
     evaluation_dict['observed_labels']: Same.
     evaluation_dict['best_prob_threshold']: Same.
     evaluation_dict['all_prob_thresholds']: Same.
+    evaluation_dict['num_examples_by_forecast_bin']: Same.
     evaluation_dict['evaluation_table']: Same.
     """
 
