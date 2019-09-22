@@ -25,10 +25,13 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import prediction_io
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 # TODO(thunderhoser): This file works for binary classification only.
 
 TOLERANCE = 1e-6
+DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
+
 MIN_PROB_FOR_XENTROPY = numpy.finfo(float).eps
 MAX_PROB_FOR_XENTROPY = 1. - numpy.finfo(float).eps
 
@@ -60,6 +63,9 @@ OBSERVED_LABELS_KEY = 'observed_labels'
 BEST_THRESHOLD_KEY = 'best_prob_threshold'
 ALL_THRESHOLDS_KEY = 'all_prob_thresholds'
 NUM_EXAMPLES_BY_BIN_KEY = 'num_examples_by_forecast_bin'
+DOWNSAMPLING_DICT_KEY = 'downsampling_dict'
+EVALUATION_TABLE_KEY = 'evaluation_table'
+
 POD_KEY = 'pod'
 POFD_KEY = 'pofd'
 SUCCESS_RATIO_KEY = 'success_ratio'
@@ -71,7 +77,6 @@ PEIRCE_SCORE_KEY = 'peirce_score'
 HEIDKE_SCORE_KEY = 'heidke_score'
 AUC_KEY = 'auc'
 AUPD_KEY = 'aupd'
-EVALUATION_TABLE_KEY = 'evaluation_table'
 
 EVALUATION_TABLE_COLUMNS = [
     NUM_TRUE_POSITIVES_KEY, NUM_FALSE_POSITIVES_KEY, NUM_FALSE_NEGATIVES_KEY,
@@ -84,7 +89,8 @@ EVALUATION_TABLE_COLUMNS = [
 
 EVALUATION_DICT_KEYS = [
     FORECAST_PROBABILITIES_KEY, OBSERVED_LABELS_KEY, BEST_THRESHOLD_KEY,
-    ALL_THRESHOLDS_KEY, NUM_EXAMPLES_BY_BIN_KEY, EVALUATION_TABLE_KEY
+    ALL_THRESHOLDS_KEY, NUM_EXAMPLES_BY_BIN_KEY, DOWNSAMPLING_DICT_KEY,
+    EVALUATION_TABLE_KEY
 ]
 
 MIN_BINARIZATION_THRESHOLD = 0.
@@ -1462,7 +1468,7 @@ def find_file(
 def write_evaluation(
         pickle_file_name, forecast_probabilities, observed_labels,
         best_prob_threshold, all_prob_thresholds, num_examples_by_forecast_bin,
-        evaluation_table):
+        evaluation_table, downsampling_dict=None):
     """Writes full evaluation (for binary classification) to Pickle file.
 
     E = number of examples
@@ -1478,9 +1484,10 @@ def write_evaluation(
     :param evaluation_table: See doc for `run_evaluation`.  The only
         difference is that this table may have multiple rows (one per bootstrap
         replicate).
+    :param downsampling_dict: Dictionary with downsampling fractions.  See doc
+        for `deep_learning_utils.sample_by_class`.  If downsampling was not
+        used, leave this as None.
     """
-
-    # TODO(thunderhoser): Might want to put downsampling info in this file.
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
 
@@ -1499,6 +1506,11 @@ def write_evaluation(
         num_examples_by_forecast_bin, num_dimensions=1)
     error_checking.assert_is_geq_numpy_array(num_examples_by_forecast_bin, 0)
 
+    if downsampling_dict is not None:
+        dl_utils.check_class_fractions(
+            sampling_fraction_by_class_dict=downsampling_dict,
+            target_name=DUMMY_TARGET_NAME)
+
     error_checking.assert_columns_in_dataframe(
         evaluation_table, EVALUATION_TABLE_COLUMNS)
 
@@ -1508,6 +1520,7 @@ def write_evaluation(
         BEST_THRESHOLD_KEY: best_prob_threshold,
         ALL_THRESHOLDS_KEY: all_prob_thresholds,
         NUM_EXAMPLES_BY_BIN_KEY: num_examples_by_forecast_bin,
+        DOWNSAMPLING_DICT_KEY: downsampling_dict,
         EVALUATION_TABLE_KEY: evaluation_table
     }
 
@@ -1528,6 +1541,7 @@ def read_evaluation(pickle_file_name):
     evaluation_dict['best_prob_threshold']: Same.
     evaluation_dict['all_prob_thresholds']: Same.
     evaluation_dict['num_examples_by_forecast_bin']: Same.
+    evaluation_dict['downsampling_dict']: Same.
     evaluation_dict['evaluation_table']: Same.
     """
 
@@ -1565,6 +1579,7 @@ def combine_evaluation_files(input_file_names):
     evaluation_dict['best_prob_threshold']: Same.
     evaluation_dict['all_prob_thresholds']: Same.
     evaluation_dict['num_examples_by_forecast_bin']: Same.
+    evaluation_dict['downsampling_dict']: Same.
     evaluation_dict['evaluation_table']: Same.
     """
 
@@ -1584,7 +1599,7 @@ def combine_evaluation_files(input_file_names):
             continue
 
         for this_key in evaluation_dict:
-            if this_key == EVALUATION_TABLE_KEY:
+            if this_key in [EVALUATION_TABLE_KEY, DOWNSAMPLING_DICT_KEY]:
                 continue
 
             if isinstance(evaluation_dict[this_key], numpy.ndarray):

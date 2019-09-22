@@ -241,7 +241,7 @@ def _compute_scores(
         best_prob_threshold=best_prob_threshold,
         all_prob_thresholds=all_prob_thresholds,
         num_examples_by_forecast_bin=num_examples_by_forecast_bin,
-        evaluation_table=evaluation_table)
+        downsampling_dict=downsampling_dict, evaluation_table=evaluation_table)
 
 
 def _run(prediction_file_name, best_prob_threshold, num_bootstrap_reps,
