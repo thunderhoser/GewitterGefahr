@@ -21,7 +21,6 @@ from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.plotting import plotting_utils
 
 # TODO(thunderhoser): Variable and method names are way too verbose.
 
@@ -73,6 +72,99 @@ pyplot.rc('xtick', labelsize=FONT_SIZE)
 pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
+
+
+def _colour_from_numpy_to_tuple(input_colour):
+    """Converts colour from numpy array to tuple (if necessary).
+
+    :param input_colour: Colour (possibly length-3 or length-4 numpy array).
+    :return: output_colour: Colour (possibly length-3 or length-4 tuple).
+    """
+
+    if not isinstance(input_colour, numpy.ndarray):
+        return input_colour
+
+    error_checking.assert_is_numpy_array(input_colour, num_dimensions=1)
+
+    num_entries = len(input_colour)
+    error_checking.assert_is_geq(num_entries, 3)
+    error_checking.assert_is_leq(num_entries, 4)
+
+    return tuple(input_colour.tolist())
+
+
+def _plot_colour_bar(
+        axes_object_or_matrix, data_matrix, colour_map_object,
+        colour_norm_object, orientation_string, padding=0.02,
+        extend_min=True, extend_max=True, fraction_of_axis_length=1.,
+        font_size=FONT_SIZE):
+    """Plots colour bar.
+
+    :param axes_object_or_matrix: Either one axis handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`) or a numpy array thereof.
+    :param data_matrix: numpy array of values to which the colour map applies.
+    :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm` or
+        similar).
+    :param colour_norm_object: Colour normalization (maps from data space to
+        colour-bar space, which goes from 0...1).  This should be an instance of
+        `matplotlib.colors.Normalize`.
+    :param orientation_string: Orientation ("vertical" or "horizontal").
+    :param padding: Padding between colour bar and main plot (in range 0...1).
+        To use the default (there are different defaults for vertical and horiz
+        colour bars), leave this alone.
+    :param extend_min: Boolean flag.  If True, values below the minimum
+        specified by `colour_norm_object` are possible, so the colour bar will
+        be plotted with an arrow at the bottom.
+    :param extend_max: Boolean flag.  If True, values above the max specified by
+        `colour_norm_object` are possible, so the colour bar will be plotted
+        with an arrow at the top.
+    :param fraction_of_axis_length: The colour bar will take up this fraction of
+        the axis length (x-axis if orientation_string = "horizontal", y-axis if
+        orientation_string = "vertical").
+    :param font_size: Font size for tick marks on colour bar.
+    :return: colour_bar_object: Colour-bar handle (instance of
+        `matplotlib.pyplot.colorbar`).
+    """
+
+    error_checking.assert_is_real_numpy_array(data_matrix)
+    error_checking.assert_is_real_number(padding)
+    error_checking.assert_is_boolean(extend_min)
+    error_checking.assert_is_boolean(extend_max)
+    error_checking.assert_is_greater(fraction_of_axis_length, 0.)
+    error_checking.assert_is_leq(fraction_of_axis_length, 1.)
+
+    scalar_mappable_object = pyplot.cm.ScalarMappable(
+        cmap=colour_map_object, norm=colour_norm_object
+    )
+    scalar_mappable_object.set_array(data_matrix)
+
+    if extend_min and extend_max:
+        extend_arg = 'both'
+    elif extend_min:
+        extend_arg = 'min'
+    elif extend_max:
+        extend_arg = 'max'
+    else:
+        extend_arg = 'neither'
+
+    if isinstance(axes_object_or_matrix, numpy.ndarray):
+        axes_arg = axes_object_or_matrix.ravel().tolist()
+    else:
+        axes_arg = axes_object_or_matrix
+
+    colour_bar_object = pyplot.colorbar(
+        ax=axes_arg, mappable=scalar_mappable_object,
+        orientation=orientation_string, pad=padding, extend=extend_arg,
+        shrink=fraction_of_axis_length)
+
+    colour_bar_object.ax.tick_params(labelsize=font_size)
+
+    if orientation_string == 'horizontal':
+        colour_bar_object.ax.set_xticklabels(
+            colour_bar_object.ax.get_xticklabels(), rotation=90
+        )
+
+    return colour_bar_object
 
 
 def _get_csi_colour_scheme():
@@ -219,8 +311,7 @@ def _plot_background_of_attributes_diagram(axes_object, climatology):
     ) = model_eval.get_skill_areas_in_reliability_curve(climatology)
 
     skill_area_colour = matplotlib.colors.to_rgba(
-        plotting_utils.colour_from_numpy_to_tuple(ZERO_BSS_COLOUR),
-        POSITIVE_BSS_OPACITY
+        _colour_from_numpy_to_tuple(ZERO_BSS_COLOUR), POSITIVE_BSS_OPACITY
     )
 
     left_polygon_object = polygons.vertex_arrays_to_polygon_object(
@@ -247,7 +338,7 @@ def _plot_background_of_attributes_diagram(axes_object, climatology):
 
     axes_object.plot(
         no_skill_x_coords, no_skill_y_coords,
-        color=plotting_utils.colour_from_numpy_to_tuple(ZERO_BSS_COLOUR),
+        color=_colour_from_numpy_to_tuple(ZERO_BSS_COLOUR),
         linestyle='solid', linewidth=ZERO_BSS_LINE_WIDTH
     )
 
@@ -257,7 +348,7 @@ def _plot_background_of_attributes_diagram(axes_object, climatology):
 
     axes_object.plot(
         climo_x_coords, climo_y_coords,
-        color=plotting_utils.colour_from_numpy_to_tuple(CLIMO_COLOUR),
+        color=_colour_from_numpy_to_tuple(CLIMO_COLOUR),
         linestyle='dashed', linewidth=CLIMO_LINE_WIDTH
     )
 
@@ -267,7 +358,7 @@ def _plot_background_of_attributes_diagram(axes_object, climatology):
 
     axes_object.plot(
         no_resolution_x_coords, no_resolution_y_coords,
-        color=plotting_utils.colour_from_numpy_to_tuple(CLIMO_COLOUR),
+        color=_colour_from_numpy_to_tuple(CLIMO_COLOUR),
         linestyle='dashed', linewidth=CLIMO_LINE_WIDTH
     )
 
@@ -306,8 +397,8 @@ def _plot_inset_histogram_for_attributes_diagram(
 
     inset_axes_object.bar(
         forecast_bin_centers, example_frequency_by_bin, forecast_bin_width,
-        color=plotting_utils.colour_from_numpy_to_tuple(BAR_FACE_COLOUR),
-        edgecolor=plotting_utils.colour_from_numpy_to_tuple(BAR_EDGE_COLOUR),
+        color=_colour_from_numpy_to_tuple(BAR_FACE_COLOUR),
+        edgecolor=_colour_from_numpy_to_tuple(BAR_EDGE_COLOUR),
         linewidth=BAR_EDGE_WIDTH
     )
 
@@ -370,7 +461,7 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold):
         cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
         vmax=1., axes=axes_object)
 
-    colour_bar_object = plotting_utils.plot_colour_bar(
+    colour_bar_object = _plot_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=peirce_score_matrix,
         colour_map_object=this_colour_map_object,
         colour_norm_object=this_colour_norm_object,
@@ -381,7 +472,7 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold):
     random_x_coords, random_y_coords = model_eval.get_random_roc_curve()
     axes_object.plot(
         random_x_coords, random_y_coords,
-        color=plotting_utils.colour_from_numpy_to_tuple(RANDOM_ROC_COLOUR),
+        color=_colour_from_numpy_to_tuple(RANDOM_ROC_COLOUR),
         linestyle='dashed', linewidth=RANDOM_ROC_WIDTH
     )
 
@@ -394,7 +485,7 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold):
 
         axes_object.plot(
             pofd_by_threshold[real_indices], pod_by_threshold[real_indices],
-            color=plotting_utils.colour_from_numpy_to_tuple(ROC_CURVE_COLOUR),
+            color=_colour_from_numpy_to_tuple(ROC_CURVE_COLOUR),
             linestyle='solid', linewidth=ROC_CURVE_WIDTH
         )
 
@@ -439,8 +530,7 @@ def plot_bootstrapped_roc_curve(
         return
 
     polygon_colour = matplotlib.colors.to_rgba(
-        plotting_utils.colour_from_numpy_to_tuple(ROC_CURVE_COLOUR),
-        POLYGON_OPACITY
+        _colour_from_numpy_to_tuple(ROC_CURVE_COLOUR), POLYGON_OPACITY
     )
 
     polygon_patch = PolygonPatch(
@@ -496,7 +586,7 @@ def plot_performance_diagram(
         cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
         vmax=1., axes=axes_object)
 
-    colour_bar_object = plotting_utils.plot_colour_bar(
+    colour_bar_object = _plot_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=csi_matrix,
         colour_map_object=this_colour_map_object,
         colour_norm_object=this_colour_norm_object,
@@ -504,9 +594,7 @@ def plot_performance_diagram(
 
     colour_bar_object.set_label('CSI (critical success index)')
 
-    bias_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
-        FREQ_BIAS_COLOUR)
-
+    bias_colour_tuple = _colour_from_numpy_to_tuple(FREQ_BIAS_COLOUR)
     bias_colours_2d_tuple = ()
     for _ in range(len(FREQ_BIAS_LEVELS)):
         bias_colours_2d_tuple += (bias_colour_tuple,)
@@ -530,8 +618,7 @@ def plot_performance_diagram(
         axes_object.plot(
             success_ratio_by_threshold[real_indices],
             pod_by_threshold[real_indices],
-            color=plotting_utils.colour_from_numpy_to_tuple(
-                PERF_DIAGRAM_COLOUR),
+            color=_colour_from_numpy_to_tuple(PERF_DIAGRAM_COLOUR),
             linestyle='solid', linewidth=PERF_DIAGRAM_WIDTH
         )
 
@@ -574,8 +661,7 @@ def plot_bootstrapped_performance_diagram(
         return
 
     polygon_colour = matplotlib.colors.to_rgba(
-        plotting_utils.colour_from_numpy_to_tuple(PERF_DIAGRAM_COLOUR),
-        POLYGON_OPACITY
+        _colour_from_numpy_to_tuple(PERF_DIAGRAM_COLOUR), POLYGON_OPACITY
     )
 
     polygon_patch = PolygonPatch(
@@ -620,7 +706,7 @@ def plot_reliability_curve(
 
     axes_object.plot(
         perfect_x_coords, perfect_y_coords,
-        color=plotting_utils.colour_from_numpy_to_tuple(PERFECT_RELIA_COLOUR),
+        color=_colour_from_numpy_to_tuple(PERFECT_RELIA_COLOUR),
         linestyle='dashed', linewidth=PERFECT_RELIA_WIDTH
     )
 
@@ -634,7 +720,7 @@ def plot_reliability_curve(
         axes_object.plot(
             mean_forecast_by_bin[real_indices],
             event_frequency_by_bin[real_indices],
-            color=plotting_utils.colour_from_numpy_to_tuple(RELIABILITY_COLOUR),
+            color=_colour_from_numpy_to_tuple(RELIABILITY_COLOUR),
             linestyle='solid', linewidth=RELIABILITY_WIDTH
         )
 
@@ -679,8 +765,7 @@ def plot_bootstrapped_reliability_curve(
         return
 
     polygon_colour = matplotlib.colors.to_rgba(
-        plotting_utils.colour_from_numpy_to_tuple(RELIABILITY_COLOUR),
-        POLYGON_OPACITY
+        _colour_from_numpy_to_tuple(RELIABILITY_COLOUR), POLYGON_OPACITY
     )
 
     polygon_patch = PolygonPatch(
@@ -769,8 +854,7 @@ def plot_bootstrapped_attributes_diagram(
         return
 
     polygon_colour = matplotlib.colors.to_rgba(
-        plotting_utils.colour_from_numpy_to_tuple(RELIABILITY_COLOUR),
-        POLYGON_OPACITY
+        _colour_from_numpy_to_tuple(RELIABILITY_COLOUR), POLYGON_OPACITY
     )
 
     polygon_patch = PolygonPatch(
