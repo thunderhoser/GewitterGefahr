@@ -55,8 +55,8 @@ BAR_FACE_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 BAR_EDGE_COLOUR = numpy.full(3, 0.)
 BAR_EDGE_WIDTH = 2.
 
-HISTOGRAM_LEFT_EDGE = 0.15
-HISTOGRAM_BOTTOM_EDGE = 0.6
+HISTOGRAM_LEFT_EDGE = 0.2
+HISTOGRAM_BOTTOM_EDGE = 0.575
 HISTOGRAM_AXES_WIDTH = 0.25
 HISTOGRAM_AXES_HEIGHT = 0.25
 HISTOGRAM_X_VALUES = numpy.linspace(0., 1., num=6)
@@ -323,6 +323,8 @@ def _plot_inset_histogram_for_attributes_diagram(
     pyplot.yticks(y_tick_values, axes=inset_axes_object)
     inset_axes_object.set_xlim(0., 1.)
     inset_axes_object.set_ylim(0., 1.05 * numpy.max(example_frequency_by_bin))
+
+    inset_axes_object.set_title('Forecast histogram', fontsize=20)
 
 
 def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold):
