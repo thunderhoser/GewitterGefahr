@@ -25,6 +25,10 @@ BOUNDING_BOX_DICT = {
     'boxstyle': 'round'
 }
 
+MARKER_TYPE = '*'
+MARKER_SIZE = 32
+MARKER_EDGE_WIDTH = 0
+
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -58,12 +62,14 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
+def _plot_roc_curve(evaluation_table, best_threshold_index, output_file_name,
+                    confidence_level=None):
     """Plots ROC curve.
 
     :param evaluation_table: See doc for
         `model_evaluation.run_evaluation`.  The only difference is that
         this table may have multiple rows (one per bootstrap replicate).
+    :param best_threshold_index: Array index of best probability threshold.
     :param output_file_name: Path to output file (figure will be saved here).
     :param confidence_level: Confidence level for bootstrapping.
     """
@@ -130,11 +136,25 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
         model_eval_plotting.plot_bootstrapped_roc_curve(
             axes_object=axes_object, ci_bottom_dict=ci_bottom_dict,
             ci_mean_dict=ci_mean_dict, ci_top_dict=ci_top_dict)
+
+        best_x = ci_mean_dict[model_eval.POFD_BY_THRESHOLD_KEY][
+            best_threshold_index]
+        best_y = ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][
+            best_threshold_index]
     else:
         model_eval_plotting.plot_roc_curve(
             axes_object=axes_object, pod_by_threshold=pod_matrix[0, :],
             pofd_by_threshold=pofd_matrix[0, :]
         )
+
+        best_x = pofd_matrix[0, best_threshold_index]
+        best_y = pod_matrix[0, best_threshold_index]
+
+    marker_colour = model_eval_plotting.ROC_CURVE_COLOUR
+    axes_object.plot(
+        best_x, best_y, linestyle='None', marker=MARKER_TYPE,
+        markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+        markerfacecolor=marker_colour, markeredgecolor=marker_colour)
 
     axes_object.text(
         0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
@@ -152,11 +172,13 @@ def _plot_roc_curve(evaluation_table, output_file_name, confidence_level=None):
     pyplot.close()
 
 
-def _plot_performance_diagram(evaluation_table, output_file_name,
-                              confidence_level=None):
+def _plot_performance_diagram(
+        evaluation_table, best_threshold_index, output_file_name,
+        confidence_level=None):
     """Plots performance diagram.
 
     :param evaluation_table: See doc for `_plot_roc_curve`.
+    :param best_threshold_index: Array index of best probability threshold.
     :param output_file_name: Same.
     :param confidence_level: Same.
     """
@@ -224,11 +246,25 @@ def _plot_performance_diagram(evaluation_table, output_file_name,
         model_eval_plotting.plot_bootstrapped_performance_diagram(
             axes_object=axes_object, ci_bottom_dict=ci_bottom_dict,
             ci_mean_dict=ci_mean_dict, ci_top_dict=ci_top_dict)
+
+        best_x = ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY][
+            best_threshold_index]
+        best_y = ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][
+            best_threshold_index]
     else:
         model_eval_plotting.plot_performance_diagram(
             axes_object=axes_object, pod_by_threshold=pod_matrix[0, :],
             success_ratio_by_threshold=success_ratio_matrix[0, :]
         )
+
+        best_x = success_ratio_matrix[0, best_threshold_index]
+        best_y = pod_matrix[0, best_threshold_index]
+
+    marker_colour = model_eval_plotting.PERF_DIAGRAM_COLOUR
+    axes_object.plot(
+        best_x, best_y, linestyle='None', marker=MARKER_TYPE,
+        markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+        markerfacecolor=marker_colour, markeredgecolor=marker_colour)
 
     axes_object.text(
         0.98, 0.98, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
@@ -367,13 +403,20 @@ def _run(evaluation_file_name, confidence_level, output_dir_name):
     num_examples_by_forecast_bin = evaluation_dict[
         model_eval.NUM_EXAMPLES_BY_BIN_KEY]
 
+    best_threshold_index = numpy.argmin(numpy.absolute(
+        evaluation_dict[model_eval.BEST_THRESHOLD_KEY] -
+        evaluation_dict[model_eval.ALL_THRESHOLDS_KEY]
+    ))
+
     _plot_roc_curve(
         evaluation_table=evaluation_table,
+        best_threshold_index=best_threshold_index,
         output_file_name='{0:s}/roc_curve.jpg'.format(output_dir_name),
         confidence_level=confidence_level)
 
     _plot_performance_diagram(
         evaluation_table=evaluation_table,
+        best_threshold_index=best_threshold_index,
         output_file_name='{0:s}/performance_diagram.jpg'.format(
             output_dir_name),
         confidence_level=confidence_level)
