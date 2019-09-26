@@ -224,10 +224,19 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         for j in range(num_l2_weights):
             for k in range(num_dense_layer_counts):
                 for m in range(num_data_aug_flags):
+                    # this_eval_file_name = (
+                    #     '{0:s}/dropout={1:.3f}_l2={2:.6f}_'
+                    #     'num-dense-layers={3:d}_data-aug={4:d}/validation/'
+                    #     'evaluation_results.p'
+                    # ).format(
+                    #     top_input_dir_name, DROPOUT_RATES[i], L2_WEIGHTS[j],
+                    #     DENSE_LAYER_COUNTS[k], int(DATA_AUGMENTATION_FLAGS[m])
+                    # )
+
                     this_eval_file_name = (
                         '{0:s}/dropout={1:.3f}_l2={2:.6f}_'
                         'num-dense-layers={3:d}_data-aug={4:d}/validation/'
-                        'evaluation_results.p'
+                        'model_evaluation_2015-01-01-120000_2019-01-01-115959.p'
                     ).format(
                         top_input_dir_name, DROPOUT_RATES[i], L2_WEIGHTS[j],
                         DENSE_LAYER_COUNTS[k], int(DATA_AUGMENTATION_FLAGS[m])
