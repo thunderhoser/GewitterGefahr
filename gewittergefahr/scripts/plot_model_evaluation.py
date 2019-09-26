@@ -150,6 +150,12 @@ def _plot_roc_curve(evaluation_table, best_threshold_index, output_file_name,
         best_x = pofd_matrix[0, best_threshold_index]
         best_y = pod_matrix[0, best_threshold_index]
 
+    print((
+        'POD and POFD at best probability threshold = {0:.3f}, {1:.3f}'
+    ).format(
+        best_y, best_x
+    ))
+
     marker_colour = model_eval_plotting.ROC_CURVE_COLOUR
     axes_object.plot(
         best_x, best_y, linestyle='None', marker=MARKER_TYPE,
@@ -259,6 +265,12 @@ def _plot_performance_diagram(
 
         best_x = success_ratio_matrix[0, best_threshold_index]
         best_y = pod_matrix[0, best_threshold_index]
+
+    print((
+        'POD and success ratio at best probability threshold = {0:.3f}, {1:.3f}'
+    ).format(
+        best_y, best_x
+    ))
 
     marker_colour = model_eval_plotting.PERF_DIAGRAM_COLOUR
     axes_object.plot(
