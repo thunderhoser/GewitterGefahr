@@ -1,4 +1,4 @@
-"""Plots saliency maps for a CNN (convolutional neural network)."""
+"""Plots saliency maps."""
 
 import os
 import argparse
@@ -7,7 +7,6 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import soundings
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -30,24 +29,20 @@ FIGURE_RESOLUTION_DPI = 300
 SOUNDING_IMAGE_SIZE_PX = int(1e7)
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
-PLOT_SOUNDINGS_ARG_NAME = 'plot_soundings'
-ALLOW_WHITESPACE_ARG_NAME = 'allow_whitespace'
 PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
+PLOT_SOUNDINGS_ARG_NAME = plot_input_examples.PLOT_SOUNDINGS_ARG_NAME
+ALLOW_WHITESPACE_ARG_NAME = plot_input_examples.ALLOW_WHITESPACE_ARG_NAME
+PLOT_PANEL_NAMES_ARG_NAME = plot_input_examples.PLOT_PANEL_NAMES_ARG_NAME
+ADD_TITLES_ARG_NAME = plot_input_examples.ADD_TITLES_ARG_NAME
+LABEL_CBARS_ARG_NAME = plot_input_examples.LABEL_CBARS_ARG_NAME
+
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `saliency_maps.read_standard_file` or'
     ' `saliency_maps.read_pmm_file`.')
-
-PLOT_SOUNDINGS_HELP_STRING = (
-    'Boolean flag.  If 1, will plot saliency for soundings and radar scans.  '
-    'If 0, only for radar scans.')
-
-ALLOW_WHITESPACE_HELP_STRING = (
-    'Boolean flag.  If 0, will plot with no whitespace between panels or around'
-    ' outside of image.')
 
 PLOT_SIGNIFICANCE_HELP_STRING = (
     'Boolean flag.  If 1, will plot stippling for significance.  This applies '
@@ -69,10 +64,32 @@ MAX_PERCENTILE_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  Figures will be saved here.')
 
+PLOT_SOUNDINGS_HELP_STRING = plot_input_examples.PLOT_SOUNDINGS_HELP_STRING
+ALLOW_WHITESPACE_HELP_STRING = plot_input_examples.ALLOW_WHITESPACE_HELP_STRING
+PLOT_PANEL_NAMES_HELP_STRING = plot_input_examples.PLOT_PANEL_NAMES_HELP_STRING
+ADD_TITLES_HELP_STRING = plot_input_examples.ADD_TITLES_HELP_STRING
+LABEL_CBARS_HELP_STRING = plot_input_examples.LABEL_CBARS_HELP_STRING
+
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
     help=INPUT_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_SIGNIFICANCE_ARG_NAME, type=int, required=False, default=0,
+    help=PLOT_SIGNIFICANCE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='binary',
+    help=COLOUR_MAP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
+    default=99., help=MAX_PERCENTILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_SOUNDINGS_ARG_NAME, type=int, required=False, default=1,
@@ -83,20 +100,16 @@ INPUT_ARG_PARSER.add_argument(
     help=ALLOW_WHITESPACE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + PLOT_SIGNIFICANCE_ARG_NAME, type=int, required=False, default=0,
-    help=PLOT_SIGNIFICANCE_HELP_STRING)
+    '--' + PLOT_PANEL_NAMES_ARG_NAME, type=int, required=False, default=1,
+    help=PLOT_PANEL_NAMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='Greys',
-    help=COLOUR_MAP_HELP_STRING)
+    '--' + ADD_TITLES_ARG_NAME, type=int, required=False, default=1,
+    help=ADD_TITLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
-    default=99., help=MAX_PERCENTILE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    '--' + LABEL_CBARS_ARG_NAME, type=int, required=False, default=0,
+    help=LABEL_CBARS_HELP_STRING)
 
 
 def _plot_3d_radar_saliency(
@@ -161,12 +174,13 @@ def _plot_3d_radar_saliency(
         this_title_object = figure_objects[j]._suptitle
 
         if this_title_object is not None:
-            this_title_string = '{0:s} (max abs saliency = {1:.2e})'.format(
-                this_title_object.get_text(), max_colour_value
-            )
+            this_title_string = (
+                '{0:s} ... max absolute saliency = {1:.2e}'
+            ).format(this_title_object.get_text(), max_colour_value)
 
             figure_objects[j].suptitle(
-                this_title_string, fontsize=plot_input_examples.TITLE_FONT_SIZE)
+                this_title_string,
+                fontsize=plot_input_examples.DEFAULT_TITLE_FONT_SIZE)
 
         this_file_name = plot_input_examples.metadata_to_file_name(
             output_dir_name=output_dir_name, is_sounding=False,
@@ -241,12 +255,13 @@ def _plot_2d_radar_saliency(
     this_title_object = figure_objects[figure_index]._suptitle
 
     if this_title_object is not None:
-        this_title_string = '{0:s} (max abs saliency = {1:.2e})'.format(
+        this_title_string = '{0:s} ... max absolute saliency = {1:.2e}'.format(
             this_title_object.get_text(), max_colour_value
         )
 
         figure_objects[figure_index].suptitle(
-            this_title_string, fontsize=plot_input_examples.TITLE_FONT_SIZE)
+            this_title_string,
+            fontsize=plot_input_examples.DEFAULT_TITLE_FONT_SIZE)
 
     output_file_name = plot_input_examples.metadata_to_file_name(
         output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
@@ -264,8 +279,8 @@ def _plot_2d_radar_saliency(
 
 def _plot_sounding_saliency(
         saliency_matrix, colour_map_object, max_colour_value, sounding_matrix,
-        saliency_dict, model_metadata_dict, output_dir_name, pmm_flag,
-        example_index=None):
+        saliency_dict, model_metadata_dict, add_title, output_dir_name,
+        pmm_flag, example_index=None):
     """Plots saliency for sounding.
 
     H = number of sounding heights
@@ -282,6 +297,7 @@ def _plot_sounding_saliency(
         `saliency_maps.read_standard_file` or `saliency_maps.read_pmm_file`.
     :param model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
+    :param add_title: Boolean flag.
     :param output_dir_name: Path to output directory.  Figure will be saved
         here.
     :param pmm_flag: Boolean flag.  If True, will plot composite rather than one
@@ -324,18 +340,17 @@ def _plot_sounding_saliency(
     if pmm_flag:
         full_storm_id_string = None
         storm_time_unix_sec = None
-        title_string = 'PMM composite'
     else:
         full_storm_id_string = saliency_dict[saliency_maps.FULL_IDS_KEY][
             example_index]
         storm_time_unix_sec = saliency_dict[saliency_maps.STORM_TIMES_KEY][
             example_index]
 
-        title_string = 'Storm "{0:s}" at {1:s}'.format(
-            full_storm_id_string,
-            time_conversion.unix_sec_to_string(
-                storm_time_unix_sec, plot_input_examples.TIME_FORMAT)
-        )
+    if add_title:
+        title_string = 'Max absolute saliency = {0:.2e}'.format(
+            max_colour_value)
+    else:
+        title_string = None
 
     sounding_plotting.plot_sounding(
         sounding_dict_for_metpy=sounding_dict_for_metpy,
@@ -396,18 +411,22 @@ def _plot_sounding_saliency(
     os.remove(right_panel_file_name)
 
 
-def _run(input_file_name, plot_soundings, allow_whitespace, plot_significance,
-         colour_map_name, max_colour_percentile, output_dir_name):
-    """Plots saliency maps for a CNN (convolutional neural network).
+def _run(input_file_name, plot_significance, colour_map_name,
+         max_colour_percentile, plot_soundings, allow_whitespace,
+         plot_panel_names, add_titles, label_colour_bars, output_dir_name):
+    """Plots saliency maps.
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
-    :param plot_soundings: Same.
-    :param allow_whitespace: Same.
     :param plot_significance: Same.
     :param colour_map_name: Same.
     :param max_colour_percentile: Same.
+    :param plot_soundings: Same.
+    :param allow_whitespace: Same.
+    :param plot_panel_names: Same.
+    :param add_titles: Same.
+    :param label_colour_bars: Same.
     :param output_dir_name: Same.
     """
 
@@ -494,17 +513,16 @@ def _run(input_file_name, plot_soundings, allow_whitespace, plot_significance,
                 sounding_matrix=list_of_input_matrices[-1][i, ...],
                 saliency_dict=saliency_dict,
                 model_metadata_dict=model_metadata_dict,
-                output_dir_name=output_dir_name,
+                add_title=add_titles, output_dir_name=output_dir_name,
                 pmm_flag=pmm_flag, example_index=i)
 
         this_handle_dict = plot_input_examples.plot_one_example(
             list_of_predictor_matrices=list_of_input_matrices,
-            model_metadata_dict=model_metadata_dict, plot_sounding=False,
+            model_metadata_dict=model_metadata_dict, pmm_flag=pmm_flag,
+            example_index=i, plot_sounding=False,
             allow_whitespace=allow_whitespace,
-            pmm_flag=pmm_flag, example_index=i,
-            full_storm_id_string=full_storm_id_strings[i],
-            storm_time_unix_sec=storm_times_unix_sec[i]
-        )
+            plot_panel_names=plot_panel_names, add_titles=add_titles,
+            label_colour_bars=label_colour_bars)
 
         these_figure_objects = this_handle_dict[
             plot_input_examples.RADAR_FIGURES_KEY]
@@ -559,17 +577,22 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
-        plot_soundings=bool(getattr(
-            INPUT_ARG_OBJECT, PLOT_SOUNDINGS_ARG_NAME
-        )),
-        allow_whitespace=bool(getattr(
-            INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
-        )),
         plot_significance=bool(getattr(
             INPUT_ARG_OBJECT, PLOT_SIGNIFICANCE_ARG_NAME
         )),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
+        plot_soundings=bool(getattr(INPUT_ARG_OBJECT, PLOT_SOUNDINGS_ARG_NAME)),
+        allow_whitespace=bool(getattr(
+            INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
+        )),
+        plot_panel_names=bool(getattr(
+            INPUT_ARG_OBJECT, PLOT_PANEL_NAMES_ARG_NAME
+        )),
+        add_titles=bool(getattr(INPUT_ARG_OBJECT, ADD_TITLES_ARG_NAME)),
+        label_colour_bars=bool(getattr(
+            INPUT_ARG_OBJECT, LABEL_CBARS_ARG_NAME
+        )),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
