@@ -48,6 +48,7 @@ COLOUR_BAR_LENGTH = 0.8
 DEFAULT_FONT_SIZE = 45
 TITLE_FONT_SIZE = 45
 COLOUR_BAR_FONT_SIZE = 45
+SOUNDING_FONT_SIZE = 45
 PANEL_LETTER_FONT_SIZE = 75
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
@@ -305,7 +306,8 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             example_index=0, plot_sounding=j == 0, allow_whitespace=True,
             plot_panel_names=False, add_titles=False, label_colour_bars=False,
             colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
-            colour_bar_length=COLOUR_BAR_LENGTH)
+            colour_bar_length=COLOUR_BAR_LENGTH,
+            sounding_font_size=SOUNDING_FONT_SIZE)
 
         if j == 0:
             this_axes_object = this_handle_dict[plot_examples.SOUNDING_AXES_KEY]
