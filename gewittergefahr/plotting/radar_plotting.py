@@ -24,7 +24,7 @@ DEFAULT_FONT_SIZE = 20
 
 TEXT_BOUNDING_BOX_DICT = {
     'facecolor': 'white',
-    'alpha': 0.5,
+    'alpha': 0.7,
     'edgecolor': 'black',
     'linewidth': 2,
     'boxstyle': 'round'
