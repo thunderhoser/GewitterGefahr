@@ -284,12 +284,15 @@ def _plot_3d_radar_scan(
 
     num_radar_fields = len(radar_field_names)
     num_radar_heights = len(radar_heights_m_agl)
-    num_panel_rows = int(numpy.floor(
-        numpy.sqrt(num_radar_heights)
-    ))
-    num_panel_columns = int(numpy.ceil(
-        float(num_radar_heights) / num_panel_rows
-    ))
+    num_panel_rows = num_radar_heights
+    num_panel_columns = 1
+
+    # num_panel_rows = int(numpy.floor(
+    #     numpy.sqrt(num_radar_heights)
+    # ))
+    # num_panel_columns = int(numpy.ceil(
+    #     float(num_radar_heights) / num_panel_rows
+    # ))
 
     figure_objects = [None] * num_radar_fields
     axes_object_matrices = [None] * num_radar_fields
