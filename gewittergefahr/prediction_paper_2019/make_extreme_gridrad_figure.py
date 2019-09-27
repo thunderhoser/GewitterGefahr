@@ -155,7 +155,7 @@ def _run(composite_file_names, composite_names, output_dir_name):
             model_metadata_dict=model_metadata_dict, pmm_flag=True,
             plot_sounding=True, allow_whitespace=True, plot_panel_names=True,
             panel_name_font_size=45,
-            add_titles=False, label_colour_bars=True, colour_bar_length=0.8,
+            add_titles=False, label_colour_bars=True, colour_bar_length=0.25,
             colour_bar_font_size=45, sounding_font_size=45)
 
         sounding_figure_object = handle_dict[
