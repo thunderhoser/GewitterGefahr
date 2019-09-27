@@ -1,4 +1,4 @@
-"""Plots upconvnet reconstructions of many examples (storm objects)."""
+"""Plots upconvnet reconstruction of one or more examples (storm objects)."""
 
 import os.path
 import argparse
@@ -18,6 +18,10 @@ STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
+ALLOW_WHITESPACE_ARG_NAME = plot_input_examples.ALLOW_WHITESPACE_ARG_NAME
+PLOT_PANEL_NAMES_ARG_NAME = plot_input_examples.PLOT_PANEL_NAMES_ARG_NAME
+ADD_TITLES_ARG_NAME = plot_input_examples.ADD_TITLES_ARG_NAME
+LABEL_CBARS_ARG_NAME = plot_input_examples.LABEL_CBARS_ARG_NAME
 
 UPCONVNET_FILE_HELP_STRING = (
     'Path to file with trained upconvnet (will be read by `cnn.read_model`).')
@@ -40,6 +44,11 @@ EXAMPLE_DIR_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Figures will be saved here.')
 
+ALLOW_WHITESPACE_HELP_STRING = plot_input_examples.ALLOW_WHITESPACE_HELP_STRING
+PLOT_PANEL_NAMES_HELP_STRING = plot_input_examples.PLOT_PANEL_NAMES_HELP_STRING
+ADD_TITLES_HELP_STRING = plot_input_examples.ADD_TITLES_HELP_STRING
+LABEL_CBARS_HELP_STRING = plot_input_examples.LABEL_CBARS_HELP_STRING
+
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + UPCONVNET_FILE_ARG_NAME, type=str, required=True,
@@ -61,10 +70,27 @@ INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
+INPUT_ARG_PARSER.add_argument(
+    '--' + ALLOW_WHITESPACE_ARG_NAME, type=int, required=False, default=1,
+    help=ALLOW_WHITESPACE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_PANEL_NAMES_ARG_NAME, type=int, required=False, default=1,
+    help=PLOT_PANEL_NAMES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + ADD_TITLES_ARG_NAME, type=int, required=False, default=1,
+    help=ADD_TITLES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + LABEL_CBARS_ARG_NAME, type=int, required=False, default=0,
+    help=LABEL_CBARS_HELP_STRING)
+
 
 def _run(upconvnet_file_name, storm_metafile_name, num_examples,
-         top_example_dir_name, top_output_dir_name):
-    """Plots upconvnet reconstructions of many examples (storm objects).
+         top_example_dir_name, allow_whitespace, plot_panel_names, add_titles,
+         label_colour_bars, top_output_dir_name):
+    """Plots upconvnet reconstruction of one or more examples (storm objects).
 
     This is effectively the main method.
 
@@ -72,11 +98,16 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     :param storm_metafile_name: Same.
     :param num_examples: Same.
     :param top_example_dir_name: Same.
+    :param allow_whitespace: Same.
+    :param plot_panel_names: Same.
+    :param add_titles: Same.
+    :param label_colour_bars: Same.
     :param top_output_dir_name: Same.
     """
 
     print('Reading trained upconvnet from: "{0:s}"...'.format(
-        upconvnet_file_name))
+        upconvnet_file_name
+    ))
 
     upconvnet_model_object = cnn.read_model(upconvnet_file_name)
     upconvnet_metafile_name = '{0:s}/model_metadata.p'.format(
@@ -84,7 +115,8 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     )
 
     print('Reading upconvnet metadata from: "{0:s}"...'.format(
-        upconvnet_metafile_name))
+        upconvnet_metafile_name
+    ))
 
     upconvnet_metadata_dict = upconvnet.read_model_metadata(
         upconvnet_metafile_name)
@@ -101,18 +133,19 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     print('Reading storm IDs and times from: "{0:s}"...'.format(
-        storm_metafile_name))
+        storm_metafile_name
+    ))
 
-    full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
+    full_storm_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
         storm_metafile_name)
 
-    if 0 < num_examples < len(full_id_strings):
-        full_id_strings = full_id_strings[:num_examples]
+    if 0 < num_examples < len(full_storm_id_strings):
+        full_storm_id_strings = full_storm_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
     print(SEPARATOR_STRING)
     list_of_predictor_matrices = testing_io.read_specific_examples(
-        desired_full_id_strings=full_id_strings,
+        desired_full_id_strings=full_storm_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
         top_example_dir_name=top_example_dir_name,
@@ -165,10 +198,12 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
 
     plot_input_examples.plot_examples(
         list_of_predictor_matrices=[actual_radar_matrix],
-        full_id_strings=full_id_strings,
-        storm_times_unix_sec=storm_times_unix_sec,
-        model_metadata_dict=cnn_metadata_dict,
-        output_dir_name=actual_output_dir_name)
+        model_metadata_dict=cnn_metadata_dict, pmm_flag=False,
+        output_dir_name=actual_output_dir_name, plot_soundings=False,
+        allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
+        add_titles=add_titles, label_colour_bars=label_colour_bars,
+        full_storm_id_strings=full_storm_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec)
     print(SEPARATOR_STRING)
 
     reconstructed_output_dir_name = '{0:s}/reconstructed_images'.format(
@@ -178,10 +213,12 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
 
     plot_input_examples.plot_examples(
         list_of_predictor_matrices=[reconstructed_radar_matrix],
-        full_id_strings=full_id_strings,
-        storm_times_unix_sec=storm_times_unix_sec,
-        model_metadata_dict=cnn_metadata_dict,
-        output_dir_name=reconstructed_output_dir_name)
+        model_metadata_dict=cnn_metadata_dict, pmm_flag=False,
+        output_dir_name=reconstructed_output_dir_name, plot_soundings=False,
+        allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
+        add_titles=add_titles, label_colour_bars=label_colour_bars,
+        full_storm_id_strings=full_storm_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec)
 
 
 if __name__ == '__main__':
@@ -193,5 +230,15 @@ if __name__ == '__main__':
         storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
+        allow_whitespace=bool(getattr(
+            INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
+        )),
+        plot_panel_names=bool(getattr(
+            INPUT_ARG_OBJECT, PLOT_PANEL_NAMES_ARG_NAME
+        )),
+        add_titles=bool(getattr(INPUT_ARG_OBJECT, ADD_TITLES_ARG_NAME)),
+        label_colour_bars=bool(getattr(
+            INPUT_ARG_OBJECT, LABEL_CBARS_ARG_NAME
+        )),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

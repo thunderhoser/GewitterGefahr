@@ -225,9 +225,9 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
 
         this_handle_dict = plot_examples.plot_one_example(
             list_of_predictor_matrices=these_predictor_matrices,
-            model_metadata_dict=this_metadata_dict, plot_sounding=False,
-            allow_whitespace=True, pmm_flag=False, example_index=0,
-            full_storm_id_string='A', storm_time_unix_sec=0)
+            model_metadata_dict=this_metadata_dict, pmm_flag=False,
+            example_index=0, plot_sounding=False, allow_whitespace=True,
+            plot_panel_names=False, add_titles=False, label_colour_bars=False)
 
         this_title_string = (
             radar_plotting.radar_fields_and_heights_to_panel_names(
@@ -296,9 +296,9 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
 
         this_handle_dict = plot_examples.plot_one_example(
             list_of_predictor_matrices=these_predictor_matrices,
-            model_metadata_dict=this_metadata_dict, plot_sounding=j == 0,
-            allow_whitespace=True, pmm_flag=False, example_index=0,
-            full_storm_id_string='A', storm_time_unix_sec=0)
+            model_metadata_dict=this_metadata_dict, pmm_flag=False,
+            example_index=0, plot_sounding=j == 0, allow_whitespace=True,
+            plot_panel_names=False, add_titles=False, label_colour_bars=False)
 
         if j == 0:
             this_axes_object = this_handle_dict[plot_examples.SOUNDING_AXES_KEY]

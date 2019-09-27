@@ -6,7 +6,6 @@ from gewittergefahr.scripts import plot_input_examples
 
 FIGURE_DIR_NAME = 'figures'
 FULL_STORM_ID_STRING = 'foo_bar'
-STORM_TIME_STRING = '2019-06-11-235747'
 STORM_TIME_UNIX_SEC = 1560297467
 
 FIRST_RADAR_FIELD_NAME = None
@@ -77,7 +76,7 @@ FOURTH_METADATA_DICT = {
 
 
 def _compare_metadata_dicts(first_dict, second_dict):
-    """Compares dictionaries created by `radar_fig_file_name_to_metadata`.
+    """Compares dictionaries created by `file_name_to_metadata`.
 
     :param first_dict: First dictionary.
     :param second_dict: Second dictionary.
@@ -108,124 +107,120 @@ def _compare_metadata_dicts(first_dict, second_dict):
 class PlotInputExamplesTests(unittest.TestCase):
     """Each method is a unit test for plot_input_examples.py."""
 
-    def test_metadata_to_radar_fig_file_name_first(self):
-        """Ensures correct output from metadata_to_radar_fig_file_name.
+    def test_metadata_to_file_name_first(self):
+        """Ensures correct output from metadata_to_file_name.
 
         In this case, using first set of metadata.
         """
 
-        this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
-            output_dir_name=FIGURE_DIR_NAME,
+        this_file_name = plot_input_examples.metadata_to_file_name(
+            output_dir_name=FIGURE_DIR_NAME, is_sounding=False, pmm_flag=False,
             full_storm_id_string=FULL_STORM_ID_STRING,
-            storm_time_string=STORM_TIME_STRING,
+            storm_time_unix_sec=STORM_TIME_UNIX_SEC,
             radar_field_name=FIRST_RADAR_FIELD_NAME,
             radar_height_m_agl=FIRST_RADAR_HEIGHT_M_AGL,
             layer_operation_dict=FIRST_LAYER_OPERATION_DICT)
 
         self.assertTrue(this_file_name == FIRST_FIGURE_FILE_NAME)
 
-    def test_radar_fig_file_name_to_metadata_first(self):
-        """Ensures correct output from radar_fig_file_name_to_metadata.
+    def test_file_name_to_metadata_first(self):
+        """Ensures correct output from file_name_to_metadata.
 
         In this case, using first file name.
         """
 
         this_metadata_dict = (
-            plot_input_examples.radar_fig_file_name_to_metadata(
-                FIRST_FIGURE_FILE_NAME)
+            plot_input_examples.file_name_to_metadata(FIRST_FIGURE_FILE_NAME)
         )
 
         self.assertTrue(_compare_metadata_dicts(
             this_metadata_dict, FIRST_METADATA_DICT
         ))
 
-    def test_metadata_to_radar_fig_file_name_second(self):
-        """Ensures correct output from metadata_to_radar_fig_file_name.
+    def test_metadata_to_file_name_second(self):
+        """Ensures correct output from metadata_to_file_name.
 
         In this case, using second set of metadata.
         """
 
-        this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
-            output_dir_name=FIGURE_DIR_NAME,
+        this_file_name = plot_input_examples.metadata_to_file_name(
+            output_dir_name=FIGURE_DIR_NAME, is_sounding=False, pmm_flag=False,
             full_storm_id_string=FULL_STORM_ID_STRING,
-            storm_time_string=STORM_TIME_STRING,
+            storm_time_unix_sec=STORM_TIME_UNIX_SEC,
             radar_field_name=SECOND_RADAR_FIELD_NAME,
             radar_height_m_agl=SECOND_RADAR_HEIGHT_M_AGL,
             layer_operation_dict=SECOND_LAYER_OPERATION_DICT)
 
         self.assertTrue(this_file_name == SECOND_FIGURE_FILE_NAME)
 
-    def test_radar_fig_file_name_to_metadata_second(self):
-        """Ensures correct output from radar_fig_file_name_to_metadata.
+    def test_file_name_to_metadata_second(self):
+        """Ensures correct output from file_name_to_metadata.
 
         In this case, using second file name.
         """
 
         this_metadata_dict = (
-            plot_input_examples.radar_fig_file_name_to_metadata(
-                SECOND_FIGURE_FILE_NAME)
+            plot_input_examples.file_name_to_metadata(SECOND_FIGURE_FILE_NAME)
         )
 
         self.assertTrue(_compare_metadata_dicts(
             this_metadata_dict, SECOND_METADATA_DICT
         ))
 
-    def test_metadata_to_radar_fig_file_name_third(self):
-        """Ensures correct output from metadata_to_radar_fig_file_name.
+    def test_metadata_to_file_name_third(self):
+        """Ensures correct output from metadata_to_file_name.
 
         In this case, using third set of metadata.
         """
 
-        this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
-            output_dir_name=FIGURE_DIR_NAME,
+        this_file_name = plot_input_examples.metadata_to_file_name(
+            output_dir_name=FIGURE_DIR_NAME, is_sounding=False, pmm_flag=False,
             full_storm_id_string=FULL_STORM_ID_STRING,
-            storm_time_string=STORM_TIME_STRING,
+            storm_time_unix_sec=STORM_TIME_UNIX_SEC,
             radar_field_name=THIRD_RADAR_FIELD_NAME,
             radar_height_m_agl=THIRD_RADAR_HEIGHT_M_AGL,
             layer_operation_dict=THIRD_LAYER_OPERATION_DICT)
 
         self.assertTrue(this_file_name == THIRD_FIGURE_FILE_NAME)
 
-    def test_radar_fig_file_name_to_metadata_third(self):
-        """Ensures correct output from radar_fig_file_name_to_metadata.
+    def test_file_name_to_metadata_third(self):
+        """Ensures correct output from file_name_to_metadata.
 
         In this case, using third file name.
         """
 
         this_metadata_dict = (
-            plot_input_examples.radar_fig_file_name_to_metadata(
-                THIRD_FIGURE_FILE_NAME)
+            plot_input_examples.file_name_to_metadata(THIRD_FIGURE_FILE_NAME)
         )
 
         self.assertTrue(_compare_metadata_dicts(
             this_metadata_dict, THIRD_METADATA_DICT
         ))
 
-    def test_metadata_to_radar_fig_file_name_fourth(self):
-        """Ensures correct output from metadata_to_radar_fig_file_name.
+    def test_metadata_to_file_name_fourth(self):
+        """Ensures correct output from metadata_to_file_name.
 
         In this case, using fourth set of metadata.
         """
 
-        this_file_name = plot_input_examples.metadata_to_radar_fig_file_name(
-            output_dir_name=FIGURE_DIR_NAME,
+        this_file_name = plot_input_examples.metadata_to_file_name(
+            output_dir_name=FIGURE_DIR_NAME, is_sounding=False, pmm_flag=False,
             full_storm_id_string=FULL_STORM_ID_STRING,
-            storm_time_string=STORM_TIME_STRING,
+            storm_time_unix_sec=STORM_TIME_UNIX_SEC,
             radar_field_name=FOURTH_RADAR_FIELD_NAME,
             radar_height_m_agl=FOURTH_RADAR_HEIGHT_M_AGL,
             layer_operation_dict=FOURTH_LAYER_OPERATION_DICT)
 
         self.assertTrue(this_file_name == FOURTH_FIGURE_FILE_NAME)
 
-    def test_radar_fig_file_name_to_metadata_fourth(self):
-        """Ensures correct output from radar_fig_file_name_to_metadata.
+    def test_file_name_to_metadata_fourth(self):
+        """Ensures correct output from file_name_to_metadata.
 
         In this case, using fourth file name.
         """
 
         this_metadata_dict = (
-            plot_input_examples.radar_fig_file_name_to_metadata(
-                FOURTH_FIGURE_FILE_NAME)
+            plot_input_examples.file_name_to_metadata(FOURTH_FIGURE_FILE_NAME)
         )
 
         self.assertTrue(_compare_metadata_dicts(

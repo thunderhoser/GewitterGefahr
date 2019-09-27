@@ -33,7 +33,6 @@ PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
-
 PLOT_SOUNDINGS_ARG_NAME = plot_input_examples.PLOT_SOUNDINGS_ARG_NAME
 ALLOW_WHITESPACE_ARG_NAME = plot_input_examples.ALLOW_WHITESPACE_ARG_NAME
 PLOT_PANEL_NAMES_ARG_NAME = plot_input_examples.PLOT_PANEL_NAMES_ARG_NAME
