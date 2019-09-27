@@ -51,7 +51,7 @@ LAYER_OPERATION_KEY = 'layer_operation_dict'
 COLOUR_BAR_PADDING = 0.01
 SHEAR_VORT_DIV_NAMES = radar_plotting.SHEAR_VORT_DIV_NAMES
 
-DEFAULT_PANEL_NAME_FONT_SIZE = 30
+DEFAULT_PANEL_NAME_FONT_SIZE = 25
 DEFAULT_TITLE_FONT_SIZE = 30
 DEFAULT_CBAR_FONT_SIZE = 45
 DEFAULT_SOUNDING_FONT_SIZE = 30
@@ -329,7 +329,7 @@ def _plot_3d_radar_scan(
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
-            font_size=colour_bar_font_size, fraction_of_axis_length=0.8,
+            font_size=colour_bar_font_size, fraction_of_axis_length=1.,
             extend_min=radar_field_names[k] in SHEAR_VORT_DIV_NAMES,
             extend_max=True
         )
@@ -437,7 +437,7 @@ def _plot_2d3d_radar_scan(
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
-            font_size=colour_bar_font_size, fraction_of_axis_length=0.8,
+            font_size=colour_bar_font_size, fraction_of_axis_length=1.,
             extend_min=False, extend_max=True)
 
         if label_colour_bars:
@@ -488,7 +488,7 @@ def _plot_2d3d_radar_scan(
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
-            font_size=colour_bar_font_size, fraction_of_axis_length=0.8,
+            font_size=colour_bar_font_size, fraction_of_axis_length=1.,
             extend_min=False, extend_max=True)
 
         this_label_string = r'Azimuthal shear (ks$^{-1}$)'

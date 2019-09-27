@@ -22,6 +22,14 @@ PER_SECOND_TO_PER_KILOSECOND = 1e3
 
 DEFAULT_FONT_SIZE = 20
 
+TEXT_BOUNDING_BOX_DICT = {
+    'facecolor': 'white',
+    'alpha': 0.5,
+    'edgecolor': 'black',
+    'linewidth': 2,
+    'boxstyle': 'round'
+}
+
 FIELD_NAME_TO_VERBOSE_DICT = {
     radar_utils.ECHO_TOP_15DBZ_NAME: '15-dBZ echo top (kft ASL)',
     radar_utils.ECHO_TOP_18DBZ_NAME: '18-dBZ echo top (kft ASL)',
@@ -727,16 +735,9 @@ def plot_2d_grid_without_coords(
     if annotation_string is not None:
         error_checking.assert_is_string(annotation_string)
 
-        bounding_box_dict = {
-            'facecolor': 'white',
-            'alpha': 0.5,
-            'edgecolor': 'black',
-            'linewidth': 2
-        }
-
         axes_object.text(
-            0.5, 0.01, annotation_string, fontsize=font_size, fontweight='bold',
-            bbox=bounding_box_dict, color='k', horizontalalignment='center',
+            0.5, 0.01, annotation_string, fontsize=font_size, color='k',
+            bbox=TEXT_BOUNDING_BOX_DICT, horizontalalignment='center',
             verticalalignment='bottom', transform=axes_object.transAxes,
             zorder=1e10)
 
