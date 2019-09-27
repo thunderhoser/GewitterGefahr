@@ -21,6 +21,7 @@ METRES_TO_KM = 1e-3
 PER_SECOND_TO_PER_KILOSECOND = 1e3
 
 DEFAULT_FONT_SIZE = 20
+DEFAULT_COLOUR_BAR_LENGTH = 0.8
 
 TEXT_BOUNDING_BOX_DICT = {
     'facecolor': 'white',
@@ -748,7 +749,8 @@ def plot_many_2d_grids(
         data_matrix, field_names, axes_objects, panel_names=None,
         colour_map_objects=None, colour_norm_objects=None,
         plot_colour_bar_flags=None, panel_name_font_size=DEFAULT_FONT_SIZE,
-        colour_bar_font_size=DEFAULT_FONT_SIZE):
+        colour_bar_font_size=DEFAULT_FONT_SIZE,
+        colour_bar_length=DEFAULT_COLOUR_BAR_LENGTH):
     """Plots many 2-D grids in paneled figure.
 
     M = number of rows in grid
@@ -772,6 +774,8 @@ def plot_many_2d_grids(
         panel.  If None, will plot no colour bars.
     :param panel_name_font_size: Font size for panel names.
     :param colour_bar_font_size: Font size for colour-bar tick marks.
+    :param colour_bar_length: Length of colour bars (as fraction of axis
+        length).
     :return: colour_bar_objects: length-C list of colour bars.  If
         `plot_colour_bar_flags[k] == False`, colour_bar_objects[k] will be None.
     """
@@ -837,10 +841,10 @@ def plot_many_2d_grids(
             data_matrix=data_matrix[..., k],
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation_string='horizontal',
-            extend_min=field_names[k] in SHEAR_VORT_DIV_NAMES,
-            extend_max=True, fraction_of_axis_length=0.75,
-            font_size=colour_bar_font_size)
+            orientation_string='horizontal', font_size=colour_bar_font_size,
+            fraction_of_axis_length=colour_bar_length,
+            extend_min=field_names[k] in SHEAR_VORT_DIV_NAMES, extend_max=True
+        )
 
     return colour_bar_objects
 

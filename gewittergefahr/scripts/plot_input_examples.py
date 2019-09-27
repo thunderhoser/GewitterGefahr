@@ -55,6 +55,7 @@ DEFAULT_PANEL_NAME_FONT_SIZE = 25
 DEFAULT_TITLE_FONT_SIZE = 30
 DEFAULT_CBAR_FONT_SIZE = 30
 DEFAULT_SOUNDING_FONT_SIZE = 30
+DEFAULT_CBAR_LENGTH = 0.8
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -73,6 +74,7 @@ ALLOW_WHITESPACE_ARG_NAME = 'allow_whitespace'
 PLOT_PANEL_NAMES_ARG_NAME = 'plot_panel_names'
 ADD_TITLES_ARG_NAME = 'add_titles'
 LABEL_CBARS_ARG_NAME = 'label_colour_bars'
+CBAR_LENGTH_ARG_NAME = 'colour_bar_length'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 ACTIVATION_FILE_HELP_STRING = (
@@ -132,6 +134,8 @@ ADD_TITLES_HELP_STRING = (
 
 LABEL_CBARS_HELP_STRING = 'Boolean flag.  If 1, will label colour bars.'
 
+CBAR_LENGTH_HELP_STRING = 'Length of colour bars (as fraction of axis length).'
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
 
@@ -189,6 +193,10 @@ INPUT_ARG_PARSER.add_argument(
     help=LABEL_CBARS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + CBAR_LENGTH_ARG_NAME, type=float, required=False,
+    default=DEFAULT_CBAR_LENGTH, help=CBAR_LENGTH_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
@@ -233,7 +241,7 @@ def _plot_sounding(
 def _plot_3d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, add_title, title_font_size,
-        label_colour_bar, colour_bar_font_size):
+        label_colour_bar, colour_bar_length, colour_bar_font_size):
     """Plots 3-D radar images for one example.
 
     Specifically, this method plots one figure per field, with one panel per
@@ -257,6 +265,8 @@ def _plot_3d_radar_scan(
     :param title_font_size: Font size for title.
     :param label_colour_bar: Boolean flag.  If True, colour bar will be labeled
         with name of radar field.
+    :param colour_bar_length: Length of colour bars (as fraction of axis
+        length).
     :param colour_bar_font_size: Font size for colour bar.
     :return: figure_objects: length-F list of figure handles (instances of
         `matplotlib.figure.Figure`).
@@ -329,7 +339,8 @@ def _plot_3d_radar_scan(
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
-            font_size=colour_bar_font_size, fraction_of_axis_length=1.,
+            font_size=colour_bar_font_size,
+            fraction_of_axis_length=colour_bar_length,
             extend_min=radar_field_names[k] in SHEAR_VORT_DIV_NAMES,
             extend_max=True
         )
@@ -350,7 +361,7 @@ def _plot_3d_radar_scan(
 def _plot_2d3d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, add_titles, title_font_size,
-        label_colour_bars, colour_bar_font_size):
+        label_colour_bars, colour_bar_length, colour_bar_font_size):
     """Plots 2-D azimuthal shear and 3-D reflectivity for one example.
 
     Specifically, this method plots one figure with reflectivity (one panel per
@@ -366,6 +377,7 @@ def _plot_2d3d_radar_scan(
     :param add_titles: Same.
     :param title_font_size: Same.
     :param label_colour_bars: Same.
+    :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
     :return: figure_objects: length-2 list of figure handles (instances of
         `matplotlib.figure.Figure`).  The first is for reflectivity; the second
@@ -437,7 +449,8 @@ def _plot_2d3d_radar_scan(
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
-            font_size=colour_bar_font_size, fraction_of_axis_length=1.,
+            font_size=colour_bar_font_size,
+            fraction_of_axis_length=colour_bar_length,
             extend_min=False, extend_max=True)
 
         if label_colour_bars:
@@ -473,7 +486,7 @@ def _plot_2d3d_radar_scan(
     radar_plotting.plot_many_2d_grids(
         data_matrix=numpy.flip(shear_matrix_s01, axis=0),
         field_names=shear_field_names, axes_objects=these_axes_objects,
-        panel_names=shear_field_names_verbose,
+        panel_names=shear_field_names_verbose if plot_panel_names else None,
         panel_name_font_size=panel_name_font_size)
 
     if allow_whitespace:
@@ -488,8 +501,9 @@ def _plot_2d3d_radar_scan(
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
-            font_size=colour_bar_font_size, fraction_of_axis_length=1.,
-            extend_min=False, extend_max=True)
+            font_size=colour_bar_font_size,
+            fraction_of_axis_length=colour_bar_length,
+            extend_min=True, extend_max=True)
 
         this_label_string = r'Azimuthal shear (ks$^{-1}$)'
 
@@ -508,7 +522,8 @@ def _plot_2d3d_radar_scan(
 
 def _plot_2d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
-        plot_panel_names, panel_name_font_size, colour_bar_font_size):
+        plot_panel_names, panel_name_font_size, colour_bar_length,
+        colour_bar_font_size):
     """Plots 2-D radar scan for one example.
 
     Specifically, this method plots one figure, with each panel containing a
@@ -523,6 +538,7 @@ def _plot_2d_radar_scan(
     :param plot_panel_names: Boolean flag.  If True, will plot field and height
         (example: "Reflectivity at 3.0 km AGL") at bottom of each panel.
     :param panel_name_font_size: See doc for `_plot_3d_radar_scan`.
+    :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
     :return: figure_objects: length-1 list of figure handles (instances of
         `matplotlib.figure.Figure`).
@@ -593,7 +609,8 @@ def _plot_2d_radar_scan(
         panel_names=panel_names if plot_panel_names else None,
         plot_colour_bar_flags=plot_colour_bar_flags,
         panel_name_font_size=panel_name_font_size,
-        colour_bar_font_size=colour_bar_font_size)
+        colour_bar_font_size=colour_bar_font_size,
+        colour_bar_length=colour_bar_length)
 
     for k in range(num_radar_fields, len(these_axes_objects)):
         these_axes_objects[k].axis('off')
@@ -759,7 +776,8 @@ def plot_one_example(
         plot_panel_names=True,
         panel_name_font_size=DEFAULT_PANEL_NAME_FONT_SIZE,
         add_titles=True, title_font_size=DEFAULT_TITLE_FONT_SIZE,
-        label_colour_bars=False, colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
+        label_colour_bars=False, colour_bar_length=DEFAULT_CBAR_LENGTH,
+        colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
         sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE):
     """Plots predictors for one example.
 
@@ -783,7 +801,10 @@ def plot_one_example(
     :param add_titles: Boolean flag.  If True, will plot title at top of each
         figure.
     :param title_font_size: Font size for titles.
-    :param label_colour_bars: Boolean flag.  If True, will label each colour bar.
+    :param label_colour_bars: Boolean flag.  If True, will label each colour
+        bar.
+    :param colour_bar_length: Length of colour bars (as fraction of axis
+        length).
     :param colour_bar_font_size: Font size for colour bars.
     :param sounding_font_size: Font size for sounding.
 
@@ -851,6 +872,7 @@ def plot_one_example(
                 panel_name_font_size=panel_name_font_size,
                 add_titles=add_titles, title_font_size=title_font_size,
                 label_colour_bars=label_colour_bars,
+                colour_bar_length=colour_bar_length,
                 colour_bar_font_size=colour_bar_font_size)
         )
     elif num_radar_dimensions == 3:
@@ -862,6 +884,7 @@ def plot_one_example(
             panel_name_font_size=panel_name_font_size,
             add_title=add_titles, title_font_size=title_font_size,
             label_colour_bar=label_colour_bars,
+            colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size)
     else:
         radar_figure_objects, radar_axes_object_matrices = _plot_2d_radar_scan(
@@ -870,6 +893,7 @@ def plot_one_example(
             allow_whitespace=allow_whitespace,
             plot_panel_names=plot_panel_names,
             panel_name_font_size=panel_name_font_size,
+            colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size)
 
     return {
@@ -880,13 +904,30 @@ def plot_one_example(
     }
 
 
+def _append_activation_to_title(figure_object, activation, title_font_size):
+    """Appends activation to figure title.
+
+    :param figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :param activation: Activation (real number).
+    :param title_font_size: Font size.
+    """
+
+    title_string = '{0:s}; activation = {1:.3e}'.format(
+        figure_object._suptitle.get_text(), activation
+    )
+
+    figure_object.suptitle(title_string, fontsize=title_font_size)
+
+
 def plot_examples(
         list_of_predictor_matrices, model_metadata_dict, pmm_flag,
         output_dir_name, plot_soundings=True, allow_whitespace=True,
         plot_panel_names=True,
         panel_name_font_size=DEFAULT_PANEL_NAME_FONT_SIZE,
         add_titles=True, title_font_size=DEFAULT_TITLE_FONT_SIZE,
-        label_colour_bars=False, colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
+        label_colour_bars=False, colour_bar_length=DEFAULT_CBAR_LENGTH,
+        colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
         sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE,
         full_storm_id_strings=None, storm_times_unix_sec=None,
         storm_activations=None):
@@ -906,6 +947,7 @@ def plot_examples(
     :param add_titles: Same.
     :param title_font_size: Same.
     :param label_colour_bars: Same.
+    :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
     :param sounding_font_size: Same.
     :param full_storm_id_strings: [used only if `pmm_flag == False`]
@@ -961,12 +1003,21 @@ def plot_examples(
             panel_name_font_size=panel_name_font_size,
             add_titles=add_titles, title_font_size=title_font_size,
             label_colour_bars=label_colour_bars,
+            colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size,
             sounding_font_size=sounding_font_size)
 
         this_sounding_figure_object = this_handle_dict[SOUNDING_FIGURE_KEY]
 
         if this_sounding_figure_object is not None:
+            if add_titles and storm_activations is not None:
+                this_title_string = 'Activation = {0:.3e}'.format(
+                    storm_activations[i]
+                )
+
+                this_handle_dict[SOUNDING_AXES_KEY].set_title(
+                    this_title_string, fontsize=sounding_font_size)
+
             this_file_name = metadata_to_file_name(
                 output_dir_name=output_dir_name, is_sounding=True,
                 pmm_flag=pmm_flag,
@@ -984,6 +1035,13 @@ def plot_examples(
         these_radar_figure_objects = this_handle_dict[RADAR_FIGURES_KEY]
 
         if num_radar_matrices == 2:
+            if add_titles and storm_activations is not None:
+                _append_activation_to_title(
+                    figure_object=these_radar_figure_objects[0],
+                    activation=storm_activations[i],
+                    title_font_size=title_font_size
+                )
+
             this_file_name = metadata_to_file_name(
                 output_dir_name=output_dir_name, is_sounding=False,
                 pmm_flag=pmm_flag,
@@ -997,6 +1055,13 @@ def plot_examples(
                 bbox_inches='tight'
             )
             pyplot.close(these_radar_figure_objects[0])
+
+            if add_titles and storm_activations is not None:
+                _append_activation_to_title(
+                    figure_object=these_radar_figure_objects[1],
+                    activation=storm_activations[i],
+                    title_font_size=title_font_size
+                )
 
             this_file_name = metadata_to_file_name(
                 output_dir_name=output_dir_name, is_sounding=False,
@@ -1019,6 +1084,13 @@ def plot_examples(
                 trainval_io.RADAR_FIELDS_KEY]
 
             for j in range(len(radar_field_names)):
+                if add_titles and storm_activations is not None:
+                    _append_activation_to_title(
+                        figure_object=these_radar_figure_objects[j],
+                        activation=storm_activations[i],
+                        title_font_size=title_font_size
+                    )
+
                 this_file_name = metadata_to_file_name(
                     output_dir_name=output_dir_name, is_sounding=False,
                     pmm_flag=pmm_flag,
@@ -1035,6 +1107,13 @@ def plot_examples(
                 pyplot.close(these_radar_figure_objects[j])
 
             continue
+
+        if add_titles and storm_activations is not None:
+            _append_activation_to_title(
+                figure_object=these_radar_figure_objects[0],
+                activation=storm_activations[i],
+                title_font_size=title_font_size
+            )
 
         this_file_name = metadata_to_file_name(
             output_dir_name=output_dir_name, is_sounding=False,
@@ -1054,7 +1133,8 @@ def plot_examples(
 def _run(activation_file_name, storm_metafile_name, num_examples,
          top_example_dir_name, radar_field_names, radar_heights_m_agl,
          num_radar_rows, num_radar_columns, plot_soundings, allow_whitespace,
-         plot_panel_names, add_titles, label_colour_bars, output_dir_name):
+         plot_panel_names, add_titles, label_colour_bars, colour_bar_length,
+         output_dir_name):
     """Plots one or more examples (storm objects).
 
     This is effectively the main method.
@@ -1072,6 +1152,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     :param plot_panel_names: Same.
     :param add_titles: Same.
     :param label_colour_bars: Same.
+    :param colour_bar_length: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if activation file contains activations for more than
         one model component.
@@ -1181,6 +1262,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         output_dir_name=output_dir_name, plot_soundings=plot_soundings,
         allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
         add_titles=add_titles, label_colour_bars=label_colour_bars,
+        colour_bar_length=colour_bar_length,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
         storm_activations=storm_activations)
@@ -1212,5 +1294,6 @@ if __name__ == '__main__':
         label_colour_bars=bool(getattr(
             INPUT_ARG_OBJECT, LABEL_CBARS_ARG_NAME
         )),
+        colour_bar_length=getattr(INPUT_ARG_OBJECT, CBAR_LENGTH_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

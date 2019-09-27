@@ -38,6 +38,7 @@ ALLOW_WHITESPACE_ARG_NAME = plot_input_examples.ALLOW_WHITESPACE_ARG_NAME
 PLOT_PANEL_NAMES_ARG_NAME = plot_input_examples.PLOT_PANEL_NAMES_ARG_NAME
 ADD_TITLES_ARG_NAME = plot_input_examples.ADD_TITLES_ARG_NAME
 LABEL_CBARS_ARG_NAME = plot_input_examples.LABEL_CBARS_ARG_NAME
+CBAR_LENGTH_ARG_NAME = plot_input_examples.CBAR_LENGTH_ARG_NAME
 
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `saliency_maps.read_standard_file` or'
@@ -68,6 +69,7 @@ ALLOW_WHITESPACE_HELP_STRING = plot_input_examples.ALLOW_WHITESPACE_HELP_STRING
 PLOT_PANEL_NAMES_HELP_STRING = plot_input_examples.PLOT_PANEL_NAMES_HELP_STRING
 ADD_TITLES_HELP_STRING = plot_input_examples.ADD_TITLES_HELP_STRING
 LABEL_CBARS_HELP_STRING = plot_input_examples.LABEL_CBARS_HELP_STRING
+CBAR_LENGTH_HELP_STRING = plot_input_examples.CBAR_LENGTH_HELP_STRING
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -109,6 +111,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + LABEL_CBARS_ARG_NAME, type=int, required=False, default=0,
     help=LABEL_CBARS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + CBAR_LENGTH_ARG_NAME, type=float, required=False, default=0.8,
+    help=CBAR_LENGTH_HELP_STRING)
 
 
 def _plot_3d_radar_saliency(
@@ -412,7 +418,8 @@ def _plot_sounding_saliency(
 
 def _run(input_file_name, plot_significance, colour_map_name,
          max_colour_percentile, plot_soundings, allow_whitespace,
-         plot_panel_names, add_titles, label_colour_bars, output_dir_name):
+         plot_panel_names, add_titles, label_colour_bars, colour_bar_length,
+         output_dir_name):
     """Plots saliency maps.
 
     This is effectively the main method.
@@ -426,6 +433,7 @@ def _run(input_file_name, plot_significance, colour_map_name,
     :param plot_panel_names: Same.
     :param add_titles: Same.
     :param label_colour_bars: Same.
+    :param colour_bar_length: Same.
     :param output_dir_name: Same.
     """
 
@@ -521,7 +529,8 @@ def _run(input_file_name, plot_significance, colour_map_name,
             example_index=i, plot_sounding=False,
             allow_whitespace=allow_whitespace,
             plot_panel_names=plot_panel_names, add_titles=add_titles,
-            label_colour_bars=label_colour_bars)
+            label_colour_bars=label_colour_bars,
+            colour_bar_length=colour_bar_length)
 
         these_figure_objects = this_handle_dict[
             plot_input_examples.RADAR_FIGURES_KEY]
@@ -593,5 +602,6 @@ if __name__ == '__main__':
         label_colour_bars=bool(getattr(
             INPUT_ARG_OBJECT, LABEL_CBARS_ARG_NAME
         )),
+        colour_bar_length=getattr(INPUT_ARG_OBJECT, CBAR_LENGTH_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

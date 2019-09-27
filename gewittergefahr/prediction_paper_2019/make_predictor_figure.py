@@ -44,7 +44,10 @@ MYRORSS_SHEAR_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
 ]
 
+COLOUR_BAR_LENGTH = 0.8
 DEFAULT_FONT_SIZE = 45
+TITLE_FONT_SIZE = 45
+COLOUR_BAR_FONT_SIZE = 45
 PANEL_LETTER_FONT_SIZE = 75
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
@@ -55,7 +58,7 @@ pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
 pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
 pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
-X_LABEL_COORD_NORMALIZED = 0.
+X_LABEL_COORD_NORMALIZED = -0.02
 Y_LABEL_COORD_NORMALIZED = 0.85
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
@@ -227,7 +230,9 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             list_of_predictor_matrices=these_predictor_matrices,
             model_metadata_dict=this_metadata_dict, pmm_flag=False,
             example_index=0, plot_sounding=False, allow_whitespace=True,
-            plot_panel_names=False, add_titles=False, label_colour_bars=False)
+            plot_panel_names=False, add_titles=False, label_colour_bars=False,
+            colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
+            colour_bar_length=COLOUR_BAR_LENGTH)
 
         this_title_string = (
             radar_plotting.radar_fields_and_heights_to_panel_names(
@@ -249,7 +254,7 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
 
         this_figure_object.suptitle('')
         this_axes_object.set_title(
-            this_title_string, fontsize=DEFAULT_FONT_SIZE)
+            this_title_string, fontsize=TITLE_FONT_SIZE)
 
         # this_axes_object.set_yticklabels(
         #     this_axes_object.get_yticks(), color=ALMOST_WHITE_COLOUR
@@ -298,7 +303,9 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             list_of_predictor_matrices=these_predictor_matrices,
             model_metadata_dict=this_metadata_dict, pmm_flag=False,
             example_index=0, plot_sounding=j == 0, allow_whitespace=True,
-            plot_panel_names=False, add_titles=False, label_colour_bars=False)
+            plot_panel_names=False, add_titles=False, label_colour_bars=False,
+            colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
+            colour_bar_length=COLOUR_BAR_LENGTH)
 
         if j == 0:
             this_axes_object = this_handle_dict[plot_examples.SOUNDING_AXES_KEY]
@@ -344,7 +351,7 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
 
             this_figure_object.suptitle('')
             this_axes_object.set_title(
-                this_title_string, fontsize=DEFAULT_FONT_SIZE)
+                this_title_string, fontsize=TITLE_FONT_SIZE)
 
             letter_label = chr(ord(letter_label) + 1)
             plotting_utils.label_axes(
@@ -385,7 +392,7 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
 
         this_figure_object.suptitle('')
         this_axes_object.set_title(
-            this_title_string, fontsize=DEFAULT_FONT_SIZE)
+            this_title_string, fontsize=TITLE_FONT_SIZE)
 
         letter_label = chr(ord(letter_label) + 1)
         plotting_utils.label_axes(

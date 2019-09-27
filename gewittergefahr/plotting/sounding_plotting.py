@@ -183,6 +183,10 @@ def plot_sounding(
     axes_object.set_xlabel('')
     axes_object.set_ylabel('')
 
+    # TODO(thunderhoser): Shouldn't need this hack.
+    tick_values_deg_c = numpy.linspace(-40, 50, num=10)
+    axes_object.set_xticks(tick_values_deg_c)
+
     x_tick_labels = [
         '{0:d}'.format(int(numpy.round(x))) for x in axes_object.get_xticks()
     ]
@@ -192,6 +196,9 @@ def plot_sounding(
         '{0:d}'.format(int(numpy.round(y))) for y in axes_object.get_yticks()
     ]
     axes_object.set_yticklabels(y_tick_labels, fontsize=font_size)
+
+    # TODO(thunderhoser): Shouldn't need this hack.
+    axes_object.set_xlim(-40, 50)
 
     if title_string is not None:
         pyplot.title(title_string, fontsize=font_size)

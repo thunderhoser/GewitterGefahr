@@ -22,6 +22,7 @@ ALLOW_WHITESPACE_ARG_NAME = plot_input_examples.ALLOW_WHITESPACE_ARG_NAME
 PLOT_PANEL_NAMES_ARG_NAME = plot_input_examples.PLOT_PANEL_NAMES_ARG_NAME
 ADD_TITLES_ARG_NAME = plot_input_examples.ADD_TITLES_ARG_NAME
 LABEL_CBARS_ARG_NAME = plot_input_examples.LABEL_CBARS_ARG_NAME
+CBAR_LENGTH_ARG_NAME = plot_input_examples.CBAR_LENGTH_ARG_NAME
 
 UPCONVNET_FILE_HELP_STRING = (
     'Path to file with trained upconvnet (will be read by `cnn.read_model`).')
@@ -48,6 +49,7 @@ ALLOW_WHITESPACE_HELP_STRING = plot_input_examples.ALLOW_WHITESPACE_HELP_STRING
 PLOT_PANEL_NAMES_HELP_STRING = plot_input_examples.PLOT_PANEL_NAMES_HELP_STRING
 ADD_TITLES_HELP_STRING = plot_input_examples.ADD_TITLES_HELP_STRING
 LABEL_CBARS_HELP_STRING = plot_input_examples.LABEL_CBARS_HELP_STRING
+CBAR_LENGTH_HELP_STRING = plot_input_examples.CBAR_LENGTH_HELP_STRING
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -86,10 +88,14 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LABEL_CBARS_ARG_NAME, type=int, required=False, default=0,
     help=LABEL_CBARS_HELP_STRING)
 
+INPUT_ARG_PARSER.add_argument(
+    '--' + CBAR_LENGTH_ARG_NAME, type=float, required=False, default=0.8,
+    help=CBAR_LENGTH_HELP_STRING)
+
 
 def _run(upconvnet_file_name, storm_metafile_name, num_examples,
          top_example_dir_name, allow_whitespace, plot_panel_names, add_titles,
-         label_colour_bars, top_output_dir_name):
+         label_colour_bars, colour_bar_length, top_output_dir_name):
     """Plots upconvnet reconstruction of one or more examples (storm objects).
 
     This is effectively the main method.
@@ -102,6 +108,7 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     :param plot_panel_names: Same.
     :param add_titles: Same.
     :param label_colour_bars: Same.
+    :param colour_bar_length: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -202,6 +209,7 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
         output_dir_name=actual_output_dir_name, plot_soundings=False,
         allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
         add_titles=add_titles, label_colour_bars=label_colour_bars,
+        colour_bar_length=colour_bar_length,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec)
     print(SEPARATOR_STRING)
@@ -217,6 +225,7 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
         output_dir_name=reconstructed_output_dir_name, plot_soundings=False,
         allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
         add_titles=add_titles, label_colour_bars=label_colour_bars,
+        colour_bar_length=colour_bar_length,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec)
 
@@ -240,5 +249,6 @@ if __name__ == '__main__':
         label_colour_bars=bool(getattr(
             INPUT_ARG_OBJECT, LABEL_CBARS_ARG_NAME
         )),
+        colour_bar_length=getattr(INPUT_ARG_OBJECT, CBAR_LENGTH_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
