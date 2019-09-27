@@ -38,16 +38,16 @@ DEFAULT_OPTION_DICT = {
     FIGURE_HEIGHT_KEY: 15
 }
 
-FONT_SIZE = 30
+DEFAULT_FONT_SIZE = 30
 TITLE_FONT_SIZE = 25
 
-pyplot.rc('font', size=FONT_SIZE)
-pyplot.rc('axes', titlesize=FONT_SIZE)
-pyplot.rc('axes', labelsize=FONT_SIZE)
-pyplot.rc('xtick', labelsize=FONT_SIZE)
-pyplot.rc('ytick', labelsize=FONT_SIZE)
-pyplot.rc('legend', fontsize=FONT_SIZE)
-pyplot.rc('figure', titlesize=FONT_SIZE)
+pyplot.rc('font', size=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
+pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 # Paths to ImageMagick executables.
 CONVERT_EXE_NAME = '/usr/bin/convert'
@@ -60,7 +60,8 @@ PANELED_IMAGE_BORDER_WIDTH_PX = 50
 
 
 def plot_sounding(
-        sounding_dict_for_metpy, title_string=None, option_dict=None):
+        sounding_dict_for_metpy, font_size=DEFAULT_FONT_SIZE, title_string=None,
+        option_dict=None):
     """Plots atmospheric sounding.
 
     H = number of vertical levels in sounding
@@ -77,6 +78,7 @@ def plot_sounding(
     sounding_dict_for_metpy['v_winds_kt']: length-H numpy array of northward
         wind components.
 
+    :param font_size: Font size.
     :param title_string: Title.
     :param option_dict: Dictionary with the following keys.
     option_dict['main_line_colour']: Colour for temperature and dewpoint lines
@@ -181,19 +183,18 @@ def plot_sounding(
     axes_object.set_xlabel('')
     axes_object.set_ylabel('')
 
-    # TODO(thunderhoser): Shouldn't need this hack.
-    tick_values_deg_c = numpy.linspace(-40, 50, num=10)
-    axes_object.set_xticks(tick_values_deg_c)
+    x_tick_labels = [
+        '{0:d}'.format(int(numpy.round(x))) for x in axes_object.get_xticks()
+    ]
+    axes_object.set_xticklabels(x_tick_labels, fontsize=font_size)
 
-    tick_labels = []
-    for this_tick_value in tick_values_deg_c:
-        tick_labels.append('{0:d}'.format(int(numpy.round(this_tick_value))))
-
-    axes_object.set_xticklabels(tick_labels)
-    axes_object.set_xlim(-40, 50)  # Shouldn't need this hack, either.
+    y_tick_labels = [
+        '{0:d}'.format(int(numpy.round(y))) for y in axes_object.get_yticks()
+    ]
+    axes_object.set_yticklabels(y_tick_labels, fontsize=font_size)
 
     if title_string is not None:
-        pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
+        pyplot.title(title_string, fontsize=font_size)
 
     return figure_object, axes_object
 
