@@ -4,12 +4,14 @@ import argparse
 import numpy
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.deep_learning import storm_images
 
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 ALL_AZ_SHEAR_FIELD_NAMES = [
@@ -23,6 +25,8 @@ GRID_SPACING_ARG_NAME = 'rotated_grid_spacing_metres'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
 REFL_HEIGHTS_ARG_NAME = 'refl_heights_m_agl'
 SPC_DATE_ARG_NAME = 'spc_date_string'
+FIRST_TIME_ARG_NAME = 'first_time_string'
+LAST_TIME_ARG_NAME = 'last_time_string'
 TARRED_MYRORSS_DIR_ARG_NAME = 'input_tarred_myrorss_dir_name'
 UNTARRED_MYRORSS_DIR_ARG_NAME = 'input_untarred_myrorss_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
@@ -60,8 +64,16 @@ REFL_HEIGHTS_HELP_STRING = (
 ).format(radar_utils.REFL_NAME, SPC_DATE_ARG_NAME)
 
 SPC_DATE_HELP_STRING = (
-    'SPC (Storm Prediction Center) date in format "yyyymmdd".  An image will be'
-    ' created for each field/height pair and storm object on this date.')
+    'SPC date (format "yyyymmdd").  Will create image for each storm object on '
+    'this date.  If you want to use `{0:s}` and `{1:s}` instead, leave this '
+    'empty.'
+).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
+
+TIME_HELP_STRING = (
+    'Time (format "yyyy-mm-dd-HHMMSS").  Will create image for each storm '
+    'object from `{0:s}`...`{1:s}`.  If you want to use `{2:s}` instead, leave '
+    'these arguments empty.'
+).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME, SPC_DATE_ARG_NAME)
 
 TARRED_MYRORSS_DIR_HELP_STRING = (
     'Name of top-level directory with tarred MYRORSS data (one tar file per SPC'
@@ -101,15 +113,7 @@ OUTPUT_DIR_HELP_STRING = (
 
 DEFAULT_TARRED_DIR_NAME = '/condo/swatcommon/common/myrorss'
 DEFAULT_UNTARRED_DIR_NAME = '/condo/swatwork/ralager/myrorss_temp'
-DEFAULT_TRACKING_DIR_NAME = (
-    '/condo/swatwork/ralager/myrorss_40dbz_echo_tops/echo_top_tracking/'
-    'joined_across_spc_dates/smart_polygons'
-)
 DEFAULT_ELEVATION_DIR_NAME = '/condo/swatwork/ralager/elevation'
-DEFAULT_OUTPUT_DIR_NAME = (
-    '/condo/swatwork/ralager/myrorss_40dbz_echo_tops/echo_top_tracking/'
-    'joined_across_spc_dates/smart_polygons/storm_images'
-)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -141,8 +145,16 @@ INPUT_ARG_PARSER.add_argument(
     help=REFL_HEIGHTS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SPC_DATE_ARG_NAME, type=str, required=True,
+    '--' + SPC_DATE_ARG_NAME, type=str, required=False, default='',
     help=SPC_DATE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_TIME_ARG_NAME, type=str, required=False, default='',
+    help=TIME_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAST_TIME_ARG_NAME, type=str, required=False, default='',
+    help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TARRED_MYRORSS_DIR_ARG_NAME, type=str, required=False,
@@ -153,8 +165,8 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_UNTARRED_DIR_NAME, help=UNTARRED_MYRORSS_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TRACKING_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TRACKING_DIR_NAME, help=TRACKING_DIR_HELP_STRING)
+    '--' + TRACKING_DIR_ARG_NAME, type=str, required=True,
+    help=TRACKING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + ELEVATION_DIR_ARG_NAME, type=str, required=False,
@@ -166,22 +178,23 @@ INPUT_ARG_PARSER.add_argument(
     help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TARGET_NAME_ARG_NAME, type=str, required=False,
-    default='None', help=TARGET_NAME_HELP_STRING)
+    '--' + TARGET_NAME_ARG_NAME, type=str, required=False, default='',
+    help=TARGET_NAME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TARGET_DIR_ARG_NAME, type=str, required=False,
-    default='None', help=TARGET_DIR_HELP_STRING)
+    '--' + TARGET_DIR_ARG_NAME, type=str, required=False, default='',
+    help=TARGET_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_OUTPUT_DIR_NAME, help=OUTPUT_DIR_HELP_STRING)
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING)
 
 
 def _extract_storm_images(
         num_image_rows, num_image_columns, rotate_grids,
         rotated_grid_spacing_metres, radar_field_names, refl_heights_m_agl,
-        spc_date_string, tarred_myrorss_dir_name, untarred_myrorss_dir_name,
+        spc_date_string, first_time_string, last_time_string,
+        tarred_myrorss_dir_name, untarred_myrorss_dir_name,
         top_tracking_dir_name, elevation_dir_name, tracking_scale_metres2,
         target_name, top_target_dir_name, top_output_dir_name):
     """Extracts storm-centered img for each field/height pair and storm object.
@@ -193,6 +206,8 @@ def _extract_storm_images(
     :param radar_field_names: Same.
     :param refl_heights_m_agl: Same.
     :param spc_date_string: Same.
+    :param first_time_string: Same.
+    :param last_time_string: Same.
     :param tarred_myrorss_dir_name: Same.
     :param untarred_myrorss_dir_name: Same.
     :param top_tracking_dir_name: Same.
@@ -201,7 +216,33 @@ def _extract_storm_images(
     :param target_name: Same.
     :param top_target_dir_name: Same.
     :param top_output_dir_name: Same.
+    :raises: ValueError: if `first_time_string` and `last_time_string` have
+        different SPC dates.
     """
+
+    if spc_date_string in ['', 'None']:
+        first_time_unix_sec = time_conversion.string_to_unix_sec(
+            first_time_string, TIME_FORMAT)
+        last_time_unix_sec = time_conversion.string_to_unix_sec(
+            last_time_string, TIME_FORMAT)
+
+        first_spc_date_string = time_conversion.time_to_spc_date_string(
+            first_time_unix_sec)
+        last_spc_date_string = time_conversion.time_to_spc_date_string(
+            last_time_unix_sec)
+
+        if first_spc_date_string != last_spc_date_string:
+            error_string = (
+                'First ({0:s}) and last ({1:s}) times have different SPC dates.'
+                '  This script can handle only one SPC date.'
+            ).format(first_time_string, last_time_string)
+
+            raise ValueError(error_string)
+
+        spc_date_string = first_spc_date_string
+    else:
+        first_time_unix_sec = 0
+        last_time_unix_sec = int(1e12)
 
     if tarred_myrorss_dir_name in ['', 'None']:
         tarred_myrorss_dir_name = None
@@ -272,6 +313,18 @@ def _extract_storm_images(
         tracking_scale_metres2=tracking_scale_metres2
     )[0]
 
+    file_times_unix_sec = numpy.array(
+        [tracking_io.file_name_to_time(f) for f in tracking_file_names],
+        dtype=int
+    )
+
+    good_indices = numpy.where(numpy.logical_and(
+        file_times_unix_sec >= first_time_unix_sec,
+        file_times_unix_sec <= last_time_unix_sec
+    ))[0]
+
+    tracking_file_names = [tracking_file_names[k] for k in good_indices]
+
     storm_object_table = tracking_io.read_many_files(
         tracking_file_names
     )[storm_images.STORM_COLUMNS_NEEDED]
@@ -336,6 +389,8 @@ if __name__ == '__main__':
         refl_heights_m_agl=numpy.array(
             getattr(INPUT_ARG_OBJECT, REFL_HEIGHTS_ARG_NAME), dtype=int),
         spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
+        first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
+        last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         tarred_myrorss_dir_name=getattr(
             INPUT_ARG_OBJECT, TARRED_MYRORSS_DIR_ARG_NAME),
         untarred_myrorss_dir_name=getattr(
