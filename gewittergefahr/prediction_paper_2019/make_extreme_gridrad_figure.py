@@ -223,7 +223,17 @@ def _plot_composite(
         input_file_names=panel_file_names,
         output_file_name=radar_figure_file_name,
         num_panel_rows=1, num_panel_columns=num_radar_fields,
-        border_width_pixels=BORDER_WIDTH_SANS_TITLE_PX)
+        border_width_pixels=10)
+
+    imagemagick_utils.resize_image(
+        input_file_name=radar_figure_file_name,
+        output_file_name=radar_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=radar_figure_file_name,
+        output_file_name=radar_figure_file_name,
+        border_width_pixels=100)
 
     _overlay_text(
         image_file_name=radar_figure_file_name,
@@ -233,12 +243,7 @@ def _plot_composite(
     imagemagick_utils.trim_whitespace(
         input_file_name=radar_figure_file_name,
         output_file_name=radar_figure_file_name,
-        border_width_pixels=BORDER_WIDTH_WITH_TITLE_PX)
-
-    imagemagick_utils.resize_image(
-        input_file_name=radar_figure_file_name,
-        output_file_name=radar_figure_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
+        border_width_pixels=10)
 
     return radar_figure_file_name
 
