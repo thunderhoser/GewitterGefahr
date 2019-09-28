@@ -27,6 +27,11 @@ RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
 
+COLOUR_BAR_LENGTH = 0.25
+PANEL_NAME_FONT_SIZE = 30
+COLOUR_BAR_FONT_SIZE = 30
+SOUNDING_FONT_SIZE = 30
+
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
@@ -154,9 +159,11 @@ def _run(composite_file_names, composite_names, output_dir_name):
             list_of_predictor_matrices=list_of_mean_input_matrices,
             model_metadata_dict=model_metadata_dict, pmm_flag=True,
             plot_sounding=True, allow_whitespace=True, plot_panel_names=True,
-            panel_name_font_size=30,
-            add_titles=False, label_colour_bars=True, colour_bar_length=0.25,
-            colour_bar_font_size=30, sounding_font_size=30)
+            panel_name_font_size=PANEL_NAME_FONT_SIZE,
+            add_titles=False, label_colour_bars=True,
+            colour_bar_length=COLOUR_BAR_LENGTH,
+            colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
+            sounding_font_size=SOUNDING_FONT_SIZE)
 
         sounding_figure_object = handle_dict[
             plot_input_examples.SOUNDING_FIGURE_KEY]
