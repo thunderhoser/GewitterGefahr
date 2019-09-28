@@ -159,7 +159,7 @@ def _plot_composite(
         composite_file_name, composite_name_abbrev, composite_name_verbose,
         output_dir_name):
     """Plots one composite.
-    
+
     :param composite_file_name: Path to input file.  Will be read by
         `_read_composite`.
     :param composite_name_abbrev: Abbreviated name for composite.  Will be used
@@ -190,7 +190,7 @@ def _plot_composite(
         colour_bar_length=COLOUR_BAR_LENGTH,
         colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
         sounding_font_size=SOUNDING_FONT_SIZE)
-    
+
     # TODO(thunderhoser): Do something with sounding.
     sounding_figure_object = handle_dict[
         plot_input_examples.SOUNDING_FIGURE_KEY]
@@ -233,7 +233,7 @@ def _plot_composite(
     imagemagick_utils.trim_whitespace(
         input_file_name=radar_figure_file_name,
         output_file_name=radar_figure_file_name,
-        border_width_pixels=TITLE_FONT_SIZE)
+        border_width_pixels=TITLE_FONT_SIZE + 25)
 
     _overlay_text(
         image_file_name=radar_figure_file_name,
@@ -297,7 +297,7 @@ def _run(composite_file_names, composite_names, output_dir_name):
     imagemagick_utils.concatenate_images(
         input_file_names=radar_panel_file_names,
         output_file_name=radar_figure_file_name, num_panel_rows=num_panel_rows,
-        num_panel_columns=num_panel_columns, border_width_pixels=150)
+        num_panel_columns=num_panel_columns, border_width_pixels=100)
 
     imagemagick_utils.trim_whitespace(
         input_file_name=radar_figure_file_name,
