@@ -191,10 +191,37 @@ def _plot_composite(
         colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
         sounding_font_size=SOUNDING_FONT_SIZE)
 
-    # TODO(thunderhoser): Do something with sounding.
+    sounding_figure_file_name = '{0:s}/{1:s}_sounding.jpg'.format(
+        output_dir_name, composite_name_abbrev)
+
+    print('Saving figure to: "{0:s}"...'.format(sounding_figure_file_name))
     sounding_figure_object = handle_dict[
         plot_input_examples.SOUNDING_FIGURE_KEY]
+
+    sounding_figure_object.savefig(
+        sounding_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight')
     pyplot.close(sounding_figure_object)
+
+    imagemagick_utils.resize_image(
+        input_file_name=sounding_figure_file_name,
+        output_file_name=sounding_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=sounding_figure_file_name,
+        output_file_name=sounding_figure_file_name,
+        border_width_pixels=TITLE_FONT_SIZE + 25)
+
+    _overlay_text(
+        image_file_name=sounding_figure_file_name,
+        x_offset_from_center_px=0, y_offset_from_top_px=0,
+        text_string=composite_name_verbose)
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=sounding_figure_file_name,
+        output_file_name=sounding_figure_file_name,
+        border_width_pixels=10)
 
     radar_figure_objects = handle_dict[
         plot_input_examples.RADAR_FIGURES_KEY]
@@ -245,7 +272,7 @@ def _plot_composite(
         output_file_name=radar_figure_file_name,
         border_width_pixels=10)
 
-    return radar_figure_file_name
+    return radar_figure_file_name, sounding_figure_file_name
 
 
 def _run(composite_file_names, composite_names, output_dir_name):
@@ -273,13 +300,15 @@ def _run(composite_file_names, composite_names, output_dir_name):
     composite_names_verbose = [n.replace('_', ' ') for n in composite_names]
 
     radar_panel_file_names = [None] * num_composites
+    sounding_panel_file_names = [None] * num_composites
 
     for i in range(num_composites):
-        radar_panel_file_names[i] = _plot_composite(
-            composite_file_name=composite_file_names[i],
-            composite_name_abbrev=composite_names_abbrev[i],
-            composite_name_verbose=composite_names_verbose[i],
-            output_dir_name=output_dir_name
+        radar_panel_file_names[i], sounding_panel_file_names[i] = (
+            _plot_composite(
+                composite_file_name=composite_file_names[i],
+                composite_name_abbrev=composite_names_abbrev[i],
+                composite_name_verbose=composite_names_verbose[i],
+                output_dir_name=output_dir_name)
         )
 
         print('\n')
@@ -302,6 +331,18 @@ def _run(composite_file_names, composite_names, output_dir_name):
     imagemagick_utils.trim_whitespace(
         input_file_name=radar_figure_file_name,
         output_file_name=radar_figure_file_name,
+        border_width_pixels=10)
+
+    sounding_figure_file_name = '{0:s}/sounding_concat.jpg'.format(
+        output_dir_name)
+    print('Concatenating panels to: "{0:s}"...'.format(
+        sounding_figure_file_name
+    ))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=sounding_panel_file_names,
+        output_file_name=sounding_figure_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
         border_width_pixels=10)
 
 
