@@ -33,8 +33,8 @@ COLOUR_BAR_FONT_SIZE = 25
 SOUNDING_FONT_SIZE = 30
 
 CONVERT_EXE_NAME = '/usr/bin/convert'
-TITLE_FONT_SIZE = 125
-TITLE_FONT_TYPE = 'DejaVu-Sans-Condensed'
+TITLE_FONT_SIZE = 150
+TITLE_FONT_TYPE = 'DejaVu-Sans-Bold'
 
 BORDER_WIDTH_SANS_TITLE_PX = 300
 BORDER_WIDTH_WITH_TITLE_PX = 10
@@ -223,7 +223,7 @@ def _plot_composite(
         input_file_names=panel_file_names,
         output_file_name=radar_figure_file_name,
         num_panel_rows=1, num_panel_columns=num_radar_fields,
-        border_width_pixels=10)
+        border_width_pixels=50)
 
     imagemagick_utils.resize_image(
         input_file_name=radar_figure_file_name,
@@ -233,7 +233,7 @@ def _plot_composite(
     imagemagick_utils.trim_whitespace(
         input_file_name=radar_figure_file_name,
         output_file_name=radar_figure_file_name,
-        border_width_pixels=100)
+        border_width_pixels=TITLE_FONT_SIZE)
 
     _overlay_text(
         image_file_name=radar_figure_file_name,
@@ -272,10 +272,10 @@ def _run(composite_file_names, composite_names, output_dir_name):
     ]
     composite_names_verbose = [n.replace('_', ' ') for n in composite_names]
 
-    radar_figure_file_names = [None] * num_composites
+    radar_panel_file_names = [None] * num_composites
 
     for i in range(num_composites):
-        radar_figure_file_names[i] = _plot_composite(
+        radar_panel_file_names[i] = _plot_composite(
             composite_file_name=composite_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
@@ -283,6 +283,26 @@ def _run(composite_file_names, composite_names, output_dir_name):
         )
 
         print('\n')
+
+    radar_figure_file_name = '{0:s}/radar_concat.jpg'.format(output_dir_name)
+    print('Concatenating panels to: "{0:s}"...'.format(radar_figure_file_name))
+
+    num_panel_rows = int(numpy.floor(
+        numpy.sqrt(num_composites)
+    ))
+    num_panel_columns = int(numpy.ceil(
+        float(num_composites) / num_panel_rows
+    ))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=radar_panel_file_names,
+        output_file_name=radar_figure_file_name, num_panel_rows=num_panel_rows,
+        num_panel_columns=num_panel_columns, border_width_pixels=150)
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=radar_figure_file_name,
+        output_file_name=radar_figure_file_name,
+        border_width_pixels=10)
 
 
 if __name__ == '__main__':
