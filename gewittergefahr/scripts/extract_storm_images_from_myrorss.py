@@ -369,11 +369,12 @@ def _extract_storm_images(
     print(SEPARATOR_STRING)
 
     # Remove untarred MYRORSS files.
-    myrorss_io.remove_unzipped_data_1day(
-        spc_date_string=spc_date_string,
-        top_directory_name=untarred_myrorss_dir_name,
-        field_names=radar_field_names, refl_heights_m_asl=refl_heights_m_asl)
-    print(SEPARATOR_STRING)
+    if tarred_myrorss_dir_name is not None:
+        myrorss_io.remove_unzipped_data_1day(
+            spc_date_string=spc_date_string,
+            top_directory_name=untarred_myrorss_dir_name,
+            field_names=radar_field_names,
+            refl_heights_m_asl=refl_heights_m_asl)
 
 
 if __name__ == '__main__':
