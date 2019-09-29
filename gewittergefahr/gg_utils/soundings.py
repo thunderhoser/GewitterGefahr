@@ -1070,7 +1070,21 @@ def interp_soundings_to_storm_objects(
         raise_error_if_missing=raise_error_if_missing)
     print(SEPARATOR_STRING)
 
-    print(list(interp_table))
+    for this_column_name in list(interp_table):
+        if 'relative_humidity' not in this_column_name:
+            continue
+
+        this_max_value = numpy.max(interp_table[this_column_name].values)
+        this_fraction_over1 = numpy.mean(
+            interp_table[this_column_name].values > 100.
+        )
+
+        print((
+            'Column name = "{0:s}" ... max value = {1:.4f} ... fraction '
+            'supersaturated = {2:.4f}'
+        ).format(
+            this_column_name, this_max_value, this_fraction_over1
+        ))
 
     print('Converting interpolated values to soundings...')
     sounding_dict_pressure_coords = _convert_interp_table_to_soundings(
