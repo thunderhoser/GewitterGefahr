@@ -34,6 +34,7 @@ STORM_ACTIVATIONS_KEY = 'storm_activations'
 TARGET_VALUES_KEY = 'storm_target_values'
 
 ACTIVATION_FILE_ARG_NAME = 'input_activation_file_name'
+UNIQUE_CELLS_ARG_NAME = 'unique_storm_cells'
 NUM_LOW_ARG_NAME = 'num_low_activation_examples'
 NUM_HIGH_ARG_NAME = 'num_high_activation_examples'
 NUM_HITS_ARG_NAME = 'num_hits'
@@ -48,6 +49,11 @@ ACTIVATION_FILE_HELP_STRING = (
     'each example.  Will be read by `model_activation.read_file`.  If the file '
     'contains activations for more than one model component, this script will '
     'error out.')
+
+UNIQUE_CELLS_HELP_STRING = (
+    'Boolean flag.  If 1, each set will contain no more than one example per '
+    'storm cell.  If 0, each set may contain multiple examples from the same '
+    'storm cell.')
 
 NUM_LOW_HELP_STRING = 'Number of low-activation examples to keep.'
 
@@ -83,6 +89,10 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + ACTIVATION_FILE_ARG_NAME, type=str, required=True,
     help=ACTIVATION_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + UNIQUE_CELLS_ARG_NAME, type=int, required=False, default=0,
+    help=UNIQUE_CELLS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_LOW_ARG_NAME, type=int, required=False, default=100,
@@ -245,14 +255,16 @@ def _read_target_values(
 
 
 def _run(
-        input_activation_file_name, num_low_activation_examples,
-        num_high_activation_examples, num_hits, num_misses, num_false_alarms,
-        num_correct_nulls, top_target_dir_name, output_dir_name):
+        input_activation_file_name, unique_storm_cells,
+        num_low_activation_examples, num_high_activation_examples, num_hits,
+        num_misses, num_false_alarms, num_correct_nulls, top_target_dir_name,
+        output_dir_name):
     """Finds extreme examples (storm objects), based on model activations.
 
     This is effectively the main method.
 
     :param input_activation_file_name: See documentation at top of file.
+    :param unique_storm_cells: Same.
     :param num_low_activation_examples: Same.
     :param num_high_activation_examples: Same.
     :param num_hits: Same.
@@ -271,7 +283,7 @@ def _run(
         num_misses, num_false_alarms, num_correct_nulls
     ], dtype=int)
 
-    error_checking.assert_is_greater(numpy.sum(example_counts), 0)
+    error_checking.assert_is_geq_numpy_array(example_counts, 0)
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -306,7 +318,9 @@ def _run(
             model_activation.get_hilo_activation_examples(
                 storm_activations=storm_activations,
                 num_low_activation_examples=num_low_activation_examples,
-                num_high_activation_examples=num_high_activation_examples)
+                num_high_activation_examples=num_high_activation_examples,
+                unique_storm_cells=unique_storm_cells,
+                full_storm_id_strings=full_id_strings)
         )
     else:
         high_indices = numpy.array([], dtype=int)
@@ -393,9 +407,11 @@ def _run(
 
     ct_extreme_dict = model_activation.get_contingency_table_extremes(
         storm_activations=storm_activations,
-        storm_target_values=storm_target_values, num_hits=num_hits,
-        num_misses=num_misses, num_false_alarms=num_false_alarms,
-        num_correct_nulls=num_correct_nulls)
+        storm_target_values=storm_target_values,
+        num_hits=num_hits, num_misses=num_misses,
+        num_false_alarms=num_false_alarms, num_correct_nulls=num_correct_nulls,
+        unique_storm_cells=unique_storm_cells,
+        full_storm_id_strings=full_id_strings)
 
     hit_indices = ct_extreme_dict[model_activation.HIT_INDICES_KEY]
     miss_indices = ct_extreme_dict[model_activation.MISS_INDICES_KEY]
@@ -535,6 +551,9 @@ if __name__ == '__main__':
     _run(
         input_activation_file_name=getattr(
             INPUT_ARG_OBJECT, ACTIVATION_FILE_ARG_NAME),
+        unique_storm_cells=bool(getattr(
+            INPUT_ARG_OBJECT, UNIQUE_CELLS_ARG_NAME
+        )),
         num_low_activation_examples=getattr(INPUT_ARG_OBJECT, NUM_LOW_ARG_NAME),
         num_high_activation_examples=getattr(
             INPUT_ARG_OBJECT, NUM_HIGH_ARG_NAME),
