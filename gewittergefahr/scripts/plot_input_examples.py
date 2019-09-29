@@ -1,5 +1,6 @@
 """Plots one or more examples (storm objects)."""
 
+import copy
 import os.path
 import argparse
 import numpy
@@ -202,12 +203,19 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_sounding(
-        list_of_predictor_matrices, model_metadata_dict,
+        list_of_predictor_matrices, model_metadata_dict, pressures_pascals=None,
         font_size=DEFAULT_SOUNDING_FONT_SIZE):
     """Plots sounding for one example.
 
-    :param list_of_predictor_matrices: See doc for `_plot_3d_radar_scan`.
+    H = number of heights
+
+    :param list_of_predictor_matrices: See doc for `_plot_3d_radar_scan`.  In
+        the sounding matrix (the last one), the second axis should have length
+        H.
     :param model_metadata_dict: Same.
+    :param pressures_pascals:
+        [used only if `list_of_predictor_matrices` does not contain pressure]
+        length-H numpy array of pressures.
     :param font_size: Font size.
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
@@ -216,17 +224,25 @@ def _plot_sounding(
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-    sounding_heights_m_agl = training_option_dict[
-        trainval_io.SOUNDING_HEIGHTS_KEY]
 
     sounding_matrix = numpy.expand_dims(list_of_predictor_matrices[-1], axis=0)
+    sounding_field_names = copy.deepcopy(
+        training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+    )
 
-    # TODO(thunderhoser): Allow actual storm elevation to be used.
+    if soundings.PRESSURE_NAME not in sounding_field_names:
+        num_heights = len(pressures_pascals)
+        pressures_matrix_pascals = numpy.reshape(
+            pressures_pascals, (1, num_heights, 1)
+        )
+
+        sounding_matrix = numpy.concatenate(
+            (sounding_matrix, pressures_matrix_pascals), axis=-1
+        )
+        sounding_field_names.append(soundings.PRESSURE_NAME)
+
     metpy_dict = dl_utils.soundings_to_metpy_dictionaries(
-        sounding_matrix=sounding_matrix, field_names=sounding_field_names,
-        height_levels_m_agl=sounding_heights_m_agl,
-        storm_elevations_m_asl=numpy.array([0.])
+        sounding_matrix=sounding_matrix, field_names=sounding_field_names
     )[0]
 
     figure_object, axes_object = sounding_plotting.plot_sounding(
@@ -801,8 +817,8 @@ def file_name_to_metadata(figure_file_name):
 
 def plot_one_example(
         list_of_predictor_matrices, model_metadata_dict, pmm_flag,
-        example_index=None, plot_sounding=True, allow_whitespace=True,
-        plot_panel_names=True,
+        example_index=None, plot_sounding=True, sounding_pressures_pascals=None,
+        allow_whitespace=True, plot_panel_names=True,
         panel_name_font_size=DEFAULT_PANEL_NAME_FONT_SIZE,
         add_titles=True, title_font_size=DEFAULT_TITLE_FONT_SIZE,
         label_colour_bars=False, colour_bar_length=DEFAULT_CBAR_LENGTH,
@@ -822,6 +838,7 @@ def plot_one_example(
         Will plot the [i]th example, where i = `example_index`.
     :param plot_sounding: Boolean flag.  If True, will plot sounding (if
         available) for the given example.
+    :param sounding_pressures_pascals: See doc for `_plot_soundings`.
     :param allow_whitespace: Boolean flag.  If True, will allow whitespace
         between figure panels.
     :param plot_panel_names: Boolean flag.  If True, will plot label at bottom
@@ -884,6 +901,7 @@ def plot_one_example(
     if plot_sounding and has_sounding:
         sounding_figure_object, sounding_axes_object = _plot_sounding(
             list_of_predictor_matrices=predictor_matrices_to_plot,
+            pressures_pascals=sounding_pressures_pascals,
             model_metadata_dict=model_metadata_dict,
             font_size=sounding_font_size)
     else:
@@ -940,7 +958,8 @@ def plot_one_example(
 
 def plot_examples(
         list_of_predictor_matrices, model_metadata_dict, pmm_flag,
-        output_dir_name, plot_soundings=True, allow_whitespace=True,
+        output_dir_name, plot_soundings=True,
+        sounding_pressure_matrix_pascals=None, allow_whitespace=True,
         plot_panel_names=True,
         panel_name_font_size=DEFAULT_PANEL_NAME_FONT_SIZE,
         add_titles=True, title_font_size=DEFAULT_TITLE_FONT_SIZE,
@@ -952,6 +971,7 @@ def plot_examples(
     """Plots predictors for each example.
 
     E = number of examples (storm objects)
+    H_s = number of sounding heights
 
     :param list_of_predictor_matrices: See doc for `plot_one_example`.
     :param model_metadata_dict: Same.
@@ -959,7 +979,11 @@ def plot_examples(
     :param output_dir_name: Path to output directory.  Figures will be saved
         here.
     :param plot_soundings: See doc for `plot_one_example`.
-    :param allow_whitespace: Same.
+    :param sounding_pressure_matrix_pascals:
+        [used only if `plot_soundings == True` and `list_of_predictor_matrices`
+        does not contain sounding pressure]
+        numpy array (E x H_s) of pressures.
+    :param allow_whitespace: See doc for `plot_one_example`.
     :param plot_panel_names: Same.
     :param panel_name_font_size: Same.
     :param add_titles: Same.
@@ -1015,10 +1039,16 @@ def plot_examples(
     num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
     for i in range(num_examples):
+        if sounding_pressure_matrix_pascals is None:
+            these_pressures_pascals = None
+        else:
+            these_pressures_pascals = sounding_pressure_matrix_pascals[i, ...]
+
         this_handle_dict = plot_one_example(
             list_of_predictor_matrices=list_of_predictor_matrices,
             model_metadata_dict=model_metadata_dict, pmm_flag=pmm_flag,
             example_index=i, plot_sounding=plot_soundings,
+            sounding_pressures_pascals=these_pressures_pascals,
             allow_whitespace=allow_whitespace,
             plot_panel_names=plot_panel_names,
             panel_name_font_size=panel_name_font_size,
@@ -1268,20 +1298,23 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
             storm_activations = storm_activations[:num_examples]
 
     print(SEPARATOR_STRING)
-    list_of_predictor_matrices = testing_io.read_specific_examples(
-        desired_full_id_strings=full_storm_id_strings,
-        desired_times_unix_sec=storm_times_unix_sec,
-        option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-        top_example_dir_name=top_example_dir_name,
-        list_of_layer_operation_dicts=model_metadata_dict[
-            cnn.LAYER_OPERATIONS_KEY]
-    )[0]
+    list_of_predictor_matrices, sounding_pressure_matrix_pascals = (
+        testing_io.read_specific_examples(
+            desired_full_id_strings=full_storm_id_strings,
+            desired_times_unix_sec=storm_times_unix_sec,
+            option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
+            top_example_dir_name=top_example_dir_name,
+            list_of_layer_operation_dicts=model_metadata_dict[
+                cnn.LAYER_OPERATIONS_KEY]
+        )
+    )
     print(SEPARATOR_STRING)
 
     plot_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
         model_metadata_dict=model_metadata_dict, pmm_flag=False,
         output_dir_name=output_dir_name, plot_soundings=plot_soundings,
+        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals,
         allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
         add_titles=add_titles, label_colour_bars=label_colour_bars,
         colour_bar_length=colour_bar_length,
