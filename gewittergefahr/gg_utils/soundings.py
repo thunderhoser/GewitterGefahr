@@ -1093,40 +1093,10 @@ def interp_soundings_to_storm_objects(
         raise_error_if_missing=raise_error_if_missing)
     print(SEPARATOR_STRING)
 
-    for this_column_name in list(interp_table):
-        if 'relative_humidity' not in this_column_name:
-            continue
-
-        this_max_value = numpy.max(interp_table[this_column_name].values)
-        this_fraction_over1 = numpy.mean(
-            interp_table[this_column_name].values > 100.
-        )
-
-        print((
-            'Column name = "{0:s}" ... max value = {1:.4f} ... fraction '
-            'supersaturated = {2:.4f}'
-        ).format(
-            this_column_name, this_max_value, this_fraction_over1
-        ))
-
     print('Converting interpolated values to soundings...')
     sounding_dict_pressure_coords = _convert_interp_table_to_soundings(
         interp_table=interp_table, target_point_table=target_point_table,
         model_name=model_name, include_surface=False)
-
-    these_field_names = sounding_dict_pressure_coords[FIELD_NAMES_KEY]
-    this_sounding_matrix = sounding_dict_pressure_coords[SOUNDING_MATRIX_KEY]
-
-    for k in range(len(these_field_names)):
-        this_max_value = numpy.max(this_sounding_matrix[..., k])
-        this_fraction_over1 = numpy.mean(this_sounding_matrix[..., k] > 100.)
-
-        print((
-            'Field name = "{0:s}" ... max value = {1:.4f} ... fraction '
-            'supersaturated = {2:.4f}'
-        ).format(
-            these_field_names[k], this_max_value, this_fraction_over1
-        ))
 
     print('Converting fields and units in each sounding...')
     orig_num_soundings = len(sounding_dict_pressure_coords[FULL_IDS_KEY])
@@ -1136,20 +1106,6 @@ def interp_soundings_to_storm_objects(
 
     print('Removed {0:d} of {1:d} soundings (too many NaN''s).'.format(
         orig_num_soundings - num_soundings, orig_num_soundings))
-
-    these_field_names = sounding_dict_pressure_coords[FIELD_NAMES_KEY]
-    this_sounding_matrix = sounding_dict_pressure_coords[SOUNDING_MATRIX_KEY]
-
-    for k in range(len(these_field_names)):
-        this_max_value = numpy.max(this_sounding_matrix[..., k])
-        this_fraction_over1 = numpy.mean(this_sounding_matrix[..., k] > 1.)
-
-        print((
-            'Field name = "{0:s}" ... max value = {1:.4f} ... fraction '
-            'supersaturated = {2:.4f}'
-        ).format(
-            these_field_names[k], this_max_value, this_fraction_over1
-        ))
 
     print('Finding elevation of each storm object...')
     storm_elevations_m_asl = geodetic_utils.get_elevations(
@@ -1177,20 +1133,6 @@ def interp_soundings_to_storm_objects(
     sounding_dict_height_coords = _pressure_to_height_coords(
         sounding_dict_pressure_coords=sounding_dict_pressure_coords,
         height_levels_m_agl=height_levels_m_agl)
-
-    these_field_names = sounding_dict_height_coords[FIELD_NAMES_KEY]
-    this_sounding_matrix = sounding_dict_height_coords[SOUNDING_MATRIX_KEY]
-
-    for k in range(len(these_field_names)):
-        this_max_value = numpy.max(this_sounding_matrix[..., k])
-        this_fraction_over1 = numpy.mean(this_sounding_matrix[..., k] > 1.)
-
-        print((
-            'Field name = "{0:s}" ... max value = {1:.4f} ... fraction '
-            'supersaturated = {2:.4f}'
-        ).format(
-            these_field_names[k], this_max_value, this_fraction_over1
-        ))
 
     num_lead_times = len(lead_times_seconds)
     sounding_dict_by_lead_time = [None] * num_lead_times
