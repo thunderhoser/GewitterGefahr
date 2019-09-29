@@ -893,9 +893,13 @@ def _pressure_to_height_coords(
     orig_sounding_matrix[..., height_index] = pressure_matrix_pascals + 0.
 
     field_names_to_interp = [
-        PRESSURE_NAME, SPECIFIC_HUMIDITY_NAME, TEMPERATURE_NAME, U_WIND_NAME,
-        V_WIND_NAME
+        PRESSURE_NAME, TEMPERATURE_NAME, U_WIND_NAME, V_WIND_NAME
     ]
+
+    if RELATIVE_HUMIDITY_NAME in field_names:
+        field_names_to_interp.append(RELATIVE_HUMIDITY_NAME)
+    else:
+        field_names_to_interp.append(SPECIFIC_HUMIDITY_NAME)
 
     num_soundings = orig_sounding_matrix.shape[0]
     num_fields = orig_sounding_matrix.shape[-1]
@@ -940,11 +944,30 @@ def _pressure_to_height_coords(
 
     pressure_matrix_pascals = _get_pressures(sounding_dict_height_coords)
 
-    sounding_dict_height_coords, dewpoint_matrix_kelvins = (
-        _specific_to_relative_humidity(
-            sounding_dict=sounding_dict_height_coords,
-            pressure_matrix_pascals=pressure_matrix_pascals)
+    if RELATIVE_HUMIDITY_NAME in field_names:
+        sounding_dict_height_coords, dewpoint_matrix_kelvins = (
+            _relative_to_specific_humidity(
+                sounding_dict=sounding_dict_height_coords,
+                pressure_matrix_pascals=pressure_matrix_pascals)
+        )
+    else:
+        sounding_dict_height_coords, dewpoint_matrix_kelvins = (
+            _specific_to_relative_humidity(
+                sounding_dict=sounding_dict_height_coords,
+                pressure_matrix_pascals=pressure_matrix_pascals)
+        )
+
+    rh_index = field_names.index(RELATIVE_HUMIDITY_NAME)
+    sounding_matrix = sounding_dict_height_coords[SOUNDING_MATRIX_KEY]
+
+    sounding_matrix[..., rh_index] = numpy.maximum(
+        sounding_matrix[..., rh_index], 0.
     )
+    sounding_matrix[..., rh_index] = numpy.minimum(
+        sounding_matrix[..., rh_index], 1.
+    )
+
+    sounding_dict_height_coords[SOUNDING_MATRIX_KEY] = sounding_matrix
 
     return _get_virtual_potential_temperatures(
         sounding_dict=sounding_dict_height_coords,
