@@ -1,5 +1,6 @@
 """Interpolates NWP sounding to each storm object at each lead time."""
 
+import socket
 import argparse
 import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
@@ -14,9 +15,6 @@ HOURS_TO_SECONDS = 3600
 STORM_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 MODEL_INIT_TIME_FORMAT = '%Y-%m-%d-%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-
-WGRIB_EXE_NAME = '/condo/swatwork/ralager/wgrib/wgrib'
-WGRIB2_EXE_NAME = '/condo/swatwork/ralager/grib2/wgrib2/wgrib2'
 
 FIRST_RAP_TIME_STRING = '2012-05-01-00'
 FIRST_RAP_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
@@ -106,12 +104,14 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _interp_soundings(
+def _run(
         spc_date_string, lead_times_seconds,
         lag_time_for_convective_contamination_sec, top_ruc_directory_name,
         top_rap_directory_name, top_tracking_dir_name, tracking_scale_metres2,
         top_output_dir_name):
     """Interpolates NWP sounding to each storm object at each lead time.
+
+    This is effectively the main method.
 
     :param spc_date_string: See documentation at top of file.
     :param lead_times_seconds: Same.
@@ -124,6 +124,18 @@ def _interp_soundings(
     :raises: ValueError: if model-initialization times needed are on opposite
         sides of 0000 UTC 1 May 2012 (the cutoff between RUC and RAP models).
     """
+
+    host_name = socket.gethostname()
+
+    if 'schooner' in host_name:
+        wgrib_exe_name = '/condo/swatwork/ralager/wgrib/wgrib'
+        wgrib2_exe_name = '/condo/swatwork/ralager/grib2/wgrib2/wgrib2'
+    elif 'casper' in host_name:
+        wgrib_exe_name = '/glade/work/ryanlage/wgrib/wgrib'
+        wgrib2_exe_name = '/glade/work/ryanlage/wgrib2/wgrib2/wgrib2'
+    else:
+        wgrib_exe_name = '/usr/bin/wgrib'
+        wgrib2_exe_name = '/usr/bin/wgrib2'
 
     lead_times_seconds = numpy.array(lead_times_seconds, dtype=int)
 
@@ -202,7 +214,7 @@ def _interp_soundings(
         lead_times_seconds=lead_times_seconds,
         lag_time_for_convective_contamination_sec=
         lag_time_for_convective_contamination_sec,
-        wgrib_exe_name=WGRIB_EXE_NAME, wgrib2_exe_name=WGRIB2_EXE_NAME,
+        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_missing=False)
 
     print(SEPARATOR_STRING)
@@ -231,7 +243,7 @@ def _interp_soundings(
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
-    _interp_soundings(
+    _run(
         spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
         lead_times_seconds=getattr(INPUT_ARG_OBJECT, LEAD_TIMES_ARG_NAME),
         lag_time_for_convective_contamination_sec=getattr(
