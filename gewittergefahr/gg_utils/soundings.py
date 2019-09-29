@@ -1070,6 +1070,8 @@ def interp_soundings_to_storm_objects(
         raise_error_if_missing=raise_error_if_missing)
     print(SEPARATOR_STRING)
 
+    print(list(interp_table))
+
     print('Converting interpolated values to soundings...')
     sounding_dict_pressure_coords = _convert_interp_table_to_soundings(
         interp_table=interp_table, target_point_table=target_point_table,
