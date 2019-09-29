@@ -1155,6 +1155,20 @@ def interp_soundings_to_storm_objects(
         sounding_dict_pressure_coords=sounding_dict_pressure_coords,
         height_levels_m_agl=height_levels_m_agl)
 
+    these_field_names = sounding_dict_height_coords[FIELD_NAMES_KEY]
+    this_sounding_matrix = sounding_dict_height_coords[SOUNDING_MATRIX_KEY]
+
+    for k in range(len(these_field_names)):
+        this_max_value = numpy.max(this_sounding_matrix[..., k])
+        this_fraction_over1 = numpy.mean(this_sounding_matrix[..., k] > 1.)
+
+        print((
+            'Field name = "{0:s}" ... max value = {1:.4f} ... fraction '
+            'supersaturated = {2:.4f}'
+        ).format(
+            these_field_names[k], this_max_value, this_fraction_over1
+        ))
+
     num_lead_times = len(lead_times_seconds)
     sounding_dict_by_lead_time = [None] * num_lead_times
 
