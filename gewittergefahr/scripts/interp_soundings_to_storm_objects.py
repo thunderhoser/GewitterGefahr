@@ -25,6 +25,7 @@ LEAD_TIMES_ARG_NAME = 'lead_times_seconds'
 LAG_TIME_ARG_NAME = 'lag_time_for_convective_contamination_sec'
 RUC_DIRECTORY_ARG_NAME = 'input_ruc_directory_name'
 RAP_DIRECTORY_ARG_NAME = 'input_rap_directory_name'
+ELEVATION_DIR_ARG_NAME = 'input_elevation_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 TRACKING_SCALE_ARG_NAME = 'tracking_scale_metres2'
 OUTPUT_DIR_ARG_NAME = 'output_sounding_dir_name'
@@ -54,6 +55,11 @@ RAP_DIRECTORY_HELP_STRING = (
     'Name of top-level directory with grib files containing RAP (Rapid Refresh)'
     ' data, which will be used for all model-initialization times >= {0:s}.'
 ).format(FIRST_RAP_TIME_STRING)
+
+ELEVATION_DIR_HELP_STRING = (
+    'Name of directory with elevation data (used by the Python package '
+    '"srtm").  To use the default for Casper or Schooner, leave this empty.'
+)
 
 TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with storm tracks (one file per time step, '
@@ -91,6 +97,10 @@ INPUT_ARG_PARSER.add_argument(
     help=RAP_DIRECTORY_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + ELEVATION_DIR_ARG_NAME, type=str, required=False,
+    default='', help=ELEVATION_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_DIR_ARG_NAME, type=str, required=True,
     help=TRACKING_DIR_HELP_STRING)
 
@@ -104,11 +114,10 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _run(
-        spc_date_string, lead_times_seconds,
-        lag_time_for_convective_contamination_sec, top_ruc_directory_name,
-        top_rap_directory_name, top_tracking_dir_name, tracking_scale_metres2,
-        top_output_dir_name):
+def _run(spc_date_string, lead_times_seconds,
+         lag_time_for_convective_contamination_sec, top_ruc_directory_name,
+         top_rap_directory_name, elevation_dir_name, top_tracking_dir_name,
+         tracking_scale_metres2, top_output_dir_name):
     """Interpolates NWP sounding to each storm object at each lead time.
 
     This is effectively the main method.
@@ -118,6 +127,7 @@ def _run(
     :param lag_time_for_convective_contamination_sec: Same.
     :param top_ruc_directory_name: Same.
     :param top_rap_directory_name: Same.
+    :param elevation_dir_name: Same.
     :param top_tracking_dir_name: Same.
     :param tracking_scale_metres2: Same.
     :param top_output_dir_name: Same.
@@ -125,14 +135,23 @@ def _run(
         sides of 0000 UTC 1 May 2012 (the cutoff between RUC and RAP models).
     """
 
+    if elevation_dir_name in ['', 'None']:
+        elevation_dir_name = None
+
     host_name = socket.gethostname()
 
     if 'schooner' in host_name:
         wgrib_exe_name = '/condo/swatwork/ralager/wgrib/wgrib'
         wgrib2_exe_name = '/condo/swatwork/ralager/grib2/wgrib2/wgrib2'
+        if elevation_dir_name is None:
+            elevation_dir_name = '/condo/swatwork/ralager/elevation'
+
     elif 'casper' in host_name:
         wgrib_exe_name = '/glade/work/ryanlage/wgrib/wgrib'
         wgrib2_exe_name = '/glade/work/ryanlage/wgrib2/wgrib2/wgrib2'
+        if elevation_dir_name is None:
+            elevation_dir_name = '/glade/work/ryanlage/elevation'
+
     else:
         wgrib_exe_name = '/usr/bin/wgrib'
         wgrib2_exe_name = '/usr/bin/wgrib2'
@@ -209,7 +228,8 @@ def _run(
     sounding_dict_by_lead_time = soundings.interp_soundings_to_storm_objects(
         storm_object_table=storm_object_table,
         top_grib_directory_name=top_grib_directory_name,
-        model_name=model_name, use_all_grids=True,
+        model_name=model_name, elevation_dir_name=elevation_dir_name,
+        use_all_grids=True,
         height_levels_m_agl=soundings.DEFAULT_HEIGHT_LEVELS_M_AGL,
         lead_times_seconds=lead_times_seconds,
         lag_time_for_convective_contamination_sec=
@@ -252,6 +272,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, RUC_DIRECTORY_ARG_NAME),
         top_rap_directory_name=getattr(
             INPUT_ARG_OBJECT, RAP_DIRECTORY_ARG_NAME),
+        elevation_dir_name=getattr(INPUT_ARG_OBJECT, ELEVATION_DIR_ARG_NAME),
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
         tracking_scale_metres2=getattr(
             INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME),

@@ -1,5 +1,6 @@
 """Extracts storm-centered radar images from MYRORSS data."""
 
+import socket
 import argparse
 import numpy
 from gewittergefahr.gg_io import myrorss_io
@@ -88,7 +89,8 @@ TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-tracking data.')
 
 ELEVATION_DIR_HELP_STRING = (
-    'Name of directory with elevation data (used by the Python package "srtm").'
+    'Name of directory with elevation data (used by the Python package '
+    '"srtm").  To use the default for Casper or Schooner, leave this empty.'
 )
 
 TRACKING_SCALE_HELP_STRING = (
@@ -110,10 +112,6 @@ TARGET_DIR_HELP_STRING = (
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level directory for storm-centered radar images.')
-
-DEFAULT_TARRED_DIR_NAME = '/condo/swatcommon/common/myrorss'
-DEFAULT_UNTARRED_DIR_NAME = '/condo/swatwork/ralager/myrorss_temp'
-DEFAULT_ELEVATION_DIR_NAME = '/condo/swatwork/ralager/elevation'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -157,20 +155,20 @@ INPUT_ARG_PARSER.add_argument(
     help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TARRED_MYRORSS_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TARRED_DIR_NAME, help=TARRED_MYRORSS_DIR_HELP_STRING)
+    '--' + TARRED_MYRORSS_DIR_ARG_NAME, type=str, required=True,
+    help=TARRED_MYRORSS_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + UNTARRED_MYRORSS_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_UNTARRED_DIR_NAME, help=UNTARRED_MYRORSS_DIR_HELP_STRING)
+    '--' + UNTARRED_MYRORSS_DIR_ARG_NAME, type=str, required=True,
+    help=UNTARRED_MYRORSS_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_DIR_ARG_NAME, type=str, required=True,
     help=TRACKING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + ELEVATION_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_ELEVATION_DIR_NAME, help=ELEVATION_DIR_HELP_STRING)
+    '--' + ELEVATION_DIR_ARG_NAME, type=str, required=True,
+    default='', help=ELEVATION_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
@@ -219,6 +217,17 @@ def _extract_storm_images(
     :raises: ValueError: if `first_time_string` and `last_time_string` have
         different SPC dates.
     """
+
+    if elevation_dir_name in ['', 'None']:
+        elevation_dir_name = None
+
+    if elevation_dir_name is None:
+        host_name = socket.gethostname()
+
+        if 'schooner' in host_name:
+            elevation_dir_name = '/condo/swatwork/ralager/elevation'
+        elif 'casper' in host_name:
+            elevation_dir_name = '/glade/work/ryanlage/elevation'
 
     if spc_date_string in ['', 'None']:
         first_time_unix_sec = time_conversion.string_to_unix_sec(

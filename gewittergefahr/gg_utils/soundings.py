@@ -36,7 +36,6 @@ TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 MB_TO_PASCALS = 100
 PASCALS_TO_MB = 0.01
 PERCENT_TO_UNITLESS = 0.01
-ELEVATION_DIR_NAME = '/condo/swatwork/ralager/elevation'
 
 PRESSURE_LEVEL_KEY = 'pressure_level_mb'
 LEAD_TIME_KEY = 'lead_time_seconds'
@@ -1012,7 +1011,7 @@ def field_name_to_verbose(field_name, include_units=True):
 
 def interp_soundings_to_storm_objects(
         storm_object_table, top_grib_directory_name, model_name,
-        use_all_grids=True, grid_id=None,
+        elevation_dir_name, use_all_grids=True, grid_id=None,
         height_levels_m_agl=DEFAULT_HEIGHT_LEVELS_M_AGL,
         lead_times_seconds=DEFAULT_LEAD_TIMES_SEC,
         lag_time_for_convective_contamination_sec=
@@ -1028,6 +1027,8 @@ def interp_soundings_to_storm_objects(
         for the given NWP model.
     :param model_name: Model name (must be accepted by
         `nwp_model_utils.check_grid_name`).
+    :param elevation_dir_name: Name of directory with elevation data (used by
+        the Python package "srtm").
     :param use_all_grids: Boolean flag.  If True, this method will interp from
         the highest-resolution grid available at each model-initialization time.
         If False, will use only `grid_id`.
@@ -1113,7 +1114,8 @@ def interp_soundings_to_storm_objects(
             tracking_utils.CENTROID_LATITUDE_COLUMN].values,
         longitudes_deg=storm_object_table[
             tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
-        working_dir_name=ELEVATION_DIR_NAME)
+        working_dir_name=elevation_dir_name
+    )
 
     these_indices = tracking_utils.find_storm_objects(
         all_id_strings=storm_object_table[
