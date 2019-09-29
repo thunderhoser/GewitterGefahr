@@ -241,7 +241,8 @@ def _plot_sounding(
 def _plot_3d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, add_title, title_font_size,
-        label_colour_bar, colour_bar_length, colour_bar_font_size):
+        label_colour_bar, colour_bar_length, colour_bar_font_size,
+        num_panel_rows=None):
     """Plots 3-D radar images for one example.
 
     Specifically, this method plots one figure per field, with one panel per
@@ -268,6 +269,8 @@ def _plot_3d_radar_scan(
     :param colour_bar_length: Length of colour bars (as fraction of axis
         length).
     :param colour_bar_font_size: Font size for colour bar.
+    :param num_panel_rows: Number of panel rows in each figure.  If None, will
+        use default.
     :return: figure_objects: length-F list of figure handles (instances of
         `matplotlib.figure.Figure`).
     :return: axes_object_matrices: length-F list.  Each element is a J-by-K
@@ -284,15 +287,15 @@ def _plot_3d_radar_scan(
 
     num_radar_fields = len(radar_field_names)
     num_radar_heights = len(radar_heights_m_agl)
-    num_panel_rows = num_radar_heights
-    num_panel_columns = 1
 
-    # num_panel_rows = int(numpy.floor(
-    #     numpy.sqrt(num_radar_heights)
-    # ))
-    # num_panel_columns = int(numpy.ceil(
-    #     float(num_radar_heights) / num_panel_rows
-    # ))
+    if num_panel_rows is None:
+        num_panel_rows = int(numpy.floor(
+            numpy.sqrt(num_radar_heights)
+        ))
+
+    num_panel_columns = int(numpy.ceil(
+        float(num_radar_heights) / num_panel_rows
+    ))
 
     figure_objects = [None] * num_radar_fields
     axes_object_matrices = [None] * num_radar_fields
@@ -364,7 +367,8 @@ def _plot_3d_radar_scan(
 def _plot_2d3d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, add_titles, title_font_size,
-        label_colour_bars, colour_bar_length, colour_bar_font_size):
+        label_colour_bars, colour_bar_length, colour_bar_font_size,
+        num_panel_rows=None):
     """Plots 2-D azimuthal shear and 3-D reflectivity for one example.
 
     Specifically, this method plots one figure with reflectivity (one panel per
@@ -382,6 +386,7 @@ def _plot_2d3d_radar_scan(
     :param label_colour_bars: Same.
     :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
+    :param num_panel_rows: Same.
     :return: figure_objects: length-2 list of figure handles (instances of
         `matplotlib.figure.Figure`).  The first is for reflectivity; the second
         is for azimuthal shear.
@@ -404,9 +409,11 @@ def _plot_2d3d_radar_scan(
     ]
 
     num_refl_heights = len(refl_heights_m_agl)
-    num_panel_rows = int(numpy.floor(
-        numpy.sqrt(num_refl_heights)
-    ))
+    if num_panel_rows is None:
+        num_panel_rows = int(numpy.floor(
+            numpy.sqrt(num_refl_heights)
+        ))
+
     num_panel_columns = int(numpy.ceil(
         float(num_refl_heights) / num_panel_rows
     ))
@@ -526,7 +533,7 @@ def _plot_2d3d_radar_scan(
 def _plot_2d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, colour_bar_length,
-        colour_bar_font_size):
+        colour_bar_font_size, num_panel_rows=None):
     """Plots 2-D radar scan for one example.
 
     Specifically, this method plots one figure, with each panel containing a
@@ -543,6 +550,7 @@ def _plot_2d_radar_scan(
     :param panel_name_font_size: See doc for `_plot_3d_radar_scan`.
     :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
+    :param num_panel_rows: Same.
     :return: figure_objects: length-1 list of figure handles (instances of
         `matplotlib.figure.Figure`).
     :return: axes_object_matrices: length-1 list.  Each element is a J-by-K
@@ -569,9 +577,11 @@ def _plot_2d_radar_scan(
         )
 
     num_radar_fields = len(radar_field_names)
-    num_panel_rows = int(numpy.floor(
-        numpy.sqrt(num_radar_fields)
-    ))
+    if num_panel_rows is None:
+        num_panel_rows = int(numpy.floor(
+            numpy.sqrt(num_radar_fields)
+        ))
+
     num_panel_columns = int(numpy.ceil(
         float(num_radar_fields) / num_panel_rows
     ))
@@ -619,6 +629,22 @@ def _plot_2d_radar_scan(
         these_axes_objects[k].axis('off')
 
     return [figure_object], [axes_object_matrix]
+
+
+def _append_activation_to_title(figure_object, activation, title_font_size):
+    """Appends activation to figure title.
+
+    :param figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    :param activation: Activation (real number).
+    :param title_font_size: Font size.
+    """
+
+    title_string = '{0:s}; activation = {1:.3e}'.format(
+        figure_object._suptitle.get_text(), activation
+    )
+
+    figure_object.suptitle(title_string, fontsize=title_font_size)
 
 
 def metadata_to_file_name(
@@ -781,7 +807,7 @@ def plot_one_example(
         add_titles=True, title_font_size=DEFAULT_TITLE_FONT_SIZE,
         label_colour_bars=False, colour_bar_length=DEFAULT_CBAR_LENGTH,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
-        sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE):
+        sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE, num_panel_rows=None):
     """Plots predictors for one example.
 
     R = number of radar figures
@@ -810,6 +836,8 @@ def plot_one_example(
         length).
     :param colour_bar_font_size: Font size for colour bars.
     :param sounding_font_size: Font size for sounding.
+    :param num_panel_rows: Number of panel rows in each figure.  If None, will
+        use default.
 
     :return: handle_dict: Dictionary with the following keys.
     handle_dict['sounding_figure_object']: One figure handle (instance of
@@ -876,7 +904,8 @@ def plot_one_example(
                 add_titles=add_titles, title_font_size=title_font_size,
                 label_colour_bars=label_colour_bars,
                 colour_bar_length=colour_bar_length,
-                colour_bar_font_size=colour_bar_font_size)
+                colour_bar_font_size=colour_bar_font_size,
+                num_panel_rows=num_panel_rows)
         )
     elif num_radar_dimensions == 3:
         radar_figure_objects, radar_axes_object_matrices = _plot_3d_radar_scan(
@@ -888,7 +917,8 @@ def plot_one_example(
             add_title=add_titles, title_font_size=title_font_size,
             label_colour_bar=label_colour_bars,
             colour_bar_length=colour_bar_length,
-            colour_bar_font_size=colour_bar_font_size)
+            colour_bar_font_size=colour_bar_font_size,
+            num_panel_rows=num_panel_rows)
     else:
         radar_figure_objects, radar_axes_object_matrices = _plot_2d_radar_scan(
             list_of_predictor_matrices=predictor_matrices_to_plot,
@@ -897,7 +927,8 @@ def plot_one_example(
             plot_panel_names=plot_panel_names,
             panel_name_font_size=panel_name_font_size,
             colour_bar_length=colour_bar_length,
-            colour_bar_font_size=colour_bar_font_size)
+            colour_bar_font_size=colour_bar_font_size,
+            num_panel_rows=num_panel_rows)
 
     return {
         SOUNDING_FIGURE_KEY: sounding_figure_object,
@@ -905,22 +936,6 @@ def plot_one_example(
         RADAR_FIGURES_KEY: radar_figure_objects,
         RADAR_AXES_KEY: radar_axes_object_matrices
     }
-
-
-def _append_activation_to_title(figure_object, activation, title_font_size):
-    """Appends activation to figure title.
-
-    :param figure_object: Figure handle (instance of
-        `matplotlib.figure.Figure`).
-    :param activation: Activation (real number).
-    :param title_font_size: Font size.
-    """
-
-    title_string = '{0:s}; activation = {1:.3e}'.format(
-        figure_object._suptitle.get_text(), activation
-    )
-
-    figure_object.suptitle(title_string, fontsize=title_font_size)
 
 
 def plot_examples(
@@ -931,7 +946,7 @@ def plot_examples(
         add_titles=True, title_font_size=DEFAULT_TITLE_FONT_SIZE,
         label_colour_bars=False, colour_bar_length=DEFAULT_CBAR_LENGTH,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
-        sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE,
+        sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE, num_panel_rows=None,
         full_storm_id_strings=None, storm_times_unix_sec=None,
         storm_activations=None):
     """Plots predictors for each example.
@@ -953,6 +968,7 @@ def plot_examples(
     :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
     :param sounding_font_size: Same.
+    :param num_panel_rows: Same.
     :param full_storm_id_strings: [used only if `pmm_flag == False`]
         length-E list of storm IDs.
     :param storm_times_unix_sec: [used only if `pmm_flag == False`]
@@ -1010,7 +1026,8 @@ def plot_examples(
             label_colour_bars=label_colour_bars,
             colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size,
-            sounding_font_size=sounding_font_size)
+            sounding_font_size=sounding_font_size,
+            num_panel_rows=num_panel_rows)
 
         this_sounding_figure_object = this_handle_dict[SOUNDING_FIGURE_KEY]
 

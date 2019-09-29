@@ -20,7 +20,7 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import imagemagick_utils
-from gewittergefahr.scripts import plot_input_examples
+from gewittergefahr.scripts import plot_input_examples as plot_examples
 
 RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
 
@@ -179,9 +179,13 @@ def _plot_composite(
 
     radar_field_names = model_metadata_dict[
         cnn.TRAINING_OPTION_DICT_KEY][trainval_io.RADAR_FIELDS_KEY]
-    num_radar_fields = len(radar_field_names)
+    radar_heights_m_agl = model_metadata_dict[
+        cnn.TRAINING_OPTION_DICT_KEY][trainval_io.RADAR_HEIGHTS_KEY]
 
-    handle_dict = plot_input_examples.plot_one_example(
+    num_radar_fields = len(radar_field_names)
+    num_radar_heights = len(radar_heights_m_agl)
+
+    handle_dict = plot_examples.plot_one_example(
         list_of_predictor_matrices=list_of_mean_input_matrices,
         model_metadata_dict=model_metadata_dict, pmm_flag=True,
         plot_sounding=True, allow_whitespace=True, plot_panel_names=True,
@@ -189,14 +193,14 @@ def _plot_composite(
         add_titles=False, label_colour_bars=True,
         colour_bar_length=COLOUR_BAR_LENGTH,
         colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
-        sounding_font_size=SOUNDING_FONT_SIZE)
+        sounding_font_size=SOUNDING_FONT_SIZE,
+        num_panel_rows=num_radar_heights)
 
     sounding_figure_file_name = '{0:s}/{1:s}_sounding.jpg'.format(
         output_dir_name, composite_name_abbrev)
 
     print('Saving figure to: "{0:s}"...'.format(sounding_figure_file_name))
-    sounding_figure_object = handle_dict[
-        plot_input_examples.SOUNDING_FIGURE_KEY]
+    sounding_figure_object = handle_dict[plot_examples.SOUNDING_FIGURE_KEY]
 
     sounding_figure_object.savefig(
         sounding_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
@@ -223,8 +227,7 @@ def _plot_composite(
         output_file_name=sounding_figure_file_name,
         border_width_pixels=10)
 
-    radar_figure_objects = handle_dict[
-        plot_input_examples.RADAR_FIGURES_KEY]
+    radar_figure_objects = handle_dict[plot_examples.RADAR_FIGURES_KEY]
     panel_file_names = [None] * num_radar_fields
 
     for j in range(num_radar_fields):
