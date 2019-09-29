@@ -974,7 +974,9 @@ def plot_examples(
 
         error_checking.assert_is_string_list(full_storm_id_strings)
         error_checking.assert_is_numpy_array(
-            full_storm_id_strings, exact_dimensions=these_expected_dim)
+            numpy.array(full_storm_id_strings),
+            exact_dimensions=these_expected_dim
+        )
 
         error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
         error_checking.assert_is_numpy_array(
