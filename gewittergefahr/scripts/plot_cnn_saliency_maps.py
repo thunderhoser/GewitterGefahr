@@ -280,9 +280,9 @@ def _plot_2d_radar_saliency(
 
 def _plot_sounding_saliency(
         saliency_matrix, colour_map_object, max_colour_value,
-        sounding_figure_object, sounding_axes_object, saliency_dict,
-        model_metadata_dict, add_title, output_dir_name,
-        pmm_flag, example_index=None):
+        sounding_figure_object, sounding_axes_object,
+        sounding_pressures_pascals, saliency_dict, model_metadata_dict,
+        add_title, output_dir_name, pmm_flag, example_index=None):
     """Plots saliency for sounding.
 
     H = number of sounding heights
@@ -296,6 +296,8 @@ def _plot_sounding_saliency(
         `matplotlib.figure.Figure`) for sounding itself.
     :param sounding_axes_object: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`) for sounding itself.
+    :param sounding_pressures_pascals: length-H numpy array of sounding
+        pressures.
     :param saliency_dict: Dictionary returned by
         `saliency_maps.read_standard_file` or `saliency_maps.read_pmm_file`.
     :param model_metadata_dict: Dictionary returned by
@@ -315,15 +317,11 @@ def _plot_sounding_saliency(
     if pmm_flag:
         full_storm_id_string = None
         storm_time_unix_sec = None
-        sounding_pressures_pa = saliency_dict[
-            saliency_maps.MEAN_SOUNDING_PRESSURES_KEY]
     else:
         full_storm_id_string = saliency_dict[saliency_maps.FULL_IDS_KEY][
             example_index]
         storm_time_unix_sec = saliency_dict[saliency_maps.STORM_TIMES_KEY][
             example_index]
-        sounding_pressures_pa = saliency_dict[
-            saliency_maps.SOUNDING_PRESSURES_KEY][example_index, ...]
 
     if add_title:
         title_string = 'Max absolute saliency = {0:.2e}'.format(
@@ -345,7 +343,7 @@ def _plot_sounding_saliency(
     saliency_plotting.plot_saliency_for_sounding(
         saliency_matrix=saliency_matrix,
         sounding_field_names=sounding_field_names,
-        pressure_levels_mb=PASCALS_TO_MB * sounding_pressures_pa,
+        pressure_levels_mb=PASCALS_TO_MB * sounding_pressures_pascals,
         colour_map_object=colour_map_object,
         max_absolute_colour_value=max_colour_value)
 
@@ -420,6 +418,12 @@ def _run(input_file_name, plot_significance, colour_map_name,
         full_storm_id_strings = saliency_dict[saliency_maps.FULL_IDS_KEY]
         storm_times_unix_sec = saliency_dict[saliency_maps.STORM_TIMES_KEY]
 
+        mean_sounding_pressures_pa = saliency_dict[
+            saliency_maps.MEAN_SOUNDING_PRESSURES_KEY]
+        sounding_pressure_matrix_pa = numpy.reshape(
+            mean_sounding_pressures_pa, (1, len(mean_sounding_pressures_pa))
+        )
+
     except ValueError:
         saliency_dict = saliency_maps.read_pmm_file(input_file_name)
         list_of_input_matrices = saliency_dict.pop(
@@ -437,6 +441,8 @@ def _run(input_file_name, plot_significance, colour_map_name,
 
         full_storm_id_strings = [None]
         storm_times_unix_sec = [None]
+        sounding_pressure_matrix_pa = saliency_dict[
+            saliency_maps.SOUNDING_PRESSURES_KEY]
 
     pmm_flag = (
         full_storm_id_strings[0] is None and storm_times_unix_sec[0] is None
@@ -482,6 +488,7 @@ def _run(input_file_name, plot_significance, colour_map_name,
             list_of_predictor_matrices=list_of_input_matrices,
             model_metadata_dict=model_metadata_dict, pmm_flag=pmm_flag,
             example_index=i, plot_sounding=plot_soundings,
+            sounding_pressures_pascals=sounding_pressure_matrix_pa[i, ...],
             allow_whitespace=allow_whitespace,
             plot_panel_names=plot_panel_names, add_titles=add_titles,
             label_colour_bars=label_colour_bars,
@@ -496,6 +503,7 @@ def _run(input_file_name, plot_significance, colour_map_name,
                     plot_examples.SOUNDING_FIGURE_KEY],
                 sounding_axes_object=this_handle_dict[
                     plot_examples.SOUNDING_AXES_KEY],
+                sounding_pressures_pascals=sounding_pressure_matrix_pa[i, ...],
                 saliency_dict=saliency_dict,
                 model_metadata_dict=model_metadata_dict, add_title=add_titles,
                 output_dir_name=output_dir_name, pmm_flag=pmm_flag,
