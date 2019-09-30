@@ -263,7 +263,7 @@ def _get_divergence_colour_scheme():
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
     """
 
-    return _get_az_shear_colour_scheme()
+    return _get_vorticity_colour_scheme()
 
 
 def _get_echo_top_colour_scheme():
