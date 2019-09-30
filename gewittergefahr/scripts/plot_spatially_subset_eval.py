@@ -354,7 +354,7 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         min_colour_value=0., max_colour_value=max_colour_value,
         plot_cbar_min_arrow=False, plot_cbar_max_arrow=True)
 
-    axes_object.set_title(r'Number of storm objects (log$_{10}$)')
+    axes_object.set_title(r'Number of examples (log$_{10}$)')
     panel_file_names.append('{0:s}/num_examples.jpg'.format(output_dir_name))
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
@@ -378,7 +378,7 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value,
         plot_cbar_min_arrow=True, plot_cbar_max_arrow=True)
 
-    axes_object.set_title('Number of tornadic storm objects')
+    axes_object.set_title('Number of tornadic examples')
     panel_file_names.append(
         '{0:s}/num_positive_examples.jpg'.format(output_dir_name)
     )

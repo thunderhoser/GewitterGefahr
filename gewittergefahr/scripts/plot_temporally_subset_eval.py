@@ -223,8 +223,8 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append(r'Number of storm objects (log$_{10}$)')
-    histogram_axes_object.set_ylabel(r'Number of storm objects (log$_{10}$)')
+    legend_strings.append(r'Number of examples (log$_{10}$)')
+    histogram_axes_object.set_ylabel(r'Number of examples (log$_{10}$)')
 
     if plot_legend:
         main_axes_object.legend(
@@ -332,8 +332,8 @@ def _plot_pod_and_far(pod_matrix, far_matrix, num_positive_ex_by_chunk,
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append('Number of tornadic storm objects')
-    histogram_axes_object.set_ylabel('Number of tornadic storm objects')
+    legend_strings.append('Number of tornadic examples')
+    histogram_axes_object.set_ylabel('Number of tornadic examples')
 
     if plot_legend:
         main_axes_object.legend(
