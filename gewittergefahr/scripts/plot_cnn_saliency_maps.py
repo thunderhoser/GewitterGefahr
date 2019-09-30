@@ -6,22 +6,18 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
-from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
-from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
-from gewittergefahr.plotting import sounding_plotting
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import significance_plotting
 from gewittergefahr.plotting import imagemagick_utils
-from gewittergefahr.scripts import plot_input_examples
+from gewittergefahr.scripts import plot_input_examples as plot_examples
 
-# TODO(thunderhoser): Use threshold counts at some point.
-
+PASCALS_TO_MB = 0.01
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 HALF_NUM_CONTOURS = 10
@@ -33,12 +29,12 @@ PLOT_SIGNIFICANCE_ARG_NAME = 'plot_significance'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
-PLOT_SOUNDINGS_ARG_NAME = plot_input_examples.PLOT_SOUNDINGS_ARG_NAME
-ALLOW_WHITESPACE_ARG_NAME = plot_input_examples.ALLOW_WHITESPACE_ARG_NAME
-PLOT_PANEL_NAMES_ARG_NAME = plot_input_examples.PLOT_PANEL_NAMES_ARG_NAME
-ADD_TITLES_ARG_NAME = plot_input_examples.ADD_TITLES_ARG_NAME
-LABEL_CBARS_ARG_NAME = plot_input_examples.LABEL_CBARS_ARG_NAME
-CBAR_LENGTH_ARG_NAME = plot_input_examples.CBAR_LENGTH_ARG_NAME
+PLOT_SOUNDINGS_ARG_NAME = plot_examples.PLOT_SOUNDINGS_ARG_NAME
+ALLOW_WHITESPACE_ARG_NAME = plot_examples.ALLOW_WHITESPACE_ARG_NAME
+PLOT_PANEL_NAMES_ARG_NAME = plot_examples.PLOT_PANEL_NAMES_ARG_NAME
+ADD_TITLES_ARG_NAME = plot_examples.ADD_TITLES_ARG_NAME
+LABEL_CBARS_ARG_NAME = plot_examples.LABEL_CBARS_ARG_NAME
+CBAR_LENGTH_ARG_NAME = plot_examples.CBAR_LENGTH_ARG_NAME
 
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `saliency_maps.read_standard_file` or'
@@ -64,12 +60,12 @@ MAX_PERCENTILE_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  Figures will be saved here.')
 
-PLOT_SOUNDINGS_HELP_STRING = plot_input_examples.PLOT_SOUNDINGS_HELP_STRING
-ALLOW_WHITESPACE_HELP_STRING = plot_input_examples.ALLOW_WHITESPACE_HELP_STRING
-PLOT_PANEL_NAMES_HELP_STRING = plot_input_examples.PLOT_PANEL_NAMES_HELP_STRING
-ADD_TITLES_HELP_STRING = plot_input_examples.ADD_TITLES_HELP_STRING
-LABEL_CBARS_HELP_STRING = plot_input_examples.LABEL_CBARS_HELP_STRING
-CBAR_LENGTH_HELP_STRING = plot_input_examples.CBAR_LENGTH_HELP_STRING
+PLOT_SOUNDINGS_HELP_STRING = plot_examples.PLOT_SOUNDINGS_HELP_STRING
+ALLOW_WHITESPACE_HELP_STRING = plot_examples.ALLOW_WHITESPACE_HELP_STRING
+PLOT_PANEL_NAMES_HELP_STRING = plot_examples.PLOT_PANEL_NAMES_HELP_STRING
+ADD_TITLES_HELP_STRING = plot_examples.ADD_TITLES_HELP_STRING
+LABEL_CBARS_HELP_STRING = plot_examples.LABEL_CBARS_HELP_STRING
+CBAR_LENGTH_HELP_STRING = plot_examples.CBAR_LENGTH_HELP_STRING
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -185,9 +181,9 @@ def _plot_3d_radar_saliency(
 
             figure_objects[j].suptitle(
                 this_title_string,
-                fontsize=plot_input_examples.DEFAULT_TITLE_FONT_SIZE)
+                fontsize=plot_examples.DEFAULT_TITLE_FONT_SIZE)
 
-        this_file_name = plot_input_examples.metadata_to_file_name(
+        this_file_name = plot_examples.metadata_to_file_name(
             output_dir_name=output_dir_name, is_sounding=False,
             pmm_flag=pmm_flag, full_storm_id_string=full_storm_id_string,
             storm_time_unix_sec=storm_time_unix_sec,
@@ -266,9 +262,9 @@ def _plot_2d_radar_saliency(
 
         figure_objects[figure_index].suptitle(
             this_title_string,
-            fontsize=plot_input_examples.DEFAULT_TITLE_FONT_SIZE)
+            fontsize=plot_examples.DEFAULT_TITLE_FONT_SIZE)
 
-    output_file_name = plot_input_examples.metadata_to_file_name(
+    output_file_name = plot_examples.metadata_to_file_name(
         output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
         full_storm_id_string=full_storm_id_string,
         storm_time_unix_sec=storm_time_unix_sec,
@@ -283,121 +279,88 @@ def _plot_2d_radar_saliency(
 
 
 def _plot_sounding_saliency(
-        saliency_matrix, colour_map_object, max_colour_value, sounding_matrix,
-        saliency_dict, model_metadata_dict, add_title, output_dir_name,
+        saliency_matrix, colour_map_object, max_colour_value,
+        sounding_figure_object, sounding_axes_object, saliency_dict,
+        model_metadata_dict, add_title, output_dir_name,
         pmm_flag, example_index=None):
     """Plots saliency for sounding.
 
     H = number of sounding heights
     F = number of sounding fields
 
-    If plotting a composite rather than one example, `full_storm_id_string` and
-    `storm_time_unix_sec` can be None.
-
     :param saliency_matrix: H-by-F numpy array of saliency values.
-    :param colour_map_object: See documentation at top of file.
-    :param max_colour_value: Max value in colour scheme for saliency.
-    :param sounding_matrix: H-by-F numpy array of actual sounding values.
-    :param saliency_dict: Dictionary returned from
+    :param colour_map_object: Colour scheme for saliency (instance of
+        `matplotlib.pyplot.cm` or similar).
+    :param max_colour_value: Max value for colour scheme.
+    :param sounding_figure_object: Figure handle (instance of
+        `matplotlib.figure.Figure`) for sounding itself.
+    :param sounding_axes_object: Axes handle (instance of
+        `matplotlib.axes._subplots.AxesSubplot`) for sounding itself.
+    :param saliency_dict: Dictionary returned by
         `saliency_maps.read_standard_file` or `saliency_maps.read_pmm_file`.
     :param model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     :param add_title: Boolean flag.
-    :param output_dir_name: Path to output directory.  Figure will be saved
+    :param output_dir_name: Name of output directory.  Figures will be saved
         here.
-    :param pmm_flag: Boolean flag.  If True, will plot composite rather than one
-        example.
+    :param pmm_flag: Boolean flag.  If True, plotting PMM composite rather than
+        one example.
     :param example_index: [used only if `pmm_flag == False`]
-        Will plot the [i]th example, where i = `example_index`.
+        Plotting the [i]th example, where i = `example_index`.
     """
-
-    if pmm_flag:
-        example_index = 0
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-    sounding_heights_m_agl = training_option_dict[
-        trainval_io.SOUNDING_HEIGHTS_KEY]
-
-    sounding_matrix = numpy.expand_dims(sounding_matrix, axis=0)
-
-    if saliency_maps.SOUNDING_PRESSURES_KEY in saliency_dict:
-        pressure_matrix_pascals = numpy.expand_dims(
-            saliency_dict[saliency_maps.SOUNDING_PRESSURES_KEY], axis=-1
-        )
-
-        pressure_matrix_pascals = pressure_matrix_pascals[[example_index], ...]
-        sounding_matrix = numpy.concatenate(
-            (sounding_matrix, pressure_matrix_pascals), axis=-1
-        )
-
-        sounding_dict_for_metpy = dl_utils.soundings_to_metpy_dictionaries(
-            sounding_matrix=sounding_matrix,
-            field_names=sounding_field_names + [soundings.PRESSURE_NAME]
-        )[0]
-    else:
-        sounding_dict_for_metpy = dl_utils.soundings_to_metpy_dictionaries(
-            sounding_matrix=sounding_matrix, field_names=sounding_field_names,
-            height_levels_m_agl=sounding_heights_m_agl,
-            storm_elevations_m_asl=numpy.array([0.])
-        )[0]
 
     if pmm_flag:
         full_storm_id_string = None
         storm_time_unix_sec = None
+        sounding_pressures_pa = saliency_dict[
+            saliency_maps.MEAN_SOUNDING_PRESSURES_KEY]
     else:
         full_storm_id_string = saliency_dict[saliency_maps.FULL_IDS_KEY][
             example_index]
         storm_time_unix_sec = saliency_dict[saliency_maps.STORM_TIMES_KEY][
             example_index]
+        sounding_pressures_pa = saliency_dict[
+            saliency_maps.SOUNDING_PRESSURES_KEY][example_index, ...]
 
     if add_title:
         title_string = 'Max absolute saliency = {0:.2e}'.format(
             max_colour_value)
-    else:
-        title_string = None
+        sounding_axes_object.set_title(title_string)
 
-    sounding_plotting.plot_sounding(
-        sounding_dict_for_metpy=sounding_dict_for_metpy,
-        title_string=title_string)
-
-    left_panel_file_name = plot_input_examples.metadata_to_file_name(
+    left_panel_file_name = plot_examples.metadata_to_file_name(
         output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
         full_storm_id_string=full_storm_id_string,
         storm_time_unix_sec=storm_time_unix_sec,
         radar_field_name='sounding-actual')
 
     print('Saving figure to file: "{0:s}"...'.format(left_panel_file_name))
-    pyplot.savefig(left_panel_file_name, dpi=FIGURE_RESOLUTION_DPI)
-    pyplot.close()
-
-    imagemagick_utils.trim_whitespace(
-        input_file_name=left_panel_file_name,
-        output_file_name=left_panel_file_name)
+    sounding_figure_object.savefig(
+        left_panel_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight')
+    pyplot.close(sounding_figure_object)
 
     saliency_plotting.plot_saliency_for_sounding(
         saliency_matrix=saliency_matrix,
         sounding_field_names=sounding_field_names,
-        pressure_levels_mb=sounding_dict_for_metpy[
-            soundings.PRESSURE_COLUMN_METPY],
+        pressure_levels_mb=PASCALS_TO_MB * sounding_pressures_pa,
         colour_map_object=colour_map_object,
         max_absolute_colour_value=max_colour_value)
 
-    right_panel_file_name = plot_input_examples.metadata_to_file_name(
+    right_panel_file_name = plot_examples.metadata_to_file_name(
         output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
         full_storm_id_string=full_storm_id_string,
         storm_time_unix_sec=storm_time_unix_sec,
         radar_field_name='sounding-saliency')
 
     print('Saving figure to file: "{0:s}"...'.format(right_panel_file_name))
-    pyplot.savefig(right_panel_file_name, dpi=FIGURE_RESOLUTION_DPI)
+    pyplot.savefig(right_panel_file_name, dpi=FIGURE_RESOLUTION_DPI,
+                   pad_inches=0, bbox_inches='tight')
     pyplot.close()
 
-    imagemagick_utils.trim_whitespace(
-        input_file_name=right_panel_file_name,
-        output_file_name=right_panel_file_name)
-
-    concat_file_name = plot_input_examples.metadata_to_file_name(
+    concat_file_name = plot_examples.metadata_to_file_name(
         output_dir_name=output_dir_name, is_sounding=True, pmm_flag=pmm_flag,
         full_storm_id_string=full_storm_id_string,
         storm_time_unix_sec=storm_time_unix_sec)
@@ -405,8 +368,9 @@ def _plot_sounding_saliency(
     print('Concatenating figures to: "{0:s}"...\n'.format(concat_file_name))
     imagemagick_utils.concatenate_images(
         input_file_names=[left_panel_file_name, right_panel_file_name],
-        output_file_name=concat_file_name, num_panel_rows=1,
-        num_panel_columns=2)
+        output_file_name=concat_file_name,
+        num_panel_rows=1, num_panel_columns=2
+    )
 
     imagemagick_utils.resize_image(
         input_file_name=concat_file_name, output_file_name=concat_file_name,
@@ -499,10 +463,12 @@ def _run(input_file_name, plot_significance, colour_map_name,
     print(SEPARATOR_STRING)
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    has_soundings = (
-        training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None
-    )
-    num_radar_matrices = len(list_of_input_matrices) - int(has_soundings)
+    num_radar_matrices = len(list_of_input_matrices)
+
+    if training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is None:
+        plot_soundings = False
+    else:
+        num_radar_matrices -= 1
 
     monte_carlo_dict = (
         saliency_dict[saliency_maps.MONTE_CARLO_DICT_KEY]
@@ -512,30 +478,32 @@ def _run(input_file_name, plot_significance, colour_map_name,
     )
 
     for i in range(num_examples):
-        if has_soundings and plot_soundings:
-            _plot_sounding_saliency(
-                saliency_matrix=list_of_saliency_matrices[-1][i, ...],
-                colour_map_object=colour_map_object,
-                max_colour_value=max_colour_value_by_example[i],
-                sounding_matrix=list_of_input_matrices[-1][i, ...],
-                saliency_dict=saliency_dict,
-                model_metadata_dict=model_metadata_dict,
-                add_title=add_titles, output_dir_name=output_dir_name,
-                pmm_flag=pmm_flag, example_index=i)
-
-        this_handle_dict = plot_input_examples.plot_one_example(
+        this_handle_dict = plot_examples.plot_one_example(
             list_of_predictor_matrices=list_of_input_matrices,
             model_metadata_dict=model_metadata_dict, pmm_flag=pmm_flag,
-            example_index=i, plot_sounding=False,
+            example_index=i, plot_sounding=plot_soundings,
             allow_whitespace=allow_whitespace,
             plot_panel_names=plot_panel_names, add_titles=add_titles,
             label_colour_bars=label_colour_bars,
             colour_bar_length=colour_bar_length)
 
-        these_figure_objects = this_handle_dict[
-            plot_input_examples.RADAR_FIGURES_KEY]
+        if plot_soundings:
+            _plot_sounding_saliency(
+                saliency_matrix=list_of_saliency_matrices[-1][i, ...],
+                colour_map_object=colour_map_object,
+                max_colour_value=max_colour_value_by_example[i],
+                sounding_figure_object=this_handle_dict[
+                    plot_examples.SOUNDING_FIGURE_KEY],
+                sounding_axes_object=this_handle_dict[
+                    plot_examples.SOUNDING_AXES_KEY],
+                saliency_dict=saliency_dict,
+                model_metadata_dict=model_metadata_dict, add_title=add_titles,
+                output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+                example_index=i)
+
+        these_figure_objects = this_handle_dict[plot_examples.RADAR_FIGURES_KEY]
         these_axes_object_matrices = this_handle_dict[
-            plot_input_examples.RADAR_AXES_KEY]
+            plot_examples.RADAR_AXES_KEY]
 
         for j in range(num_radar_matrices):
             if monte_carlo_dict is None:

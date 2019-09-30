@@ -9,7 +9,7 @@ from gewittergefahr.deep_learning import upconvnet
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import model_interpretation
-from gewittergefahr.scripts import plot_input_examples
+from gewittergefahr.scripts import plot_input_examples as plot_examples
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -18,11 +18,11 @@ STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
-ALLOW_WHITESPACE_ARG_NAME = plot_input_examples.ALLOW_WHITESPACE_ARG_NAME
-PLOT_PANEL_NAMES_ARG_NAME = plot_input_examples.PLOT_PANEL_NAMES_ARG_NAME
-ADD_TITLES_ARG_NAME = plot_input_examples.ADD_TITLES_ARG_NAME
-LABEL_CBARS_ARG_NAME = plot_input_examples.LABEL_CBARS_ARG_NAME
-CBAR_LENGTH_ARG_NAME = plot_input_examples.CBAR_LENGTH_ARG_NAME
+ALLOW_WHITESPACE_ARG_NAME = plot_examples.ALLOW_WHITESPACE_ARG_NAME
+PLOT_PANEL_NAMES_ARG_NAME = plot_examples.PLOT_PANEL_NAMES_ARG_NAME
+ADD_TITLES_ARG_NAME = plot_examples.ADD_TITLES_ARG_NAME
+LABEL_CBARS_ARG_NAME = plot_examples.LABEL_CBARS_ARG_NAME
+CBAR_LENGTH_ARG_NAME = plot_examples.CBAR_LENGTH_ARG_NAME
 
 UPCONVNET_FILE_HELP_STRING = (
     'Path to file with trained upconvnet (will be read by `cnn.read_model`).')
@@ -45,11 +45,11 @@ EXAMPLE_DIR_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Figures will be saved here.')
 
-ALLOW_WHITESPACE_HELP_STRING = plot_input_examples.ALLOW_WHITESPACE_HELP_STRING
-PLOT_PANEL_NAMES_HELP_STRING = plot_input_examples.PLOT_PANEL_NAMES_HELP_STRING
-ADD_TITLES_HELP_STRING = plot_input_examples.ADD_TITLES_HELP_STRING
-LABEL_CBARS_HELP_STRING = plot_input_examples.LABEL_CBARS_HELP_STRING
-CBAR_LENGTH_HELP_STRING = plot_input_examples.CBAR_LENGTH_HELP_STRING
+ALLOW_WHITESPACE_HELP_STRING = plot_examples.ALLOW_WHITESPACE_HELP_STRING
+PLOT_PANEL_NAMES_HELP_STRING = plot_examples.PLOT_PANEL_NAMES_HELP_STRING
+ADD_TITLES_HELP_STRING = plot_examples.ADD_TITLES_HELP_STRING
+LABEL_CBARS_HELP_STRING = plot_examples.LABEL_CBARS_HELP_STRING
+CBAR_LENGTH_HELP_STRING = plot_examples.CBAR_LENGTH_HELP_STRING
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -203,7 +203,7 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=actual_output_dir_name)
 
-    plot_input_examples.plot_examples(
+    plot_examples.plot_examples(
         list_of_predictor_matrices=[actual_radar_matrix],
         model_metadata_dict=cnn_metadata_dict, pmm_flag=False,
         output_dir_name=actual_output_dir_name, plot_soundings=False,
@@ -219,7 +219,7 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=reconstructed_output_dir_name)
 
-    plot_input_examples.plot_examples(
+    plot_examples.plot_examples(
         list_of_predictor_matrices=[reconstructed_radar_matrix],
         model_metadata_dict=cnn_metadata_dict, pmm_flag=False,
         output_dir_name=reconstructed_output_dir_name, plot_soundings=False,
