@@ -15,6 +15,7 @@ from gewittergefahr.scripts import plot_input_examples
 
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
+MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pascals'
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -99,10 +100,10 @@ def _run(input_file_name, plot_soundings, allow_whitespace, plot_panel_names,
     input_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    list_of_mean_input_matrices = input_dict[MEAN_INPUT_MATRICES_KEY]
-    for i in range(len(list_of_mean_input_matrices)):
-        list_of_mean_input_matrices[i] = numpy.expand_dims(
-            list_of_mean_input_matrices[i], axis=0
+    mean_predictor_matrices = input_dict[MEAN_INPUT_MATRICES_KEY]
+    for i in range(len(mean_predictor_matrices)):
+        mean_predictor_matrices[i] = numpy.expand_dims(
+            mean_predictor_matrices[i], axis=0
         )
 
     model_file_name = input_dict[MODEL_FILE_KEY]
@@ -116,10 +117,17 @@ def _run(input_file_name, plot_soundings, allow_whitespace, plot_panel_names,
         trainval_io.UPSAMPLE_REFLECTIVITY_KEY
     ] = False
 
+    mean_sounding_pressures_pascals = input_dict[MEAN_SOUNDING_PRESSURES_KEY]
+    sounding_pressure_matrix_pascals = numpy.reshape(
+        mean_sounding_pressures_pascals,
+        (1, len(mean_sounding_pressures_pascals))
+    )
+
     plot_input_examples.plot_examples(
-        list_of_predictor_matrices=list_of_mean_input_matrices,
+        list_of_predictor_matrices=mean_predictor_matrices,
         model_metadata_dict=model_metadata_dict, pmm_flag=True,
         output_dir_name=output_dir_name, plot_soundings=plot_soundings,
+        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals,
         allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
         add_titles=add_titles, label_colour_bars=label_colour_bars,
         colour_bar_length=colour_bar_length)

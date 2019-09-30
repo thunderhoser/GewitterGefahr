@@ -26,6 +26,7 @@ RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
 
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
+MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pa'
 
 COLOUR_BAR_LENGTH = 0.25
 PANEL_NAME_FONT_SIZE = 30
@@ -78,12 +79,15 @@ def _read_composite(pickle_file_name):
     """Reads PMM composite of examples (storm objects) from Pickle file.
 
     T = number of input tensors to model
+    H_s = number of sounding heights
 
     :param pickle_file_name: Path to input file.
-    :return: list_of_mean_input_matrices: length-T of numpy arrays, where the
-        [i]th item has dimensions of the [i]th input tensor to the model.
+    :return: mean_predictor_matrices: length-T of numpy arrays, where the [i]th
+        item has dimensions of the [i]th input tensor to the model.
     :return: model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
+    :return: mean_sounding_pressures_pa: numpy array (length H_s) of
+        sounding pressures.
     """
 
     print('Reading data from: "{0:s}"...'.format(pickle_file_name))
@@ -91,10 +95,12 @@ def _read_composite(pickle_file_name):
     composite_dict = pickle.load(file_handle)
     file_handle.close()
 
-    list_of_mean_input_matrices = composite_dict[MEAN_INPUT_MATRICES_KEY]
-    for i in range(len(list_of_mean_input_matrices)):
-        list_of_mean_input_matrices[i] = numpy.expand_dims(
-            list_of_mean_input_matrices[i], axis=0
+    mean_predictor_matrices = composite_dict[MEAN_INPUT_MATRICES_KEY]
+    mean_sounding_pressures_pa = composite_dict[MEAN_SOUNDING_PRESSURES_KEY]
+
+    for i in range(len(mean_predictor_matrices)):
+        mean_predictor_matrices[i] = numpy.expand_dims(
+            mean_predictor_matrices[i], axis=0
         )
 
     model_file_name = composite_dict[MODEL_FILE_KEY]
@@ -104,7 +110,6 @@ def _read_composite(pickle_file_name):
 
     print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
-
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY][
         trainval_io.UPSAMPLE_REFLECTIVITY_KEY
     ] = False
@@ -117,14 +122,15 @@ def _read_composite(pickle_file_name):
     )
     good_indices = numpy.where(good_flags)[0]
 
-    list_of_mean_input_matrices[0] = list_of_mean_input_matrices[0][
+    mean_predictor_matrices[0] = mean_predictor_matrices[0][
         ..., good_indices, :]
 
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY][
         trainval_io.RADAR_HEIGHTS_KEY
     ] = RADAR_HEIGHTS_M_AGL
 
-    return list_of_mean_input_matrices, model_metadata_dict
+    return (mean_predictor_matrices, model_metadata_dict,
+            mean_sounding_pressures_pa)
 
 
 def _overlay_text(
@@ -174,8 +180,9 @@ def _plot_composite(
         this composite.
     """
 
-    list_of_mean_input_matrices, model_metadata_dict = _read_composite(
-        composite_file_name)
+    mean_predictor_matrices, model_metadata_dict, mean_sounding_pressures_pa = (
+        _read_composite(composite_file_name)
+    )
 
     radar_field_names = model_metadata_dict[
         cnn.TRAINING_OPTION_DICT_KEY][trainval_io.RADAR_FIELDS_KEY]
@@ -186,9 +193,11 @@ def _plot_composite(
     num_radar_heights = len(radar_heights_m_agl)
 
     handle_dict = plot_examples.plot_one_example(
-        list_of_predictor_matrices=list_of_mean_input_matrices,
+        list_of_predictor_matrices=mean_predictor_matrices,
         model_metadata_dict=model_metadata_dict, pmm_flag=True,
-        plot_sounding=True, allow_whitespace=True, plot_panel_names=True,
+        plot_sounding=True,
+        sounding_pressures_pascals=mean_sounding_pressures_pa,
+        allow_whitespace=True, plot_panel_names=True,
         panel_name_font_size=PANEL_NAME_FONT_SIZE,
         add_titles=False, label_colour_bars=True,
         colour_bar_length=COLOUR_BAR_LENGTH,
