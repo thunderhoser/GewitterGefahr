@@ -417,12 +417,8 @@ def _run(input_file_name, plot_significance, colour_map_name,
 
         full_storm_id_strings = saliency_dict[saliency_maps.FULL_IDS_KEY]
         storm_times_unix_sec = saliency_dict[saliency_maps.STORM_TIMES_KEY]
-
-        mean_sounding_pressures_pa = saliency_dict[
-            saliency_maps.MEAN_SOUNDING_PRESSURES_KEY]
-        sounding_pressure_matrix_pa = numpy.reshape(
-            mean_sounding_pressures_pa, (1, len(mean_sounding_pressures_pa))
-        )
+        sounding_pressure_matrix_pa = saliency_dict[
+            saliency_maps.SOUNDING_PRESSURES_KEY]
 
     except ValueError:
         saliency_dict = saliency_maps.read_pmm_file(input_file_name)
@@ -441,8 +437,12 @@ def _run(input_file_name, plot_significance, colour_map_name,
 
         full_storm_id_strings = [None]
         storm_times_unix_sec = [None]
-        sounding_pressure_matrix_pa = saliency_dict[
-            saliency_maps.SOUNDING_PRESSURES_KEY]
+
+        mean_sounding_pressures_pa = saliency_dict[
+            saliency_maps.MEAN_SOUNDING_PRESSURES_KEY]
+        sounding_pressure_matrix_pa = numpy.reshape(
+            mean_sounding_pressures_pa, (1, len(mean_sounding_pressures_pa))
+        )
 
     pmm_flag = (
         full_storm_id_strings[0] is None and storm_times_unix_sec[0] is None
