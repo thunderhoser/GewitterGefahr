@@ -35,15 +35,15 @@ STANDARD_FILE_KEYS = [
 
 MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
 MEAN_SALIENCY_MATRICES_KEY = 'list_of_mean_saliency_matrices'
-THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
 STANDARD_FILE_NAME_KEY = 'standard_saliency_file_name'
 PMM_METADATA_KEY = 'pmm_metadata_dict'
 MONTE_CARLO_DICT_KEY = 'monte_carlo_dict'
+MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pascals'
 
 PMM_FILE_KEYS = [
-    MEAN_INPUT_MATRICES_KEY, MEAN_SALIENCY_MATRICES_KEY, THRESHOLD_COUNTS_KEY,
-    MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY,
-    MONTE_CARLO_DICT_KEY
+    MEAN_INPUT_MATRICES_KEY, MEAN_SALIENCY_MATRICES_KEY, MODEL_FILE_KEY,
+    STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY, MONTE_CARLO_DICT_KEY,
+    MEAN_SOUNDING_PRESSURES_KEY
 ]
 
 
@@ -299,12 +299,15 @@ def get_saliency_maps_for_channel_activation(
 
 def write_pmm_file(
         pickle_file_name, list_of_mean_input_matrices,
-        list_of_mean_saliency_matrices, threshold_count_matrix, model_file_name,
-        standard_saliency_file_name, pmm_metadata_dict, monte_carlo_dict=None):
+        list_of_mean_saliency_matrices, model_file_name,
+        standard_saliency_file_name, pmm_metadata_dict,
+        mean_sounding_pressures_pascals=None, monte_carlo_dict=None):
     """Writes mean saliency map to Pickle file.
 
     This is a mean over many examples, created by PMM (probability-matched
     means).
+
+    H_s = number of sounding heights
 
     :param pickle_file_name: Path to output file.
     :param list_of_mean_input_matrices: Same as input `list_of_input_matrices`
@@ -312,14 +315,15 @@ def write_pmm_file(
     :param list_of_mean_saliency_matrices: Same as input
         `list_of_saliency_matrices` to `write_standard_file`, but without the
         first axis.
-    :param threshold_count_matrix: See doc for
-        `prob_matched_means.run_pmm_many_variables`.
     :param model_file_name: Path to file with trained model (readable by
         `cnn.read_model`).
     :param standard_saliency_file_name: Path to file with standard saliency
         output (readable by `read_standard_file`).
     :param pmm_metadata_dict: Dictionary created by
         `prob_matched_means.check_input_args`.
+    :param mean_sounding_pressures_pascals:
+        [used only if `list_of_mean_input_matrices` contains soundings]
+        numpy array (length H_s) of mean pressures.
     :param monte_carlo_dict: Dictionary with results of Monte Carlo significance
         test.  Must contain keys listed in `monte_carlo.check_output`, plus the
         following.
@@ -330,9 +334,6 @@ def write_pmm_file(
     :raises: ValueError: if `list_of_mean_input_matrices` and
         `list_of_mean_saliency_matrices` have different lengths.
     """
-
-    # TODO(thunderhoser): This method currently does not deal with sounding
-    # pressures.
 
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_string(standard_saliency_file_name)
@@ -352,24 +353,29 @@ def write_pmm_file(
 
     for i in range(num_input_matrices):
         error_checking.assert_is_numpy_array_without_nan(
-            list_of_mean_input_matrices[i])
+            list_of_mean_input_matrices[i]
+        )
         error_checking.assert_is_numpy_array_without_nan(
-            list_of_mean_saliency_matrices[i])
+            list_of_mean_saliency_matrices[i]
+        )
 
         these_expected_dim = numpy.array(
-            list_of_mean_input_matrices[i].shape, dtype=int)
+            list_of_mean_input_matrices[i].shape, dtype=int
+        )
         error_checking.assert_is_numpy_array(
             list_of_mean_saliency_matrices[i],
-            exact_dimensions=these_expected_dim)
+            exact_dimensions=these_expected_dim
+        )
 
-    if threshold_count_matrix is not None:
-        error_checking.assert_is_integer_numpy_array(threshold_count_matrix)
-        error_checking.assert_is_geq_numpy_array(threshold_count_matrix, 0)
+    if mean_sounding_pressures_pascals is not None:
+        num_sounding_heights = list_of_mean_input_matrices[-1].shape[-2]
+        these_expected_dim = numpy.array([num_sounding_heights], dtype=int)
 
-        spatial_dimensions = numpy.array(
-            list_of_mean_input_matrices[0].shape[:-1], dtype=int)
+        error_checking.assert_is_geq_numpy_array(
+            mean_sounding_pressures_pascals, 0.)
         error_checking.assert_is_numpy_array(
-            threshold_count_matrix, exact_dimensions=spatial_dimensions)
+            mean_sounding_pressures_pascals, exact_dimensions=these_expected_dim
+        )
 
     if monte_carlo_dict is not None:
         monte_carlo.check_output(monte_carlo_dict)
@@ -387,10 +393,10 @@ def write_pmm_file(
     mean_saliency_dict = {
         MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
         MEAN_SALIENCY_MATRICES_KEY: list_of_mean_saliency_matrices,
-        THRESHOLD_COUNTS_KEY: threshold_count_matrix,
         MODEL_FILE_KEY: model_file_name,
         STANDARD_FILE_NAME_KEY: standard_saliency_file_name,
         PMM_METADATA_KEY: pmm_metadata_dict,
+        MEAN_SOUNDING_PRESSURES_KEY: mean_sounding_pressures_pascals,
         MONTE_CARLO_DICT_KEY: monte_carlo_dict
     }
 
@@ -408,10 +414,10 @@ def read_pmm_file(pickle_file_name):
     mean_saliency_dict['list_of_mean_input_matrices']: See doc for
         `write_pmm_file`.
     mean_saliency_dict['list_of_mean_saliency_matrices']: Same.
-    mean_saliency_dict['threshold_count_matrix']: Same.
     mean_saliency_dict['model_file_name']: Same.
     mean_saliency_dict['standard_saliency_file_name']: Same.
     mean_saliency_dict['pmm_metadata_dict']: Same.
+    mean_saliency_dict['mean_sounding_pressures_pascals']: Same.
     mean_saliency_dict['monte_carlo_dict']: Same.
 
     :raises: ValueError: if any of the aforelisted keys are missing from the
@@ -493,20 +499,26 @@ def write_standard_file(
 
     for i in range(num_input_matrices):
         error_checking.assert_is_numpy_array_without_nan(
-            list_of_input_matrices[i])
+            list_of_input_matrices[i]
+        )
         error_checking.assert_is_numpy_array_without_nan(
-            list_of_saliency_matrices[i])
+            list_of_saliency_matrices[i]
+        )
 
         these_expected_dim = numpy.array(
             (num_storm_objects,) + list_of_input_matrices[i].shape[1:],
-            dtype=int)
+            dtype=int
+        )
         error_checking.assert_is_numpy_array(
-            list_of_input_matrices[i], exact_dimensions=these_expected_dim)
+            list_of_input_matrices[i], exact_dimensions=these_expected_dim
+        )
 
         these_expected_dim = numpy.array(
-            list_of_input_matrices[i].shape, dtype=int)
+            list_of_input_matrices[i].shape, dtype=int
+        )
         error_checking.assert_is_numpy_array(
-            list_of_saliency_matrices[i], exact_dimensions=these_expected_dim)
+            list_of_saliency_matrices[i], exact_dimensions=these_expected_dim
+        )
 
     if sounding_pressure_matrix_pascals is not None:
         error_checking.assert_is_numpy_array_without_nan(
@@ -518,7 +530,8 @@ def write_standard_file(
 
         these_expected_dim = numpy.array(
             (num_storm_objects,) + sounding_pressure_matrix_pascals.shape[1:],
-            dtype=int)
+            dtype=int
+        )
         error_checking.assert_is_numpy_array(
             sounding_pressure_matrix_pascals,
             exact_dimensions=these_expected_dim)

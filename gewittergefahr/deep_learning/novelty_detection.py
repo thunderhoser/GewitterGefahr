@@ -46,14 +46,12 @@ STANDARD_FILE_KEYS = [
 MEAN_NOVEL_IMAGE_KEY = 'mean_novel_image_matrix'
 MEAN_NOVEL_IMAGE_UPCONV_KEY = 'mean_novel_image_matrix_upconv'
 MEAN_NOVEL_IMAGE_UPCONV_SVD_KEY = 'mean_novel_image_matrix_upconv_svd'
-THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
 STANDARD_FILE_NAME_KEY = 'standard_novelty_file_name'
 PMM_METADATA_KEY = 'pmm_metadata_dict'
 
 PMM_FILE_KEYS = [
     MEAN_NOVEL_IMAGE_KEY, MEAN_NOVEL_IMAGE_UPCONV_KEY,
-    MEAN_NOVEL_IMAGE_UPCONV_SVD_KEY, THRESHOLD_COUNTS_KEY,
-    STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
+    MEAN_NOVEL_IMAGE_UPCONV_SVD_KEY, STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
 ]
 
 
@@ -529,7 +527,7 @@ def read_standard_file(pickle_file_name):
 def write_pmm_file(
         pickle_file_name, mean_novel_image_matrix,
         mean_novel_image_matrix_upconv, mean_novel_image_matrix_upconv_svd,
-        threshold_count_matrix, standard_novelty_file_name, pmm_metadata_dict):
+        standard_novelty_file_name, pmm_metadata_dict):
     """Writes mean novelty-detection results to Pickle file.
 
     This is a mean over many examples, created by PMM (probability-matched
@@ -544,8 +542,6 @@ def write_pmm_file(
     :param mean_novel_image_matrix_upconv_svd: numpy array (same dimensions as
         `mean_novel_image_matrix`) with mean upconvnet-and-SVD-reconstructed
         image over all trial examples.
-    :param threshold_count_matrix: See doc for
-        `prob_matched_means.run_pmm_many_variables`.
     :param standard_novelty_file_name: Path to file with standard
         novelty-detection output (readable by `read_standard_file`).
     :param pmm_metadata_dict: Dictionary created by
@@ -568,20 +564,10 @@ def write_pmm_file(
     error_checking.assert_is_numpy_array(
         mean_novel_image_matrix_upconv_svd, exact_dimensions=these_expected_dim)
 
-    if threshold_count_matrix is not None:
-        error_checking.assert_is_integer_numpy_array(threshold_count_matrix)
-        error_checking.assert_is_geq_numpy_array(threshold_count_matrix, 0)
-
-        spatial_dimensions = numpy.array(
-            mean_novel_image_matrix.shape[:-1], dtype=int)
-        error_checking.assert_is_numpy_array(
-            threshold_count_matrix, exact_dimensions=spatial_dimensions)
-
     mean_novelty_dict = {
         MEAN_NOVEL_IMAGE_KEY: mean_novel_image_matrix,
         MEAN_NOVEL_IMAGE_UPCONV_KEY: mean_novel_image_matrix_upconv,
         MEAN_NOVEL_IMAGE_UPCONV_SVD_KEY: mean_novel_image_matrix_upconv_svd,
-        THRESHOLD_COUNTS_KEY: threshold_count_matrix,
         STANDARD_FILE_NAME_KEY: standard_novelty_file_name,
         PMM_METADATA_KEY: pmm_metadata_dict
     }
@@ -600,7 +586,6 @@ def read_pmm_file(pickle_file_name):
     mean_novelty_dict['mean_novel_image_matrix']: See doc for `write_pmm_file`.
     mean_novelty_dict['mean_novel_image_matrix_upconv']: Same.
     mean_novelty_dict['mean_novel_image_matrix_upconv_svd']: Same.
-    mean_novelty_dict['threshold_count_matrix']: Same.
     mean_novelty_dict['standard_novelty_file_name']: Same.
     mean_novelty_dict['pmm_metadata_dict']: Same.
 

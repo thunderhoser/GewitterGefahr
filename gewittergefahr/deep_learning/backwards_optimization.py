@@ -64,7 +64,6 @@ MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
 MEAN_OPTIMIZED_MATRICES_KEY = 'list_of_mean_optimized_matrices'
 MEAN_INITIAL_ACTIVATION_KEY = 'mean_initial_activation'
 MEAN_FINAL_ACTIVATION_KEY = 'mean_final_activation'
-THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
 STANDARD_FILE_NAME_KEY = 'standard_bwo_file_name'
 PMM_METADATA_KEY = 'pmm_metadata_dict'
 MONTE_CARLO_DICT_KEY = 'monte_carlo_dict'
@@ -72,8 +71,8 @@ MONTE_CARLO_DICT_KEY = 'monte_carlo_dict'
 PMM_FILE_KEYS = [
     MEAN_INPUT_MATRICES_KEY, MEAN_OPTIMIZED_MATRICES_KEY,
     MEAN_INITIAL_ACTIVATION_KEY, MEAN_FINAL_ACTIVATION_KEY,
-    THRESHOLD_COUNTS_KEY, MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY,
-    PMM_METADATA_KEY, MONTE_CARLO_DICT_KEY
+    MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY,
+    MONTE_CARLO_DICT_KEY
 ]
 
 GAUSSIAN_INIT_FUNCTION_NAME = 'gaussian'
@@ -979,8 +978,8 @@ def read_standard_file(pickle_file_name):
 def write_pmm_file(
         pickle_file_name, list_of_mean_input_matrices,
         list_of_mean_optimized_matrices, mean_initial_activation,
-        mean_final_activation, threshold_count_matrix, model_file_name,
-        standard_bwo_file_name, pmm_metadata_dict, monte_carlo_dict=None):
+        mean_final_activation, model_file_name, standard_bwo_file_name,
+        pmm_metadata_dict, monte_carlo_dict=None):
     """Writes mean backwards-optimized map to Pickle file.
 
     This is a mean over many examples, created by PMM (probability-matched
@@ -1003,8 +1002,6 @@ def write_pmm_file(
         component (before backwards optimization).
     :param mean_fimal_activation: Mean final activation of relevant model
         component (after backwards optimization).
-    :param threshold_count_matrix: See doc for
-        `prob_matched_means.run_pmm_many_variables`.
     :param model_file_name: Path to file with trained model (readable by
         `cnn.read_model`).
     :param standard_bwo_file_name: Path to file with standard
@@ -1050,15 +1047,6 @@ def write_pmm_file(
             list_of_mean_optimized_matrices[i],
             exact_dimensions=these_expected_dim)
 
-    if threshold_count_matrix is not None:
-        error_checking.assert_is_integer_numpy_array(threshold_count_matrix)
-        error_checking.assert_is_geq_numpy_array(threshold_count_matrix, 0)
-
-        spatial_dimensions = numpy.array(
-            list_of_mean_input_matrices[0].shape[:-1], dtype=int)
-        error_checking.assert_is_numpy_array(
-            threshold_count_matrix, exact_dimensions=spatial_dimensions)
-
     if monte_carlo_dict is not None:
         monte_carlo.check_output(monte_carlo_dict)
         error_checking.assert_is_string(
@@ -1077,7 +1065,6 @@ def write_pmm_file(
         MEAN_OPTIMIZED_MATRICES_KEY: list_of_mean_optimized_matrices,
         MEAN_INITIAL_ACTIVATION_KEY: mean_initial_activation,
         MEAN_FINAL_ACTIVATION_KEY: mean_final_activation,
-        THRESHOLD_COUNTS_KEY: threshold_count_matrix,
         MODEL_FILE_KEY: model_file_name,
         STANDARD_FILE_NAME_KEY: standard_bwo_file_name,
         PMM_METADATA_KEY: pmm_metadata_dict,
@@ -1100,7 +1087,6 @@ def read_pmm_file(pickle_file_name):
     mean_optimization_dict['list_of_mean_optimized_matrices']: Same.
     mean_optimization_dict['mean_initial_activation']: Same.
     mean_optimization_dict['mean_final_activation']: Same.
-    mean_optimization_dict['threshold_count_matrix']: Same.
     mean_optimization_dict['model_file_name']: Same.
     mean_optimization_dict['standard_bwo_file_name']: Same.
     mean_optimization_dict['pmm_metadata_dict']: Same.

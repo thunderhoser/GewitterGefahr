@@ -193,14 +193,11 @@ def _run(interpretation_type_string, baseline_file_name, trial_file_name,
     for i in range(num_matrices):
         list_of_mean_input_matrices[i] = pmm.run_pmm_many_variables(
             input_matrix=list_of_input_matrices[i],
-            max_percentile_level=max_pmm_percentile_level
-        )[0]
+            max_percentile_level=max_pmm_percentile_level)
 
     pmm_metadata_dict = pmm.check_input_args(
         input_matrix=list_of_input_matrices[0],
-        max_percentile_level=max_pmm_percentile_level,
-        threshold_var_index=None, threshold_value=None,
-        threshold_type_string=None)
+        max_percentile_level=max_pmm_percentile_level)
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
 
@@ -211,7 +208,6 @@ def _run(interpretation_type_string, baseline_file_name, trial_file_name,
             list_of_mean_saliency_matrices=copy.deepcopy(
                 monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY]
             ),
-            threshold_count_matrix=None,
             model_file_name=trial_dict[saliency_maps.MODEL_FILE_KEY],
             standard_saliency_file_name=trial_file_name,
             pmm_metadata_dict=pmm_metadata_dict,
@@ -246,7 +242,6 @@ def _run(interpretation_type_string, baseline_file_name, trial_file_name,
             mean_final_activation=numpy.mean(
                 trial_dict[backwards_opt.FINAL_ACTIVATIONS_KEY]
             ),
-            threshold_count_matrix=None,
             model_file_name=trial_dict[backwards_opt.MODEL_FILE_KEY],
             standard_bwo_file_name=trial_file_name,
             pmm_metadata_dict=pmm_metadata_dict,

@@ -130,6 +130,7 @@ def _read_one_example(
     """Reads one example (storm object).
 
     T = number of input tensors to model
+    H_s = number of heights in sounding
 
     :param top_example_dir_name: See documentation at top of file.
     :param full_storm_id_string: Full storm ID.
@@ -143,6 +144,8 @@ def _read_one_example(
         the [i]th array is the [i]th input tensor to the model.  The first axis
         of each array has length = 1.
     :return: model_metadata_dict: See doc for `cnn.write_model_metadata`.
+    :return: sounding_pressures_pascals: length-H numpy array of pressures.
+        If soundings were not read, this is None.
     """
 
     if source_name == radar_utils.GRIDRAD_SOURCE_ID:
@@ -178,15 +181,24 @@ def _read_one_example(
 
     print(MINOR_SEPARATOR_STRING)
 
-    list_of_predictor_matrices = testing_io.read_specific_examples(
-        desired_full_id_strings=[full_storm_id_string],
-        desired_times_unix_sec=numpy.array([storm_time_unix_sec], dtype=int),
-        option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-        top_example_dir_name=top_example_dir_name,
-        list_of_layer_operation_dicts=None
-    )[0]
+    list_of_predictor_matrices, sounding_pressure_matrix_pascals = (
+        testing_io.read_specific_examples(
+            desired_full_id_strings=[full_storm_id_string],
+            desired_times_unix_sec=numpy.array(
+                [storm_time_unix_sec], dtype=int
+            ),
+            option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
+            top_example_dir_name=top_example_dir_name,
+            list_of_layer_operation_dicts=None)
+    )
 
-    return list_of_predictor_matrices, model_metadata_dict
+    if sounding_pressure_matrix_pascals is None:
+        sounding_pressures_pascals = None
+    else:
+        sounding_pressures_pascals = sounding_pressure_matrix_pascals[0, ...]
+
+    return (list_of_predictor_matrices, model_metadata_dict,
+            sounding_pressures_pascals)
 
 
 def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
@@ -223,7 +235,8 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             full_storm_id_string=gridrad_full_id_string,
             storm_time_unix_sec=gridrad_time_unix_sec,
             source_name=radar_utils.GRIDRAD_SOURCE_ID,
-            radar_field_name=GRIDRAD_FIELD_NAMES[j], include_sounding=False)
+            radar_field_name=GRIDRAD_FIELD_NAMES[j], include_sounding=False
+        )[:2]
 
         print(MINOR_SEPARATOR_STRING)
 
@@ -290,7 +303,8 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
     num_myrorss_shear_fields = len(MYRORSS_SHEAR_FIELD_NAMES)
 
     for j in range(num_myrorss_shear_fields):
-        these_predictor_matrices, this_metadata_dict = _read_one_example(
+        (these_predictor_matrices, this_metadata_dict, these_pressures_pascals
+        ) = _read_one_example(
             top_example_dir_name=myrorss_example_dir_name,
             full_storm_id_string=myrorss_full_id_string,
             storm_time_unix_sec=myrorss_time_unix_sec,
@@ -303,9 +317,10 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
         this_handle_dict = plot_examples.plot_one_example(
             list_of_predictor_matrices=these_predictor_matrices,
             model_metadata_dict=this_metadata_dict, pmm_flag=False,
-            example_index=0, plot_sounding=j == 0, allow_whitespace=True,
-            plot_panel_names=False, add_titles=False, label_colour_bars=False,
-            colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
+            example_index=0, plot_sounding=j == 0,
+            sounding_pressures_pascals=these_pressures_pascals,
+            allow_whitespace=True, plot_panel_names=False, add_titles=False,
+            label_colour_bars=False, colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
             colour_bar_length=COLOUR_BAR_LENGTH,
             sounding_font_size=SOUNDING_FONT_SIZE)
 

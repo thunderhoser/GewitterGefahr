@@ -55,13 +55,15 @@ MEAN_CAM_MATRICES_KEY = 'list_of_mean_cam_matrices'
 MEAN_GUIDED_CAM_MATRICES_KEY = 'list_of_mean_guided_cam_matrices'
 STANDARD_FILE_NAME_KEY = 'standard_gradcam_file_name'
 PMM_METADATA_KEY = 'pmm_metadata_dict'
+MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pascals'
 CAM_MONTE_CARLO_KEY = 'cam_monte_carlo_dict'
 GUIDED_CAM_MONTE_CARLO_KEY = 'guided_cam_monte_carlo_dict'
 
 PMM_FILE_KEYS = [
     MEAN_INPUT_MATRICES_KEY, MEAN_CAM_MATRICES_KEY,
     MEAN_GUIDED_CAM_MATRICES_KEY, MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY,
-    PMM_METADATA_KEY, CAM_MONTE_CARLO_KEY, GUIDED_CAM_MONTE_CARLO_KEY
+    PMM_METADATA_KEY, MEAN_SOUNDING_PRESSURES_KEY,
+    CAM_MONTE_CARLO_KEY, GUIDED_CAM_MONTE_CARLO_KEY
 ]
 
 PERCENTILE_THRESHOLD_KEY = 'percentile_threshold'
@@ -718,8 +720,6 @@ def write_standard_file(
         pressure variable, since pressure is needed to plot soundings.
     """
 
-    # TODO(thunderhoser): Allow optional input args to be added to file later
-    # (in a separate method).
 
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_integer(target_class)
@@ -819,8 +819,11 @@ def write_pmm_file(
         pickle_file_name, list_of_mean_input_matrices,
         list_of_mean_cam_matrices, list_of_mean_guided_cam_matrices,
         model_file_name, standard_gradcam_file_name, pmm_metadata_dict,
-        cam_monte_carlo_dict=None, guided_cam_monte_carlo_dict=None):
+        mean_sounding_pressures_pascals=None, cam_monte_carlo_dict=None,
+        guided_cam_monte_carlo_dict=None):
     """Writes PMM (probability-matched mean) over many CAMs to Pickle file.
+
+    H_s = number of sounding heights
 
     :param pickle_file_name: Path to output file.
     :param list_of_mean_input_matrices: See doc for `_check_in_and_out_matrices`
@@ -834,6 +837,9 @@ def write_pmm_file(
         `read_standard_file`.
     :param pmm_metadata_dict: Dictionary created by
         `prob_matched_means.check_input_args`.
+    :param mean_sounding_pressures_pascals:
+        [used only if `list_of_mean_input_matrices` contains soundings]
+        numpy array (length H_s) of mean pressures.
     :param cam_monte_carlo_dict: Dictionary with results of Monte Carlo
         significance test.  Must contain keys listed in
         `monte_carlo.check_output`, plus the following.
@@ -847,9 +853,6 @@ def write_pmm_file(
 
     # TODO(thunderhoser): Add Monte Carlo business in separate method.
 
-    # TODO(thunderhoser): This method currently does not deal with sounding
-    # pressures.
-
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_string(standard_gradcam_file_name)
 
@@ -857,6 +860,16 @@ def write_pmm_file(
         list_of_input_matrices=list_of_mean_input_matrices, num_examples=0,
         list_of_cam_matrices=list_of_mean_cam_matrices,
         list_of_guided_cam_matrices=list_of_mean_guided_cam_matrices)
+
+    if mean_sounding_pressures_pascals is not None:
+        num_sounding_heights = list_of_mean_input_matrices[-1].shape[-2]
+        these_expected_dim = numpy.array([num_sounding_heights], dtype=int)
+
+        error_checking.assert_is_geq_numpy_array(
+            mean_sounding_pressures_pascals, 0.)
+        error_checking.assert_is_numpy_array(
+            mean_sounding_pressures_pascals, exact_dimensions=these_expected_dim
+        )
 
     num_input_matrices = len(list_of_mean_input_matrices)
 
@@ -902,6 +915,7 @@ def write_pmm_file(
         MODEL_FILE_KEY: model_file_name,
         STANDARD_FILE_NAME_KEY: standard_gradcam_file_name,
         PMM_METADATA_KEY: pmm_metadata_dict,
+        MEAN_SOUNDING_PRESSURES_KEY: mean_sounding_pressures_pascals,
         CAM_MONTE_CARLO_KEY: cam_monte_carlo_dict,
         GUIDED_CAM_MONTE_CARLO_KEY: guided_cam_monte_carlo_dict,
         REGION_DICT_KEY: None
@@ -925,6 +939,7 @@ def read_pmm_file(pickle_file_name):
     mean_gradcam_dict['model_file_name']: Same.
     mean_gradcam_dict['standard_gradcam_file_name']: Same.
     mean_gradcam_dict['pmm_metadata_dict']: Same.
+    mean_saliency_dict['mean_sounding_pressures_pascals']: Same.
     mean_gradcam_dict['cam_monte_carlo_dict']: Same.
     mean_gradcam_dict['guided_cam_monte_carlo_dict']: Same.
     mean_gradcam_dict['region_dict']: See doc for `add_regions_to_file`.

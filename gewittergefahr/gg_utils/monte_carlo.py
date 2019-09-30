@@ -211,8 +211,7 @@ def run_monte_carlo_test(
 
             this_shuffled_pmm_matrix = pmm.run_pmm_many_variables(
                 input_matrix=this_shuffled_matrix,
-                max_percentile_level=max_pmm_percentile_level
-            )[0]
+                max_percentile_level=max_pmm_percentile_level)
 
             this_shuffled_pmm_matrix = numpy.expand_dims(
                 this_shuffled_pmm_matrix, axis=0)
@@ -247,8 +246,7 @@ def run_monte_carlo_test(
 
         list_of_trial_pmm_matrices[j] = pmm.run_pmm_many_variables(
             input_matrix=list_of_trial_matrices[j],
-            max_percentile_level=max_pmm_percentile_level
-        )[0]
+            max_percentile_level=max_pmm_percentile_level)
 
         this_num_low_significant = numpy.sum(
             list_of_trial_pmm_matrices[j] < list_of_min_matrices[j]
