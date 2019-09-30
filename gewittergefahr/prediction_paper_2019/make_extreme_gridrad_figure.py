@@ -26,7 +26,7 @@ RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
 
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
-MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pa'
+MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pascals'
 
 COLOUR_BAR_LENGTH = 0.25
 PANEL_NAME_FONT_SIZE = 30
@@ -94,8 +94,6 @@ def _read_composite(pickle_file_name):
     file_handle = open(pickle_file_name, 'rb')
     composite_dict = pickle.load(file_handle)
     file_handle.close()
-
-    print(composite_dict.keys())
 
     mean_predictor_matrices = composite_dict[MEAN_INPUT_MATRICES_KEY]
     mean_sounding_pressures_pa = composite_dict[MEAN_SOUNDING_PRESSURES_KEY]
