@@ -329,7 +329,8 @@ SOUNDING_FIELD_NAMES_NO_PRESSURE = [
 ]
 
 SOUNDING_FIELD_NAMES = (
-    [soundings.PRESSURE_NAME] + SOUNDING_FIELD_NAMES_NO_PRESSURE)
+    [soundings.PRESSURE_NAME] + SOUNDING_FIELD_NAMES_NO_PRESSURE
+)
 
 THIS_FIRST_MATRIX = numpy.array([[0.9, 300, -10, 5, 0.02, 310],
                                  [0.7, 285, 0, 15, 0.015, 310],
@@ -361,9 +362,11 @@ THIS_SECOND_MATRIX = numpy.hstack((
 SOUNDING_MATRIX_UNNORMALIZED = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
-FIRST_DEWPOINTS_KELVINS = moisture_conversions.specific_humidity_to_dewpoint(
-    specific_humidities_kg_kg01=THIS_FIRST_MATRIX[:, 5],
-    total_pressures_pascals=THIS_FIRST_MATRIX[:, 0])
+FIRST_DEWPOINTS_KELVINS = moisture_conversions.relative_humidity_to_dewpoint(
+    relative_humidities=THIS_FIRST_MATRIX[:, 1],
+    temperatures_kelvins=THIS_FIRST_MATRIX[:, 2],
+    total_pressures_pascals=THIS_FIRST_MATRIX[:, 0]
+)
 
 FIRST_METPY_DICT = {
     soundings.TEMPERATURE_COLUMN_METPY:
@@ -377,9 +380,11 @@ FIRST_METPY_DICT = {
     soundings.PRESSURE_COLUMN_METPY: THIS_FIRST_MATRIX[:, 0] * PASCALS_TO_MB
 }
 
-SECOND_DEWPOINTS_KELVINS = moisture_conversions.specific_humidity_to_dewpoint(
-    specific_humidities_kg_kg01=THIS_SECOND_MATRIX[:, 5],
-    total_pressures_pascals=THIS_SECOND_MATRIX[:, 0])
+SECOND_DEWPOINTS_KELVINS = moisture_conversions.relative_humidity_to_dewpoint(
+    relative_humidities=THIS_SECOND_MATRIX[:, 1],
+    temperatures_kelvins=THIS_SECOND_MATRIX[:, 2],
+    total_pressures_pascals=THIS_SECOND_MATRIX[:, 0]
+)
 
 SECOND_METPY_DICT = {
     soundings.TEMPERATURE_COLUMN_METPY:
