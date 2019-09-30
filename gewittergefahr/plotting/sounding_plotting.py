@@ -178,7 +178,7 @@ def plot_sounding(
         linewidth=contour_line_width, linestyle='solid', alpha=1.
     )
 
-    axes_object.set_ylim(1000, 100)
+    axes_object.set_ylim(1000, numpy.min(pressures_mb))
     axes_object.set_xlim(-40, 50)
     axes_object.set_xlabel('')
     axes_object.set_ylabel('')
