@@ -140,21 +140,18 @@ def _run(spc_date_string, lead_times_seconds,
 
     host_name = socket.gethostname()
 
-    if 'schooner' in host_name:
-        wgrib_exe_name = '/condo/swatwork/ralager/wgrib/wgrib'
-        wgrib2_exe_name = '/condo/swatwork/ralager/grib2/wgrib2/wgrib2'
-        if elevation_dir_name is None:
-            elevation_dir_name = '/condo/swatwork/ralager/elevation'
-
-    elif 'casper' in host_name:
+    if 'casper' in host_name:
         wgrib_exe_name = '/glade/work/ryanlage/wgrib/wgrib'
         wgrib2_exe_name = '/glade/work/ryanlage/wgrib2/wgrib2/wgrib2'
+
         if elevation_dir_name is None:
             elevation_dir_name = '/glade/work/ryanlage/elevation'
-
     else:
-        wgrib_exe_name = '/usr/bin/wgrib'
-        wgrib2_exe_name = '/usr/bin/wgrib2'
+        wgrib_exe_name = '/condo/swatwork/ralager/wgrib/wgrib'
+        wgrib2_exe_name = '/condo/swatwork/ralager/grib2/wgrib2/wgrib2'
+
+        if elevation_dir_name is None:
+            elevation_dir_name = '/condo/swatwork/ralager/elevation'
 
     lead_times_seconds = numpy.array(lead_times_seconds, dtype=int)
 

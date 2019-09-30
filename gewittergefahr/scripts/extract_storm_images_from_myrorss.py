@@ -224,10 +224,10 @@ def _extract_storm_images(
     if elevation_dir_name is None:
         host_name = socket.gethostname()
 
-        if 'schooner' in host_name:
-            elevation_dir_name = '/condo/swatwork/ralager/elevation'
-        elif 'casper' in host_name:
+        if 'casper' in host_name:
             elevation_dir_name = '/glade/work/ryanlage/elevation'
+        else:
+            elevation_dir_name = '/condo/swatwork/ralager/elevation'
 
     if spc_date_string in ['', 'None']:
         first_time_unix_sec = time_conversion.string_to_unix_sec(
