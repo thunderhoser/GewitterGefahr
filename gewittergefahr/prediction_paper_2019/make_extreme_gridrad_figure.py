@@ -95,6 +95,8 @@ def _read_composite(pickle_file_name):
     composite_dict = pickle.load(file_handle)
     file_handle.close()
 
+    print(composite_dict.keys())
+
     mean_predictor_matrices = composite_dict[MEAN_INPUT_MATRICES_KEY]
     mean_sounding_pressures_pa = composite_dict[MEAN_SOUNDING_PRESSURES_KEY]
 
