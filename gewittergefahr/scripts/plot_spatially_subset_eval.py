@@ -337,10 +337,15 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
             )
 
     print(SEPARATOR_STRING)
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+
+    auc_matrix[num_positive_examples_matrix == 0] = numpy.nan
+    csi_matrix[num_positive_examples_matrix == 0] = numpy.nan
+    pod_matrix[num_positive_examples_matrix == 0] = numpy.nan
+    far_matrix[num_positive_examples_matrix == 0] = numpy.nan
 
     panel_file_names = []
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
 
     # Plot number of examples.
     this_data_matrix = numpy.maximum(numpy.log10(num_examples_matrix), 0.)
