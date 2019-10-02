@@ -95,7 +95,7 @@ def _check_in_and_out_matrices(
             )
 
             these_expected_dim = numpy.array(
-                predictor_matrices[i].shape[:-1], dtype=int
+                predictor_matrices[i].shape, dtype=int
             )
             error_checking.assert_is_numpy_array(
                 saliency_matrices[i], exact_dimensions=these_expected_dim

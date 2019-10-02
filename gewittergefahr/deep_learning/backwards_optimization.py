@@ -140,9 +140,7 @@ def _check_in_and_out_matrices(
         if output_matrices[i] is not None:
             error_checking.assert_is_numpy_array_without_nan(output_matrices[i])
 
-            these_expected_dim = numpy.array(
-                input_matrices[i].shape[:-1], dtype=int
-            )
+            these_expected_dim = numpy.array(input_matrices[i].shape, dtype=int)
             error_checking.assert_is_numpy_array(
                 output_matrices[i], exact_dimensions=these_expected_dim
             )
