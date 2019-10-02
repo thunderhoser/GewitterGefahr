@@ -180,10 +180,16 @@ def _plot_3d_radar_cam(
         )
 
         print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        figure_objects[j].savefig(
-            this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-            bbox_inches='tight'
-        )
+
+        try:
+            figure_objects[j].savefig(
+                this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                bbox_inches='tight'
+            )
+        except:
+            figure_objects[j].savefig(
+                this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+
         pyplot.close(figure_objects[j])
 
 
