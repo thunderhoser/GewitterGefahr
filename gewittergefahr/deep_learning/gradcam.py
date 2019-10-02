@@ -20,56 +20,44 @@ from tensorflow.python.framework import ops as tensorflow_ops
 from scipy.interpolate import (
     UnivariateSpline, RectBivariateSpline, RegularGridInterpolator
 )
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
-from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import model_interpretation
 
 TOLERANCE = 1e-6
-
-BACKPROP_FUNCTION_NAME = 'GuidedBackProp'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-INPUT_MATRICES_KEY = 'list_of_input_matrices'
-CAM_MATRICES_KEY = 'list_of_cam_matrices'
-GUIDED_CAM_MATRICES_KEY = 'list_of_guided_cam_matrices'
+BACKPROP_FUNCTION_NAME = 'GuidedBackProp'
 
-FULL_IDS_KEY = tracking_io.FULL_IDS_KEY
-STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
+PREDICTOR_MATRICES_KEY = model_interpretation.PREDICTOR_MATRICES_KEY
+CAM_MATRICES_KEY = 'cam_matrices'
+GUIDED_CAM_MATRICES_KEY = 'guided_cam_matrices'
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
+FULL_STORM_IDS_KEY = model_interpretation.FULL_STORM_IDS_KEY
+STORM_TIMES_KEY = model_interpretation.STORM_TIMES_KEY
 TARGET_CLASS_KEY = 'target_class'
 TARGET_LAYER_KEY = 'target_layer_name'
-SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
-REGION_DICT_KEY = 'region_dict'
+SOUNDING_PRESSURES_KEY = model_interpretation.SOUNDING_PRESSURES_KEY
 
 STANDARD_FILE_KEYS = [
-    INPUT_MATRICES_KEY, CAM_MATRICES_KEY, GUIDED_CAM_MATRICES_KEY,
-    FULL_IDS_KEY, STORM_TIMES_KEY, MODEL_FILE_KEY,
-    TARGET_CLASS_KEY, TARGET_LAYER_KEY, SOUNDING_PRESSURES_KEY, REGION_DICT_KEY
+    PREDICTOR_MATRICES_KEY, CAM_MATRICES_KEY, GUIDED_CAM_MATRICES_KEY,
+    FULL_STORM_IDS_KEY, STORM_TIMES_KEY, MODEL_FILE_KEY,
+    TARGET_CLASS_KEY, TARGET_LAYER_KEY, SOUNDING_PRESSURES_KEY
 ]
 
-MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
-MEAN_CAM_MATRICES_KEY = 'list_of_mean_cam_matrices'
-MEAN_GUIDED_CAM_MATRICES_KEY = 'list_of_mean_guided_cam_matrices'
-STANDARD_FILE_NAME_KEY = 'standard_gradcam_file_name'
-PMM_METADATA_KEY = 'pmm_metadata_dict'
-MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pascals'
-CAM_MONTE_CARLO_KEY = 'cam_monte_carlo_dict'
-GUIDED_CAM_MONTE_CARLO_KEY = 'guided_cam_monte_carlo_dict'
+MEAN_PREDICTOR_MATRICES_KEY = model_interpretation.MEAN_PREDICTOR_MATRICES_KEY
+MEAN_CAM_MATRICES_KEY = 'mean_cam_matrices'
+MEAN_GUIDED_CAM_MATRICES_KEY = 'mean_guided_cam_matrices'
+NON_PMM_FILE_KEY = model_interpretation.NON_PMM_FILE_KEY
+PMM_MAX_PERCENTILE_KEY = model_interpretation.PMM_MAX_PERCENTILE_KEY
+MEAN_SOUNDING_PRESSURES_KEY = model_interpretation.MEAN_SOUNDING_PRESSURES_KEY
 
 PMM_FILE_KEYS = [
-    MEAN_INPUT_MATRICES_KEY, MEAN_CAM_MATRICES_KEY,
-    MEAN_GUIDED_CAM_MATRICES_KEY, MODEL_FILE_KEY, STANDARD_FILE_NAME_KEY,
-    PMM_METADATA_KEY, MEAN_SOUNDING_PRESSURES_KEY,
-    CAM_MONTE_CARLO_KEY, GUIDED_CAM_MONTE_CARLO_KEY
+    MEAN_PREDICTOR_MATRICES_KEY, MEAN_CAM_MATRICES_KEY,
+    MEAN_GUIDED_CAM_MATRICES_KEY, MODEL_FILE_KEY, NON_PMM_FILE_KEY,
+    PMM_MAX_PERCENTILE_KEY, MEAN_SOUNDING_PRESSURES_KEY
 ]
-
-PERCENTILE_THRESHOLD_KEY = 'percentile_threshold'
-MIN_CLASS_ACTIVATION_KEY = 'min_class_activation'
-MASK_MATRICES_KEY = 'list_of_mask_matrices'
-POLYGON_OBJECTS_KEY = 'list_of_polygon_objects'
 
 
 def _compute_gradients(loss_tensor, list_of_input_tensors):
@@ -355,144 +343,90 @@ def _get_connected_input_layers(model_object, list_of_input_matrices,
 
 
 def _check_in_and_out_matrices(
-        list_of_input_matrices, num_examples, list_of_cam_matrices=None,
-        list_of_guided_cam_matrices=None):
-    """Error-checks input and output matrices for Grad-CAM.
+        predictor_matrices, num_examples=None, cam_matrices=None,
+        guided_cam_matrices=None):
+    """Error-checks input and output matrices.
 
     T = number of input tensors to the model
+    E = number of examples (storm objects)
 
-    :param list_of_input_matrices: length-T list of numpy arrays, containing
-        only one example (storm object).  list_of_input_matrices[i] must have
-        the same dimensions as the [i]th input tensor to the model.
-    :param num_examples: Number of examples expected.  If num_examples <= 0,
-        this method will allow the example dimension to be missing from the
-        matrices.
-    :param list_of_cam_matrices: length-T list of numpy arrays.
-        list_of_cam_matrices[i] will be the class-activation map for
-        list_of_input_matrices[i].  It will have the same dimensions as
-        list_of_input_matrices[i], just without the channel dimension.  If the
-        target layer is not connected to the [i]th input tensor,
-        list_of_cam_matrices[i] will be None.
-    :param list_of_guided_cam_matrices: length-T list of numpy arrays.
-        list_of_guided_cam_matrices[i] will be the guided class-activation map
-        for list_of_input_matrices[i] and will have the same dimensions as
-        list_of_input_matrices[i].  If the target layer is not connected to the
-        [i]th input tensor, list_of_guided_cam_matrices[i] will be None.
-    :return: list_of_input_matrices: Same as input but guaranteed to have
-        example dimensions.
+    :param predictor_matrices: length-T list of predictor matrices.  Each item
+        must be a numpy array.
+    :param num_examples: E in the above discussion.  The first axis of each
+        array must have length E.  If you don't know the number of examples,
+        leave this as None.
+    :param cam_matrices: length-T list of class-activation maps.
+        cam_matrices[i] is the class-activation map for predictor_matrices[i]
+        and should have the same dimensions as predictor_matrices[i], except
+        without the last dimension, which is the channel dimension.  If the
+        [i]th tensor is not connected to the target layer, cam_matrices[i]
+        should be None.
+    :param guided_cam_matrices: length-T list of guided class-activation maps.
+        Same as cam_matrices[i], except that cam_matrices[i] should have the
+        same dimensions as predictor_matrices[i], including the last dimension.
+    :raises: ValueError: if `cam_matrices` or `guided_cam_matrices` has
+        different length than `predictor_matrices`.
     """
 
-    error_checking.assert_is_list(list_of_input_matrices)
-    num_input_matrices = len(list_of_input_matrices)
+    error_checking.assert_is_list(predictor_matrices)
+    num_matrices = len(predictor_matrices)
 
-    if list_of_cam_matrices is None:
-        list_of_cam_matrices = [None] * num_input_matrices
-    if list_of_guided_cam_matrices is None:
-        list_of_guided_cam_matrices = [None] * num_input_matrices
+    if cam_matrices is None:
+        cam_matrices = [None] * num_matrices
+    if guided_cam_matrices is None:
+        guided_cam_matrices = [None] * num_matrices
 
-    assert len(list_of_cam_matrices) == num_input_matrices
-    assert len(list_of_guided_cam_matrices) == num_input_matrices
+    num_cam_matrices = len(cam_matrices)
+    num_guided_cam_matrices = len(guided_cam_matrices)
 
-    for i in range(num_input_matrices):
-        error_checking.assert_is_numpy_array_without_nan(
-            list_of_input_matrices[i]
-        )
+    if num_matrices != num_cam_matrices:
+        error_string = (
+            'Number of predictor matrices ({0:d}) should = number of CAM '
+            'matrices ({1:d}).'
+        ).format(num_matrices, num_cam_matrices)
 
-        if num_examples == 1 and list_of_input_matrices[i].shape[0] != 1:
-            list_of_input_matrices[i] = numpy.expand_dims(
-                list_of_input_matrices[i], axis=0
+        raise ValueError(error_string)
+
+    if num_matrices != num_guided_cam_matrices:
+        error_string = (
+            'Number of predictor matrices ({0:d}) should = number of guided-CAM'
+            ' matrices ({1:d}).'
+        ).format(num_matrices, num_guided_cam_matrices)
+
+        raise ValueError(error_string)
+
+    for i in range(num_matrices):
+        error_checking.assert_is_numpy_array_without_nan(predictor_matrices[i])
+
+        if num_examples is not None:
+            these_expected_dim = numpy.array(
+                (num_examples,) + predictor_matrices[i].shape[1:], dtype=int
+            )
+            error_checking.assert_is_numpy_array(
+                predictor_matrices[i], exact_dimensions=these_expected_dim
             )
 
-        if num_examples > 0:
-            assert list_of_input_matrices[i].shape[0] == num_examples
+        if cam_matrices[i] is not None:
+            error_checking.assert_is_numpy_array_without_nan(cam_matrices[i])
 
-        if list_of_cam_matrices[i] is not None:
+            these_expected_dim = numpy.array(
+                predictor_matrices[i].shape[:-1], dtype=int
+            )
+            error_checking.assert_is_numpy_array(
+                cam_matrices[i], exact_dimensions=these_expected_dim
+            )
+
+        if guided_cam_matrices[i] is not None:
             error_checking.assert_is_numpy_array_without_nan(
-                list_of_cam_matrices[i]
+                guided_cam_matrices[i]
             )
 
             these_expected_dim = numpy.array(
-                list_of_input_matrices[i].shape[:-1], dtype=int
+                predictor_matrices[i].shape, dtype=int
             )
-
             error_checking.assert_is_numpy_array(
-                list_of_cam_matrices[i], exact_dimensions=these_expected_dim
+                guided_cam_matrices[i], exact_dimensions=these_expected_dim
             )
-
-        if list_of_guided_cam_matrices[i] is not None:
-            error_checking.assert_is_numpy_array_without_nan(
-                list_of_guided_cam_matrices[i]
-            )
-
-            these_expected_dim = numpy.array(
-                list_of_input_matrices[i].shape, dtype=int
-            )
-
-            error_checking.assert_is_numpy_array(
-                list_of_guided_cam_matrices[i],
-                exact_dimensions=these_expected_dim
-            )
-
-
-def _check_region_dict(list_of_cam_matrices, region_dict, pmm_flag):
-    """Error-checks dictionary with regions of interest.
-
-    :param list_of_cam_matrices: See doc for `_check_in_and_out_matrices`.
-    :param region_dict: Dictionary with the following keys.
-    region_dict['list_of_mask_matrices']: Same as `list_of_cam_matrices`, except
-        that all numpy arrays.  Grid cells marked True are in a region of
-        interest.
-    region_dict['list_of_polygon_objects']: Triple-nested list of polygons
-        (instances of `shapely.geometry.Polygon`), demarcating regions of
-        interest.  list_of_polygon_objects[i][j][k] is the [k]th region of
-        interest for the [j]th input matrix for the [i]th example.
-    region_dict['percentile_threshold']: Percentile threshold used to create
-        regions of interest.  This is applied separately to each
-        class-activation matrix for each example.
-    region_dict['min_class_activation']: Minimum class activation used to create
-        regions of interest.  For a grid cell to be in a region of interest, it
-        must meet both this and the percentile threshold.
-
-    :param pmm_flag: Boolean flag.  If True, inputs should contain PMM
-        (probability-matched mean) composites.
-    """
-
-    error_checking.assert_is_geq(region_dict[PERCENTILE_THRESHOLD_KEY], 50.)
-    error_checking.assert_is_less_than(
-        region_dict[PERCENTILE_THRESHOLD_KEY], 100.
-    )
-    error_checking.assert_is_greater(region_dict[MIN_CLASS_ACTIVATION_KEY], 0.)
-
-    list_of_mask_matrices = region_dict[MASK_MATRICES_KEY]
-    list_of_polygon_objects = region_dict[POLYGON_OBJECTS_KEY]
-
-    num_input_matrices = len(list_of_cam_matrices)
-    assert len(list_of_mask_matrices) == num_input_matrices
-    assert len(list_of_polygon_objects) == num_input_matrices
-
-    for j in range(num_input_matrices):
-        if list_of_cam_matrices[j] is None:
-            assert list_of_mask_matrices[j] is None
-            continue
-
-        error_checking.assert_is_boolean_numpy_array(list_of_mask_matrices[j])
-
-        these_expected_dim = numpy.array(
-            list_of_cam_matrices[j].shape, dtype=int
-        )
-        error_checking.assert_is_numpy_array(
-            list_of_mask_matrices[j], exact_dimensions=these_expected_dim
-        )
-
-        if pmm_flag:
-            num_examples = 1
-        else:
-            num_examples = list_of_cam_matrices[j].shape[0]
-
-        assert len(list_of_polygon_objects[j]) == num_examples
-
-        for i in range(num_examples):
-            error_checking.assert_is_list(list_of_polygon_objects[j][i])
 
 
 def run_gradcam(model_object, list_of_input_matrices, target_class,
@@ -515,8 +449,9 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
     error_checking.assert_is_integer(target_class)
     error_checking.assert_is_geq(target_class, 0)
     error_checking.assert_is_string(target_layer_name)
+
     _check_in_and_out_matrices(
-        list_of_input_matrices=list_of_input_matrices, num_examples=1)
+        predictor_matrices=list_of_input_matrices, num_examples=None)
 
     num_input_matrices = len(list_of_input_matrices)
 
@@ -636,13 +571,14 @@ def run_guided_gradcam(
         on the fly.
     :return: list_of_guided_cam_matrices: See doc for
         `_check_in_and_out_matrices`.
+    :return: new_model_object: Model used for guided backpropagation.
     """
 
-    error_checking.assert_is_string(target_layer_name)
     _check_in_and_out_matrices(
-        list_of_input_matrices=list_of_input_matrices,
-        list_of_cam_matrices=list_of_cam_matrices, num_examples=1)
+        predictor_matrices=list_of_input_matrices, num_examples=None,
+        cam_matrices=list_of_cam_matrices)
 
+    error_checking.assert_is_string(target_layer_name)
     num_input_matrices = len(list_of_input_matrices)
 
     if new_model_object is None:
@@ -696,78 +632,77 @@ def run_guided_gradcam(
 
 
 def write_standard_file(
-        pickle_file_name, list_of_input_matrices, list_of_cam_matrices,
-        list_of_guided_cam_matrices, model_file_name, full_id_strings,
-        storm_times_unix_sec, target_class, target_layer_name,
-        sounding_pressure_matrix_pascals=None):
-    """Writes class-activation maps (one for each example) to Pickle file.
+        pickle_file_name, denorm_predictor_matrices, cam_matrices,
+        guided_cam_matrices, full_storm_id_strings, storm_times_unix_sec,
+        model_file_name, target_class, target_layer_name,
+        sounding_pressure_matrix_pa=None):
+    """Writes class-activation maps (one per storm object) to Pickle file.
 
     E = number of examples (storm objects)
-    H = number of height levels per sounding
+    H = number of sounding heights
 
     :param pickle_file_name: Path to output file.
-    :param list_of_input_matrices: See doc for `_check_in_and_out_matrices`.
-    :param list_of_cam_matrices: Same.
-    :param list_of_guided_cam_matrices: Same.
-    :param model_file_name: Path to file with trained CNN (readable by
-        `cnn.read_model`).
-    :param full_id_strings: length-E list of full storm IDs.
+    :param denorm_predictor_matrices: See doc for `_check_in_and_out_matrices`.
+    :param cam_matrices: Same.
+    :param guided_cam_matrices: Same.
+    :param full_storm_id_strings: length-E list of storm IDs.
     :param storm_times_unix_sec: length-E numpy array of storm times.
-    :param target_class: See doc for `run_gradcam`.
-    :param target_layer_name: Same.
-    :param sounding_pressure_matrix_pascals: E-by-H numpy array of pressure
-        levels in soundings.  Useful when model input contains soundings with no
-        pressure variable, since pressure is needed to plot soundings.
+    :param model_file_name: Path to model that created saliency maps (readable
+        by `cnn.read_model`).
+    :param target_class: Target class.  `cam_matrices` and `guided_cam_matrices`
+        contain activations for the [k + 1]th class, where k = `target_class`.
+    :param target_layer_name: Name of target layer.
+    :param sounding_pressure_matrix_pa: E-by-H numpy array of pressure
+        levels.  Needed only if the model is trained with soundings but without
+        pressure as a predictor.
     """
-
 
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_integer(target_class)
     error_checking.assert_is_geq(target_class, 0)
     error_checking.assert_is_string(target_layer_name)
 
-    error_checking.assert_is_string_list(full_id_strings)
+    error_checking.assert_is_string_list(full_storm_id_strings)
     error_checking.assert_is_numpy_array(
-        numpy.array(full_id_strings), num_dimensions=1
+        numpy.array(full_storm_id_strings), num_dimensions=1
     )
 
-    num_storm_objects = len(full_id_strings)
-    these_expected_dim = numpy.array([num_storm_objects], dtype=int)
+    num_examples = len(full_storm_id_strings)
+    these_expected_dim = numpy.array([num_examples], dtype=int)
 
     error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
         storm_times_unix_sec, exact_dimensions=these_expected_dim)
 
     _check_in_and_out_matrices(
-        list_of_input_matrices=list_of_input_matrices,
-        list_of_cam_matrices=list_of_cam_matrices,
-        list_of_guided_cam_matrices=list_of_guided_cam_matrices,
-        num_examples=num_storm_objects)
+        predictor_matrices=denorm_predictor_matrices, num_examples=num_examples,
+        cam_matrices=cam_matrices, guided_cam_matrices=guided_cam_matrices)
 
-    if sounding_pressure_matrix_pascals is not None:
+    if sounding_pressure_matrix_pa is not None:
+        error_checking.assert_is_numpy_array_without_nan(
+            sounding_pressure_matrix_pa)
+        error_checking.assert_is_greater_numpy_array(
+            sounding_pressure_matrix_pa, 0.)
         error_checking.assert_is_numpy_array(
-            sounding_pressure_matrix_pascals, num_dimensions=2)
+            sounding_pressure_matrix_pa, num_dimensions=2)
 
         these_expected_dim = numpy.array(
-            (num_storm_objects,) + sounding_pressure_matrix_pascals.shape[1:],
+            (num_examples,) + sounding_pressure_matrix_pa.shape[1:],
             dtype=int
         )
-
         error_checking.assert_is_numpy_array(
-            sounding_pressure_matrix_pascals,
-            exact_dimensions=these_expected_dim)
+            sounding_pressure_matrix_pa, exact_dimensions=these_expected_dim)
 
     gradcam_dict = {
-        INPUT_MATRICES_KEY: list_of_input_matrices,
-        CAM_MATRICES_KEY: list_of_cam_matrices,
-        GUIDED_CAM_MATRICES_KEY: list_of_guided_cam_matrices,
+        PREDICTOR_MATRICES_KEY: denorm_predictor_matrices,
+        CAM_MATRICES_KEY: cam_matrices,
+        GUIDED_CAM_MATRICES_KEY: guided_cam_matrices,
         MODEL_FILE_KEY: model_file_name,
-        FULL_IDS_KEY: full_id_strings,
+        FULL_STORM_IDS_KEY: full_storm_id_strings,
         STORM_TIMES_KEY: storm_times_unix_sec,
         TARGET_CLASS_KEY: target_class,
         TARGET_LAYER_KEY: target_layer_name,
-        SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pascals,
-        REGION_DICT_KEY: None
+        SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pa
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -776,149 +711,59 @@ def write_standard_file(
     pickle_file_handle.close()
 
 
-def read_standard_file(pickle_file_name):
-    """Reads class-activation maps (one for each example) from Pickle file.
-
-    :param pickle_file_name: Path to input file.
-    :return: gradcam_dict: Dictionary with the following keys.
-    gradcam_dict['list_of_input_matrices']: See doc for `write_standard_file`.
-    gradcam_dict['list_of_cam_matrices']: Same.
-    gradcam_dict['list_of_guided_cam_matrices']: Same.
-    gradcam_dict['model_file_name']: Same.
-    gradcam_dict['full_id_strings']: Same.
-    gradcam_dict['storm_times_unix_sec']: Same.
-    gradcam_dict['target_class']: Same.
-    gradcam_dict['target_layer_name']: Same.
-    gradcam_dict['sounding_pressure_matrix_pascals']: Same.
-    gradcam_dict['region_dict']: See doc for `add_regions_to_file`.
-
-    :raises: ValueError: if any of the aforelisted keys are missing from the
-        dictionary.
-    """
-
-    pickle_file_handle = open(pickle_file_name, 'rb')
-    gradcam_dict = pickle.load(pickle_file_handle)
-    pickle_file_handle.close()
-
-    if REGION_DICT_KEY not in gradcam_dict:
-        gradcam_dict[REGION_DICT_KEY] = None
-
-    missing_keys = list(set(STANDARD_FILE_KEYS) - set(gradcam_dict.keys()))
-    if len(missing_keys) == 0:
-        return gradcam_dict
-
-    error_string = (
-        '\n{0:s}\nKeys listed above were expected, but not found, in file '
-        '"{1:s}".'
-    ).format(str(missing_keys), pickle_file_name)
-
-    raise ValueError(error_string)
-
-
 def write_pmm_file(
-        pickle_file_name, list_of_mean_input_matrices,
-        list_of_mean_cam_matrices, list_of_mean_guided_cam_matrices,
-        model_file_name, standard_gradcam_file_name, pmm_metadata_dict,
-        mean_sounding_pressures_pascals=None, cam_monte_carlo_dict=None,
-        guided_cam_monte_carlo_dict=None):
-    """Writes PMM (probability-matched mean) over many CAMs to Pickle file.
+        pickle_file_name, mean_denorm_predictor_matrices,
+        mean_cam_matrices, mean_guided_cam_matrices, model_file_name,
+        non_pmm_file_name, pmm_max_percentile_level,
+        mean_sounding_pressures_pa=None):
+    """Writes composite class-activation map to Pickle file.
 
-    H_s = number of sounding heights
+    The composite should be created by probability-matched means (PMM).
+
+    T = number of input tensors to the model
+    H = number of sounding heights
 
     :param pickle_file_name: Path to output file.
-    :param list_of_mean_input_matrices: See doc for `_check_in_and_out_matrices`
-        with num_examples = 0.
-    :param list_of_mean_cam_matrices: Same.
-    :param list_of_mean_guided_cam_matrices: Same.
-    :param model_file_name: Path to file with CNN used to create CAMs (readable
-        by `cnn.read_model`).
-    :param standard_gradcam_file_name: Path to file with standard Grad-CAM
-        output (inputs to the composite).  Should be readable by
-        `read_standard_file`.
-    :param pmm_metadata_dict: Dictionary created by
-        `prob_matched_means.check_input_args`.
-    :param mean_sounding_pressures_pascals:
-        [used only if `list_of_mean_input_matrices` contains soundings]
-        numpy array (length H_s) of mean pressures.
-    :param cam_monte_carlo_dict: Dictionary with results of Monte Carlo
-        significance test.  Must contain keys listed in
-        `monte_carlo.check_output`, plus the following.
-
-    cam_monte_carlo_dict['baseline_file_name']: Path to saliency file for
-        baseline set (readable by `read_standard_file`), against which the trial
-        set (contained in `standard_gradcam_file_name`) was compared.
-
-    :param guided_cam_monte_carlo_dict: Same but for guided CAMs.
+    :param mean_denorm_predictor_matrices: See doc for
+        `_check_in_and_out_matrices`.
+    :param mean_cam_matrices: Same.
+    :param mean_guided_cam_matrices: Same.
+    :param model_file_name: Path to model that created CAMs (readable by
+        `cnn.read_model`).
+    :param non_pmm_file_name: Path to standard CAM file (containing
+        non-composited CAMs).
+    :param pmm_max_percentile_level: Max percentile level for PMM.
+    :param mean_sounding_pressures_pa: length-H numpy array of PMM-composited
+        sounding pressures.  Needed only if the model is trained with soundings
+        but without pressure as a predictor.
     """
 
-    # TODO(thunderhoser): Add Monte Carlo business in separate method.
-
     error_checking.assert_is_string(model_file_name)
-    error_checking.assert_is_string(standard_gradcam_file_name)
+    error_checking.assert_is_string(non_pmm_file_name)
+    error_checking.assert_is_geq(pmm_max_percentile_level, 90.)
+    error_checking.assert_is_leq(pmm_max_percentile_level, 100.)
 
     _check_in_and_out_matrices(
-        list_of_input_matrices=list_of_mean_input_matrices, num_examples=0,
-        list_of_cam_matrices=list_of_mean_cam_matrices,
-        list_of_guided_cam_matrices=list_of_mean_guided_cam_matrices)
+        predictor_matrices=mean_denorm_predictor_matrices, num_examples=None,
+        cam_matrices=mean_cam_matrices,
+        guided_cam_matrices=mean_guided_cam_matrices)
 
-    if mean_sounding_pressures_pascals is not None:
-        num_sounding_heights = list_of_mean_input_matrices[-1].shape[-2]
-        these_expected_dim = numpy.array([num_sounding_heights], dtype=int)
+    if mean_sounding_pressures_pa is not None:
+        num_heights = mean_denorm_predictor_matrices[-1].shape[-2]
+        these_expected_dim = numpy.array([num_heights], dtype=int)
 
-        error_checking.assert_is_geq_numpy_array(
-            mean_sounding_pressures_pascals, 0.)
+        error_checking.assert_is_geq_numpy_array(mean_sounding_pressures_pa, 0.)
         error_checking.assert_is_numpy_array(
-            mean_sounding_pressures_pascals, exact_dimensions=these_expected_dim
-        )
-
-    num_input_matrices = len(list_of_mean_input_matrices)
-
-    if (cam_monte_carlo_dict is not None or
-            guided_cam_monte_carlo_dict is not None):
-        monte_carlo.check_output(cam_monte_carlo_dict)
-        error_checking.assert_is_string(
-            cam_monte_carlo_dict[monte_carlo.BASELINE_FILE_KEY]
-        )
-
-        monte_carlo.check_output(guided_cam_monte_carlo_dict)
-        error_checking.assert_is_string(
-            guided_cam_monte_carlo_dict[monte_carlo.BASELINE_FILE_KEY]
-        )
-
-        for i in range(num_input_matrices):
-            both_none = (
-                list_of_mean_cam_matrices[i] is None and
-                cam_monte_carlo_dict[
-                    monte_carlo.TRIAL_PMM_MATRICES_KEY][i] is None
-            )
-
-            if both_none:
-                continue
-
-            assert numpy.allclose(
-                list_of_mean_cam_matrices[i],
-                cam_monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i],
-                atol=TOLERANCE
-            )
-
-            assert numpy.allclose(
-                list_of_mean_guided_cam_matrices[i],
-                guided_cam_monte_carlo_dict[
-                    monte_carlo.TRIAL_PMM_MATRICES_KEY][i],
-                atol=TOLERANCE
-            )
+            mean_sounding_pressures_pa, exact_dimensions=these_expected_dim)
 
     mean_gradcam_dict = {
-        MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
-        MEAN_CAM_MATRICES_KEY: list_of_mean_cam_matrices,
-        MEAN_GUIDED_CAM_MATRICES_KEY: list_of_mean_guided_cam_matrices,
+        MEAN_PREDICTOR_MATRICES_KEY: mean_denorm_predictor_matrices,
+        MEAN_CAM_MATRICES_KEY: mean_cam_matrices,
+        MEAN_GUIDED_CAM_MATRICES_KEY: mean_guided_cam_matrices,
         MODEL_FILE_KEY: model_file_name,
-        STANDARD_FILE_NAME_KEY: standard_gradcam_file_name,
-        PMM_METADATA_KEY: pmm_metadata_dict,
-        MEAN_SOUNDING_PRESSURES_KEY: mean_sounding_pressures_pascals,
-        CAM_MONTE_CARLO_KEY: cam_monte_carlo_dict,
-        GUIDED_CAM_MONTE_CARLO_KEY: guided_cam_monte_carlo_dict,
-        REGION_DICT_KEY: None
+        NON_PMM_FILE_KEY: non_pmm_file_name,
+        PMM_MAX_PERCENTILE_KEY: pmm_max_percentile_level,
+        MEAN_SOUNDING_PRESSURES_KEY: mean_sounding_pressures_pa
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -927,42 +772,57 @@ def write_pmm_file(
     pickle_file_handle.close()
 
 
-def read_pmm_file(pickle_file_name):
-    """Reads mean class-activation map from Pickle file.
+def read_file(pickle_file_name):
+    """Reads composite or non-composite class-activation maps from Pickle file.
 
-    :param pickle_file_name: Path to input file.
-    :return: mean_gradcam_dict: Dictionary with the following keys.
-    mean_gradcam_dict['list_of_mean_input_matrices']: See doc for
+    :param pickle_file_name: Path to input file (created by
+        `write_standard_file` or `write_pmm_file`).
+    :return: gradcam_dict: Has the following keys if not a composite...
+    gradcam_dict['denorm_predictor_matrices']: See doc for
+        `write_standard_file`.
+    gradcam_dict['cam_matrices']: Same.
+    gradcam_dict['guided_cam_matrices']: Same.
+    gradcam_dict['full_storm_id_strings']: Same.
+    gradcam_dict['storm_times_unix_sec']: Same.
+    gradcam_dict['model_file_name']: Same.
+    gradcam_dict['target_class']: Same.
+    gradcam_dict['target_layer_name']: Same.
+    gradcam_dict['sounding_pressure_matrix_pa']: Same.
+
+    ...or the following keys if composite...
+
+    gradcam_dict['mean_denorm_predictor_matrices']: See doc for
         `write_pmm_file`.
-    mean_gradcam_dict['list_of_mean_cam_matrices']: Same.
-    mean_gradcam_dict['list_of_mean_guided_cam_matrices']: Same.
-    mean_gradcam_dict['model_file_name']: Same.
-    mean_gradcam_dict['standard_gradcam_file_name']: Same.
-    mean_gradcam_dict['pmm_metadata_dict']: Same.
-    mean_saliency_dict['mean_sounding_pressures_pascals']: Same.
-    mean_gradcam_dict['cam_monte_carlo_dict']: Same.
-    mean_gradcam_dict['guided_cam_monte_carlo_dict']: Same.
-    mean_gradcam_dict['region_dict']: See doc for `add_regions_to_file`.
+    gradcam_dict['mean_cam_matrices']: Same.
+    gradcam_dict['mean_guided_cam_matrices']: Same.
+    gradcam_dict['model_file_name']: Same.
+    gradcam_dict['non_pmm_file_name']: Same.
+    gradcam_dict['pmm_max_percentile_level']: Same.
+    gradcam_dict['mean_sounding_pressures_pa']: Same.
 
-    :raises: ValueError: if any of the aforelisted keys are missing from the
-        dictionary.
+    :return: pmm_flag: Boolean flag.  True if `gradcam_dict` contains
+        composite, False otherwise.
+
+    :raises: ValueError: if dictionary does not contain expected keys.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    mean_gradcam_dict = pickle.load(pickle_file_handle)
+    gradcam_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    if REGION_DICT_KEY not in mean_gradcam_dict:
-        mean_gradcam_dict[REGION_DICT_KEY] = None
+    pmm_flag = MEAN_PREDICTOR_MATRICES_KEY in gradcam_dict
 
-    if (CAM_MONTE_CARLO_KEY not in mean_gradcam_dict and
-            GUIDED_CAM_MONTE_CARLO_KEY not in mean_gradcam_dict):
-        mean_gradcam_dict[CAM_MONTE_CARLO_KEY] = None
-        mean_gradcam_dict[GUIDED_CAM_MONTE_CARLO_KEY] = None
+    if pmm_flag:
+        missing_keys = list(
+            set(PMM_FILE_KEYS) - set(gradcam_dict.keys())
+        )
+    else:
+        missing_keys = list(
+            set(STANDARD_FILE_KEYS) - set(gradcam_dict.keys())
+        )
 
-    missing_keys = list(set(PMM_FILE_KEYS) - set(mean_gradcam_dict.keys()))
     if len(missing_keys) == 0:
-        return mean_gradcam_dict
+        return gradcam_dict, pmm_flag
 
     error_string = (
         '\n{0:s}\nKeys listed above were expected, but not found, in file '
@@ -970,41 +830,3 @@ def read_pmm_file(pickle_file_name):
     ).format(str(missing_keys), pickle_file_name)
 
     raise ValueError(error_string)
-
-
-def add_regions_to_file(input_file_name, region_dict, output_file_name=None):
-    """Adds regions of interest to Grad-CAM file.
-
-    Both files must be Pickle files.
-
-    :param input_file_name: Path to input file.  Will be read by either
-        `read_standard_file` or `read_pmm_file`.
-    :param region_dict: See doc for `_check_region_dict`.
-    :param output_file_name: Path to output file.  Default is same as input
-        file.
-    """
-
-    pmm_flag = False
-
-    try:
-        gradcam_dict = read_standard_file(input_file_name)
-        list_of_cam_matrices = gradcam_dict[CAM_MATRICES_KEY]
-    except ValueError:
-        gradcam_dict = read_pmm_file(input_file_name)
-        list_of_cam_matrices = gradcam_dict[MEAN_CAM_MATRICES_KEY]
-        pmm_flag = True
-
-    _check_region_dict(list_of_cam_matrices=list_of_cam_matrices,
-                       region_dict=region_dict, pmm_flag=pmm_flag)
-
-    if output_file_name is None:
-        output_file_name = input_file_name
-    else:
-        file_system_utils.mkdir_recursive_if_necessary(
-            file_name=output_file_name)
-
-    gradcam_dict[REGION_DICT_KEY] = region_dict
-
-    pickle_file_handle = open(output_file_name, 'wb')
-    pickle.dump(gradcam_dict, pickle_file_handle)
-    pickle_file_handle.close()

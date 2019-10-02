@@ -106,19 +106,20 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
     print('Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name))
-    full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
-        storm_metafile_name)
+    full_storm_id_strings, storm_times_unix_sec = (
+        tracking_io.read_ids_and_times(storm_metafile_name)
+    )
 
     print(SEPARATOR_STRING)
 
-    if 0 < num_examples < len(full_id_strings):
-        full_id_strings = full_id_strings[:num_examples]
+    if 0 < num_examples < len(full_storm_id_strings):
+        full_storm_id_strings = full_storm_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
-    list_of_input_matrices, sounding_pressure_matrix_pascals = (
+    predictor_matrices, sounding_pressure_matrix_pa = (
         testing_io.read_specific_examples(
             top_example_dir_name=top_example_dir_name,
-            desired_full_id_strings=full_id_strings,
+            desired_full_id_strings=full_storm_id_strings,
             desired_times_unix_sec=storm_times_unix_sec,
             option_dict=training_option_dict,
             list_of_layer_operation_dicts=model_metadata_dict[
@@ -126,7 +127,7 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
         )
     )
 
-    radar_matrix = list_of_input_matrices[0]
+    radar_matrix = predictor_matrices[0]
     num_examples = radar_matrix.shape[0]
     num_channels = radar_matrix.shape[-1]
 
@@ -144,14 +145,14 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
 
         radar_saliency_matrix[i, ...] = this_saliency_matrix[0, ...]
 
-    list_of_saliency_matrices = [
-        radar_saliency_matrix if k == 0 else list_of_input_matrices[k]
-        for k in range(len(list_of_input_matrices))
+    saliency_matrices = [
+        radar_saliency_matrix if k == 0 else predictor_matrices[k]
+        for k in range(len(predictor_matrices))
     ]
 
     print('Denormalizing model inputs...')
-    list_of_input_matrices = model_interpretation.denormalize_data(
-        list_of_input_matrices=list_of_input_matrices,
+    predictor_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=predictor_matrices,
         model_metadata_dict=model_metadata_dict)
 
     print('Writing saliency maps to file: "{0:s}"...'.format(output_file_name))
@@ -162,13 +163,13 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
 
     saliency_maps.write_standard_file(
         pickle_file_name=output_file_name,
-        list_of_input_matrices=list_of_input_matrices,
-        list_of_saliency_matrices=list_of_saliency_matrices,
-        full_id_strings=full_id_strings,
+        denorm_predictor_matrices=predictor_matrices,
+        saliency_matrices=saliency_matrices,
+        full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
         model_file_name=model_file_name,
-        saliency_metadata_dict=saliency_metadata_dict,
-        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)
+        metadata_dict=saliency_metadata_dict,
+        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
 
 
 if __name__ == '__main__':

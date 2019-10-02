@@ -18,13 +18,16 @@ VALID_COMPONENT_TYPE_STRINGS = [
     CHANNEL_COMPONENT_TYPE_STRING
 ]
 
-INPUT_MATRICES_KEY = 'list_of_input_matrices'
-FULL_IDS_KEY = 'full_storm_id_strings'
-STORM_TIMES_KEY = 'storm_times_unix_sec'
-SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
-
+PREDICTOR_MATRICES_KEY = 'denorm_predictor_matrices'
+SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pa'
 MODEL_FILE_KEY = 'model_file_name'
-MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
+FULL_STORM_IDS_KEY = 'full_storm_id_strings'
+STORM_TIMES_KEY = 'storm_times_unix_sec'
+
+MEAN_PREDICTOR_MATRICES_KEY = 'mean_denorm_predictor_matrices'
+MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pa'
+PMM_MAX_PERCENTILE_KEY = 'pmm_max_percentile_level'
+NON_PMM_FILE_KEY = 'non_pmm_file_name'
 
 
 def check_component_type(component_type_string):

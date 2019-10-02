@@ -27,19 +27,19 @@ MAX_PERCENTILE_ARG_NAME = 'max_percentile_level'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 SALIENCY_FILE_HELP_STRING = (
-    'Path to saliency file (will be read by `saliency_maps.read_standard_file`)'
-    '.  If you are compositing something other than saliency maps, leave this '
-    'argument alone.')
+    'Path to saliency file (will be read by `saliency_maps.read_file`).  If you'
+    ' are compositing something other than saliency maps, leave this argument '
+    'alone.')
 
 GRADCAM_FILE_HELP_STRING = (
-    'Path to Grad-CAM file (will be read by `gradcam.read_standard_file`).  If '
-    'you are compositing something other than class-activation maps, leave this'
-    ' argument alone.')
+    'Path to Grad-CAM file (will be read by `gradcam.read_file`).  If you are '
+    'compositing something other than class-activation maps, leave this '
+    'argument alone.')
 
 BWO_FILE_HELP_STRING = (
     'Path to backwards-optimization file (will be read by '
     '`backwards_optimization.read_standard_file`).  If you are compositing '
-    'something other than backwards-optimization results, leave this argument'
+    'something other than backwards-optimization results, leave this argument '
     'alone.')
 
 NOVELTY_FILE_HELP_STRING = (
@@ -85,7 +85,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _composite_predictors(
         predictor_matrices, max_percentile_level,
-        sounding_pressure_matrix_pascals=None):
+        sounding_pressure_matrix_pa=None):
     """Runs PMM on predictors.
 
     T = number of input tensors to the model
@@ -95,15 +95,15 @@ def _composite_predictors(
     :param predictor_matrices: length-T list of numpy arrays, each containing
         one type of predictor.
     :param max_percentile_level: See documentation at top of file.
-    :param sounding_pressure_matrix_pascals: numpy array (E x H_s) of sounding
+    :param sounding_pressure_matrix_pa: numpy array (E x H_s) of sounding
         pressures.  This may be None, in which case the method will not bother
         trying to composite sounding pressures.
     :return: mean_predictor_matrices: length-T list of numpy arrays, where
         mean_predictor_matrices[i] is a composite over all examples in
         predictor_matrices[i].
     :return: pmm_metadata_dict: Dictionary returned by `pmm.check_input_args`.
-    :return: mean_sounding_pressures_pascals: numpy array (length H_s) of
-        sounding pressures.  If `sounding_pressure_matrix_pascals is None`, this
+    :return: mean_sounding_pressures_pa: numpy array (length H_s) of
+        sounding pressures.  If `sounding_pressure_matrix_pa is None`, this
         is also None.
     """
 
@@ -125,19 +125,19 @@ def _composite_predictors(
                 input_matrix=predictor_matrices[i],
                 max_percentile_level=max_percentile_level)
 
-    if sounding_pressure_matrix_pascals is None:
-        mean_sounding_pressures_pascals = None
+    if sounding_pressure_matrix_pa is None:
+        mean_sounding_pressures_pa = None
     else:
         this_input_matrix = numpy.expand_dims(
-            sounding_pressure_matrix_pascals, axis=-1)
+            sounding_pressure_matrix_pa, axis=-1)
 
-        mean_sounding_pressures_pascals = pmm.run_pmm_many_variables(
+        mean_sounding_pressures_pa = pmm.run_pmm_many_variables(
             input_matrix=this_input_matrix,
             max_percentile_level=max_percentile_level
         )[..., 0]
 
     return (mean_predictor_matrices, pmm_metadata_dict,
-            mean_sounding_pressures_pascals)
+            mean_sounding_pressures_pa)
 
 
 def _composite_saliency_maps(
@@ -145,26 +145,27 @@ def _composite_saliency_maps(
     """Composites predictors and resulting saliency maps.
 
     :param input_file_name: Path to input file.  Will be read by
-        `saliency_maps.read_standard_file`.
+        `saliency_maps.read_file`.
     :param max_percentile_level: See documentation at top of file.
     :param output_file_name: Path to output file.  Will be written by
         `saliency_maps.write_pmm_file`.
     """
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    saliency_dict = saliency_maps.read_standard_file(input_file_name)
+    saliency_dict = saliency_maps.read_file(input_file_name)[0]
 
-    predictor_matrices = saliency_dict[saliency_maps.INPUT_MATRICES_KEY]
+    predictor_matrices = saliency_dict[saliency_maps.PREDICTOR_MATRICES_KEY]
     saliency_matrices = saliency_dict[saliency_maps.SALIENCY_MATRICES_KEY]
-    sounding_pressure_matrix_pascals = saliency_dict[
+    sounding_pressure_matrix_pa = saliency_dict[
         saliency_maps.SOUNDING_PRESSURES_KEY]
 
     print('Compositing predictor matrices...')
-    (mean_predictor_matrices, pmm_metadata_dict, mean_sounding_pressures_pascals
-    ) = _composite_predictors(
-        predictor_matrices=predictor_matrices,
-        max_percentile_level=max_percentile_level,
-        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)
+    mean_predictor_matrices, pmm_metadata_dict, mean_sounding_pressures_pa = (
+        _composite_predictors(
+            predictor_matrices=predictor_matrices,
+            max_percentile_level=max_percentile_level,
+            sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
+    )
 
     print('Compositing saliency maps...')
     num_matrices = len(predictor_matrices)
@@ -178,12 +179,12 @@ def _composite_saliency_maps(
     print('Writing output to: "{0:s}"...'.format(output_file_name))
     saliency_maps.write_pmm_file(
         pickle_file_name=output_file_name,
-        list_of_mean_input_matrices=mean_predictor_matrices,
-        list_of_mean_saliency_matrices=mean_saliency_matrices,
+        mean_denorm_predictor_matrices=mean_predictor_matrices,
+        mean_saliency_matrices=mean_saliency_matrices,
         model_file_name=saliency_dict[saliency_maps.MODEL_FILE_KEY],
-        standard_saliency_file_name=input_file_name,
-        pmm_metadata_dict=pmm_metadata_dict,
-        mean_sounding_pressures_pascals=mean_sounding_pressures_pascals)
+        non_pmm_file_name=input_file_name,
+        pmm_max_percentile_level=max_percentile_level,
+        mean_sounding_pressures_pa=mean_sounding_pressures_pa)
 
 
 def _composite_gradcam(
@@ -191,27 +192,27 @@ def _composite_gradcam(
     """Composites predictors and resulting class-activation maps.
 
     :param input_file_name: Path to input file.  Will be read by
-        `gradcam.read_standard_file`.
+        `gradcam.read_file`.
     :param max_percentile_level: See documentation at top of file.
     :param output_file_name: Path to output file.  Will be written by
         `gradcam.write_pmm_file`.
     """
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    gradcam_dict = gradcam.read_standard_file(input_file_name)
+    gradcam_dict = gradcam.read_file(input_file_name)[0]
 
-    predictor_matrices = gradcam_dict[gradcam.INPUT_MATRICES_KEY]
+    predictor_matrices = gradcam_dict[gradcam.PREDICTOR_MATRICES_KEY]
     cam_matrices = gradcam_dict[gradcam.CAM_MATRICES_KEY]
     guided_cam_matrices = gradcam_dict[gradcam.GUIDED_CAM_MATRICES_KEY]
-    sounding_pressure_matrix_pascals = gradcam_dict[
-        saliency_maps.SOUNDING_PRESSURES_KEY]
+    sounding_pressure_matrix_pa = gradcam_dict[
+        gradcam.SOUNDING_PRESSURES_KEY]
 
     print('Compositing predictor matrices...')
-    (mean_predictor_matrices, pmm_metadata_dict, mean_sounding_pressures_pascals
+    (mean_predictor_matrices, pmm_metadata_dict, mean_sounding_pressures_pa
     ) = _composite_predictors(
         predictor_matrices=predictor_matrices,
         max_percentile_level=max_percentile_level,
-        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)
+        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
 
     print('Compositing class-activation maps...')
     num_matrices = len(predictor_matrices)
@@ -234,13 +235,13 @@ def _composite_gradcam(
     print('Writing output to: "{0:s}"...'.format(output_file_name))
     gradcam.write_pmm_file(
         pickle_file_name=output_file_name,
-        list_of_mean_input_matrices=mean_predictor_matrices,
-        list_of_mean_cam_matrices=mean_cam_matrices,
-        list_of_mean_guided_cam_matrices=mean_guided_cam_matrices,
+        mean_denorm_predictor_matrices=mean_predictor_matrices,
+        mean_cam_matrices=mean_cam_matrices,
+        mean_guided_cam_matrices=mean_guided_cam_matrices,
         model_file_name=gradcam_dict[gradcam.MODEL_FILE_KEY],
-        standard_gradcam_file_name=input_file_name,
-        pmm_metadata_dict=pmm_metadata_dict,
-        mean_sounding_pressures_pascals=mean_sounding_pressures_pascals)
+        non_pmm_file_name=input_file_name,
+        pmm_max_percentile_level=max_percentile_level,
+        mean_sounding_pressures_pa=mean_sounding_pressures_pa)
 
 
 def _composite_backwards_opt(

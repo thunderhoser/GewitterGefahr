@@ -118,19 +118,20 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
     print('Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name))
-    full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
-        storm_metafile_name)
+    full_storm_id_strings, storm_times_unix_sec = (
+        tracking_io.read_ids_and_times(storm_metafile_name)
+    )
 
     print(SEPARATOR_STRING)
 
-    if 0 < num_examples < len(full_id_strings):
-        full_id_strings = full_id_strings[:num_examples]
+    if 0 < num_examples < len(full_storm_id_strings):
+        full_storm_id_strings = full_storm_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
-    list_of_input_matrices, sounding_pressure_matrix_pascals = (
+    predictor_matrices, sounding_pressure_matrix_pa = (
         testing_io.read_specific_examples(
             top_example_dir_name=top_example_dir_name,
-            desired_full_id_strings=full_id_strings,
+            desired_full_id_strings=full_storm_id_strings,
             desired_times_unix_sec=storm_times_unix_sec,
             option_dict=training_option_dict,
             list_of_layer_operation_dicts=model_metadata_dict[
@@ -139,20 +140,19 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     )
     print(SEPARATOR_STRING)
 
-    list_of_cam_matrices = None
-    list_of_guided_cam_matrices = None
+    cam_matrices = None
+    guided_cam_matrices = None
     new_model_object = None
-
-    num_examples = len(full_id_strings)
+    num_examples = len(full_storm_id_strings)
 
     for i in range(num_examples):
         print('Running Grad-CAM for example {0:d} of {1:d}...'.format(
             i + 1, num_examples))
 
-        these_input_matrices = [a[[i], ...] for a in list_of_input_matrices]
+        these_predictor_matrices = [a[[i], ...] for a in predictor_matrices]
         these_cam_matrices = gradcam.run_gradcam(
             model_object=model_object,
-            list_of_input_matrices=these_input_matrices,
+            list_of_input_matrices=these_predictor_matrices,
             target_class=target_class, target_layer_name=target_layer_name)
 
         print('Running guided Grad-CAM for example {0:d} of {1:d}...'.format(
@@ -161,28 +161,26 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
         these_guided_cam_matrices, new_model_object = (
             gradcam.run_guided_gradcam(
                 orig_model_object=model_object,
-                list_of_input_matrices=these_input_matrices,
+                list_of_input_matrices=these_predictor_matrices,
                 target_layer_name=target_layer_name,
                 list_of_cam_matrices=these_cam_matrices,
                 new_model_object=new_model_object)
         )
 
-        if list_of_cam_matrices is None:
-            list_of_cam_matrices = copy.deepcopy(these_cam_matrices)
-            list_of_guided_cam_matrices = copy.deepcopy(
-                these_guided_cam_matrices)
+        if cam_matrices is None:
+            cam_matrices = copy.deepcopy(these_cam_matrices)
+            guided_cam_matrices = copy.deepcopy(these_guided_cam_matrices)
         else:
             for j in range(len(these_cam_matrices)):
-                if list_of_cam_matrices[j] is None:
+                if cam_matrices[j] is None:
                     continue
 
-                list_of_cam_matrices[j] = numpy.concatenate(
-                    (list_of_cam_matrices[j], these_cam_matrices[j]), axis=0
+                cam_matrices[j] = numpy.concatenate(
+                    (cam_matrices[j], these_cam_matrices[j]), axis=0
                 )
 
-                list_of_guided_cam_matrices[j] = numpy.concatenate(
-                    (list_of_guided_cam_matrices[j],
-                     these_guided_cam_matrices[j]),
+                guided_cam_matrices[j] = numpy.concatenate(
+                    (guided_cam_matrices[j], these_guided_cam_matrices[j]),
                     axis=0
                 )
 
@@ -190,33 +188,31 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     upsample_refl = training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]
 
     if upsample_refl:
-        list_of_cam_matrices[0] = numpy.expand_dims(
-            list_of_cam_matrices[0], axis=-1
+        cam_matrices[0] = numpy.expand_dims(cam_matrices[0], axis=-1)
+
+        num_channels = predictor_matrices[0].shape[-1]
+        cam_matrices[0] = numpy.repeat(
+            a=cam_matrices[0], repeats=num_channels, axis=-1
         )
 
-        num_channels = list_of_input_matrices[0].shape[-1]
-        list_of_cam_matrices[0] = numpy.repeat(
-            a=list_of_cam_matrices[0], repeats=num_channels, axis=-1
-        )
-
-        list_of_cam_matrices = trainval_io.separate_shear_and_reflectivity(
-            list_of_input_matrices=list_of_cam_matrices,
+        cam_matrices = trainval_io.separate_shear_and_reflectivity(
+            list_of_input_matrices=cam_matrices,
             training_option_dict=training_option_dict)
 
-        list_of_cam_matrices[0] = list_of_cam_matrices[0][..., 0]
-        list_of_cam_matrices[1] = list_of_cam_matrices[1][..., 0]
+        cam_matrices[0] = cam_matrices[0][..., 0]
+        cam_matrices[1] = cam_matrices[1][..., 0]
 
-    list_of_guided_cam_matrices = trainval_io.separate_shear_and_reflectivity(
-        list_of_input_matrices=list_of_guided_cam_matrices,
+    guided_cam_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=guided_cam_matrices,
         training_option_dict=training_option_dict)
 
     print('Denormalizing predictors...')
-    list_of_input_matrices = trainval_io.separate_shear_and_reflectivity(
-        list_of_input_matrices=list_of_input_matrices,
+    predictor_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=predictor_matrices,
         training_option_dict=training_option_dict)
 
-    list_of_input_matrices = model_interpretation.denormalize_data(
-        list_of_input_matrices=list_of_input_matrices,
+    predictor_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=predictor_matrices,
         model_metadata_dict=model_metadata_dict)
 
     print('Writing class-activation maps to file: "{0:s}"...'.format(
@@ -224,13 +220,14 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
 
     gradcam.write_standard_file(
         pickle_file_name=output_file_name,
-        list_of_input_matrices=list_of_input_matrices,
-        list_of_cam_matrices=list_of_cam_matrices,
-        list_of_guided_cam_matrices=list_of_guided_cam_matrices,
-        model_file_name=model_file_name, full_id_strings=full_id_strings,
+        denorm_predictor_matrices=predictor_matrices,
+        cam_matrices=cam_matrices,
+        guided_cam_matrices=guided_cam_matrices,
+        full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
-        target_class=target_class, target_layer_name=target_layer_name,
-        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)
+        model_file_name=model_file_name, target_class=target_class,
+        target_layer_name=target_layer_name,
+        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
 
 
 if __name__ == '__main__':

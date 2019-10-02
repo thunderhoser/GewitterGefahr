@@ -261,19 +261,20 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
         num_sets = 1
 
     print('Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name))
-    full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
-        storm_metafile_name)
+    full_storm_id_strings, storm_times_unix_sec = (
+        tracking_io.read_ids_and_times(storm_metafile_name)
+    )
 
     print(SEPARATOR_STRING)
 
-    if 0 < num_examples < len(full_id_strings):
-        full_id_strings = full_id_strings[:num_examples]
+    if 0 < num_examples < len(full_storm_id_strings):
+        full_storm_id_strings = full_storm_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
-    list_of_input_matrices, sounding_pressure_matrix_pascals = (
+    predictor_matrices, sounding_pressure_matrix_pa = (
         testing_io.read_specific_examples(
             top_example_dir_name=top_example_dir_name,
-            desired_full_id_strings=full_id_strings,
+            desired_full_id_strings=full_storm_id_strings,
             desired_times_unix_sec=storm_times_unix_sec,
             option_dict=training_option_dict,
             list_of_layer_operation_dicts=model_metadata_dict[
@@ -283,13 +284,13 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
 
     print(SEPARATOR_STRING)
 
-    list_of_input_matrices_denorm = trainval_io.separate_shear_and_reflectivity(
-        list_of_input_matrices=copy.deepcopy(list_of_input_matrices),
+    denorm_predictor_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=copy.deepcopy(predictor_matrices),
         training_option_dict=training_option_dict)
 
     print('Denormalizing model inputs...')
-    list_of_input_matrices_denorm = model_interpretation.denormalize_data(
-        list_of_input_matrices=list_of_input_matrices_denorm,
+    denorm_predictor_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=denorm_predictor_matrices,
         model_metadata_dict=model_metadata_dict)
     print(SEPARATOR_STRING)
 
@@ -336,10 +337,10 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
             print('Computing saliency maps for target class {0:d}...'.format(
                 target_class))
 
-            list_of_saliency_matrices = (
+            saliency_matrices = (
                 saliency_maps.get_saliency_maps_for_class_activation(
                     model_object=this_model_object, target_class=target_class,
-                    list_of_input_matrices=list_of_input_matrices)
+                    list_of_input_matrices=predictor_matrices)
             )
 
         elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
@@ -347,11 +348,11 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
                 'Computing saliency maps for neuron {0:s} in layer "{1:s}"...'
             ).format(str(neuron_indices), layer_name))
 
-            list_of_saliency_matrices = (
+            saliency_matrices = (
                 saliency_maps.get_saliency_maps_for_neuron_activation(
                     model_object=this_model_object, layer_name=layer_name,
                     neuron_indices=neuron_indices,
-                    list_of_input_matrices=list_of_input_matrices,
+                    list_of_input_matrices=predictor_matrices,
                     ideal_activation=ideal_activation)
             )
 
@@ -360,17 +361,17 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
                 'Computing saliency maps for channel {0:d} in layer "{1:s}"...'
             ).format(channel_index, layer_name))
 
-            list_of_saliency_matrices = (
+            saliency_matrices = (
                 saliency_maps.get_saliency_maps_for_channel_activation(
                     model_object=this_model_object, layer_name=layer_name,
                     channel_index=channel_index,
-                    list_of_input_matrices=list_of_input_matrices,
+                    list_of_input_matrices=predictor_matrices,
                     stat_function_for_neuron_activations=K.max,
                     ideal_activation=ideal_activation)
             )
 
-        list_of_saliency_matrices = trainval_io.separate_shear_and_reflectivity(
-            list_of_input_matrices=list_of_saliency_matrices,
+        saliency_matrices = trainval_io.separate_shear_and_reflectivity(
+            list_of_input_matrices=saliency_matrices,
             training_option_dict=training_option_dict)
 
         print('Writing saliency maps to file: "{0:s}"...'.format(
@@ -384,13 +385,13 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
 
         saliency_maps.write_standard_file(
             pickle_file_name=this_output_file_name,
-            list_of_input_matrices=list_of_input_matrices_denorm,
-            list_of_saliency_matrices=list_of_saliency_matrices,
-            full_id_strings=full_id_strings,
+            denorm_predictor_matrices=denorm_predictor_matrices,
+            saliency_matrices=saliency_matrices,
+            full_storm_id_strings=full_storm_id_strings,
             storm_times_unix_sec=storm_times_unix_sec,
             model_file_name=model_file_name,
-            saliency_metadata_dict=saliency_metadata_dict,
-            sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)
+            metadata_dict=saliency_metadata_dict,
+            sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
 
 
 if __name__ == '__main__':
