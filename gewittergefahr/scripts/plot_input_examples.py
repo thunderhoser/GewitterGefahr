@@ -356,9 +356,8 @@ def _plot_3d_radar_scan(
                 vmin=-1 * this_max_colour_value, vmax=this_max_colour_value,
                 clip=False)
         else:
-            this_colour_map_object, this_colour_norm_object = (
-                radar_plotting.get_default_colour_scheme(radar_field_names[k])
-            )
+            this_colour_map_object = None
+            this_colour_norm_object = None
 
         radar_plotting.plot_3d_grid(
             data_matrix=this_radar_matrix,
@@ -378,6 +377,11 @@ def _plot_3d_radar_scan(
         extend_min = (
             plot_differences or radar_field_names[k] in SHEAR_VORT_DIV_NAMES
         )
+
+        if this_colour_map_object is None:
+            this_colour_map_object, this_colour_norm_object = (
+                radar_plotting.get_default_colour_scheme(radar_field_names[k])
+            )
 
         this_colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object_matrices[k],
@@ -489,9 +493,8 @@ def _plot_2d3d_radar_scan(
         colour_norm_object = matplotlib.colors.Normalize(
             vmin=-1 * max_colour_value, vmax=max_colour_value, clip=False)
     else:
-        colour_map_object, colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
-        )
+        colour_map_object = None
+        colour_norm_object = None
 
     radar_plotting.plot_3d_grid(
         data_matrix=numpy.flip(reflectivity_matrix_dbz, axis=0),
@@ -506,6 +509,11 @@ def _plot_2d3d_radar_scan(
         these_axes_objects[j].axis('off')
 
     if allow_whitespace:
+        if colour_map_object is None:
+            colour_map_object, colour_norm_object = (
+                radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
+            )
+
         colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=refl_axes_object_matrix,
             data_matrix=reflectivity_matrix_dbz,
@@ -555,10 +563,8 @@ def _plot_2d3d_radar_scan(
         colour_norm_object = matplotlib.colors.Normalize(
             vmin=-1 * max_colour_value, vmax=max_colour_value, clip=False)
     else:
-        colour_map_object, colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(
-                radar_utils.LOW_LEVEL_SHEAR_NAME)
-        )
+        colour_map_object = None
+        colour_norm_object = None
 
     radar_plotting.plot_many_2d_grids(
         data_matrix=numpy.flip(shear_matrix_s01, axis=0),
@@ -570,6 +576,12 @@ def _plot_2d3d_radar_scan(
     )
 
     if allow_whitespace:
+        if colour_map_object is None:
+            colour_map_object, colour_norm_object = (
+                radar_plotting.get_default_colour_scheme(
+                    radar_utils.LOW_LEVEL_SHEAR_NAME)
+            )
+
         colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=shear_axes_object_matrix,
             data_matrix=shear_matrix_s01,
