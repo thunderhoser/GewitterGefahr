@@ -383,6 +383,8 @@ def check_metadata(
         MINMAX_CONSTRAINT_WEIGHT_KEY: minmax_constraint_weight
     })
 
+    return metadata_dict
+
 
 def check_init_function(init_function_name):
     """Error-checks initialization function.
