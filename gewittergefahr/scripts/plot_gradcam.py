@@ -383,7 +383,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
                 continue
 
             these_activations = numpy.concatenate((
-                these_activations, cam_matrices[j][i, ...]
+                these_activations, numpy.ravel(cam_matrices[j][i, ...])
             ))
 
         this_max_contour_value = numpy.percentile(
@@ -440,7 +440,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
                 continue
 
             these_activations = numpy.concatenate((
-                these_activations, guided_cam_matrices[j][i, ...]
+                these_activations, numpy.ravel(guided_cam_matrices[j][i, ...])
             ))
 
         this_max_contour_value = numpy.percentile(
