@@ -1,5 +1,6 @@
 """Plotting methods for radar data."""
 
+import copy
 import numpy
 import matplotlib
 matplotlib.use('agg')
@@ -829,7 +830,7 @@ def plot_many_2d_grids(
                 axes_object=axes_objects[k], annotation_string=panel_names[k],
                 font_size=panel_name_font_size,
                 colour_map_object=colour_map_objects[k],
-                colour_norm_object=colour_norm_objects[k]
+                colour_norm_object=copy.deepcopy(colour_norm_objects[k])
             )
         )
 
@@ -903,5 +904,5 @@ def plot_3d_grid(
             field_name=field_name, axes_object=axes_objects[k],
             annotation_string=this_panel_name,
             colour_map_object=colour_map_object,
-            colour_norm_object=colour_norm_object,
+            colour_norm_object=copy.deepcopy(colour_norm_object),
             font_size=panel_name_font_size)

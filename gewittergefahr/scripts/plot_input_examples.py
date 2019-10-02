@@ -385,7 +385,7 @@ def _plot_3d_radar_scan(
 
         this_colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object_matrices[k],
-            data_matrix=radar_plotting._field_to_plotting_units(field_matrix=this_radar_matrix, field_name=radar_field_names[k]),
+            data_matrix=this_radar_matrix,
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
