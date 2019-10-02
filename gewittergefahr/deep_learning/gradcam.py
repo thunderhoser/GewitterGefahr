@@ -498,15 +498,14 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
     target_layer_activation_matrix = target_layer_activation_matrix[0, ...]
     gradient_matrix = gradient_matrix[0, ...]
 
-    print(target_layer_activation_matrix.shape)
-    print(gradient_matrix.shape)
-
     # Compute class-activation matrix in the target layer's space.
-    mean_weight_by_filter = numpy.mean(gradient_matrix, axis=(0, 1))
-    original_cam_matrix = numpy.ones(target_layer_activation_matrix.shape[:-1])
+    num_spatial_dim = len(gradient_matrix.shape) - 1
+    these_axes = numpy.linspace(
+        0, num_spatial_dim - 1, num=num_spatial_dim, dtype=int
+    ).tolist()
 
-    print(mean_weight_by_filter.shape)
-    print(original_cam_matrix.shape)
+    mean_weight_by_filter = numpy.mean(gradient_matrix, axis=tuple(these_axes))
+    original_cam_matrix = numpy.ones(target_layer_activation_matrix.shape[:-1])
 
     num_filters = len(mean_weight_by_filter)
     for k in range(num_filters):
