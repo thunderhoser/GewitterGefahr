@@ -1,5 +1,6 @@
 """Plotting methods for radar data."""
 
+import copy
 import numpy
 import matplotlib
 matplotlib.use('agg')
@@ -688,28 +689,30 @@ def plot_2d_grid_without_coords(
     )
 
     if use_default_colour_scheme:
-        colour_map_object, colour_norm_object = get_default_colour_scheme(
+        colour_map_object, this_colour_norm_object = get_default_colour_scheme(
             field_name)
     else:
-        if hasattr(colour_norm_object, 'boundaries'):
-            colour_norm_object.boundaries = _field_to_plotting_units(
-                field_matrix=colour_norm_object.boundaries,
+        this_colour_norm_object = copy.deepcopy(colour_norm_object)
+
+        if hasattr(this_colour_norm_object, 'boundaries'):
+            this_colour_norm_object.boundaries = _field_to_plotting_units(
+                field_matrix=this_colour_norm_object.boundaries,
                 field_name=field_name)
         else:
-            colour_norm_object.vmin = _field_to_plotting_units(
-                field_matrix=colour_norm_object.vmin, field_name=field_name)
-            colour_norm_object.vmax = _field_to_plotting_units(
-                field_matrix=colour_norm_object.vmax, field_name=field_name)
+            this_colour_norm_object.vmin = _field_to_plotting_units(
+                field_matrix=this_colour_norm_object.vmin, field_name=field_name)
+            this_colour_norm_object.vmax = _field_to_plotting_units(
+                field_matrix=this_colour_norm_object.vmax, field_name=field_name)
 
-    if hasattr(colour_norm_object, 'boundaries'):
-        min_colour_value = colour_norm_object.boundaries[0]
-        max_colour_value = colour_norm_object.boundaries[-1]
+    if hasattr(this_colour_norm_object, 'boundaries'):
+        min_colour_value = this_colour_norm_object.boundaries[0]
+        max_colour_value = this_colour_norm_object.boundaries[-1]
     else:
-        min_colour_value = colour_norm_object.vmin
-        max_colour_value = colour_norm_object.vmax
+        min_colour_value = this_colour_norm_object.vmin
+        max_colour_value = this_colour_norm_object.vmax
 
     axes_object.pcolormesh(
-        field_matrix, cmap=colour_map_object, norm=colour_norm_object,
+        field_matrix, cmap=colour_map_object, norm=this_colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None', zorder=-1e11)
 
@@ -742,7 +745,7 @@ def plot_2d_grid_without_coords(
             verticalalignment='bottom', transform=axes_object.transAxes,
             zorder=1e10)
 
-    return colour_map_object, colour_norm_object
+    return colour_map_object, this_colour_norm_object
 
 
 def plot_many_2d_grids(
