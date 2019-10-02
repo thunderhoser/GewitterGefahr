@@ -410,7 +410,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                     (output_matrices[k], these_output_matrices[k]), axis=0
                 )
 
-        if init_function_name is not None:
+        if init_function_name is None:
             continue
 
         these_input_matrices = this_result_dict[
