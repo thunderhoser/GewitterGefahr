@@ -1199,9 +1199,7 @@ def plot_examples(
         error_checking.assert_is_numpy_array(
             storm_times_unix_sec, exact_dimensions=these_expected_dim)
 
-    if storm_activations is None:
-        storm_activations = [None] * num_examples
-    else:
+    if storm_activations is not None:
         these_expected_dim = numpy.array([num_examples], dtype=int)
         error_checking.assert_is_numpy_array_without_nan(storm_activations)
         error_checking.assert_is_numpy_array(
