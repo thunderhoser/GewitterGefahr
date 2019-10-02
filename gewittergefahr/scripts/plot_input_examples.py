@@ -1025,8 +1025,10 @@ def plot_one_example(
     error_checking.assert_is_greater(panel_name_font_size, 0.)
     error_checking.assert_is_greater(title_font_size, 0.)
     error_checking.assert_is_greater(colour_bar_font_size, 0.)
-    error_checking.assert_is_geq(max_diff_percentile, 90.)
-    error_checking.assert_is_leq(max_diff_percentile, 100.)
+
+    if plot_radar_diffs:
+        error_checking.assert_is_geq(max_diff_percentile, 90.)
+        error_checking.assert_is_leq(max_diff_percentile, 100.)
 
     if pmm_flag:
         if list_of_predictor_matrices[0].shape[0] == 1:
