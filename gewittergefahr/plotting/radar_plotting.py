@@ -900,7 +900,8 @@ def plot_3d_grid(
             this_panel_name = None
 
         this_colour_norm_object = (
-            colour_norm_object if k == 0 else copy.deepcopy(colour_norm_object)
+            colour_norm_object if k == num_heights - 1
+            else copy.deepcopy(colour_norm_object)
         )
 
         plot_2d_grid_without_coords(
