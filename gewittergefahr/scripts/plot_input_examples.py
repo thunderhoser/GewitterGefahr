@@ -6,7 +6,8 @@ import argparse
 import numpy
 import matplotlib
 matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
+import matplotlib.colors
+from matplotlib import pyplot
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
@@ -258,7 +259,8 @@ def _plot_3d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, add_title, title_font_size,
         label_colour_bar, colour_bar_length, colour_bar_font_size,
-        num_panel_rows=None):
+        plot_differences, num_panel_rows=None, diff_colour_map_object=None,
+        max_diff_percentile=None):
     """Plots 3-D radar images for one example.
 
     Specifically, this method plots one figure per field, with one panel per
@@ -285,8 +287,14 @@ def _plot_3d_radar_scan(
     :param colour_bar_length: Length of colour bars (as fraction of axis
         length).
     :param colour_bar_font_size: Font size for colour bar.
+    :param plot_differences: Boolean flag.  If True, this method will plot
+        differences rather than actual values.
     :param num_panel_rows: Number of panel rows in each figure.  If None, will
         use default.
+    :param diff_colour_map_object: [used only if `plot_differences == True`]
+        Colour scheme (instance of `matplotlib.pyplot.cm` or similar).
+    :param max_diff_percentile: [used only if `plot_differences == True`]
+        Used to set max value for colour scheme.
     :return: figure_objects: length-F list of figure handles (instances of
         `matplotlib.figure.Figure`).
     :return: axes_object_matrices: length-F list.  Each element is a J-by-K
@@ -338,12 +346,28 @@ def _plot_3d_radar_scan(
 
         these_axes_objects = numpy.ravel(axes_object_matrices[k], order='C')
 
+        if plot_differences:
+            this_max_colour_value = numpy.percentile(
+                numpy.absolute(this_radar_matrix), max_diff_percentile
+            )
+
+            this_colour_map_object = diff_colour_map_object
+            this_colour_norm_object = matplotlib.colors.Normalize(
+                vmin=-1 * this_max_colour_value, vmax=this_max_colour_value,
+                clip=False)
+        else:
+            this_colour_map_object, this_colour_norm_object = (
+                radar_plotting.get_default_colour_scheme(radar_field_names[k])
+            )
+
         radar_plotting.plot_3d_grid(
             data_matrix=this_radar_matrix,
             axes_objects=these_axes_objects[:num_radar_heights],
             field_name=radar_field_names[k], heights_metres=radar_heights_m_agl,
             ground_relative=True, plot_panel_names=plot_panel_names,
-            panel_name_font_size=panel_name_font_size)
+            panel_name_font_size=panel_name_font_size,
+            colour_map_object=this_colour_map_object,
+            colour_norm_object=this_colour_norm_object)
 
         for j in range(num_radar_heights, len(these_axes_objects)):
             these_axes_objects[j].axis('off')
@@ -351,8 +375,8 @@ def _plot_3d_radar_scan(
         if not allow_whitespace:
             continue
 
-        this_colour_map_object, this_colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(radar_field_names[k])
+        extend_min = (
+            plot_differences or radar_field_names[k] in SHEAR_VORT_DIV_NAMES
         )
 
         this_colour_bar_object = plotting_utils.plot_colour_bar(
@@ -363,9 +387,7 @@ def _plot_3d_radar_scan(
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
             font_size=colour_bar_font_size,
             fraction_of_axis_length=colour_bar_length,
-            extend_min=radar_field_names[k] in SHEAR_VORT_DIV_NAMES,
-            extend_max=True
-        )
+            extend_min=extend_min, extend_max=True)
 
         if label_colour_bar:
             this_colour_bar_object.set_label(
@@ -384,7 +406,8 @@ def _plot_2d3d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, add_titles, title_font_size,
         label_colour_bars, colour_bar_length, colour_bar_font_size,
-        num_panel_rows=None):
+        plot_differences, num_panel_rows=None, diff_colour_map_object=None,
+        max_diff_percentile=None):
     """Plots 2-D azimuthal shear and 3-D reflectivity for one example.
 
     Specifically, this method plots one figure with reflectivity (one panel per
@@ -402,7 +425,10 @@ def _plot_2d3d_radar_scan(
     :param label_colour_bars: Same.
     :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
+    :param plot_differences: Same.
     :param num_panel_rows: Same.
+    :param diff_colour_map_object: Same.
+    :param max_diff_percentile: Same.
     :return: figure_objects: length-2 list of figure handles (instances of
         `matplotlib.figure.Figure`).  The first is for reflectivity; the second
         is for azimuthal shear.
@@ -454,21 +480,32 @@ def _plot_2d3d_radar_scan(
     reflectivity_matrix_dbz = list_of_predictor_matrices[0][..., 0]
     these_axes_objects = numpy.ravel(refl_axes_object_matrix, order='C')
 
+    if plot_differences:
+        max_colour_value = numpy.percentile(
+            numpy.absolute(reflectivity_matrix_dbz), max_diff_percentile
+        )
+
+        colour_map_object = diff_colour_map_object
+        colour_norm_object = matplotlib.colors.Normalize(
+            vmin=-1 * max_colour_value, vmax=max_colour_value, clip=False)
+    else:
+        colour_map_object, colour_norm_object = (
+            radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
+        )
+
     radar_plotting.plot_3d_grid(
         data_matrix=numpy.flip(reflectivity_matrix_dbz, axis=0),
         axes_objects=these_axes_objects[:num_refl_heights],
         field_name=radar_utils.REFL_NAME, heights_metres=refl_heights_m_agl,
         ground_relative=True, plot_panel_names=plot_panel_names,
-        panel_name_font_size=panel_name_font_size)
+        panel_name_font_size=panel_name_font_size,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object)
 
     for j in range(num_refl_heights, len(these_axes_objects)):
         these_axes_objects[j].axis('off')
 
     if allow_whitespace:
-        colour_map_object, colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
-        )
-
         colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=refl_axes_object_matrix,
             data_matrix=reflectivity_matrix_dbz,
@@ -477,7 +514,7 @@ def _plot_2d3d_radar_scan(
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
             font_size=colour_bar_font_size,
             fraction_of_axis_length=colour_bar_length,
-            extend_min=False, extend_max=True)
+            extend_min=plot_differences, extend_max=True)
 
         if label_colour_bars:
             colour_bar_object.set_label(
@@ -509,18 +546,30 @@ def _plot_2d3d_radar_scan(
     shear_matrix_s01 = list_of_predictor_matrices[1]
     these_axes_objects = numpy.ravel(shear_axes_object_matrix, order='C')
 
-    radar_plotting.plot_many_2d_grids(
-        data_matrix=numpy.flip(shear_matrix_s01, axis=0),
-        field_names=shear_field_names, axes_objects=these_axes_objects,
-        panel_names=shear_field_names_verbose if plot_panel_names else None,
-        panel_name_font_size=panel_name_font_size)
+    if plot_differences:
+        max_colour_value = numpy.percentile(
+            numpy.absolute(shear_matrix_s01), max_diff_percentile
+        )
 
-    if allow_whitespace:
+        colour_map_object = diff_colour_map_object
+        colour_norm_object = matplotlib.colors.Normalize(
+            vmin=-1 * max_colour_value, vmax=max_colour_value, clip=False)
+    else:
         colour_map_object, colour_norm_object = (
             radar_plotting.get_default_colour_scheme(
                 radar_utils.LOW_LEVEL_SHEAR_NAME)
         )
 
+    radar_plotting.plot_many_2d_grids(
+        data_matrix=numpy.flip(shear_matrix_s01, axis=0),
+        field_names=shear_field_names, axes_objects=these_axes_objects,
+        panel_names=shear_field_names_verbose if plot_panel_names else None,
+        panel_name_font_size=panel_name_font_size,
+        colour_map_objects=[colour_map_object] * num_shear_fields,
+        colour_norm_objects=[colour_norm_object] * num_shear_fields
+    )
+
+    if allow_whitespace:
         colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=shear_axes_object_matrix,
             data_matrix=shear_matrix_s01,
@@ -546,10 +595,72 @@ def _plot_2d3d_radar_scan(
     return figure_objects, axes_object_matrices
 
 
+def _get_colour_norms_for_layer_op_diffs(
+        data_matrix, list_of_layer_operation_dicts, max_colour_percentile):
+    """Creates colour-normalizers for differences between layer operations.
+
+    F = number of layer operations
+
+    :param data_matrix: numpy array of data values (created by layer
+        operations), where the last axis has length F.
+    :param list_of_layer_operation_dicts: length-F list of dictionaries (each in
+        format specified by `input_examples._check_layer_operation`).
+    :param max_colour_percentile: Used to set max value in each colour scheme.
+    :return: colour_norm_objects: length-F list of colour-normalizers (instances
+        of `matplotlib.colors.BoundaryNorm` or similar).
+    """
+
+    num_operations = len(list_of_layer_operation_dicts)
+    radar_field_names = [
+        d[input_examples.RADAR_FIELD_KEY] for d in list_of_layer_operation_dicts
+    ]
+
+    min_heights_m_agl = numpy.array([
+        d[input_examples.MIN_HEIGHT_KEY]
+        for d in list_of_layer_operation_dicts
+    ], dtype=int)
+
+    max_heights_m_agl = numpy.array([
+        d[input_examples.MAX_HEIGHT_KEY]
+        for d in list_of_layer_operation_dicts
+    ], dtype=int)
+
+    field_layer_strings = [
+        '{0:s}_{1:d}_{2:d}'.format(f, z1, z2) for f, z1, z2 in
+        zip(radar_field_names, min_heights_m_agl, max_heights_m_agl)
+    ]
+
+    _, orig_to_unique_indices = numpy.unique(
+        numpy.array(field_layer_strings), return_inverse=True
+    )
+
+    num_unique_schemes = int(numpy.round(
+        1 + numpy.max(orig_to_unique_indices)
+    ))
+
+    colour_norm_objects = [None] * num_operations
+
+    for i in range(num_unique_schemes):
+        these_indices = numpy.where(orig_to_unique_indices == i)[0]
+        this_max_value = numpy.percentile(
+            numpy.absolute(data_matrix[..., these_indices]),
+            max_colour_percentile
+        )
+
+        this_colour_norm_object = matplotlib.colors.Normalize(
+            vmin=-1 * this_max_value, vmax=this_max_value, clip=False)
+
+        for k in these_indices:
+            colour_norm_objects[k] = this_colour_norm_object
+
+    return colour_norm_objects
+
+
 def _plot_2d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, colour_bar_length,
-        colour_bar_font_size, num_panel_rows=None):
+        colour_bar_font_size, plot_differences, num_panel_rows=None,
+        diff_colour_map_object=None, max_diff_percentile=None):
     """Plots 2-D radar scan for one example.
 
     Specifically, this method plots one figure, with each panel containing a
@@ -566,7 +677,10 @@ def _plot_2d_radar_scan(
     :param panel_name_font_size: See doc for `_plot_3d_radar_scan`.
     :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
+    :param plot_differences: Same.
     :param num_panel_rows: Same.
+    :param diff_colour_map_object: Same.
+    :param max_diff_percentile: Same.
     :return: figure_objects: length-1 list of figure handles (instances of
         `matplotlib.figure.Figure`).
     :return: axes_object_matrices: length-1 list.  Each element is a J-by-K
@@ -631,11 +745,34 @@ def _plot_2d_radar_scan(
     radar_matrix = list_of_predictor_matrices[0]
     these_axes_objects = numpy.ravel(axes_object_matrix, order='F')
 
+    if plot_differences:
+        colour_map_objects = [diff_colour_map_object] * num_radar_fields
+
+        if list_of_layer_operation_dicts is None:
+            max_colour_values = numpy.percentile(
+                numpy.absolute(radar_matrix), max_diff_percentile, axis=-1
+            )
+
+            colour_norm_objects = [
+                matplotlib.colors.Normalize(vmin=-1 * v, vmax=v, clip=False)
+                for v in max_colour_values
+            ]
+        else:
+            colour_norm_objects = _get_colour_norms_for_layer_op_diffs(
+                data_matrix=radar_matrix,
+                list_of_layer_operation_dicts=list_of_layer_operation_dicts,
+                max_colour_percentile=max_diff_percentile)
+    else:
+        colour_map_objects = None
+        colour_norm_objects = None
+
     radar_plotting.plot_many_2d_grids(
         data_matrix=numpy.flip(radar_matrix, axis=0),
         field_names=radar_field_names,
         axes_objects=these_axes_objects[:num_radar_fields],
         panel_names=panel_names if plot_panel_names else None,
+        colour_map_objects=colour_map_objects,
+        colour_norm_objects=colour_norm_objects,
         plot_colour_bar_flags=plot_colour_bar_flags,
         panel_name_font_size=panel_name_font_size,
         colour_bar_font_size=colour_bar_font_size,
@@ -823,7 +960,9 @@ def plot_one_example(
         add_titles=True, title_font_size=DEFAULT_TITLE_FONT_SIZE,
         label_colour_bars=False, colour_bar_length=DEFAULT_CBAR_LENGTH,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
-        sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE, num_panel_rows=None):
+        sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE, num_panel_rows=None,
+        plot_radar_diffs=False, diff_colour_map_object=None,
+        max_diff_percentile=None):
     """Plots predictors for one example.
 
     R = number of radar figures
@@ -853,8 +992,14 @@ def plot_one_example(
         length).
     :param colour_bar_font_size: Font size for colour bars.
     :param sounding_font_size: Font size for sounding.
+    :param plot_radar_diffs: Boolean flag.  If True, radar matrices contain
+        differences rather than actual values.
     :param num_panel_rows: Number of panel rows in each figure.  If None, will
         use default.
+    :param diff_colour_map_object: [used only if `plot_radar_diffs == True`]
+        Colour scheme (instance of `matplotlib.pyplot.cm` or similar).
+    :param max_diff_percentile: [used only if `plot_radar_diffs == True`]
+        Used to set max value for colour scheme.
 
     :return: handle_dict: Dictionary with the following keys.
     handle_dict['sounding_figure_object']: One figure handle (instance of
@@ -875,10 +1020,13 @@ def plot_one_example(
     error_checking.assert_is_boolean(plot_panel_names)
     error_checking.assert_is_boolean(add_titles)
     error_checking.assert_is_boolean(label_colour_bars)
+    error_checking.assert_is_boolean(plot_radar_diffs)
 
     error_checking.assert_is_greater(panel_name_font_size, 0.)
     error_checking.assert_is_greater(title_font_size, 0.)
     error_checking.assert_is_greater(colour_bar_font_size, 0.)
+    error_checking.assert_is_geq(max_diff_percentile, 90.)
+    error_checking.assert_is_leq(max_diff_percentile, 100.)
 
     if pmm_flag:
         if list_of_predictor_matrices[0].shape[0] == 1:
@@ -923,7 +1071,10 @@ def plot_one_example(
                 label_colour_bars=label_colour_bars,
                 colour_bar_length=colour_bar_length,
                 colour_bar_font_size=colour_bar_font_size,
-                num_panel_rows=num_panel_rows)
+                num_panel_rows=num_panel_rows,
+                plot_differences=plot_radar_diffs,
+                diff_colour_map_object=diff_colour_map_object,
+                max_diff_percentile=max_diff_percentile)
         )
     elif num_radar_dimensions == 3:
         radar_figure_objects, radar_axes_object_matrices = _plot_3d_radar_scan(
@@ -936,7 +1087,10 @@ def plot_one_example(
             label_colour_bar=label_colour_bars,
             colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size,
-            num_panel_rows=num_panel_rows)
+            num_panel_rows=num_panel_rows,
+            plot_differences=plot_radar_diffs,
+            diff_colour_map_object=diff_colour_map_object,
+            max_diff_percentile=max_diff_percentile)
     else:
         radar_figure_objects, radar_axes_object_matrices = _plot_2d_radar_scan(
             list_of_predictor_matrices=predictor_matrices_to_plot,
@@ -946,7 +1100,10 @@ def plot_one_example(
             panel_name_font_size=panel_name_font_size,
             colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size,
-            num_panel_rows=num_panel_rows)
+            num_panel_rows=num_panel_rows,
+            plot_differences=plot_radar_diffs,
+            diff_colour_map_object=diff_colour_map_object,
+            max_diff_percentile=max_diff_percentile)
 
     return {
         SOUNDING_FIGURE_KEY: sounding_figure_object,
@@ -966,8 +1123,9 @@ def plot_examples(
         label_colour_bars=False, colour_bar_length=DEFAULT_CBAR_LENGTH,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
         sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE, num_panel_rows=None,
-        full_storm_id_strings=None, storm_times_unix_sec=None,
-        storm_activations=None):
+        plot_radar_diffs=False, diff_colour_map_object=None,
+        max_diff_percentile=None, full_storm_id_strings=None,
+        storm_times_unix_sec=None, storm_activations=None):
     """Plots predictors for each example.
 
     E = number of examples (storm objects)
@@ -993,6 +1151,9 @@ def plot_examples(
     :param colour_bar_font_size: Same.
     :param sounding_font_size: Same.
     :param num_panel_rows: Same.
+    :param plot_radar_diffs: Same.
+    :param diff_colour_map_object: Same.
+    :param max_diff_percentile: Same.
     :param full_storm_id_strings: [used only if `pmm_flag == False`]
         length-E list of storm IDs.
     :param storm_times_unix_sec: [used only if `pmm_flag == False`]
@@ -1003,6 +1164,8 @@ def plot_examples(
     """
 
     error_checking.assert_is_boolean(pmm_flag)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
 
     if pmm_flag:
         num_examples = 1
@@ -1057,7 +1220,9 @@ def plot_examples(
             colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size,
             sounding_font_size=sounding_font_size,
-            num_panel_rows=num_panel_rows)
+            num_panel_rows=num_panel_rows, plot_radar_diffs=plot_radar_diffs,
+            diff_colour_map_object=diff_colour_map_object,
+            max_diff_percentile=max_diff_percentile)
 
         this_sounding_figure_object = this_handle_dict[SOUNDING_FIGURE_KEY]
 
@@ -1214,9 +1379,6 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         num_radar_rows = None
     if num_radar_columns <= 0:
         num_radar_columns = None
-
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
 
     storm_activations = None
     if activation_file_name in ['', 'None']:

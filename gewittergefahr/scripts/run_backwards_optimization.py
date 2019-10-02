@@ -80,8 +80,10 @@ IDEAL_ACTIVATION_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] See '
     '`backwards_opt.optimize_input_for_neuron` or '
     '`backwards_opt.optimize_input_for_channel` for details.'
-).format(COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING,
-         CLASS_COMPONENT_TYPE_STRING)
+).format(
+    COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING,
+    CLASS_COMPONENT_TYPE_STRING
+)
 
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for backwards optimization.'
 
@@ -287,34 +289,39 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
     print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
 
+    input_matrices = None
+    init_function = None
+    full_storm_id_strings = None
+    storm_times_unix_sec = None
+    sounding_pressure_matrix_pa = None
+
     if init_function_name is None:
         print('Reading storm metadata from: "{0:s}"...'.format(
             storm_metafile_name))
 
-        full_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
-            storm_metafile_name)
+        full_storm_id_strings, storm_times_unix_sec = (
+            tracking_io.read_ids_and_times(storm_metafile_name)
+        )
 
-        if 0 < num_examples < len(full_id_strings):
-            full_id_strings = full_id_strings[:num_examples]
+        if 0 < num_examples < len(full_storm_id_strings):
+            full_storm_id_strings = full_storm_id_strings[:num_examples]
             storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
-        list_of_init_matrices = testing_io.read_specific_examples(
-            desired_full_id_strings=full_id_strings,
-            desired_times_unix_sec=storm_times_unix_sec,
-            option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-            top_example_dir_name=top_example_dir_name,
-            list_of_layer_operation_dicts=model_metadata_dict[
-                cnn.LAYER_OPERATIONS_KEY]
-        )[0]
+        input_matrices, sounding_pressure_matrix_pa = (
+            testing_io.read_specific_examples(
+                desired_full_id_strings=full_storm_id_strings,
+                desired_times_unix_sec=storm_times_unix_sec,
+                option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
+                top_example_dir_name=top_example_dir_name,
+                list_of_layer_operation_dicts=model_metadata_dict[
+                    cnn.LAYER_OPERATIONS_KEY]
+            )
+        )
 
-        num_examples = list_of_init_matrices[0].shape[0]
+        num_examples = input_matrices[0].shape[0]
         print(SEPARATOR_STRING)
-
     else:
-        full_id_strings = None
-        storm_times_unix_sec = None
         num_examples = 1
-
         init_function = _create_initializer(
             init_function_name=init_function_name,
             model_metadata_dict=model_metadata_dict)
@@ -322,13 +329,13 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
     print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
 
-    list_of_optimized_matrices = None
+    output_matrices = None
     initial_activations = numpy.full(num_examples, numpy.nan)
     final_activations = numpy.full(num_examples, numpy.nan)
 
     for i in range(num_examples):
         if init_function_name is None:
-            this_init_arg = [a[[i], ...] for a in list_of_init_matrices]
+            this_init_arg = [a[[i], ...] for a in input_matrices]
         else:
             this_init_arg = init_function
 
@@ -339,9 +346,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 i + 1, num_examples, target_class
             ))
 
-            (these_optimized_matrices, initial_activations[i],
-             final_activations[i]
-            ) = backwards_opt.optimize_input_for_class(
+            this_result_dict = backwards_opt.optimize_input_for_class(
                 model_object=model_object, target_class=target_class,
                 init_function_or_matrices=this_init_arg,
                 num_iterations=num_iterations, learning_rate=learning_rate,
@@ -358,9 +363,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 i + 1, num_examples, str(neuron_indices), layer_name
             ))
 
-            (these_optimized_matrices, initial_activations[i],
-             final_activations[i]
-            ) = backwards_opt.optimize_input_for_neuron(
+            this_result_dict = backwards_opt.optimize_input_for_neuron(
                 model_object=model_object, layer_name=layer_name,
                 neuron_indices=neuron_indices,
                 init_function_or_matrices=this_init_arg,
@@ -378,9 +381,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 i + 1, num_examples, channel_index, layer_name
             ))
 
-            (these_optimized_matrices, initial_activations[i],
-             final_activations[i]
-            ) = backwards_opt.optimize_input_for_channel(
+            this_result_dict = backwards_opt.optimize_input_for_channel(
                 model_object=model_object, layer_name=layer_name,
                 channel_index=channel_index,
                 init_function_or_matrices=this_init_arg,
@@ -391,59 +392,82 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
                 minmax_constraint_weight=minmax_constraint_weight,
                 model_metadata_dict=model_metadata_dict)
 
-        if list_of_optimized_matrices is None:
-            num_matrices = len(these_optimized_matrices)
-            list_of_optimized_matrices = [None] * num_matrices
+        initial_activations[i] = this_result_dict[
+            backwards_opt.INITIAL_ACTIVATION_KEY]
+        final_activations[i] = this_result_dict[
+            backwards_opt.FINAL_ACTIVATION_KEY]
+        these_output_matrices = this_result_dict[
+            backwards_opt.NORM_OUTPUT_MATRICES_KEY]
 
-        for k in range(len(list_of_optimized_matrices)):
-            if list_of_optimized_matrices[k] is None:
-                list_of_optimized_matrices[k] = these_optimized_matrices[k] + 0.
+        if output_matrices is None:
+            output_matrices = [None] * len(these_output_matrices)
+
+        for k in range(len(output_matrices)):
+            if output_matrices[k] is None:
+                output_matrices[k] = these_output_matrices[k] + 0.
             else:
-                list_of_optimized_matrices[k] = numpy.concatenate((
-                    list_of_optimized_matrices[k], these_optimized_matrices[k]
-                ), axis=0)
+                output_matrices[k] = numpy.concatenate(
+                    (output_matrices[k], these_output_matrices[k]), axis=0
+                )
+
+        if init_function_name is not None:
+            continue
+
+        these_input_matrices = this_result_dict[
+            backwards_opt.NORM_INPUT_MATRICES_KEY]
+
+        if input_matrices is None:
+            input_matrices = [None] * len(these_input_matrices)
+
+        for k in range(len(input_matrices)):
+            if input_matrices[k] is None:
+                input_matrices[k] = these_input_matrices[k] + 0.
+            else:
+                input_matrices[k] = numpy.concatenate(
+                    (input_matrices[k], these_input_matrices[k]), axis=0
+                )
 
     print(SEPARATOR_STRING)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    print('Denormalizing optimized examples...')
-    list_of_optimized_matrices = trainval_io.separate_shear_and_reflectivity(
-        list_of_input_matrices=list_of_optimized_matrices,
+    print('Denormalizing input examples...')
+    input_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=input_matrices,
         training_option_dict=training_option_dict)
 
-    list_of_optimized_matrices = model_interpretation.denormalize_data(
-        list_of_input_matrices=list_of_optimized_matrices,
+    input_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=input_matrices,
         model_metadata_dict=model_metadata_dict)
 
-    if init_function_name is None:
-        print('Denormalizing input examples...')
-        list_of_init_matrices = trainval_io.separate_shear_and_reflectivity(
-            list_of_input_matrices=list_of_init_matrices,
-            training_option_dict=training_option_dict)
+    print('Denormalizing optimized examples...')
+    output_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=output_matrices,
+        training_option_dict=training_option_dict)
 
-        list_of_init_matrices = model_interpretation.denormalize_data(
-            list_of_input_matrices=list_of_init_matrices,
-            model_metadata_dict=model_metadata_dict)
-
-        this_init_arg = list_of_init_matrices
-    else:
-        this_init_arg = init_function_name + ''
+    output_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=output_matrices,
+        model_metadata_dict=model_metadata_dict)
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
+    bwo_metadata_dict = backwards_opt.check_metadata(
+        component_type_string=component_type_string,
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        target_class=target_class, layer_name=layer_name,
+        ideal_activation=ideal_activation, neuron_indices=neuron_indices,
+        channel_index=channel_index, l2_weight=l2_weight,
+        radar_constraint_weight=radar_constraint_weight,
+        minmax_constraint_weight=minmax_constraint_weight)
+
     backwards_opt.write_standard_file(
         pickle_file_name=output_file_name,
-        list_of_optimized_matrices=list_of_optimized_matrices,
+        denorm_input_matrices=input_matrices,
+        denorm_output_matrices=output_matrices,
         initial_activations=initial_activations,
         final_activations=final_activations, model_file_name=model_file_name,
-        init_function_name_or_matrices=this_init_arg,
-        num_iterations=num_iterations, learning_rate=learning_rate,
-        l2_weight=l2_weight, radar_constraint_weight=radar_constraint_weight,
-        minmax_constraint_weight=minmax_constraint_weight,
-        component_type_string=component_type_string, target_class=target_class,
-        layer_name=layer_name, neuron_indices=neuron_indices,
-        channel_index=channel_index, ideal_activation=ideal_activation,
-        full_id_strings=full_id_strings,
-        storm_times_unix_sec=storm_times_unix_sec)
+        metadata_dict=bwo_metadata_dict,
+        full_storm_id_strings=full_storm_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec,
+        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
 
 
 if __name__ == '__main__':

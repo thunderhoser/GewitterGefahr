@@ -222,8 +222,10 @@ def _run(model_file_name, init_function_name, component_type_string,
         ideal_activation = None
 
     print('Reading model from: "{0:s}"...'.format(model_file_name))
-    custom_dict = {'brier_skill_score_keras': _brier_skill_score_keras}
-    model_object = load_keras_model(model_file_name, custom_objects=custom_dict)
+    model_object = load_keras_model(
+        model_file_name,
+        custom_objects={'brier_skill_score_keras': _brier_skill_score_keras}
+    )
 
     init_function = _create_initializer(init_function_name)
     print(SEPARATOR_STRING)
@@ -231,60 +233,70 @@ def _run(model_file_name, init_function_name, component_type_string,
     if component_type_string == CLASS_COMPONENT_TYPE_STRING:
         print('Optimizing image for target class {0:d}...'.format(target_class))
 
-        list_of_optimized_matrices, initial_activation, final_activation = (
-            backwards_opt.optimize_input_for_class(
-                model_object=model_object, target_class=target_class,
-                init_function_or_matrices=init_function,
-                num_iterations=num_iterations, learning_rate=learning_rate)
-        )
+        result_dict = backwards_opt.optimize_input_for_class(
+            model_object=model_object, target_class=target_class,
+            init_function_or_matrices=init_function,
+            num_iterations=num_iterations, learning_rate=learning_rate)
 
     elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
         print('Optimizing image for neuron {0:s} in layer "{1:s}"...'.format(
             str(neuron_indices), layer_name
         ))
 
-        list_of_optimized_matrices, initial_activation, final_activation = (
-            backwards_opt.optimize_input_for_neuron(
-                model_object=model_object, layer_name=layer_name,
-                neuron_indices=neuron_indices,
-                init_function_or_matrices=init_function,
-                num_iterations=num_iterations, learning_rate=learning_rate,
-                ideal_activation=ideal_activation)
-        )
+        result_dict = backwards_opt.optimize_input_for_neuron(
+            model_object=model_object, layer_name=layer_name,
+            neuron_indices=neuron_indices,
+            init_function_or_matrices=init_function,
+            num_iterations=num_iterations, learning_rate=learning_rate,
+            ideal_activation=ideal_activation)
 
     else:
         print('Optimizing image for channel {0:d} in layer "{1:s}"...'.format(
             channel_index, layer_name))
 
-        list_of_optimized_matrices, initial_activation, final_activation = (
-            backwards_opt.optimize_input_for_channel(
-                model_object=model_object, layer_name=layer_name,
-                channel_index=channel_index,
-                init_function_or_matrices=init_function,
-                stat_function_for_neuron_activations=K.max,
-                num_iterations=num_iterations, learning_rate=learning_rate,
-                ideal_activation=ideal_activation)
-        )
+        result_dict = backwards_opt.optimize_input_for_channel(
+            model_object=model_object, layer_name=layer_name,
+            channel_index=channel_index,
+            init_function_or_matrices=init_function,
+            stat_function_for_neuron_activations=K.max,
+            num_iterations=num_iterations, learning_rate=learning_rate,
+            ideal_activation=ideal_activation)
 
     print(SEPARATOR_STRING)
 
-    print('Denormalizing optimized examples...')
-    list_of_optimized_matrices[0] = _denormalize_data(
-        list_of_optimized_matrices[0]
+    initial_activations = numpy.array([
+        result_dict[backwards_opt.INITIAL_ACTIVATION_KEY]
+    ])
+    final_activations = numpy.array([
+        result_dict[backwards_opt.FINAL_ACTIVATION_KEY]
+    ])
+
+    print('Denormalizing input and output (optimized) example...')
+    denorm_input_matrix = _denormalize_data(
+        result_dict[backwards_opt.NORM_INPUT_MATRICES_KEY]
+    )
+    denorm_output_matrix = _denormalize_data(
+        result_dict[backwards_opt.NORM_OUTPUT_MATRICES_KEY]
     )
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
+    bwo_metadata_dict = backwards_opt.check_metadata(
+        component_type_string=component_type_string,
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        target_class=target_class, layer_name=layer_name,
+        ideal_activation=ideal_activation, neuron_indices=neuron_indices,
+        channel_index=channel_index, l2_weight=None,
+        radar_constraint_weight=None,
+        minmax_constraint_weight=None)
+
     backwards_opt.write_standard_file(
         pickle_file_name=output_file_name,
-        list_of_optimized_matrices=list_of_optimized_matrices,
-        initial_activations=numpy.array([initial_activation]),
-        final_activations=numpy.array([final_activation]),
-        model_file_name=model_file_name,
-        init_function_name_or_matrices=init_function_name,
-        num_iterations=num_iterations, learning_rate=learning_rate,
-        component_type_string=component_type_string, target_class=target_class,
-        layer_name=layer_name, neuron_indices=neuron_indices,
-        channel_index=channel_index, ideal_activation=ideal_activation)
+        denorm_input_matrices=[denorm_input_matrix],
+        denorm_output_matrices=[denorm_output_matrix],
+        initial_activations=initial_activations,
+        final_activations=final_activations, model_file_name=model_file_name,
+        metadata_dict=bwo_metadata_dict, full_storm_id_strings=None,
+        storm_times_unix_sec=None, sounding_pressure_matrix_pa=None)
 
 
 if __name__ == '__main__':

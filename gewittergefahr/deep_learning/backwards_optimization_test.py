@@ -125,49 +125,66 @@ SOUNDING_DIMENSIONS = numpy.array([1, 4, 2], dtype=int)
 RADAR_DIMENSIONS_4D = numpy.array([1, 16, 32, 4], dtype=int)
 RADAR_DIMENSIONS_5D = numpy.array([1, 16, 32, 3, 2], dtype=int)
 
-INIT_SOUNDING_MATRIX = numpy.array([[262, 319],
-                                    [280, 311],
-                                    [289, 305],
-                                    [297, 299]], dtype=float)
+INIT_SOUNDING_MATRIX = numpy.array([
+    [262, 319],
+    [280, 311],
+    [289, 305],
+    [297, 299]
+], dtype=float)
+
 INIT_SOUNDING_MATRIX[:, 0] = (INIT_SOUNDING_MATRIX[:, 0] - 210) / 100
 INIT_SOUNDING_MATRIX[:, 1] = (INIT_SOUNDING_MATRIX[:, 1] - 280) / 100
 INIT_SOUNDING_MATRIX = numpy.expand_dims(INIT_SOUNDING_MATRIX, axis=0)
 
 THIS_MATRIX_FIELD1 = numpy.full(
-    (RADAR_DIMENSIONS_4D[1], RADAR_DIMENSIONS_4D[2]), 8.65 / 20)
+    (RADAR_DIMENSIONS_4D[1], RADAR_DIMENSIONS_4D[2]), 8.65 / 20
+)
 THIS_MATRIX_FIELD2 = numpy.full(
-    (RADAR_DIMENSIONS_4D[1], RADAR_DIMENSIONS_4D[2]), 15.5 / 20)
+    (RADAR_DIMENSIONS_4D[1], RADAR_DIMENSIONS_4D[2]), 15.5 / 20
+)
 THIS_MATRIX_FIELD3 = numpy.full(
-    (RADAR_DIMENSIONS_4D[1], RADAR_DIMENSIONS_4D[2]), 18.3 / 20)
+    (RADAR_DIMENSIONS_4D[1], RADAR_DIMENSIONS_4D[2]), 18.3 / 20
+)
 THIS_MATRIX_FIELD4 = numpy.full(
-    (RADAR_DIMENSIONS_4D[1], RADAR_DIMENSIONS_4D[2]), 20.7 / 50)
-INIT_RADAR_MATRIX_4D = numpy.stack(
-    (THIS_MATRIX_FIELD1, THIS_MATRIX_FIELD2, THIS_MATRIX_FIELD3,
-     THIS_MATRIX_FIELD4), axis=-1)
+    (RADAR_DIMENSIONS_4D[1], RADAR_DIMENSIONS_4D[2]), 20.7 / 50
+)
+INIT_RADAR_MATRIX_4D = numpy.stack((
+    THIS_MATRIX_FIELD1, THIS_MATRIX_FIELD2, THIS_MATRIX_FIELD3,
+    THIS_MATRIX_FIELD4
+), axis=-1)
 INIT_RADAR_MATRIX_4D = numpy.expand_dims(INIT_RADAR_MATRIX_4D, axis=0)
 
 THIS_MATRIX_FIELD1_HEIGHT1 = numpy.full(
-    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 8.65 / 20)
+    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 8.65 / 20
+)
 THIS_MATRIX_FIELD1_HEIGHT2 = numpy.full(
-    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 15.5 / 20)
+    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 15.5 / 20
+)
 THIS_MATRIX_FIELD1_HEIGHT3 = numpy.full(
-    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 18.3 / 20)
-THIS_MATRIX_FIELD1 = numpy.stack(
-    (THIS_MATRIX_FIELD1_HEIGHT1, THIS_MATRIX_FIELD1_HEIGHT2,
-     THIS_MATRIX_FIELD1_HEIGHT3), axis=-1)
+    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 18.3 / 20
+)
+THIS_MATRIX_FIELD1 = numpy.stack((
+    THIS_MATRIX_FIELD1_HEIGHT1, THIS_MATRIX_FIELD1_HEIGHT2,
+    THIS_MATRIX_FIELD1_HEIGHT3
+), axis=-1)
 
 THIS_MATRIX_FIELD2_HEIGHT1 = numpy.full(
-    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 0.169 - 0.1)
+    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 0.169 - 0.1
+)
 THIS_MATRIX_FIELD2_HEIGHT2 = numpy.full(
-    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 0.423 - 0.1)
+    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 0.423 - 0.1
+)
 THIS_MATRIX_FIELD2_HEIGHT3 = numpy.full(
-    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 0.81 - 0.1)
-THIS_MATRIX_FIELD2 = numpy.stack(
-    (THIS_MATRIX_FIELD2_HEIGHT1, THIS_MATRIX_FIELD2_HEIGHT2,
-     THIS_MATRIX_FIELD2_HEIGHT3), axis=-1)
+    (RADAR_DIMENSIONS_5D[1], RADAR_DIMENSIONS_5D[2]), 0.81 - 0.1
+)
+THIS_MATRIX_FIELD2 = numpy.stack((
+    THIS_MATRIX_FIELD2_HEIGHT1, THIS_MATRIX_FIELD2_HEIGHT2,
+    THIS_MATRIX_FIELD2_HEIGHT3
+), axis=-1)
 
 INIT_RADAR_MATRIX_5D = numpy.stack(
-    (THIS_MATRIX_FIELD1, THIS_MATRIX_FIELD2), axis=-1)
+    (THIS_MATRIX_FIELD1, THIS_MATRIX_FIELD2), axis=-1
+)
 INIT_RADAR_MATRIX_5D = numpy.expand_dims(INIT_RADAR_MATRIX_5D, axis=0)
 
 
@@ -185,7 +202,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_3D)
         self.assertTrue(numpy.allclose(
-            this_matrix, GAUSSIAN_MATRIX_3D, atol=TOLERANCE))
+            this_matrix, GAUSSIAN_MATRIX_3D, atol=TOLERANCE
+        ))
 
     def test_create_gaussian_initializer_4d(self):
         """Ensures correct output from create_gaussian_initializer.
@@ -198,7 +216,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_4D)
         self.assertTrue(numpy.allclose(
-            this_matrix, GAUSSIAN_MATRIX_4D, atol=TOLERANCE))
+            this_matrix, GAUSSIAN_MATRIX_4D, atol=TOLERANCE
+        ))
 
     def test_create_gaussian_initializer_5d(self):
         """Ensures correct output from create_gaussian_initializer.
@@ -211,7 +230,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_5D)
         self.assertTrue(numpy.allclose(
-            this_matrix, GAUSSIAN_MATRIX_5D, atol=TOLERANCE))
+            this_matrix, GAUSSIAN_MATRIX_5D, atol=TOLERANCE
+        ))
 
     def test_create_uniform_random_initializer_3d(self):
         """Ensures correct output from create_uniform_random_initializer.
@@ -224,7 +244,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_3D)
         self.assertTrue(numpy.allclose(
-            this_matrix, UNIFORM_MATRIX_3D, atol=TOLERANCE))
+            this_matrix, UNIFORM_MATRIX_3D, atol=TOLERANCE
+        ))
 
     def test_create_uniform_random_initializer_4d(self):
         """Ensures correct output from create_uniform_random_initializer.
@@ -237,7 +258,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_4D)
         self.assertTrue(numpy.allclose(
-            this_matrix, UNIFORM_MATRIX_4D, atol=TOLERANCE))
+            this_matrix, UNIFORM_MATRIX_4D, atol=TOLERANCE
+        ))
 
     def test_create_uniform_random_initializer_5d(self):
         """Ensures correct output from create_uniform_random_initializer.
@@ -250,7 +272,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_5D)
         self.assertTrue(numpy.allclose(
-            this_matrix, UNIFORM_MATRIX_5D, atol=TOLERANCE))
+            this_matrix, UNIFORM_MATRIX_5D, atol=TOLERANCE
+        ))
 
     def test_create_constant_initializer_3d(self):
         """Ensures correct output from create_constant_initializer.
@@ -263,7 +286,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_3D)
         self.assertTrue(numpy.allclose(
-            this_matrix, CONSTANT_MATRIX_3D, atol=TOLERANCE))
+            this_matrix, CONSTANT_MATRIX_3D, atol=TOLERANCE
+        ))
 
     def test_create_constant_initializer_4d(self):
         """Ensures correct output from create_constant_initializer.
@@ -276,7 +300,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_4D)
         self.assertTrue(numpy.allclose(
-            this_matrix, CONSTANT_MATRIX_4D, atol=TOLERANCE))
+            this_matrix, CONSTANT_MATRIX_4D, atol=TOLERANCE
+        ))
 
     def test_create_constant_initializer_5d(self):
         """Ensures correct output from create_constant_initializer.
@@ -289,7 +314,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_5D)
         self.assertTrue(numpy.allclose(
-            this_matrix, CONSTANT_MATRIX_5D, atol=TOLERANCE))
+            this_matrix, CONSTANT_MATRIX_5D, atol=TOLERANCE
+        ))
 
     def test_create_climo_initializer_3d(self):
         """Ensures correct output from create_climo_initializer.
@@ -309,7 +335,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(SOUNDING_DIMENSIONS)
         self.assertTrue(numpy.allclose(
-            this_matrix, INIT_SOUNDING_MATRIX, atol=TOLERANCE))
+            this_matrix, INIT_SOUNDING_MATRIX, atol=TOLERANCE
+        ))
 
     def test_create_climo_initializer_4d(self):
         """Ensures correct output from create_climo_initializer.
@@ -330,7 +357,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(RADAR_DIMENSIONS_4D)
         self.assertTrue(numpy.allclose(
-            this_matrix, INIT_RADAR_MATRIX_4D, atol=TOLERANCE))
+            this_matrix, INIT_RADAR_MATRIX_4D, atol=TOLERANCE
+        ))
 
     def test_create_climo_initializer_5d(self):
         """Ensures correct output from create_climo_initializer.
@@ -350,7 +378,8 @@ class FeatureOptimizationTests(unittest.TestCase):
 
         this_matrix = this_init_function(RADAR_DIMENSIONS_5D)
         self.assertTrue(numpy.allclose(
-            this_matrix, INIT_RADAR_MATRIX_5D, atol=TOLERANCE))
+            this_matrix, INIT_RADAR_MATRIX_5D, atol=TOLERANCE
+        ))
 
     def test_create_climo_initializer_2d(self):
         """Ensures correct output from create_climo_initializer.

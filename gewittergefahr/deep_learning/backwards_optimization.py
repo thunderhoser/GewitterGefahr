@@ -41,23 +41,24 @@ FINAL_ACTIVATIONS_KEY = 'final_activations'
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 FULL_STORM_IDS_KEY = model_interpretation.FULL_STORM_IDS_KEY
 STORM_TIMES_KEY = model_interpretation.STORM_TIMES_KEY
+SOUNDING_PRESSURES_KEY = model_interpretation.SOUNDING_PRESSURES_KEY
 
 NUM_ITERATIONS_KEY = 'num_iterations'
 LEARNING_RATE_KEY = 'learning_rate'
 L2_WEIGHT_KEY = 'l2_weight'
 RADAR_CONSTRAINT_WEIGHT_KEY = 'radar_constraint_weight'
 MINMAX_CONSTRAINT_WEIGHT_KEY = 'minmax_constraint_weight'
-COMPONENT_TYPE_KEY = 'component_type_string'
-TARGET_CLASS_KEY = 'target_class'
-LAYER_NAME_KEY = 'layer_name'
-IDEAL_ACTIVATION_KEY = 'ideal_activation'
-NEURON_INDICES_KEY = 'neuron_indices'
-CHANNEL_INDEX_KEY = 'channel_index'
+COMPONENT_TYPE_KEY = saliency_maps.COMPONENT_TYPE_KEY
+TARGET_CLASS_KEY = saliency_maps.TARGET_CLASS_KEY
+LAYER_NAME_KEY = saliency_maps.LAYER_NAME_KEY
+IDEAL_ACTIVATION_KEY = saliency_maps.IDEAL_ACTIVATION_KEY
+NEURON_INDICES_KEY = saliency_maps.NEURON_INDICES_KEY
+CHANNEL_INDEX_KEY = saliency_maps.CHANNEL_INDEX_KEY
 
 STANDARD_FILE_KEYS = [
     INPUT_MATRICES_KEY, OUTPUT_MATRICES_KEY,
     INITIAL_ACTIVATIONS_KEY, FINAL_ACTIVATIONS_KEY,
-    MODEL_FILE_KEY, FULL_STORM_IDS_KEY, STORM_TIMES_KEY,
+    MODEL_FILE_KEY, FULL_STORM_IDS_KEY, STORM_TIMES_KEY, SOUNDING_PRESSURES_KEY,
     NUM_ITERATIONS_KEY, LEARNING_RATE_KEY, L2_WEIGHT_KEY,
     RADAR_CONSTRAINT_WEIGHT_KEY, MINMAX_CONSTRAINT_WEIGHT_KEY,
     COMPONENT_TYPE_KEY, TARGET_CLASS_KEY, LAYER_NAME_KEY, IDEAL_ACTIVATION_KEY,
@@ -959,7 +960,8 @@ def write_standard_file(
         LAYER_NAME_KEY: metadata_dict[LAYER_NAME_KEY],
         IDEAL_ACTIVATION_KEY: metadata_dict[IDEAL_ACTIVATION_KEY],
         NEURON_INDICES_KEY: metadata_dict[NEURON_INDICES_KEY],
-        CHANNEL_INDEX_KEY: metadata_dict[CHANNEL_INDEX_KEY]
+        CHANNEL_INDEX_KEY: metadata_dict[CHANNEL_INDEX_KEY],
+        SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pa
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -1033,3 +1035,73 @@ def write_pmm_file(
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(mean_bwo_dictionary, pickle_file_handle)
     pickle_file_handle.close()
+
+
+def read_file(pickle_file_name):
+    """Reads composite or non-composite results from Pickle file.
+
+    :param pickle_file_name: Path to input file (created by
+        `write_standard_file` or `write_pmm_file`).
+    :return: bwo_dictionary: Has the following keys if not a composite...
+    bwo_dictionary['denorm_input_matrices']: See doc for
+        `write_standard_file`.
+    bwo_dictionary['denorm_output_matrices']: Same.
+    bwo_dictionary['initial_activations']: Same.
+    bwo_dictionary['final_activations']: Same.
+    bwo_dictionary['full_storm_id_strings']: Same.
+    bwo_dictionary['storm_times_unix_sec']: Same.
+    bwo_dictionary['model_file_name']: Same.
+    bwo_dictionary['num_iterations']: Same.
+    bwo_dictionary['learning_rate']: Same.
+    bwo_dictionary['l2_weight']: Same.
+    bwo_dictionary['radar_constraint_weight']: Same.
+    bwo_dictionary['minmax_constraint_weight']: Same.
+    bwo_dictionary['component_type_string']: Same.
+    bwo_dictionary['target_class']: Same.
+    bwo_dictionary['layer_name']: Same.
+    bwo_dictionary['ideal_activation']: Same.
+    bwo_dictionary['neuron_indices']: Same.
+    bwo_dictionary['channel_index']: Same.
+    bwo_dictionary['sounding_pressure_matrix_pa']: Same.
+
+    ...or the following keys if composite...
+
+    bwo_dictionary['mean_denorm_input_matrices']: See doc for `write_pmm_file`.
+    bwo_dictionary['mean_denorm_output_matrices']: Same.
+    bwo_dictionary['mean_initial_activation']: Same.
+    bwo_dictionary['mean_final_activation']: Same.
+    bwo_dictionary['model_file_name']: Same.
+    bwo_dictionary['non_pmm_file_name']: Same.
+    bwo_dictionary['pmm_max_percentile_level']: Same.
+    bwo_dictionary['mean_sounding_pressures_pa']: Same.
+
+    :return: pmm_flag: Boolean flag.  True if `bwo_dictionary` contains
+        composite, False otherwise.
+
+    :raises: ValueError: if dictionary does not contain expected keys.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    bwo_dictionary = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    pmm_flag = MEAN_INPUT_MATRICES_KEY in bwo_dictionary
+
+    if pmm_flag:
+        missing_keys = list(
+            set(PMM_FILE_KEYS) - set(bwo_dictionary.keys())
+        )
+    else:
+        missing_keys = list(
+            set(STANDARD_FILE_KEYS) - set(bwo_dictionary.keys())
+        )
+
+    if len(missing_keys) == 0:
+        return bwo_dictionary, pmm_flag
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)

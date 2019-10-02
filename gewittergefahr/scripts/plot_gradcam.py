@@ -13,7 +13,6 @@ from gewittergefahr.deep_learning import gradcam
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import cam_plotting
 from gewittergefahr.plotting import saliency_plotting
-from gewittergefahr.plotting import significance_plotting
 from gewittergefahr.scripts import plot_input_examples as plot_examples
 
 # TODO(thunderhoser): Make this script deal with soundings.
@@ -100,13 +99,11 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_3d_radar_cam(
-        colour_map_object, max_colour_percentile, figure_objects,
+        colour_map_object, max_contour_value, figure_objects,
         axes_object_matrices, model_metadata_dict, output_dir_name,
-        cam_matrix=None, guided_cam_matrix=None, significance_matrix=None,
-        full_storm_id_string=None, storm_time_unix_sec=None):
-    """Plots guided or unguided class-activation map for 3-D radar data.
-
-    This method will plot either `cam_matrix` or `guided_cam_matrix`, not both.
+        cam_matrix=None, guided_cam_matrix=None, full_storm_id_string=None,
+        storm_time_unix_sec=None):
+    """Plots class-activation map for 3-D radar data.
 
     M = number of rows in spatial grid
     N = number of columns in spatial grid
@@ -117,28 +114,20 @@ def _plot_3d_radar_cam(
     object), `full_storm_id_string` and `storm_time_unix_sec` can be None.
 
     :param colour_map_object: See documentation at top of file.
-    :param max_colour_percentile: Same.
-    :param figure_objects: See doc for `plot_examples._plot_3d_example`.
+    :param max_contour_value: Max contour value for class activation.
+    :param figure_objects: See doc for
+        `plot_input_examples._plot_3d_radar_scan`.
     :param axes_object_matrices: Same.
     :param model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     :param output_dir_name: Path to output directory.  Figure(s) will be saved
         here.
-    :param cam_matrix: M-by-N-by-H numpy array of class activations.
-    :param guided_cam_matrix: M-by-N-by-H-by-F numpy array of guided-CAM output.
-    :param significance_matrix: Boolean numpy array with the same dimensions as
-        the array being plotted (`cam_matrix` or `guided_cam_matrix`),
-        indicating where differences with some other CAM are significant.
+    :param cam_matrix: M-by-N-by-H numpy array of unguided class activations.
+    :param guided_cam_matrix: [used only if `cam_matrix is None`]
+        M-by-N-by-H-by-F numpy array of guided class activations.
     :param full_storm_id_string: Full storm ID.
     :param storm_time_unix_sec: Storm time.
     """
-
-    # TODO(thunderhoser): Fix this next.
-
-    if cam_matrix is None:
-        quantity_string = 'max abs value'
-    else:
-        quantity_string = 'max activation'
 
     pmm_flag = full_storm_id_string is None and storm_time_unix_sec is None
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
@@ -153,49 +142,35 @@ def _plot_3d_radar_cam(
 
     for j in range(loop_max):
         if cam_matrix is None:
-            this_matrix = guided_cam_matrix[..., j]
-        else:
-            this_matrix = cam_matrix
-
-        this_max_contour_level = numpy.percentile(
-            numpy.absolute(this_matrix), max_colour_percentile
-        )
-
-        if cam_matrix is None:
             saliency_plotting.plot_many_2d_grids_with_contours(
-                saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
+                saliency_matrix_3d=numpy.flip(
+                    guided_cam_matrix[..., j], axis=0
+                ),
                 axes_object_matrix=axes_object_matrices[j],
                 colour_map_object=colour_map_object,
-                max_absolute_contour_level=this_max_contour_level,
-                contour_interval=this_max_contour_level / HALF_NUM_CONTOURS)
+                max_absolute_contour_level=max_contour_value,
+                contour_interval=max_contour_value / HALF_NUM_CONTOURS)
         else:
             cam_plotting.plot_many_2d_grids(
-                class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
+                class_activation_matrix_3d=numpy.flip(cam_matrix, axis=0),
                 axes_object_matrix=axes_object_matrices[j],
                 colour_map_object=colour_map_object,
-                max_contour_level=this_max_contour_level,
-                contour_interval=this_max_contour_level / NUM_CONTOURS)
-
-        if significance_matrix is not None:
-            if cam_matrix is None:
-                this_matrix = significance_matrix[..., j]
-            else:
-                this_matrix = significance_matrix
-
-            significance_plotting.plot_many_2d_grids_without_coords(
-                significance_matrix=numpy.flip(this_matrix, axis=0),
-                axes_object_matrix=axes_object_matrices[j]
-            )
+                max_contour_level=max_contour_value,
+                contour_interval=max_contour_value / NUM_CONTOURS)
 
         this_title_object = figure_objects[j]._suptitle
 
         if this_title_object is not None:
-            this_title_string = '{0:s} ({1:s} = {2:.2e})'.format(
-                this_title_object.get_text(), quantity_string,
-                this_max_contour_level)
+            this_title_string = '{0:s} ... max {1:s} = {2:.2e}'.format(
+                this_title_object.get_text(),
+                'absolute guided activation' if cam_matrix is None
+                else 'class activation',
+                max_contour_value
+            )
 
             figure_objects[j].suptitle(
-                this_title_string, fontsize=plot_examples.TITLE_FONT_SIZE)
+                this_title_string,
+                fontsize=plot_examples.DEFAULT_TITLE_FONT_SIZE)
 
         this_file_name = plot_examples.metadata_to_file_name(
             output_dir_name=output_dir_name, is_sounding=False,
@@ -213,39 +188,42 @@ def _plot_3d_radar_cam(
 
 
 def _plot_2d_radar_cam(
-        colour_map_object, max_colour_percentile, figure_objects,
+        colour_map_object, max_contour_value, figure_objects,
         axes_object_matrices, model_metadata_dict, output_dir_name,
-        cam_matrix=None, guided_cam_matrix=None, significance_matrix=None,
-        full_storm_id_string=None, storm_time_unix_sec=None):
-    """Plots guided or unguided class-activation map for 2-D radar data.
+        cam_matrix=None, guided_cam_matrix=None, full_storm_id_string=None,
+        storm_time_unix_sec=None):
+    """Plots class-activation map for 2-D radar data.
 
     M = number of rows in spatial grid
     N = number of columns in spatial grid
-    C = number of radar channels
+    F = number of radar fields
+
+    If this method is plotting a composite rather than single example (storm
+    object), `full_storm_id_string` and `storm_time_unix_sec` can be None.
 
     :param colour_map_object: See doc for `_plot_3d_radar_cam`.
-    :param max_colour_percentile: Same.
-    :param figure_objects: Same.
+    :param max_contour_value: Same.
+    :param figure_objects: See doc for
+        `plot_input_examples._plot_2d_radar_scan`.
     :param axes_object_matrices: Same.
     :param model_metadata_dict: See doc for `_plot_3d_radar_cam`.
     :param output_dir_name: Same.
-    :param cam_matrix: M-by-N numpy array of class activations.
-    :param guided_cam_matrix: M-by-N-by-C numpy array of guided-CAM output.
-    :param significance_matrix: See doc for `_plot_3d_radar_cam`.
-    :param full_storm_id_string: Same.
-    :param storm_time_unix_sec: Same.
+    :param cam_matrix: M-by-N numpy array of unguided class activations.
+    :param guided_cam_matrix: [used only if `cam_matrix is None`]
+        M-by-N-by-F numpy array of guided class activations.
+    :param full_storm_id_string: Full storm ID.
+    :param storm_time_unix_sec: Storm time.
     """
-
-    # TODO(thunderhoser): Fix this next.
-
-    if cam_matrix is None:
-        quantity_string = 'max abs value'
-    else:
-        quantity_string = 'max activation'
 
     pmm_flag = full_storm_id_string is None and storm_time_unix_sec is None
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
-    figure_index = 1 if conv_2d3d else 0
+
+    if conv_2d3d:
+        figure_index = 1
+        radar_field_name = 'shear'
+    else:
+        figure_index = 0
+        radar_field_name = None
 
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
@@ -258,61 +236,44 @@ def _plot_2d_radar_cam(
         num_channels = len(list_of_layer_operation_dicts)
 
     if cam_matrix is None:
-        this_matrix = guided_cam_matrix
+        saliency_plotting.plot_many_2d_grids_with_contours(
+            saliency_matrix_3d=numpy.flip(guided_cam_matrix, axis=0),
+            axes_object_matrix=axes_object_matrices[figure_index],
+            colour_map_object=colour_map_object,
+            max_absolute_contour_level=max_contour_value,
+            contour_interval=max_contour_value / HALF_NUM_CONTOURS,
+            row_major=False)
     else:
         this_matrix = numpy.expand_dims(cam_matrix, axis=-1)
         this_matrix = numpy.repeat(this_matrix, repeats=num_channels, axis=-1)
 
-    max_contour_level = numpy.percentile(
-        numpy.absolute(this_matrix), max_colour_percentile
-    )
-
-    if cam_matrix is None:
-        saliency_plotting.plot_many_2d_grids_with_contours(
-            saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
-            axes_object_matrix=axes_object_matrices[figure_index],
-            colour_map_object=colour_map_object,
-            max_absolute_contour_level=max_contour_level,
-            contour_interval=max_contour_level / HALF_NUM_CONTOURS,
-            row_major=False)
-    else:
         cam_plotting.plot_many_2d_grids(
             class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
             axes_object_matrix=axes_object_matrices[figure_index],
             colour_map_object=colour_map_object,
-            max_contour_level=max_contour_level,
-            contour_interval=max_contour_level / NUM_CONTOURS,
+            max_contour_level=max_contour_value,
+            contour_interval=max_contour_value / NUM_CONTOURS,
             row_major=False)
-
-    if significance_matrix is not None:
-        if cam_matrix is None:
-            this_matrix = significance_matrix
-        else:
-            this_matrix = numpy.expand_dims(significance_matrix, axis=-1)
-            this_matrix = numpy.repeat(
-                this_matrix, repeats=num_channels, axis=-1)
-
-        significance_plotting.plot_many_2d_grids_without_coords(
-            significance_matrix=numpy.flip(this_matrix, axis=0),
-            axes_object_matrix=axes_object_matrices[figure_index],
-            row_major=False
-        )
 
     this_title_object = figure_objects[figure_index]._suptitle
 
     if this_title_object is not None:
-        this_title_string = '{0:s} ({1:s} = {2:.2e})'.format(
-            this_title_object.get_text(), quantity_string, max_contour_level
+        this_title_string = '{0:s} ... max {1:s} = {2:.2e}'.format(
+            this_title_object.get_text(),
+            'absolute guided activation' if cam_matrix is None
+            else 'class activation',
+            max_contour_value
         )
 
         figure_objects[figure_index].suptitle(
-            this_title_string, fontsize=plot_examples.TITLE_FONT_SIZE)
+            this_title_string,
+            fontsize=plot_examples.DEFAULT_TITLE_FONT_SIZE)
 
     output_file_name = plot_examples.metadata_to_file_name(
         output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
         full_storm_id_string=full_storm_id_string,
         storm_time_unix_sec=storm_time_unix_sec,
-        radar_field_name='shear' if conv_2d3d else None)
+        radar_field_name=radar_field_name)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_objects[figure_index].savefig(
@@ -415,6 +376,19 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
         these_axes_object_matrices = this_handle_dict[
             plot_examples.RADAR_AXES_KEY]
 
+        these_activations = numpy.array([])
+
+        for j in range(num_input_matrices):
+            if cam_matrices[j] is None:
+                continue
+
+            these_activations = numpy.concatenate((
+                these_activations, cam_matrices[j][i, ...]
+            ))
+
+        this_max_contour_value = numpy.percentile(
+            these_activations, max_colour_percentile)
+
         for j in range(num_input_matrices):
             if cam_matrices[j] is None:
                 continue
@@ -424,26 +398,24 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
             if this_num_spatial_dim == 3:
                 _plot_3d_radar_cam(
                     colour_map_object=colour_map_object,
-                    max_colour_percentile=max_colour_percentile,
+                    max_contour_value=this_max_contour_value,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
                     model_metadata_dict=model_metadata_dict,
                     output_dir_name=unguided_cam_dir_name,
                     cam_matrix=cam_matrices[j][i, ...],
-                    significance_matrix=None,
                     full_storm_id_string=full_storm_id_strings[i],
                     storm_time_unix_sec=storm_times_unix_sec[i]
                 )
             else:
                 _plot_2d_radar_cam(
                     colour_map_object=colour_map_object,
-                    max_colour_percentile=max_colour_percentile,
+                    max_contour_value=this_max_contour_value,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
                     model_metadata_dict=model_metadata_dict,
                     output_dir_name=unguided_cam_dir_name,
                     cam_matrix=cam_matrices[j][i, ...],
-                    significance_matrix=None,
                     full_storm_id_string=full_storm_id_strings[i],
                     storm_time_unix_sec=storm_times_unix_sec[i]
                 )
@@ -461,6 +433,20 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
         these_axes_object_matrices = this_handle_dict[
             plot_examples.RADAR_AXES_KEY]
 
+        these_activations = numpy.array([])
+
+        for j in range(num_input_matrices):
+            if guided_cam_matrices[j] is None:
+                continue
+
+            these_activations = numpy.concatenate((
+                these_activations, guided_cam_matrices[j][i, ...]
+            ))
+
+        this_max_contour_value = numpy.percentile(
+            numpy.absolute(these_activations), max_colour_percentile
+        )
+
         for j in range(num_input_matrices):
             if guided_cam_matrices[j] is None:
                 continue
@@ -470,26 +456,24 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
             if this_num_spatial_dim == 3:
                 _plot_3d_radar_cam(
                     colour_map_object=colour_map_object,
-                    max_colour_percentile=max_colour_percentile,
+                    max_contour_value=this_max_contour_value,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
                     model_metadata_dict=model_metadata_dict,
                     output_dir_name=guided_cam_dir_name,
                     guided_cam_matrix=guided_cam_matrices[j][i, ...],
-                    significance_matrix=None,
                     full_storm_id_string=full_storm_id_strings[i],
                     storm_time_unix_sec=storm_times_unix_sec[i]
                 )
             else:
                 _plot_2d_radar_cam(
                     colour_map_object=colour_map_object,
-                    max_colour_percentile=max_colour_percentile,
+                    max_contour_value=this_max_contour_value,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
                     model_metadata_dict=model_metadata_dict,
                     output_dir_name=guided_cam_dir_name,
                     guided_cam_matrix=guided_cam_matrices[j][i, ...],
-                    significance_matrix=None,
                     full_storm_id_string=full_storm_id_strings[i],
                     storm_time_unix_sec=storm_times_unix_sec[i]
                 )

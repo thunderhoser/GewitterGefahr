@@ -38,9 +38,8 @@ GRADCAM_FILE_HELP_STRING = (
 
 BWO_FILE_HELP_STRING = (
     'Path to backwards-optimization file (will be read by '
-    '`backwards_optimization.read_standard_file`).  If you are compositing '
-    'something other than backwards-optimization results, leave this argument '
-    'alone.')
+    '`backwards_optimization.read_file`).  If you are compositing something '
+    'other than backwards-optimization results, leave this argument alone.')
 
 NOVELTY_FILE_HELP_STRING = (
     'Path to novelty-detection file (will be read by '
@@ -208,11 +207,12 @@ def _composite_gradcam(
         gradcam.SOUNDING_PRESSURES_KEY]
 
     print('Compositing predictor matrices...')
-    (mean_predictor_matrices, pmm_metadata_dict, mean_sounding_pressures_pa
-    ) = _composite_predictors(
-        predictor_matrices=predictor_matrices,
-        max_percentile_level=max_percentile_level,
-        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
+    mean_predictor_matrices, pmm_metadata_dict, mean_sounding_pressures_pa = (
+        _composite_predictors(
+            predictor_matrices=predictor_matrices,
+            max_percentile_level=max_percentile_level,
+            sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
+    )
 
     print('Compositing class-activation maps...')
     num_matrices = len(predictor_matrices)
@@ -249,31 +249,33 @@ def _composite_backwards_opt(
     """Composites inputs and outputs for backwards optimization.
 
     :param input_file_name: Path to input file.  Will be read by
-        `backwards_optimization.read_standard_file`.
+        `backwards_optimization.read_file`.
     :param max_percentile_level: See documentation at top of file.
     :param output_file_name: Path to output file.  Will be written by
         `backwards_optimization.write_pmm_file`.
     """
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    bwo_dictionary = backwards_opt.read_standard_file(input_file_name)
-    input_matrices = bwo_dictionary[backwards_opt.INIT_FUNCTION_KEY]
-    output_matrices = bwo_dictionary[backwards_opt.OPTIMIZED_MATRICES_KEY]
+    bwo_dictionary = backwards_opt.read_file(input_file_name)[0]
 
-    print('Compositing backwards-optimization inputs...')
-    mean_input_matrices, pmm_metadata_dict = _composite_predictors(
-        predictor_matrices=input_matrices,
+    input_matrices = bwo_dictionary[backwards_opt.INPUT_MATRICES_KEY]
+    output_matrices = bwo_dictionary[backwards_opt.OUTPUT_MATRICES_KEY]
+    sounding_pressure_matrix_pa = bwo_dictionary[
+        backwards_opt.SOUNDING_PRESSURES_KEY]
+
+    print('Compositing non-optimized predictors...')
+    mean_input_matrices, pmm_metadata_dict, mean_sounding_pressures_pa = (
+        _composite_predictors(
+            predictor_matrices=input_matrices,
+            max_percentile_level=max_percentile_level,
+            sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
+    )
+
+    print('Compositing optimized predictors...')
+    mean_output_matrices, pmm_metadata_dict = _composite_predictors(
+        predictor_matrices=output_matrices,
         max_percentile_level=max_percentile_level
     )[:2]
-
-    print('Compositing backwards-optimization outputs...')
-    num_matrices = len(input_matrices)
-    mean_output_matrices = [None] * num_matrices
-
-    for i in range(num_matrices):
-        mean_output_matrices[i] = pmm.run_pmm_many_variables(
-            input_matrix=output_matrices[i],
-            max_percentile_level=max_percentile_level)
 
     mean_initial_activation = numpy.mean(
         bwo_dictionary[backwards_opt.INITIAL_ACTIVATIONS_KEY]
@@ -285,13 +287,14 @@ def _composite_backwards_opt(
     print('Writing output to: "{0:s}"...'.format(output_file_name))
     backwards_opt.write_pmm_file(
         pickle_file_name=output_file_name,
-        list_of_mean_input_matrices=mean_input_matrices,
-        list_of_mean_optimized_matrices=mean_output_matrices,
+        mean_denorm_input_matrices=mean_input_matrices,
+        mean_denorm_output_matrices=mean_output_matrices,
         mean_initial_activation=mean_initial_activation,
         mean_final_activation=mean_final_activation,
         model_file_name=bwo_dictionary[backwards_opt.MODEL_FILE_KEY],
-        standard_bwo_file_name=input_file_name,
-        pmm_metadata_dict=pmm_metadata_dict)
+        non_pmm_file_name=input_file_name,
+        pmm_max_percentile_level=max_percentile_level,
+        mean_sounding_pressures_pa=mean_sounding_pressures_pa)
 
 
 def _composite_novelty(
