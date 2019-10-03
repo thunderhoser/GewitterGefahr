@@ -170,9 +170,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     training_option_dict[trainval_io.RADAR_FIELDS_KEY] = SHEAR_FIELD_NAMES
     training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] = REFL_HEIGHTS_M_AGL
     training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY] = False
-
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
-    # model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] = LAYER_OPERATION_DICTS
 
     if 0 < num_examples < len(full_storm_id_strings):
         full_storm_id_strings = full_storm_id_strings[:num_examples]
@@ -206,6 +204,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         list_of_operation_dicts=LAYER_OPERATION_DICTS)
 
     predictor_matrices = [example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]]
+    model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] = LAYER_OPERATION_DICTS
 
     plot_examples.plot_examples(
         list_of_predictor_matrices=predictor_matrices,
