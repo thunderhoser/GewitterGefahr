@@ -21,14 +21,12 @@ DUMMY_TARGET_NAME = plot_examples.DUMMY_TARGET_NAME
 SHEAR_FIELD_NAMES = [radar_utils.LOW_LEVEL_SHEAR_NAME]
 REFL_HEIGHTS_M_AGL = numpy.array([1000, 2000, 3000], dtype=int)
 
-THIS_DICT = {
+REFL_LAYER_OPERATION_DICT = {
     input_examples.RADAR_FIELD_KEY: radar_utils.REFL_NAME,
     input_examples.OPERATION_NAME_KEY: input_examples.MAX_OPERATION_NAME,
     input_examples.MIN_HEIGHT_KEY: 1000,
     input_examples.MAX_HEIGHT_KEY: 3000
 }
-
-LAYER_OPERATION_DICTS = [THIS_DICT]
 
 ACTIVATION_FILE_ARG_NAME = plot_examples.ACTIVATION_FILE_ARG_NAME
 STORM_METAFILE_ARG_NAME = plot_examples.STORM_METAFILE_ARG_NAME
@@ -201,10 +199,27 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
     example_dict = input_examples.reduce_examples_3d_to_2d(
         example_dict=example_dict,
-        list_of_operation_dicts=LAYER_OPERATION_DICTS)
+        list_of_operation_dicts=[REFL_LAYER_OPERATION_DICT]
+    )
 
     predictor_matrices = [example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]]
-    model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] = LAYER_OPERATION_DICTS
+
+    layer_operation_dicts = [
+        {
+            input_examples.RADAR_FIELD_KEY: f,
+            input_examples.MIN_HEIGHT_KEY: h1,
+            input_examples.MAX_HEIGHT_KEY: h2,
+            input_examples.OPERATION_NAME_KEY: op
+        }
+        for f, h1, h2, op in zip(
+            example_dict[input_examples.RADAR_FIELDS_KEY],
+            example_dict[input_examples.MIN_RADAR_HEIGHTS_KEY],
+            example_dict[input_examples.MAX_RADAR_HEIGHTS_KEY],
+            example_dict[input_examples.RADAR_LAYER_OPERATION_NAMES_KEY]
+        )
+    ]
+
+    model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] = layer_operation_dicts
 
     plot_examples.plot_examples(
         list_of_predictor_matrices=predictor_matrices,
