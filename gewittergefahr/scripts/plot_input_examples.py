@@ -799,8 +799,7 @@ def _plot_2d_radar_scan(
         return [figure_object], [axes_object_matrix]
 
     for k in range(num_radar_fields):
-        this_label_string = panel_names[k].replace('\n', '; ')
-        this_label_string = this_label_string.replace('Low-level', 'Azimuthal')
+        this_label_string = panel_names[k].replace('Low-level', 'Azimuthal')
         this_label_string = this_label_string.replace('Mid-level', 'Azimuthal')
 
         colour_bar_objects[k].set_label(
