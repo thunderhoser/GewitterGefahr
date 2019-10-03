@@ -670,9 +670,10 @@ def _get_colour_norms_for_layer_op_diffs(
 
 def _plot_2d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
-        plot_panel_names, panel_name_font_size, colour_bar_length,
-        colour_bar_font_size, plot_differences, num_panel_rows=None,
-        diff_colour_map_object=None, max_diff_percentile=None):
+        plot_panel_names, panel_name_font_size, label_colour_bars,
+        colour_bar_length, colour_bar_font_size, plot_differences,
+        num_panel_rows=None, diff_colour_map_object=None,
+        max_diff_percentile=None):
     """Plots 2-D radar scan for one example.
 
     Specifically, this method plots one figure, with each panel containing a
@@ -687,6 +688,7 @@ def _plot_2d_radar_scan(
     :param plot_panel_names: Boolean flag.  If True, will plot field and height
         (example: "Reflectivity at 3.0 km AGL") at bottom of each panel.
     :param panel_name_font_size: See doc for `_plot_3d_radar_scan`.
+    :param label_colour_bars: Same.
     :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
     :param plot_differences: Same.
@@ -717,9 +719,6 @@ def _plot_2d_radar_scan(
                 list_of_layer_operation_dicts=list_of_layer_operation_dicts
             )
         )
-
-    print(radar_field_names)
-    print(panel_names)
 
     num_radar_fields = len(radar_field_names)
     if num_panel_rows is None:
@@ -781,7 +780,7 @@ def _plot_2d_radar_scan(
         colour_map_objects = None
         colour_norm_objects = None
 
-    radar_plotting.plot_many_2d_grids(
+    colour_bar_objects = radar_plotting.plot_many_2d_grids(
         data_matrix=numpy.flip(radar_matrix, axis=0),
         field_names=radar_field_names,
         axes_objects=these_axes_objects[:num_radar_fields],
@@ -795,6 +794,17 @@ def _plot_2d_radar_scan(
 
     for k in range(num_radar_fields, len(these_axes_objects)):
         these_axes_objects[k].axis('off')
+
+    if not label_colour_bars:
+        return [figure_object], [axes_object_matrix]
+
+    for k in range(num_radar_fields):
+        this_label_string = panel_names[k].replace('\n', '; ')
+        this_label_string = this_label_string.replace('Low-level', 'Azimuthal')
+        this_label_string = this_label_string.replace('Mid-level', 'Azimuthal')
+
+        colour_bar_objects[k].set_label(
+            this_label_string, fontsize=colour_bar_font_size)
 
     return [figure_object], [axes_object_matrix]
 
@@ -1115,6 +1125,7 @@ def plot_one_example(
             allow_whitespace=allow_whitespace,
             plot_panel_names=plot_panel_names,
             panel_name_font_size=panel_name_font_size,
+            label_colour_bars=label_colour_bars,
             colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size,
             num_panel_rows=num_panel_rows,
