@@ -45,7 +45,7 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
          last_validation_time_string, num_examples_per_validn_batch, num_epochs,
          num_training_batches_per_epoch, num_validation_batches_per_epoch,
          output_dir_name):
-    """Trains CNN with native (3-D) GridRad images.
+    """Trains CNN with 2-D and 3-D MYRORSS images.
 
     This is effectively the main method.
 
