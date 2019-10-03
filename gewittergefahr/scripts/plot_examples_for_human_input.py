@@ -205,7 +205,17 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         example_dict=example_dict,
         list_of_operation_dicts=LAYER_OPERATION_DICTS)
 
-    print(example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY].shape)
+    predictor_matrices = [example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]]
+
+    plot_examples.plot_examples(
+        list_of_predictor_matrices=predictor_matrices,
+        model_metadata_dict=model_metadata_dict, pmm_flag=False,
+        output_dir_name=output_dir_name, plot_soundings=False,
+        allow_whitespace=allow_whitespace, plot_panel_names=True,
+        add_titles=False, label_colour_bars=False,
+        colour_bar_length=colour_bar_length,
+        full_storm_id_strings=full_storm_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec)
 
 
 if __name__ == '__main__':
