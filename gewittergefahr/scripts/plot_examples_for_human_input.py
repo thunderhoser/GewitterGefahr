@@ -169,7 +169,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
     training_option_dict[trainval_io.RADAR_FIELDS_KEY] = SHEAR_FIELD_NAMES
     training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] = REFL_HEIGHTS_M_AGL
-    training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY] = True
+    training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY] = False
 
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
     # model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] = LAYER_OPERATION_DICTS
@@ -189,6 +189,11 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     )[0]
     print(SEPARATOR_STRING)
 
+    predictor_matrices[0] = trainval_io.upsample_reflectivity(
+        predictor_matrices[0][..., 0]
+    )
+    predictor_matrices[0] = numpy.expand_dims(predictor_matrices[0], axis=-1)
+
     example_dict = {
         input_examples.RADAR_FIELDS_KEY: SHEAR_FIELD_NAMES,
         input_examples.REFL_IMAGE_MATRIX_KEY: predictor_matrices[0],
@@ -201,10 +206,6 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         list_of_operation_dicts=LAYER_OPERATION_DICTS)
 
     print(example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY].shape)
-
-    print(len(predictor_matrices))
-    for this_matrix in predictor_matrices:
-        print(this_matrix.shape)
 
 
 if __name__ == '__main__':
