@@ -14,7 +14,7 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import plot_input_examples
 
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
-MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
+MEAN_PREDICTOR_MATRICES_KEY = model_interpretation.MEAN_PREDICTOR_MATRICES_KEY
 MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pascals'
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
@@ -30,7 +30,7 @@ INPUT_FILE_HELP_STRING = (
     'Path to input file, containing PMM over many examples (storm objects).  '
     'This should be a Pickle file with one dictionary, containing the keys '
     '"{0:s}" and "{1:s}".'
-).format(MEAN_INPUT_MATRICES_KEY, MODEL_FILE_KEY)
+).format(MEAN_PREDICTOR_MATRICES_KEY, MODEL_FILE_KEY)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
@@ -100,7 +100,7 @@ def _run(input_file_name, plot_soundings, allow_whitespace, plot_panel_names,
     input_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    mean_predictor_matrices = input_dict[MEAN_INPUT_MATRICES_KEY]
+    mean_predictor_matrices = input_dict[MEAN_PREDICTOR_MATRICES_KEY]
     for i in range(len(mean_predictor_matrices)):
         mean_predictor_matrices[i] = numpy.expand_dims(
             mean_predictor_matrices[i], axis=0
