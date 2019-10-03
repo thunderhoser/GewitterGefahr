@@ -19,12 +19,21 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import novelty_detection
 from gewittergefahr.deep_learning import model_interpretation
 
+# TODO(thunderhoser): Maybe allow this script to handle soundings or multiple
+# radar tensors?
+
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
     allow_soft_placement=False
 )))
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+TRIAL_STORM_IDS_KEY = novelty_detection.TRIAL_STORM_IDS_KEY
+TRIAL_STORM_TIMES_KEY = novelty_detection.TRIAL_STORM_TIMES_KEY
+BASELINE_STORM_IDS_KEY = novelty_detection.BASELINE_STORM_IDS_KEY
+BASELINE_STORM_TIMES_KEY = novelty_detection.BASELINE_STORM_TIMES_KEY
+NUM_NOVEL_EXAMPLES_KEY = 'num_novel_examples'
 
 CNN_FILE_ARG_NAME = 'input_cnn_file_name'
 UPCONVNET_FILE_ARG_NAME = 'input_upconvnet_file_name'
@@ -35,7 +44,7 @@ NUM_BASELINE_EX_ARG_NAME = 'num_baseline_examples'
 NUM_TRIAL_EX_ARG_NAME = 'num_trial_examples'
 NUM_NOVEL_EX_ARG_NAME = 'num_novel_examples'
 FEATURE_LAYER_ARG_NAME = 'cnn_feature_layer_name'
-PERCENT_VARIANCE_ARG_NAME = 'percent_svd_variance_to_keep'
+PERCENT_VARIANCE_ARG_NAME = 'percent_variance_to_keep'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 CNN_FILE_HELP_STRING = (
@@ -134,44 +143,19 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
-         baseline_storm_metafile_name, trial_storm_metafile_name,
-         num_baseline_examples, num_trial_examples, num_novel_examples,
-         cnn_feature_layer_name, percent_svd_variance_to_keep,
-         output_file_name):
-    """Runs novelty detection.
+def _check_dimensions(cnn_model_object, upconvnet_model_object):
+    """Ensures that CNN and upconvnet dimensions work together.
 
-    This is effectively the main method.
-
-    :param cnn_file_name: See documentation at top of file.
-    :param upconvnet_file_name: Same.
-    :param top_example_dir_name: Same.
-    :param baseline_storm_metafile_name: Same.
-    :param trial_storm_metafile_name: Same.
-    :param num_baseline_examples: Same.
-    :param num_trial_examples: Same.
-    :param num_novel_examples: Same.
-    :param cnn_feature_layer_name: Same.
-    :param percent_svd_variance_to_keep: Same.
-    :param output_file_name: Same.
-    :raises: ValueError: if dimensions of first CNN input matrix != dimensions
+    :param cnn_model_object: Trained CNN (instance of `keras.models.Model` or
+        `keras.models.Sequential`).
+    :param upconvnet_model_object: Same but for trained upconvnet.
+    :raises: ValueError: if dimensions of first CNN input tensor != dimensions
         of upconvnet output.
     """
 
-    print('Reading trained CNN from: "{0:s}"...'.format(cnn_file_name))
-    cnn_model_object = cnn.read_model(cnn_file_name)
-
-    cnn_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(cnn_file_name)[0]
+    ucn_output_dimensions = numpy.array(
+        upconvnet_model_object.output.get_shape().as_list()[1:], dtype=int
     )
-
-    print('Reading trained upconvnet from: "{0:s}"...'.format(
-        upconvnet_file_name))
-    upconvnet_model_object = cnn.read_model(upconvnet_file_name)
-
-    # ucn_output_dimensions = numpy.array(
-    #     upconvnet_model_object.output.get_shape().as_list()[1:], dtype=int
-    # )
 
     if isinstance(cnn_model_object.input, list):
         first_cnn_input_tensor = cnn_model_object.input[0]
@@ -182,41 +166,49 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         first_cnn_input_tensor.get_shape().as_list()[1:], dtype=int
     )
 
-    # if not numpy.array_equal(cnn_input_dimensions, ucn_output_dimensions):
-    #     error_string = (
-    #         'Dimensions of first CNN input matrix ({0:s}) should equal '
-    #         'dimensions of upconvnet output ({1:s}).'
-    #     ).format(str(cnn_input_dimensions), str(ucn_output_dimensions))
-    #
-    #     raise ValueError(error_string)
+    if not numpy.array_equal(cnn_input_dimensions, ucn_output_dimensions):
+        error_string = (
+            'Dimensions of first CNN input tensor ({0:s}) should equal '
+            'dimensions of upconvnet output ({1:s}).'
+        ).format(str(cnn_input_dimensions), str(ucn_output_dimensions))
 
-    print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
-    cnn_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
+        raise ValueError(error_string)
 
-    print('Reading metadata for baseline examples from: "{0:s}"...'.format(
-        baseline_storm_metafile_name))
-    baseline_full_id_strings, baseline_times_unix_sec = (
-        tracking_io.read_ids_and_times(baseline_storm_metafile_name)
-    )
 
-    print('Reading metadata for trial examples from: "{0:s}"...'.format(
-        trial_storm_metafile_name))
-    trial_full_id_strings, trial_times_unix_sec = (
-        tracking_io.read_ids_and_times(trial_storm_metafile_name)
-    )
+def _filter_examples(
+        trial_full_id_strings, trial_times_unix_sec, num_trial_examples,
+        baseline_full_id_strings, baseline_times_unix_sec,
+        num_baseline_examples, num_novel_examples):
+    """Filters trial and baseline examples (storm objects).
 
-    if 0 < num_baseline_examples < len(baseline_full_id_strings):
-        baseline_full_id_strings = baseline_full_id_strings[
-            :num_baseline_examples]
-        baseline_times_unix_sec = baseline_times_unix_sec[
-            :num_baseline_examples]
+    T = original num trial examples
+    t = desired num trial examples
+    B = original num baseline examples
+    b = desired num baseline examples
+
+    :param trial_full_id_strings: length-T list of storm IDs.
+    :param trial_times_unix_sec: length-T numpy array of storm times.
+    :param num_trial_examples: t in the above discussion.  To keep all trial
+        examples, make this non-positive.
+    :param baseline_full_id_strings: length-B list of storm IDs.
+    :param baseline_times_unix_sec: length-B numpy array of storm times.
+    :param num_baseline_examples: b in the above discussion.  To keep all
+        baseline examples, make this non-positive.
+    :param num_novel_examples: Number of novel examples to find.
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict["trial_full_id_strings"]: length-t list of storm IDs.
+    metadata_dict["trial_times_unix_sec"]: length-t numpy array of storm times.
+    metadata_dict["baseline_full_id_strings"]: length-b list of storm IDs.
+    metadata_dict["baseline_times_unix_sec"]: length-b numpy array of storm
+        times.
+    metadata_dict["num_novel_examples"]: Number of novel examples to find.
+    """
 
     if 0 < num_trial_examples < len(trial_full_id_strings):
         trial_full_id_strings = trial_full_id_strings[:num_trial_examples]
         trial_times_unix_sec = trial_times_unix_sec[:num_trial_examples]
 
     num_trial_examples = len(trial_full_id_strings)
-
     if num_novel_examples <= 0:
         num_novel_examples = num_trial_examples + 0
 
@@ -238,14 +230,91 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
     )
     baseline_full_id_strings = numpy.delete(
         numpy.array(baseline_full_id_strings), bad_baseline_indices
+    ).tolist()
+
+    if 0 < num_baseline_examples < len(baseline_full_id_strings):
+        baseline_full_id_strings = baseline_full_id_strings[
+            :num_baseline_examples]
+        baseline_times_unix_sec = baseline_times_unix_sec[
+            :num_baseline_examples]
+
+    return {
+        TRIAL_STORM_IDS_KEY: trial_full_id_strings,
+        TRIAL_STORM_TIMES_KEY: trial_times_unix_sec,
+        BASELINE_STORM_IDS_KEY: baseline_full_id_strings,
+        BASELINE_STORM_TIMES_KEY: baseline_times_unix_sec,
+        NUM_NOVEL_EXAMPLES_KEY: num_novel_examples
+    }
+
+
+def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
+         baseline_storm_metafile_name, trial_storm_metafile_name,
+         num_baseline_examples, num_trial_examples, num_novel_examples,
+         cnn_feature_layer_name, percent_variance_to_keep, output_file_name):
+    """Runs novelty detection.
+
+    This is effectively the main method.
+
+    :param cnn_file_name: See documentation at top of file.
+    :param upconvnet_file_name: Same.
+    :param top_example_dir_name: Same.
+    :param baseline_storm_metafile_name: Same.
+    :param trial_storm_metafile_name: Same.
+    :param num_baseline_examples: Same.
+    :param num_trial_examples: Same.
+    :param num_novel_examples: Same.
+    :param cnn_feature_layer_name: Same.
+    :param percent_variance_to_keep: Same.
+    :param output_file_name: Same.
+    :raises: ValueError: if dimensions of first CNN input matrix != dimensions
+        of upconvnet output.
+    """
+
+    print('Reading trained CNN from: "{0:s}"...'.format(cnn_file_name))
+    cnn_model_object = cnn.read_model(cnn_file_name)
+
+    print('Reading trained upconvnet from: "{0:s}"...'.format(
+        upconvnet_file_name))
+    upconvnet_model_object = cnn.read_model(upconvnet_file_name)
+    _check_dimensions(cnn_model_object=cnn_model_object,
+                      upconvnet_model_object=upconvnet_model_object)
+
+    print('Reading metadata for baseline examples from: "{0:s}"...'.format(
+        baseline_storm_metafile_name))
+    baseline_full_id_strings, baseline_times_unix_sec = (
+        tracking_io.read_ids_and_times(baseline_storm_metafile_name)
     )
-    baseline_full_id_strings = baseline_full_id_strings.tolist()
 
-    # num_baseline_examples = len(baseline_full_id_strings)
+    print('Reading metadata for trial examples from: "{0:s}"...'.format(
+        trial_storm_metafile_name))
+    trial_full_id_strings, trial_times_unix_sec = (
+        tracking_io.read_ids_and_times(trial_storm_metafile_name)
+    )
 
+    this_dict = _filter_examples(
+        trial_full_id_strings=trial_full_id_strings,
+        trial_times_unix_sec=trial_times_unix_sec,
+        num_trial_examples=num_trial_examples,
+        baseline_full_id_strings=baseline_full_id_strings,
+        baseline_times_unix_sec=baseline_times_unix_sec,
+        num_baseline_examples=num_baseline_examples,
+        num_novel_examples=num_novel_examples)
+
+    trial_full_id_strings = this_dict[TRIAL_STORM_IDS_KEY]
+    trial_times_unix_sec = this_dict[TRIAL_STORM_TIMES_KEY]
+    baseline_full_id_strings = this_dict[BASELINE_STORM_IDS_KEY]
+    baseline_times_unix_sec = this_dict[BASELINE_STORM_TIMES_KEY]
+    num_novel_examples = this_dict[NUM_NOVEL_EXAMPLES_KEY]
+
+    cnn_metafile_name = '{0:s}/model_metadata.p'.format(
+        os.path.split(cnn_file_name)[0]
+    )
+
+    print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
+    cnn_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
     print(SEPARATOR_STRING)
 
-    list_of_baseline_input_matrices, _ = testing_io.read_specific_examples(
+    baseline_predictor_matrices, _ = testing_io.read_specific_examples(
         top_example_dir_name=top_example_dir_name,
         desired_full_id_strings=baseline_full_id_strings,
         desired_times_unix_sec=baseline_times_unix_sec,
@@ -253,10 +322,9 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         list_of_layer_operation_dicts=cnn_metadata_dict[
             cnn.LAYER_OPERATIONS_KEY]
     )
-
     print(SEPARATOR_STRING)
 
-    list_of_trial_input_matrices, _ = testing_io.read_specific_examples(
+    trial_predictor_matrices, _ = testing_io.read_specific_examples(
         top_example_dir_name=top_example_dir_name,
         desired_full_id_strings=trial_full_id_strings,
         desired_times_unix_sec=trial_times_unix_sec,
@@ -264,69 +332,64 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         list_of_layer_operation_dicts=cnn_metadata_dict[
             cnn.LAYER_OPERATIONS_KEY]
     )
-
     print(SEPARATOR_STRING)
 
     novelty_dict = novelty_detection.do_novelty_detection(
-        list_of_baseline_input_matrices=list_of_baseline_input_matrices,
-        list_of_trial_input_matrices=list_of_trial_input_matrices,
+        baseline_predictor_matrices=baseline_predictor_matrices,
+        trial_predictor_matrices=trial_predictor_matrices,
         cnn_model_object=cnn_model_object,
         cnn_feature_layer_name=cnn_feature_layer_name,
         upconvnet_model_object=upconvnet_model_object,
         num_novel_examples=num_novel_examples, multipass=False,
-        percent_svd_variance_to_keep=percent_svd_variance_to_keep)
+        percent_variance_to_keep=percent_variance_to_keep)
 
     print(SEPARATOR_STRING)
+    print('Denormalizing inputs and outputs of novelty detection...')
 
-    print('Adding metadata to novelty-detection results...')
+    cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY][
+        trainval_io.SOUNDING_FIELDS_KEY] = None
+
+    novelty_dict[novelty_detection.BASELINE_MATRIX_KEY] = (
+        model_interpretation.denormalize_data(
+            list_of_input_matrices=baseline_predictor_matrices[[0]],
+            model_metadata_dict=cnn_metadata_dict)
+    )
+
+    novelty_dict[novelty_detection.TRIAL_MATRIX_KEY] = (
+        model_interpretation.denormalize_data(
+            list_of_input_matrices=trial_predictor_matrices[[0]],
+            model_metadata_dict=cnn_metadata_dict)
+    )
+
+    novelty_dict[novelty_detection.UPCONV_MATRIX_KEY] = (
+        model_interpretation.denormalize_data(
+            list_of_input_matrices=[
+                novelty_dict[novelty_detection.UPCONV_NORM_MATRIX_KEY]
+            ],
+            model_metadata_dict=cnn_metadata_dict)
+    )[0]
+    novelty_dict.pop(novelty_detection.UPCONV_NORM_MATRIX_KEY)
+
+    novelty_dict[novelty_detection.UPCONV_SVD_MATRIX_KEY] = (
+        model_interpretation.denormalize_data(
+            list_of_input_matrices=[
+                novelty_dict[novelty_detection.UPCONV_NORM_SVD_MATRIX_KEY]
+            ],
+            model_metadata_dict=cnn_metadata_dict)
+    )[0]
+    novelty_dict.pop(novelty_detection.UPCONV_NORM_SVD_MATRIX_KEY)
+
     novelty_dict = novelty_detection.add_metadata(
         novelty_dict=novelty_dict,
         baseline_full_id_strings=baseline_full_id_strings,
-        baseline_storm_times_unix_sec=baseline_times_unix_sec,
+        baseline_times_unix_sec=baseline_times_unix_sec,
         trial_full_id_strings=trial_full_id_strings,
-        trial_storm_times_unix_sec=trial_times_unix_sec,
+        trial_times_unix_sec=trial_times_unix_sec,
         cnn_file_name=cnn_file_name, upconvnet_file_name=upconvnet_file_name)
 
-    print('Denormalizing inputs and outputs of novelty detection...')
-
-    novelty_dict[novelty_detection.BASELINE_INPUTS_KEY] = (
-        model_interpretation.denormalize_data(
-            list_of_input_matrices=novelty_dict[
-                novelty_detection.BASELINE_INPUTS_KEY
-            ],
-            model_metadata_dict=cnn_metadata_dict)
-    )
-
-    novelty_dict[novelty_detection.TRIAL_INPUTS_KEY] = (
-        model_interpretation.denormalize_data(
-            list_of_input_matrices=novelty_dict[
-                novelty_detection.TRIAL_INPUTS_KEY
-            ],
-            model_metadata_dict=cnn_metadata_dict)
-    )
-
-    cnn_metadata_dict[
-        cnn.TRAINING_OPTION_DICT_KEY][trainval_io.SOUNDING_FIELDS_KEY] = None
-
-    novelty_dict[novelty_detection.NOVEL_IMAGES_UPCONV_KEY] = (
-        model_interpretation.denormalize_data(
-            list_of_input_matrices=[
-                novelty_dict[novelty_detection.NOVEL_IMAGES_UPCONV_KEY]
-            ],
-            model_metadata_dict=cnn_metadata_dict)
-    )[0]
-
-    novelty_dict[novelty_detection.NOVEL_IMAGES_UPCONV_SVD_KEY] = (
-        model_interpretation.denormalize_data(
-            list_of_input_matrices=[
-                novelty_dict[novelty_detection.NOVEL_IMAGES_UPCONV_SVD_KEY]
-            ],
-            model_metadata_dict=cnn_metadata_dict)
-    )[0]
-
     print('Writing results to: "{0:s}"...'.format(output_file_name))
-    novelty_detection.write_standard_file(novelty_dict=novelty_dict,
-                                          pickle_file_name=output_file_name)
+    novelty_detection.write_standard_file(
+        novelty_dict=novelty_dict, pickle_file_name=output_file_name)
 
 
 if __name__ == '__main__':
@@ -346,7 +409,7 @@ if __name__ == '__main__':
         num_novel_examples=getattr(INPUT_ARG_OBJECT, NUM_NOVEL_EX_ARG_NAME),
         cnn_feature_layer_name=getattr(
             INPUT_ARG_OBJECT, FEATURE_LAYER_ARG_NAME),
-        percent_svd_variance_to_keep=getattr(
+        percent_variance_to_keep=getattr(
             INPUT_ARG_OBJECT, PERCENT_VARIANCE_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

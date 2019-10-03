@@ -829,8 +829,8 @@ def plot_many_2d_grids(
                 field_matrix=data_matrix[..., k], field_name=field_names[k],
                 axes_object=axes_objects[k], annotation_string=panel_names[k],
                 font_size=panel_name_font_size,
-                colour_map_object=colour_map_objects[k],
-                colour_norm_object=colour_norm_objects[k]
+                colour_map_object=copy.deepcopy(colour_map_objects[k]),
+                colour_norm_object=copy.deepcopy(colour_norm_objects[k])
             )
         )
 

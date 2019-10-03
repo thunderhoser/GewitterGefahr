@@ -43,9 +43,8 @@ BWO_FILE_HELP_STRING = (
 
 NOVELTY_FILE_HELP_STRING = (
     'Path to novelty-detection file (will be read by '
-    '`novelty_detection.read_standard_file`).  If you are compositing '
-    'something other than novelty-detection results, leave this argument '
-    'alone.')
+    '`novelty_detection.read_file`).  If you are compositing something other '
+    'than novelty-detection results, leave this argument alone.')
 
 MAX_PERCENTILE_HELP_STRING = (
     'Max percentile used in PMM procedure.  See '
@@ -100,7 +99,6 @@ def _composite_predictors(
     :return: mean_predictor_matrices: length-T list of numpy arrays, where
         mean_predictor_matrices[i] is a composite over all examples in
         predictor_matrices[i].
-    :return: pmm_metadata_dict: Dictionary returned by `pmm.check_input_args`.
     :return: mean_sounding_pressures_pa: numpy array (length H_s) of
         sounding pressures.  If `sounding_pressure_matrix_pa is None`, this
         is also None.
@@ -108,21 +106,11 @@ def _composite_predictors(
 
     num_matrices = len(predictor_matrices)
     mean_predictor_matrices = [None] * num_matrices
-    pmm_metadata_dict = None
 
     for i in range(num_matrices):
-        if i == 0:
-            mean_predictor_matrices[i] = pmm.run_pmm_many_variables(
-                input_matrix=predictor_matrices[i],
-                max_percentile_level=max_percentile_level)
-
-            pmm_metadata_dict = pmm.check_input_args(
-                input_matrix=predictor_matrices[i],
-                max_percentile_level=max_percentile_level)
-        else:
-            mean_predictor_matrices[i] = pmm.run_pmm_many_variables(
-                input_matrix=predictor_matrices[i],
-                max_percentile_level=max_percentile_level)
+        mean_predictor_matrices[i] = pmm.run_pmm_many_variables(
+            input_matrix=predictor_matrices[i],
+            max_percentile_level=max_percentile_level)
 
     if sounding_pressure_matrix_pa is None:
         mean_sounding_pressures_pa = None
@@ -135,8 +123,7 @@ def _composite_predictors(
             max_percentile_level=max_percentile_level
         )[..., 0]
 
-    return (mean_predictor_matrices, pmm_metadata_dict,
-            mean_sounding_pressures_pa)
+    return mean_predictor_matrices, mean_sounding_pressures_pa
 
 
 def _composite_saliency_maps(
@@ -159,12 +146,10 @@ def _composite_saliency_maps(
         saliency_maps.SOUNDING_PRESSURES_KEY]
 
     print('Compositing predictor matrices...')
-    mean_predictor_matrices, pmm_metadata_dict, mean_sounding_pressures_pa = (
-        _composite_predictors(
-            predictor_matrices=predictor_matrices,
-            max_percentile_level=max_percentile_level,
-            sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
-    )
+    mean_predictor_matrices, mean_sounding_pressures_pa = _composite_predictors(
+        predictor_matrices=predictor_matrices,
+        max_percentile_level=max_percentile_level,
+        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
 
     print('Compositing saliency maps...')
     num_matrices = len(predictor_matrices)
@@ -207,12 +192,10 @@ def _composite_gradcam(
         gradcam.SOUNDING_PRESSURES_KEY]
 
     print('Compositing predictor matrices...')
-    mean_predictor_matrices, pmm_metadata_dict, mean_sounding_pressures_pa = (
-        _composite_predictors(
-            predictor_matrices=predictor_matrices,
-            max_percentile_level=max_percentile_level,
-            sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
-    )
+    mean_predictor_matrices, mean_sounding_pressures_pa = _composite_predictors(
+        predictor_matrices=predictor_matrices,
+        max_percentile_level=max_percentile_level,
+        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
 
     print('Compositing class-activation maps...')
     num_matrices = len(predictor_matrices)
@@ -264,18 +247,16 @@ def _composite_backwards_opt(
         backwards_opt.SOUNDING_PRESSURES_KEY]
 
     print('Compositing non-optimized predictors...')
-    mean_input_matrices, pmm_metadata_dict, mean_sounding_pressures_pa = (
-        _composite_predictors(
-            predictor_matrices=input_matrices,
-            max_percentile_level=max_percentile_level,
-            sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
-    )
+    mean_input_matrices, mean_sounding_pressures_pa = _composite_predictors(
+        predictor_matrices=input_matrices,
+        max_percentile_level=max_percentile_level,
+        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
 
     print('Compositing optimized predictors...')
-    mean_output_matrices, pmm_metadata_dict = _composite_predictors(
+    mean_output_matrices = _composite_predictors(
         predictor_matrices=output_matrices,
         max_percentile_level=max_percentile_level
-    )[:2]
+    )[0]
 
     mean_initial_activation = numpy.mean(
         bwo_dictionary[backwards_opt.INITIAL_ACTIVATIONS_KEY]
@@ -309,40 +290,44 @@ def _composite_novelty(
     """
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    novelty_dict = novelty_detection.read_standard_file(input_file_name)
+    novelty_dict = novelty_detection.read_file(input_file_name)[0]
 
-    predictor_matrices = novelty_dict[novelty_detection.TRIAL_INPUTS_KEY]
-    novel_indices = novelty_dict[novelty_detection.NOVEL_INDICES_KEY]
-    novel_predictor_matrices = [
-        a[novel_indices, ...] for a in predictor_matrices
-    ]
-
-    print('Compositing novel predictor matrices...')
-    mean_novel_predictor_matrices, pmm_metadata_dict = _composite_predictors(
-        predictor_matrices=novel_predictor_matrices,
+    print('Compositing baseline radar images...')
+    mean_radar_matrix_baseline = pmm.run_pmm_many_variables(
+        input_matrix=novelty_dict[novelty_detection.BASELINE_MATRIX_KEY],
         max_percentile_level=max_percentile_level
-    )[:2]
+    )
 
-    print('Compositing upconvnet and upconvnet/SVD reconstructions...')
+    print('Compositing novel radar images (in trial set)...')
+    novel_indices = novelty_dict[novelty_detection.NOVEL_INDICES_KEY]
+    radar_matrix_novel = novelty_dict[novelty_detection.TRIAL_MATRIX_KEY][
+        novel_indices, ...]
 
-    mean_novel_upconv_matrix = pmm.run_pmm_many_variables(
-        input_matrix=novelty_dict[novelty_detection.NOVEL_IMAGES_UPCONV_KEY],
+    mean_radar_matrix_novel = pmm.run_pmm_many_variables(
+        input_matrix=radar_matrix_novel,
         max_percentile_level=max_percentile_level)
 
-    mean_novel_upconv_svd_matrix = pmm.run_pmm_many_variables(
-        input_matrix=novelty_dict[
-            novelty_detection.NOVEL_IMAGES_UPCONV_SVD_KEY],
+    print('Compositing reconstructions of novel radar images...')
+    mean_radar_matrix_upconv = pmm.run_pmm_many_variables(
+        input_matrix=novelty_dict[novelty_detection.UPCONV_MATRIX_KEY],
+        max_percentile_level=max_percentile_level
+    )
+
+    mean_radar_matrix_upconv_svd = pmm.run_pmm_many_variables(
+        input_matrix=novelty_dict[novelty_detection.UPCONV_SVD_MATRIX_KEY],
         max_percentile_level=max_percentile_level
     )
 
     print('Writing output to: "{0:s}"...'.format(output_file_name))
     novelty_detection.write_pmm_file(
         pickle_file_name=output_file_name,
-        mean_novel_image_matrix=mean_novel_predictor_matrices[0],
-        mean_novel_image_matrix_upconv=mean_novel_upconv_matrix,
-        mean_novel_image_matrix_upconv_svd=mean_novel_upconv_svd_matrix,
-        standard_novelty_file_name=input_file_name,
-        pmm_metadata_dict=pmm_metadata_dict)
+        mean_denorm_radar_matrix_baseline=mean_radar_matrix_baseline,
+        mean_denorm_radar_matrix_novel=mean_radar_matrix_novel,
+        mean_denorm_radar_matrix_upconv=mean_radar_matrix_upconv,
+        mean_denorm_radar_matrix_upconv_svd=mean_radar_matrix_upconv_svd,
+        cnn_file_name=novelty_dict[novelty_detection.CNN_FILE_KEY],
+        non_pmm_file_name=input_file_name,
+        pmm_max_percentile_level=max_percentile_level)
 
 
 def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
