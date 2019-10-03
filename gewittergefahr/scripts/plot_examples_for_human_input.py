@@ -172,7 +172,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY] = False
 
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
-    model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] = LAYER_OPERATION_DICTS
+    # model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] = LAYER_OPERATION_DICTS
 
     if 0 < num_examples < len(full_storm_id_strings):
         full_storm_id_strings = full_storm_id_strings[:num_examples]
