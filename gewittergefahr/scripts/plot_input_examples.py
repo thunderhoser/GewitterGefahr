@@ -718,6 +718,9 @@ def _plot_2d_radar_scan(
             )
         )
 
+    print(radar_field_names)
+    print(panel_names)
+
     num_radar_fields = len(radar_field_names)
     if num_panel_rows is None:
         num_panel_rows = int(numpy.floor(
