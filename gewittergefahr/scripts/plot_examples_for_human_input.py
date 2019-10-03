@@ -189,6 +189,19 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     )[0]
     print(SEPARATOR_STRING)
 
+    example_dict = {
+        input_examples.RADAR_FIELDS_KEY: SHEAR_FIELD_NAMES,
+        input_examples.REFL_IMAGE_MATRIX_KEY: predictor_matrices[0],
+        input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY: predictor_matrices[1],
+        input_examples.RADAR_HEIGHTS_KEY: REFL_HEIGHTS_M_AGL
+    }
+
+    example_dict = input_examples.reduce_examples_3d_to_2d(
+        example_dict=example_dict,
+        list_of_operation_dicts=LAYER_OPERATION_DICTS)
+
+    print(example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY].shape)
+
     print(len(predictor_matrices))
     for this_matrix in predictor_matrices:
         print(this_matrix.shape)
