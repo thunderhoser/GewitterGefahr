@@ -28,6 +28,8 @@ REFL_LAYER_OPERATION_DICT = {
     input_examples.MAX_HEIGHT_KEY: 3000
 }
 
+COLOUR_BAR_FONT_SIZE = 30
+
 ACTIVATION_FILE_ARG_NAME = plot_examples.ACTIVATION_FILE_ARG_NAME
 STORM_METAFILE_ARG_NAME = plot_examples.STORM_METAFILE_ARG_NAME
 NUM_EXAMPLES_ARG_NAME = plot_examples.NUM_EXAMPLES_ARG_NAME
@@ -228,6 +230,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         allow_whitespace=allow_whitespace, plot_panel_names=False,
         add_titles=False, label_colour_bars=True,
         colour_bar_length=colour_bar_length,
+        colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec)
 
