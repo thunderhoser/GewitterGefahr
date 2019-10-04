@@ -114,6 +114,7 @@ def _get_reflectivity_colour_scheme():
 
     for i in range(len(colour_list)):
         colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
+        colour_list[i] = matplotlib.colors.to_rgba(colour_list[i], 0.75)
 
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
     colour_map_object.set_under(numpy.full(3, 1))
