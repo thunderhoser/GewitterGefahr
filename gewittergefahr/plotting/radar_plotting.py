@@ -716,18 +716,18 @@ def plot_2d_grid_without_coords(
 
     x_coord_limits = axes_object.get_xlim()
     x_grid_coords = numpy.linspace(
-        x_coord_limits[0], x_coord_limits[1], num=17, dtype=float
+        x_coord_limits[0], x_coord_limits[1], num=5, dtype=float
     )[1:-1]
 
     y_coord_limits = axes_object.get_ylim()
     y_grid_coords = numpy.linspace(
-        y_coord_limits[0], y_coord_limits[1], num=17, dtype=float
+        y_coord_limits[0], y_coord_limits[1], num=5, dtype=float
     )[1:-1]
 
-    axes_object.set_xticks(x_grid_coords)
-    axes_object.set_yticks(y_grid_coords)
-    axes_object.grid(
-        b=True, which='major', axis='both', linestyle='--', linewidth=2)
+    # axes_object.set_xticks(x_grid_coords)
+    # axes_object.set_yticks(y_grid_coords)
+    # axes_object.grid(
+    #     b=True, which='major', axis='both', linestyle='--', linewidth=2)
 
     axes_object.xaxis.set_ticklabels([])
     axes_object.yaxis.set_ticklabels([])
