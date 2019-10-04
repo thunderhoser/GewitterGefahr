@@ -3,6 +3,7 @@
 The 2-D images contain azimuthal shear, and the 3-D images contain reflectivity.
 """
 
+import pickle
 import argparse
 import numpy
 import keras
@@ -81,6 +82,18 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
     :param output_dir_name: Same.
     """
 
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
+
+    # argument_file_name = '{0:s}/input_args.p'.format(output_dir_name)
+    # print('Writing input args to: "{0:s}"...'.format(argument_file_name))
+    #
+    # argument_file_handle = open(argument_file_name, 'wb')
+    # pickle.dump(INPUT_ARG_OBJECT.__dict__, argument_file_handle)
+    # argument_file_handle.close()
+    #
+    # return
+
     # Process input args.
     first_training_time_unix_sec = time_conversion.string_to_unix_sec(
         first_training_time_string, TIME_FORMAT)
@@ -116,9 +129,6 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
         noise_standard_deviation = None
 
     # Set output locations.
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
-
     output_model_file_name = '{0:s}/model.h5'.format(output_dir_name)
     history_file_name = '{0:s}/model_history.csv'.format(output_dir_name)
     tensorboard_dir_name = '{0:s}/tensorboard'.format(output_dir_name)
