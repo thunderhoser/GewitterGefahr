@@ -638,8 +638,13 @@ def plot_latlng_grid(
     )
 
     if use_default_colour_scheme:
+        opacity = (
+            refl_opacity if field_name in radar_utils.REFLECTIVITY_NAMES
+            else DEFAULT_OPACITY
+        )
+
         colour_map_object, colour_norm_object = get_default_colour_scheme(
-            field_name=field_name, opacity=refl_opacity)
+            field_name=field_name, opacity=opacity)
     else:
         if hasattr(colour_norm_object, 'boundaries'):
             colour_norm_object.boundaries = _field_to_plotting_units(
@@ -710,8 +715,13 @@ def plot_2d_grid_without_coords(
     )
 
     if use_default_colour_scheme:
+        opacity = (
+            refl_opacity if field_name in radar_utils.REFLECTIVITY_NAMES
+            else DEFAULT_OPACITY
+        )
+
         colour_map_object, colour_norm_object = get_default_colour_scheme(
-            field_name=field_name, opacity=refl_opacity)
+            field_name=field_name, opacity=opacity)
     else:
         if hasattr(colour_norm_object, 'boundaries'):
             colour_norm_object.boundaries = _field_to_plotting_units(

@@ -189,6 +189,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     )[0]
     print(SEPARATOR_STRING)
 
+    # TODO(thunderhoser): The rest of this code is very HACKY.
     predictor_matrices[0] = trainval_io.upsample_reflectivity(
         predictor_matrices[0][..., 0]
     )
