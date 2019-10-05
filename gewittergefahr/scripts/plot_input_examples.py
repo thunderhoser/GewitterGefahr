@@ -1243,6 +1243,7 @@ def plot_examples(
     :param storm_activations: [used only if `pmm_flag == False`]
         length-E numpy array of model activations.  This may be None.  If not
         None, will be used in titles.
+    :return: figure_file_names: Paths to file saved by this method.
     """
 
     error_checking.assert_is_boolean(pmm_flag)
@@ -1280,6 +1281,8 @@ def plot_examples(
 
     num_radar_matrices = len(list_of_predictor_matrices) - int(has_soundings)
     num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
+
+    figure_file_names = []
 
     for i in range(num_examples):
         if sounding_pressure_matrix_pascals is None:
@@ -1323,9 +1326,11 @@ def plot_examples(
                 storm_time_unix_sec=storm_times_unix_sec[i]
             )
 
+            figure_file_names.append(this_file_name)
+
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             this_sounding_figure_object.savefig(
-                this_file_name, dpi=figure_resolution_dpi, pad_inches=0,
+                figure_file_names[-1], dpi=figure_resolution_dpi, pad_inches=0,
                 bbox_inches='tight'
             )
             pyplot.close(this_sounding_figure_object)
@@ -1347,9 +1352,11 @@ def plot_examples(
                 storm_time_unix_sec=storm_times_unix_sec[i],
                 radar_field_name='reflectivity')
 
+            figure_file_names.append(this_file_name)
+
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             these_radar_figure_objects[0].savefig(
-                this_file_name, dpi=figure_resolution_dpi, pad_inches=0,
+                figure_file_names[-1], dpi=figure_resolution_dpi, pad_inches=0,
                 bbox_inches='tight'
             )
             pyplot.close(these_radar_figure_objects[0])
@@ -1368,9 +1375,11 @@ def plot_examples(
                 storm_time_unix_sec=storm_times_unix_sec[i],
                 radar_field_name='shear')
 
+            figure_file_names.append(this_file_name)
+
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             these_radar_figure_objects[1].savefig(
-                this_file_name, dpi=figure_resolution_dpi, pad_inches=0,
+                figure_file_names[-1], dpi=figure_resolution_dpi, pad_inches=0,
                 bbox_inches='tight'
             )
             pyplot.close(these_radar_figure_objects[1])
@@ -1397,10 +1406,12 @@ def plot_examples(
                     radar_field_name=radar_field_names[j],
                     radar_height_m_agl=None)
 
+                figure_file_names.append(this_file_name)
+
                 print('Saving figure to: "{0:s}"...'.format(this_file_name))
                 these_radar_figure_objects[j].savefig(
-                    this_file_name, dpi=figure_resolution_dpi, pad_inches=0,
-                    bbox_inches='tight'
+                    figure_file_names[-1], dpi=figure_resolution_dpi,
+                    pad_inches=0, bbox_inches='tight'
                 )
                 pyplot.close(these_radar_figure_objects[j])
 
@@ -1420,12 +1431,16 @@ def plot_examples(
             storm_time_unix_sec=storm_times_unix_sec[i]
         )
 
+        figure_file_names.append(this_file_name)
+
         print('Saving figure to: "{0:s}"...'.format(this_file_name))
         these_radar_figure_objects[0].savefig(
-            this_file_name, dpi=figure_resolution_dpi, pad_inches=0,
+            figure_file_names[-1], dpi=figure_resolution_dpi, pad_inches=0,
             bbox_inches='tight'
         )
         pyplot.close(these_radar_figure_objects[0])
+
+    return figure_file_names
 
 
 def _run(activation_file_name, storm_metafile_name, num_examples,

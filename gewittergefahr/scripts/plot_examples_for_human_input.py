@@ -14,6 +14,7 @@ from gewittergefahr.deep_learning import model_activation
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.scripts import plot_input_examples as plot_examples
+from gewittergefahr.plotting import imagemagick_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -30,7 +31,9 @@ REFL_LAYER_OPERATION_DICT = {
 
 REFL_OPACITY = 0.5
 COLOUR_BAR_FONT_SIZE = 20
+
 FIGURE_RESOLUTION_DPI = 600
+FIGURE_SIZE_PIXELS = int(1.5e6)
 
 ACTIVATION_FILE_ARG_NAME = plot_examples.ACTIVATION_FILE_ARG_NAME
 STORM_METAFILE_ARG_NAME = plot_examples.STORM_METAFILE_ARG_NAME
@@ -226,7 +229,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
 
     model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] = layer_operation_dicts
 
-    plot_examples.plot_examples(
+    figure_file_names = plot_examples.plot_examples(
         list_of_predictor_matrices=predictor_matrices,
         model_metadata_dict=model_metadata_dict, pmm_flag=False,
         output_dir_name=output_dir_name, plot_soundings=False,
@@ -238,6 +241,15 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         refl_opacity=REFL_OPACITY, plot_grid_lines=False,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec)
+
+    for this_file_name in figure_file_names:
+        print('Resizing image to {0:d} pixels: "{1:s}"...'.format(
+            FIGURE_SIZE_PIXELS, this_file_name
+        ))
+
+        imagemagick_utils.resize_image(
+            input_file_name=this_file_name, output_file_name=this_file_name,
+            output_size_pixels=FIGURE_SIZE_PIXELS)
 
 
 if __name__ == '__main__':
