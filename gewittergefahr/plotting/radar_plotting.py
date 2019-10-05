@@ -22,6 +22,7 @@ METRES_TO_KM = 1e-3
 PER_SECOND_TO_PER_KILOSECOND = 1e3
 
 DEFAULT_FONT_SIZE = 20
+DEFAULT_OPACITY = 1.
 DEFAULT_COLOUR_BAR_LENGTH = 0.8
 
 TEXT_BOUNDING_BOX_DICT = {
@@ -114,13 +115,13 @@ def _get_reflectivity_colour_scheme():
 
     for i in range(len(colour_list)):
         colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
-        colour_list[i] = matplotlib.colors.to_rgba(colour_list[i], 0.5)
 
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
     colour_map_object.set_under(numpy.full(3, 1))
 
-    colour_bounds_dbz = numpy.array(
-        [0.1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70])
+    colour_bounds_dbz = numpy.array([
+        0.1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_dbz, colour_map_object.N)
 
@@ -137,8 +138,9 @@ def _get_zdr_colour_scheme():
     colour_list = _get_modern_colours()
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
 
-    colour_bounds_db = numpy.array(
-        [-1, -0.5, 0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4])
+    colour_bounds_db = numpy.array([
+        -1, -0.5, 0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_db, colour_map_object.N)
 
@@ -155,8 +157,9 @@ def _get_kdp_colour_scheme():
     colour_list = _get_modern_colours()
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
 
-    colour_bounds_deg_km01 = numpy.array(
-        [-1, -0.5, 0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4])
+    colour_bounds_deg_km01 = numpy.array([
+        -1, -0.5, 0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_deg_km01, colour_map_object.N)
 
@@ -174,11 +177,10 @@ def _get_rho_hv_colour_scheme():
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
     colour_map_object.set_under(numpy.full(3, 1))
 
-    colour_bounds_unitless = numpy.array(
-        [0.7, 0.75, 0.8, 0.85, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97,
-         0.98, 0.99, 1]
-    )
-
+    colour_bounds_unitless = numpy.array([
+        0.7, 0.75, 0.8, 0.85, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97,
+        0.98, 0.99, 1
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_unitless, colour_map_object.N)
 
@@ -196,8 +198,9 @@ def _get_spectrum_width_colour_scheme():
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
     colour_map_object.set_under(numpy.full(3, 1))
 
-    colour_bounds_m_s01 = numpy.array(
-        [0.1, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10])
+    colour_bounds_m_s01 = numpy.array([
+        0.1, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_m_s01, colour_map_object.N)
 
@@ -223,8 +226,9 @@ def _get_vorticity_colour_scheme():
         colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
 
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
-    colour_bounds_ks01 = numpy.array(
-        [-7, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7])
+    colour_bounds_ks01 = numpy.array([
+        -7, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_ks01, colour_map_object.N)
 
@@ -250,8 +254,9 @@ def _get_az_shear_colour_scheme():
         colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
 
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
-    colour_bounds_ks01 = 2 * numpy.array(
-        [-7, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7])
+    colour_bounds_ks01 = 2 * numpy.array([
+        -7, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_ks01, colour_map_object.N)
 
@@ -316,8 +321,9 @@ def _get_mesh_colour_scheme():
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
     colour_map_object.set_under(numpy.full(3, 1))
 
-    colour_bounds_mm = numpy.array(
-        [0.1, 15.9, 22.2, 28.6, 34.9, 41.3, 47.6, 54, 60.3, 65, 70, 75, 80, 85])
+    colour_bounds_mm = numpy.array([
+        0.1, 15.9, 22.2, 28.6, 34.9, 41.3, 47.6, 54, 60.3, 65, 70, 75, 80, 85
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_mm, colour_map_object.N)
 
@@ -344,8 +350,9 @@ def _get_shi_colour_scheme():
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
     colour_map_object.set_under(numpy.full(3, 1))
 
-    colour_bounds_unitless = numpy.array(
-        [1, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 420])
+    colour_bounds_unitless = numpy.array([
+        1, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 420
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_unitless, colour_map_object.N)
 
@@ -372,8 +379,9 @@ def _get_vil_colour_scheme():
     colour_map_object = matplotlib.colors.ListedColormap(colour_list)
     colour_map_object.set_under(numpy.full(3, 1))
 
-    colour_bounds_mm = numpy.array(
-        [0.1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70])
+    colour_bounds_mm = numpy.array([
+        0.1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70
+    ])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         colour_bounds_mm, colour_map_object.N)
 
@@ -515,60 +523,67 @@ def radar_fields_and_heights_to_panel_names(
     return panel_names
 
 
-def get_default_colour_scheme(field_name):
+def get_default_colour_scheme(field_name, opacity=DEFAULT_OPACITY):
     """Returns default colour scheme for radar field.
 
     :param field_name: Field name (must be accepted by
         `radar_utils.check_field_name`).
+    :param opacity: Opacity (in range 0...1).
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
     """
 
     radar_utils.check_field_name(field_name)
+    error_checking.assert_is_greater(opacity, 0.)
+    error_checking.assert_is_leq(opacity, 1.)
+
+    colour_map_object = None
+    colour_norm_object = None
 
     if field_name in radar_utils.REFLECTIVITY_NAMES:
-        return _get_reflectivity_colour_scheme()
+        colour_map_object, colour_norm_object = (
+            _get_reflectivity_colour_scheme()
+        )
+    elif field_name in radar_utils.SHEAR_NAMES:
+        colour_map_object, colour_norm_object = _get_az_shear_colour_scheme()
+    elif field_name in radar_utils.ECHO_TOP_NAMES:
+        colour_map_object, colour_norm_object = _get_echo_top_colour_scheme()
+    elif field_name == radar_utils.MESH_NAME:
+        colour_map_object, colour_norm_object = _get_mesh_colour_scheme()
+    elif field_name == radar_utils.SHI_NAME:
+        colour_map_object, colour_norm_object = _get_shi_colour_scheme()
+    elif field_name == radar_utils.VIL_NAME:
+        colour_map_object, colour_norm_object = _get_vil_colour_scheme()
+    elif field_name == radar_utils.DIFFERENTIAL_REFL_NAME:
+        colour_map_object, colour_norm_object = _get_zdr_colour_scheme()
+    elif field_name == radar_utils.SPEC_DIFF_PHASE_NAME:
+        colour_map_object, colour_norm_object = _get_kdp_colour_scheme()
+    elif field_name == radar_utils.CORRELATION_COEFF_NAME:
+        colour_map_object, colour_norm_object = _get_rho_hv_colour_scheme()
+    elif field_name == radar_utils.SPECTRUM_WIDTH_NAME:
+        colour_map_object, colour_norm_object = (
+            _get_spectrum_width_colour_scheme()
+        )
+    elif field_name == radar_utils.VORTICITY_NAME:
+        colour_map_object, colour_norm_object = _get_vorticity_colour_scheme()
+    elif field_name == radar_utils.DIVERGENCE_NAME:
+        colour_map_object, colour_norm_object = _get_divergence_colour_scheme()
 
-    if field_name in radar_utils.SHEAR_NAMES:
-        return _get_az_shear_colour_scheme()
+    num_colours = len(colour_map_object.colors)
 
-    if field_name in radar_utils.ECHO_TOP_NAMES:
-        return _get_echo_top_colour_scheme()
+    for i in range(num_colours):
+        colour_map_object.colors[i] = matplotlib.colors.to_rgba(
+            colour_map_object.colors[i], opacity
+        )
 
-    if field_name == radar_utils.MESH_NAME:
-        return _get_mesh_colour_scheme()
-
-    if field_name == radar_utils.SHI_NAME:
-        return _get_shi_colour_scheme()
-
-    if field_name == radar_utils.VIL_NAME:
-        return _get_vil_colour_scheme()
-
-    if field_name == radar_utils.DIFFERENTIAL_REFL_NAME:
-        return _get_zdr_colour_scheme()
-
-    if field_name == radar_utils.SPEC_DIFF_PHASE_NAME:
-        return _get_kdp_colour_scheme()
-
-    if field_name == radar_utils.CORRELATION_COEFF_NAME:
-        return _get_rho_hv_colour_scheme()
-
-    if field_name == radar_utils.SPECTRUM_WIDTH_NAME:
-        return _get_spectrum_width_colour_scheme()
-
-    if field_name == radar_utils.VORTICITY_NAME:
-        return _get_vorticity_colour_scheme()
-
-    if field_name == radar_utils.DIVERGENCE_NAME:
-        return _get_divergence_colour_scheme()
-
-    return None
+    return colour_map_object, colour_norm_object
 
 
 def plot_latlng_grid(
         field_matrix, field_name, axes_object, min_grid_point_latitude_deg,
         min_grid_point_longitude_deg, latitude_spacing_deg,
-        longitude_spacing_deg, colour_map_object=None, colour_norm_object=None):
+        longitude_spacing_deg, colour_map_object=None, colour_norm_object=None,
+        refl_opacity=DEFAULT_OPACITY):
     """Plots lat-long grid as colour map.
 
     M = number of rows (unique grid-point latitudes)
@@ -600,6 +615,8 @@ def plot_latlng_grid(
         None, the default colour scheme for `field_name` will be used.
     :param colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.  If
         this is None, the default colour scheme for `field_name` will be used.
+    :param refl_opacity: Opacity for reflectivity colour scheme.  Used only if
+        `colour_map_object is None and colour_norm_object is None`.
     """
 
     field_matrix = _field_to_plotting_units(
@@ -622,7 +639,7 @@ def plot_latlng_grid(
 
     if use_default_colour_scheme:
         colour_map_object, colour_norm_object = get_default_colour_scheme(
-            field_name)
+            field_name=field_name, opacity=refl_opacity)
     else:
         if hasattr(colour_norm_object, 'boundaries'):
             colour_norm_object.boundaries = _field_to_plotting_units(
@@ -649,13 +666,11 @@ def plot_latlng_grid(
 
 
 def plot_2d_grid_without_coords(
-        field_matrix, field_name, axes_object, font_size=DEFAULT_FONT_SIZE,
-        annotation_string=None, colour_map_object=None,
-        colour_norm_object=None):
+        field_matrix, field_name, axes_object, plot_grid_lines=True,
+        font_size=DEFAULT_FONT_SIZE, annotation_string=None,
+        colour_map_object=None, colour_norm_object=None,
+        refl_opacity=DEFAULT_OPACITY):
     """Plots 2-D grid as colour map.
-
-    M = number of rows in grid
-    N = number of columns in grid
 
     In this case the grid is not georeferenced (convenient for storm-centered
     radar images).
@@ -663,14 +678,17 @@ def plot_2d_grid_without_coords(
     To use the default colour scheme for the given radar field, leave
     `colour_map_object` and `colour_norm_object` empty.
 
-    :param field_matrix: M-by-N numpy array of radar values.
+    :param field_matrix: See doc for `plot_latlng_grid`.
     :param field_name: Same.
     :param axes_object: Same.
+    :param plot_grid_lines: Boolean flag.  If True, will plot grid lines on
+        radar image.
     :param font_size: Font size for annotation.
     :param annotation_string: Annotation (will be printed in the bottom-center).
         If you want no annotation, leave this alone.
     :param colour_map_object: See doc for `plot_latlng_grid`.
     :param colour_norm_object: Same.
+    :param refl_opacity: Same.
     :return: colour_map_object: Same as input, except default might have been
         set.
     :return: colour_norm_object: Same as input, except default might have been
@@ -679,11 +697,13 @@ def plot_2d_grid_without_coords(
 
     error_checking.assert_is_numpy_array_without_nan(field_matrix)
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=2)
+    error_checking.assert_is_boolean(plot_grid_lines)
 
     field_matrix = _field_to_plotting_units(
         field_matrix=field_matrix, field_name=field_name)
     field_matrix = numpy.ma.masked_where(
-        numpy.isnan(field_matrix), field_matrix)
+        numpy.isnan(field_matrix), field_matrix
+    )
 
     use_default_colour_scheme = (
         colour_map_object is None or colour_norm_object is None
@@ -691,7 +711,7 @@ def plot_2d_grid_without_coords(
 
     if use_default_colour_scheme:
         colour_map_object, colour_norm_object = get_default_colour_scheme(
-            field_name)
+            field_name=field_name, opacity=refl_opacity)
     else:
         if hasattr(colour_norm_object, 'boundaries'):
             colour_norm_object.boundaries = _field_to_plotting_units(
@@ -715,20 +735,21 @@ def plot_2d_grid_without_coords(
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None', zorder=-1e11)
 
-    x_coord_limits = axes_object.get_xlim()
-    x_grid_coords = numpy.linspace(
-        x_coord_limits[0], x_coord_limits[1], num=5, dtype=float
-    )[1:-1]
+    if plot_grid_lines:
+        x_coord_limits = axes_object.get_xlim()
+        x_grid_coords = numpy.linspace(
+            x_coord_limits[0], x_coord_limits[1], num=5, dtype=float
+        )[1:-1]
 
-    y_coord_limits = axes_object.get_ylim()
-    y_grid_coords = numpy.linspace(
-        y_coord_limits[0], y_coord_limits[1], num=5, dtype=float
-    )[1:-1]
+        y_coord_limits = axes_object.get_ylim()
+        y_grid_coords = numpy.linspace(
+            y_coord_limits[0], y_coord_limits[1], num=5, dtype=float
+        )[1:-1]
 
-    # axes_object.set_xticks(x_grid_coords)
-    # axes_object.set_yticks(y_grid_coords)
-    # axes_object.grid(
-    #     b=True, which='major', axis='both', linestyle='--', linewidth=2)
+        axes_object.set_xticks(x_grid_coords)
+        axes_object.set_yticks(y_grid_coords)
+        axes_object.grid(
+            b=True, which='major', axis='both', linestyle='--', linewidth=2)
 
     axes_object.xaxis.set_ticklabels([])
     axes_object.yaxis.set_ticklabels([])
@@ -749,8 +770,9 @@ def plot_2d_grid_without_coords(
 
 def plot_many_2d_grids(
         data_matrix, field_names, axes_objects, panel_names=None,
-        colour_map_objects=None, colour_norm_objects=None,
-        plot_colour_bar_flags=None, panel_name_font_size=DEFAULT_FONT_SIZE,
+        plot_grid_lines=True, colour_map_objects=None, colour_norm_objects=None,
+        refl_opacity=DEFAULT_OPACITY, plot_colour_bar_flags=None,
+        panel_name_font_size=DEFAULT_FONT_SIZE,
         colour_bar_font_size=DEFAULT_FONT_SIZE,
         colour_bar_length=DEFAULT_COLOUR_BAR_LENGTH):
     """Plots many 2-D grids in paneled figure.
@@ -765,12 +787,16 @@ def plot_many_2d_grids(
         `matplotlib.axes._subplots.AxesSubplot`).
     :param panel_names: length-C list of panel names (to be printed at bottom of
         each panel).  If None, panel names will not be printed.
+    :param plot_grid_lines: Boolean flag.  If True, will plot grid lines over
+        radar images.
     :param colour_map_objects: length-C list of colour schemes (instances of
         `matplotlib.pyplot.cm` or similar).  If None, will use default colour
         scheme for each field.
     :param colour_norm_objects: length-C list of colour-normalizers (instances
         of `matplotlib.colors.BoundaryNorm` or similar).  If None, will use
         default normalizer for each field.
+    :param refl_opacity: Opacity for reflectivity colour scheme.  Used only if
+        `colour_map_objects is None and colour_norm_objects is None`.
     :param plot_colour_bar_flags: length-C numpy array of Boolean flags.  If
         `plot_colour_bar_flags[k] == True`, will plot colour bar for [k]th
         panel.  If None, will plot no colour bars.
@@ -829,9 +855,10 @@ def plot_many_2d_grids(
             plot_2d_grid_without_coords(
                 field_matrix=data_matrix[..., k], field_name=field_names[k],
                 axes_object=axes_objects[k], annotation_string=panel_names[k],
-                font_size=panel_name_font_size,
+                font_size=panel_name_font_size, plot_grid_lines=plot_grid_lines,
                 colour_map_object=copy.deepcopy(colour_map_objects[k]),
-                colour_norm_object=copy.deepcopy(colour_norm_objects[k])
+                colour_norm_object=copy.deepcopy(colour_norm_objects[k]),
+                refl_opacity=refl_opacity
             )
         )
 
@@ -853,7 +880,8 @@ def plot_many_2d_grids(
 
 def plot_3d_grid(
         data_matrix, axes_objects, field_name, heights_metres, ground_relative,
-        plot_panel_names=True, colour_map_object=None, colour_norm_object=None,
+        plot_panel_names=True, plot_grid_lines=True, colour_map_object=None,
+        colour_norm_object=None, refl_opacity=DEFAULT_OPACITY,
         panel_name_font_size=DEFAULT_FONT_SIZE):
     """Plots 3-D grid in paneled figure (one height per panel).
 
@@ -870,8 +898,10 @@ def plot_3d_grid(
         If False, heights are sea-level-relative.
     :param plot_panel_names: Boolean flag.  If True, will plot height (example:
         "3 km AGL") at bottom of each panel.
-    :param colour_map_object: See doc for `plot_2d_grid_without_coords`.
+    :param plot_grid_lines: See doc for `plot_2d_grid_without_coords`.
+    :param colour_map_object: Same.
     :param colour_norm_object: Same.
+    :param refl_opacity: Same.
     :param panel_name_font_size: Font size for panel names.
     """
 
@@ -908,7 +938,7 @@ def plot_3d_grid(
         plot_2d_grid_without_coords(
             field_matrix=data_matrix[..., k],
             field_name=field_name, axes_object=axes_objects[k],
-            annotation_string=this_panel_name,
+            annotation_string=this_panel_name, plot_grid_lines=plot_grid_lines,
             colour_map_object=colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            font_size=panel_name_font_size)
+            refl_opacity=refl_opacity, font_size=panel_name_font_size)

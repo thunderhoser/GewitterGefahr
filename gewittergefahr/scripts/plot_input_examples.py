@@ -58,10 +58,11 @@ DEFAULT_TITLE_FONT_SIZE = 30
 DEFAULT_CBAR_FONT_SIZE = 30
 DEFAULT_SOUNDING_FONT_SIZE = 30
 DEFAULT_CBAR_LENGTH = 0.8
+DEFAULT_REFL_OPACITY = 1.
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
-FIGURE_RESOLUTION_DPI = 600
+DEFAULT_RESOLUTION_DPI = 600
 
 ACTIVATION_FILE_ARG_NAME = 'input_activation_file_name'
 STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
@@ -77,6 +78,9 @@ PLOT_PANEL_NAMES_ARG_NAME = 'plot_panel_names'
 ADD_TITLES_ARG_NAME = 'add_titles'
 LABEL_CBARS_ARG_NAME = 'label_colour_bars'
 CBAR_LENGTH_ARG_NAME = 'colour_bar_length'
+RESOLUTION_ARG_NAME = 'figure_resolution_dpi'
+REFL_OPACITY_ARG_NAME = 'refl_opacity'
+PLOT_GRID_LINES_ARG_NAME = 'plot_grid_lines'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 ACTIVATION_FILE_HELP_STRING = (
@@ -135,8 +139,13 @@ ADD_TITLES_HELP_STRING = (
     'Boolean flag.  If 1, will plot title above each figure.')
 
 LABEL_CBARS_HELP_STRING = 'Boolean flag.  If 1, will label colour bars.'
-
 CBAR_LENGTH_HELP_STRING = 'Length of colour bars (as fraction of axis length).'
+RESOLUTION_HELP_STRING = 'Resolution of saved images (dots per inch).'
+REFL_OPACITY_HELP_STRING = (
+    'Opacity of colour scheme for reflectivity (in range 0...1).')
+
+PLOT_GRID_LINES_HELP_STRING = (
+    'Boolean flag.  If 1, will plot grid lines on radar images.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
@@ -199,6 +208,18 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_CBAR_LENGTH, help=CBAR_LENGTH_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + RESOLUTION_ARG_NAME, type=int, required=False,
+    default=DEFAULT_RESOLUTION_DPI, help=RESOLUTION_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + REFL_OPACITY_ARG_NAME, type=float, required=False,
+    default=DEFAULT_REFL_OPACITY, help=REFL_OPACITY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_GRID_LINES_ARG_NAME, type=int, required=False,
+    default=1, help=PLOT_GRID_LINES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
@@ -259,8 +280,8 @@ def _plot_3d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, add_title, title_font_size,
         label_colour_bar, colour_bar_length, colour_bar_font_size,
-        plot_differences, num_panel_rows=None, diff_colour_map_object=None,
-        max_diff_percentile=None):
+        refl_opacity, plot_grid_lines, plot_differences, num_panel_rows=None,
+        diff_colour_map_object=None, max_diff_percentile=None):
     """Plots 3-D radar images for one example.
 
     Specifically, this method plots one figure per field, with one panel per
@@ -287,6 +308,10 @@ def _plot_3d_radar_scan(
     :param colour_bar_length: Length of colour bars (as fraction of axis
         length).
     :param colour_bar_font_size: Font size for colour bar.
+    :param refl_opacity: Opacity of colour scheme for reflectivity (in range
+        0...1).
+    :param plot_grid_lines: Boolean flag.  If True, will plot grid lines on
+        radar images.
     :param plot_differences: Boolean flag.  If True, this method will plot
         differences rather than actual values.
     :param num_panel_rows: Number of panel rows in each figure.  If None, will
@@ -355,9 +380,12 @@ def _plot_3d_radar_scan(
             this_colour_norm_object = matplotlib.colors.Normalize(
                 vmin=-1 * this_max_colour_value, vmax=this_max_colour_value,
                 clip=False)
+
+            this_refl_opacity = 1.
         else:
             this_colour_map_object = None
             this_colour_norm_object = None
+            this_refl_opacity = refl_opacity
 
         radar_plotting.plot_3d_grid(
             data_matrix=this_radar_matrix,
@@ -365,8 +393,10 @@ def _plot_3d_radar_scan(
             field_name=radar_field_names[k], heights_metres=radar_heights_m_agl,
             ground_relative=True, plot_panel_names=plot_panel_names,
             panel_name_font_size=panel_name_font_size,
+            plot_grid_lines=plot_grid_lines,
             colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object)
+            colour_norm_object=this_colour_norm_object,
+            refl_opacity=this_refl_opacity)
 
         for j in range(num_radar_heights, len(these_axes_objects)):
             these_axes_objects[j].axis('off')
@@ -380,7 +410,8 @@ def _plot_3d_radar_scan(
 
         if this_colour_map_object is None:
             this_colour_map_object, this_colour_norm_object = (
-                radar_plotting.get_default_colour_scheme(radar_field_names[k])
+                radar_plotting.get_default_colour_scheme(
+                    field_name=radar_field_names[k], opacity=this_refl_opacity)
             )
 
         this_colour_bar_object = plotting_utils.plot_colour_bar(
@@ -410,8 +441,8 @@ def _plot_2d3d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, add_titles, title_font_size,
         label_colour_bars, colour_bar_length, colour_bar_font_size,
-        plot_differences, num_panel_rows=None, diff_colour_map_object=None,
-        max_diff_percentile=None):
+        refl_opacity, plot_grid_lines, plot_differences, num_panel_rows=None,
+        diff_colour_map_object=None, max_diff_percentile=None):
     """Plots 2-D azimuthal shear and 3-D reflectivity for one example.
 
     Specifically, this method plots one figure with reflectivity (one panel per
@@ -429,6 +460,8 @@ def _plot_2d3d_radar_scan(
     :param label_colour_bars: Same.
     :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
+    :param refl_opacity: Same.
+    :param plot_grid_lines: Same.
     :param plot_differences: Same.
     :param num_panel_rows: Same.
     :param diff_colour_map_object: Same.
@@ -492,9 +525,12 @@ def _plot_2d3d_radar_scan(
         colour_map_object = diff_colour_map_object
         colour_norm_object = matplotlib.colors.Normalize(
             vmin=-1 * max_colour_value, vmax=max_colour_value, clip=False)
+
+        this_refl_opacity = 1.
     else:
         colour_map_object = None
         colour_norm_object = None
+        this_refl_opacity = refl_opacity
 
     radar_plotting.plot_3d_grid(
         data_matrix=numpy.flip(reflectivity_matrix_dbz, axis=0),
@@ -502,8 +538,9 @@ def _plot_2d3d_radar_scan(
         field_name=radar_utils.REFL_NAME, heights_metres=refl_heights_m_agl,
         ground_relative=True, plot_panel_names=plot_panel_names,
         panel_name_font_size=panel_name_font_size,
+        plot_grid_lines=plot_grid_lines,
         colour_map_object=colour_map_object,
-        colour_norm_object=colour_norm_object)
+        colour_norm_object=colour_norm_object, refl_opacity=this_refl_opacity)
 
     for j in range(num_refl_heights, len(these_axes_objects)):
         these_axes_objects[j].axis('off')
@@ -511,7 +548,8 @@ def _plot_2d3d_radar_scan(
     if allow_whitespace:
         if colour_map_object is None:
             colour_map_object, colour_norm_object = (
-                radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
+                radar_plotting.get_default_colour_scheme(
+                    field_name=radar_utils.REFL_NAME, opacity=this_refl_opacity)
             )
 
         colour_bar_object = plotting_utils.plot_colour_bar(
@@ -571,6 +609,7 @@ def _plot_2d3d_radar_scan(
         field_names=shear_field_names, axes_objects=these_axes_objects,
         panel_names=shear_field_names_verbose if plot_panel_names else None,
         panel_name_font_size=panel_name_font_size,
+        plot_grid_lines=plot_grid_lines,
         colour_map_objects=[colour_map_object] * num_shear_fields,
         colour_norm_objects=[colour_norm_object] * num_shear_fields
     )
@@ -671,8 +710,8 @@ def _get_colour_norms_for_layer_op_diffs(
 def _plot_2d_radar_scan(
         list_of_predictor_matrices, model_metadata_dict, allow_whitespace,
         plot_panel_names, panel_name_font_size, label_colour_bars,
-        colour_bar_length, colour_bar_font_size, plot_differences,
-        num_panel_rows=None, diff_colour_map_object=None,
+        colour_bar_length, colour_bar_font_size, refl_opacity, plot_grid_lines,
+        plot_differences, num_panel_rows=None, diff_colour_map_object=None,
         max_diff_percentile=None):
     """Plots 2-D radar scan for one example.
 
@@ -691,6 +730,8 @@ def _plot_2d_radar_scan(
     :param label_colour_bars: Same.
     :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
+    :param refl_opacity: Same.
+    :param plot_grid_lines: Same.
     :param plot_differences: Same.
     :param num_panel_rows: Same.
     :param diff_colour_map_object: Same.
@@ -776,19 +817,23 @@ def _plot_2d_radar_scan(
                 data_matrix=radar_matrix,
                 list_of_layer_operation_dicts=list_of_layer_operation_dicts,
                 max_colour_percentile=max_diff_percentile)
+
+        this_refl_opacity = 1.
     else:
         colour_map_objects = None
         colour_norm_objects = None
+        this_refl_opacity = refl_opacity
 
     colour_bar_objects = radar_plotting.plot_many_2d_grids(
         data_matrix=numpy.flip(radar_matrix, axis=0),
         field_names=radar_field_names,
         axes_objects=these_axes_objects[:num_radar_fields],
         panel_names=panel_names if plot_panel_names else None,
-        colour_map_objects=colour_map_objects,
-        colour_norm_objects=colour_norm_objects,
-        plot_colour_bar_flags=plot_colour_bar_flags,
         panel_name_font_size=panel_name_font_size,
+        plot_grid_lines=plot_grid_lines,
+        colour_map_objects=colour_map_objects,
+        colour_norm_objects=colour_norm_objects, refl_opacity=this_refl_opacity,
+        plot_colour_bar_flags=plot_colour_bar_flags,
         colour_bar_font_size=colour_bar_font_size,
         colour_bar_length=colour_bar_length)
 
@@ -984,6 +1029,7 @@ def plot_one_example(
         add_titles=True, title_font_size=DEFAULT_TITLE_FONT_SIZE,
         label_colour_bars=False, colour_bar_length=DEFAULT_CBAR_LENGTH,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
+        refl_opacity=DEFAULT_REFL_OPACITY, plot_grid_lines=True,
         sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE, num_panel_rows=None,
         plot_radar_diffs=False, diff_colour_map_object=None,
         max_diff_percentile=None):
@@ -1015,6 +1061,10 @@ def plot_one_example(
     :param colour_bar_length: Length of colour bars (as fraction of axis
         length).
     :param colour_bar_font_size: Font size for colour bars.
+    :param refl_opacity: Opacity of colour scheme for reflectivity (in range
+        0...1).
+    :param plot_grid_lines: Boolean flag.  If True, will plot grid lines on
+        radar images.
     :param sounding_font_size: Font size for sounding.
     :param plot_radar_diffs: Boolean flag.  If True, radar matrices contain
         differences rather than actual values.
@@ -1097,8 +1147,8 @@ def plot_one_example(
                 label_colour_bars=label_colour_bars,
                 colour_bar_length=colour_bar_length,
                 colour_bar_font_size=colour_bar_font_size,
-                num_panel_rows=num_panel_rows,
-                plot_differences=plot_radar_diffs,
+                refl_opacity=refl_opacity, plot_grid_lines=plot_grid_lines,
+                num_panel_rows=num_panel_rows, plot_differences=plot_radar_diffs,
                 diff_colour_map_object=diff_colour_map_object,
                 max_diff_percentile=max_diff_percentile)
         )
@@ -1113,8 +1163,8 @@ def plot_one_example(
             label_colour_bar=label_colour_bars,
             colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size,
-            num_panel_rows=num_panel_rows,
-            plot_differences=plot_radar_diffs,
+            refl_opacity=refl_opacity, plot_grid_lines=plot_grid_lines,
+            num_panel_rows=num_panel_rows, plot_differences=plot_radar_diffs,
             diff_colour_map_object=diff_colour_map_object,
             max_diff_percentile=max_diff_percentile)
     else:
@@ -1127,8 +1177,8 @@ def plot_one_example(
             label_colour_bars=label_colour_bars,
             colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size,
-            num_panel_rows=num_panel_rows,
-            plot_differences=plot_radar_diffs,
+            refl_opacity=refl_opacity, plot_grid_lines=plot_grid_lines,
+            num_panel_rows=num_panel_rows, plot_differences=plot_radar_diffs,
             diff_colour_map_object=diff_colour_map_object,
             max_diff_percentile=max_diff_percentile)
 
@@ -1149,6 +1199,8 @@ def plot_examples(
         add_titles=True, title_font_size=DEFAULT_TITLE_FONT_SIZE,
         label_colour_bars=False, colour_bar_length=DEFAULT_CBAR_LENGTH,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
+        figure_resolution_dpi=DEFAULT_RESOLUTION_DPI,
+        refl_opacity=DEFAULT_REFL_OPACITY, plot_grid_lines=True,
         sounding_font_size=DEFAULT_SOUNDING_FONT_SIZE, num_panel_rows=None,
         plot_radar_diffs=False, diff_colour_map_object=None,
         max_diff_percentile=None, full_storm_id_strings=None,
@@ -1176,6 +1228,9 @@ def plot_examples(
     :param label_colour_bars: Same.
     :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
+    :param figure_resolution_dpi: Resolution of saved images (dots per inch).
+    :param refl_opacity: See doc for `plot_one_example`.
+    :param plot_grid_lines: Same.
     :param sounding_font_size: Same.
     :param num_panel_rows: Same.
     :param plot_radar_diffs: Same.
@@ -1244,6 +1299,7 @@ def plot_examples(
             label_colour_bars=label_colour_bars,
             colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size,
+            refl_opacity=refl_opacity, plot_grid_lines=plot_grid_lines,
             sounding_font_size=sounding_font_size,
             num_panel_rows=num_panel_rows, plot_radar_diffs=plot_radar_diffs,
             diff_colour_map_object=diff_colour_map_object,
@@ -1269,7 +1325,7 @@ def plot_examples(
 
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             this_sounding_figure_object.savefig(
-                this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                this_file_name, dpi=figure_resolution_dpi, pad_inches=0,
                 bbox_inches='tight'
             )
             pyplot.close(this_sounding_figure_object)
@@ -1293,7 +1349,7 @@ def plot_examples(
 
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             these_radar_figure_objects[0].savefig(
-                this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                this_file_name, dpi=figure_resolution_dpi, pad_inches=0,
                 bbox_inches='tight'
             )
             pyplot.close(these_radar_figure_objects[0])
@@ -1314,7 +1370,7 @@ def plot_examples(
 
             print('Saving figure to: "{0:s}"...'.format(this_file_name))
             these_radar_figure_objects[1].savefig(
-                this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                this_file_name, dpi=figure_resolution_dpi, pad_inches=0,
                 bbox_inches='tight'
             )
             pyplot.close(these_radar_figure_objects[1])
@@ -1343,7 +1399,7 @@ def plot_examples(
 
                 print('Saving figure to: "{0:s}"...'.format(this_file_name))
                 these_radar_figure_objects[j].savefig(
-                    this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                    this_file_name, dpi=figure_resolution_dpi, pad_inches=0,
                     bbox_inches='tight'
                 )
                 pyplot.close(these_radar_figure_objects[j])
@@ -1366,7 +1422,7 @@ def plot_examples(
 
         print('Saving figure to: "{0:s}"...'.format(this_file_name))
         these_radar_figure_objects[0].savefig(
-            this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+            this_file_name, dpi=figure_resolution_dpi, pad_inches=0,
             bbox_inches='tight'
         )
         pyplot.close(these_radar_figure_objects[0])
@@ -1376,7 +1432,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
          top_example_dir_name, radar_field_names, radar_heights_m_agl,
          num_radar_rows, num_radar_columns, plot_soundings, allow_whitespace,
          plot_panel_names, add_titles, label_colour_bars, colour_bar_length,
-         output_dir_name):
+         figure_resolution_dpi, refl_opacity, plot_grid_lines, output_dir_name):
     """Plots one or more examples (storm objects).
 
     This is effectively the main method.
@@ -1395,6 +1451,9 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     :param add_titles: Same.
     :param label_colour_bars: Same.
     :param colour_bar_length: Same.
+    :param figure_resolution_dpi: Same.
+    :param refl_opacity: Same.
+    :param plot_grid_lines: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if activation file contains activations for more than
         one model component.
@@ -1505,6 +1564,8 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
         add_titles=add_titles, label_colour_bars=label_colour_bars,
         colour_bar_length=colour_bar_length,
+        figure_resolution_dpi=figure_resolution_dpi,
+        refl_opacity=refl_opacity, plot_grid_lines=plot_grid_lines,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
         storm_activations=storm_activations)
@@ -1537,5 +1598,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, LABEL_CBARS_ARG_NAME
         )),
         colour_bar_length=getattr(INPUT_ARG_OBJECT, CBAR_LENGTH_ARG_NAME),
+        figure_resolution_dpi=getattr(INPUT_ARG_OBJECT, RESOLUTION_ARG_NAME),
+        refl_opacity=getattr(INPUT_ARG_OBJECT, REFL_OPACITY_ARG_NAME),
+        plot_grid_lines=getattr(INPUT_ARG_OBJECT, PLOT_GRID_LINES_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
