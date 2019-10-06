@@ -11,6 +11,7 @@ TRACKING_SCALE_METRES2 = 5e7
 
 TOP_SEGMOTION_DIR_NAME = 'segmotion'
 TOP_PROBSEVERE_DIR_NAME = 'probSevere'
+TOP_MATCH_DIR_NAME = 'matches'
 
 SEGMOTION_FILE_NAME = (
     'segmotion/2017/20171004/scale_50000000m2/'
@@ -21,6 +22,8 @@ PROBSEVERE_FILE_NAME = (
     'probSevere/2017/20171004/scale_50000000m2/'
     'storm-tracking_probSevere_2017-10-05-014408.p'
 )
+
+MATCH_FILE_NAME = 'matches/2017/20171004/storm-matches_2017-10-05-014408.p'
 
 YEARS = numpy.array([4055, 4056], dtype=int)
 MONTHS = numpy.array([12, 1, 2], dtype=int)
@@ -311,6 +314,16 @@ class StormTrackingIoTests(unittest.TestCase):
             spc_date_string=VALID_SPC_DATE_STRING, raise_error_if_missing=False)
 
         self.assertTrue(this_glob_pattern == GLOB_PATTERN_FOR_SPC_DATE)
+
+    def test_find_match_file(self):
+        """Ensures correct output from find_match_file."""
+
+        this_match_file_name = tracking_io.find_match_file(
+            top_directory_name=TOP_MATCH_DIR_NAME,
+            valid_time_unix_sec=VALID_TIME_UNIX_SEC,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_match_file_name == MATCH_FILE_NAME)
 
 
 if __name__ == '__main__':

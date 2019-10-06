@@ -380,8 +380,21 @@ def _run(myrorss_tracking_dir_name, gridrad_tracking_dir_name,
             target_object_table=this_target_object_table,
             max_distance_metres=max_distance_metres)
 
-        # TODO(thunderhoser): Deal with IO.
-        print('\n')
+        this_match_file_name = tracking_io.find_match_file(
+            top_directory_name=output_dir_name,
+            valid_time_unix_sec=source_times_unix_sec[i],
+            raise_error_if_missing=False)
+
+        print('Writing results to: "{0:s}"...\n'.format(this_match_file_name))
+        tracking_io.write_matches(
+            pickle_file_name=this_match_file_name,
+            source_to_target_dict=this_source_to_target_dict,
+            max_time_diff_seconds=MAX_TIME_DIFF_SECONDS,
+            max_distance_metres=max_distance_metres,
+            source_dataset_name=source_dataset_name,
+            source_tracking_dir_name=source_tracking_dir_name,
+            target_dataset_name=target_dataset_name,
+            target_tracking_dir_name=target_tracking_dir_name)
 
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ import glob
 import pickle
 import numpy
 import pandas
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -52,6 +53,18 @@ REQUIRED_COLUMNS = [
     tracking_utils.LONGITUDES_IN_STORM_COLUMN,
     tracking_utils.ROWS_IN_STORM_COLUMN, tracking_utils.COLUMNS_IN_STORM_COLUMN,
     tracking_utils.LATLNG_POLYGON_COLUMN, tracking_utils.ROWCOL_POLYGON_COLUMN
+]
+
+MAX_TIME_DIFF_KEY = 'max_time_diff_seconds'
+MAX_DISTANCE_KEY = 'max_distance_metres'
+SOURCE_DATASET_KEY = 'source_dataset_name'
+SOURCE_TRACKING_DIR_KEY = 'source_tracking_dir_name'
+TARGET_DATASET_KEY = 'target_dataset_name'
+TARGET_TRACKING_DIR_KEY = 'target_tracking_dir_name'
+
+MATCH_METADATA_KEYS = [
+    MAX_TIME_DIFF_KEY, MAX_DISTANCE_KEY, SOURCE_DATASET_KEY,
+    SOURCE_TRACKING_DIR_KEY, TARGET_DATASET_KEY, TARGET_TRACKING_DIR_KEY
 ]
 
 
@@ -591,3 +604,126 @@ def read_ids_and_times(pickle_file_name):
 
     return (storm_metadata_dict[FULL_IDS_KEY],
             storm_metadata_dict[STORM_TIMES_KEY])
+
+
+def find_match_file(top_directory_name, valid_time_unix_sec,
+                    raise_error_if_missing=False):
+    """Finds match file.
+
+    A "match file" matches storm objects in one dataset (e.g., MYRORSS or
+    GridRad) to those in another dataset, at one time step.
+
+    :param top_directory_name: Name of top-level directory.
+    :param valid_time_unix_sec: Valid time.
+    :param raise_error_if_missing: See doc for `find_file`.
+    :return: match_file_name: Path to match file.  If file is missing and
+        `raise_error_if_missing = False`, this will be the *expected* path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    spc_date_string = time_conversion.time_to_spc_date_string(
+        valid_time_unix_sec)
+
+    match_file_name = '{0:s}/{1:s}/{2:s}/storm-matches_{3:s}.p'.format(
+        top_directory_name, spc_date_string[:4], spc_date_string,
+        time_conversion.unix_sec_to_string(
+            valid_time_unix_sec, FILE_NAME_TIME_FORMAT)
+    )
+
+    if raise_error_if_missing and not os.path.isfile(match_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            match_file_name)
+        raise ValueError(error_string)
+
+    return match_file_name
+
+
+def write_matches(
+        pickle_file_name, source_to_target_dict, max_time_diff_seconds,
+        max_distance_metres, source_dataset_name, source_tracking_dir_name,
+        target_dataset_name, target_tracking_dir_name):
+    """Writes matches to Pickle file.
+
+    "Matches" are between storm storm objects in one dataset (e.g., MYRORSS or
+    GridRad) and those in another dataset, at one time step.
+
+    :param pickle_file_name: Path to output file.
+    :param source_to_target_dict: Dictionary, where each key is a tuple with
+        (source ID, source time) and each value is a list with [target ID,
+        target time].  The IDs are strings, and the times are Unix seconds
+        (integers).  For source objects with no match in the target dataset, the
+        corresponding value is None (rather than a list).
+    :param max_time_diff_seconds: Max time difference between matched storm
+        objects.
+    :param max_distance_metres: Max distance between matched storm objects.
+    :param source_dataset_name: Name of source dataset (must be accepted by
+        `radar_utils.check_data_source`).
+    :param source_tracking_dir_name: Name of top-level directory with tracks for
+        source dataset.
+    :param target_dataset_name: Same but for target dataset.
+    :param target_tracking_dir_name: Same but for target dataset.
+    """
+
+    error_checking.assert_is_string(pickle_file_name)
+    error_checking.assert_is_integer(max_time_diff_seconds)
+    error_checking.assert_is_geq(max_time_diff_seconds, 0)
+    error_checking.assert_is_greater(max_distance_metres, 0.)
+    radar_utils.check_data_source(source_dataset_name)
+    error_checking.assert_is_string(source_tracking_dir_name)
+    radar_utils.check_data_source(target_dataset_name)
+    error_checking.assert_is_string(target_tracking_dir_name)
+
+    metadata_dict = {
+        MAX_TIME_DIFF_KEY: max_time_diff_seconds,
+        MAX_DISTANCE_KEY: max_distance_metres,
+        SOURCE_DATASET_KEY: source_dataset_name,
+        SOURCE_TRACKING_DIR_KEY: source_tracking_dir_name,
+        TARGET_DATASET_KEY: target_dataset_name,
+        TARGET_TRACKING_DIR_KEY: target_tracking_dir_name
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(source_to_target_dict, pickle_file_handle)
+    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_matches(pickle_file_name):
+    """Reads matches from Pickle file.
+
+    :param pickle_file_name: Path to input file (created by `write_matches`).
+    :return: source_to_target_dict: See doc for `write_matches`.
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict["max_time_diff_seconds"]: See doc for `write_matches`.
+    metadata_dict["max_distance_metres"]: Same.
+    metadata_dict["source_dataset_name"]: Same.
+    metadata_dict["source_tracking_dir_name"]: Same.
+    metadata_dict["target_dataset_name"]: Same.
+    metadata_dict["target_tracking_dir_name"]: Same.
+
+    :raises: ValueError: if `metadata_dict` does not contain expected keys.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    source_to_target_dict = pickle.load(pickle_file_handle)
+    metadata_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    missing_keys = list(
+        set(MATCH_METADATA_KEYS) - set(metadata_dict.keys())
+    )
+
+    if len(missing_keys) == 0:
+        return source_to_target_dict, metadata_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in metadata '
+        'in file "{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
