@@ -25,7 +25,7 @@ from gewittergefahr.scripts import plot_input_examples as plot_examples
 RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
 
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
-MEAN_INPUT_MATRICES_KEY = model_interpretation.MEAN_INPUT_MATRICES_KEY
+MEAN_PREDICTOR_MATRICES_KEY = model_interpretation.MEAN_PREDICTOR_MATRICES_KEY
 MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pascals'
 
 COLOUR_BAR_LENGTH = 0.25
@@ -51,7 +51,7 @@ INPUT_FILES_HELP_STRING = (
     'List of paths to input files.  Each should contain a PMM composite over '
     'many examples (storm objects).  Specifically, each should be a Pickle file'
     ' with one dictionary, containing the keys "{0:s}" and "{1:s}".'
-).format(MEAN_INPUT_MATRICES_KEY, MODEL_FILE_KEY)
+).format(MEAN_PREDICTOR_MATRICES_KEY, MODEL_FILE_KEY)
 
 COMPOSITE_NAMES_HELP_STRING = (
     'List of PMM-composite names (one per input file).  The list should be '
@@ -95,7 +95,7 @@ def _read_composite(pickle_file_name):
     composite_dict = pickle.load(file_handle)
     file_handle.close()
 
-    mean_predictor_matrices = composite_dict[MEAN_INPUT_MATRICES_KEY]
+    mean_predictor_matrices = composite_dict[MEAN_PREDICTOR_MATRICES_KEY]
     mean_sounding_pressures_pa = composite_dict[MEAN_SOUNDING_PRESSURES_KEY]
 
     for i in range(len(mean_predictor_matrices)):
