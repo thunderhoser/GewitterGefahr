@@ -626,7 +626,7 @@ def _plot_2d3d_radar_scan(
             data_matrix=shear_matrix_s01,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
+            orientation_string='vertical', padding=COLOUR_BAR_PADDING,
             font_size=colour_bar_font_size,
             fraction_of_axis_length=colour_bar_length,
             extend_min=True, extend_max=True)
