@@ -576,14 +576,14 @@ def _plot_2d3d_radar_scan(
     if allow_whitespace:
         shear_figure_object, shear_axes_object_matrix = (
             plotting_utils.create_paneled_figure(
-                num_rows=1, num_columns=num_shear_fields,
+                num_columns=1, num_rows=num_shear_fields,
                 shared_x_axis=False, shared_y_axis=False,
                 keep_aspect_ratio=True)
         )
     else:
         shear_figure_object, shear_axes_object_matrix = (
             plotting_utils.create_paneled_figure(
-                num_rows=1, num_columns=num_shear_fields,
+                num_columns=1, num_rows=num_shear_fields,
                 horizontal_spacing=0., vertical_spacing=0.,
                 shared_x_axis=False, shared_y_axis=False,
                 keep_aspect_ratio=True)
