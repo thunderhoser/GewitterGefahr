@@ -1615,6 +1615,8 @@ if __name__ == '__main__':
         colour_bar_length=getattr(INPUT_ARG_OBJECT, CBAR_LENGTH_ARG_NAME),
         figure_resolution_dpi=getattr(INPUT_ARG_OBJECT, RESOLUTION_ARG_NAME),
         refl_opacity=getattr(INPUT_ARG_OBJECT, REFL_OPACITY_ARG_NAME),
-        plot_grid_lines=getattr(INPUT_ARG_OBJECT, PLOT_GRID_LINES_ARG_NAME),
+        plot_grid_lines=bool(getattr(
+            INPUT_ARG_OBJECT, PLOT_GRID_LINES_ARG_NAME
+        )),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
