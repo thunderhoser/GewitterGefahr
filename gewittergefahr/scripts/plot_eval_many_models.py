@@ -283,7 +283,7 @@ def _plot_roc_curves(evaluation_tables, model_names, best_threshold_indices,
     axes_object.legend(
         legend_handles, legend_strings, loc='lower center',
         bbox_to_anchor=(0.5, 0.025), fancybox=True, shadow=True,
-        ncol=len(legend_handles)
+        nrow=len(legend_handles)
     )
 
     axes_object.set_title('ROC curve')
