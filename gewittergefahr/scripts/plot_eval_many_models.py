@@ -23,8 +23,13 @@ MARKER_TYPE = '*'
 MARKER_SIZE = 32
 MARKER_EDGE_WIDTH = 0
 
+# COLOUR_MATRIX = numpy.array([
+#     [27, 158, 119],
+#     [217, 95, 2]
+# ], dtype=float) / 255
+
 COLOUR_MATRIX = numpy.array([
-    [27, 158, 119],
+    [228, 26, 28],
     [217, 95, 2]
 ], dtype=float) / 255
 
