@@ -628,7 +628,7 @@ def _plot_2d3d_radar_scan(
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
             font_size=colour_bar_font_size,
-            fraction_of_axis_length=colour_bar_length,
+            fraction_of_axis_length=colour_bar_length * 1.5,  # TODO(thunderhoser): HACK
             extend_min=True, extend_max=True)
 
         this_label_string = r'Azimuthal shear (ks$^{-1}$)'

@@ -32,10 +32,13 @@ COLOUR_BAR_LENGTH = 0.25
 PANEL_NAME_FONT_SIZE = 30
 COLOUR_BAR_FONT_SIZE = 25
 SOUNDING_FONT_SIZE = 30
-TITLE_FONT_SIZE = 30
+
+CONVERT_EXE_NAME = '/usr/bin/convert'
+TITLE_FONT_SIZE = 150
+TITLE_FONT_TYPE = 'DejaVu-Sans-Bold'
 
 FIGURE_RESOLUTION_DPI = 300
-CONCAT_FIGURE_SIZE_PX = int(4e7)
+CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_FILES_ARG_NAME = 'input_composite_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
@@ -127,6 +130,34 @@ def _read_composite(pickle_file_name):
             mean_sounding_pressures_pa)
 
 
+def _overlay_text(
+        image_file_name, x_offset_from_center_px, y_offset_from_top_px,
+        text_string):
+    """Overlays text on image.
+
+    :param image_file_name: Path to image file.
+    :param x_offset_from_center_px: Center-relative x-coordinate (pixels).
+    :param y_offset_from_top_px: Top-relative y-coordinate (pixels).
+    :param text_string: String to overlay.
+    :raises: ValueError: if ImageMagick command (which is ultimately a Unix
+        command) fails.
+    """
+
+    command_string = (
+        '"{0:s}" "{1:s}" -gravity north -pointsize {2:d} -font "{3:s}" '
+        '-fill "rgb(0, 0, 0)" -annotate {4:+d}{5:+d} "{6:s}" "{1:s}"'
+    ).format(
+        CONVERT_EXE_NAME, image_file_name, TITLE_FONT_SIZE, TITLE_FONT_TYPE,
+        x_offset_from_center_px, y_offset_from_top_px, text_string
+    )
+
+    exit_code = os.system(command_string)
+    if exit_code == 0:
+        return
+
+    raise ValueError(imagemagick_utils.ERROR_STRING)
+
+
 def _plot_composite(
         composite_file_name, composite_name_abbrev, composite_name_verbose,
         output_dir_name):
@@ -180,10 +211,27 @@ def _plot_composite(
         pad_inches=0, bbox_inches='tight')
     pyplot.close(sounding_figure_object)
 
-    refl_figure_object = handle_dict[plot_examples.RADAR_FIGURES_KEY][0]
-    refl_figure_object.suptitle(
-        composite_name_verbose, fontsize=TITLE_FONT_SIZE)
+    imagemagick_utils.resize_image(
+        input_file_name=sounding_figure_file_name,
+        output_file_name=sounding_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
 
+    imagemagick_utils.trim_whitespace(
+        input_file_name=sounding_figure_file_name,
+        output_file_name=sounding_figure_file_name,
+        border_width_pixels=TITLE_FONT_SIZE + 25)
+
+    _overlay_text(
+        image_file_name=sounding_figure_file_name,
+        x_offset_from_center_px=0, y_offset_from_top_px=0,
+        text_string=composite_name_verbose)
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=sounding_figure_file_name,
+        output_file_name=sounding_figure_file_name,
+        border_width_pixels=10)
+
+    refl_figure_object = handle_dict[plot_examples.RADAR_FIGURES_KEY][0]
     refl_figure_file_name = '{0:s}/{1:s}_reflectivity.jpg'.format(
         output_dir_name, composite_name_abbrev)
 
@@ -207,10 +255,32 @@ def _plot_composite(
         output_dir_name, composite_name_abbrev)
 
     print('Concatenating panels to: "{0:s}"...'.format(radar_figure_file_name))
+
     imagemagick_utils.concatenate_images(
         input_file_names=[refl_figure_file_name, shear_figure_file_name],
         output_file_name=radar_figure_file_name,
-        num_panel_rows=2, num_panel_columns=1)
+        num_panel_rows=2, num_panel_columns=1, border_width_pixels=50,
+        extra_args_string='-gravity south')
+
+    imagemagick_utils.resize_image(
+        input_file_name=radar_figure_file_name,
+        output_file_name=radar_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=radar_figure_file_name,
+        output_file_name=radar_figure_file_name,
+        border_width_pixels=TITLE_FONT_SIZE + 25)
+
+    _overlay_text(
+        image_file_name=radar_figure_file_name,
+        x_offset_from_center_px=0, y_offset_from_top_px=0,
+        text_string=composite_name_verbose)
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=radar_figure_file_name,
+        output_file_name=radar_figure_file_name,
+        border_width_pixels=10)
 
     return radar_figure_file_name, sounding_figure_file_name
 

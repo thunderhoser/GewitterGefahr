@@ -49,7 +49,8 @@ def trim_whitespace(
 
 def concatenate_images(
         input_file_names, output_file_name, num_panel_rows, num_panel_columns,
-        border_width_pixels=50, montage_exe_name=DEFAULT_MONTAGE_EXE_NAME):
+        border_width_pixels=50, montage_exe_name=DEFAULT_MONTAGE_EXE_NAME,
+        extra_args_string=None):
     """Concatenates many images into one paneled image.
 
     :param input_file_names: 1-D list of paths to input files (may be in any
@@ -58,13 +59,23 @@ def concatenate_images(
     :param num_panel_rows: Number of rows in paneled image.
     :param num_panel_columns: Number of columns in paneled image.
     :param border_width_pixels: Border width (whitespace) around each pixel.
-    :param montage_exe_name: Path to executable file for ImageMagick's "montage"
+    :param montage_exe_name: Path to executable file for ImageMagick's `montage`
         function.  If you installed ImageMagick with root access, this should be
         the default.  Regardless, the pathless file name should be just
         "montage".
+    :param extra_args_string: String with extra args for ImageMagick's `montage`
+        function.  This string will be inserted into the command after
+        "montage -mode concatenate".  An example is "-gravity south", in which
+        case the beginning of the command is
+        "montage -mode concatenate -gravity south".
     :raises: ValueError: if ImageMagick command (which is ultimately a Unix
         command) fails.
     """
+
+    if extra_args_string is None:
+        extra_args_string = ''
+    else:
+        error_checking.assert_is_string(extra_args_string)
 
     error_checking.assert_is_numpy_array(
         numpy.array(input_file_names), num_dimensions=1)
@@ -81,8 +92,8 @@ def concatenate_images(
     num_panels = num_panel_rows * num_panel_columns
     error_checking.assert_is_geq(num_panels, len(input_file_names))
 
-    command_string = '"{0:s}" -mode concatenate -tile {1:d}x{2:d}'.format(
-        montage_exe_name, num_panel_columns, num_panel_rows)
+    command_string = '"{0:s}" -mode concatenate {1:s} -tile {2:d}x{3:d}'.format(
+        montage_exe_name, extra_args_string, num_panel_columns, num_panel_rows)
 
     for this_file_name in input_file_names:
         command_string += ' "{0:s}"'.format(this_file_name)
