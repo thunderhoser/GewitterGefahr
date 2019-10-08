@@ -327,7 +327,8 @@ def _plot_inset_histogram_for_attributes_diagram(
     inset_axes_object.set_title('Forecast histogram', fontsize=20)
 
 
-def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold):
+def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold,
+                   line_colour=ROC_CURVE_COLOUR, plot_background=True):
     """Plots ROC (receiver operating characteristic) curve.
 
     T = number of binarization thresholds
@@ -340,6 +341,10 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold):
         detection) values.
     :param pofd_by_threshold: length-T numpy array of POFD (probability of false
         detection) values.
+    :param line_colour: Line colour.
+    :param plot_background: Boolean flag.  If True, will plot background
+        (reference line and Peirce-score contours).
+    :return: line_handle: Line handle for ROC curve.
     """
 
     error_checking.assert_is_numpy_array(pod_by_threshold, num_dimensions=1)
@@ -358,54 +363,62 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold):
     error_checking.assert_is_leq_numpy_array(
         pofd_by_threshold, 1., allow_nan=True)
 
-    pofd_matrix, pod_matrix = model_eval.get_pofd_pod_grid()
-    peirce_score_matrix = pod_matrix - pofd_matrix
+    error_checking.assert_is_boolean(plot_background)
 
-    this_colour_map_object, this_colour_norm_object = (
-        _get_peirce_colour_scheme()
-    )
+    if plot_background:
+        pofd_matrix, pod_matrix = model_eval.get_pofd_pod_grid()
+        peirce_score_matrix = pod_matrix - pofd_matrix
 
-    pyplot.contourf(
-        pofd_matrix, pod_matrix, peirce_score_matrix, CSI_LEVELS,
-        cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
-        vmax=1., axes=axes_object)
+        this_colour_map_object, this_colour_norm_object = (
+            _get_peirce_colour_scheme()
+        )
 
-    colour_bar_object = plotting_utils.plot_colour_bar(
-        axes_object_or_matrix=axes_object, data_matrix=peirce_score_matrix,
-        colour_map_object=this_colour_map_object,
-        colour_norm_object=this_colour_norm_object,
-        orientation_string='vertical', extend_min=False, extend_max=False)
+        pyplot.contourf(
+            pofd_matrix, pod_matrix, peirce_score_matrix, CSI_LEVELS,
+            cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
+            vmax=1., axes=axes_object)
 
-    colour_bar_object.set_label('Peirce score (POD minus POFD)')
+        colour_bar_object = plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=axes_object, data_matrix=peirce_score_matrix,
+            colour_map_object=this_colour_map_object,
+            colour_norm_object=this_colour_norm_object,
+            orientation_string='vertical', extend_min=False, extend_max=False)
 
-    random_x_coords, random_y_coords = model_eval.get_random_roc_curve()
-    axes_object.plot(
-        random_x_coords, random_y_coords,
-        color=plotting_utils.colour_from_numpy_to_tuple(RANDOM_ROC_COLOUR),
-        linestyle='dashed', linewidth=RANDOM_ROC_WIDTH
-    )
+        colour_bar_object.set_label('Peirce score (POD minus POFD)')
+
+        random_x_coords, random_y_coords = model_eval.get_random_roc_curve()
+        axes_object.plot(
+            random_x_coords, random_y_coords,
+            color=plotting_utils.colour_from_numpy_to_tuple(RANDOM_ROC_COLOUR),
+            linestyle='dashed', linewidth=RANDOM_ROC_WIDTH
+        )
 
     nan_flags = numpy.logical_or(
         numpy.isnan(pofd_by_threshold), numpy.isnan(pod_by_threshold)
     )
 
-    if not numpy.all(nan_flags):
+    if numpy.all(nan_flags):
+        line_handle = None
+    else:
         real_indices = numpy.where(numpy.invert(nan_flags))[0]
 
-        axes_object.plot(
+        line_handle = axes_object.plot(
             pofd_by_threshold[real_indices], pod_by_threshold[real_indices],
-            color=plotting_utils.colour_from_numpy_to_tuple(ROC_CURVE_COLOUR),
+            color=plotting_utils.colour_from_numpy_to_tuple(line_colour),
             linestyle='solid', linewidth=ROC_CURVE_WIDTH
-        )
+        )[0]
 
     axes_object.set_xlabel('POFD (probability of false detection)')
     axes_object.set_ylabel('POD (probability of detection)')
     axes_object.set_xlim(0., 1.)
     axes_object.set_ylim(0., 1.)
 
+    return line_handle
+
 
 def plot_bootstrapped_roc_curve(
-        axes_object, ci_bottom_dict, ci_mean_dict, ci_top_dict):
+        axes_object, ci_bottom_dict, ci_mean_dict, ci_top_dict,
+        line_colour=ROC_CURVE_COLOUR, plot_background=True):
     """Bootstrapped version of plot_roc_curve.
 
     T = number of probability thresholds in curve
@@ -420,12 +433,16 @@ def plot_bootstrapped_roc_curve(
 
     :param ci_mean_dict: Same but for mean of confidence interval.
     :param ci_top_dict: Same but for top of confidence interval.
+    :param line_colour: See doc for `plot_roc_curve`.
+    :param plot_background: Same.
+    :return: line_handle: Same.
     """
 
     plot_roc_curve(
         axes_object=axes_object,
         pod_by_threshold=ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY],
-        pofd_by_threshold=ci_mean_dict[model_eval.POFD_BY_THRESHOLD_KEY]
+        pofd_by_threshold=ci_mean_dict[model_eval.POFD_BY_THRESHOLD_KEY],
+        line_colour=line_colour, plot_background=plot_background
     )
 
     polygon_object = _confidence_interval_to_polygon(
