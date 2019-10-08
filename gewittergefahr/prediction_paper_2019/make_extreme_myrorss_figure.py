@@ -259,7 +259,7 @@ def _plot_composite(
     imagemagick_utils.concatenate_images(
         input_file_names=[refl_figure_file_name, shear_figure_file_name],
         output_file_name=radar_figure_file_name,
-        num_panel_rows=2, num_panel_columns=1, border_width_pixels=50,
+        num_panel_rows=1, num_panel_columns=2, border_width_pixels=50,
         extra_args_string='-gravity south')
 
     imagemagick_utils.resize_image(
