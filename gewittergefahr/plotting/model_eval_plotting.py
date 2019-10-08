@@ -438,7 +438,7 @@ def plot_bootstrapped_roc_curve(
     :return: line_handle: Same.
     """
 
-    plot_roc_curve(
+    line_handle = plot_roc_curve(
         axes_object=axes_object,
         pod_by_threshold=ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY],
         pofd_by_threshold=ci_mean_dict[model_eval.POFD_BY_THRESHOLD_KEY],
@@ -453,10 +453,10 @@ def plot_bootstrapped_roc_curve(
     )
 
     if polygon_object is None:
-        return
+        return line_handle
 
     polygon_colour = matplotlib.colors.to_rgba(
-        plotting_utils.colour_from_numpy_to_tuple(ROC_CURVE_COLOUR),
+        plotting_utils.colour_from_numpy_to_tuple(line_colour),
         POLYGON_OPACITY
     )
 
@@ -464,6 +464,8 @@ def plot_bootstrapped_roc_curve(
         polygon_object, lw=0, ec=polygon_colour, fc=polygon_colour)
 
     axes_object.add_patch(polygon_patch)
+
+    return line_handle
 
 
 def plot_performance_diagram(

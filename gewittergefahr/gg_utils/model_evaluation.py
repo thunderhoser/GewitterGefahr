@@ -1596,7 +1596,6 @@ def combine_evaluation_files(input_file_names):
 
         if evaluation_dict is None:
             evaluation_dict = copy.deepcopy(this_evaluation_dict)
-            continue
 
         for this_key in evaluation_dict:
             if this_key in [EVALUATION_TABLE_KEY, DOWNSAMPLING_DICT_KEY]:
