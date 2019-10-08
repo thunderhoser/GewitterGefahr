@@ -197,10 +197,6 @@ def _plot_composite(
         colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
         sounding_font_size=SOUNDING_FONT_SIZE, num_panel_rows=num_refl_heights)
 
-    sounding_axes_object = handle_dict[plot_examples.SOUNDING_AXES_KEY]
-    sounding_axes_object.set_title(
-        composite_name_verbose, fontsize=TITLE_FONT_SIZE)
-
     sounding_figure_object = handle_dict[plot_examples.SOUNDING_FIGURE_KEY]
     sounding_figure_file_name = '{0:s}/{1:s}_sounding.jpg'.format(
         output_dir_name, composite_name_abbrev)
@@ -326,10 +322,17 @@ def _run(composite_file_names, composite_names, output_dir_name):
     radar_figure_file_name = '{0:s}/radar_concat.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(radar_figure_file_name))
 
+    num_panel_rows = int(numpy.floor(
+        numpy.sqrt(num_composites)
+    ))
+    num_panel_columns = int(numpy.ceil(
+        float(num_composites) / num_panel_rows
+    ))
+
     imagemagick_utils.concatenate_images(
         input_file_names=radar_panel_file_names,
         output_file_name=radar_figure_file_name,
-        num_panel_rows=1, num_panel_columns=num_composites)
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns)
 
     imagemagick_utils.trim_whitespace(
         input_file_name=radar_figure_file_name,
@@ -344,13 +347,6 @@ def _run(composite_file_names, composite_names, output_dir_name):
         output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(
         sounding_figure_file_name
-    ))
-
-    num_panel_rows = int(numpy.floor(
-        numpy.sqrt(num_composites)
-    ))
-    num_panel_columns = int(numpy.ceil(
-        float(num_composites) / num_panel_rows
     ))
 
     imagemagick_utils.concatenate_images(
