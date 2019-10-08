@@ -295,7 +295,132 @@ def _plot_roc_curves(evaluation_tables, model_names, best_threshold_indices,
         axes_object=axes_object, label_string='(a)', y_coord_normalized=1.025
     )
 
-    print('Saving ROC curve to: "{0:s}"...'.format(output_file_name))
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+                   bbox_inches='tight')
+    pyplot.close()
+
+
+def _plot_perf_diagrams(evaluation_tables, model_names, best_threshold_indices,
+                        output_file_name, confidence_level=None):
+    """Plots performance diagrams (one for each model).
+
+    :param evaluation_tables: See doc for `_plot_roc_curves`.
+    :param model_names: Same.
+    :param best_threshold_indices: Same.
+    :param output_file_name: Same.
+    :param confidence_level: Same.
+    """
+
+    num_models = len(evaluation_tables)
+    pod_matrices = [None] * num_models
+    success_ratio_matrices = [None] * num_models
+    legend_strings = [None] * num_models
+
+    num_bootstrap_reps = None
+
+    for i in range(num_models):
+        pod_matrices[i] = numpy.vstack(tuple(
+            evaluation_tables[i][
+                model_eval.POD_BY_THRESHOLD_KEY
+            ].values.tolist()
+        ))
+
+        success_ratio_matrices[i] = numpy.vstack(tuple(
+            evaluation_tables[i][model_eval.SR_BY_THRESHOLD_KEY].values.tolist()
+        ))
+
+        if num_bootstrap_reps is None:
+            num_bootstrap_reps = pod_matrices[i].shape[0]
+
+        this_num_bootstrap_reps = pod_matrices[i].shape[0]
+        # assert num_bootstrap_reps == this_num_bootstrap_reps
+
+        if num_bootstrap_reps > 1:
+            this_min_aupd, this_max_aupd = (
+                bootstrapping.get_confidence_interval(
+                    stat_values=
+                    evaluation_tables[i][model_eval.AUPD_KEY].values,
+                    confidence_level=confidence_level
+                )
+            )
+
+            legend_strings[i] = '{0:s} ... AUC = [{1:.3f}, {2:.3f}]'.format(
+                model_names[i], this_min_aupd, this_max_aupd
+            )
+        else:
+            this_aupd = evaluation_tables[i][model_eval.AUPD_KEY].values[0]
+            legend_strings[i] = '{0:s} ... AUC = {1:.3f}'.format(
+                model_names[i], this_aupd
+            )
+
+        print(legend_strings[i])
+
+    _, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    legend_handles = [None] * num_models
+    num_colours = COLOUR_MATRIX.shape[0]
+
+    for i in range(num_models):
+        this_colour = COLOUR_MATRIX[numpy.mod(i, num_colours), ...]
+
+        if num_bootstrap_reps == 1:
+            legend_handles[i] = model_eval_plotting.plot_performance_diagram(
+                axes_object=axes_object,
+                pod_by_threshold=pod_matrices[i][0, :],
+                success_ratio_by_threshold=success_ratio_matrices[i][0, :],
+                line_colour=this_colour, plot_background=i == 0
+            )
+
+            this_x = success_ratio_matrices[i][0, best_threshold_indices[i]]
+            this_y = pod_matrices[i][0, best_threshold_indices[i]]
+        else:
+            this_ci_bottom_dict, this_ci_mean_dict, this_ci_top_dict = (
+                _get_ci_one_model(
+                    evaluation_table=evaluation_tables[i], for_roc_curve=False,
+                    confidence_level=confidence_level)
+            )
+
+            legend_handles[i] = (
+                model_eval_plotting.plot_bootstrapped_performance_diagram(
+                    axes_object=axes_object, ci_bottom_dict=this_ci_bottom_dict,
+                    ci_mean_dict=this_ci_mean_dict,
+                    ci_top_dict=this_ci_top_dict,
+                    line_colour=this_colour, plot_background=i == 0)
+            )
+
+            this_x = this_ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY][
+                best_threshold_indices[i]
+            ]
+            this_y = this_ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][
+                best_threshold_indices[i]
+            ]
+
+        print((
+            'POD and success ratio at best probability threshold = {0:.3f}, '
+            '{1:.3f}'
+        ).format(
+            this_y, this_x
+        ))
+
+        axes_object.plot(
+            this_x, this_y, linestyle='None', marker=MARKER_TYPE,
+            markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+            markerfacecolor=this_colour, markeredgecolor=this_colour)
+
+    axes_object.legend(
+        legend_handles, legend_strings, loc='upper center',
+        bbox_to_anchor=(0.5, 0.975), fancybox=True, shadow=True, ncol=1
+    )
+
+    axes_object.set_title('Performance diagram')
+    plotting_utils.label_axes(
+        axes_object=axes_object, label_string='(b)', y_coord_normalized=1.025
+    )
+
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                    bbox_inches='tight')
     pyplot.close()
@@ -346,6 +471,14 @@ def _run(evaluation_file_names, model_names, confidence_level, output_dir_name):
         evaluation_tables=evaluation_tables, model_names=model_names,
         best_threshold_indices=best_threshold_indices,
         output_file_name='{0:s}/roc_curves.jpg'.format(output_dir_name),
+        confidence_level=confidence_level
+    )
+
+    _plot_perf_diagrams(
+        evaluation_tables=evaluation_tables, model_names=model_names,
+        best_threshold_indices=best_threshold_indices,
+        output_file_name='{0:s}/performance_diagrams.jpg'.format(
+            output_dir_name),
         confidence_level=confidence_level
     )
 

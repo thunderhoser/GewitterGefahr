@@ -469,7 +469,8 @@ def plot_bootstrapped_roc_curve(
 
 
 def plot_performance_diagram(
-        axes_object, pod_by_threshold, success_ratio_by_threshold):
+        axes_object, pod_by_threshold, success_ratio_by_threshold,
+        line_colour=PERF_DIAGRAM_COLOUR, plot_background=True):
     """Plots performance diagram.
 
     T = number of binarization thresholds
@@ -482,6 +483,10 @@ def plot_performance_diagram(
     :param pod_by_threshold: length-T numpy array of POD (probability of
         detection) values.
     :param success_ratio_by_threshold: length-T numpy array of success ratios.
+    :param line_colour: Line colour.
+    :param plot_background: Boolean flag.  If True, will plot background
+        (frequency-bias and CSI contours).
+    :return: line_handle: Line handle for ROC curve.
     """
 
     error_checking.assert_is_numpy_array(pod_by_threshold, num_dimensions=1)
@@ -500,68 +505,77 @@ def plot_performance_diagram(
     error_checking.assert_is_leq_numpy_array(
         success_ratio_by_threshold, 1., allow_nan=True)
 
-    success_ratio_matrix, pod_matrix = model_eval.get_sr_pod_grid()
-    csi_matrix = model_eval.csi_from_sr_and_pod(
-        success_ratio_array=success_ratio_matrix, pod_array=pod_matrix
-    )
-    frequency_bias_matrix = model_eval.frequency_bias_from_sr_and_pod(
-        success_ratio_array=success_ratio_matrix, pod_array=pod_matrix
-    )
+    error_checking.assert_is_boolean(plot_background)
 
-    this_colour_map_object, this_colour_norm_object = _get_csi_colour_scheme()
+    if plot_background:
+        success_ratio_matrix, pod_matrix = model_eval.get_sr_pod_grid()
+        csi_matrix = model_eval.csi_from_sr_and_pod(
+            success_ratio_array=success_ratio_matrix, pod_array=pod_matrix
+        )
+        frequency_bias_matrix = model_eval.frequency_bias_from_sr_and_pod(
+            success_ratio_array=success_ratio_matrix, pod_array=pod_matrix
+        )
 
-    pyplot.contourf(
-        success_ratio_matrix, pod_matrix, csi_matrix, CSI_LEVELS,
-        cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
-        vmax=1., axes=axes_object)
+        this_colour_map_object, this_colour_norm_object = (
+            _get_csi_colour_scheme()
+        )
 
-    colour_bar_object = plotting_utils.plot_colour_bar(
-        axes_object_or_matrix=axes_object, data_matrix=csi_matrix,
-        colour_map_object=this_colour_map_object,
-        colour_norm_object=this_colour_norm_object,
-        orientation_string='vertical', extend_min=False, extend_max=False)
+        pyplot.contourf(
+            success_ratio_matrix, pod_matrix, csi_matrix, CSI_LEVELS,
+            cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
+            vmax=1., axes=axes_object)
 
-    colour_bar_object.set_label('CSI (critical success index)')
+        colour_bar_object = plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=axes_object, data_matrix=csi_matrix,
+            colour_map_object=this_colour_map_object,
+            colour_norm_object=this_colour_norm_object,
+            orientation_string='vertical', extend_min=False, extend_max=False)
 
-    bias_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
-        FREQ_BIAS_COLOUR)
+        colour_bar_object.set_label('CSI (critical success index)')
 
-    bias_colours_2d_tuple = ()
-    for _ in range(len(FREQ_BIAS_LEVELS)):
-        bias_colours_2d_tuple += (bias_colour_tuple,)
+        bias_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
+            FREQ_BIAS_COLOUR)
 
-    bias_contour_object = pyplot.contour(
-        success_ratio_matrix, pod_matrix, frequency_bias_matrix,
-        FREQ_BIAS_LEVELS, colors=bias_colours_2d_tuple,
-        linewidths=FREQ_BIAS_WIDTH, linestyles='dashed', axes=axes_object)
+        bias_colours_2d_tuple = ()
+        for _ in range(len(FREQ_BIAS_LEVELS)):
+            bias_colours_2d_tuple += (bias_colour_tuple,)
 
-    pyplot.clabel(
-        bias_contour_object, inline=True, inline_spacing=FREQ_BIAS_PADDING,
-        fmt=FREQ_BIAS_STRING_FORMAT, fontsize=FONT_SIZE)
+        bias_contour_object = pyplot.contour(
+            success_ratio_matrix, pod_matrix, frequency_bias_matrix,
+            FREQ_BIAS_LEVELS, colors=bias_colours_2d_tuple,
+            linewidths=FREQ_BIAS_WIDTH, linestyles='dashed', axes=axes_object)
+
+        pyplot.clabel(
+            bias_contour_object, inline=True, inline_spacing=FREQ_BIAS_PADDING,
+            fmt=FREQ_BIAS_STRING_FORMAT, fontsize=FONT_SIZE)
 
     nan_flags = numpy.logical_or(
         numpy.isnan(success_ratio_by_threshold), numpy.isnan(pod_by_threshold)
     )
 
-    if not numpy.all(nan_flags):
+    if numpy.all(nan_flags):
+        line_handle = None
+    else:
         real_indices = numpy.where(numpy.invert(nan_flags))[0]
 
-        axes_object.plot(
+        line_handle = axes_object.plot(
             success_ratio_by_threshold[real_indices],
             pod_by_threshold[real_indices],
-            color=plotting_utils.colour_from_numpy_to_tuple(
-                PERF_DIAGRAM_COLOUR),
+            color=plotting_utils.colour_from_numpy_to_tuple(line_colour),
             linestyle='solid', linewidth=PERF_DIAGRAM_WIDTH
-        )
+        )[0]
 
     axes_object.set_xlabel('Success ratio (1 - FAR)')
     axes_object.set_ylabel('POD (probability of detection)')
     axes_object.set_xlim(0., 1.)
     axes_object.set_ylim(0., 1.)
 
+    return line_handle
+
 
 def plot_bootstrapped_performance_diagram(
-        axes_object, ci_bottom_dict, ci_mean_dict, ci_top_dict):
+        axes_object, ci_bottom_dict, ci_mean_dict, ci_top_dict,
+        line_colour=PERF_DIAGRAM_COLOUR, plot_background=True):
     """Bootstrapped version of plot_performance_diagram.
 
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
@@ -574,12 +588,16 @@ def plot_bootstrapped_performance_diagram(
 
     :param ci_mean_dict: Same but for mean of confidence interval.
     :param ci_top_dict: Same but for top of confidence interval.
+    :param line_colour: See doc for `plot_performance_diagram`.
+    :param plot_background: Same.
+    :return: line_colour: Same.
     """
 
-    plot_performance_diagram(
+    line_handle = plot_performance_diagram(
         axes_object=axes_object,
         pod_by_threshold=ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY],
-        success_ratio_by_threshold=ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY]
+        success_ratio_by_threshold=ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY],
+        line_colour=line_colour, plot_background=plot_background
     )
 
     polygon_object = _confidence_interval_to_polygon(
@@ -590,10 +608,10 @@ def plot_bootstrapped_performance_diagram(
         for_performance_diagram=True)
 
     if polygon_object is None:
-        return
+        return line_handle
 
     polygon_colour = matplotlib.colors.to_rgba(
-        plotting_utils.colour_from_numpy_to_tuple(PERF_DIAGRAM_COLOUR),
+        plotting_utils.colour_from_numpy_to_tuple(line_colour),
         POLYGON_OPACITY
     )
 
@@ -601,6 +619,7 @@ def plot_bootstrapped_performance_diagram(
         polygon_object, lw=0, ec=polygon_colour, fc=polygon_colour)
 
     axes_object.add_patch(polygon_patch)
+    return line_handle
 
 
 def plot_reliability_curve(
