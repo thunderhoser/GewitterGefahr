@@ -212,6 +212,7 @@ def _plot_roc_curves(evaluation_tables, model_names, best_threshold_indices,
             num_bootstrap_reps = pod_matrices[i].shape[0]
 
         this_num_bootstrap_reps = pod_matrices[i].shape[0]
+        print(this_num_bootstrap_reps)
         assert num_bootstrap_reps == this_num_bootstrap_reps
 
         if num_bootstrap_reps > 1:
