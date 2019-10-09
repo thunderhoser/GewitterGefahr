@@ -1,4 +1,4 @@
-"""Plots results of hyperparameter experiment with 3-D GridRad data."""
+"""Plots results of hyperparameter experiment for MYRORSS or GridRad model."""
 
 import os.path
 import warnings
@@ -269,7 +269,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
                     )
 
     print(SEPARATOR_STRING)
-    best_model_index = numpy.nanargmax(numpy.ravel(auc_matrix))
+    best_model_index = numpy.nanargmax(numpy.ravel(csi_matrix))
 
     auc_file_name = '{0:s}/auc.jpg'.format(output_dir_name)
     csi_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
