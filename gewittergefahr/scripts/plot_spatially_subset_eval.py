@@ -250,7 +250,8 @@ def _plot_one_value(
         axes_object_or_matrix=axes_object, data_matrix=data_matrix,
         colour_map_object=colour_map_object, min_value=min_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
-        extend_min=plot_cbar_min_arrow, extend_max=plot_cbar_max_arrow)
+        extend_min=plot_cbar_min_arrow, extend_max=plot_cbar_max_arrow,
+        padding=0.05)
 
     return figure_object, axes_object
 
