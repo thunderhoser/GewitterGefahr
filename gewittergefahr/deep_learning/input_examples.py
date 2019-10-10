@@ -1787,6 +1787,68 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     return
 
 
+def read_examples_subset(
+        netcdf_file_name, full_storm_id_strings, storm_times_unix_sec):
+    """Reads input examples from NetCDF file.
+
+    E = number of desired examples (storm objects)
+
+    :param netcdf_file_name: Path to input file.
+    :param full_storm_id_strings: length-E list of storm IDs.
+    :param storm_times_unix_sec: length-E numpy array of valid times.
+    :return: example_dict: See doc for `read_example_file`.
+    """
+
+    example_dict, netcdf_dataset = _read_metadata_from_example_file(
+        netcdf_file_name=netcdf_file_name, include_soundings=True)
+
+    example_dict[TARGET_MATRIX_KEY] = numpy.array(
+        netcdf_dataset.variables[TARGET_MATRIX_KEY][:], dtype=int
+    )
+
+    example_indices_to_keep = tracking_utils.find_storm_objects(
+        all_id_strings=example_dict[FULL_IDS_KEY],
+        all_times_unix_sec=example_dict[STORM_TIMES_KEY],
+        id_strings_to_keep=full_storm_id_strings,
+        times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=False
+    )
+
+    example_dict[FULL_IDS_KEY] = [
+        example_dict[FULL_IDS_KEY][k] for k in example_indices_to_keep
+    ]
+    example_dict[STORM_TIMES_KEY] = (
+        example_dict[STORM_TIMES_KEY][example_indices_to_keep]
+    )
+    example_dict[TARGET_MATRIX_KEY] = numpy.array(
+        netcdf_dataset.variables[TARGET_MATRIX_KEY][example_indices_to_keep, :],
+        dtype=int
+    )
+
+    if RADAR_IMAGE_MATRIX_KEY in netcdf_dataset.variables:
+        example_dict[RADAR_IMAGE_MATRIX_KEY] = numpy.array(
+            netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY][
+                example_indices_to_keep, ...]
+        )
+    else:
+        example_dict[REFL_IMAGE_MATRIX_KEY] = numpy.array(
+            netcdf_dataset.variables[REFL_IMAGE_MATRIX_KEY][
+                example_indices_to_keep, ...]
+        )
+
+        example_dict[AZ_SHEAR_IMAGE_MATRIX_KEY] = numpy.array(
+            netcdf_dataset.variables[AZ_SHEAR_IMAGE_MATRIX_KEY][
+                example_indices_to_keep, ...]
+        )
+
+    example_dict[SOUNDING_MATRIX_KEY] = numpy.array(
+        netcdf_dataset.variables[SOUNDING_MATRIX_KEY][
+            example_indices_to_keep, ...]
+    )
+
+    netcdf_dataset.close()
+    return example_dict
+
+
 def read_example_file(
         netcdf_file_name, read_all_target_vars, target_name=None,
         metadata_only=False, include_soundings=True,
