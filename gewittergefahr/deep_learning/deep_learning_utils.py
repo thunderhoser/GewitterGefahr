@@ -1022,19 +1022,25 @@ def read_normalization_params_from_file(pickle_file_name):
     :return: sounding_table_with_height: Same.
     """
 
-    schooner_file_name = (
-        '/scratch/ralager/myrorss_40dbz_echo_tops/new_tracks/reanalyzed/'
-        'tornado_occurrence/downsampled_for_training/learning_examples/'
-        'shuffled/normalization_params.p')
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/condo/swatwork/ralager', '/scratch/ralager')
 
-    casper_file_name = (
-        '/glade/scratch/ryanlage/myrorss_40dbz_echo_tops/new_tracks/reanalyzed/'
-        'tornado_occurrence/downsampled_for_training/learning_examples/'
-        'shuffled/normalization_params.p')
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/scratch/ralager', '/glade/scratch/ryanlage')
 
-    if (pickle_file_name == schooner_file_name and
-            not os.path.isfile(pickle_file_name)):
-        pickle_file_name = casper_file_name
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/glade/scratch/ryanlage', '/glade/work/ryanlage')
+
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/glade/work/ryanlage', '/condo/swatwork/ralager')
+
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/condo/swatwork/ralager', '/scratch/ralager')
 
     # TODO(thunderhoser): Move this to normalization.py or something.
     pickle_file_handle = open(pickle_file_name, 'rb')
