@@ -1303,6 +1303,9 @@ def read_specific_examples(
 
             if numpy.any(numpy.isnan(list_of_predictor_matrices[k])):
                 print(list_of_predictor_matrices[k].shape)
+                print(numpy.where(numpy.isnan(list_of_predictor_matrices[k])))
+                print('\n')
+
                 print(this_new_matrix.shape)
                 print(numpy.any(numpy.isnan(this_new_matrix)))
                 print('\n\n*********\n\n')
