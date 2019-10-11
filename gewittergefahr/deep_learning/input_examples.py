@@ -1802,16 +1802,23 @@ def read_examples_subset(
     example_dict, netcdf_dataset = _read_metadata_from_example_file(
         netcdf_file_name=netcdf_file_name, include_soundings=True)
 
-    example_dict[TARGET_MATRIX_KEY] = numpy.array(
-        netcdf_dataset.variables[TARGET_MATRIX_KEY][:], dtype=int
+    all_id_time_strings = [
+        '{0:s}_{1:d}'.format(id, t) for id, t in
+        zip(example_dict[FULL_IDS_KEY], example_dict[STORM_TIMES_KEY])
+    ]
+
+    _, subindices = numpy.unique(
+        numpy.array(all_id_time_strings), return_index=True
     )
 
-    example_indices_to_keep = tracking_utils.find_storm_objects(
-        all_id_strings=example_dict[FULL_IDS_KEY],
-        all_times_unix_sec=example_dict[STORM_TIMES_KEY],
+    subindices_to_keep = tracking_utils.find_storm_objects(
+        all_id_strings=[example_dict[FULL_IDS_KEY][k] for k in subindices],
+        all_times_unix_sec=example_dict[STORM_TIMES_KEY][subindices],
         id_strings_to_keep=full_storm_id_strings,
         times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=False
     )
+
+    example_indices_to_keep = subindices[subindices_to_keep]
 
     example_dict[FULL_IDS_KEY] = [
         example_dict[FULL_IDS_KEY][k] for k in example_indices_to_keep
