@@ -326,7 +326,7 @@ def _make_linkage_schema(extrapolate):
                 )[0]
 
                 legend_handles.append(this_handle)
-                legend_strings.append(r'Storm extrap to $t_2$')
+                legend_strings.append(r'Storm extrapolated to $t_2$')
 
             axes_object.plot(
                 these_extrap_x_coords[1], these_extrap_y_coords[1],
@@ -419,8 +419,9 @@ def _make_linkage_schema(extrapolate):
         legend_font_size = DEFAULT_FONT_SIZE
 
     axes_object.legend(
-        legend_handles, legend_strings, fontsize=legend_font_size,
-        loc=(0.02, 0.175)
+        legend_handles, legend_strings, loc='lower left',
+        bbox_to_anchor=(0.02, 0.15), fancybox=True, shadow=False,
+        framealpha=0.75, ncol=1, fontsize=legend_font_size
     )
 
     return figure_object, axes_object
@@ -542,7 +543,12 @@ def _make_3way_split_schema():
 
     axes_object.set_xticks([], [])
     axes_object.set_yticks([], [])
-    axes_object.legend(legend_handles, legend_strings, loc='upper left')
+
+    axes_object.legend(
+        legend_handles, legend_strings, loc='upper left',
+        bbox_to_anchor=(0.01, 0.99), fancybox=True, shadow=False,
+        framealpha=0.75, ncol=1
+    )
 
     return figure_object, axes_object
 
@@ -688,7 +694,12 @@ def _make_splitmerge_schema():
 
     axes_object.set_xticks([], [])
     axes_object.set_yticks([], [])
-    axes_object.legend(legend_handles, legend_strings, loc=(0.02, 0.175))
+
+    axes_object.legend(
+        legend_handles, legend_strings, loc='lower left',
+        bbox_to_anchor=(0.02, 0.15), fancybox=True, shadow=False,
+        framealpha=0.75, ncol=1
+    )
 
     return figure_object, axes_object
 
