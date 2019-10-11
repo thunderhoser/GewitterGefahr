@@ -399,11 +399,16 @@ def _plot_perf_diagrams(evaluation_tables, model_names, best_threshold_indices,
                 best_threshold_indices[i]
             ]
 
+        this_csi = model_eval.csi_from_sr_and_pod(
+            success_ratio_array=numpy.array([this_x]),
+            pod_array=numpy.array([this_y])
+        )[0]
+
         print((
-            'POD and success ratio at best probability threshold = {0:.3f}, '
-            '{1:.3f}'
+            'POD, success ratio, and CSI at best probability threshold = '
+            '{0:.3f}, {1:.3f}, {2:.3f}'
         ).format(
-            this_y, this_x
+            this_y, this_x, this_csi
         ))
 
         axes_object.plot(
