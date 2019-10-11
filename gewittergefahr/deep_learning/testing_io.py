@@ -1244,7 +1244,6 @@ def read_specific_examples(
                 option_dict=option_dict, num_examples_total=LARGE_INTEGER)
 
         this_storm_object_dict = next(this_generator)
-        print(numpy.any(numpy.isnan(this_storm_object_dict[INPUT_MATRICES_KEY][-1])))
 
         these_desired_indices = numpy.where(numpy.logical_and(
             desired_times_unix_sec >= this_start_time_unix_sec,
@@ -1302,9 +1301,10 @@ def read_specific_examples(
                     (list_of_predictor_matrices[k], this_new_matrix), axis=0
                 )
 
-            if k == 1:
+            if numpy.any(numpy.isnan(list_of_predictor_matrices[k])):
+                print(list_of_predictor_matrices[k].shape)
+                print(this_new_matrix.shape)
                 print(numpy.any(numpy.isnan(this_new_matrix)))
-                print(numpy.any(numpy.isnan(list_of_predictor_matrices[k])))
                 print('\n\n*********\n\n')
 
     sort_indices = tracking_utils.find_storm_objects(
