@@ -26,6 +26,7 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding
+from gewittergefahr.gg_utils import temperature_conversions as temp_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -2155,6 +2156,41 @@ def read_example_file(
 
     sounding_matrix = netcdf_dataset.variables[SOUNDING_MATRIX_KEY][
         example_indices_to_keep, ...]
+
+    # TODO(thunderhoser): This is a HACK.
+    spfh_index = example_dict[SOUNDING_FIELDS_KEY].index(
+        soundings.SPECIFIC_HUMIDITY_NAME)
+    temp_index = example_dict[SOUNDING_FIELDS_KEY].index(
+        soundings.TEMPERATURE_NAME)
+    pressure_index = example_dict[SOUNDING_FIELDS_KEY].index(
+        soundings.PRESSURE_NAME)
+    theta_v_index = example_dict[SOUNDING_FIELDS_KEY].index(
+        soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
+
+    sounding_matrix[..., spfh_index][
+        numpy.isnan(sounding_matrix[..., spfh_index])
+    ] = 0.
+
+    nan_example_indices, nan_height_indices = numpy.where(numpy.isnan(
+        sounding_matrix[..., theta_v_index]
+    ))
+
+    if len(nan_example_indices) > 0:
+        this_temp_matrix_kelvins = sounding_matrix[..., temp_index][
+            nan_example_indices, nan_height_indices]
+
+        this_pressure_matrix_pa = sounding_matrix[..., pressure_index][
+            nan_example_indices, nan_height_indices]
+
+        this_thetav_matrix_kelvins = (
+            temp_conversion.temperatures_to_potential_temperatures(
+                temperatures_kelvins=this_temp_matrix_kelvins,
+                total_pressures_pascals=this_pressure_matrix_pa)
+        )
+
+        sounding_matrix[..., theta_v_index][
+            nan_example_indices, nan_height_indices
+        ] = this_thetav_matrix_kelvins
 
     these_field_indices = numpy.array([
         example_dict[SOUNDING_FIELDS_KEY].index(f)
