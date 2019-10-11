@@ -286,7 +286,7 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
 
     print(len(predictor_matrices))
     print(predictor_matrices[1].size)
-    print(numpy.sum(numpy.isnan(predictor_matrices[1])))
+    print(numpy.where(numpy.isnan(predictor_matrices[1])))
 
     denorm_predictor_matrices = trainval_io.separate_shear_and_reflectivity(
         list_of_input_matrices=copy.deepcopy(predictor_matrices),
