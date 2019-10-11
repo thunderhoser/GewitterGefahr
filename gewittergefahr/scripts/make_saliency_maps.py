@@ -284,6 +284,10 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
 
     print(SEPARATOR_STRING)
 
+    print(len(predictor_matrices))
+    print(numpy.any(numpy.isnan(predictor_matrices[0])))
+    print(numpy.any(numpy.isnan(predictor_matrices[1])))
+
     denorm_predictor_matrices = trainval_io.separate_shear_and_reflectivity(
         list_of_input_matrices=copy.deepcopy(predictor_matrices),
         training_option_dict=training_option_dict)
