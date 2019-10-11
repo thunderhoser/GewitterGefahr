@@ -1302,6 +1302,11 @@ def read_specific_examples(
                     (list_of_predictor_matrices[k], this_new_matrix), axis=0
                 )
 
+            if k == 1:
+                print(numpy.any(numpy.isnan(this_new_matrix)))
+                print(numpy.any(numpy.isnan(list_of_predictor_matrices[k])))
+                print('\n\n*********\n\n')
+
     sort_indices = tracking_utils.find_storm_objects(
         all_id_strings=full_id_strings, all_times_unix_sec=storm_times_unix_sec,
         id_strings_to_keep=desired_full_id_strings,
