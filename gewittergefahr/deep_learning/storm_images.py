@@ -175,12 +175,12 @@ def _check_extraction_args(
     radar_utils.check_data_source(radar_source)
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
-        error_checking.assert_is_greater_numpy_array(radar_heights_m_agl, 0)
+        error_checking.assert_is_geq_numpy_array(radar_heights_m_agl, 0)
         error_checking.assert_is_numpy_array(
             numpy.array(radar_heights_m_agl), num_dimensions=1)
 
     elif reflectivity_heights_m_agl is not None:
-        error_checking.assert_is_greater_numpy_array(
+        error_checking.assert_is_geq_numpy_array(
             reflectivity_heights_m_agl, 0)
         error_checking.assert_is_numpy_array(
             numpy.array(reflectivity_heights_m_agl), num_dimensions=1)
@@ -353,7 +353,7 @@ def _fields_and_heights_to_pairs(
 
     for this_field_name in radar_field_names:
         if this_field_name == radar_utils.REFL_NAME:
-            error_checking.assert_is_greater_numpy_array(
+            error_checking.assert_is_geq_numpy_array(
                 reflectivity_heights_m_agl, 0)
             error_checking.assert_is_numpy_array(
                 reflectivity_heights_m_agl, num_dimensions=1)
@@ -1988,7 +1988,7 @@ def find_storm_image_file(
     radar_utils.check_field_name(radar_field_name)
 
     radar_height_m_agl = int(numpy.round(radar_height_m_agl))
-    error_checking.assert_is_greater(radar_height_m_agl, 0)
+    error_checking.assert_is_geq(radar_height_m_agl, 0)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     # Find file.
@@ -2367,7 +2367,7 @@ def find_many_files_gridrad(
         radar_utils.check_field_name(this_field_name)
 
     error_checking.assert_is_numpy_array(radar_heights_m_agl, num_dimensions=1)
-    error_checking.assert_is_greater_numpy_array(radar_heights_m_agl, 0)
+    error_checking.assert_is_geq_numpy_array(radar_heights_m_agl, 0)
     radar_heights_m_agl = numpy.round(radar_heights_m_agl).astype(int)
 
     error_checking.assert_is_boolean(one_file_per_time_step)
