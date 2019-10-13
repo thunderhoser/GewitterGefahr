@@ -148,7 +148,7 @@ def _convert_one_file(input_file_name, resolution_factor):
     example_dict[input_examples.RADAR_FIELDS_KEY] = [
         radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
     ]
-    example_dict[input_examples.ROTATED_GRID_SPACING_KEY] *= resolution_factor
+    example_dict[input_examples.ROTATED_GRID_SPACING_KEY] /= resolution_factor
 
     example_dict.pop(input_examples.RADAR_IMAGE_MATRIX_KEY, None)
     example_dict.pop(input_examples.MIN_RADAR_HEIGHTS_KEY, None)
