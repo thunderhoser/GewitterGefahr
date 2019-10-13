@@ -474,8 +474,8 @@ def check_generator_args(option_dict):
     return option_dict
 
 
-def upsample_reflectivity(reflectivity_matrix_dbz):
-    """Upsamples reflectivity to twice the horizontal resolution
+def upsample_reflectivity(reflectivity_matrix_dbz, upsampling_factor=2):
+    """Upsamples horizontal resolution of reflectivity field.
 
     E = number of examples
     m = number of rows in original grid
@@ -486,6 +486,7 @@ def upsample_reflectivity(reflectivity_matrix_dbz):
 
     :param reflectivity_matrix_dbz: E-by-m-by-n-by-H numpy array of reflectivity
         (dBZ).
+    :param upsampling_factor: Upsampling factor (integer > 1).
     :return: reflectivity_matrix_dbz: Upsampled version of input
         (E-by-M-by-N-by-H numpy array).
     """
@@ -494,9 +495,12 @@ def upsample_reflectivity(reflectivity_matrix_dbz):
     error_checking.assert_is_numpy_array(
         reflectivity_matrix_dbz, num_dimensions=4)
 
+    error_checking.assert_is_integer(upsampling_factor)
+    error_checking.assert_is_greater(upsampling_factor, 1)
+
     orig_refl_matrix_dbz = reflectivity_matrix_dbz + 0.
     num_rows_orig = orig_refl_matrix_dbz.shape[1]
-    num_rows_new = 2 * num_rows_orig
+    num_rows_new = upsampling_factor * num_rows_orig
 
     row_indices_new = numpy.linspace(
         1, num_rows_new, num=num_rows_new, dtype=float
@@ -506,7 +510,7 @@ def upsample_reflectivity(reflectivity_matrix_dbz):
     )
 
     num_columns_orig = orig_refl_matrix_dbz.shape[2]
-    num_columns_new = 2 * num_columns_orig
+    num_columns_new = upsampling_factor * num_columns_orig
 
     column_indices_new = numpy.linspace(
         1, num_columns_new, num=num_columns_new, dtype=float
