@@ -34,7 +34,7 @@ OUTPUT_DIR_ARG_NAME = 'output_storm_image_dir_name'
 INPUT_DIR_HELP_STRING = (
     'Name of top-level directory with input images (in GridRad format).  Files '
     'therein will be found by `input_examples.find_example_file` and read by '
-    '`input_examples.read_examples`.')
+    '`input_examples.read_example_file`.')
 
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  Images will be converted for all SPC dates '
@@ -52,7 +52,7 @@ RESOLUTION_FACTOR_HELP_STRING = (
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level directory for output images (in MYRORSS format).  Files '
-    'will be written by `input_examples.write_examples` to locations therein '
+    'will be written by `input_examples.write_example_file` to locations therein '
     'determined by `input_examples.find_example_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -77,12 +77,15 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _convert_one_file(input_file_name, resolution_factor):
+def _convert_one_file(input_file_name, resolution_factor, output_file_name):
     """Converts radar images in one file from GridRad to MYRORSS format.
 
     :param input_file_name: Path to input file (with GridRad examples).  Will be
         read by `input_examples.read_example_file`.
     :param resolution_factor: See documentation at top of file.
+    :param output_file_name: Path to output file (with the same examples but in
+        MYRORSS format).  Will be written by
+        `input_examples.write_example_file`.
     """
 
     print('Reading GridRad examples from: "{0:s}"...'.format(input_file_name))
@@ -155,13 +158,13 @@ def _convert_one_file(input_file_name, resolution_factor):
     example_dict.pop(input_examples.MAX_RADAR_HEIGHTS_KEY, None)
     example_dict.pop(input_examples.RADAR_LAYER_OPERATION_NAMES_KEY, None)
 
-    print(example_dict.keys())
+    print('Writing examples in MYRORSS format to: "{0:s}"...'.format(
+        output_file_name
+    ))
 
-    print(example_dict[input_examples.RADAR_FIELDS_KEY])
-    print(example_dict[input_examples.RADAR_HEIGHTS_KEY])
-    print(example_dict[input_examples.ROTATED_GRID_SPACING_KEY])
-    print(example_dict[input_examples.REFL_IMAGE_MATRIX_KEY].shape)
-    print(example_dict[input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY].shape)
+    input_examples.write_example_file(
+        netcdf_file_name=output_file_name, example_dict=example_dict,
+        append_to_file=False)
 
 
 def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
@@ -181,19 +184,28 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
-    input_example_file_names = input_examples.find_many_example_files(
+    input_file_names = input_examples.find_many_example_files(
         top_directory_name=top_input_dir_name, shuffled=False,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string,
         raise_error_if_any_missing=True)
 
+    output_file_names = input_examples.find_many_example_files(
+        top_directory_name=top_output_dir_name, shuffled=False,
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string,
+        raise_error_if_any_missing=False)
+
     num_spc_dates = len(spc_date_strings)
 
     for i in range(num_spc_dates):
-        _convert_one_file(input_file_name=input_example_file_names[i],
-                          resolution_factor=resolution_factor)
+        _convert_one_file(
+            input_file_name=input_file_names[i],
+            resolution_factor=resolution_factor,
+            output_file_name=output_file_names[i]
+        )
 
-        break
+        print('\n')
 
 
 if __name__ == '__main__':
