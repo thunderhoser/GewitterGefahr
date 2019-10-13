@@ -157,6 +157,12 @@ def _convert_one_file(input_file_name, resolution_factor):
 
     print(example_dict.keys())
 
+    print(example_dict[input_examples.RADAR_FIELDS_KEY])
+    print(example_dict[input_examples.RADAR_HEIGHTS_KEY])
+    print(example_dict[input_examples.ROTATED_GRID_SPACING_KEY])
+    print(example_dict[input_examples.REFL_IMAGE_MATRIX_KEY].shape)
+    print(example_dict[input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY].shape)
+
 
 def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
          resolution_factor, top_output_dir_name):
