@@ -110,7 +110,7 @@ def _convert_one_file(input_file_name, resolution_factor):
     )
 
     field_names = example_dict[input_examples.RADAR_FIELDS_KEY]
-    min_heights_m_asl = example_dict[input_examples.MIN_HEIGHT_KEY]
+    min_heights_m_asl = example_dict[input_examples.MIN_RADAR_HEIGHTS_KEY]
 
     ll_shear_index = numpy.where(numpy.logical_and(
         numpy.array(field_names) == radar_utils.VORTICITY_NAME,
