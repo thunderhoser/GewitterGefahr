@@ -68,7 +68,7 @@ NUM_CORRECT_NULLS_HELP_STRING = (
 NUM_DISAGREEMENTS_HELP_STRING = (
     'Number of disagreements to keep.  Will keep the K examples with the '
     'greatest p_2 - p_1 and the K examples with the greatest p_1 - p_2, where '
-    'K = `{0:d}`; p_1 = probability from the first model; and p_2 = probability'
+    'K = `{0:s}`; p_1 = probability from the first model; and p_2 = probability'
     ' from the second model.'
 ).format(NUM_DISAGREEMENTS_ARG_NAME)
 
@@ -141,7 +141,7 @@ def _match_storm_objects_one_time(
         [p[1] for p in first_id_time_pairs], dtype=int
     )
 
-    assert len(numpy.unique(first_times_unix_sec)) == 1
+    # assert len(numpy.unique(first_times_unix_sec)) == 1
 
     first_indices = tracking_utils.find_storm_objects(
         all_id_strings=first_prediction_dict[prediction_io.STORM_IDS_KEY],
@@ -294,12 +294,15 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
 
     observed_labels = first_prediction_dict[prediction_io.OBSERVED_LABELS_KEY]
 
+    first_model_file_name = first_prediction_dict[prediction_io.MODEL_FILE_KEY]
     first_full_id_strings = first_prediction_dict[prediction_io.STORM_IDS_KEY]
     first_storm_times_unix_sec = first_prediction_dict[
         prediction_io.STORM_TIMES_KEY]
     first_probabilities = first_prediction_dict[
         prediction_io.PROBABILITY_MATRIX_KEY][:, 1]
 
+    second_model_file_name = second_prediction_dict[
+        prediction_io.MODEL_FILE_KEY]
     second_full_id_strings = second_prediction_dict[prediction_io.STORM_IDS_KEY]
     second_storm_times_unix_sec = second_prediction_dict[
         prediction_io.STORM_TIMES_KEY]
@@ -317,6 +320,32 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             )
         )
 
+        # Print summary to command window.
+        this_mean_diff = numpy.mean(
+            second_probabilities[second_high_indices] -
+            first_probabilities[second_high_indices]
+        )
+
+        print((
+            'Average prob difference for {0:d} worst disagreements with second '
+            'model higher: {1:.3f}'
+        ).format(
+            num_disagreements, this_mean_diff
+        ))
+
+        this_mean_diff = numpy.mean(
+            second_probabilities[first_high_indices] -
+            first_probabilities[first_high_indices]
+        )
+
+        print((
+            'Average prob difference for {0:d} worst disagreements with first '
+            'model higher: {1:.3f}'
+        ).format(
+            num_disagreements, this_mean_diff
+        ))
+
+        # Write file.
         this_activation_file_name = '{0:s}/low_disagreement_examples.p'.format(
             first_output_dir_name)
 
@@ -331,8 +360,6 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             (len(second_high_indices), 1)
         )
 
-        # TODO(thunderhoser): Need to somehow figure out where the fucking model is.
-
         model_activation.write_file(
             pickle_file_name=this_activation_file_name,
             activation_matrix=this_activation_matrix,
@@ -341,10 +368,11 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             ],
             storm_times_unix_sec=first_storm_times_unix_sec[
                 second_high_indices],
-            model_file_name=None,
+            model_file_name=first_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
+        # Write file.
         this_activation_file_name = '{0:s}/high_disagreement_examples.p'.format(
             second_output_dir_name)
 
@@ -367,10 +395,11 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             ],
             storm_times_unix_sec=second_storm_times_unix_sec[
                 second_high_indices],
-            model_file_name=None,
+            model_file_name=second_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
+        # Write file.
         this_activation_file_name = '{0:s}/high_disagreement_examples.p'.format(
             first_output_dir_name)
 
@@ -392,10 +421,11 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
                 first_full_id_strings[j] for j in first_high_indices
             ],
             storm_times_unix_sec=first_storm_times_unix_sec[first_high_indices],
-            model_file_name=None,
+            model_file_name=first_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
+        # Write file.
         this_activation_file_name = '{0:s}/low_disagreement_examples.p'.format(
             second_output_dir_name)
 
@@ -418,7 +448,7 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             ],
             storm_times_unix_sec=second_storm_times_unix_sec[
                 first_high_indices],
-            model_file_name=None,
+            model_file_name=second_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
@@ -443,6 +473,14 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
         model_activation.CORRECT_NULL_INDICES_KEY]
 
     if num_hits > 0:
+        print((
+            'Mean probability from first and second model for {0:d} best hits: '
+            '{1:.3f}, {2:.3f}'
+        ).format(
+            num_hits, numpy.mean(first_probabilities[hit_indices]),
+            numpy.mean(second_probabilities[hit_indices])
+        ))
+
         this_activation_file_name = '{0:s}/best_hits.p'.format(
             first_output_dir_name)
 
@@ -458,7 +496,7 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             activation_matrix=this_activation_matrix,
             full_id_strings=[first_full_id_strings[j] for j in hit_indices],
             storm_times_unix_sec=first_storm_times_unix_sec[hit_indices],
-            model_file_name=None,
+            model_file_name=first_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
@@ -477,11 +515,19 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             activation_matrix=this_activation_matrix,
             full_id_strings=[second_full_id_strings[j] for j in hit_indices],
             storm_times_unix_sec=second_storm_times_unix_sec[hit_indices],
-            model_file_name=None,
+            model_file_name=second_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
     if miss_indices > 0:
+        print((
+            'Mean probability from first and second model for {0:d} worst '
+            'misses: {1:.3f}, {2:.3f}'
+        ).format(
+            num_misses, numpy.mean(first_probabilities[miss_indices]),
+            numpy.mean(second_probabilities[miss_indices])
+        ))
+
         this_activation_file_name = '{0:s}/worst_misses.p'.format(
             first_output_dir_name)
 
@@ -497,7 +543,7 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             activation_matrix=this_activation_matrix,
             full_id_strings=[first_full_id_strings[j] for j in miss_indices],
             storm_times_unix_sec=first_storm_times_unix_sec[miss_indices],
-            model_file_name=None,
+            model_file_name=first_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
@@ -516,11 +562,20 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             activation_matrix=this_activation_matrix,
             full_id_strings=[second_full_id_strings[j] for j in miss_indices],
             storm_times_unix_sec=second_storm_times_unix_sec[miss_indices],
-            model_file_name=None,
+            model_file_name=second_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
     if num_false_alarms > 0:
+        print((
+            'Mean probability from first and second model for {0:d} worst '
+            'false alarms: {1:.3f}, {2:.3f}'
+        ).format(
+            num_false_alarms,
+            numpy.mean(first_probabilities[false_alarm_indices]),
+            numpy.mean(second_probabilities[false_alarm_indices])
+        ))
+
         this_activation_file_name = '{0:s}/worst_false_alarms.p'.format(
             first_output_dir_name)
 
@@ -540,7 +595,7 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             ],
             storm_times_unix_sec=first_storm_times_unix_sec[
                 false_alarm_indices],
-            model_file_name=None,
+            model_file_name=first_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
@@ -563,11 +618,20 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             ],
             storm_times_unix_sec=second_storm_times_unix_sec[
                 false_alarm_indices],
-            model_file_name=None,
+            model_file_name=second_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
     if num_correct_nulls > 0:
+        print((
+            'Mean probability from first and second model for {0:d} best '
+            'correct nulls: {1:.3f}, {2:.3f}'
+        ).format(
+            num_correct_nulls,
+            numpy.mean(first_probabilities[correct_null_indices]),
+            numpy.mean(second_probabilities[correct_null_indices])
+        ))
+
         this_activation_file_name = '{0:s}/best_correct_nulls.p'.format(
             first_output_dir_name)
 
@@ -587,7 +651,7 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             ],
             storm_times_unix_sec=first_storm_times_unix_sec[
                 correct_null_indices],
-            model_file_name=None,
+            model_file_name=first_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
@@ -610,7 +674,7 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             ],
             storm_times_unix_sec=second_storm_times_unix_sec[
                 correct_null_indices],
-            model_file_name=None,
+            model_file_name=second_model_file_name,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 

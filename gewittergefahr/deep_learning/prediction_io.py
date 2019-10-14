@@ -17,15 +17,16 @@ EXAMPLE_DIMENSION_KEY = 'storm_object'
 CLASS_DIMENSION_KEY = 'class'
 STORM_ID_CHAR_DIM_KEY = 'storm_id_character'
 
-TARGET_NAME_KEY = 'target_name'
+PROBABILITY_MATRIX_KEY = 'class_probability_matrix'
 STORM_IDS_KEY = 'storm_ids'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
-PROBABILITY_MATRIX_KEY = 'class_probability_matrix'
+MODEL_FILE_KEY = 'model_file_name'
+TARGET_NAME_KEY = 'target_name'
 OBSERVED_LABELS_KEY = 'observed_labels'
 
 REQUIRED_KEYS_FOR_UNGRIDDED = [
-    TARGET_NAME_KEY, STORM_IDS_KEY, STORM_TIMES_KEY, PROBABILITY_MATRIX_KEY,
-    OBSERVED_LABELS_KEY
+    PROBABILITY_MATRIX_KEY, STORM_IDS_KEY, STORM_TIMES_KEY, MODEL_FILE_KEY,
+    TARGET_NAME_KEY, OBSERVED_LABELS_KEY
 ]
 
 INIT_TIMES_KEY = 'init_times_unix_sec'
@@ -214,7 +215,8 @@ def find_gridded_file(
 
 def write_ungridded_predictions(
         netcdf_file_name, class_probability_matrix, storm_ids,
-        storm_times_unix_sec, target_name, observed_labels=None):
+        storm_times_unix_sec, model_file_name, target_name,
+        observed_labels=None):
     """Writes predictions to NetCDF file.
 
     K = number of classes
@@ -225,6 +227,8 @@ def write_ungridded_predictions(
         probabilities.
     :param storm_ids: length-E list of storm IDs (strings).
     :param storm_times_unix_sec: length-E numpy array of valid times.
+    :param model_file_name: Path to model that generated predictions (readable
+        by `cnn.read_model`).
     :param target_name: Name of target variable.
     :param observed_labels: [this may be None]
         length-E numpy array of observed labels (integers in 0...[K - 1]).
@@ -247,6 +251,7 @@ def write_ungridded_predictions(
     error_checking.assert_is_numpy_array(
         storm_times_unix_sec, exact_dimensions=these_expected_dim)
 
+    error_checking.assert_is_string(model_file_name)
     target_val_utils.target_name_to_params(target_name)
 
     if observed_labels is not None:
@@ -259,7 +264,9 @@ def write_ungridded_predictions(
     dataset_object = netCDF4.Dataset(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
+    dataset_object.setncattr(MODEL_FILE_KEY, model_file_name)
     dataset_object.setncattr(TARGET_NAME_KEY, target_name)
+
     dataset_object.createDimension(
         EXAMPLE_DIMENSION_KEY, class_probability_matrix.shape[0]
     )
@@ -319,10 +326,12 @@ def read_ungridded_predictions(netcdf_file_name):
 
     :param netcdf_file_name: Path to input file.
     :return: prediction_dict: Dictionary with the following keys.
-    prediction_dict['target_name']: See doc for `write_ungridded_predictions`.
+    prediction_dict['class_probability_matrix']: See doc for
+        `write_ungridded_predictions`.
     prediction_dict['storm_ids']: Same.
     prediction_dict['storm_times_unix_sec']: Same.
-    prediction_dict['class_probability_matrix']: Same.
+    prediction_dict['model_file_name']: Same.
+    prediction_dict['target_name']: Same.
     prediction_dict['observed_labels']: See doc for
         `write_ungridded_predictions`.  This may be None.
     """
@@ -334,6 +343,7 @@ def read_ungridded_predictions(netcdf_file_name):
         num_classes = dataset_object.variables[PROBABILITY_MATRIX_KEY].shape[1]
 
         prediction_dict = {
+            MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY)),
             TARGET_NAME_KEY: str(getattr(dataset_object, TARGET_NAME_KEY)),
             STORM_IDS_KEY: [],
             STORM_TIMES_KEY: numpy.array([], dtype=int),
@@ -348,6 +358,7 @@ def read_ungridded_predictions(netcdf_file_name):
         return prediction_dict
 
     prediction_dict = {
+        MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY)),
         TARGET_NAME_KEY: str(getattr(dataset_object, TARGET_NAME_KEY)),
         STORM_IDS_KEY: [
             str(s) for s in
