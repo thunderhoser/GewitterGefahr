@@ -1420,8 +1420,6 @@ def find_many_example_files(
             spc_date_string=this_spc_date_string,
             raise_error_if_missing=raise_error_if_any_missing)
 
-        print(this_file_name)
-
         if not os.path.isfile(this_file_name):
             continue
         example_file_names.append(this_file_name)

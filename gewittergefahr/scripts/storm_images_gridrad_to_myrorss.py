@@ -184,19 +184,19 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
-    print(top_input_dir_name)
-
     input_file_names = input_examples.find_many_example_files(
         top_directory_name=top_input_dir_name, shuffled=False,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string,
         raise_error_if_any_missing=True)
 
-    output_file_names = input_examples.find_many_example_files(
-        top_directory_name=top_output_dir_name, shuffled=False,
-        first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string,
-        raise_error_if_any_missing=False)
+    output_file_names = [
+        input_examples.find_example_file(
+            top_directory_name=top_output_dir_name, shuffled=False,
+            spc_date_string=d, raise_error_if_missing=False
+        )
+        for d in spc_date_strings
+    ]
 
     num_spc_dates = len(spc_date_strings)
 
