@@ -184,6 +184,8 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
+    print(top_input_dir_name)
+
     input_file_names = input_examples.find_many_example_files(
         top_directory_name=top_input_dir_name, shuffled=False,
         first_spc_date_string=first_spc_date_string,
