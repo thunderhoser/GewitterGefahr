@@ -23,11 +23,11 @@ ML_SHEAR_OPERATION_DICT = {
 
 VORTICITY_TO_AZ_SHEAR = 2.
 
-INPUT_DIR_ARG_NAME = 'input_storm_image_dir_name'
+INPUT_DIR_ARG_NAME = 'input_example_dir_name'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 RESOLUTION_FACTOR_ARG_NAME = 'resolution_factor'
-OUTPUT_DIR_ARG_NAME = 'output_storm_image_dir_name'
+OUTPUT_DIR_ARG_NAME = 'output_example_dir_name'
 
 # TODO(thunderhoser): Allow this to be done for shuffled example files?
 
