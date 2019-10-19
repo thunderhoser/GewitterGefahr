@@ -59,134 +59,6 @@ MODEL_FILE_KEY = 'model_file_name'
 TARGET_VALUES_KEY = 'target_values'
 
 
-def _flatten_last_two_dim(data_matrix):
-    """Flattens last two dimensions of numpy array.
-
-    :param data_matrix: numpy array.
-    :return: data_matrix: Same but with one dimension less.
-    :return: orig_shape: numpy array with original dimensions.
-    """
-
-    # TODO(thunderhoser): Specifying "order" is a HACK.
-
-    orig_shape = numpy.array(data_matrix.shape, dtype=int)
-
-    new_shape = numpy.array(data_matrix.shape, dtype=int)
-    new_shape[-2] = new_shape[-2] * new_shape[-1]
-    new_shape = new_shape[:-1]
-
-    return numpy.reshape(data_matrix, new_shape, order='F'), orig_shape
-
-
-def _create_nice_predictor_names(
-        predictor_matrices, cnn_metadata_dict, separate_radar_heights=False,
-        reshape_predictor_matrices=False):
-    """Creates list of nice (human-readable) predictor names for each matrix.
-
-    T = number of input tensors to the CNN
-
-    :param predictor_matrices: See doc for `run_permutation_test`.
-    :param cnn_metadata_dict: Same.
-    :param separate_radar_heights: Same.
-    :param reshape_predictor_matrices:
-        [used only if `separate_radar_heights == True`]
-        Boolean flag.  If True, 3-D predictor matrices will be shaped so that
-        channel is one variable at one height, rather than one variable at all
-        heights.
-
-    :return: predictor_names_by_matrix: length-T list, where the [i]th element
-        is a list of predictor names for the [i]th matrix.
-    :return: predictor_matrices: Same as input, unless
-        `separate_radar_heights == reshape_predictor_matrices == True`, in which
-        case they have been reshaped.
-    """
-
-    myrorss_2d3d = cnn_metadata_dict[cnn.CONV_2D3D_KEY]
-    layer_operation_dicts = cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
-
-    training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-    radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
-
-    nice_radar_field_names = [
-        radar_utils.field_name_to_verbose(field_name=f, include_units=False)
-        for f in radar_field_names
-    ]
-
-    num_matrices = len(predictor_matrices)
-    predictor_names_by_matrix = [[]] * num_matrices
-
-    if myrorss_2d3d:
-        if separate_radar_heights:
-            these_field_names = (
-                [radar_utils.REFL_NAME] * len(radar_heights_m_agl)
-            )
-
-            predictor_names_by_matrix[0] = (
-                radar_plotting.radar_fields_and_heights_to_panel_names(
-                    field_names=these_field_names,
-                    heights_m_agl=radar_heights_m_agl, include_units=False)
-            )
-
-            if reshape_predictor_matrices:
-                predictor_matrices[0] = predictor_matrices[0][..., 0]
-        else:
-            predictor_names_by_matrix[0] = ['Reflectivity']
-
-        predictor_names_by_matrix[1] += nice_radar_field_names
-    else:
-        if separate_radar_heights:
-            height_matrix_m_agl, field_name_matrix = numpy.meshgrid(
-                radar_heights_m_agl, numpy.array(radar_field_names)
-            )
-
-            these_field_names = numpy.ravel(field_name_matrix)
-            these_heights_m_agl = numpy.round(
-                numpy.ravel(height_matrix_m_agl)
-            ).astype(int)
-
-            predictor_names_by_matrix[0] = (
-                radar_plotting.radar_fields_and_heights_to_panel_names(
-                    field_names=these_field_names,
-                    heights_m_agl=these_heights_m_agl, include_units=False)
-            )
-
-            if reshape_predictor_matrices:
-                new_spatial_dim = numpy.array(
-                    predictor_matrices[0].shape, dtype=int
-                )
-                new_spatial_dim[-2] = new_spatial_dim[-2] * new_spatial_dim[-1]
-                new_spatial_dim = new_spatial_dim[:-1]
-
-                predictor_matrices[0] = numpy.reshape(
-                    predictor_matrices[0], new_spatial_dim
-                )
-
-        elif layer_operation_dicts is not None:
-            _, predictor_names_by_matrix[0] = (
-                radar_plotting.layer_ops_to_field_and_panel_names(
-                    list_of_layer_operation_dicts=layer_operation_dicts,
-                    include_units=False)
-            )
-        else:
-            predictor_names_by_matrix[0] = nice_radar_field_names
-
-    sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-
-    if sounding_field_names is not None:
-        predictor_names_by_matrix[0][-1] = [
-            soundings.field_name_to_verbose(field_name=f, include_units=False)
-            for f in sounding_field_names
-        ]
-
-    for i in range(num_matrices):
-        predictor_names_by_matrix[i] = [
-            n.replace('\n', '; ') for n in predictor_names_by_matrix[i]
-        ]
-
-    return predictor_names_by_matrix, predictor_matrices
-
-
 def _bootstrap_cost(target_values, class_probability_matrix, cost_function,
                     num_replicates):
     """Bootstraps cost for one set of prediction-observation pairs.
@@ -241,7 +113,7 @@ def _permute_one_predictor(predictor_matrices, separate_radar_heights,
     num_spatial_dim = len(predictor_matrices[i].shape) - 2
 
     if num_spatial_dim == 3 and separate_radar_heights:
-        predictor_matrices[i], original_shape = _flatten_last_two_dim(
+        predictor_matrices[i], original_shape = flatten_last_two_dim(
             predictor_matrices[i]
         )
     else:
@@ -384,6 +256,120 @@ def _run_permutation_one_step(
         BEST_PREDICTOR_KEY: best_predictor_name,
         BEST_COST_ARRAY_KEY: best_cost_array
     }
+
+
+def create_nice_predictor_names(
+        predictor_matrices, cnn_metadata_dict, separate_radar_heights=False):
+    """Creates list of nice (human-readable) predictor names for each matrix.
+
+    T = number of input tensors to the CNN
+
+    :param predictor_matrices: See doc for `run_permutation_test`.
+    :param cnn_metadata_dict: Same.
+    :param separate_radar_heights: Same.
+    :return: predictor_names_by_matrix: length-T list, where the [i]th element
+        is a list of predictor names for the [i]th matrix.
+    """
+
+    error_checking.assert_is_boolean(separate_radar_heights)
+
+    myrorss_2d3d = cnn_metadata_dict[cnn.CONV_2D3D_KEY]
+    layer_operation_dicts = cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
+
+    training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+    radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+
+    nice_radar_field_names = [
+        radar_utils.field_name_to_verbose(field_name=f, include_units=False)
+        for f in radar_field_names
+    ]
+
+    num_matrices = len(predictor_matrices)
+    predictor_names_by_matrix = [[]] * num_matrices
+
+    if myrorss_2d3d:
+        if separate_radar_heights:
+            these_field_names = (
+                [radar_utils.REFL_NAME] * len(radar_heights_m_agl)
+            )
+
+            predictor_names_by_matrix[0] = (
+                radar_plotting.radar_fields_and_heights_to_panel_names(
+                    field_names=these_field_names,
+                    heights_m_agl=radar_heights_m_agl, include_units=False)
+            )
+
+            predictor_names_by_matrix[0] = [
+                n.replace('\n', ' ') for n in predictor_names_by_matrix[0]
+            ]
+        else:
+            predictor_names_by_matrix[0] = ['Reflectivity']
+
+        predictor_names_by_matrix[1] += nice_radar_field_names
+    else:
+        if separate_radar_heights:
+            height_matrix_m_agl, field_name_matrix = numpy.meshgrid(
+                radar_heights_m_agl, numpy.array(radar_field_names)
+            )
+
+            these_field_names = numpy.ravel(field_name_matrix).tolist()
+            these_heights_m_agl = numpy.round(
+                numpy.ravel(height_matrix_m_agl)
+            ).astype(int)
+
+            predictor_names_by_matrix[0] = (
+                radar_plotting.radar_fields_and_heights_to_panel_names(
+                    field_names=these_field_names,
+                    heights_m_agl=these_heights_m_agl, include_units=False)
+            )
+
+            predictor_names_by_matrix[0] = [
+                n.replace('\n', ' ') for n in predictor_names_by_matrix[0]
+            ]
+
+        elif layer_operation_dicts is not None:
+            _, predictor_names_by_matrix[0] = (
+                radar_plotting.layer_ops_to_field_and_panel_names(
+                    list_of_layer_operation_dicts=layer_operation_dicts,
+                    include_units=False)
+            )
+
+            predictor_names_by_matrix[0] = [
+                n.replace('\n', '; ') for n in predictor_names_by_matrix[0]
+            ]
+        else:
+            predictor_names_by_matrix[0] = nice_radar_field_names
+
+    sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+
+    if sounding_field_names is not None:
+        predictor_names_by_matrix[-1] = [
+            soundings.field_name_to_verbose(field_name=f, include_units=False)
+            for f in sounding_field_names
+        ]
+
+    return predictor_names_by_matrix
+
+
+def flatten_last_two_dim(data_matrix):
+    """Flattens last two dimensions of numpy array.
+
+    :param data_matrix: numpy array.
+    :return: data_matrix: Same but with one dimension less.
+    :return: orig_shape: numpy array with original dimensions.
+    """
+
+    error_checking.assert_is_numpy_array(data_matrix)
+    error_checking.assert_is_geq(len(data_matrix.shape), 3)
+
+    orig_shape = numpy.array(data_matrix.shape, dtype=int)
+
+    new_shape = numpy.array(data_matrix.shape, dtype=int)
+    new_shape[-2] = new_shape[-2] * new_shape[-1]
+    new_shape = new_shape[:-1]
+
+    return numpy.reshape(data_matrix, new_shape, order='F'), orig_shape
 
 
 def prediction_function_2d_cnn(model_object, list_of_input_matrices):
@@ -586,11 +572,8 @@ def run_permutation_test(
         permutation in step 1.
     """
 
-    # TODO(thunderhoser): Make sure the reshaping is done properly.
-
     error_checking.assert_is_integer_numpy_array(target_values)
     error_checking.assert_is_geq_numpy_array(target_values, 0)
-    error_checking.assert_is_boolean(separate_radar_heights)
     error_checking.assert_is_integer(num_bootstrap_reps)
     num_bootstrap_reps = max([num_bootstrap_reps, 1])
 
@@ -604,12 +587,10 @@ def run_permutation_test(
         else:
             prediction_function = prediction_function_3d_cnn
 
-    predictor_names_by_matrix = _create_nice_predictor_names(
+    predictor_names_by_matrix = create_nice_predictor_names(
         predictor_matrices=predictor_matrices,
         cnn_metadata_dict=cnn_metadata_dict,
-        separate_radar_heights=separate_radar_heights,
-        reshape_predictor_matrices=False
-    )[0]
+        separate_radar_heights=separate_radar_heights)
 
     num_matrices = len(predictor_names_by_matrix)
     for i in range(num_matrices):
