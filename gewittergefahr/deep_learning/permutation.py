@@ -392,7 +392,7 @@ def prediction_function_2d_cnn(model_object, list_of_input_matrices):
 
     return cnn.apply_2d_or_3d_cnn(
         model_object=model_object, radar_image_matrix=list_of_input_matrices[0],
-        sounding_matrix=sounding_matrix)
+        sounding_matrix=sounding_matrix, verbose=True)
 
 
 def prediction_function_3d_cnn(model_object, list_of_input_matrices):
@@ -415,7 +415,7 @@ def prediction_function_3d_cnn(model_object, list_of_input_matrices):
 
     return cnn.apply_2d_or_3d_cnn(
         model_object=model_object, radar_image_matrix=list_of_input_matrices[0],
-        sounding_matrix=sounding_matrix)
+        sounding_matrix=sounding_matrix, verbose=True)
 
 
 def prediction_function_2d3d_cnn(model_object, list_of_input_matrices):
@@ -444,7 +444,7 @@ def prediction_function_2d3d_cnn(model_object, list_of_input_matrices):
         return cnn.apply_2d_or_3d_cnn(
             model_object=model_object,
             radar_image_matrix=list_of_input_matrices[0],
-            sounding_matrix=sounding_matrix)
+            sounding_matrix=sounding_matrix, verbose=True)
 
     if num_input_matrices == 3:
         sounding_matrix = list_of_input_matrices[-1]
@@ -455,7 +455,7 @@ def prediction_function_2d3d_cnn(model_object, list_of_input_matrices):
         model_object=model_object,
         reflectivity_matrix_dbz=list_of_input_matrices[0],
         azimuthal_shear_matrix_s01=list_of_input_matrices[1],
-        sounding_matrix=sounding_matrix)
+        sounding_matrix=sounding_matrix, verbose=True)
 
 
 def cross_entropy_function(

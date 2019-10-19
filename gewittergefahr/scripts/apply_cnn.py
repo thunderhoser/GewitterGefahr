@@ -274,7 +274,8 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels, storm_ids=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
-        target_name=training_option_dict[trainval_io.TARGET_NAME_KEY]
+        target_name=training_option_dict[trainval_io.TARGET_NAME_KEY],
+        model_file_name=model_file_name
     )
 
 

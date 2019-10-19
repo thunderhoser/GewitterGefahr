@@ -240,9 +240,11 @@ def _run(input_file_name, top_tracking_dir_name, min_latitude_deg,
                 storm_ids=this_prediction_dict[prediction_io.STORM_IDS_KEY],
                 storm_times_unix_sec=this_prediction_dict[
                     prediction_io.STORM_TIMES_KEY],
-                target_name=this_prediction_dict[prediction_io.TARGET_NAME_KEY],
                 observed_labels=this_prediction_dict[
-                    prediction_io.OBSERVED_LABELS_KEY]
+                    prediction_io.OBSERVED_LABELS_KEY],
+                target_name=this_prediction_dict[prediction_io.TARGET_NAME_KEY],
+                model_file_name=this_prediction_dict[
+                    prediction_io.MODEL_FILE_KEY]
             )
 
             print('\n')

@@ -113,9 +113,11 @@ def _run(input_file_name, num_months_per_chunk, num_hours_per_chunk,
             storm_ids=this_prediction_dict[prediction_io.STORM_IDS_KEY],
             storm_times_unix_sec=this_prediction_dict[
                 prediction_io.STORM_TIMES_KEY],
-            target_name=this_prediction_dict[prediction_io.TARGET_NAME_KEY],
             observed_labels=this_prediction_dict[
-                prediction_io.OBSERVED_LABELS_KEY]
+                prediction_io.OBSERVED_LABELS_KEY],
+            target_name=this_prediction_dict[prediction_io.TARGET_NAME_KEY],
+            model_file_name=this_prediction_dict[
+                prediction_io.MODEL_FILE_KEY]
         )
 
         print(SEPARATOR_STRING)
@@ -153,9 +155,11 @@ def _run(input_file_name, num_months_per_chunk, num_hours_per_chunk,
             storm_ids=this_prediction_dict[prediction_io.STORM_IDS_KEY],
             storm_times_unix_sec=this_prediction_dict[
                 prediction_io.STORM_TIMES_KEY],
-            target_name=this_prediction_dict[prediction_io.TARGET_NAME_KEY],
             observed_labels=this_prediction_dict[
-                prediction_io.OBSERVED_LABELS_KEY]
+                prediction_io.OBSERVED_LABELS_KEY],
+            target_name=this_prediction_dict[prediction_io.TARGET_NAME_KEY],
+            model_file_name=this_prediction_dict[
+                prediction_io.MODEL_FILE_KEY]
         )
 
         if i != num_hourly_chunks - 1:

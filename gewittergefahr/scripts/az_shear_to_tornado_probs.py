@@ -213,7 +213,7 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels, storm_ids=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
-        target_name=TARGET_NAME)
+        target_name=TARGET_NAME, model_file_name='None')
 
 
 if __name__ == '__main__':
