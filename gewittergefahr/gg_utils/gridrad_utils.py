@@ -53,9 +53,9 @@ def fields_and_refl_heights_to_pairs(field_names, heights_m_asl):
     height_by_pair_m_asl = numpy.array([], dtype=int)
 
     for this_field_name in field_names:
-        _ = radar_utils.field_name_new_to_orig(
+        radar_utils.field_name_new_to_orig(
             field_name=this_field_name,
-            data_source=radar_utils.GRIDRAD_SOURCE_ID)
+            data_source_name=radar_utils.GRIDRAD_SOURCE_ID)
 
         field_name_by_pair += [this_field_name] * len(heights_m_asl)
         height_by_pair_m_asl = numpy.concatenate((

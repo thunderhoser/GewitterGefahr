@@ -183,7 +183,8 @@ def get_relative_dir_for_raw_files(field_name, data_source, height_m_asl=None):
             data_source=data_source, field_name=field_name)[0]
 
     return '{0:s}/{1:05.2f}'.format(
-        radar_utils.field_name_new_to_orig(field_name, data_source=data_source),
+        radar_utils.field_name_new_to_orig(
+            field_name=field_name, data_source_name=data_source),
         float(height_m_asl) * METRES_TO_KM
     )
 
@@ -606,7 +607,8 @@ def read_metadata_from_raw_file(
             getattr(netcdf_dataset, UNIX_TIME_COLUMN_ORIG),
         FIELD_NAME_COLUMN_ORIG: field_name_orig,
         radar_utils.FIELD_NAME_COLUMN: radar_utils.field_name_orig_to_new(
-            field_name_orig, data_source=data_source)}
+            field_name_orig=field_name_orig, data_source_name=data_source)
+    }
 
     latitude_spacing_deg = metadata_dict[radar_utils.LAT_SPACING_COLUMN]
     longitude_spacing_deg = metadata_dict[radar_utils.LNG_SPACING_COLUMN]
@@ -670,7 +672,7 @@ def read_data_from_sparse_grid_file(
         return None
 
     field_name = radar_utils.field_name_orig_to_new(
-        field_name_orig, data_source=data_source)
+        field_name_orig=field_name_orig, data_source_name=data_source)
     num_values = len(netcdf_dataset.variables[GRID_ROW_COLUMN_ORIG])
 
     if num_values == 0:
@@ -782,7 +784,7 @@ def write_field_to_myrorss_file(
     if field_name in radar_utils.ECHO_TOP_NAMES:
         field_matrix = METRES_TO_KM * field_matrix
     field_name_myrorss = radar_utils.field_name_new_to_orig(
-        field_name, data_source=radar_utils.MYRORSS_SOURCE_ID)
+        field_name=field_name, data_source_name=radar_utils.MYRORSS_SOURCE_ID)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     netcdf_dataset = Dataset(

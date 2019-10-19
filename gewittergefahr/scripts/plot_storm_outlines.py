@@ -457,9 +457,9 @@ def _plot_storm_outlines_one_time(
             extend_min=radar_field_name in radar_plotting.SHEAR_VORT_DIV_NAMES,
             extend_max=True, fraction_of_axis_length=0.9)
 
-        colour_bar_object.set_label(
-            radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[radar_field_name]
-        )
+        radar_field_name_verbose = radar_utils.field_name_to_verbose(
+            field_name=radar_field_name, include_units=True)
+        colour_bar_object.set_label(radar_field_name_verbose)
 
         if custom_colour_map:
             if orientation_string == 'horizontal':

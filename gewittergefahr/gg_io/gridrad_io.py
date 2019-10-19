@@ -96,8 +96,10 @@ def _check_grid_points(
 
         for i in range(len(grid_point_latitudes_deg)):
             print((
-                      'Expected latitude = {0:.4f} deg N ... actual = {1:.4f} deg N'
-            ).format(expected_latitudes_deg[i], grid_point_latitudes_deg[i]))
+                'Expected latitude = {0:.4f} deg N ... actual = {1:.4f} deg N'
+            ).format(
+                expected_latitudes_deg[i], grid_point_latitudes_deg[i]
+            ))
 
         max_latitude_diff_deg = numpy.max(numpy.absolute(
             expected_latitudes_deg - grid_point_latitudes_deg
@@ -267,9 +269,10 @@ def read_field_from_full_grid_file(
         return None, None, None, None
 
     field_name_orig = radar_utils.field_name_new_to_orig(
-        field_name, data_source=radar_utils.GRIDRAD_SOURCE_ID)
+        field_name=field_name, data_source_name=radar_utils.GRIDRAD_SOURCE_ID)
     field_matrix = numpy.array(
-        netcdf_dataset.variables[field_name_orig][0, :, :, :])
+        netcdf_dataset.variables[field_name_orig][0, :, :, :]
+    )
 
     grid_point_latitudes_deg = numpy.array(
         netcdf_dataset.variables[LATITUDE_NAME_ORIG])

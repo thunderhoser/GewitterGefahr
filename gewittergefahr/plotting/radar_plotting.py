@@ -18,7 +18,6 @@ SHEAR_VORT_DIV_NAMES = [
 ]
 
 KM_TO_KILOFEET = 3.2808
-METRES_TO_KM = 1e-3
 PER_SECOND_TO_PER_KILOSECOND = 1e3
 
 DEFAULT_FONT_SIZE = 20
@@ -31,32 +30,6 @@ TEXT_BOUNDING_BOX_DICT = {
     'edgecolor': 'black',
     'linewidth': 2,
     'boxstyle': 'round'
-}
-
-FIELD_NAME_TO_VERBOSE_DICT = {
-    radar_utils.ECHO_TOP_15DBZ_NAME: '15-dBZ echo top (kft ASL)',
-    radar_utils.ECHO_TOP_18DBZ_NAME: '18-dBZ echo top (kft ASL)',
-    radar_utils.ECHO_TOP_20DBZ_NAME: '20-dBZ echo top (kft ASL)',
-    radar_utils.ECHO_TOP_25DBZ_NAME: '25-dBZ echo top (kft ASL)',
-    radar_utils.ECHO_TOP_40DBZ_NAME: '40-dBZ echo top (kft ASL)',
-    radar_utils.ECHO_TOP_50DBZ_NAME: '50-dBZ echo top (kft ASL)',
-    radar_utils.LOW_LEVEL_SHEAR_NAME: r'Low-level shear (ks$^{-1}$)',
-    radar_utils.MID_LEVEL_SHEAR_NAME: r'Mid-level shear (ks$^{-1}$)',
-    radar_utils.MESH_NAME: 'Max estimated hail size (mm)',
-    radar_utils.REFL_NAME: 'Reflectivity (dBZ)',
-    radar_utils.REFL_COLUMN_MAX_NAME: 'Column-max reflectivity (dBZ)',
-    radar_utils.REFL_0CELSIUS_NAME: r'0 $^{\circ}C$ reflectivity (dBZ)',
-    radar_utils.REFL_M10CELSIUS_NAME: r'-10 $^{\circ}C$ reflectivity (dBZ)',
-    radar_utils.REFL_M20CELSIUS_NAME: r'-20 $^{\circ}C$ reflectivity (dBZ)',
-    radar_utils.REFL_LOWEST_ALTITUDE_NAME: 'Lowest-altitude refl (dBZ)',
-    radar_utils.SHI_NAME: 'Severe-hail index',
-    radar_utils.VIL_NAME: 'Vertically integ liquid (mm)',
-    radar_utils.DIFFERENTIAL_REFL_NAME: 'Diff reflectivity (dB)',
-    radar_utils.SPEC_DIFF_PHASE_NAME: r'Spec diff phase ($^{\circ}$ km$^{-1}$)',
-    radar_utils.CORRELATION_COEFF_NAME: 'Correlation coefficient',
-    radar_utils.SPECTRUM_WIDTH_NAME: r'Spectrum width (m s$^{-1}$)',
-    radar_utils.VORTICITY_NAME: r'Vorticity (ks$^{-1}$)',
-    radar_utils.DIVERGENCE_NAME: r'Divergence (ks$^{-1}$)'
 }
 
 
@@ -427,6 +400,21 @@ def _field_name_to_plotting_units(field_name):
     return field_name
 
 
+def field_name_to_verbose(field_name, include_units=True):
+    """Converts field name from default format to verbose.
+
+    :param field_name: See doc for `radar_utils.field_name_to_verbose`.
+    :param include_units: Same.
+    :return: field_name_verbose: Same.
+    """
+
+    field_name_verbose = radar_utils.field_name_to_verbose(
+        field_name=field_name, include_units=include_units)
+
+    return field_name_verbose.replace('(m ASL)', '(kft ASL)').replace(
+        '(s', '(ks')
+
+
 def layer_ops_to_field_and_panel_names(
         list_of_layer_operation_dicts, include_units=True):
     """Converts list of layer operations to list of field and panel names.
@@ -450,29 +438,17 @@ def layer_ops_to_field_and_panel_names(
 
     for i in range(num_panels):
         this_operation_dict = list_of_layer_operation_dicts[i]
-        field_name_by_panel[i] = this_operation_dict[
-            input_examples.RADAR_FIELD_KEY]
 
-        this_min_height_m_agl = int(numpy.round(
-            this_operation_dict[input_examples.MIN_HEIGHT_KEY] * METRES_TO_KM
-        ))
-        this_max_height_m_agl = int(numpy.round(
-            this_operation_dict[input_examples.MAX_HEIGHT_KEY] * METRES_TO_KM
-        ))
+        this_field_name_verbose = field_name_to_verbose(
+            field_name=this_operation_dict[input_examples.RADAR_FIELD_KEY],
+            include_units=include_units
+        )
 
-        this_field_name_verbose = FIELD_NAME_TO_VERBOSE_DICT[
-            field_name_by_panel[i]
-        ]
-
-        if not include_units:
-            this_field_name_verbose = this_field_name_verbose[
-                :this_field_name_verbose.find(' (')
-            ]
-
-        panel_names[i] = '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'.format(
+        panel_names[i] = '{0:s}\n{1:s} from {2:d}-{3:d} m AGL'.format(
             this_field_name_verbose,
             this_operation_dict[input_examples.OPERATION_NAME_KEY].upper(),
-            this_min_height_m_agl, this_max_height_m_agl
+            this_operation_dict[input_examples.MIN_HEIGHT_KEY],
+            this_operation_dict[input_examples.MAX_HEIGHT_KEY]
         )
 
     return field_name_by_panel, panel_names
@@ -510,15 +486,12 @@ def radar_fields_and_heights_to_panel_names(
     panel_names = [''] * num_panels
 
     for i in range(num_panels):
-        this_field_name_verbose = FIELD_NAME_TO_VERBOSE_DICT[field_names[i]]
+        this_field_name_verbose = field_name_to_verbose(
+            field_name=field_names[i], include_units=include_units)
 
-        if not include_units:
-            this_field_name_verbose = this_field_name_verbose[
-                :this_field_name_verbose.find(' (')
-            ]
-
-        panel_names[i] = '{0:s}\nat {1:.2f} km AGL'.format(
-            this_field_name_verbose, heights_m_agl[i] * METRES_TO_KM)
+        panel_names[i] = '{0:s}\nat {1:d} m AGL'.format(
+            this_field_name_verbose, heights_m_agl[i]
+        )
 
     return panel_names
 
@@ -933,8 +906,8 @@ def plot_3d_grid(
 
     for k in range(num_heights):
         if plot_panel_names:
-            this_panel_name = '{0:.1f} km {1:s}'.format(
-                heights_metres[k] * METRES_TO_KM,
+            this_panel_name = '{0:d} m {1:s}'.format(
+                heights_metres[k],
                 'AGL' if ground_relative else 'ASL'
             )
         else:

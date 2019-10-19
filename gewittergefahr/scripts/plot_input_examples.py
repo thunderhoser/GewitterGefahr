@@ -330,8 +330,10 @@ def _plot_3d_radar_scan(
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+
     radar_field_names_verbose = [
-        radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[f] for f in radar_field_names
+        radar_utils.field_name_to_verbose(field_name=f, include_units=True)
+        for f in radar_field_names
     ]
 
     num_radar_fields = len(radar_field_names)
@@ -479,13 +481,13 @@ def _plot_2d3d_radar_scan(
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     shear_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     shear_field_names_verbose = [
-        radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[f] for f in shear_field_names
+        radar_utils.field_name_to_verbose(field_name=f, include_units=True)
+        for f in shear_field_names
     ]
 
     refl_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
-    refl_name_verbose = radar_plotting.FIELD_NAME_TO_VERBOSE_DICT[
-        radar_utils.REFL_NAME
-    ]
+    refl_name_verbose = radar_utils.field_name_to_verbose(
+        field_name=radar_utils.REFL_NAME, include_units=True)
 
     num_refl_heights = len(refl_heights_m_agl)
     if num_panel_rows is None:

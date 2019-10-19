@@ -605,7 +605,7 @@ NON_VERBOSE_FIELD_NAMES = [
 
 VERBOSE_FIELD_NAMES_WITH_UNITS = [
     'Pressure (Pa)', 'Virtual potential temperature (K)',
-    'Relative humidity (fraction)', r'Specific humidity (kg kg$^{-1}$)',
+    'Relative humidity', r'Specific humidity (kg kg$^{-1}$)',
     'Geopotential height (m)', r'$v$-wind (m s$^{-1}$)',
     r'$u$-wind (m s$^{-1}$)', 'Temperature (K)'
 ]

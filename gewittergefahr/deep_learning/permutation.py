@@ -17,29 +17,39 @@ import numpy
 import keras.utils
 from sklearn.metrics import roc_auc_score as sklearn_auc
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.plotting import radar_plotting
 
-DEFAULT_NUM_BOOTSTRAP_ITERS = 1
-DEFAULT_CONFIDENCE_LEVEL = 0.95
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
+DEFAULT_NUM_BOOTSTRAP_REPS = 1
 MIN_PROBABILITY = 1e-15
 MAX_PROBABILITY = 1. - MIN_PROBABILITY
 
+PREDICTOR_MATRICES_KEY = 'predictor_matrices'
+PERMUTED_FLAGS_KEY = 'permuted_flags_by_matrix'
+PERMUTED_PREDICTORS_KEY = 'permuted_predictor_names'
+PERMUTED_COST_MATRIX_KEY = 'permuted_cost_matrix'
+BEST_PREDICTOR_KEY = 'best_predictor_name'
+BEST_COST_ARRAY_KEY = 'best_cost_array'
+
 # Mandatory keys in result dictionary (see `write_results`).
-NUM_BOOTSTRAP_ITERS_KEY = 'num_bootstrap_iters'
-CONFIDENCE_LEVEL_KEY = 'bootstrap_confidence_level'
-SELECTED_PREDICTORS_KEY = 'selected_predictor_name_by_step'
-HIGHEST_COSTS_KEY = 'highest_cost_by_step_bs_matrix'
-ORIGINAL_COST_KEY = 'original_cost_bs_array'
+BEST_PREDICTORS_KEY = 'best_predictor_names'
+BEST_COST_MATRIX_KEY = 'best_cost_matrix'
+ORIGINAL_COST_ARRAY_KEY = 'original_cost_array'
 STEP1_PREDICTORS_KEY = 'step1_predictor_names'
-STEP1_COSTS_KEY = 'step1_cost_bs_matrix'
+STEP1_COST_MATRIX_KEY = 'step1_cost_matrix'
 
 REQUIRED_KEYS = [
-    NUM_BOOTSTRAP_ITERS_KEY, CONFIDENCE_LEVEL_KEY, SELECTED_PREDICTORS_KEY,
-    HIGHEST_COSTS_KEY, ORIGINAL_COST_KEY, STEP1_PREDICTORS_KEY, STEP1_COSTS_KEY
+    BEST_PREDICTORS_KEY, BEST_COST_MATRIX_KEY, ORIGINAL_COST_ARRAY_KEY,
+    STEP1_PREDICTORS_KEY, STEP1_COST_MATRIX_KEY
 ]
 
 # Optional keys in result dictionary (see `write_results`).
@@ -47,6 +57,333 @@ FULL_IDS_KEY = tracking_io.FULL_IDS_KEY
 STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY
 MODEL_FILE_KEY = 'model_file_name'
 TARGET_VALUES_KEY = 'target_values'
+
+
+def _flatten_last_two_dim(data_matrix):
+    """Flattens last two dimensions of numpy array.
+
+    :param data_matrix: numpy array.
+    :return: data_matrix: Same but with one dimension less.
+    :return: orig_shape: numpy array with original dimensions.
+    """
+
+    # TODO(thunderhoser): Specifying "order" is a HACK.
+
+    orig_shape = numpy.array(data_matrix.shape, dtype=int)
+
+    new_shape = numpy.array(data_matrix.shape, dtype=int)
+    new_shape[-2] = new_shape[-2] * new_shape[-1]
+    new_shape = new_shape[:-1]
+
+    return numpy.reshape(data_matrix, new_shape, order='F'), orig_shape
+
+
+def _create_nice_predictor_names(
+        predictor_matrices, cnn_metadata_dict, separate_radar_heights=False,
+        reshape_predictor_matrices=False):
+    """Creates list of nice (human-readable) predictor names for each matrix.
+
+    T = number of input tensors to the CNN
+
+    :param predictor_matrices: See doc for `run_permutation_test`.
+    :param cnn_metadata_dict: Same.
+    :param separate_radar_heights: Same.
+    :param reshape_predictor_matrices:
+        [used only if `separate_radar_heights == True`]
+        Boolean flag.  If True, 3-D predictor matrices will be shaped so that
+        channel is one variable at one height, rather than one variable at all
+        heights.
+
+    :return: predictor_names_by_matrix: length-T list, where the [i]th element
+        is a list of predictor names for the [i]th matrix.
+    :return: predictor_matrices: Same as input, unless
+        `separate_radar_heights == reshape_predictor_matrices == True`, in which
+        case they have been reshaped.
+    """
+
+    myrorss_2d3d = cnn_metadata_dict[cnn.CONV_2D3D_KEY]
+    layer_operation_dicts = cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
+
+    training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+    radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+
+    nice_radar_field_names = [
+        radar_utils.field_name_to_verbose(field_name=f, include_units=False)
+        for f in radar_field_names
+    ]
+
+    num_matrices = len(predictor_matrices)
+    predictor_names_by_matrix = [[]] * num_matrices
+
+    if myrorss_2d3d:
+        if separate_radar_heights:
+            these_field_names = (
+                [radar_utils.REFL_NAME] * len(radar_heights_m_agl)
+            )
+
+            predictor_names_by_matrix[0] = (
+                radar_plotting.radar_fields_and_heights_to_panel_names(
+                    field_names=these_field_names,
+                    heights_m_agl=radar_heights_m_agl, include_units=False)
+            )
+
+            if reshape_predictor_matrices:
+                predictor_matrices[0] = predictor_matrices[0][..., 0]
+        else:
+            predictor_names_by_matrix[0] = ['Reflectivity']
+
+        predictor_names_by_matrix[1] += nice_radar_field_names
+    else:
+        if separate_radar_heights:
+            height_matrix_m_agl, field_name_matrix = numpy.meshgrid(
+                radar_heights_m_agl, numpy.array(radar_field_names)
+            )
+
+            these_field_names = numpy.ravel(field_name_matrix)
+            these_heights_m_agl = numpy.round(
+                numpy.ravel(height_matrix_m_agl)
+            ).astype(int)
+
+            predictor_names_by_matrix[0] = (
+                radar_plotting.radar_fields_and_heights_to_panel_names(
+                    field_names=these_field_names,
+                    heights_m_agl=these_heights_m_agl, include_units=False)
+            )
+
+            if reshape_predictor_matrices:
+                new_spatial_dim = numpy.array(
+                    predictor_matrices[0].shape, dtype=int
+                )
+                new_spatial_dim[-2] = new_spatial_dim[-2] * new_spatial_dim[-1]
+                new_spatial_dim = new_spatial_dim[:-1]
+
+                predictor_matrices[0] = numpy.reshape(
+                    predictor_matrices[0], new_spatial_dim
+                )
+
+        elif layer_operation_dicts is not None:
+            _, predictor_names_by_matrix[0] = (
+                radar_plotting.layer_ops_to_field_and_panel_names(
+                    list_of_layer_operation_dicts=layer_operation_dicts,
+                    include_units=False)
+            )
+        else:
+            predictor_names_by_matrix[0] = nice_radar_field_names
+
+    sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+
+    if sounding_field_names is not None:
+        predictor_names_by_matrix[0][-1] = [
+            soundings.field_name_to_verbose(field_name=f, include_units=False)
+            for f in sounding_field_names
+        ]
+
+    for i in range(num_matrices):
+        predictor_names_by_matrix[i] = [
+            n.replace('\n', '; ') for n in predictor_names_by_matrix[i]
+        ]
+
+    return predictor_names_by_matrix, predictor_matrices
+
+
+def _bootstrap_cost(target_values, class_probability_matrix, cost_function,
+                    num_replicates):
+    """Bootstraps cost for one set of prediction-observation pairs.
+
+    B = number of bootstrap replicates
+
+    :param target_values: See doc for `run_permutation_test`.
+    :param class_probability_matrix: Same.
+    :param cost_function: Same.
+    :param num_replicates: B in the above discussion.
+    :return: cost_values: length-B numpy array of cost values.
+    """
+
+    cost_values = numpy.full(num_replicates, numpy.nan)
+
+    if num_replicates == 1:
+        cost_values[0] = cost_function(target_values,
+                                       class_probability_matrix)
+    else:
+        for k in range(num_replicates):
+            _, these_indices = bootstrapping.draw_sample(target_values)
+
+            cost_values[k] = cost_function(
+                target_values[these_indices],
+                class_probability_matrix[these_indices, ...]
+            )
+
+    print('Average cost = {0:.4f}'.format(numpy.mean(cost_values)))
+    return cost_values
+
+
+def _permute_one_predictor(predictor_matrices, separate_radar_heights,
+                           matrix_index, predictor_index, permuted_values=None):
+    """Permutes values of one predictor.
+
+    Will permute values of [j]th predictor in [i]th matrix, where
+    i = `matrix_index` and j = `predictor_index`.
+
+    :param predictor_matrices: See doc for `run_permutation`.
+    :param separate_radar_heights: Same.
+    :param matrix_index: See discussion above.
+    :param predictor_index: Same.
+    :param permuted_values: numpy array of permuted values to use.  If this is
+        None, permuted values will be created randomly.
+    :return: predictor_matrices: Same as input but with permuted values.
+    :return: permuted_values: numpy array with only values that were just
+        permuted.
+    """
+
+    i = matrix_index
+    j = predictor_index
+    num_spatial_dim = len(predictor_matrices[i].shape) - 2
+
+    if num_spatial_dim == 3 and separate_radar_heights:
+        predictor_matrices[i], original_shape = _flatten_last_two_dim(
+            predictor_matrices[i]
+        )
+    else:
+        original_shape = None
+
+    if permuted_values is None:
+        predictor_matrices[i][..., j] = numpy.take(
+            predictor_matrices[i][..., j],
+            indices=numpy.random.permutation(predictor_matrices[i].shape[0]),
+            axis=0
+        )
+    else:
+        predictor_matrices[i][..., j] = permuted_values
+
+    permuted_values = predictor_matrices[i][..., j]
+
+    if original_shape is not None:
+        predictor_matrices[i] = numpy.reshape(
+            predictor_matrices[i], original_shape, order='F'
+        )
+
+    return predictor_matrices, permuted_values
+
+
+def _run_permutation_one_step(
+        model_object, predictor_matrices, predictor_names_by_matrix,
+        target_values, prediction_function, cost_function,
+        separate_radar_heights, num_bootstrap_reps, step_num,
+        permuted_flags_by_matrix):
+    """Does one step of permutation test.
+
+    T = number of input tensors to the model
+    B = number of bootstrap replicates
+    P = number of predictors permuted in this step
+
+    :param model_object: See doc for `run_permutation_test`.
+    :param predictor_matrices: Same.
+    :param predictor_names_by_matrix: Same.
+    :param target_values: Same.
+    :param prediction_function: Same.
+    :param cost_function: Same.
+    :param separate_radar_heights: Same.
+    :param num_bootstrap_reps: Same.
+    :param step_num: Number of current step.
+    :param permuted_flags_by_matrix: length-T list.  The [i]th item is a numpy
+        array of Boolean flags, indicating which predictors have already been
+        permuted (and thus need not be permuted again).
+
+    :return: one_step_dict: Dictionary with the following keys.
+    one_step_dict["predictor_matrices"]: Same as input but maybe with different
+        values.
+    one_step_dict["permuted_flags_by_matrix"]: Same as input but maybe with
+        different values.
+    one_step_dict["permuted_predictor_names"]: length-P list with names of
+        predictors permuted in this step.
+    one_step_dict["permuted_cost_matrix"]: P-by-B numpy array of costs after
+        permutation.
+    one_step_dict["best_predictor_name"]: Name of best predictor in this step.
+    one_step_dict["best_cost_array"]: length-B numpy array of costs after
+        permutation of best predictor.
+    """
+
+    best_matrix_index = -1
+    best_predictor_index = -1
+    best_permuted_values = None
+
+    permuted_predictor_names = []
+    permuted_cost_matrix = numpy.full((0, num_bootstrap_reps), numpy.nan)
+    best_cost_array = numpy.full(num_bootstrap_reps, -numpy.inf)
+
+    num_matrices = len(predictor_matrices)
+
+    for i in range(num_matrices):
+        this_num_predictors = len(predictor_names_by_matrix[i])
+
+        for j in range(this_num_predictors):
+            if permuted_flags_by_matrix[i][j]:
+                continue
+
+            print('Permuting predictor "{0:s}" at step {1:d}...'.format(
+                predictor_names_by_matrix[i][j], step_num
+            ))
+
+            these_predictor_matrices, these_permuted_values = (
+                _permute_one_predictor(
+                    predictor_matrices=copy.deepcopy(predictor_matrices),
+                    separate_radar_heights=separate_radar_heights,
+                    matrix_index=i, predictor_index=j)
+            )
+
+            this_probability_matrix = prediction_function(
+                model_object, these_predictor_matrices)
+
+            this_cost_array = _bootstrap_cost(
+                target_values=target_values,
+                class_probability_matrix=this_probability_matrix,
+                cost_function=cost_function, num_replicates=num_bootstrap_reps)
+
+            this_cost_matrix = numpy.reshape(
+                this_cost_array, (1, len(this_cost_array))
+            )
+
+            permuted_predictor_names.append(predictor_names_by_matrix[i][j])
+            permuted_cost_matrix = numpy.concatenate(
+                (permuted_cost_matrix, this_cost_matrix), axis=0
+            )
+
+            if numpy.mean(this_cost_array) < numpy.mean(best_cost_array):
+                continue
+
+            best_matrix_index = i + 0
+            best_predictor_index = j + 0
+            best_permuted_values = these_permuted_values + 0.
+
+            best_cost_array = this_cost_array + 0.
+
+    if len(permuted_predictor_names) == 0:
+        return None
+
+    i = best_matrix_index + 0
+    j = best_predictor_index + 0
+    best_predictor_name = predictor_names_by_matrix[i][j]
+    permuted_flags_by_matrix[i][j] = True
+
+    predictor_matrices = _permute_one_predictor(
+        predictor_matrices=predictor_matrices,
+        separate_radar_heights=separate_radar_heights,
+        matrix_index=i, predictor_index=j, permuted_values=best_permuted_values
+    )[0]
+
+    print('Best predictor = "{0:s}" ... cost = {1:.4f}'.format(
+        best_predictor_name, numpy.mean(best_cost_array)
+    ))
+
+    return {
+        PREDICTOR_MATRICES_KEY: predictor_matrices,
+        PERMUTED_FLAGS_KEY: permuted_flags_by_matrix,
+        PERMUTED_PREDICTORS_KEY: permuted_predictor_names,
+        PERMUTED_COST_MATRIX_KEY: permuted_cost_matrix,
+        BEST_PREDICTOR_KEY: best_predictor_name,
+        BEST_COST_ARRAY_KEY: best_cost_array
+    }
 
 
 def prediction_function_2d_cnn(model_object, list_of_input_matrices):
@@ -201,288 +538,149 @@ def negative_auc_function(target_values, class_probability_matrix):
 
 
 def run_permutation_test(
-        model_object, list_of_input_matrices, predictor_names_by_matrix,
-        target_values, prediction_function, cost_function,
-        num_bootstrap_iters=DEFAULT_NUM_BOOTSTRAP_ITERS,
-        bootstrap_confidence_level=DEFAULT_CONFIDENCE_LEVEL):
+        model_object, predictor_matrices, target_values, cnn_metadata_dict,
+        cost_function, separate_radar_heights=False,
+        num_bootstrap_reps=DEFAULT_NUM_BOOTSTRAP_REPS):
     """Runs the permutation test.
 
-    N = number of input matrices
+    T = number of input tensors to the model
     E = number of examples
-    C_j = number of channels (predictors) in the [j]th matrix
-    K = number of target classes
+    K = number of classes
+    P = number of predictors to permute
+    B = number of bootstrap replicates
 
-    :param model_object: Trained instance of `keras.models.Model` or
-        `keras.models.Sequential`.
-    :param list_of_input_matrices: length-N list of matrices (numpy arrays), in
-        the order that they were fed to the model for training.  In other words,
-        if the order of training matrices was [radar images, soundings], the
-        order of these matrices must be [radar images, soundings].  The first
-        axis of each matrix should have length E, and the last axis of the [j]th
-        matrix should have length C_j.
-    :param predictor_names_by_matrix: length-N list of lists.  The [j]th list
-        should be a list of predictor variables in the [j]th matrix, with length
-        C_j.
-    :param target_values: length-E numpy array of target values (integer class
-        labels).
-    :param prediction_function: Function used to generate predictions from the
-        model.  Should have the following inputs and outputs.
-    Input: model_object: Same as input to this method.
-    Input: list_of_input_matrices: Same as input to this method, except maybe
-        with permuted values.
-    Output: class_probability_matrix: E-by-K numpy array, where
-        class_probability_matrix[i, k] is the probability that the [i]th example
-        belongs to the [k]th class.
+    :param model_object: Trained model (instance of `keras.models.Model` or
+        `keras.models.Sequential`).
+    :param cnn_metadata_dict: Dictionary returned by `cnn.read_model_metadata`.
+    :param predictor_matrices: length-T list of predictor matrices (numpy
+        arrays), in the order used for training.  The first axis of each array
+        should have length E.
+    :param target_values: length-E numpy array of target values (integers from
+        0...[K - 1]).
 
-    :param cost_function: Function used to evaluate predictions from the model.
-        Should have the following inputs and outputs.  This method will assume
-        that lower values are better.  In other words, the cost function must be
-        negatively oriented.
+    :param cost_function: Function used to evaluate model predictions.  Must be
+        negatively oriented (lower is better), with the following inputs and
+        outputs.
     Input: target_values: Same as input to this method.
-    Input: class_probability_matrix: Output from `prediction_function`.
+    Input: class_probability_matrix: E-by-K numpy array of class probabilities.
     Output: cost: Scalar value.
 
-    :param num_bootstrap_iters: Number of bootstrapping iterations (used to
-        compute the cost function after each permutation).  If
-        `num_bootstrap_iters <= 1`, bootstrapping will not be used.
-    :param bootstrap_confidence_level: Confidence level for bootstrapping.  This
-        method will return the q-percent confidence interval for each cost,
-        where q = 100 * `bootstrap_confidence_level`.
+    :param separate_radar_heights: Boolean flag.  If True, 3-D radar fields will
+        be separated by height, so each step will involve permuting one variable
+        at one height.  If False, each step will involve permuting one variable
+        at all heights.
+    :param num_bootstrap_reps: Number of bootstrap replicates.  If you do not
+        want to use bootstrapping, make this <= 1.
 
     :return: result_dict: Dictionary with the following keys.
-        S = number of steps (loops through predictors) taken by algorithm
-        P = number of predictors
-
-    result_dict['num_bootstrap_iters']: See input.
-    result_dict['bootstrap_confidence_level']: See input.
-    result_dict['selected_predictor_name_by_step']: length-S list with names of
-        selected predictors.
-    result_dict['highest_cost_by_step_bs_matrix']: S-by-3 numpy array, where
-        highest_cost_by_step_bs_matrix[i, 0] = minimum of confidence interval
-        for highest cost at [i]th step; highest_cost_by_step_bs_matrix[i, 1] =
-        mean; and highest_cost_by_step_bs_matrix[i, 2] = max.
-    result_dict['original_cost_bs_array']: length-3 numpy array, where
-        original_cost_bs_array[0] = minimum of confidence interval for cost
-        without permutation; original_cost_bs_array[1] = mean; and
-        original_cost_bs_array[2] = max.
-    result_dict['step1_predictor_names']: length-P list of predictor names.
-    result_dict['step1_cost_bs_matrix']: S-by-3 numpy array, where
-        step1_cost_bs_matrix[i, 0] = minimum of confidence interval for cost
-        after permuting only step1_predictor_names[i];
-        step1_cost_bs_matrix[i, 1] = mean; and step1_cost_bs_matrix[i, 2] = max.
-
-    :raises: ValueError: if length of `list_of_input_matrices` != length of
-        `predictor_names_by_matrix`.
-    :raises: ValueError: if any input matrix has < 3 dimensions.
+    result_dict["best_predictor_names"]: length-P list of best predictors.  The
+        [j]th element is the name of the [j]th predictor to be permanently
+        permuted.
+    result_dict["best_cost_matrix"]: P-by-B numpy array of costs after
+        permutation.
+    result_dict["original_cost_array"]: length-B numpy array of costs before
+        permutation.
+    result_dict["step1_predictor_names"]: length-P list of predictors in the
+        order that they were permuted in step 1.
+    result_dict["step1_cost_matrix"]: P-by-B numpy array of costs after
+        permutation in step 1.
     """
 
-    # Check input args.
+    # TODO(thunderhoser): Make sure the reshaping is done properly.
+
     error_checking.assert_is_integer_numpy_array(target_values)
     error_checking.assert_is_geq_numpy_array(target_values, 0)
+    error_checking.assert_is_boolean(separate_radar_heights)
+    error_checking.assert_is_integer(num_bootstrap_reps)
+    num_bootstrap_reps = max([num_bootstrap_reps, 1])
 
-    if len(list_of_input_matrices) != len(predictor_names_by_matrix):
-        error_string = (
-            'Number of input matrices ({0:d}) should equal number of predictor-'
-            'name lists ({1:d}).'
-        ).format(len(list_of_input_matrices), len(predictor_names_by_matrix))
+    if cnn_metadata_dict[cnn.CONV_2D3D_KEY]:
+        prediction_function = prediction_function_2d3d_cnn
+    else:
+        num_radar_dimensions = len(predictor_matrices[0].shape) - 2
 
-        raise ValueError(error_string)
-
-    num_input_matrices = len(list_of_input_matrices)
-    num_examples = len(target_values)
-
-    for j in range(num_input_matrices):
-        error_checking.assert_is_numpy_array_without_nan(
-            list_of_input_matrices[j])
-
-        this_num_dimensions = len(list_of_input_matrices[j].shape)
-        if this_num_dimensions < 3:
-            error_string = (
-                '{0:d}th input matrix has {1:d} dimensions.  Should have at '
-                'least 3.'
-            ).format(j + 1, this_num_dimensions)
-
-            raise ValueError(error_string)
-
-        error_checking.assert_is_string_list(predictor_names_by_matrix[j])
-        this_num_predictors = len(predictor_names_by_matrix[j])
-
-        these_expected_dimensions = (
-            (num_examples,) + list_of_input_matrices[j].shape[1:-1] +
-            (this_num_predictors,)
-        )
-        these_expected_dimensions = numpy.array(
-            these_expected_dimensions, dtype=int)
-
-        error_checking.assert_is_numpy_array(
-            list_of_input_matrices[j],
-            exact_dimensions=these_expected_dimensions)
-
-    error_checking.assert_is_integer(num_bootstrap_iters)
-    num_bootstrap_iters = max([num_bootstrap_iters, 1])
-    error_checking.assert_is_greater(bootstrap_confidence_level, 0.)
-    error_checking.assert_is_less_than(bootstrap_confidence_level, 1.)
-
-    # Get original cost (with no permutation).
-    class_probability_matrix = prediction_function(
-        model_object, list_of_input_matrices)
-
-    all_original_costs = numpy.full(num_bootstrap_iters, numpy.nan)
-
-    for k in range(num_bootstrap_iters):
-        _, these_indices = bootstrapping.draw_sample(target_values)
-
-        all_original_costs[k] = cost_function(
-            target_values[these_indices],
-            class_probability_matrix[these_indices, ...]
-        )
-
-    min_original_cost, max_original_cost = (
-        bootstrapping.get_confidence_interval(
-            stat_values=all_original_costs,
-            confidence_level=bootstrap_confidence_level)
-    )
-
-    original_cost_bs_array = numpy.array([
-        min_original_cost, numpy.mean(all_original_costs), max_original_cost
-    ])
-
-    print('Original cost (no permutation): {0:s}'.format(
-        str(original_cost_bs_array)
-    ))
-
-    # Initialize output variables.
-    remaining_predictor_names_by_matrix = copy.deepcopy(
-        predictor_names_by_matrix)
-    step_num = 0
-
-    # Do dirty work.
-    step1_predictor_names = []
-    selected_predictor_name_by_step = []
-
-    step1_cost_bs_matrix = None
-    highest_cost_by_step_bs_matrix = None
-
-    while True:
-        print('\n')
-        step_num += 1
-
-        highest_cost_bs_matrix = numpy.full((1, 3), -numpy.inf)
-        best_matrix_index = None
-        best_predictor_name = None
-        best_predictor_permuted_values = None
-
-        stopping_criterion = True
-
-        for j in range(num_input_matrices):
-            if len(remaining_predictor_names_by_matrix[j]) == 0:
-                continue
-
-            for this_predictor_name in remaining_predictor_names_by_matrix[j]:
-                stopping_criterion = False
-
-                print((
-                    'Trying predictor "{0:s}" at step {1:d} of permutation '
-                    'test...'
-                ).format(this_predictor_name, step_num))
-
-                these_input_matrices = copy.deepcopy(list_of_input_matrices)
-                this_predictor_index = predictor_names_by_matrix[j].index(
-                    this_predictor_name)
-
-                these_input_matrices[j][..., this_predictor_index] = numpy.take(
-                    these_input_matrices[j][..., this_predictor_index],
-                    indices=numpy.random.permutation(
-                        these_input_matrices[j].shape[0]),
-                    axis=0
-                )
-
-                this_probability_matrix = prediction_function(
-                    model_object, these_input_matrices)
-
-                all_these_costs = numpy.full(num_bootstrap_iters, numpy.nan)
-
-                for k in range(num_bootstrap_iters):
-                    _, these_indices = bootstrapping.draw_sample(target_values)
-
-                    all_these_costs[k] = cost_function(
-                        target_values[these_indices],
-                        this_probability_matrix[these_indices, ...]
-                    )
-
-                this_min_cost, this_max_cost = (
-                    bootstrapping.get_confidence_interval(
-                        stat_values=all_these_costs,
-                        confidence_level=bootstrap_confidence_level)
-                )
-
-                this_cost_bs_array = numpy.array([
-                    this_min_cost, numpy.mean(all_these_costs), this_max_cost
-                ])
-
-                this_cost_bs_matrix = numpy.reshape(
-                    this_cost_bs_array, (1, this_cost_bs_array.size)
-                )
-
-                print('Resulting cost = {0:s}\n'.format(
-                    str(this_cost_bs_matrix)
-                ))
-
-                if step_num == 1:
-                    step1_predictor_names.append(this_predictor_name)
-
-                    if step1_cost_bs_matrix is None:
-                        step1_cost_bs_matrix = this_cost_bs_matrix + 0.
-                    else:
-                        step1_cost_bs_matrix = numpy.concatenate(
-                            (step1_cost_bs_matrix, this_cost_bs_matrix), axis=0)
-
-                if this_cost_bs_matrix[0, 1] < highest_cost_bs_matrix[0, 1]:
-                    continue
-
-                highest_cost_bs_matrix = this_cost_bs_matrix + 0.
-                best_matrix_index = j + 0
-                best_predictor_name = this_predictor_name + ''
-                best_predictor_permuted_values = (
-                    these_input_matrices[j][..., this_predictor_index] + 0.
-                )
-
-        if stopping_criterion:  # No more predictors to permute.
-            break
-
-        selected_predictor_name_by_step.append(best_predictor_name)
-
-        if highest_cost_by_step_bs_matrix is None:
-            highest_cost_by_step_bs_matrix = highest_cost_bs_matrix + 0.
+        if num_radar_dimensions == 2:
+            prediction_function = prediction_function_2d_cnn
         else:
-            highest_cost_by_step_bs_matrix = numpy.concatenate(
-                (highest_cost_by_step_bs_matrix, highest_cost_bs_matrix),
-                axis=0)
+            prediction_function = prediction_function_3d_cnn
 
-        # Remove best predictor from list.
-        remaining_predictor_names_by_matrix[best_matrix_index].remove(
-            best_predictor_name)
+    predictor_names_by_matrix = _create_nice_predictor_names(
+        predictor_matrices=predictor_matrices,
+        cnn_metadata_dict=cnn_metadata_dict,
+        separate_radar_heights=separate_radar_heights,
+        reshape_predictor_matrices=False
+    )[0]
 
-        # Leave values of best predictor permuted.
-        this_best_predictor_index = predictor_names_by_matrix[
-            best_matrix_index].index(best_predictor_name)
-
-        list_of_input_matrices[best_matrix_index][
-            ..., this_best_predictor_index
-        ] = best_predictor_permuted_values + 0.
-
-        print('Best predictor = "{0:s}" ... new cost = {1:s}'.format(
-            best_predictor_name, str(highest_cost_bs_matrix)
+    num_matrices = len(predictor_names_by_matrix)
+    for i in range(num_matrices):
+        print('Predictors in {0:d}th matrix:\n{1:s}\n'.format(
+            i + 1, str(predictor_names_by_matrix[i])
         ))
 
+    print(SEPARATOR_STRING)
+
+    # Find original cost (before permutation).
+    print('Finding original cost (before permutation)...')
+    class_probability_matrix = prediction_function(
+        model_object, predictor_matrices)
+
+    original_cost_array = _bootstrap_cost(
+        target_values=target_values,
+        class_probability_matrix=class_probability_matrix,
+        cost_function=cost_function, num_replicates=num_bootstrap_reps)
+
+    # Do the permutation part.
+    permuted_flags_by_matrix = [
+        numpy.full(len(n), 0, dtype=bool)
+        for n in predictor_names_by_matrix
+    ]
+
+    step_num = 0
+
+    step1_predictor_names = None
+    step1_cost_matrix = None
+    best_predictor_names = []
+    best_cost_matrix = numpy.full((0, num_bootstrap_reps), numpy.nan)
+
+    while True:
+        print(MINOR_SEPARATOR_STRING)
+        step_num += 1
+
+        this_dict = _run_permutation_one_step(
+            model_object=model_object, predictor_matrices=predictor_matrices,
+            predictor_names_by_matrix=predictor_names_by_matrix,
+            target_values=target_values,
+            prediction_function=prediction_function,
+            cost_function=cost_function,
+            separate_radar_heights=separate_radar_heights,
+            num_bootstrap_reps=num_bootstrap_reps, step_num=step_num,
+            permuted_flags_by_matrix=permuted_flags_by_matrix)
+
+        if this_dict is None:
+            break
+
+        predictor_matrices = this_dict[PREDICTOR_MATRICES_KEY]
+        permuted_flags_by_matrix = this_dict[PERMUTED_FLAGS_KEY]
+        best_predictor_names.append(this_dict[BEST_PREDICTOR_KEY])
+
+        this_best_cost_array = this_dict[BEST_COST_ARRAY_KEY]
+        this_best_cost_matrix = numpy.reshape(
+            this_best_cost_array, (1, len(this_best_cost_array))
+        )
+        best_cost_matrix = numpy.concatenate(
+            (best_cost_matrix, this_best_cost_matrix), axis=0
+        )
+
+        if step_num == 1:
+            step1_predictor_names = this_dict[PERMUTED_PREDICTORS_KEY]
+            step1_cost_matrix = this_dict[PERMUTED_COST_MATRIX_KEY]
+
     return {
-        NUM_BOOTSTRAP_ITERS_KEY: num_bootstrap_iters,
-        CONFIDENCE_LEVEL_KEY: bootstrap_confidence_level,
-        SELECTED_PREDICTORS_KEY: selected_predictor_name_by_step,
-        HIGHEST_COSTS_KEY: highest_cost_by_step_bs_matrix,
-        ORIGINAL_COST_KEY: original_cost_bs_array,
+        BEST_PREDICTORS_KEY: best_predictor_names,
+        BEST_COST_MATRIX_KEY: best_cost_matrix,
+        ORIGINAL_COST_ARRAY_KEY: original_cost_array,
         STEP1_PREDICTORS_KEY: step1_predictor_names,
-        STEP1_COSTS_KEY: step1_cost_bs_matrix
+        STEP1_COST_MATRIX_KEY: step1_cost_matrix
     }
 
 

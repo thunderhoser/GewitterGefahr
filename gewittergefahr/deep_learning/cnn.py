@@ -301,6 +301,32 @@ def read_model(hdf5_file_name):
         hdf5_file_name, custom_objects=PERFORMANCE_METRIC_DICT)
 
 
+def find_metafile(model_file_name, raise_error_if_missing=True):
+    """Finds metafile for CNN.
+
+    :param model_file_name: Path to model itself (see doc for `read_model`).
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: metafile_name: Path to metafile.  If file is missing and
+        `raise_error_if_missing = False`, this will be the expected path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(model_file_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    metafile_name = '{0:s}/model_metadata.p'.format(
+        os.path.split(model_file_name)[0]
+    )
+
+    if not os.path.isfile(metafile_name) and raise_error_if_missing:
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            metafile_name)
+        raise ValueError(error_string)
+
+    return metafile_name
+
+
 def write_model_metadata(
         pickle_file_name, metadata_dict, training_option_dict,
         list_of_layer_operation_dicts=None):
