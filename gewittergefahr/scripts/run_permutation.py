@@ -108,6 +108,10 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_BOOTSTRAP_ARG_NAME, type=int, required=False, default=1,
+    help=NUM_BOOTSTRAP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
