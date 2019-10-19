@@ -248,12 +248,10 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
             colour_bar_length=COLOUR_BAR_LENGTH)
 
-        this_title_string = (
-            radar_plotting.radar_fields_and_heights_to_panel_names(
-                field_names=[GRIDRAD_FIELD_NAMES[j]],
-                heights_m_agl=RADAR_HEIGHTS_M_AGL[[0]], include_units=True
-            )[0]
-        )
+        this_title_string = radar_plotting.fields_and_heights_to_names(
+            field_names=[GRIDRAD_FIELD_NAMES[j]],
+            heights_m_agl=RADAR_HEIGHTS_M_AGL[[0]], include_units=True
+        )[0]
 
         this_title_string = this_title_string.replace('\n', ' ').replace(
             '.00 km AGL', ' km')
@@ -348,12 +346,10 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             )
             pyplot.close(this_figure_object)
 
-            this_title_string = (
-                radar_plotting.radar_fields_and_heights_to_panel_names(
-                    field_names=[radar_utils.REFL_NAME],
-                    heights_m_agl=RADAR_HEIGHTS_M_AGL[[0]], include_units=True
-                )[0]
-            )
+            this_title_string = radar_plotting.fields_and_heights_to_names(
+                field_names=[radar_utils.REFL_NAME],
+                heights_m_agl=RADAR_HEIGHTS_M_AGL[[0]], include_units=True
+            )[0]
 
             this_title_string = this_title_string.replace('\n', ' ').replace(
                 '.00 km AGL', ' km')
@@ -390,12 +386,10 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             )
             pyplot.close(this_figure_object)
 
-        this_title_string = (
-            radar_plotting.radar_fields_and_heights_to_panel_names(
-                field_names=[MYRORSS_SHEAR_FIELD_NAMES[j]],
-                heights_m_agl=RADAR_HEIGHTS_M_AGL[[0]], include_units=True
-            )[0]
-        )
+        this_title_string = radar_plotting.fields_and_heights_to_names(
+            field_names=[MYRORSS_SHEAR_FIELD_NAMES[j]],
+            heights_m_agl=RADAR_HEIGHTS_M_AGL[[0]], include_units=True
+        )[0]
 
         this_title_string = this_title_string.split('\n')[0]
         this_title_string = 'MYRORSS {0:s}{1:s}'.format(

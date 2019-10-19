@@ -295,7 +295,7 @@ def create_nice_predictor_names(
             )
 
             predictor_names_by_matrix[0] = (
-                radar_plotting.radar_fields_and_heights_to_panel_names(
+                radar_plotting.fields_and_heights_to_names(
                     field_names=these_field_names,
                     heights_m_agl=radar_heights_m_agl, include_units=False)
             )
@@ -319,7 +319,7 @@ def create_nice_predictor_names(
             ).astype(int)
 
             predictor_names_by_matrix[0] = (
-                radar_plotting.radar_fields_and_heights_to_panel_names(
+                radar_plotting.fields_and_heights_to_names(
                     field_names=these_field_names,
                     heights_m_agl=these_heights_m_agl, include_units=False)
             )
@@ -330,7 +330,7 @@ def create_nice_predictor_names(
 
         elif layer_operation_dicts is not None:
             _, predictor_names_by_matrix[0] = (
-                radar_plotting.layer_ops_to_field_and_panel_names(
+                radar_plotting.layer_operations_to_names(
                     list_of_layer_operation_dicts=layer_operation_dicts,
                     include_units=False)
             )

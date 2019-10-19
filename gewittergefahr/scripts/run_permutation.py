@@ -12,6 +12,7 @@ from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import permutation
+from gewittergefahr.deep_learning import correlation
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
@@ -219,6 +220,22 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
                 ))
 
     print(SEPARATOR_STRING)
+    correlation_matrix, predictor_names = correlation.get_pearson_correlations(
+        predictor_matrices=predictor_matrices,
+        cnn_metadata_dict=cnn_metadata_dict,
+        separate_radar_heights=separate_radar_heights)
+    print(SEPARATOR_STRING)
+
+    num_predictors = len(predictor_names)
+
+    for i in range(num_predictors):
+        for j in range(i, num_predictors):
+            print((
+                'Pearson correlation between "{0:s}" and "{1:s}" = {2:.3f}'
+            ).format(
+                predictor_names[i], predictor_names[j], correlation_matrix[i, j]
+            ))
+
     result_dict = permutation.run_permutation_test(
         model_object=model_object, predictor_matrices=predictor_matrices,
         target_values=target_values, cnn_metadata_dict=cnn_metadata_dict,

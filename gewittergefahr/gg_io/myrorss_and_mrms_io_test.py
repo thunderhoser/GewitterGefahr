@@ -7,10 +7,15 @@ from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
 
 TOLERANCE = 1e-6
+LL_SHEAR_NAME = radar_utils.LOW_LEVEL_SHEAR_NAME
 
-LL_SHEAR_NAME_MYRORSS = radar_utils.LOW_LEVEL_SHEAR_NAME_MYRORSS
-LL_SHEAR_NAME_MRMS = radar_utils.LOW_LEVEL_SHEAR_NAME_MRMS
-LL_SHEAR_NAME_NEW = radar_utils.LOW_LEVEL_SHEAR_NAME
+LL_SHEAR_NAME_MYRORSS = radar_utils.field_name_new_to_orig(
+    field_name=radar_utils.LOW_LEVEL_SHEAR_NAME,
+    data_source_name=radar_utils.MYRORSS_SOURCE_ID)
+
+LL_SHEAR_NAME_MRMS = radar_utils.field_name_new_to_orig(
+    field_name=radar_utils.LOW_LEVEL_SHEAR_NAME,
+    data_source_name=radar_utils.MRMS_SOURCE_ID)
 
 # The following constants are used to test _get_pathless_raw_file_pattern and
 # _get_pathless_raw_file_name.
@@ -154,7 +159,7 @@ class MyrorssAndMrmsIoTests(unittest.TestCase):
 
         this_relative_dir_name = (
             myrorss_and_mrms_io.get_relative_dir_for_raw_files(
-                field_name=LL_SHEAR_NAME_NEW,
+                field_name=LL_SHEAR_NAME,
                 data_source=radar_utils.MYRORSS_SOURCE_ID))
         self.assertTrue(this_relative_dir_name == RELATIVE_DIR_NAME_MYRORSS)
 
@@ -166,7 +171,7 @@ class MyrorssAndMrmsIoTests(unittest.TestCase):
 
         this_relative_dir_name = (
             myrorss_and_mrms_io.get_relative_dir_for_raw_files(
-                field_name=LL_SHEAR_NAME_NEW,
+                field_name=LL_SHEAR_NAME,
                 data_source=radar_utils.MRMS_SOURCE_ID))
         self.assertTrue(this_relative_dir_name == RELATIVE_DIR_NAME_MRMS)
 
@@ -176,7 +181,7 @@ class MyrorssAndMrmsIoTests(unittest.TestCase):
         this_raw_file_name = myrorss_and_mrms_io.find_raw_file(
             unix_time_sec=FILE_TIME_UNIX_SEC,
             spc_date_string=FILE_SPC_DATE_STRING,
-            field_name=LL_SHEAR_NAME_NEW,
+            field_name=LL_SHEAR_NAME,
             data_source=radar_utils.MYRORSS_SOURCE_ID,
             top_directory_name=TOP_RAW_DIRECTORY_NAME,
             raise_error_if_missing=False)
@@ -188,7 +193,7 @@ class MyrorssAndMrmsIoTests(unittest.TestCase):
         this_raw_file_name = myrorss_and_mrms_io.find_raw_file(
             unix_time_sec=FILE_TIME_UNIX_SEC,
             spc_date_string=FILE_SPC_DATE_STRING,
-            field_name=LL_SHEAR_NAME_NEW,
+            field_name=LL_SHEAR_NAME,
             data_source=radar_utils.MRMS_SOURCE_ID,
             top_directory_name=TOP_RAW_DIRECTORY_NAME,
             raise_error_if_missing=False)
@@ -200,7 +205,7 @@ class MyrorssAndMrmsIoTests(unittest.TestCase):
         this_raw_file_name = myrorss_and_mrms_io.find_raw_file_inexact_time(
             desired_time_unix_sec=FILE_TIME_UNIX_SEC,
             spc_date_string=FILE_SPC_DATE_STRING,
-            field_name=LL_SHEAR_NAME_NEW,
+            field_name=LL_SHEAR_NAME,
             data_source=radar_utils.MYRORSS_SOURCE_ID,
             top_directory_name=TOP_RAW_DIRECTORY_NAME,
             raise_error_if_missing=False)

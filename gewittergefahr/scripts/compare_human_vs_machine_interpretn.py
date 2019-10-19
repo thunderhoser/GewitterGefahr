@@ -221,7 +221,7 @@ def _plot_comparison(
     if list_of_layer_operation_dicts is None:
         field_name_by_panel = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
 
-        panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
+        panel_names = radar_plotting.fields_and_heights_to_names(
             field_names=field_name_by_panel,
             heights_m_agl=training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
         )
@@ -231,7 +231,7 @@ def _plot_comparison(
         )
     else:
         field_name_by_panel, panel_names = (
-            radar_plotting.layer_ops_to_field_and_panel_names(
+            radar_plotting.layer_operations_to_names(
                 list_of_layer_operation_dicts=list_of_layer_operation_dicts
             )
         )

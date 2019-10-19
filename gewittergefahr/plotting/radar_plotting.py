@@ -415,7 +415,7 @@ def field_name_to_verbose(field_name, include_units=True):
         '(s', '(ks')
 
 
-def layer_ops_to_field_and_panel_names(
+def layer_operations_to_names(
         list_of_layer_operation_dicts, include_units=True):
     """Converts list of layer operations to list of field and panel names.
 
@@ -438,11 +438,11 @@ def layer_ops_to_field_and_panel_names(
 
     for i in range(num_panels):
         this_operation_dict = list_of_layer_operation_dicts[i]
+        field_name_by_panel[i] = this_operation_dict[
+            input_examples.RADAR_FIELD_KEY]
 
         this_field_name_verbose = field_name_to_verbose(
-            field_name=this_operation_dict[input_examples.RADAR_FIELD_KEY],
-            include_units=include_units
-        )
+            field_name=field_name_by_panel[i], include_units=include_units)
 
         panel_names[i] = '{0:s}\n{1:s} from {2:d}-{3:d} m AGL'.format(
             this_field_name_verbose,
@@ -454,7 +454,7 @@ def layer_ops_to_field_and_panel_names(
     return field_name_by_panel, panel_names
 
 
-def radar_fields_and_heights_to_panel_names(
+def fields_and_heights_to_names(
         field_names, heights_m_agl, include_units=True):
     """Converts list of radar field/height pairs to panel names.
 

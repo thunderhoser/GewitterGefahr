@@ -8,7 +8,7 @@ from gewittergefahr.plotting import radar_plotting
 
 METRES_TO_KM = 0.001
 
-# The following constants are used to test layer_ops_to_field_and_panel_names.
+# The following constants are used to test layer_operations_to_names.
 THESE_FIELD_NAMES = (
     [radar_utils.REFL_NAME] * 3 +
     [radar_utils.SPECTRUM_WIDTH_NAME] * 3 +
@@ -45,32 +45,37 @@ for k in range(NUM_LAYER_OPERATIONS):
     }
 
 PANEL_NAMES_WITH_OPS_SANS_UNITS = [
-    'Reflectivity\nMIN from 1-3 km AGL', 'Reflectivity\nMEAN from 1-3 km AGL',
-    'Reflectivity\nMAX from 1-3 km AGL', 'Spectrum width\nMIN from 1-3 km AGL',
-    'Spectrum width\nMEAN from 1-3 km AGL',
-    'Spectrum width\nMAX from 1-3 km AGL',
-    'Vorticity\nMIN from 2-4 km AGL', 'Vorticity\nMEAN from 2-4 km AGL',
-    'Vorticity\nMAX from 2-4 km AGL', 'Vorticity\nMIN from 5-8 km AGL',
-    'Vorticity\nMEAN from 5-8 km AGL', 'Vorticity\nMAX from 5-8 km AGL'
+    'Reflectivity\nMIN from 1000-3000 m AGL',
+    'Reflectivity\nMEAN from 1000-3000 m AGL',
+    'Reflectivity\nMAX from 1000-3000 m AGL',
+    'Spectrum width\nMIN from 1000-3000 m AGL',
+    'Spectrum width\nMEAN from 1000-3000 m AGL',
+    'Spectrum width\nMAX from 1000-3000 m AGL',
+    'Vorticity\nMIN from 2000-4000 m AGL',
+    'Vorticity\nMEAN from 2000-4000 m AGL',
+    'Vorticity\nMAX from 2000-4000 m AGL',
+    'Vorticity\nMIN from 5000-8000 m AGL',
+    'Vorticity\nMEAN from 5000-8000 m AGL',
+    'Vorticity\nMAX from 5000-8000 m AGL'
 ]
 
 PANEL_NAMES_WITH_OPS_WITH_UNITS = [
-    'Reflectivity (dBZ)\nMIN from 1-3 km AGL',
-    'Reflectivity (dBZ)\nMEAN from 1-3 km AGL',
-    'Reflectivity (dBZ)\nMAX from 1-3 km AGL',
-    'Spectrum width (m s$^{-1}$)\nMIN from 1-3 km AGL',
-    'Spectrum width (m s$^{-1}$)\nMEAN from 1-3 km AGL',
-    'Spectrum width (m s$^{-1}$)\nMAX from 1-3 km AGL',
-    'Vorticity (ks$^{-1}$)\nMIN from 2-4 km AGL',
-    'Vorticity (ks$^{-1}$)\nMEAN from 2-4 km AGL',
-    'Vorticity (ks$^{-1}$)\nMAX from 2-4 km AGL',
-    'Vorticity (ks$^{-1}$)\nMIN from 5-8 km AGL',
-    'Vorticity (ks$^{-1}$)\nMEAN from 5-8 km AGL',
-    'Vorticity (ks$^{-1}$)\nMAX from 5-8 km AGL'
+    'Reflectivity (dBZ)\nMIN from 1000-3000 m AGL',
+    'Reflectivity (dBZ)\nMEAN from 1000-3000 m AGL',
+    'Reflectivity (dBZ)\nMAX from 1000-3000 m AGL',
+    'Spectrum width (m s$^{-1}$)\nMIN from 1000-3000 m AGL',
+    'Spectrum width (m s$^{-1}$)\nMEAN from 1000-3000 m AGL',
+    'Spectrum width (m s$^{-1}$)\nMAX from 1000-3000 m AGL',
+    'Vorticity (ks$^{-1}$)\nMIN from 2000-4000 m AGL',
+    'Vorticity (ks$^{-1}$)\nMEAN from 2000-4000 m AGL',
+    'Vorticity (ks$^{-1}$)\nMAX from 2000-4000 m AGL',
+    'Vorticity (ks$^{-1}$)\nMIN from 5000-8000 m AGL',
+    'Vorticity (ks$^{-1}$)\nMEAN from 5000-8000 m AGL',
+    'Vorticity (ks$^{-1}$)\nMAX from 5000-8000 m AGL'
 ]
 
 # The following constants are used to test
-# radar_fields_and_heights_to_panel_names.
+# fields_and_heights_to_names.
 FIELD_NAME_BY_PAIR = [
     radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
     radar_utils.VORTICITY_NAME, radar_utils.REFL_NAME
@@ -78,31 +83,31 @@ FIELD_NAME_BY_PAIR = [
 HEIGHT_BY_PAIR_M_AGL = numpy.array([1000, 3000, 2000, 10000])
 
 PANEL_NAMES_SANS_OPS_WITH_UNITS = [
-    'Reflectivity (dBZ)\nat 1.00 km AGL',
-    'Spectrum width (m s$^{-1}$)\nat 3.00 km AGL',
-    'Vorticity (ks$^{-1}$)\nat 2.00 km AGL',
-    'Reflectivity (dBZ)\nat 10.00 km AGL'
+    'Reflectivity (dBZ)\nat 1000 m AGL',
+    'Spectrum width (m s$^{-1}$)\nat 3000 m AGL',
+    'Vorticity (ks$^{-1}$)\nat 2000 m AGL',
+    'Reflectivity (dBZ)\nat 10000 m AGL'
 ]
 
 PANEL_NAMES_SANS_OPS_SANS_UNITS = [
-    'Reflectivity\nat 1.00 km AGL',
-    'Spectrum width\nat 3.00 km AGL',
-    'Vorticity\nat 2.00 km AGL',
-    'Reflectivity\nat 10.00 km AGL'
+    'Reflectivity\nat 1000 m AGL',
+    'Spectrum width\nat 3000 m AGL',
+    'Vorticity\nat 2000 m AGL',
+    'Reflectivity\nat 10000 m AGL'
 ]
 
 
 class RadarPlottingTests(unittest.TestCase):
     """Each method is a unit test for radar_plotting.py."""
 
-    def test_layer_ops_to_field_and_panel_names_with_units(self):
-        """Ensures correct output from layer_ops_to_field_and_panel_names.
+    def test_layer_operations_to_names_with_units(self):
+        """Ensures correct output from layer_operations_to_names.
 
         In this case, expecting panel names with units.
         """
 
         these_field_names, these_panel_names = (
-            radar_plotting.layer_ops_to_field_and_panel_names(
+            radar_plotting.layer_operations_to_names(
                 list_of_layer_operation_dicts=LIST_OF_LAYER_OPERATION_DICTS,
                 include_units=True)
         )
@@ -110,14 +115,14 @@ class RadarPlottingTests(unittest.TestCase):
         self.assertTrue(these_field_names == FIELD_NAMES_WITH_LAYER_OPS)
         self.assertTrue(these_panel_names == PANEL_NAMES_WITH_OPS_WITH_UNITS)
 
-    def test_layer_ops_to_field_and_panel_names_sans_units(self):
-        """Ensures correct output from layer_ops_to_field_and_panel_names.
+    def test_layer_operations_to_names_sans_units(self):
+        """Ensures correct output from layer_operations_to_names.
 
         In this case, expecting panel names without units.
         """
 
         these_field_names, these_panel_names = (
-            radar_plotting.layer_ops_to_field_and_panel_names(
+            radar_plotting.layer_operations_to_names(
                 list_of_layer_operation_dicts=LIST_OF_LAYER_OPERATION_DICTS,
                 include_units=False)
         )
@@ -125,31 +130,27 @@ class RadarPlottingTests(unittest.TestCase):
         self.assertTrue(these_field_names == FIELD_NAMES_WITH_LAYER_OPS)
         self.assertTrue(these_panel_names == PANEL_NAMES_WITH_OPS_SANS_UNITS)
 
-    def test_radar_fields_and_heights_to_panel_names_with_units(self):
-        """Ensures correctness of radar_fields_and_heights_to_panel_names.
+    def test_fields_and_heights_to_names_with_units(self):
+        """Ensures correctness of fields_and_heights_to_names.
 
         In this case, expecting panel names with units.
         """
 
-        these_panel_names = (
-            radar_plotting.radar_fields_and_heights_to_panel_names(
-                field_names=FIELD_NAME_BY_PAIR,
-                heights_m_agl=HEIGHT_BY_PAIR_M_AGL, include_units=True)
-        )
+        these_panel_names = radar_plotting.fields_and_heights_to_names(
+            field_names=FIELD_NAME_BY_PAIR,
+            heights_m_agl=HEIGHT_BY_PAIR_M_AGL, include_units=True)
 
         self.assertTrue(these_panel_names == PANEL_NAMES_SANS_OPS_WITH_UNITS)
 
-    def test_radar_fields_and_heights_to_panel_names_sans_units(self):
-        """Ensures correctness of radar_fields_and_heights_to_panel_names.
+    def test_fields_and_heights_to_names_sans_units(self):
+        """Ensures correctness of fields_and_heights_to_names.
 
         In this case, expecting panel names without units.
         """
 
-        these_panel_names = (
-            radar_plotting.radar_fields_and_heights_to_panel_names(
-                field_names=FIELD_NAME_BY_PAIR,
-                heights_m_agl=HEIGHT_BY_PAIR_M_AGL, include_units=False)
-        )
+        these_panel_names = radar_plotting.fields_and_heights_to_names(
+            field_names=FIELD_NAME_BY_PAIR,
+            heights_m_agl=HEIGHT_BY_PAIR_M_AGL, include_units=False)
 
         self.assertTrue(these_panel_names == PANEL_NAMES_SANS_OPS_SANS_UNITS)
 

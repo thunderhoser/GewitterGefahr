@@ -752,13 +752,13 @@ def _plot_2d_radar_scan(
     if list_of_layer_operation_dicts is None:
         radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
 
-        panel_names = radar_plotting.radar_fields_and_heights_to_panel_names(
+        panel_names = radar_plotting.fields_and_heights_to_names(
             field_names=radar_field_names,
             heights_m_agl=training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
         )
     else:
         radar_field_names, panel_names = (
-            radar_plotting.layer_ops_to_field_and_panel_names(
+            radar_plotting.layer_operations_to_names(
                 list_of_layer_operation_dicts=list_of_layer_operation_dicts
             )
         )
