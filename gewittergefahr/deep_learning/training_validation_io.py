@@ -579,7 +579,7 @@ def separate_shear_and_reflectivity(list_of_input_matrices,
         list_of_input_matrices[0][..., -num_az_shear_fields:]
     )
     list_of_input_matrices = (
-            [new_first_matrix, new_second_matrix] + list_of_input_matrices[1:]
+        [new_first_matrix, new_second_matrix] + list_of_input_matrices[1:]
     )
 
     return list_of_input_matrices
@@ -914,7 +914,7 @@ def myrorss_generator_2d3d(option_dict):
         convolution over both at the same time.  If False, will do 3-D
         convolution over reflectivity and 2-D convolution over azimuthal shear.
 
-    If `upsample_reflectivity == True`...
+    If `upsample_reflectivity == False`...
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = reflectivity_image_matrix_dbz: numpy array
@@ -927,7 +927,7 @@ def myrorss_generator_2d3d(option_dict):
 
     :return: target_array: See doc for `generator_2d_or_3d`.
 
-    If `upsample_reflectivity == False`...
+    If `upsample_reflectivity == True`...
 
     :return: predictor_list: List with the following items.
     predictor_list[0]: radar_image_matrix: numpy array (E x 2M x 2N x [H_r + C])

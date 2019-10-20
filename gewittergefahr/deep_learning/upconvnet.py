@@ -8,22 +8,27 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import testing_io
+from gewittergefahr.deep_learning import architecture_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
-L1_WEIGHT = 0.
-L2_WEIGHT = 0.001
-SLOPE_FOR_RELU = 0.2
-NUM_CONV_FILTER_ROWS = 3
-NUM_CONV_FILTER_COLUMNS = 3
-NUM_SMOOTHING_FILTER_ROWS = 5
-NUM_SMOOTHING_FILTER_COLUMNS = 5
+CONV_FILTER_SIZE = 3
+SMOOTHING_FILTER_SIZE = 5
+
+DEFAULT_L1_WEIGHT = 0.
+DEFAULT_L2_WEIGHT = 0.001
+DEFAULT_ACTIV_FUNC_NAME = architecture_utils.RELU_FUNCTION_STRING
+DEFAULT_ALPHA_FOR_ELU = architecture_utils.DEFAULT_ALPHA_FOR_ELU
+DEFAULT_ALPHA_FOR_RELU = architecture_utils.DEFAULT_ALPHA_FOR_RELU
 
 DEFAULT_SMOOTHING_RADIUS_PX = 1.
 DEFAULT_HALF_SMOOTHING_ROWS = 2
 DEFAULT_HALF_SMOOTHING_COLUMNS = 2
 
-MIN_MSE_DECREASE_FOR_EARLY_STOP = 0.005
-NUM_EPOCHS_FOR_EARLY_STOP = 6
+PLATEAU_PATIENCE_EPOCHS = 3
+PLATEAU_LEARNING_RATE_MULTIPLIER = 0.5
+PLATEAU_COOLDOWN_EPOCHS = 0
+EARLY_STOPPING_PATIENCE_EPOCHS = 15
+MSE_PATIENCE = 0.005
 
 CNN_FILE_KEY = 'cnn_file_name'
 CNN_FEATURE_LAYER_KEY = 'cnn_feature_layer_name'
@@ -104,221 +109,372 @@ def create_smoothing_filter(
     return weight_matrix
 
 
-def create_net(
-        num_input_features, first_num_rows, first_num_columns,
-        upsampling_factors, num_output_channels,
-        use_activation_for_out_layer=False, use_bn_for_out_layer=True,
-        use_transposed_conv=False, smoothing_radius_px=None):
-    """Creates (but does not train) upconvnet.
+def create_3d_net(
+        num_input_features, first_spatial_dimensions, rowcol_upsampling_factors,
+        height_upsampling_factors, num_output_channels,
+        use_transposed_conv=True,
+        l1_weight=DEFAULT_L1_WEIGHT, l2_weight=DEFAULT_L2_WEIGHT,
+        activation_function_name=DEFAULT_ACTIV_FUNC_NAME,
+        alpha_for_elu=DEFAULT_ALPHA_FOR_ELU,
+        alpha_for_relu=DEFAULT_ALPHA_FOR_RELU,
+        use_activn_for_last_layer=False,
+        use_batch_norm=True, use_batch_norm_for_last_layer=True):
+    """Creates (but does not train) upconvnet with 3 spatial dimensions.
 
-    L = number of conv or deconv layers
+    L = number of main (transposed-conv or upsampling) layers
 
-    :param num_input_features: Number of input features.
-    :param first_num_rows: Number of rows in input to first deconv layer.  The
-        input features will be reshaped into a grid with this many rows.
-    :param first_num_columns: Same but for columns.
-    :param upsampling_factors: length-L numpy array of upsampling factors.  Must
-        all be positive integers.
-    :param num_output_channels: Number of channels in output images.
-    :param use_activation_for_out_layer: Boolean flag.  If True, activation will
-        be applied to output layer.
-    :param use_bn_for_out_layer: Boolean flag.  If True, batch normalization
-        will be applied to output layer.
-    :param use_transposed_conv: Boolean flag.  If True, upsampling will be done
-        with transposed-convolution layers.  If False, each upsampling will be
-        done with an upsampling layer followed by a conv layer.
-    :param smoothing_radius_px: Smoothing radius (pixels).  Gaussian smoothing
-        with this e-folding radius will be done after each upsampling.  If
-        `smoothing_radius_px is None`, no smoothing will be done.
-    :return: model_object: Untrained instance of `keras.models.Model`.
+    :param num_input_features: Length of input feature vector.
+    :param first_spatial_dimensions: length-3 numpy array of dimensions in first
+        main layer.  The order should be (num_rows, num_columns, num_heights).
+        Before it is passed to the first main layer, the feature vector will be
+        reshaped into a grid with these dimensions.
+    :param rowcol_upsampling_factors: length-L numpy array of upsampling factors
+        for horizontal dimensions.
+    :param height_upsampling_factors: length-L numpy array of upsampling factors
+        for vertical dimension.
+    :param num_output_channels: Number of channels in output image.
+    :param use_transposed_conv: Boolean flag.  If True, each upsampling will be
+        done with a transposed-conv layer.  If False, each upsampling will be
+        done with an upsampling layer followed by a normal conv layer.
+    :param l1_weight: Weight of L1 regularization for conv and transposed-conv
+        layers.
+    :param l2_weight: Same but for L2 regularization.
+    :param activation_function_name: Activation function.  If you do not want
+        activation, make this None.  Otherwise, must be accepted by
+        `architecture_utils.check_activation_function`.
+    :param alpha_for_elu: See doc for
+        `architecture_utils.check_activation_function`.
+    :param alpha_for_relu: Same.
+    :param use_activn_for_last_layer: Boolean flag.  If True, will apply
+        activation function to output image.
+    :param use_batch_norm: Boolean flag.  If True, will apply batch
+        normalization to conv and transposed-conv layers.
+    :param use_batch_norm_for_last_layer: Boolean flag.  If True, will apply
+        batch normalization to output image.
+    :return: model_object: Untrained model (instance of `keras.models.Model`).
     """
 
+    # TODO(thunderhoser): This method assumes that the original CNN does
+    # edge-padding.
+
+    # Check input args.
     error_checking.assert_is_integer(num_input_features)
-    error_checking.assert_is_integer(first_num_rows)
-    error_checking.assert_is_integer(first_num_columns)
-    error_checking.assert_is_integer(num_output_channels)
-
     error_checking.assert_is_greater(num_input_features, 0)
-    error_checking.assert_is_greater(first_num_rows, 0)
-    error_checking.assert_is_greater(first_num_columns, 0)
+    error_checking.assert_is_integer(num_output_channels)
     error_checking.assert_is_greater(num_output_channels, 0)
+    error_checking.assert_is_geq(l1_weight, 0.)
+    error_checking.assert_is_geq(l2_weight, 0.)
 
-    error_checking.assert_is_integer_numpy_array(upsampling_factors)
-    error_checking.assert_is_numpy_array(upsampling_factors, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(upsampling_factors, 1)
-
-    error_checking.assert_is_boolean(use_activation_for_out_layer)
-    error_checking.assert_is_boolean(use_bn_for_out_layer)
     error_checking.assert_is_boolean(use_transposed_conv)
+    error_checking.assert_is_boolean(use_activn_for_last_layer)
+    error_checking.assert_is_boolean(use_batch_norm)
+    error_checking.assert_is_boolean(use_batch_norm_for_last_layer)
 
-    regularizer_object = keras.regularizers.l1_l2(l1=L1_WEIGHT, l2=L2_WEIGHT)
+    error_checking.assert_is_numpy_array(
+        first_spatial_dimensions, exact_dimensions=numpy.array([3], dtype=int)
+    )
+    error_checking.assert_is_integer_numpy_array(first_spatial_dimensions)
+    error_checking.assert_is_greater_numpy_array(first_spatial_dimensions, 0)
+
+    error_checking.assert_is_numpy_array(
+        rowcol_upsampling_factors, num_dimensions=1
+    )
+    error_checking.assert_is_integer_numpy_array(rowcol_upsampling_factors)
+    error_checking.assert_is_geq_numpy_array(rowcol_upsampling_factors, 1)
+
+    num_main_layers = len(rowcol_upsampling_factors)
+    these_expected_dim = numpy.array([num_main_layers], dtype=int)
+
+    error_checking.assert_is_numpy_array(
+        height_upsampling_factors, exact_dimensions=these_expected_dim
+    )
+    error_checking.assert_is_integer_numpy_array(height_upsampling_factors)
+    error_checking.assert_is_geq_numpy_array(height_upsampling_factors, 1)
+
+    # Set up CNN architecture.
+    regularizer_object = keras.regularizers.l1_l2(l1=l1_weight, l2=l2_weight)
     input_layer_object = keras.layers.Input(shape=(num_input_features,))
 
     current_num_filters = int(numpy.round(
-        num_input_features / (first_num_rows * first_num_columns)
+        num_input_features / numpy.prod(first_spatial_dimensions)
     ))
-
+    first_dimensions = numpy.concatenate((
+        first_spatial_dimensions, numpy.array([current_num_filters], dtype=int)
+    ))
     layer_object = keras.layers.Reshape(
-        target_shape=(first_num_rows, first_num_columns, current_num_filters)
+        target_shape=first_dimensions
     )(input_layer_object)
 
-    num_main_layers = len(upsampling_factors)
+    kernel_size_tuple = (CONV_FILTER_SIZE, CONV_FILTER_SIZE, CONV_FILTER_SIZE)
 
     for i in range(num_main_layers):
-        this_upsampling_factor = upsampling_factors[i]
-
         if i == num_main_layers - 1:
             current_num_filters = num_output_channels + 0
-        elif this_upsampling_factor == 1:
+        elif rowcol_upsampling_factors[i] == 1:
             current_num_filters = int(numpy.round(current_num_filters / 2))
 
-        if use_transposed_conv:
-            if this_upsampling_factor > 1:
-                this_padding_arg = 'same'
-            else:
-                this_padding_arg = 'valid'
+        this_stride_tuple = (
+            rowcol_upsampling_factors[i], rowcol_upsampling_factors[i],
+            height_upsampling_factors[i]
+        )
 
-            layer_object = keras.layers.Conv2DTranspose(
-                filters=current_num_filters,
-                kernel_size=(NUM_CONV_FILTER_ROWS, NUM_CONV_FILTER_COLUMNS),
-                strides=(this_upsampling_factor, this_upsampling_factor),
-                padding=this_padding_arg, data_format='channels_last',
-                dilation_rate=(1, 1), activation=None, use_bias=True,
+        if use_transposed_conv:
+            layer_object = keras.layers.Conv3DTranspose(
+                filters=current_num_filters, kernel_size=kernel_size_tuple,
+                strides=this_stride_tuple, padding='same',
+                data_format='channels_last', dilation_rate=(1, 1, 1),
+                activation=None, use_bias=True,
                 kernel_initializer='glorot_uniform', bias_initializer='zeros',
                 kernel_regularizer=regularizer_object
             )(layer_object)
-
         else:
-            if this_upsampling_factor > 1:
+            if rowcol_upsampling_factors[i] > 1:
                 try:
-                    layer_object = keras.layers.UpSampling2D(
-                        size=(this_upsampling_factor, this_upsampling_factor),
-                        data_format='channels_last', interpolation='nearest'
+                    layer_object = keras.layers.UpSampling3D(
+                        size=this_stride_tuple, data_format='channels_last',
+                        interpolation='bilinear'
                     )(layer_object)
                 except:
-                    layer_object = keras.layers.UpSampling2D(
-                        size=(this_upsampling_factor, this_upsampling_factor),
-                        data_format='channels_last'
+                    layer_object = keras.layers.UpSampling3D(
+                        size=this_stride_tuple, data_format='channels_last'
                     )(layer_object)
 
-            layer_object = keras.layers.Conv2D(
-                filters=current_num_filters,
-                kernel_size=(NUM_CONV_FILTER_ROWS, NUM_CONV_FILTER_COLUMNS),
-                strides=(1, 1), padding='same', data_format='channels_last',
-                dilation_rate=(1, 1), activation=None, use_bias=True,
+            layer_object = keras.layers.Conv3D(
+                filters=current_num_filters, kernel_size=kernel_size_tuple,
+                strides=(1, 1, 1), padding='same', data_format='channels_last',
+                dilation_rate=(1, 1, 1), activation=None, use_bias=True,
                 kernel_initializer='glorot_uniform', bias_initializer='zeros',
                 kernel_regularizer=regularizer_object
             )(layer_object)
 
-            if this_upsampling_factor == 1:
-                layer_object = keras.layers.ZeroPadding2D(
-                    padding=(1, 1), data_format='channels_last'
-                )(layer_object)
+        use_activation_here = (
+            activation_function_name is not None and
+            (i < num_main_layers - 1 or use_activn_for_last_layer)
+        )
 
-        if smoothing_radius_px is not None:
-            this_weight_matrix = create_smoothing_filter(
-                smoothing_radius_px=smoothing_radius_px,
-                num_channels=current_num_filters)
-
-            this_bias_vector = numpy.zeros(current_num_filters)
-
-            layer_object = keras.layers.Conv2D(
-                filters=current_num_filters,
-                kernel_size=this_weight_matrix.shape[:2],
-                strides=(1, 1), padding='same', data_format='channels_last',
-                dilation_rate=(1, 1), activation=None, use_bias=True,
-                kernel_initializer='glorot_uniform', bias_initializer='zeros',
-                kernel_regularizer=regularizer_object, trainable=False,
-                weights=[this_weight_matrix, this_bias_vector]
+        if use_activation_here:
+            layer_object = architecture_utils.get_activation_layer(
+                activation_function_string=activation_function_name,
+                alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(layer_object)
 
-        if i < num_main_layers - 1 or use_activation_for_out_layer:
-            layer_object = keras.layers.LeakyReLU(
-                alpha=SLOPE_FOR_RELU
-            )(layer_object)
+        use_batch_norm_here = (
+            use_batch_norm and
+            (i < num_main_layers - 1 or use_batch_norm_for_last_layer)
+        )
 
-        if i < num_main_layers - 1 or use_bn_for_out_layer:
-            layer_object = keras.layers.BatchNormalization(
-                axis=-1, center=True, scale=True
-            )(layer_object)
+        if use_batch_norm_here:
+            layer_object = (
+                architecture_utils.get_batch_norm_layer()(layer_object)
+            )
 
+    # Compile CNN.
     model_object = keras.models.Model(
         inputs=input_layer_object, outputs=layer_object)
     model_object.compile(
-        loss=keras.losses.mean_squared_error, optimizer=keras.optimizers.Adam())
+        loss=keras.losses.mean_squared_error, optimizer=keras.optimizers.Adam()
+    )
 
     model_object.summary()
     return model_object
 
 
-def trainval_generator_2d_radar(
-        option_dict, cnn_model_object, cnn_feature_layer_name,
-        list_of_layer_operation_dicts=None):
-    """Generates training or validation examples with 2-D radar images.
+def create_2d_net(
+        num_input_features, first_spatial_dimensions, upsampling_factors,
+        num_output_channels, use_transposed_conv=True,
+        l1_weight=DEFAULT_L1_WEIGHT, l2_weight=DEFAULT_L2_WEIGHT,
+        activation_function_name=DEFAULT_ACTIV_FUNC_NAME,
+        alpha_for_elu=DEFAULT_ALPHA_FOR_ELU,
+        alpha_for_relu=DEFAULT_ALPHA_FOR_RELU,
+        use_activn_for_last_layer=False,
+        use_batch_norm=True, use_batch_norm_for_last_layer=True):
+    """Creates (but does not train) upconvnet with 2 spatial dimensions.
 
-    E = number of examples in batch
-    M = number of rows in spatial grid
-    N = number of columns in spatial grid
-    C = number of image channels
-    Z = number of scalar features
+    L = number of main (transposed-conv or upsampling) layers
 
-    :param option_dict: See doc for `training_validation_io.generator_2d_or_3d`.
-    :param cnn_model_object: Trained CNN (instance of `keras.models.Model` or
-        `keras.models.Sequential`).  This will be used to turn images (generated
-        by `training_validation_io.generator_2d_or_3d`) into 1-D feature
-        vectors.
-    :param cnn_feature_layer_name: Name of feature-generating layer in CNN.  For
-        each image generated by `training_validation_io.generator_2d_or_3d`, the
-        feature vector will be the output from this layer.
-    :param list_of_layer_operation_dicts: See doc for
-        `training_validation_io.gridrad_generator_2d_reduced`.
-    :return: feature_matrix: E-by-Z numpy array of scalar features.  These will
-        be inputs (predictors) for the upconvnet.
-    :return: radar_matrix: E-by-M-by-N-by-C numpy array of radar images.  These
-        will be outputs (targets) for the upconvnet.
-    :raises: ValueError: if the first input tensor to `cnn_model_object` does
-        not have exactly 2 spatial dimensions.
+    :param num_input_features: Length of input feature vector.
+    :param first_spatial_dimensions: length-2 numpy array of dimensions in first
+        main layer.  The order should be (num_rows, num_columns).  Before it is
+        passed to the first main layer, the feature vector will be reshaped into
+        a grid with these dimensions.
+    :param upsampling_factors: length-L numpy array of upsampling factors.
+    :param num_output_channels: See doc for `create_3d_net`.
+    :param use_transposed_conv: Same.
+    :param l1_weight: Same.
+    :param l2_weight: Same.
+    :param activation_function_name: Same.
+    :param alpha_for_elu: Same.
+    :param alpha_for_relu: Same.
+    :param use_activn_for_last_layer: Same.
+    :param use_batch_norm: Same.
+    :param use_batch_norm_for_last_layer: Same.
+    :return: model_object: Same.
     """
 
-    if isinstance(cnn_model_object.input, list):
-        radar_input_tensor = cnn_model_object.input[0]
-    else:
-        radar_input_tensor = cnn_model_object.input
+    # TODO(thunderhoser): This method assumes that the original CNN does
+    # edge-padding.
 
-    these_dimensions = radar_input_tensor.get_shape().as_list()
-    num_spatial_dimensions = len(these_dimensions) - 2
+    # Check input args.
+    error_checking.assert_is_integer(num_input_features)
+    error_checking.assert_is_greater(num_input_features, 0)
+    error_checking.assert_is_integer(num_output_channels)
+    error_checking.assert_is_greater(num_output_channels, 0)
+    error_checking.assert_is_geq(l1_weight, 0.)
+    error_checking.assert_is_geq(l2_weight, 0.)
 
-    if num_spatial_dimensions != 2:
-        error_string = (
-            'First input tensor to CNN should have 2 (not {0:d}) spatial '
-            'dimensions.'
-        ).format(num_spatial_dimensions)
+    error_checking.assert_is_boolean(use_transposed_conv)
+    error_checking.assert_is_boolean(use_activn_for_last_layer)
+    error_checking.assert_is_boolean(use_batch_norm)
+    error_checking.assert_is_boolean(use_batch_norm_for_last_layer)
 
-        raise TypeError(error_string)
+    error_checking.assert_is_numpy_array(
+        first_spatial_dimensions, exact_dimensions=numpy.array([2], dtype=int)
+    )
+    error_checking.assert_is_integer_numpy_array(first_spatial_dimensions)
+    error_checking.assert_is_greater_numpy_array(first_spatial_dimensions, 0)
 
-    option_dict[trainval_io.LOOP_ONCE_KEY] = False
-    option_dict[trainval_io.X_TRANSLATIONS_KEY] = None
-    option_dict[trainval_io.Y_TRANSLATIONS_KEY] = None
-    option_dict[trainval_io.ROTATION_ANGLES_KEY] = None
-    option_dict[trainval_io.NOISE_STDEV_KEY] = None
-    option_dict[trainval_io.NUM_NOISINGS_KEY] = 0
-    option_dict[trainval_io.FLIP_X_KEY] = False
-    option_dict[trainval_io.FLIP_Y_KEY] = False
+    error_checking.assert_is_numpy_array(upsampling_factors, num_dimensions=1)
+    error_checking.assert_is_integer_numpy_array(upsampling_factors)
+    error_checking.assert_is_geq_numpy_array(upsampling_factors, 1)
+
+    # Set up CNN architecture.
+    regularizer_object = keras.regularizers.l1_l2(l1=l1_weight, l2=l2_weight)
+    input_layer_object = keras.layers.Input(shape=(num_input_features,))
+
+    current_num_filters = int(numpy.round(
+        num_input_features / numpy.prod(first_spatial_dimensions)
+    ))
+    first_dimensions = numpy.concatenate((
+        first_spatial_dimensions, numpy.array([current_num_filters], dtype=int)
+    ))
+    layer_object = keras.layers.Reshape(
+        target_shape=first_dimensions
+    )(input_layer_object)
+
+    num_main_layers = len(upsampling_factors)
+    kernel_size_tuple = (CONV_FILTER_SIZE, CONV_FILTER_SIZE)
+
+    for i in range(num_main_layers):
+        if i == num_main_layers - 1:
+            current_num_filters = num_output_channels + 0
+        elif upsampling_factors[i] == 1:
+            current_num_filters = int(numpy.round(current_num_filters / 2))
+
+        this_stride_tuple = (upsampling_factors[i], upsampling_factors[i])
+
+        if use_transposed_conv:
+            layer_object = keras.layers.Conv2DTranspose(
+                filters=current_num_filters, kernel_size=kernel_size_tuple,
+                strides=this_stride_tuple, padding='same',
+                data_format='channels_last', dilation_rate=(1, 1),
+                activation=None, use_bias=True,
+                kernel_initializer='glorot_uniform', bias_initializer='zeros',
+                kernel_regularizer=regularizer_object
+            )(layer_object)
+        else:
+            if upsampling_factors[i] > 1:
+                try:
+                    layer_object = keras.layers.UpSampling2D(
+                        size=this_stride_tuple, data_format='channels_last',
+                        interpolation='bilinear'
+                    )(layer_object)
+                except:
+                    layer_object = keras.layers.UpSampling2D(
+                        size=this_stride_tuple, data_format='channels_last'
+                    )(layer_object)
+
+            layer_object = keras.layers.Conv2D(
+                filters=current_num_filters, kernel_size=kernel_size_tuple,
+                strides=(1, 1), padding='same', data_format='channels_last',
+                dilation_rate=(1, 1), activation=None, use_bias=True,
+                kernel_initializer='glorot_uniform', bias_initializer='zeros',
+                kernel_regularizer=regularizer_object
+            )(layer_object)
+
+        use_activation_here = (
+            activation_function_name is not None and
+            (i < num_main_layers - 1 or use_activn_for_last_layer)
+        )
+
+        if use_activation_here:
+            layer_object = architecture_utils.get_activation_layer(
+                activation_function_string=activation_function_name,
+                alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+            )(layer_object)
+
+        use_batch_norm_here = (
+            use_batch_norm and
+            (i < num_main_layers - 1 or use_batch_norm_for_last_layer)
+        )
+
+        if use_batch_norm_here:
+            layer_object = (
+                architecture_utils.get_batch_norm_layer()(layer_object)
+            )
+
+    # Compile CNN.
+    model_object = keras.models.Model(
+        inputs=input_layer_object, outputs=layer_object)
+    model_object.compile(
+        loss=keras.losses.mean_squared_error, optimizer=keras.optimizers.Adam()
+    )
+
+    model_object.summary()
+    return model_object
+
+
+def trainval_generator(cnn_model_object, cnn_metadata_dict,
+                       cnn_feature_layer_name):
+    """Generates training or validation examples for upconvnet.
+
+    E = number of examples per batch
+    Z = number of features in vector
+
+    :param cnn_model_object: Trained CNN (instance of `keras.models.Model` or
+        `keras.models.Sequential`), used to convert images to feature vectors.
+        The upconvnet tries to convert feature vectors back to original images.
+    :param cnn_metadata_dict: See doc for `cnn.read_model_metadata`.
+    :param cnn_feature_layer_name: Name of feature-generating layer in CNN.  The
+        feature vector will be the output of this layer.
+    :return: feature_matrix: E-by-Z numpy array of scalar features.  Each row is
+        the feature vector for one example.  These are inputs (predictors) for
+        the upconvnet.
+    :return: radar_matrix: numpy array of radar images.  These are targets
+        (desired outputs) for the upconvnet.  If radar images have 3 spatial
+        dimensions, this should be a 5-D array; if 2 spatial dimensions, this
+        should be a 4-D array.
+    """
+
+    training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    training_option_dict[trainval_io.SHUFFLE_TARGET_KEY] = False
+    training_option_dict[trainval_io.LOOP_ONCE_KEY] = False
+    training_option_dict[trainval_io.X_TRANSLATIONS_KEY] = None
+    training_option_dict[trainval_io.Y_TRANSLATIONS_KEY] = None
+    training_option_dict[trainval_io.ROTATION_ANGLES_KEY] = None
+    training_option_dict[trainval_io.NOISE_STDEV_KEY] = None
+    training_option_dict[trainval_io.NUM_NOISINGS_KEY] = 0
+    training_option_dict[trainval_io.FLIP_X_KEY] = False
+    training_option_dict[trainval_io.FLIP_Y_KEY] = False
 
     partial_cnn_model_object = cnn.model_to_feature_generator(
         model_object=cnn_model_object,
         feature_layer_name=cnn_feature_layer_name)
 
-    if list_of_layer_operation_dicts is None:
-        cnn_generator_object = trainval_io.generator_2d_or_3d(option_dict)
+    conv_2d3d = cnn_metadata_dict[cnn.CONV_2D3D_KEY]
+    layer_operation_dicts = cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
+
+    if conv_2d3d:
+        cnn_generator = trainval_io.myrorss_generator_2d3d(training_option_dict)
+    elif layer_operation_dicts is None:
+        cnn_generator = trainval_io.generator_2d_or_3d(training_option_dict)
     else:
-        cnn_generator_object = trainval_io.gridrad_generator_2d_reduced(
-            option_dict=option_dict,
-            list_of_operation_dicts=list_of_layer_operation_dicts)
+        cnn_generator = trainval_io.gridrad_generator_2d_reduced(
+            option_dict=training_option_dict,
+            list_of_operation_dicts=layer_operation_dicts)
 
     while True:
         try:
-            these_image_matrices = next(cnn_generator_object)[0]
+            these_image_matrices = next(cnn_generator)[0]
         except StopIteration:
             break
 
@@ -328,58 +484,50 @@ def trainval_generator_2d_radar(
             radar_matrix = these_image_matrices
 
         feature_matrix = partial_cnn_model_object.predict(
-            these_image_matrices, batch_size=radar_matrix.shape[0])
+            these_image_matrices, batch_size=radar_matrix.shape[0]
+        )
 
         yield (feature_matrix, radar_matrix)
 
 
-def testing_generator_2d_radar(
-        option_dict, num_examples_total, cnn_model_object,
-        cnn_feature_layer_name, list_of_layer_operation_dicts=None):
-    """Generates testing examples with 2-D radar images.
+def testing_generator(cnn_model_object, cnn_metadata_dict,
+                      cnn_feature_layer_name, num_examples_total):
+    """Generates testing examples for upconvnet.
 
-    :param option_dict: See doc for `testing_io.generator_2d_or_3d`.
-    :param num_examples_total: Number of examples (storm objects) to read.
-    :param cnn_model_object: See doc for `trainval_generator_2d_radar`.
+    :param cnn_model_object: See doc for `trainval_generator`.
+    :param cnn_metadata_dict: Same.
     :param cnn_feature_layer_name: Same.
-    :param list_of_layer_operation_dicts: Same.
-    :return: feature_matrix: Same.
+    :param num_examples_total: Number of examples to read.
+    :return: feature_matrix: See doc for `trainval_generator`.
     :return: radar_matrix: Same.
-    :raises: ValueError: if the first input tensor to `cnn_model_object` does
-        not have exactly 2 spatial dimensions.
     """
 
-    if isinstance(cnn_model_object.input, list):
-        radar_input_tensor = cnn_model_object.input[0]
-    else:
-        radar_input_tensor = cnn_model_object.input
-
-    these_dimensions = radar_input_tensor.get_shape().as_list()
-    num_spatial_dimensions = len(these_dimensions) - 2
-
-    if num_spatial_dimensions != 2:
-        error_string = (
-            'First input tensor to CNN should have 2 (not {0:d}) spatial '
-            'dimensions.'
-        ).format(num_spatial_dimensions)
-
-        raise TypeError(error_string)
+    training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     partial_cnn_model_object = cnn.model_to_feature_generator(
         model_object=cnn_model_object,
         feature_layer_name=cnn_feature_layer_name)
 
-    if list_of_layer_operation_dicts is None:
-        cnn_generator_object = testing_io.generator_2d_or_3d(
-            option_dict=option_dict, num_examples_total=num_examples_total)
+    conv_2d3d = cnn_metadata_dict[cnn.CONV_2D3D_KEY]
+    layer_operation_dicts = cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
+
+    if conv_2d3d:
+        cnn_generator = testing_io.myrorss_generator_2d3d(
+            option_dict=training_option_dict,
+            num_examples_total=num_examples_total)
+    elif layer_operation_dicts is None:
+        cnn_generator = testing_io.generator_2d_or_3d(
+            option_dict=training_option_dict,
+            num_examples_total=num_examples_total)
     else:
-        cnn_generator_object = testing_io.gridrad_generator_2d_reduced(
-            option_dict=option_dict, num_examples_total=num_examples_total,
-            list_of_operation_dicts=list_of_layer_operation_dicts)
+        cnn_generator = testing_io.gridrad_generator_2d_reduced(
+            option_dict=training_option_dict,
+            list_of_operation_dicts=layer_operation_dicts,
+            num_examples_total=num_examples_total)
 
     while True:
         try:
-            this_storm_object_dict = next(cnn_generator_object)
+            this_storm_object_dict = next(cnn_generator)
         except StopIteration:
             break
 
@@ -392,14 +540,15 @@ def testing_generator_2d_radar(
             radar_matrix = these_image_matrices
 
         feature_matrix = partial_cnn_model_object.predict(
-            these_image_matrices, batch_size=radar_matrix.shape[0])
+            these_image_matrices, batch_size=radar_matrix.shape[0]
+        )
 
         yield (feature_matrix, radar_matrix)
 
 
 def train_upconvnet(
-        upconvnet_model_object, output_model_file_name, cnn_model_object,
-        cnn_feature_layer_name, cnn_metadata_dict, num_epochs,
+        upconvnet_model_object, output_dir_name, cnn_model_object,
+        cnn_metadata_dict, cnn_feature_layer_name, num_epochs,
         num_examples_per_batch, num_training_batches_per_epoch,
         training_example_file_names, first_training_time_unix_sec,
         last_training_time_unix_sec, num_validation_batches_per_epoch,
@@ -409,11 +558,11 @@ def train_upconvnet(
 
     :param upconvnet_model_object: Upconvnet to be trained (instance of
         `keras.models.Model` or `keras.models.Sequential`).
-    :param output_model_file_name: Path to output file.  The model will be saved
-        as an HDF5 file (extension should be ".h5", but this is not enforced).
-    :param cnn_model_object: See doc for `trainval_generator_2d_radar`.
+    :param output_dir_name: Name of output directory (model and training history
+        will be saved here).
+    :param cnn_model_object: See doc for `trainval_generator`.
+    :param cnn_metadata_dict: Same.
     :param cnn_feature_layer_name: Same.
-    :param cnn_metadata_dict: Dictionary returned by `cnn.read_model_metadata`.
     :param num_epochs: Number of epochs.
     :param num_examples_per_batch: Number of examples in each training or
         validation batch.
@@ -434,62 +583,66 @@ def train_upconvnet(
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
-        file_name=output_model_file_name)
+        directory_name=output_dir_name)
 
-    if num_validation_batches_per_epoch is None:
-        checkpoint_object = keras.callbacks.ModelCheckpoint(
-            output_model_file_name, monitor='loss', verbose=1,
-            save_best_only=False, save_weights_only=False, mode='min', period=1)
-    else:
-        checkpoint_object = keras.callbacks.ModelCheckpoint(
-            output_model_file_name, monitor='val_loss', verbose=1,
-            save_best_only=True, save_weights_only=False, mode='min', period=1)
+    upconvnet_file_name = '{0:s}/upconvnet_model.h5'
+    history_file_name = '{0:s}/upconvnet_model_history.csv'
 
-    training_option_dict = copy.deepcopy(
-        cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    )
+    training_metadata_dict = copy.deepcopy(cnn_metadata_dict)
+    this_option_dict = training_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    training_option_dict[
+    this_option_dict[
         trainval_io.EXAMPLE_FILES_KEY] = training_example_file_names
-    training_option_dict[
+    this_option_dict[
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY] = num_examples_per_batch
-    training_option_dict[
+    this_option_dict[
         trainval_io.FIRST_STORM_TIME_KEY] = first_training_time_unix_sec
-    training_option_dict[
+    this_option_dict[
         trainval_io.LAST_STORM_TIME_KEY] = last_training_time_unix_sec
 
-    training_generator = trainval_generator_2d_radar(
-        option_dict=training_option_dict, cnn_model_object=cnn_model_object,
-        cnn_feature_layer_name=cnn_feature_layer_name,
-        list_of_layer_operation_dicts=cnn_metadata_dict[
-            cnn.LAYER_OPERATIONS_KEY]
-    )
+    training_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = this_option_dict
+    training_generator = trainval_generator(
+        cnn_model_object=cnn_model_object,
+        cnn_metadata_dict=training_metadata_dict,
+        cnn_feature_layer_name=cnn_feature_layer_name)
 
-    validation_option_dict = copy.deepcopy(
-        cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    )
+    validation_metadata_dict = copy.deepcopy(cnn_metadata_dict)
+    this_option_dict = validation_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    validation_option_dict[
+    this_option_dict[
         trainval_io.EXAMPLE_FILES_KEY] = validation_example_file_names
-    validation_option_dict[
+    this_option_dict[
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY] = num_examples_per_batch
-    validation_option_dict[
+    this_option_dict[
         trainval_io.FIRST_STORM_TIME_KEY] = first_validation_time_unix_sec
-    validation_option_dict[
+    this_option_dict[
         trainval_io.LAST_STORM_TIME_KEY] = last_validation_time_unix_sec
 
-    validation_generator = trainval_generator_2d_radar(
-        option_dict=training_option_dict, cnn_model_object=cnn_model_object,
-        cnn_feature_layer_name=cnn_feature_layer_name,
-        list_of_layer_operation_dicts=cnn_metadata_dict[
-            cnn.LAYER_OPERATIONS_KEY]
-    )
+    validation_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = this_option_dict
+    validation_generator = trainval_generator(
+        cnn_model_object=cnn_model_object,
+        cnn_metadata_dict=validation_metadata_dict,
+        cnn_feature_layer_name=cnn_feature_layer_name)
+
+    history_object = keras.callbacks.CSVLogger(
+        filename=history_file_name, separator=',', append=False)
+
+    checkpoint_object = keras.callbacks.ModelCheckpoint(
+        filepath=upconvnet_file_name, monitor='val_loss', verbose=1,
+        save_best_only=True, save_weights_only=False, mode='min', period=1)
 
     early_stopping_object = keras.callbacks.EarlyStopping(
-        monitor='val_loss', min_delta=MIN_MSE_DECREASE_FOR_EARLY_STOP,
-        patience=NUM_EPOCHS_FOR_EARLY_STOP, verbose=1, mode='min')
+        monitor='val_loss', min_delta=MSE_PATIENCE,
+        patience=EARLY_STOPPING_PATIENCE_EPOCHS, verbose=1, mode='min')
 
-    list_of_callback_objects = [checkpoint_object, early_stopping_object]
+    plateau_object = keras.callbacks.ReduceLROnPlateau(
+        monitor='val_loss', factor=PLATEAU_LEARNING_RATE_MULTIPLIER,
+        patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
+        min_delta=MSE_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
+
+    list_of_callback_objects = [
+        history_object, checkpoint_object, early_stopping_object, plateau_object
+    ]
 
     upconvnet_model_object.fit_generator(
         generator=training_generator,
@@ -613,37 +766,34 @@ def read_model_metadata(pickle_file_name):
 
 
 def apply_upconvnet(model_object, feature_matrix, num_examples_per_batch=100,
-                    verbose=False):
-    """Applies upconvnet to one or more feature vectors.
+                    verbose=True):
+    """Applies trained upconvnet to one or more feature vectors.
 
     E = number of examples
     Z = number of scalar features
 
     :param model_object: Trained upconvnet (instance of `keras.models.Model` or
         `keras.models.Sequential`).
-    :param feature_matrix: E-by-Z numpy array of features (inputs to upconvnet).
+    :param feature_matrix: E-by-Z numpy array of features.
     :param num_examples_per_batch: Number of examples per batch.  Will apply
-        upconvnet to this many examples at once.  If
-        `num_examples_per_batch is None`, will apply to all examples at once.
-    :param verbose: Boolean flag.  If True, will print progress messages.
+        upconvnet to this many examples at once.  If None, will apply to all
+        examples at once.
+    :param verbose: Boolean flag.
     :return: reconstructed_image_matrix: numpy array of reconstructed images.
-        The array should have <= 2 dimensions, and the first axis should have
-        length E.
+        This will have >= 2 dimensions, and the first axis will have length E.
     """
 
+    error_checking.assert_is_boolean(verbose)
     error_checking.assert_is_numpy_array_without_nan(feature_matrix)
     error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=2)
 
     num_examples = feature_matrix.shape[0]
-
     if num_examples_per_batch is None:
         num_examples_per_batch = num_examples + 0
-    else:
-        error_checking.assert_is_integer(num_examples_per_batch)
-        error_checking.assert_is_greater(num_examples_per_batch, 0)
 
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_greater(num_examples_per_batch, 0)
     num_examples_per_batch = min([num_examples_per_batch, num_examples])
-    error_checking.assert_is_boolean(verbose)
 
     reconstructed_image_matrix = None
 
@@ -660,7 +810,9 @@ def apply_upconvnet(model_object, feature_matrix, num_examples_per_batch=100,
         if verbose:
             print((
                 'Applying model to examples {0:d}-{1:d} of {2:d}...'
-            ).format(this_first_index + 1, this_last_index + 1, num_examples))
+            ).format(
+                this_first_index + 1, this_last_index + 1, num_examples
+            ))
 
         this_image_matrix = model_object.predict(
             feature_matrix[these_indices, ...], batch_size=len(these_indices)
@@ -670,7 +822,8 @@ def apply_upconvnet(model_object, feature_matrix, num_examples_per_batch=100,
             reconstructed_image_matrix = this_image_matrix + 0.
         else:
             reconstructed_image_matrix = numpy.concatenate(
-                (reconstructed_image_matrix, this_image_matrix), axis=0)
+                (reconstructed_image_matrix, this_image_matrix), axis=0
+            )
 
     if verbose:
         print('Have applied model to all {0:d} examples!'.format(num_examples))
