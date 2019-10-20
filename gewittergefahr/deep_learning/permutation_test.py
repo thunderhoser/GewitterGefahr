@@ -393,6 +393,33 @@ class PermutationTests(unittest.TestCase):
                 atol=TOLERANCE
             ))
 
+    def test_unpermute_one_predictor_first(self):
+        """Ensures correct output from _unpermute_one_predictor.
+
+        In this case, using first set of inputs.
+        """
+
+        these_new_matrices = permutation._permute_one_predictor(
+            predictor_matrices=copy.deepcopy(PREDICTOR_MATRICES_FOR_PERMUTN),
+            separate_radar_heights=FIRST_SEPARATE_FLAG_FOR_PERMUTN,
+            matrix_index=FIRST_MATRIX_INDEX_FOR_PERMUTN,
+            predictor_index=FIRST_PRED_INDEX_FOR_PERMUTN,
+            permuted_values=None
+        )[0]
+
+        these_orig_matrices = permutation._unpermute_one_predictor(
+            predictor_matrices=copy.deepcopy(these_new_matrices),
+            clean_predictor_matrices=PREDICTOR_MATRICES_FOR_PERMUTN,
+            separate_radar_heights=FIRST_SEPARATE_FLAG_FOR_PERMUTN,
+            matrix_index=FIRST_MATRIX_INDEX_FOR_PERMUTN,
+            predictor_index=FIRST_PRED_INDEX_FOR_PERMUTN)
+
+        for i in range(len(these_new_matrices)):
+            self.assertTrue(numpy.allclose(
+                these_orig_matrices[i], PREDICTOR_MATRICES_FOR_PERMUTN[i],
+                atol=TOLERANCE
+            ))
+
     def test_permute_one_predictor_second(self):
         """Ensures correct output from _permute_one_predictor.
 
@@ -431,6 +458,33 @@ class PermutationTests(unittest.TestCase):
                 atol=TOLERANCE
             ))
 
+    def test_unpermute_one_predictor_second(self):
+        """Ensures correct output from _unpermute_one_predictor.
+
+        In this case, using second set of inputs.
+        """
+
+        these_new_matrices = permutation._permute_one_predictor(
+            predictor_matrices=copy.deepcopy(PREDICTOR_MATRICES_FOR_PERMUTN),
+            separate_radar_heights=SECOND_SEPARATE_FLAG_FOR_PERMUTN,
+            matrix_index=SECOND_MATRIX_INDEX_FOR_PERMUTN,
+            predictor_index=SECOND_PRED_INDEX_FOR_PERMUTN,
+            permuted_values=None
+        )[0]
+
+        these_orig_matrices = permutation._unpermute_one_predictor(
+            predictor_matrices=copy.deepcopy(these_new_matrices),
+            clean_predictor_matrices=PREDICTOR_MATRICES_FOR_PERMUTN,
+            separate_radar_heights=SECOND_SEPARATE_FLAG_FOR_PERMUTN,
+            matrix_index=SECOND_MATRIX_INDEX_FOR_PERMUTN,
+            predictor_index=SECOND_PRED_INDEX_FOR_PERMUTN)
+
+        for i in range(len(these_new_matrices)):
+            self.assertTrue(numpy.allclose(
+                these_orig_matrices[i], PREDICTOR_MATRICES_FOR_PERMUTN[i],
+                atol=TOLERANCE
+            ))
+
     def test_permute_one_predictor_third(self):
         """Ensures correct output from _permute_one_predictor.
 
@@ -466,6 +520,33 @@ class PermutationTests(unittest.TestCase):
         for i in range(len(these_new_matrices)):
             self.assertTrue(numpy.allclose(
                 these_newnew_matrices[i], these_new_matrices[i],
+                atol=TOLERANCE
+            ))
+
+    def test_unpermute_one_predictor_third(self):
+        """Ensures correct output from _unpermute_one_predictor.
+
+        In this case, using third set of inputs.
+        """
+
+        these_new_matrices = permutation._permute_one_predictor(
+            predictor_matrices=copy.deepcopy(PREDICTOR_MATRICES_FOR_PERMUTN),
+            separate_radar_heights=THIRD_SEPARATE_FLAG_FOR_PERMUTN,
+            matrix_index=THIRD_MATRIX_INDEX_FOR_PERMUTN,
+            predictor_index=THIRD_PRED_INDEX_FOR_PERMUTN,
+            permuted_values=None
+        )[0]
+
+        these_orig_matrices = permutation._unpermute_one_predictor(
+            predictor_matrices=copy.deepcopy(these_new_matrices),
+            clean_predictor_matrices=PREDICTOR_MATRICES_FOR_PERMUTN,
+            separate_radar_heights=THIRD_SEPARATE_FLAG_FOR_PERMUTN,
+            matrix_index=THIRD_MATRIX_INDEX_FOR_PERMUTN,
+            predictor_index=THIRD_PRED_INDEX_FOR_PERMUTN)
+
+        for i in range(len(these_new_matrices)):
+            self.assertTrue(numpy.allclose(
+                these_orig_matrices[i], PREDICTOR_MATRICES_FOR_PERMUTN[i],
                 atol=TOLERANCE
             ))
 

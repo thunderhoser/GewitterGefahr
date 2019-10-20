@@ -57,7 +57,7 @@ def get_pearson_correlations(predictor_matrices, cnn_metadata_dict,
 
     P = total number of predictors (over all matrices)
 
-    :param predictor_matrices: See doc for `run_permutation_test`.
+    :param predictor_matrices: See doc for `permutation.run_forward_test`.
     :param cnn_metadata_dict: Same.
     :param separate_radar_heights: Same.
     :return: correlation_matrix: P-by-P numpy array of Pearson correlations.

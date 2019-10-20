@@ -26,6 +26,7 @@ EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
+DO_BACKWARDS_ARG_NAME = 'do_backwards_test'
 SEPARATE_HEIGHTS_ARG_NAME = 'separate_radar_heights'
 DOWNSAMPLING_KEYS_ARG_NAME = 'downsampling_keys'
 DOWNSAMPLING_VALUES_ARG_NAME = 'downsampling_values'
@@ -48,6 +49,10 @@ SPC_DATE_HELP_STRING = (
 NUM_EXAMPLES_HELP_STRING = (
     'Number of examples to use.  If you want to use all examples, make this a '
     'very large number.')
+
+DO_BACKWARDS_HELP_STRING = (
+    'Boolean flag.  If 1, will run backwards test.  If 0, will run forward '
+    'test.')
 
 SEPARATE_HEIGHTS_HELP_STRING = (
     'Boolean flag.  If 1, 3-D radar fields will be separated by height, so each'
@@ -94,6 +99,10 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + DO_BACKWARDS_ARG_NAME, type=int, required=False, default=0,
+    help=DO_BACKWARDS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + SEPARATE_HEIGHTS_ARG_NAME, type=int, required=False, default=0,
     help=SEPARATE_HEIGHTS_HELP_STRING)
 
@@ -117,9 +126,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(model_file_name, top_example_dir_name, first_spc_date_string,
-         last_spc_date_string, num_examples, separate_radar_heights,
-         downsampling_keys, downsampling_values, num_bootstrap_reps,
-         output_file_name):
+         last_spc_date_string, num_examples, do_backwards_test,
+         separate_radar_heights, downsampling_keys, downsampling_values,
+         num_bootstrap_reps, output_file_name):
     """Runs permutation test for predictor importance.
 
     This is effectively the main method.
@@ -129,6 +138,7 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
     :param num_examples: Same.
+    :param do_backwards_test: Same.
     :param separate_radar_heights: Same.
     :param downsampling_keys: Same.
     :param downsampling_values: Same.
@@ -240,12 +250,23 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
                 predictor_names[i], predictor_names[j], correlation_matrix[i, j]
             ))
 
-    result_dict = permutation.run_permutation_test(
-        model_object=model_object, predictor_matrices=predictor_matrices,
-        target_values=target_values, cnn_metadata_dict=cnn_metadata_dict,
-        cost_function=permutation.negative_auc_function,
-        separate_radar_heights=separate_radar_heights,
-        num_bootstrap_reps=num_bootstrap_reps)
+    print(SEPARATOR_STRING)
+
+    if do_backwards_test:
+        result_dict = permutation.run_backwards_test(
+            model_object=model_object, predictor_matrices=predictor_matrices,
+            target_values=target_values, cnn_metadata_dict=cnn_metadata_dict,
+            cost_function=permutation.negative_auc_function,
+            separate_radar_heights=separate_radar_heights,
+            num_bootstrap_reps=num_bootstrap_reps)
+    else:
+        result_dict = permutation.run_forward_test(
+            model_object=model_object, predictor_matrices=predictor_matrices,
+            target_values=target_values, cnn_metadata_dict=cnn_metadata_dict,
+            cost_function=permutation.negative_auc_function,
+            separate_radar_heights=separate_radar_heights,
+            num_bootstrap_reps=num_bootstrap_reps)
+
     print(SEPARATOR_STRING)
 
     result_dict[permutation.MODEL_FILE_KEY] = model_file_name
@@ -268,6 +289,9 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
+        do_backwards_test=bool(getattr(
+            INPUT_ARG_OBJECT, DO_BACKWARDS_ARG_NAME
+        )),
         separate_radar_heights=bool(getattr(
             INPUT_ARG_OBJECT, SEPARATE_HEIGHTS_ARG_NAME
         )),
