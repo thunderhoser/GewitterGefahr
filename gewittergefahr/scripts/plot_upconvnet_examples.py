@@ -1,6 +1,5 @@
 """Plots upconvnet reconstruction of one or more examples (storm objects)."""
 
-import os.path
 import argparse
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import file_system_utils
@@ -115,25 +114,21 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     print('Reading trained upconvnet from: "{0:s}"...'.format(
         upconvnet_file_name
     ))
-
     upconvnet_model_object = cnn.read_model(upconvnet_file_name)
-    upconvnet_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(upconvnet_file_name)[0]
-    )
+    upconvnet_metafile_name = cnn.find_metafile(
+        model_file_name=upconvnet_file_name, raise_error_if_missing=True)
 
     print('Reading upconvnet metadata from: "{0:s}"...'.format(
         upconvnet_metafile_name
     ))
-
     upconvnet_metadata_dict = upconvnet.read_model_metadata(
         upconvnet_metafile_name)
     cnn_file_name = upconvnet_metadata_dict[upconvnet.CNN_FILE_KEY]
 
     print('Reading trained CNN from: "{0:s}"...'.format(cnn_file_name))
     cnn_model_object = cnn.read_model(cnn_file_name)
-    cnn_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(cnn_file_name)[0]
-    )
+    cnn_metafile_name = cnn.find_metafile(
+        model_file_name=cnn_file_name, raise_error_if_missing=True)
 
     print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
@@ -142,9 +137,9 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
     print('Reading storm IDs and times from: "{0:s}"...'.format(
         storm_metafile_name
     ))
-
-    full_storm_id_strings, storm_times_unix_sec = tracking_io.read_ids_and_times(
-        storm_metafile_name)
+    full_storm_id_strings, storm_times_unix_sec = (
+        tracking_io.read_ids_and_times(storm_metafile_name)
+    )
 
     if 0 < num_examples < len(full_storm_id_strings):
         full_storm_id_strings = full_storm_id_strings[:num_examples]
@@ -152,10 +147,10 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
 
     print(SEPARATOR_STRING)
     list_of_predictor_matrices = testing_io.read_specific_examples(
+        top_example_dir_name=top_example_dir_name,
         desired_full_id_strings=full_storm_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
-        top_example_dir_name=top_example_dir_name,
         list_of_layer_operation_dicts=cnn_metadata_dict[
             cnn.LAYER_OPERATIONS_KEY]
     )[0]

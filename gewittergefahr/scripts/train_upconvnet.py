@@ -1,6 +1,5 @@
 """Trains upconvnet."""
 
-import os.path
 import argparse
 import keras
 from keras import backend as K
@@ -32,65 +31,57 @@ NUM_EX_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 NUM_TRAINING_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
 NUM_VALIDATION_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
-OUTPUT_FILE_ARG_NAME = 'output_model_file_name'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 CNN_FILE_HELP_STRING = (
-    'Path to file with trained CNN (will be read by `cnn.read_model`).  The CNN'
-    ' will be used as the encoder, to transform images into feature vectors.')
+    'Path to trained CNN (will be read by `cnn.read_model`).  The CNN will be '
+    'used as the encoder (to convert images to feature vectors), and the '
+    'upconvnet will be trained as the decoder (to convert feature vectors back '
+    'to images).')
 
 UPCONVNET_FILE_HELP_STRING = (
-    'Path to file with upconvnet (may be trained or untrained).  This file will'
-    ' be read by `cnn.read_model`, and its architecture will be copied to train'
-    ' a new upconvnet.')
+    'Path to untrained upconvnet (will be read by `cnn.read_model`).  The '
+    'architecture of this upconvnet will be copied and used in the new '
+    'upconvnet.')
 
 FEATURE_LAYER_HELP_STRING = (
-    'Name of feature-generating layer in CNN.  For each input image, the '
-    'feature vector will be the output from this layer.')
+    'Name of feature-generating layer in CNN.  The feature vector will be the '
+    'output of this layer.')
 
 TRAINING_DIR_HELP_STRING = (
-    'Name of top-level directory with training images (inputs to CNN).  Files '
-    'therein will be found by `input_examples.find_example_file` and read by '
-    '`input_examples.read_example_file`.')
+    'Name of directory with training data.  Files therein will be found by '
+    '`input_examples.find_many_example_files` (with shuffled = True) and read '
+    'by `input_examples.read_example_file`.')
 
 TRAINING_TIME_HELP_STRING = (
-    'Training time.  Only examples in the period `{0:s}`...`{1:s}` will be used'
-    ' for training.'
+    'Training time (format "yyyy-mm-dd-HHMMSS").  The training period will be '
+    '`{0:s}`...`{1:s}`.'
 ).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME)
 
 VALIDATION_DIR_HELP_STRING = (
-    'Name of top-level directory with validation images (inputs to CNN).  Files'
-    ' therein will be found by `input_examples.find_example_file` and read by '
-    '`input_examples.read_example_file`.')
+    'Same as `{0:s}` but for monitoring (on-the-fly validation).'
+).format(TRAINING_DIR_ARG_NAME)
 
 VALIDATION_TIME_HELP_STRING = (
-    'Validation time.  Only examples in the period `{0:s}`...`{1:s}` will be '
-    'used for validation.'
+    'Validation time (format "yyyy-mm-dd-HHMMSS").  The validation period will '
+    'be `{0:s}`...`{1:s}`.'
 ).format(FIRST_VALIDATION_TIME_ARG_NAME, LAST_VALIDATION_TIME_ARG_NAME)
 
 NUM_EX_PER_BATCH_HELP_STRING = (
-    'Number of examples in each training or validation batch.')
+    'Number of examples per batch (for both training and validation).')
 
-NUM_EPOCHS_HELP_STRING = 'Number of epochs.'
+NUM_EPOCHS_HELP_STRING = 'Number of training epochs.'
+NUM_TRAINING_BATCHES_HELP_STRING = 'Number of training batches per epoch.'
+NUM_VALIDATION_BATCHES_HELP_STRING = 'Number of validation batches per epoch.'
 
-NUM_TRAINING_BATCHES_HELP_STRING = (
-    'Number of training batches furnished to model in each epoch.')
-
-NUM_VALIDATION_BATCHES_HELP_STRING = (
-    'Number of validation batches furnished to model in each epoch.')
-
-OUTPUT_FILE_HELP_STRING = (
-    'Path to output file.  The trained upconvnet will be saved here as an HDF5 '
-    'file (extension ".h5" is recommended but not enforced).')
+OUTPUT_DIR_HELP_STRING = (
+    'Path to output directory.  The newly trained upconvnet and metafiles will '
+    'be saved here.')
 
 DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
 DEFAULT_NUM_EPOCHS = 100
 DEFAULT_NUM_TRAINING_BATCHES = 32
 DEFAULT_NUM_VALIDATION_BATCHES = 16
-
-DEFAULT_FIRST_TRAINING_TIME_STRING = '2011-01-01-000000'
-DEFAULT_LAST_TRAINING_TIME_STRING = '2013-12-31-120000'
-DEFAULT_FIRST_VALIDN_TIME_STRING = '2014-01-01-120000'
-DEFAULT_LAST_VALIDN_TIME_STRING = '2015-12-31-120000'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -110,24 +101,24 @@ INPUT_ARG_PARSER.add_argument(
     help=TRAINING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_TRAINING_TIME_ARG_NAME, type=str, required=False,
-    default=DEFAULT_FIRST_TRAINING_TIME_STRING, help=TRAINING_TIME_HELP_STRING)
+    '--' + FIRST_TRAINING_TIME_ARG_NAME, type=str, required=True,
+    help=TRAINING_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_TRAINING_TIME_ARG_NAME, type=str, required=False,
-    default=DEFAULT_LAST_TRAINING_TIME_STRING, help=TRAINING_TIME_HELP_STRING)
+    '--' + LAST_TRAINING_TIME_ARG_NAME, type=str, required=True,
+    help=TRAINING_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + VALIDATION_DIR_ARG_NAME, type=str, required=True,
     help=VALIDATION_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
-    default=DEFAULT_FIRST_VALIDN_TIME_STRING, help=VALIDATION_TIME_HELP_STRING)
+    '--' + FIRST_VALIDATION_TIME_ARG_NAME, type=str, required=True,
+    help=VALIDATION_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
-    default=DEFAULT_LAST_VALIDN_TIME_STRING, help=VALIDATION_TIME_HELP_STRING)
+    '--' + LAST_VALIDATION_TIME_ARG_NAME, type=str, required=True,
+    help=VALIDATION_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_EX_PER_BATCH_ARG_NAME, type=int, required=False,
@@ -147,8 +138,8 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_VALIDATION_BATCHES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
-    help=OUTPUT_FILE_HELP_STRING)
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING)
 
 
 def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
@@ -156,7 +147,7 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
          last_training_time_string, top_validation_dir_name,
          first_validation_time_string, last_validation_time_string,
          num_examples_per_batch, num_epochs, num_training_batches_per_epoch,
-         num_validation_batches_per_epoch, output_model_file_name):
+         num_validation_batches_per_epoch, output_dir_name):
     """Trains upconvnet.
 
     This is effectively the main method.
@@ -174,10 +165,10 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param num_validation_batches_per_epoch: Same.
-    :param output_model_file_name: Same.
+    :param output_dir_name: Same.
     """
 
-    # Find training and validation files.
+    # Process input args.
     first_training_time_unix_sec = time_conversion.string_to_unix_sec(
         first_training_time_string, TIME_FORMAT)
     last_training_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -188,6 +179,7 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
     last_validation_time_unix_sec = time_conversion.string_to_unix_sec(
         last_validation_time_string, TIME_FORMAT)
 
+    # Find training and validation files.
     training_file_names = input_examples.find_many_example_files(
         top_directory_name=top_training_dir_name, shuffled=True,
         first_batch_number=FIRST_BATCH_NUMBER,
@@ -198,22 +190,22 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
         first_batch_number=FIRST_BATCH_NUMBER,
         last_batch_number=LAST_BATCH_NUMBER, raise_error_if_any_missing=False)
 
+    # Read trained CNN.
     print('Reading trained CNN from: "{0:s}"...'.format(input_cnn_file_name))
     cnn_model_object = cnn.read_model(input_cnn_file_name)
-
     cnn_model_object.summary()
     print(SEPARATOR_STRING)
 
-    cnn_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(input_cnn_file_name)[0]
-    )
+    cnn_metafile_name = cnn.find_metafile(
+        model_file_name=input_cnn_file_name, raise_error_if_missing=True)
 
     print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
 
+    # Read architecture.
     print('Reading upconvnet architecture from: "{0:s}"...'.format(
-        input_upconvnet_file_name))
-
+        input_upconvnet_file_name
+    ))
     upconvnet_model_object = cnn.read_model(input_upconvnet_file_name)
     # upconvnet_model_object = keras.models.clone_model(upconvnet_model_object)
 
@@ -223,16 +215,16 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
         optimizer=keras.optimizers.Adam()
     )
 
-    print(SEPARATOR_STRING)
     upconvnet_model_object.summary()
     print(SEPARATOR_STRING)
 
-    upconvnet_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(output_model_file_name)[0]
+    upconvnet_metafile_name = cnn.find_metafile(
+        model_file_name='{0:s}/foo.h5'.format(output_dir_name),
+        raise_error_if_missing=False
     )
-
     print('Writing upconvnet metadata to: "{0:s}"...'.format(
-        upconvnet_metafile_name))
+        upconvnet_metafile_name
+    ))
 
     upconvnet.write_model_metadata(
         cnn_file_name=input_cnn_file_name,
@@ -252,11 +244,11 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
 
     upconvnet.train_upconvnet(
         upconvnet_model_object=upconvnet_model_object,
-        output_model_file_name=output_model_file_name,
+        output_dir_name=output_dir_name,
         cnn_model_object=cnn_model_object,
+        cnn_metadata_dict=cnn_metadata_dict,
         cnn_feature_layer_name=cnn_feature_layer_name,
-        cnn_metadata_dict=cnn_metadata_dict, num_epochs=num_epochs,
-        num_examples_per_batch=num_examples_per_batch,
+        num_epochs=num_epochs, num_examples_per_batch=num_examples_per_batch,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         training_example_file_names=training_file_names,
         first_training_time_unix_sec=first_training_time_unix_sec,
@@ -294,5 +286,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, NUM_TRAINING_BATCHES_ARG_NAME),
         num_validation_batches_per_epoch=getattr(
             INPUT_ARG_OBJECT, NUM_VALIDATION_BATCHES_ARG_NAME),
-        output_model_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
