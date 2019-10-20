@@ -585,8 +585,9 @@ def train_upconvnet(
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    upconvnet_file_name = '{0:s}/upconvnet_model.h5'
-    history_file_name = '{0:s}/upconvnet_model_history.csv'
+    upconvnet_file_name = '{0:s}/upconvnet_model.h5'.format(output_dir_name)
+    history_file_name = '{0:s}/upconvnet_model_history.csv'.format(
+        output_dir_name)
 
     training_metadata_dict = copy.deepcopy(cnn_metadata_dict)
     this_option_dict = training_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
