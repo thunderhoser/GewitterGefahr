@@ -103,7 +103,6 @@ def _convert_one_file(input_file_name, output_file_name):
     radar_matrix = numpy.stack(
         (reflectivity_matrix_dbz, vorticity_matrix_s01), axis=-1
     )
-    print(radar_matrix.shape)
 
     example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY] = radar_matrix
     example_dict[input_examples.RADAR_HEIGHTS_KEY] = NEW_RADAR_HEIGHTS_M_AGL
@@ -114,8 +113,6 @@ def _convert_one_file(input_file_name, output_file_name):
 
     example_dict.pop(input_examples.REFL_IMAGE_MATRIX_KEY, None)
     example_dict.pop(input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY, None)
-
-    print(example_dict.keys())
 
     print('Writing examples in GridRad format to: "{0:s}"...'.format(
         output_file_name

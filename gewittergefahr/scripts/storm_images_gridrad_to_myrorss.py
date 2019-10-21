@@ -32,18 +32,14 @@ OUTPUT_DIR_ARG_NAME = 'output_example_dir_name'
 # TODO(thunderhoser): Allow this to be done for shuffled example files?
 
 INPUT_DIR_HELP_STRING = (
-    'Name of top-level directory with input images (in GridRad format).  Files '
-    'therein will be found by `input_examples.find_example_file` and read by '
-    '`input_examples.read_example_file`.')
+    'Name of top-level directory with original examples (in GridRad format).  '
+    'Files therein will be found by `input_examples.find_example_file` and read'
+    ' by `input_examples.read_example_file`.')
 
 SPC_DATE_HELP_STRING = (
-    'SPC date (format "yyyymmdd").  Images will be converted for all SPC dates '
-    'in period `{0:s}`...`{1:s}`.'
+    'SPC date (format "yyyymmdd").  Examples will be converted for all SPC '
+    'dates in period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
-
-NUM_ROWS_HELP_STRING = (
-    'Number of rows in new (MYRORSS-style) reflectivity grid.  Azimuthal-shear '
-    'grid will have twice as many rows.')
 
 RESOLUTION_FACTOR_HELP_STRING = (
     'Resolution factor.  Horizontal resolution of reflectivity grids will be '
@@ -51,9 +47,9 @@ RESOLUTION_FACTOR_HELP_STRING = (
     'upsampled by twice this factor.')
 
 OUTPUT_DIR_HELP_STRING = (
-    'Name of top-level directory for output images (in MYRORSS format).  Files '
-    'will be written by `input_examples.write_example_file` to locations therein '
-    'determined by `input_examples.find_example_file`.')
+    'Name of top-level directory for new examples (in MYRORSS format).  Files '
+    'will be written by `input_examples.write_example_file` to locations '
+    'therein determined by `input_examples.find_example_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
