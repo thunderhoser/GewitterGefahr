@@ -1029,6 +1029,8 @@ def _subset_radar_data(
         azimuthal_shear_matrix_s01 = netcdf_dataset_object.variables[
             AZ_SHEAR_IMAGE_MATRIX_KEY][example_indices_to_keep, ...]
 
+        print(heights_to_keep_m_agl)
+
         these_height_indices = numpy.array([
             numpy.where(example_dict[RADAR_HEIGHTS_KEY] == h)[0][0]
             for h in heights_to_keep_m_agl
