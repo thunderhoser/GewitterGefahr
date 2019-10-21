@@ -9,8 +9,11 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 AZ_SHEAR_TO_VORTICITY = 0.5
 MAX_LL_SHEAR_HEIGHT_M_AGL = 2000
+# NEW_RADAR_HEIGHTS_M_AGL = numpy.array(
+#     [0, 1000, 2000, 3000, 4000, 5000, 6000], dtype=int
+# )
 NEW_RADAR_HEIGHTS_M_AGL = numpy.array(
-    [0, 1000, 2000, 3000, 4000, 5000, 6000], dtype=int
+    [1000, 2000, 3000, 4000, 5000, 6000], dtype=int
 )
 
 INPUT_DIR_ARG_NAME = 'input_example_dir_name'
