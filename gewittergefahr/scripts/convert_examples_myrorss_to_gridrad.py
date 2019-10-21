@@ -1,5 +1,6 @@
 """Converts examples from MYRORSS to GridRad format."""
 
+import os.path
 import argparse
 import numpy
 from gewittergefahr.gg_utils import radar_utils
@@ -145,11 +146,13 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
-    input_file_names = input_examples.find_many_example_files(
-        top_directory_name=top_input_dir_name, shuffled=False,
-        first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string,
-        raise_error_if_any_missing=True)
+    input_file_names = [
+        input_examples.find_example_file(
+            top_directory_name=top_input_dir_name, shuffled=False,
+            spc_date_string=d, raise_error_if_missing=False
+        )
+        for d in spc_date_strings
+    ]
 
     output_file_names = [
         input_examples.find_example_file(
@@ -162,6 +165,9 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
     num_spc_dates = len(spc_date_strings)
 
     for i in range(num_spc_dates):
+        if not os.path.isfile(input_file_names[i]):
+            continue
+
         _convert_one_file(
             input_file_name=input_file_names[i],
             output_file_name=output_file_names[i]
