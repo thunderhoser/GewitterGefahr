@@ -28,6 +28,8 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import error_checking
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 INPUT_MATRICES_KEY = 'list_of_input_matrices'
 SOUNDING_MATRIX_KEY = 'sounding_matrix'
 TARGET_ARRAY_KEY = 'target_array'
@@ -86,52 +88,51 @@ def _finalize_targets(target_values, binarize_target, num_classes):
     return target_matrix
 
 
-def _find_examples_to_read(option_dict, num_examples_total):
-    """Determines which examples to read.
+def _find_examples_to_read(
+        option_dict, desired_num_examples=None, desired_full_id_strings=None,
+        desired_times_unix_sec=None):
+    """Determines which examples (storm objects) to read.
 
-    E = number of examples to read
+    E = number of examples to read (may be less than desired)
 
     :param option_dict: See doc for any generator in this file.
-    :param num_examples_total: Number of examples to generate.
-    :return: full_id_strings: length-E list of full storm IDs.
-    :return: storm_times_unix_sec: length-E numpy array of storm times.
+    :param desired_num_examples: Desired number of examples.
+    :param desired_full_id_strings:
+        [used only if `desired_num_examples is None`]
+        1-D list of storm IDs.
+
+    :param desired_times_unix_sec: [used only if `desired_num_examples is None`]
+        1-D numpy array of storm times (must have same length as
+        `desired_full_id_strings`).
+    :return: full_storm_id_strings: length-E list of IDs for storms to read.
+    :return: storm_times_unix_sec: length-E numpy array of times for storms to
+        read.
+    :return: file_indices: length-E numpy array of indices.  If
+        file_indices[i] = j, the [i]th example comes from the [j]th file.
     """
 
-    error_checking.assert_is_integer(num_examples_total)
-    error_checking.assert_is_greater(num_examples_total, 0)
+    if desired_num_examples is not None:
+        error_checking.assert_is_integer(desired_num_examples)
+        error_checking.assert_is_greater(desired_num_examples, 0)
+
+        desired_full_id_strings = None
+        desired_times_unix_sec = None
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
     target_name = option_dict[trainval_io.TARGET_NAME_KEY]
 
-    # TODO(thunderhoser): This is a HACK for CNNs that take soundings only.
-    if trainval_io.RADAR_FIELDS_KEY in option_dict:
-        radar_field_names = option_dict[trainval_io.RADAR_FIELDS_KEY]
-        radar_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
-        num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
-        num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
+    if desired_num_examples is None:
+        first_storm_time_unix_sec = None
+        last_storm_time_unix_sec = None
     else:
-        this_example_dict = input_examples.read_example_file(
-            netcdf_file_name=example_file_names[0], read_all_target_vars=False,
-            target_name=target_name, metadata_only=True)
+        first_storm_time_unix_sec = option_dict[
+            trainval_io.FIRST_STORM_TIME_KEY]
+        last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
 
-        radar_field_names = [
-            this_example_dict[input_examples.RADAR_FIELDS_KEY][0]
-        ]
-        radar_heights_m_agl = numpy.array(
-            [this_example_dict[input_examples.RADAR_HEIGHTS_KEY][0]], dtype=int
-        )
-
-        num_grid_rows = None
-        num_grid_columns = None
-
-    first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
-    last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
-    class_to_sampling_fraction_dict = option_dict[
-        trainval_io.SAMPLING_FRACTIONS_KEY]
-
-    full_id_strings = []
+    full_storm_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)
     target_values = numpy.array([], dtype=int)
+    file_indices = numpy.array([], dtype=int)
 
     num_files = len(example_file_names)
 
@@ -142,18 +143,14 @@ def _find_examples_to_read(option_dict, num_examples_total):
 
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=example_file_names[i], read_all_target_vars=False,
-            target_name=target_name, include_soundings=False,
-            radar_field_names_to_keep=[radar_field_names[0]],
-            radar_heights_to_keep_m_agl=radar_heights_m_agl[[0]],
+            target_name=target_name, targets_only=True,
             first_time_to_keep_unix_sec=first_storm_time_unix_sec,
-            last_time_to_keep_unix_sec=last_storm_time_unix_sec,
-            num_rows_to_keep=num_grid_rows,
-            num_columns_to_keep=num_grid_columns)
+            last_time_to_keep_unix_sec=last_storm_time_unix_sec)
 
         if this_example_dict is None:
             continue
 
-        full_id_strings += this_example_dict[input_examples.FULL_IDS_KEY]
+        full_storm_id_strings += this_example_dict[input_examples.FULL_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
             storm_times_unix_sec,
             this_example_dict[input_examples.STORM_TIMES_KEY]
@@ -162,38 +159,98 @@ def _find_examples_to_read(option_dict, num_examples_total):
             target_values, this_example_dict[input_examples.TARGET_VALUES_KEY]
         ))
 
+        these_file_indices = numpy.full(len(target_values), i, dtype=int)
+        file_indices = numpy.concatenate((file_indices, these_file_indices))
+
     indices_to_keep = numpy.where(
         target_values != target_val_utils.INVALID_STORM_INTEGER
     )[0]
 
-    full_id_strings = [full_id_strings[k] for k in indices_to_keep]
+    full_storm_id_strings = [full_storm_id_strings[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     target_values = target_values[indices_to_keep]
-    num_examples_found = len(full_id_strings)
+    file_indices = target_values[file_indices]
 
-    if class_to_sampling_fraction_dict is None:
-        indices_to_keep = numpy.linspace(
-            0, num_examples_found - 1, num=num_examples_found, dtype=int)
+    num_examples = len(full_storm_id_strings)
 
-        if num_examples_found > num_examples_total:
-            indices_to_keep = numpy.random.choice(
-                indices_to_keep, size=num_examples_total, replace=False)
+    if desired_num_examples is None:
+        indices_to_keep = tracking_utils.find_storm_objects(
+            all_id_strings=full_storm_id_strings,
+            all_times_unix_sec=storm_times_unix_sec,
+            id_strings_to_keep=desired_full_id_strings,
+            times_to_keep_unix_sec=desired_times_unix_sec,
+            allow_missing=False)
     else:
-        indices_to_keep = dl_utils.sample_by_class(
-            sampling_fraction_by_class_dict=class_to_sampling_fraction_dict,
-            target_name=target_name, target_values=target_values,
-            num_examples_total=num_examples_total)
+        downsampling_dict = option_dict[trainval_io.SAMPLING_FRACTIONS_KEY]
 
-    full_id_strings = [full_id_strings[k] for k in indices_to_keep]
+        if downsampling_dict is None:
+            indices_to_keep = numpy.linspace(
+                0, num_examples - 1, num=num_examples, dtype=int)
+
+            if num_examples > desired_num_examples:
+                indices_to_keep = numpy.random.choice(
+                    indices_to_keep, size=desired_num_examples, replace=False)
+        else:
+            indices_to_keep = dl_utils.sample_by_class(
+                sampling_fraction_by_class_dict=downsampling_dict,
+                target_name=target_name, target_values=target_values,
+                num_examples_total=desired_num_examples)
+
+    full_storm_id_strings = [full_storm_id_strings[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
+    file_indices = file_indices[indices_to_keep]
 
-    return full_id_strings, storm_times_unix_sec
+    return full_storm_id_strings, storm_times_unix_sec, file_indices
 
 
-def generator_2d_or_3d(option_dict, num_examples_total):
+def _find_next_batch(
+        example_to_file_indices, num_examples_per_batch, next_example_index):
+    """Determines which examples are in the next batch.
+
+    E = total number of examples
+
+    :param example_to_file_indices: length-E numpy array of indices.  If
+        example_to_file_indices[i] = j, the [i]th example comes from the [j]th
+        file.
+    :param num_examples_per_batch: Number of examples per batch.
+    :param next_example_index: Index of next example to be used.
+    :return: batch_indices: 1-D numpy array with indices of examples
+        in the next batch.
+    """
+
+    num_examples = len(example_to_file_indices)
+    if next_example_index >= num_examples:
+        return None
+
+    first_index = next_example_index
+    last_index = min([
+        first_index + num_examples_per_batch - 1,
+        num_examples - 1
+    ])
+    batch_indices = numpy.linspace(
+        first_index, last_index, num=last_index - first_index + 1, dtype=int
+    )
+
+    file_index = example_to_file_indices[next_example_index]
+    subindices = numpy.where(
+        example_to_file_indices[batch_indices] == file_index
+    )[0]
+    batch_indices = batch_indices[subindices]
+
+    if len(batch_indices) == 0:
+        batch_indices = None
+
+    return batch_indices
+
+
+def generator_2d_or_3d(
+        option_dict, desired_num_examples=None, desired_full_id_strings=None,
+        desired_times_unix_sec=None):
     """Generates examples with either 2-D or 3-D radar images.
 
-    Each example (storm object) consists of the following:
+    E = number of examples (storm objects)
+
+    Each example consists of the following:
 
     - Storm-centered radar images (either one 2-D image for each field/height
       pair or one 3-D image for each field)
@@ -203,6 +260,7 @@ def generator_2d_or_3d(option_dict, num_examples_total):
     :param option_dict: Dictionary with the following keys.
     option_dict['example_file_names']: See doc for
         `training_validation_io.generator_2d_or_3d`.
+    option_dict['num_examples_per_batch']: Same.
     option_dict['binarize_target']: Same.
     option_dict['radar_field_names']: Same.
     option_dict['radar_heights_m_agl']: Same.
@@ -219,7 +277,9 @@ def generator_2d_or_3d(option_dict, num_examples_total):
     option_dict['class_to_sampling_fraction_dict']: Same.
     option_dict['refl_masking_threshold_dbz']: Same.
 
-    :param num_examples_total: Number of examples to generate.
+    :param desired_num_examples: See doc for `_find_examples_to_read`.
+    :param desired_full_id_strings: Same.
+    :param desired_times_unix_sec: Same.
 
     :return: storm_object_dict: Dictionary with the following keys.
     storm_object_dict['list_of_input_matrices']: length-T list of numpy arrays,
@@ -234,22 +294,27 @@ def generator_2d_or_3d(option_dict, num_examples_total):
         of pressures.  If soundings were not read, this is None.
     """
 
-    full_id_strings, storm_times_unix_sec = _find_examples_to_read(
-        option_dict=option_dict, num_examples_total=num_examples_total)
+    full_storm_id_strings, storm_times_unix_sec, storm_to_file_indices = (
+        _find_examples_to_read(
+            option_dict=option_dict, desired_num_examples=desired_num_examples,
+            desired_full_id_strings=desired_full_id_strings,
+            desired_times_unix_sec=desired_times_unix_sec)
+    )
     print('\n')
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
-    target_name = option_dict[trainval_io.TARGET_NAME_KEY]
+    num_examples_per_batch = option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY]
 
-    first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
-    last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
-    num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
-    num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
     radar_field_names = option_dict[trainval_io.RADAR_FIELDS_KEY]
     radar_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+    num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
+    num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
     sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
     sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
 
+    target_name = option_dict[trainval_io.TARGET_NAME_KEY]
+    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
+    refl_masking_threshold_dbz = option_dict[trainval_io.REFLECTIVITY_MASK_KEY]
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
 
     if normalization_type_string is not None:
@@ -258,9 +323,6 @@ def generator_2d_or_3d(option_dict, num_examples_total):
         ]
         min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
         max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
-
-    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
-    refl_masking_threshold_dbz = option_dict[trainval_io.REFLECTIVITY_MASK_KEY]
 
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
@@ -279,46 +341,42 @@ def generator_2d_or_3d(option_dict, num_examples_total):
     sounding_matrix = None
     target_values = None
     sounding_pressure_matrix_pascals = None
-    file_index = 0
+
+    next_example_index = 0
 
     while True:
-        if file_index >= len(example_file_names):
+        batch_indices = _find_next_batch(
+            example_to_file_indices=storm_to_file_indices,
+            num_examples_per_batch=num_examples_per_batch,
+            next_example_index=next_example_index)
+
+        if batch_indices is None:
             raise StopIteration
 
+        next_example_index = numpy.max(batch_indices) + 1
+        this_file_index = storm_to_file_indices[batch_indices[0]]
+
+        these_full_id_strings = [
+            full_storm_id_strings[k] for k in batch_indices
+        ]
+        these_times_unix_sec = storm_times_unix_sec[batch_indices]
+
         print('Reading data from: "{0:s}"...'.format(
-            example_file_names[file_index]
+            example_file_names[this_file_index]
         ))
 
-        this_example_dict = input_examples.read_example_file(
-            netcdf_file_name=example_file_names[file_index],
+        this_example_dict = input_examples.read_specific_examples(
+            netcdf_file_name=example_file_names[this_file_index],
             read_all_target_vars=False, target_name=target_name,
+            full_storm_id_strings=these_full_id_strings,
+            storm_times_unix_sec=these_times_unix_sec,
             include_soundings=sounding_field_names is not None,
             radar_field_names_to_keep=radar_field_names,
             radar_heights_to_keep_m_agl=radar_heights_m_agl,
             sounding_field_names_to_keep=sounding_field_names_to_read,
             sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
-            first_time_to_keep_unix_sec=first_storm_time_unix_sec,
-            last_time_to_keep_unix_sec=last_storm_time_unix_sec,
             num_rows_to_keep=num_grid_rows,
             num_columns_to_keep=num_grid_columns)
-
-        file_index += 1
-        if this_example_dict is None:
-            continue
-
-        indices_to_keep = tracking_utils.find_storm_objects(
-            all_id_strings=this_example_dict[input_examples.FULL_IDS_KEY],
-            all_times_unix_sec=this_example_dict[
-                input_examples.STORM_TIMES_KEY],
-            id_strings_to_keep=full_id_strings,
-            times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
-
-        indices_to_keep = indices_to_keep[indices_to_keep >= 0]
-        if len(indices_to_keep) == 0:
-            continue
-
-        this_example_dict = input_examples.subset_examples(
-            example_dict=this_example_dict, indices_to_keep=indices_to_keep)
 
         include_soundings = (
             input_examples.SOUNDING_MATRIX_KEY in this_example_dict
@@ -428,7 +486,9 @@ def generator_2d_or_3d(option_dict, num_examples_total):
         yield storm_object_dict
 
 
-def myrorss_generator_2d3d(option_dict, num_examples_total):
+def myrorss_generator_2d3d(
+        option_dict, desired_num_examples=None, desired_full_id_strings=None,
+        desired_times_unix_sec=None):
     """Generates examples with both 2-D and 3-D radar images.
 
     Each example (storm object) consists of the following:
@@ -441,6 +501,7 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
     :param option_dict: Dictionary with the following keys.
     option_dict['example_file_names']: See doc for
         `training_validation_io.myrorss_generator_2d3d`.
+    option_dict['num_examples_per_batch']: Same.
     option_dict['first_storm_time_unix_sec']: Same.
     option_dict['last_storm_time_unix_sec']: Same.
     option_dict['radar_field_names']: Same.
@@ -458,7 +519,9 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
     option_dict['binarize_target']: Same.
     option_dict['class_to_sampling_fraction_dict']: Same.
 
-    :param num_examples_total: Total number of examples to generate.
+    :param desired_num_examples: See doc for `_find_examples_to_read`.
+    :param desired_full_id_strings: Same.
+    :param desired_times_unix_sec: Same.
 
     :return: storm_object_dict: Dictionary with the following keys.
     storm_object_dict['list_of_input_matrices']: length-T list of numpy arrays,
@@ -473,13 +536,16 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
         of pressures.  If soundings were not read, this is None.
     """
 
-    full_id_strings, storm_times_unix_sec = _find_examples_to_read(
-        option_dict=option_dict, num_examples_total=num_examples_total)
+    full_storm_id_strings, storm_times_unix_sec, storm_to_file_indices = (
+        _find_examples_to_read(
+            option_dict=option_dict, desired_num_examples=desired_num_examples,
+            desired_full_id_strings=desired_full_id_strings,
+            desired_times_unix_sec=desired_times_unix_sec)
+    )
     print('\n')
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
-    first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
-    last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
+    num_examples_per_batch = option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY]
 
     azimuthal_shear_field_names = option_dict[trainval_io.RADAR_FIELDS_KEY]
     reflectivity_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
@@ -488,13 +554,11 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
     sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
     sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
 
+    target_name = option_dict[trainval_io.TARGET_NAME_KEY]
+    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
 
-    if normalization_type_string is None:
-        normalization_file_name = None
-        min_normalized_value = None
-        max_normalized_value = None
-    else:
+    if normalization_type_string is not None:
         normalization_file_name = option_dict[
             trainval_io.NORMALIZATION_FILE_KEY
         ]
@@ -510,9 +574,6 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
         )
     else:
         radar_field_names = None
-
-    target_name = option_dict[trainval_io.TARGET_NAME_KEY]
-    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
 
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
@@ -532,48 +593,43 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
     az_shear_image_matrix_s01 = None
     sounding_matrix = None
     target_values = None
-
-    file_index = 0
     sounding_pressure_matrix_pascals = None
 
+    next_example_index = 0
+
     while True:
-        if file_index >= len(example_file_names):
+        batch_indices = _find_next_batch(
+            example_to_file_indices=storm_to_file_indices,
+            num_examples_per_batch=num_examples_per_batch,
+            next_example_index=next_example_index)
+
+        if batch_indices is None:
             raise StopIteration
 
+        next_example_index = numpy.max(batch_indices) + 1
+        this_file_index = storm_to_file_indices[batch_indices[0]]
+
+        these_full_id_strings = [
+            full_storm_id_strings[k] for k in batch_indices
+        ]
+        these_times_unix_sec = storm_times_unix_sec[batch_indices]
+
         print('Reading data from: "{0:s}"...'.format(
-            example_file_names[file_index]
+            example_file_names[this_file_index]
         ))
 
-        this_example_dict = input_examples.read_example_file(
-            netcdf_file_name=example_file_names[file_index],
+        this_example_dict = input_examples.read_specific_examples(
+            netcdf_file_name=example_file_names[this_file_index],
             read_all_target_vars=False, target_name=target_name,
+            full_storm_id_strings=these_full_id_strings,
+            storm_times_unix_sec=these_times_unix_sec,
             include_soundings=sounding_field_names is not None,
             radar_field_names_to_keep=azimuthal_shear_field_names,
             radar_heights_to_keep_m_agl=reflectivity_heights_m_agl,
             sounding_field_names_to_keep=sounding_field_names_to_read,
             sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
-            first_time_to_keep_unix_sec=first_storm_time_unix_sec,
-            last_time_to_keep_unix_sec=last_storm_time_unix_sec,
             num_rows_to_keep=num_grid_rows,
             num_columns_to_keep=num_grid_columns)
-
-        file_index += 1
-        if this_example_dict is None:
-            continue
-
-        indices_to_keep = tracking_utils.find_storm_objects(
-            all_id_strings=this_example_dict[input_examples.FULL_IDS_KEY],
-            all_times_unix_sec=this_example_dict[
-                input_examples.STORM_TIMES_KEY],
-            id_strings_to_keep=full_id_strings,
-            times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
-
-        indices_to_keep = indices_to_keep[indices_to_keep >= 0]
-        if len(indices_to_keep) == 0:
-            continue
-
-        this_example_dict = input_examples.subset_examples(
-            example_dict=this_example_dict, indices_to_keep=indices_to_keep)
 
         include_soundings = (
             input_examples.SOUNDING_MATRIX_KEY in this_example_dict
@@ -731,7 +787,9 @@ def myrorss_generator_2d3d(option_dict, num_examples_total):
         yield storm_object_dict
 
 
-def sounding_generator(option_dict, num_examples_total):
+def sounding_generator(
+        option_dict, desired_num_examples=None, desired_full_id_strings=None,
+        desired_times_unix_sec=None):
     """Generates examples with soundings only.
 
     Each example (storm object) consists of the following:
@@ -742,6 +800,7 @@ def sounding_generator(option_dict, num_examples_total):
     :param option_dict: Dictionary with the following keys.
     option_dict['example_file_names']: See doc for
         `training_validation_io.myrorss_generator_2d3d`.
+    option_dict['num_examples_per_batch']: Same.
     option_dict['first_storm_time_unix_sec']: Same.
     option_dict['last_storm_time_unix_sec']: Same.
     option_dict['sounding_field_names']: Same.
@@ -754,7 +813,9 @@ def sounding_generator(option_dict, num_examples_total):
     option_dict['binarize_target']: Same.
     option_dict['class_to_sampling_fraction_dict']: Same.
 
-    :param num_examples_total: Total number of examples to generate.
+    :param desired_num_examples: See doc for `_find_examples_to_read`.
+    :param desired_full_id_strings: Same.
+    :param desired_times_unix_sec: Same.
 
     :return: storm_object_dict: Dictionary with the following keys.
     storm_object_dict['sounding_matrix']: numpy array (E x H_s x F_s) of near-
@@ -766,16 +827,22 @@ def sounding_generator(option_dict, num_examples_total):
     storm_object_dict['sounding_pressure_matrix_pascals']: Same.
     """
 
-    full_id_strings, storm_times_unix_sec = _find_examples_to_read(
-        option_dict=option_dict, num_examples_total=num_examples_total)
+    full_storm_id_strings, storm_times_unix_sec, storm_to_file_indices = (
+        _find_examples_to_read(
+            option_dict=option_dict, desired_num_examples=desired_num_examples,
+            desired_full_id_strings=desired_full_id_strings,
+            desired_times_unix_sec=desired_times_unix_sec)
+    )
     print('\n')
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
-    first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
-    last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
+    num_examples_per_batch = option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY]
 
     sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
     sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
+
+    target_name = option_dict[trainval_io.TARGET_NAME_KEY]
+    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
 
     if normalization_type_string is not None:
@@ -784,9 +851,6 @@ def sounding_generator(option_dict, num_examples_total):
         ]
         min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
         max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
-
-    target_name = option_dict[trainval_io.TARGET_NAME_KEY]
-    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
 
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
@@ -797,11 +861,6 @@ def sounding_generator(option_dict, num_examples_total):
         sounding_field_names_to_read = (
             sounding_field_names + [soundings.PRESSURE_NAME]
         )
-
-    sounding_matrix = None
-    target_values = None
-    sounding_pressure_matrix_pascals = None
-    file_index = 0
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], read_all_target_vars=False,
@@ -814,42 +873,43 @@ def sounding_generator(option_dict, num_examples_total):
         [this_example_dict[input_examples.RADAR_HEIGHTS_KEY][0]], dtype=int
     )
 
+    sounding_matrix = None
+    target_values = None
+    sounding_pressure_matrix_pascals = None
+
+    next_example_index = 0
+
     while True:
-        if file_index >= len(example_file_names):
+        batch_indices = _find_next_batch(
+            example_to_file_indices=storm_to_file_indices,
+            num_examples_per_batch=num_examples_per_batch,
+            next_example_index=next_example_index)
+
+        if batch_indices is None:
             raise StopIteration
 
+        next_example_index = numpy.max(batch_indices) + 1
+        this_file_index = storm_to_file_indices[batch_indices[0]]
+
+        these_full_id_strings = [
+            full_storm_id_strings[k] for k in batch_indices
+        ]
+        these_times_unix_sec = storm_times_unix_sec[batch_indices]
+
         print('Reading data from: "{0:s}"...'.format(
-            example_file_names[file_index]
+            example_file_names[this_file_index]
         ))
 
-        this_example_dict = input_examples.read_example_file(
-            netcdf_file_name=example_file_names[file_index],
+        this_example_dict = input_examples.read_specific_examples(
+            netcdf_file_name=example_file_names[this_file_index],
             read_all_target_vars=False, target_name=target_name,
+            full_storm_id_strings=these_full_id_strings,
+            storm_times_unix_sec=these_times_unix_sec,
             include_soundings=True,
             radar_field_names_to_keep=dummy_radar_field_names,
             radar_heights_to_keep_m_agl=dummy_radar_heights_m_agl,
             sounding_field_names_to_keep=sounding_field_names_to_read,
-            sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
-            first_time_to_keep_unix_sec=first_storm_time_unix_sec,
-            last_time_to_keep_unix_sec=last_storm_time_unix_sec)
-
-        file_index += 1
-        if this_example_dict is None:
-            continue
-
-        indices_to_keep = tracking_utils.find_storm_objects(
-            all_id_strings=this_example_dict[input_examples.FULL_IDS_KEY],
-            all_times_unix_sec=this_example_dict[
-                input_examples.STORM_TIMES_KEY],
-            id_strings_to_keep=full_id_strings,
-            times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
-
-        indices_to_keep = indices_to_keep[indices_to_keep >= 0]
-        if len(indices_to_keep) == 0:
-            continue
-
-        this_example_dict = input_examples.subset_examples(
-            example_dict=this_example_dict, indices_to_keep=indices_to_keep)
+            sounding_heights_to_keep_m_agl=sounding_heights_m_agl)
 
         pressure_index = this_example_dict[
             input_examples.SOUNDING_FIELDS_KEY
@@ -915,8 +975,9 @@ def sounding_generator(option_dict, num_examples_total):
         yield storm_object_dict
 
 
-def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
-                                 num_examples_total):
+def gridrad_generator_2d_reduced(
+        option_dict, list_of_operation_dicts, desired_num_examples=None,
+        desired_full_id_strings=None, desired_times_unix_sec=None):
     """Generates examples with 2-D GridRad images.
 
     These 2-D images are produced by applying layer operations to the native 3-D
@@ -931,6 +992,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
     :param option_dict: Dictionary with the following keys.
     option_dict['example_file_names']: See doc for
         `training_validation_io.gridrad_generator_2d_reduced`.
+    option_dict['num_examples_per_batch']: Same.
     option_dict['binarize_target']: Same.
     option_dict['sounding_field_names']: Same.
     option_dict['sounding_heights_m_agl']: Same.
@@ -946,7 +1008,9 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
 
     :param list_of_operation_dicts: See doc for
         `input_examples.reduce_examples_3d_to_2d`.
-    :param num_examples_total: Number of examples to generate.
+    :param desired_num_examples: See doc for `_find_examples_to_read`.
+    :param desired_full_id_strings: Same.
+    :param desired_times_unix_sec: Same.
 
     :return: storm_object_dict: Dictionary with the following keys.
     storm_object_dict['list_of_input_matrices']: length-T list of numpy arrays,
@@ -971,28 +1035,24 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
         `input_examples._check_layer_operation`.
     """
 
-    unique_radar_field_names, unique_radar_heights_m_agl = (
-        trainval_io.layer_ops_to_field_height_pairs(list_of_operation_dicts)
+    full_storm_id_strings, storm_times_unix_sec, storm_to_file_indices = (
+        _find_examples_to_read(
+            option_dict=option_dict, desired_num_examples=desired_num_examples,
+            desired_full_id_strings=desired_full_id_strings,
+            desired_times_unix_sec=desired_times_unix_sec)
     )
-
-    option_dict[trainval_io.RADAR_FIELDS_KEY] = unique_radar_field_names
-    option_dict[trainval_io.RADAR_HEIGHTS_KEY] = unique_radar_heights_m_agl
-
-    full_id_strings, storm_times_unix_sec = _find_examples_to_read(
-        option_dict=option_dict, num_examples_total=num_examples_total)
     print('\n')
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
-    target_name = option_dict[trainval_io.TARGET_NAME_KEY]
-    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
+    num_examples_per_batch = option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY]
 
-    first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
-    last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
     num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
     num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
     sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
     sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
 
+    target_name = option_dict[trainval_io.TARGET_NAME_KEY]
+    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
 
     if normalization_type_string is not None:
@@ -1001,6 +1061,13 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
         ]
         min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
         max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+
+    unique_radar_field_names, unique_radar_heights_m_agl = (
+        trainval_io.layer_ops_to_field_height_pairs(list_of_operation_dicts)
+    )
+
+    option_dict[trainval_io.RADAR_FIELDS_KEY] = unique_radar_field_names
+    option_dict[trainval_io.RADAR_HEIGHTS_KEY] = unique_radar_heights_m_agl
 
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
@@ -1021,46 +1088,41 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
     sounding_pressure_matrix_pascals = None
 
     reduction_metadata_dict = {}
-    file_index = 0
+    next_example_index = 0
 
     while True:
-        if file_index >= len(example_file_names):
+        batch_indices = _find_next_batch(
+            example_to_file_indices=storm_to_file_indices,
+            num_examples_per_batch=num_examples_per_batch,
+            next_example_index=next_example_index)
+
+        if batch_indices is None:
             raise StopIteration
 
+        next_example_index = numpy.max(batch_indices) + 1
+        this_file_index = storm_to_file_indices[batch_indices[0]]
+
+        these_full_id_strings = [
+            full_storm_id_strings[k] for k in batch_indices
+        ]
+        these_times_unix_sec = storm_times_unix_sec[batch_indices]
+
         print('Reading data from: "{0:s}"...'.format(
-            example_file_names[file_index]
+            example_file_names[this_file_index]
         ))
 
-        this_example_dict = input_examples.read_example_file(
-            netcdf_file_name=example_file_names[file_index],
+        this_example_dict = input_examples.read_specific_examples(
+            netcdf_file_name=example_file_names[this_file_index],
             read_all_target_vars=False, target_name=target_name,
+            full_storm_id_strings=these_full_id_strings,
+            storm_times_unix_sec=these_times_unix_sec,
             include_soundings=sounding_field_names is not None,
             radar_field_names_to_keep=unique_radar_field_names,
             radar_heights_to_keep_m_agl=unique_radar_heights_m_agl,
             sounding_field_names_to_keep=sounding_field_names_to_read,
             sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
-            first_time_to_keep_unix_sec=first_storm_time_unix_sec,
-            last_time_to_keep_unix_sec=last_storm_time_unix_sec,
             num_rows_to_keep=num_grid_rows,
             num_columns_to_keep=num_grid_columns)
-
-        file_index += 1
-        if this_example_dict is None:
-            continue
-
-        indices_to_keep = tracking_utils.find_storm_objects(
-            all_id_strings=this_example_dict[input_examples.FULL_IDS_KEY],
-            all_times_unix_sec=this_example_dict[
-                input_examples.STORM_TIMES_KEY],
-            id_strings_to_keep=full_id_strings,
-            times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
-
-        indices_to_keep = indices_to_keep[indices_to_keep >= 0]
-        if len(indices_to_keep) == 0:
-            continue
-
-        this_example_dict = input_examples.subset_examples(
-            example_dict=this_example_dict, indices_to_keep=indices_to_keep)
 
         this_example_dict = input_examples.reduce_examples_3d_to_2d(
             example_dict=this_example_dict,
@@ -1170,148 +1232,112 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
         yield storm_object_dict
 
 
-def read_specific_examples(
+def read_predictors_specific_examples(
         top_example_dir_name, desired_full_id_strings, desired_times_unix_sec,
-        option_dict, list_of_layer_operation_dicts=None):
-    """Reads predictors for specific examples (storm objects).
+        option_dict, layer_operation_dicts=None):
+    """Reads predictors (no targets) for specific examples.
 
-    E = number of desired examples
+    E = number of examples (storm objects)
+    T = number of input tensors to model
+    H = number of sounding heights
 
-    :param top_example_dir_name: Name of top-level directory with pre-processed
-        examples.  Files therein will be found by
-        `input_examples.find_example_file`.
-    :param desired_full_id_strings: length-E list of full storm IDs.
+    :param top_example_dir_name: Name of top-level directory with examples.
+        Files therein will be found by `input_examples.find_example_file` and
+        read by `input_examples.read_specific_examples`.
+    :param desired_full_id_strings: length-E list of storm IDs.
     :param desired_times_unix_sec: length-E numpy array of storm times.
     :param option_dict: See doc for any generator in this file.
-    :param list_of_layer_operation_dicts: See doc for
-        `gridrad_generator_2d_reduced`.  If you do not want to reduce radar
-        images from 3-D to 2-D, leave this as None.
-    :return: list_of_predictor_matrices: length-T list of numpy arrays, where
-        T = number of input tensors to model.  The first dimension of each numpy
-        array has length E.
-    :return: sounding_pressure_matrix_pascals: numpy array (E x H_s) of
+    :param layer_operation_dicts: See doc for `gridrad_generator_2d_reduced`.
+        If you are not reducing 3-D GridRad images to 2-D, leave this alone.
+    :return: predictor_matrices: length-T list of numpy arrays, where the first
+        axis of each has length E.
+    :return: sounding_pressure_matrix_pa: E-by-H numpy array of sounding
         pressures.  If soundings were not read, this is None.
     """
 
-    option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
-
-    desired_spc_date_strings = [
+    spc_date_strings = [
         time_conversion.time_to_spc_date_string(t)
         for t in desired_times_unix_sec
     ]
-    unique_spc_date_strings = numpy.unique(
-        numpy.array(desired_spc_date_strings)
-    ).tolist()
 
-    myrorss_2d3d = None
-
-    full_id_strings = []
-    storm_times_unix_sec = numpy.array([], dtype=int)
-    list_of_predictor_matrices = None
-    sounding_pressure_matrix_pascals = None
-
-    for this_spc_date_string in unique_spc_date_strings:
-        this_start_time_unix_sec = time_conversion.get_start_of_spc_date(
-            this_spc_date_string)
-        this_end_time_unix_sec = time_conversion.get_end_of_spc_date(
-            this_spc_date_string)
-
-        this_example_file_name = input_examples.find_example_file(
+    example_file_names = [
+        input_examples.find_example_file(
             top_directory_name=top_example_dir_name, shuffled=False,
-            spc_date_string=this_spc_date_string)
-
-        option_dict[trainval_io.EXAMPLE_FILES_KEY] = [this_example_file_name]
-        option_dict[trainval_io.FIRST_STORM_TIME_KEY] = this_start_time_unix_sec
-        option_dict[trainval_io.LAST_STORM_TIME_KEY] = this_end_time_unix_sec
-
-        if myrorss_2d3d is None:
-            netcdf_dataset = netCDF4.Dataset(this_example_file_name)
-            myrorss_2d3d = (
-                input_examples.REFL_IMAGE_MATRIX_KEY in netcdf_dataset.variables
-            )
-            netcdf_dataset.close()
-
-        if list_of_layer_operation_dicts is not None:
-            this_generator = gridrad_generator_2d_reduced(
-                option_dict=option_dict,
-                list_of_operation_dicts=list_of_layer_operation_dicts,
-                num_examples_total=LARGE_INTEGER)
-        elif myrorss_2d3d:
-            this_generator = myrorss_generator_2d3d(
-                option_dict=option_dict, num_examples_total=LARGE_INTEGER)
-        else:
-            this_generator = generator_2d_or_3d(
-                option_dict=option_dict, num_examples_total=LARGE_INTEGER)
-
-        this_storm_object_dict = next(this_generator)
-
-        these_desired_indices = numpy.where(numpy.logical_and(
-            desired_times_unix_sec >= this_start_time_unix_sec,
-            desired_times_unix_sec <= this_end_time_unix_sec
-        ))[0]
-
-        these_indices = tracking_utils.find_storm_objects(
-            all_id_strings=this_storm_object_dict[FULL_IDS_KEY],
-            all_times_unix_sec=this_storm_object_dict[STORM_TIMES_KEY],
-            id_strings_to_keep=
-            [desired_full_id_strings[k] for k in these_desired_indices],
-            times_to_keep_unix_sec=
-            desired_times_unix_sec[these_desired_indices],
-            allow_missing=False
+            spc_date_string=d, raise_error_if_missing=True
         )
+        for d in list(set(spc_date_strings))
+    ]
 
-        full_id_strings += [
-            this_storm_object_dict[FULL_IDS_KEY][k] for k in these_indices
-        ]
+    this_dataset_object = netCDF4.Dataset(example_file_names[0])
+    myrorss_2d3d = (
+        input_examples.REFL_IMAGE_MATRIX_KEY in this_dataset_object.variables
+    )
+    this_dataset_object.close()
+
+    option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY] = LARGE_INTEGER
+
+    if layer_operation_dicts is not None:
+        generator_object = gridrad_generator_2d_reduced(
+            option_dict=option_dict,
+            list_of_operation_dicts=layer_operation_dicts,
+            desired_full_id_strings=desired_full_id_strings,
+            desired_times_unix_sec=desired_times_unix_sec)
+    elif myrorss_2d3d:
+        generator_object = myrorss_generator_2d3d(
+            option_dict=option_dict,
+            desired_full_id_strings=desired_full_id_strings,
+            desired_times_unix_sec=desired_times_unix_sec)
+    else:
+        generator_object = generator_2d_or_3d(
+            option_dict=option_dict,
+            desired_full_id_strings=desired_full_id_strings,
+            desired_times_unix_sec=desired_times_unix_sec)
+
+    full_storm_id_strings = []
+    storm_times_unix_sec = numpy.array([], dtype=int)
+    predictor_matrices = None
+    sounding_pressure_matrix_pa = None
+
+    while True:
+        try:
+            this_storm_object_dict = next(generator_object)
+            print(SEPARATOR_STRING)
+        except StopIteration:
+            break
+
+        full_storm_id_strings += this_storm_object_dict[FULL_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
-            storm_times_unix_sec,
-            this_storm_object_dict[STORM_TIMES_KEY][these_indices]
+            storm_times_unix_sec, this_storm_object_dict[STORM_TIMES_KEY]
         ))
+        sounding_pressure_matrix_pa = numpy.concatenate((
+            sounding_pressure_matrix_pa,
+            this_storm_object_dict[SOUNDING_PRESSURES_KEY]
+        ), axis=0)
 
-        this_pressure_matrix_pascals = this_storm_object_dict[
-            SOUNDING_PRESSURES_KEY]
+        if predictor_matrices is None:
+            predictor_matrices = copy.deepcopy(
+                this_storm_object_dict[INPUT_MATRICES_KEY]
+            )
 
-        if this_pressure_matrix_pascals is not None:
-            this_pressure_matrix_pascals = this_pressure_matrix_pascals[
-                these_indices, ...]
+            continue
 
-            if sounding_pressure_matrix_pascals is None:
-                sounding_pressure_matrix_pascals = (
-                    this_pressure_matrix_pascals + 0.
-                )
-            else:
-                sounding_pressure_matrix_pascals = numpy.concatenate(
-                    (sounding_pressure_matrix_pascals,
-                     this_pressure_matrix_pascals),
-                    axis=0
-                )
-
-        if list_of_predictor_matrices is None:
-            num_matrices = len(this_storm_object_dict[INPUT_MATRICES_KEY])
-            list_of_predictor_matrices = [None] * num_matrices
-
-        for k in range(len(list_of_predictor_matrices)):
-            this_new_matrix = this_storm_object_dict[INPUT_MATRICES_KEY][k][
-                these_indices, ...]
-
-            if list_of_predictor_matrices[k] is None:
-                list_of_predictor_matrices[k] = this_new_matrix + 0.
-            else:
-                list_of_predictor_matrices[k] = numpy.concatenate(
-                    (list_of_predictor_matrices[k], this_new_matrix), axis=0
-                )
+        for k in range(len(predictor_matrices)):
+            predictor_matrices[k] = numpy.concatenate((
+                predictor_matrices[k],
+                this_storm_object_dict[INPUT_MATRICES_KEY][k]
+            ), axis=0)
 
     sort_indices = tracking_utils.find_storm_objects(
-        all_id_strings=full_id_strings, all_times_unix_sec=storm_times_unix_sec,
+        all_id_strings=full_storm_id_strings,
+        all_times_unix_sec=storm_times_unix_sec,
         id_strings_to_keep=desired_full_id_strings,
         times_to_keep_unix_sec=desired_times_unix_sec, allow_missing=False)
 
-    for k in range(len(list_of_predictor_matrices)):
-        list_of_predictor_matrices[k] = list_of_predictor_matrices[k][
+    for k in range(len(predictor_matrices)):
+        predictor_matrices[k] = predictor_matrices[k][sort_indices, ...]
+
+    if sounding_pressure_matrix_pa is not None:
+        sounding_pressure_matrix_pa = sounding_pressure_matrix_pa[
             sort_indices, ...]
 
-    if sounding_pressure_matrix_pascals is not None:
-        sounding_pressure_matrix_pascals = sounding_pressure_matrix_pascals[
-            sort_indices, ...]
-
-    return list_of_predictor_matrices, sounding_pressure_matrix_pascals
+    return predictor_matrices, sounding_pressure_matrix_pa

@@ -140,12 +140,12 @@ def _read_one_example(
     :param radar_field_name: Name of radar field (must be accepted by
         `radar_utils.check_field_name`).
     :param include_sounding: Boolean flag.
-    :return: list_of_predictor_matrices: length-T list of numpy arrays, where
+    :return: predictor_matrices: length-T list of numpy arrays, where
         the [i]th array is the [i]th input tensor to the model.  The first axis
         of each array has length = 1.
     :return: model_metadata_dict: See doc for `cnn.write_model_metadata`.
-    :return: sounding_pressures_pascals: length-H numpy array of pressures.
-        If soundings were not read, this is None.
+    :return: sounding_pressures_pa: length-H numpy array of pressures.  If
+        soundings were not read, this is None.
     """
 
     if source_name == radar_utils.GRIDRAD_SOURCE_ID:
@@ -181,24 +181,23 @@ def _read_one_example(
 
     print(MINOR_SEPARATOR_STRING)
 
-    list_of_predictor_matrices, sounding_pressure_matrix_pascals = (
-        testing_io.read_specific_examples(
+    predictor_matrices, sounding_pressure_matrix_pa = (
+        testing_io.read_predictors_specific_examples(
+            top_example_dir_name=top_example_dir_name,
             desired_full_id_strings=[full_storm_id_string],
             desired_times_unix_sec=numpy.array(
                 [storm_time_unix_sec], dtype=int
             ),
             option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-            top_example_dir_name=top_example_dir_name,
-            list_of_layer_operation_dicts=None)
+            layer_operation_dicts=None)
     )
 
-    if sounding_pressure_matrix_pascals is None:
-        sounding_pressures_pascals = None
+    if sounding_pressure_matrix_pa is None:
+        sounding_pressures_pa = None
     else:
-        sounding_pressures_pascals = sounding_pressure_matrix_pascals[0, ...]
+        sounding_pressures_pa = sounding_pressure_matrix_pa[0, ...]
 
-    return (list_of_predictor_matrices, model_metadata_dict,
-            sounding_pressures_pascals)
+    return predictor_matrices, model_metadata_dict, sounding_pressures_pa
 
 
 def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,

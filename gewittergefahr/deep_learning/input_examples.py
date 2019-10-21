@@ -920,6 +920,242 @@ def _apply_layer_operation(example_dict, operation_dict):
     return operation_function(orig_matrix, axis=-1), operation_dict
 
 
+def _subset_radar_data(
+        example_dict, netcdf_dataset_object, example_indices_to_keep,
+        field_names_to_keep, heights_to_keep_m_agl, num_rows_to_keep,
+        num_columns_to_keep):
+    """Subsets radar data by field, height, and horizontal extent.
+
+    If the file contains both 2-D shear images and 3-D reflectivity images (like
+    MYRORSS data):
+
+    - `field_names_to_keep` will be interpreted as a list of shear fields to
+      keep.  If None, all shear fields will be kept.
+    - `heights_to_keep_m_agl` will be interpreted as a list of reflectivity
+      heights to keep.  If None, all reflectivity heights will be kept.
+
+    If the file contains only 2-D images, `field_names_to_keep` and
+    `heights_to_keep_m_agl` will be considered together, as a list of
+    field/height pairs to keep.  If either argument is None, then all
+    field-height pairs will be kept.
+
+    If the file contains only 3-D images, `field_names_to_keep` and
+    `heights_to_keep_m_agl` will be considered separately:
+
+    - `field_names_to_keep` will be interpreted as a list of fields to keep.  If
+        None, all fields will be kept.
+    - `heights_to_keep_m_agl` will be interpreted as a list of heights to keep.
+      If None, all heights will be kept.
+
+    :param example_dict: See output doc for `_read_metadata_from_example_file`.
+    :param netcdf_dataset_object: Same.
+    :param example_indices_to_keep: 1-D numpy array with indices of examples
+        (storm objects) to keep.  These are examples in `netcdf_dataset_object`
+        for which radar data will be added to `example_dict`.
+    :param field_names_to_keep: See discussion above.
+    :param heights_to_keep_m_agl: See discussion above.
+    :param num_rows_to_keep: Number of grid rows to keep.  Images will be
+        center-cropped (i.e., rows will be removed from the edges) to meet the
+        desired number of rows.  If None, all rows will be kept.
+    :param num_columns_to_keep: Same as above but for columns.
+    :return: example_dict: Same as input but with the following exceptions.
+
+    [1] Keys "radar_field_names" and "radar_heights_m_agl" may have different
+        values.
+    [2] If file contains both 2-D and 3-D images, dictionary now contains keys
+        "reflectivity_image_matrix_dbz" and "az_shear_image_matrix_s01".
+    [3] If file contains only 2-D or only 3-D images, dictionary now contains
+        key "radar_image_matrix".
+    """
+
+    if field_names_to_keep is None:
+        field_names_to_keep = copy.deepcopy(example_dict[RADAR_FIELDS_KEY])
+    if heights_to_keep_m_agl is None:
+        heights_to_keep_m_agl = example_dict[RADAR_HEIGHTS_KEY] + 0
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_names_to_keep), num_dimensions=1
+    )
+
+    heights_to_keep_m_agl = numpy.round(heights_to_keep_m_agl).astype(int)
+    error_checking.assert_is_numpy_array(
+        heights_to_keep_m_agl, num_dimensions=1)
+
+    if RADAR_IMAGE_MATRIX_KEY in netcdf_dataset_object.variables:
+        radar_matrix = netcdf_dataset_object.variables[
+            RADAR_IMAGE_MATRIX_KEY][example_indices_to_keep, ...]
+        num_radar_dimensions = len(radar_matrix.shape) - 2
+
+        if num_radar_dimensions == 2:
+            these_indices = [
+                numpy.where(numpy.logical_and(
+                    example_dict[RADAR_FIELDS_KEY] == f,
+                    example_dict[RADAR_HEIGHTS_KEY] == h
+                ))[0][0]
+                for f, h in zip(field_names_to_keep, heights_to_keep_m_agl)
+            ]
+
+            these_indices = numpy.array(these_indices, dtype=int)
+            radar_matrix = radar_matrix[..., these_indices]
+        else:
+            these_field_indices = numpy.array([
+                example_dict[RADAR_FIELDS_KEY].index(f)
+                for f in field_names_to_keep
+            ], dtype=int)
+
+            radar_matrix = radar_matrix[..., these_field_indices]
+
+            these_height_indices = numpy.array([
+                numpy.where(example_dict[RADAR_HEIGHTS_KEY] == h)[0][0]
+                for h in heights_to_keep_m_agl
+            ], dtype=int)
+
+            radar_matrix = radar_matrix[..., these_height_indices, :]
+
+        radar_matrix = storm_images.downsize_storm_images(
+            storm_image_matrix=radar_matrix,
+            radar_field_name=field_names_to_keep[0],
+            num_rows_to_keep=num_rows_to_keep,
+            num_columns_to_keep=num_columns_to_keep)
+
+        example_dict[RADAR_IMAGE_MATRIX_KEY] = radar_matrix
+
+    else:
+        reflectivity_matrix_dbz = netcdf_dataset_object.variables[
+            REFL_IMAGE_MATRIX_KEY][example_indices_to_keep, ...]
+        reflectivity_matrix_dbz = numpy.expand_dims(
+            reflectivity_matrix_dbz, axis=-1)
+
+        azimuthal_shear_matrix_s01 = netcdf_dataset_object.variables[
+            AZ_SHEAR_IMAGE_MATRIX_KEY][example_indices_to_keep, ...]
+
+        these_height_indices = numpy.array([
+            numpy.where(example_dict[RADAR_HEIGHTS_KEY] == h)[0][0]
+            for h in heights_to_keep_m_agl
+        ], dtype=int)
+
+        reflectivity_matrix_dbz = reflectivity_matrix_dbz[
+            ..., these_height_indices, :]
+
+        these_field_indices = numpy.array([
+            example_dict[RADAR_FIELDS_KEY].index(f)
+            for f in field_names_to_keep
+        ], dtype=int)
+
+        azimuthal_shear_matrix_s01 = azimuthal_shear_matrix_s01[
+            ..., these_field_indices]
+
+        reflectivity_matrix_dbz = storm_images.downsize_storm_images(
+            storm_image_matrix=reflectivity_matrix_dbz,
+            radar_field_name=radar_utils.REFL_NAME,
+            num_rows_to_keep=num_rows_to_keep,
+            num_columns_to_keep=num_columns_to_keep)
+
+        azimuthal_shear_matrix_s01 = storm_images.downsize_storm_images(
+            storm_image_matrix=azimuthal_shear_matrix_s01,
+            radar_field_name=field_names_to_keep[0],
+            num_rows_to_keep=num_rows_to_keep,
+            num_columns_to_keep=num_columns_to_keep)
+
+        example_dict[REFL_IMAGE_MATRIX_KEY] = reflectivity_matrix_dbz
+        example_dict[AZ_SHEAR_IMAGE_MATRIX_KEY] = azimuthal_shear_matrix_s01
+
+    example_dict[RADAR_FIELDS_KEY] = field_names_to_keep
+    example_dict[RADAR_HEIGHTS_KEY] = heights_to_keep_m_agl
+    return example_dict
+
+
+def _subset_sounding_data(
+        example_dict, netcdf_dataset_object, example_indices_to_keep,
+        field_names_to_keep, heights_to_keep_m_agl):
+    """Subsets sounding data by field and height.
+
+    :param example_dict: See doc for `_subset_radar_data`.
+    :param netcdf_dataset_object: Same.
+    :param example_indices_to_keep: Same.
+    :param field_names_to_keep: 1-D list of field names to keep.  If None, will
+        keep all fields.
+    :param heights_to_keep_m_agl: 1-D numpy array of heights to keep.  If None,
+        will keep all heights.
+    :return: example_dict: Same as input but with the following exceptions.
+
+    [1] Keys "sounding_field_names" and "sounding_heights_m_agl" may have
+        different values.
+    [2] Key "sounding_matrix" has been added.
+    """
+
+    if field_names_to_keep is None:
+        field_names_to_keep = copy.deepcopy(example_dict[SOUNDING_FIELDS_KEY])
+    if heights_to_keep_m_agl is None:
+        heights_to_keep_m_agl = example_dict[SOUNDING_HEIGHTS_KEY] + 0
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_names_to_keep), num_dimensions=1
+    )
+
+    heights_to_keep_m_agl = numpy.round(heights_to_keep_m_agl).astype(int)
+    error_checking.assert_is_numpy_array(
+        heights_to_keep_m_agl, num_dimensions=1)
+
+    sounding_matrix = netcdf_dataset_object.variables[SOUNDING_MATRIX_KEY][
+        example_indices_to_keep, ...]
+
+    # TODO(thunderhoser): This is a HACK.
+    spfh_index = example_dict[SOUNDING_FIELDS_KEY].index(
+        soundings.SPECIFIC_HUMIDITY_NAME)
+    temp_index = example_dict[SOUNDING_FIELDS_KEY].index(
+        soundings.TEMPERATURE_NAME)
+    pressure_index = example_dict[SOUNDING_FIELDS_KEY].index(
+        soundings.PRESSURE_NAME)
+    theta_v_index = example_dict[SOUNDING_FIELDS_KEY].index(
+        soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
+
+    sounding_matrix[..., spfh_index][
+        numpy.isnan(sounding_matrix[..., spfh_index])
+    ] = 0.
+
+    nan_example_indices, nan_height_indices = numpy.where(numpy.isnan(
+        sounding_matrix[..., theta_v_index]
+    ))
+
+    if len(nan_example_indices) > 0:
+        this_temp_matrix_kelvins = sounding_matrix[..., temp_index][
+            nan_example_indices, nan_height_indices]
+
+        this_pressure_matrix_pa = sounding_matrix[..., pressure_index][
+            nan_example_indices, nan_height_indices]
+
+        this_thetav_matrix_kelvins = (
+            temp_conversion.temperatures_to_potential_temperatures(
+                temperatures_kelvins=this_temp_matrix_kelvins,
+                total_pressures_pascals=this_pressure_matrix_pa)
+        )
+
+        sounding_matrix[..., theta_v_index][
+            nan_example_indices, nan_height_indices
+        ] = this_thetav_matrix_kelvins
+
+    these_indices = numpy.array([
+        example_dict[SOUNDING_FIELDS_KEY].index(f)
+        for f in field_names_to_keep
+    ], dtype=int)
+
+    sounding_matrix = sounding_matrix[..., these_indices]
+
+    these_indices = numpy.array([
+        numpy.where(example_dict[SOUNDING_HEIGHTS_KEY] == h)[0][0]
+        for h in heights_to_keep_m_agl
+    ], dtype=int)
+
+    sounding_matrix = sounding_matrix[..., these_indices, :]
+
+    example_dict[SOUNDING_FIELDS_KEY] = field_names_to_keep
+    example_dict[SOUNDING_HEIGHTS_KEY] = heights_to_keep_m_agl
+    example_dict[SOUNDING_MATRIX_KEY] = sounding_matrix
+
+    return example_dict
+
+
 def find_storm_images_2d(
         top_directory_name, radar_source, radar_field_names,
         first_spc_date_string, last_spc_date_string, radar_heights_m_agl=None,
@@ -1788,122 +2024,18 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     return
 
 
-def read_examples_subset(
-        netcdf_file_name, full_storm_id_strings, storm_times_unix_sec):
-    """Reads input examples from NetCDF file.
-
-    E = number of desired examples (storm objects)
-
-    :param netcdf_file_name: Path to input file.
-    :param full_storm_id_strings: length-E list of storm IDs.
-    :param storm_times_unix_sec: length-E numpy array of valid times.
-    :return: example_dict: See doc for `read_example_file`.
-    """
-
-    example_dict, netcdf_dataset = _read_metadata_from_example_file(
-        netcdf_file_name=netcdf_file_name, include_soundings=True)
-
-    all_id_time_strings = [
-        '{0:s}_{1:d}'.format(id, t) for id, t in
-        zip(example_dict[FULL_IDS_KEY], example_dict[STORM_TIMES_KEY])
-    ]
-
-    _, subindices = numpy.unique(
-        numpy.array(all_id_time_strings), return_index=True
-    )
-
-    subindices_to_keep = tracking_utils.find_storm_objects(
-        all_id_strings=[example_dict[FULL_IDS_KEY][k] for k in subindices],
-        all_times_unix_sec=example_dict[STORM_TIMES_KEY][subindices],
-        id_strings_to_keep=full_storm_id_strings,
-        times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=False
-    )
-
-    example_indices_to_keep = subindices[subindices_to_keep]
-
-    example_dict[FULL_IDS_KEY] = [
-        example_dict[FULL_IDS_KEY][k] for k in example_indices_to_keep
-    ]
-    example_dict[STORM_TIMES_KEY] = (
-        example_dict[STORM_TIMES_KEY][example_indices_to_keep]
-    )
-    example_dict[TARGET_MATRIX_KEY] = numpy.array(
-        netcdf_dataset.variables[TARGET_MATRIX_KEY][example_indices_to_keep, :],
-        dtype=int
-    )
-
-    if RADAR_IMAGE_MATRIX_KEY in netcdf_dataset.variables:
-        example_dict[RADAR_IMAGE_MATRIX_KEY] = numpy.array(
-            netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY][
-                example_indices_to_keep, ...]
-        )
-    else:
-        example_dict[REFL_IMAGE_MATRIX_KEY] = numpy.array(
-            netcdf_dataset.variables[REFL_IMAGE_MATRIX_KEY][
-                example_indices_to_keep, ...]
-        )
-
-        example_dict[AZ_SHEAR_IMAGE_MATRIX_KEY] = numpy.array(
-            netcdf_dataset.variables[AZ_SHEAR_IMAGE_MATRIX_KEY][
-                example_indices_to_keep, ...]
-        )
-
-    example_dict[SOUNDING_MATRIX_KEY] = numpy.array(
-        netcdf_dataset.variables[SOUNDING_MATRIX_KEY][
-            example_indices_to_keep, ...]
-    )
-
-    netcdf_dataset.close()
-    return example_dict
-
-
 def read_example_file(
         netcdf_file_name, read_all_target_vars, target_name=None,
-        metadata_only=False, include_soundings=True,
+        metadata_only=False, targets_only=False, include_soundings=True,
         radar_field_names_to_keep=None, radar_heights_to_keep_m_agl=None,
         sounding_field_names_to_keep=None, sounding_heights_to_keep_m_agl=None,
         first_time_to_keep_unix_sec=None, last_time_to_keep_unix_sec=None,
         num_rows_to_keep=None, num_columns_to_keep=None,
         downsampling_dict=None):
-    """Reads input examples from NetCDF file.
+    """Reads examples from NetCDF file.
 
-    If the file contains soundings:
-
-    - `sounding_field_names_to_keep` is a list of fields to keep.  If None, all
-      sounding fields will be kept.
-    - `sounding_heights_to_keep_m_agl` is a list of heights to keep.  If None,
-      all sounding heights will be kept.
-    - Thus, there are F_s elements in `sounding_field_names_to_keep`, H_s
-      elements in `sounding_heights_to_keep_m_agl`, and F_s * H_s field-height
-      pairs.
-
-    If the file contains both 2-D azimuthal-shear images and 3-D
-    reflectivity images:
-
-    - `radar_field_names_to_keep` is a list of azimuthal-shear fields to keep.
-      If None, all azimuthal-shear fields will be kept.
-    - `radar_heights_to_keep_m_agl` is a list of reflectivity heights to keep.
-      If None, all reflectivity heights will be kept.
-
-    If the file contains 2-D radar images and no 3-D images:
-
-    - `radar_field_names_to_keep` is a list of fields to keep.  If None, all
-      fields will be kept.
-    - `radar_heights_to_keep_m_agl` is a list of reflectivity heights to keep.
-      If None, all reflectivity heights will be kept.
-    - Thus, there are C elements in `radar_field_names_to_keep`, C elements in
-      `radar_heights_to_keep_m_agl`, and C field-height pairs.
-
-    If the file contains 3-D radar images and no 2-D images:
-
-    - `radar_field_names_to_keep` is a list of fields to keep.  If None, all
-      fields will be kept.
-    - `radar_heights_to_keep_m_agl` is a list of heights to keep.  If None, all
-      heights will be kept.
-    - Thus, there are F_r elements in `radar_field_names_to_keep`, H_r elements
-      in `radar_heights_to_keep_m_agl`, and F_r * H_r field-height pairs.
-
-    If `metadata_only = True`, all further input arguments are ignored.
+    If `metadata_only == True`, later input args are ignored.
+    If `targets_only == True`, later input args are ignored.
 
     :param netcdf_file_name: Path to input file.
     :param read_all_target_vars: Boolean flag.  If True, will read all target
@@ -1915,21 +2047,20 @@ def read_example_file(
     :param metadata_only: Boolean flag.  If False, this method will read
         everything.  If True, will read everything except predictor and target
         variables.
+    :param targets_only: Boolean flag.  If False, this method will read
+        everything.  If True, will read everything except predictors.
     :param include_soundings: Boolean flag.  If True and the file contains
         soundings, this method will return soundings.  Otherwise, no soundings.
-    :param radar_field_names_to_keep: See general discussion above.
+    :param radar_field_names_to_keep: See doc for `_subset_radar_data`.
     :param radar_heights_to_keep_m_agl: Same.
-    :param sounding_field_names_to_keep: Same.
+    :param sounding_field_names_to_keep: See doc for `_subset_sounding_data`.
     :param sounding_heights_to_keep_m_agl: Same.
     :param first_time_to_keep_unix_sec: First time to keep.  If
         `first_time_to_keep_unix_sec is None`, all storm objects will be kept.
     :param last_time_to_keep_unix_sec: Last time to keep.  If
         `last_time_to_keep_unix_sec is None`, all storm objects will be kept.
-    :param num_rows_to_keep: Number of rows to keep from each storm-centered
-        radar image.  If `num_rows_to_keep is None`, all rows will be kept.  If
-        `num_rows_to_keep is not None`, radar images will be center-cropped, so
-        the image center will always be the storm center.
-    :param num_columns_to_keep: Same but for columns.
+    :param num_rows_to_keep: See doc for `_subset_radar_data`.
+    :param num_columns_to_keep: Same.
     :param downsampling_dict: See doc for `_filter_examples_by_class`.
     :return: example_dict: If `read_all_target_vars == True`, dictionary will
         have all keys listed in doc for `write_example_file`.  If
@@ -1941,12 +2072,13 @@ def read_example_file(
         class labels), where E = number of examples.
     """
 
-    # TODO(thunderhoser): Allow this method to read only soundings, not radar
-    # patches.
+    # TODO(thunderhoser): Allow this method to read only soundings without radar
+    # data.
 
     error_checking.assert_is_boolean(read_all_target_vars)
     error_checking.assert_is_boolean(include_soundings)
     error_checking.assert_is_boolean(metadata_only)
+    error_checking.assert_is_boolean(targets_only)
 
     example_dict, netcdf_dataset = _read_metadata_from_example_file(
         netcdf_file_name=netcdf_file_name, include_soundings=include_soundings)
@@ -2036,183 +2168,111 @@ def read_example_file(
             example_dict[TARGET_VALUES_KEY][example_indices_to_keep]
         )
 
-    # Subset radar fields and heights.
-    if radar_field_names_to_keep is None:
-        radar_field_names_to_keep = example_dict[RADAR_FIELDS_KEY] + []
-    if radar_heights_to_keep_m_agl is None:
-        radar_heights_to_keep_m_agl = example_dict[RADAR_HEIGHTS_KEY] + 0
+    if targets_only:
+        netcdf_dataset.close()
+        return example_dict
 
-    error_checking.assert_is_numpy_array(
-        numpy.array(radar_field_names_to_keep), num_dimensions=1
-    )
-    radar_heights_to_keep_m_agl = numpy.round(
-        radar_heights_to_keep_m_agl
-    ).astype(int)
-    error_checking.assert_is_numpy_array(
-        radar_heights_to_keep_m_agl, num_dimensions=1)
-
-    if RADAR_IMAGE_MATRIX_KEY in netcdf_dataset.variables:
-        radar_image_matrix = netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY][
-            example_indices_to_keep, ...]
-        num_radar_dimensions = len(radar_image_matrix.shape) - 2
-
-        if num_radar_dimensions == 2:
-            these_indices = [
-                numpy.where(numpy.logical_and(
-                    example_dict[RADAR_FIELDS_KEY] == f,
-                    example_dict[RADAR_HEIGHTS_KEY] == h
-                ))[0][0]
-                for f, h in
-                zip(radar_field_names_to_keep, radar_heights_to_keep_m_agl)
-            ]
-
-            these_indices = numpy.array(these_indices, dtype=int)
-            radar_image_matrix = radar_image_matrix[..., these_indices]
-        else:
-            these_field_indices = numpy.array([
-                example_dict[RADAR_FIELDS_KEY].index(f)
-                for f in radar_field_names_to_keep
-            ], dtype=int)
-
-            radar_image_matrix = radar_image_matrix[..., these_field_indices]
-
-            these_height_indices = numpy.array([
-                numpy.where(example_dict[RADAR_HEIGHTS_KEY] == h)[0][0]
-                for h in radar_heights_to_keep_m_agl
-            ], dtype=int)
-
-            radar_image_matrix = radar_image_matrix[
-                ..., these_height_indices, :]
-
-        radar_image_matrix = storm_images.downsize_storm_images(
-            storm_image_matrix=radar_image_matrix,
-            radar_field_name=radar_field_names_to_keep[0],
-            num_rows_to_keep=num_rows_to_keep,
-            num_columns_to_keep=num_columns_to_keep)
-
-        example_dict.update({RADAR_IMAGE_MATRIX_KEY: radar_image_matrix})
-
-    else:
-        reflectivity_image_matrix_dbz = netcdf_dataset.variables[
-            REFL_IMAGE_MATRIX_KEY][example_indices_to_keep, ...]
-        reflectivity_image_matrix_dbz = numpy.expand_dims(
-            reflectivity_image_matrix_dbz, axis=-1)
-
-        az_shear_image_matrix_s01 = netcdf_dataset.variables[
-            AZ_SHEAR_IMAGE_MATRIX_KEY][example_indices_to_keep, ...]
-
-        these_height_indices = numpy.array([
-            numpy.where(example_dict[RADAR_HEIGHTS_KEY] == h)[0][0]
-            for h in radar_heights_to_keep_m_agl
-        ], dtype=int)
-
-        reflectivity_image_matrix_dbz = reflectivity_image_matrix_dbz[
-            ..., these_height_indices, :]
-
-        these_field_indices = numpy.array([
-            example_dict[RADAR_FIELDS_KEY].index(f)
-            for f in radar_field_names_to_keep
-        ], dtype=int)
-
-        az_shear_image_matrix_s01 = az_shear_image_matrix_s01[
-            ..., these_field_indices]
-
-        reflectivity_image_matrix_dbz = storm_images.downsize_storm_images(
-            storm_image_matrix=reflectivity_image_matrix_dbz,
-            radar_field_name=radar_utils.REFL_NAME,
-            num_rows_to_keep=num_rows_to_keep,
-            num_columns_to_keep=num_columns_to_keep)
-
-        az_shear_image_matrix_s01 = storm_images.downsize_storm_images(
-            storm_image_matrix=az_shear_image_matrix_s01,
-            radar_field_name=radar_field_names_to_keep[0],
-            num_rows_to_keep=num_rows_to_keep,
-            num_columns_to_keep=num_columns_to_keep)
-
-        example_dict.update({
-            REFL_IMAGE_MATRIX_KEY: reflectivity_image_matrix_dbz,
-            AZ_SHEAR_IMAGE_MATRIX_KEY: az_shear_image_matrix_s01
-        })
-
-    example_dict[RADAR_FIELDS_KEY] = radar_field_names_to_keep
-    example_dict[RADAR_HEIGHTS_KEY] = radar_heights_to_keep_m_agl
+    example_dict = _subset_radar_data(
+        example_dict=example_dict, netcdf_dataset_object=netcdf_dataset,
+        example_indices_to_keep=example_indices_to_keep,
+        field_names_to_keep=radar_field_names_to_keep,
+        heights_to_keep_m_agl=radar_heights_to_keep_m_agl,
+        num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep)
 
     if not include_soundings:
         netcdf_dataset.close()
         return example_dict
 
-    # Subset sounding fields and heights.
-    if sounding_field_names_to_keep is None:
-        sounding_field_names_to_keep = example_dict[SOUNDING_FIELDS_KEY] + []
-    if sounding_heights_to_keep_m_agl is None:
-        sounding_heights_to_keep_m_agl = example_dict[SOUNDING_HEIGHTS_KEY] + 0
-
-    error_checking.assert_is_numpy_array(
-        numpy.array(sounding_field_names_to_keep), num_dimensions=1)
-    sounding_heights_to_keep_m_agl = numpy.round(
-        sounding_heights_to_keep_m_agl).astype(int)
-    error_checking.assert_is_numpy_array(
-        sounding_heights_to_keep_m_agl, num_dimensions=1)
-
-    sounding_matrix = netcdf_dataset.variables[SOUNDING_MATRIX_KEY][
-        example_indices_to_keep, ...]
-
-    # TODO(thunderhoser): This is a HACK.
-    spfh_index = example_dict[SOUNDING_FIELDS_KEY].index(
-        soundings.SPECIFIC_HUMIDITY_NAME)
-    temp_index = example_dict[SOUNDING_FIELDS_KEY].index(
-        soundings.TEMPERATURE_NAME)
-    pressure_index = example_dict[SOUNDING_FIELDS_KEY].index(
-        soundings.PRESSURE_NAME)
-    theta_v_index = example_dict[SOUNDING_FIELDS_KEY].index(
-        soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
-
-    sounding_matrix[..., spfh_index][
-        numpy.isnan(sounding_matrix[..., spfh_index])
-    ] = 0.
-
-    nan_example_indices, nan_height_indices = numpy.where(numpy.isnan(
-        sounding_matrix[..., theta_v_index]
-    ))
-
-    if len(nan_example_indices) > 0:
-        this_temp_matrix_kelvins = sounding_matrix[..., temp_index][
-            nan_example_indices, nan_height_indices]
-
-        this_pressure_matrix_pa = sounding_matrix[..., pressure_index][
-            nan_example_indices, nan_height_indices]
-
-        this_thetav_matrix_kelvins = (
-            temp_conversion.temperatures_to_potential_temperatures(
-                temperatures_kelvins=this_temp_matrix_kelvins,
-                total_pressures_pascals=this_pressure_matrix_pa)
-        )
-
-        sounding_matrix[..., theta_v_index][
-            nan_example_indices, nan_height_indices
-        ] = this_thetav_matrix_kelvins
-
-    these_field_indices = numpy.array([
-        example_dict[SOUNDING_FIELDS_KEY].index(f)
-        for f in sounding_field_names_to_keep
-    ], dtype=int)
-
-    sounding_matrix = sounding_matrix[..., these_field_indices]
-
-    these_height_indices = numpy.array([
-        numpy.where(example_dict[SOUNDING_HEIGHTS_KEY] == h)[0][0]
-        for h in sounding_heights_to_keep_m_agl
-    ], dtype=int)
-
-    sounding_matrix = sounding_matrix[..., these_height_indices, :]
-
-    example_dict.update({
-        SOUNDING_FIELDS_KEY: sounding_field_names_to_keep,
-        SOUNDING_HEIGHTS_KEY: sounding_heights_to_keep_m_agl,
-        SOUNDING_MATRIX_KEY: sounding_matrix
-    })
+    example_dict = _subset_sounding_data(
+        example_dict=example_dict, netcdf_dataset_object=netcdf_dataset,
+        example_indices_to_keep=example_indices_to_keep,
+        field_names_to_keep=sounding_field_names_to_keep,
+        heights_to_keep_m_agl=sounding_heights_to_keep_m_agl)
 
     netcdf_dataset.close()
+    return example_dict
+
+
+def read_specific_examples(
+        netcdf_file_name, read_all_target_vars, full_storm_id_strings,
+        storm_times_unix_sec, target_name=None, include_soundings=True,
+        radar_field_names_to_keep=None, radar_heights_to_keep_m_agl=None,
+        sounding_field_names_to_keep=None, sounding_heights_to_keep_m_agl=None,
+        num_rows_to_keep=None, num_columns_to_keep=None):
+    """Reads specific examples (with specific ID-time pairs) from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :param read_all_target_vars: See doc for `read_example_file`.
+    :param full_storm_id_strings: length-E list of storm IDs.
+    :param storm_times_unix_sec: length-E numpy array of valid times.
+    :param target_name: See doc for `read_example_file`.
+    :param metadata_only: Same.
+    :param include_soundings: Same.
+    :param radar_field_names_to_keep: Same.
+    :param radar_heights_to_keep_m_agl: Same.
+    :param sounding_field_names_to_keep: Same.
+    :param sounding_heights_to_keep_m_agl: Same.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
+    :return: example_dict: See doc for `write_example_file`.
+    """
+
+    error_checking.assert_is_boolean(read_all_target_vars)
+    error_checking.assert_is_boolean(include_soundings)
+
+    example_dict, dataset_object = _read_metadata_from_example_file(
+        netcdf_file_name=netcdf_file_name, include_soundings=include_soundings)
+
+    example_indices_to_keep = tracking_utils.find_storm_objects(
+        all_id_strings=example_dict[FULL_IDS_KEY],
+        all_times_unix_sec=example_dict[STORM_TIMES_KEY],
+        id_strings_to_keep=full_storm_id_strings,
+        times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=False
+    )
+
+    example_dict[FULL_IDS_KEY] = [
+        example_dict[FULL_IDS_KEY][k] for k in example_indices_to_keep
+    ]
+    example_dict[STORM_TIMES_KEY] = example_dict[STORM_TIMES_KEY][
+        example_indices_to_keep]
+
+    if read_all_target_vars:
+        example_dict[TARGET_MATRIX_KEY] = numpy.array(
+            dataset_object.variables[TARGET_MATRIX_KEY][
+                example_indices_to_keep, :],
+            dtype=int
+        )
+    else:
+        target_index = example_dict[TARGET_NAMES_KEY].index(target_name)
+        example_dict[TARGET_NAME_KEY] = target_name
+        example_dict.pop(TARGET_NAMES_KEY)
+
+        example_dict[TARGET_VALUES_KEY] = numpy.array(
+            dataset_object.variables[TARGET_MATRIX_KEY][
+                example_indices_to_keep, target_index],
+            dtype=int
+        )
+
+    example_dict = _subset_radar_data(
+        example_dict=example_dict, netcdf_dataset_object=dataset_object,
+        example_indices_to_keep=example_indices_to_keep,
+        field_names_to_keep=radar_field_names_to_keep,
+        heights_to_keep_m_agl=radar_heights_to_keep_m_agl,
+        num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep)
+
+    if not include_soundings:
+        dataset_object.close()
+        return example_dict
+
+    example_dict = _subset_sounding_data(
+        example_dict=example_dict, netcdf_dataset_object=dataset_object,
+        example_indices_to_keep=example_indices_to_keep,
+        field_names_to_keep=sounding_field_names_to_keep,
+        heights_to_keep_m_agl=sounding_heights_to_keep_m_agl)
+
+    dataset_object.close()
     return example_dict
 
 
