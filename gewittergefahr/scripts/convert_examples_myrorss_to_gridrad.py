@@ -100,9 +100,10 @@ def _convert_one_file(input_file_name, output_file_name):
             vorticity_matrix_s01[..., k] = ll_shear_matrix_s01
 
     vorticity_matrix_s01 *= AZ_SHEAR_TO_VORTICITY
-    radar_matrix = numpy.concatenate(
+    radar_matrix = numpy.stack(
         (reflectivity_matrix_dbz, vorticity_matrix_s01), axis=-1
     )
+    print(radar_matrix.shape)
 
     example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY] = radar_matrix
     example_dict[input_examples.RADAR_HEIGHTS_KEY] = NEW_RADAR_HEIGHTS_M_AGL
