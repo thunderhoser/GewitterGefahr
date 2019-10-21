@@ -1310,16 +1310,16 @@ def read_predictors_specific_examples(
         storm_times_unix_sec = numpy.concatenate((
             storm_times_unix_sec, this_storm_object_dict[STORM_TIMES_KEY]
         ))
+        this_pressure_matrix_pa = this_storm_object_dict[SOUNDING_PRESSURES_KEY]
 
-        if sounding_pressure_matrix_pa is None:
-            sounding_pressure_matrix_pa = (
-                this_storm_object_dict[SOUNDING_PRESSURES_KEY] + 0.
-            )
-        else:
-            sounding_pressure_matrix_pa = numpy.concatenate((
-                sounding_pressure_matrix_pa,
-                this_storm_object_dict[SOUNDING_PRESSURES_KEY]
-            ), axis=0)
+        if this_pressure_matrix_pa is not None:
+            if sounding_pressure_matrix_pa is None:
+                sounding_pressure_matrix_pa = this_pressure_matrix_pa + 0.
+            else:
+                sounding_pressure_matrix_pa = numpy.concatenate(
+                    (sounding_pressure_matrix_pa, this_pressure_matrix_pa),
+                    axis=0
+                )
 
         if predictor_matrices is None:
             predictor_matrices = copy.deepcopy(
