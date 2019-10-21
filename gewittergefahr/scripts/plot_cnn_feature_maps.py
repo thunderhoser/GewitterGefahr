@@ -266,13 +266,12 @@ def _run(model_file_name, layer_names, top_example_dir_name,
         full_id_strings = full_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
-    list_of_predictor_matrices = testing_io.read_specific_examples(
+    predictor_matrices = testing_io.read_predictors_specific_examples(
         top_example_dir_name=top_example_dir_name,
         desired_full_id_strings=full_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
-        list_of_layer_operation_dicts=model_metadata_dict[
-            cnn.LAYER_OPERATIONS_KEY]
+        layer_operation_dicts=model_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
     )[0]
 
     print(SEPARATOR_STRING)
@@ -282,7 +281,7 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     )
 
     if include_soundings:
-        sounding_matrix = list_of_predictor_matrices[-1]
+        sounding_matrix = predictor_matrices[-1]
     else:
         sounding_matrix = None
 
@@ -294,22 +293,22 @@ def _run(model_file_name, layer_names, top_example_dir_name,
             if training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]:
                 feature_matrix_by_layer[k] = cnn.apply_2d_or_3d_cnn(
                     model_object=model_object,
-                    radar_image_matrix=list_of_predictor_matrices[0],
+                    radar_image_matrix=predictor_matrices[0],
                     sounding_matrix=sounding_matrix,
                     return_features=True, feature_layer_name=layer_names[k]
                 )
             else:
                 feature_matrix_by_layer[k] = cnn.apply_2d3d_cnn(
                     model_object=model_object,
-                    reflectivity_matrix_dbz=list_of_predictor_matrices[0],
-                    azimuthal_shear_matrix_s01=list_of_predictor_matrices[1],
+                    reflectivity_matrix_dbz=predictor_matrices[0],
+                    azimuthal_shear_matrix_s01=predictor_matrices[1],
                     sounding_matrix=sounding_matrix,
                     return_features=True, feature_layer_name=layer_names[k]
                 )
         else:
             feature_matrix_by_layer[k] = cnn.apply_2d_or_3d_cnn(
                 model_object=model_object,
-                radar_image_matrix=list_of_predictor_matrices[0],
+                radar_image_matrix=predictor_matrices[0],
                 sounding_matrix=sounding_matrix,
                 return_features=True, feature_layer_name=layer_names[k]
             )

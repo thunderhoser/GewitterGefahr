@@ -20,6 +20,7 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 )))
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+NUM_EXAMPLES_PER_BATCH = 1000
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
@@ -176,21 +177,26 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
     training_option_dict[trainval_io.LAST_STORM_TIME_KEY] = (
         time_conversion.get_end_of_spc_date(last_spc_date_string)
     )
+    training_option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY] = (
+        NUM_EXAMPLES_PER_BATCH
+    )
 
     if cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY] is not None:
         generator_object = testing_io.gridrad_generator_2d_reduced(
             option_dict=training_option_dict,
+            desired_num_examples=num_examples,
             list_of_operation_dicts=cnn_metadata_dict[
-                cnn.LAYER_OPERATIONS_KEY],
-            num_examples_total=num_examples
+                cnn.LAYER_OPERATIONS_KEY]
         )
 
     elif cnn_metadata_dict[cnn.CONV_2D3D_KEY]:
         generator_object = testing_io.myrorss_generator_2d3d(
-            option_dict=training_option_dict, num_examples_total=num_examples)
+            option_dict=training_option_dict,
+            desired_num_examples=num_examples)
     else:
         generator_object = testing_io.generator_2d_or_3d(
-            option_dict=training_option_dict, num_examples_total=num_examples)
+            option_dict=training_option_dict,
+            desired_num_examples=num_examples)
 
     full_storm_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)

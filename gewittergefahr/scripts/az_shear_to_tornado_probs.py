@@ -19,6 +19,7 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 LARGE_INTEGER = int(1e10)
+NUM_EXAMPLES_PER_BATCH = 1000
 TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
@@ -137,6 +138,7 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
 
     option_dict = {
         trainval_io.EXAMPLE_FILES_KEY: example_file_names,
+        trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: NUM_EXAMPLES_PER_BATCH,
         trainval_io.FIRST_STORM_TIME_KEY:
             time_conversion.get_start_of_spc_date(first_spc_date_string),
         trainval_io.LAST_STORM_TIME_KEY:
@@ -155,14 +157,14 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
     }
 
     generator_object = testing_io.myrorss_generator_2d3d(
-        option_dict=option_dict, num_examples_total=LARGE_INTEGER)
+        option_dict=option_dict, desired_num_examples=LARGE_INTEGER)
 
     full_storm_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)
     predictor_values = numpy.array([], dtype=float)
     observed_labels = numpy.array([], dtype=int)
 
-    for _ in range(len(example_file_names)):
+    while True:
         try:
             this_storm_object_dict = next(generator_object)
             print(SEPARATOR_STRING)

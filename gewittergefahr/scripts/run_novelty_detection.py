@@ -314,24 +314,22 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
     cnn_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
     print(SEPARATOR_STRING)
 
-    baseline_predictor_matrices, _ = testing_io.read_specific_examples(
+    baseline_predictor_matrices = testing_io.read_predictors_specific_examples(
         top_example_dir_name=top_example_dir_name,
         desired_full_id_strings=baseline_full_id_strings,
         desired_times_unix_sec=baseline_times_unix_sec,
         option_dict=cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-        list_of_layer_operation_dicts=cnn_metadata_dict[
-            cnn.LAYER_OPERATIONS_KEY]
-    )
+        layer_operation_dicts=cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
+    )[0]
     print(SEPARATOR_STRING)
 
-    trial_predictor_matrices, _ = testing_io.read_specific_examples(
+    trial_predictor_matrices = testing_io.read_predictors_specific_examples(
         top_example_dir_name=top_example_dir_name,
         desired_full_id_strings=trial_full_id_strings,
         desired_times_unix_sec=trial_times_unix_sec,
         option_dict=cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-        list_of_layer_operation_dicts=cnn_metadata_dict[
-            cnn.LAYER_OPERATIONS_KEY]
-    )
+        layer_operation_dicts=cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
+    )[0]
     print(SEPARATOR_STRING)
 
     novelty_dict = novelty_detection.do_novelty_detection(

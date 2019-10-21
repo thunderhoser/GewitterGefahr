@@ -129,13 +129,12 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
     predictor_matrices, sounding_pressure_matrix_pa = (
-        testing_io.read_specific_examples(
+        testing_io.read_predictors_specific_examples(
             top_example_dir_name=top_example_dir_name,
             desired_full_id_strings=full_storm_id_strings,
             desired_times_unix_sec=storm_times_unix_sec,
             option_dict=training_option_dict,
-            list_of_layer_operation_dicts=model_metadata_dict[
-                cnn.LAYER_OPERATIONS_KEY]
+            layer_operation_dicts=model_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
         )
     )
     print(SEPARATOR_STRING)

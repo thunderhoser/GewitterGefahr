@@ -212,7 +212,7 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
     observed_labels = numpy.array([], dtype=int)
     class_probability_matrix = None
 
-    for _ in range(len(example_file_names)):
+    while True:
         try:
             this_storm_object_dict = next(generator_object)
             print(SEPARATOR_STRING)

@@ -292,8 +292,8 @@ def _plot_3d_radar_scan(
     F = number of radar fields
 
     :param list_of_predictor_matrices: List created by
-        `testing_io.read_specific_examples`, except that the first axis (example
-        dimension) is missing.
+        `testing_io.read_predictors_specific_examples`, except that the first
+        axis (example dimension) is missing.
     :param model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     :param allow_whitespace: Boolean flag.
@@ -1040,7 +1040,7 @@ def plot_one_example(
     R = number of radar figures
 
     :param list_of_predictor_matrices: List created by
-        `testing_io.read_specific_examples`.
+        `testing_io.read_predictors_specific_examples`.
     :param model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     :param pmm_flag: Boolean flag.  If True, plotting probability-matched means
@@ -1561,23 +1561,22 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
             storm_activations = storm_activations[:num_examples]
 
     print(SEPARATOR_STRING)
-    list_of_predictor_matrices, sounding_pressure_matrix_pascals = (
-        testing_io.read_specific_examples(
+    predictor_matrices, sounding_pressure_matrix_pa = (
+        testing_io.read_predictors_specific_examples(
+            top_example_dir_name=top_example_dir_name,
             desired_full_id_strings=full_storm_id_strings,
             desired_times_unix_sec=storm_times_unix_sec,
             option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-            top_example_dir_name=top_example_dir_name,
-            list_of_layer_operation_dicts=model_metadata_dict[
-                cnn.LAYER_OPERATIONS_KEY]
+            layer_operation_dicts=model_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
         )
     )
     print(SEPARATOR_STRING)
 
     plot_examples(
-        list_of_predictor_matrices=list_of_predictor_matrices,
+        list_of_predictor_matrices=predictor_matrices,
         model_metadata_dict=model_metadata_dict, pmm_flag=False,
         output_dir_name=output_dir_name, plot_soundings=plot_soundings,
-        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals,
+        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pa,
         allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
         add_titles=add_titles, label_colour_bars=label_colour_bars,
         colour_bar_length=colour_bar_length,

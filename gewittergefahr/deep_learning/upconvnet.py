@@ -11,6 +11,8 @@ from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import architecture_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
+NUM_EX_PER_TESTING_BATCH = 1000
+
 CONV_FILTER_SIZE = 3
 SMOOTHING_FILTER_SIZE = 5
 
@@ -502,7 +504,12 @@ def testing_generator(cnn_model_object, cnn_metadata_dict,
     :return: radar_matrix: Same.
     """
 
-    training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    training_option_dict = copy.deepcopy(
+        cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    )
+    training_option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY] = (
+        NUM_EX_PER_TESTING_BATCH
+    )
 
     partial_cnn_model_object = cnn.model_to_feature_generator(
         model_object=cnn_model_object,
@@ -514,16 +521,16 @@ def testing_generator(cnn_model_object, cnn_metadata_dict,
     if conv_2d3d:
         cnn_generator = testing_io.myrorss_generator_2d3d(
             option_dict=training_option_dict,
-            num_examples_total=num_examples_total)
+            desired_num_examples=num_examples_total)
     elif layer_operation_dicts is None:
         cnn_generator = testing_io.generator_2d_or_3d(
             option_dict=training_option_dict,
-            num_examples_total=num_examples_total)
+            desired_num_examples=num_examples_total)
     else:
         cnn_generator = testing_io.gridrad_generator_2d_reduced(
             option_dict=training_option_dict,
             list_of_operation_dicts=layer_operation_dicts,
-            num_examples_total=num_examples_total)
+            desired_num_examples=num_examples_total)
 
     while True:
         try:

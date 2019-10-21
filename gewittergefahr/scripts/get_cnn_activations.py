@@ -25,6 +25,7 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 )))
 
 LARGE_INTEGER = int(1e10)
+NUM_EXAMPLES_PER_BATCH = 1000
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 CLASS_COMPONENT_TYPE_STRING = model_interpretation.CLASS_COMPONENT_TYPE_STRING
@@ -190,24 +191,31 @@ def _run(
     training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
     training_option_dict[trainval_io.EXAMPLE_FILES_KEY] = example_file_names
     training_option_dict[trainval_io.FIRST_STORM_TIME_KEY] = (
-        time_conversion.get_start_of_spc_date(first_spc_date_string))
+        time_conversion.get_start_of_spc_date(first_spc_date_string)
+    )
     training_option_dict[trainval_io.LAST_STORM_TIME_KEY] = (
-        time_conversion.get_end_of_spc_date(last_spc_date_string))
+        time_conversion.get_end_of_spc_date(last_spc_date_string)
+    )
+    training_option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY] = (
+        NUM_EXAMPLES_PER_BATCH
+    )
 
     if model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] is not None:
         generator_object = testing_io.gridrad_generator_2d_reduced(
             option_dict=training_option_dict,
+            desired_num_examples=LARGE_INTEGER,
             list_of_operation_dicts=model_metadata_dict[
-                cnn.LAYER_OPERATIONS_KEY],
-            num_examples_total=LARGE_INTEGER
+                cnn.LAYER_OPERATIONS_KEY]
         )
 
     elif model_metadata_dict[cnn.CONV_2D3D_KEY]:
         generator_object = testing_io.myrorss_generator_2d3d(
-            option_dict=training_option_dict, num_examples_total=LARGE_INTEGER)
+            option_dict=training_option_dict,
+            desired_num_examples=LARGE_INTEGER)
     else:
         generator_object = testing_io.generator_2d_or_3d(
-            option_dict=training_option_dict, num_examples_total=LARGE_INTEGER)
+            option_dict=training_option_dict,
+            desired_num_examples=LARGE_INTEGER)
 
     # Compute activation for each example (storm object) and model component.
     full_id_strings = []
@@ -216,7 +224,7 @@ def _run(
 
     print(SEPARATOR_STRING)
 
-    for _ in range(len(example_file_names)):
+    while True:
         try:
             this_storm_object_dict = next(generator_object)
         except StopIteration:

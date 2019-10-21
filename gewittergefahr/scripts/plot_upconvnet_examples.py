@@ -146,21 +146,20 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
     print(SEPARATOR_STRING)
-    list_of_predictor_matrices = testing_io.read_specific_examples(
+    predictor_matrices = testing_io.read_predictors_specific_examples(
         top_example_dir_name=top_example_dir_name,
         desired_full_id_strings=full_storm_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
-        list_of_layer_operation_dicts=cnn_metadata_dict[
-            cnn.LAYER_OPERATIONS_KEY]
+        layer_operation_dicts=cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
     )[0]
     print(SEPARATOR_STRING)
 
-    actual_radar_matrix = list_of_predictor_matrices[0]
+    actual_radar_matrix = predictor_matrices[0]
     have_soundings = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
 
     if have_soundings:
-        sounding_matrix = list_of_predictor_matrices[-1]
+        sounding_matrix = predictor_matrices[-1]
     else:
         sounding_matrix = None
 

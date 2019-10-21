@@ -68,8 +68,9 @@ NUM_EXAMPLES_HELP_STRING = (
 EXAMPLE_DIR_HELP_STRING = (
     '[used only if `{0:s}` is empty] Name of top-level directory with dataset '
     'examples.  Files therein will be read by '
-    '`testing_io.read_specific_examples`, where the "specific examples" '
-    'correspond to the storm IDs and times specified in `{1:s}`.'
+    '`testing_io.read_predictors_specific_examples`, where the '
+    '"specific examples" correspond to the storm IDs and times specified in '
+    '`{1:s}`.'
 ).format(INIT_FUNCTION_ARG_NAME, STORM_METAFILE_ARG_NAME)
 
 COMPONENT_HELP_STRING = (
@@ -308,12 +309,12 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
             storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
         input_matrices, sounding_pressure_matrix_pa = (
-            testing_io.read_specific_examples(
+            testing_io.read_predictors_specific_examples(
+                top_example_dir_name=top_example_dir_name,
                 desired_full_id_strings=full_storm_id_strings,
                 desired_times_unix_sec=storm_times_unix_sec,
                 option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-                top_example_dir_name=top_example_dir_name,
-                list_of_layer_operation_dicts=model_metadata_dict[
+                layer_operation_dicts=model_metadata_dict[
                     cnn.LAYER_OPERATIONS_KEY]
             )
         )
