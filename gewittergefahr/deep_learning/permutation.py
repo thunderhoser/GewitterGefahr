@@ -48,10 +48,11 @@ BEST_COST_MATRIX_KEY = 'best_cost_matrix'
 ORIGINAL_COST_ARRAY_KEY = 'original_cost_array'
 STEP1_PREDICTORS_KEY = 'step1_predictor_names'
 STEP1_COST_MATRIX_KEY = 'step1_cost_matrix'
+BACKWARDS_FLAG = 'backwards_test'
 
 REQUIRED_KEYS = [
     BEST_PREDICTORS_KEY, BEST_COST_MATRIX_KEY, ORIGINAL_COST_ARRAY_KEY,
-    STEP1_PREDICTORS_KEY, STEP1_COST_MATRIX_KEY
+    STEP1_PREDICTORS_KEY, STEP1_COST_MATRIX_KEY, BACKWARDS_FLAG
 ]
 
 # Optional keys in result dictionary (see `write_results`).
@@ -765,6 +766,7 @@ def run_forward_test(
         the order that they were permuted in step 1.
     result_dict["step1_cost_matrix"]: P-by-B numpy array of costs after
         permutation in step 1.
+    result_dict["backwards_test"]: Boolean flag (always False).
     """
 
     error_checking.assert_is_integer_numpy_array(target_values)
@@ -856,7 +858,8 @@ def run_forward_test(
         BEST_COST_MATRIX_KEY: best_cost_matrix,
         ORIGINAL_COST_ARRAY_KEY: original_cost_array,
         STEP1_PREDICTORS_KEY: step1_predictor_names,
-        STEP1_COST_MATRIX_KEY: step1_cost_matrix
+        STEP1_COST_MATRIX_KEY: step1_cost_matrix,
+        BACKWARDS_FLAG: False
     }
 
 
@@ -888,6 +891,7 @@ def run_backwards_test(
         the order that they were unpermuted in step 1.
     result_dict["step1_cost_matrix"]: P-by-B numpy array of costs after
         unpermutation in step 1.
+    result_dict["backwards_test"]: Boolean flag (always True).
     """
 
     # Deal with input args.
@@ -995,7 +999,8 @@ def run_backwards_test(
         BEST_COST_MATRIX_KEY: best_cost_matrix,
         ORIGINAL_COST_ARRAY_KEY: original_cost_array,
         STEP1_PREDICTORS_KEY: step1_predictor_names,
-        STEP1_COST_MATRIX_KEY: step1_cost_matrix
+        STEP1_COST_MATRIX_KEY: step1_cost_matrix,
+        BACKWARDS_FLAG: True
     }
 
 
@@ -1040,6 +1045,9 @@ def read_results(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     result_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    if BACKWARDS_FLAG not in result_dict:
+        result_dict[BACKWARDS_FLAG] = False
 
     missing_keys = list(set(REQUIRED_KEYS) - set(result_dict.keys()))
     if len(missing_keys) == 0:

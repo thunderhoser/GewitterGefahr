@@ -8,9 +8,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import permutation
 from gewittergefahr.plotting import plotting_utils
 
-# DEFAULT_REFERENCE_LINE_COLOUR = numpy.array(
-#     [102, 194, 165], dtype=float
-# ) / 255
+DEFAULT_CONFIDENCE_LEVEL = 0.95
 
 SOUNDING_PREDICTOR_NAMES = [
     r'$u$-wind',
@@ -20,62 +18,56 @@ SOUNDING_PREDICTOR_NAMES = [
     'Virtual potential temperature'
 ]
 
-# DEFAULT_FACE_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
-# SOUNDING_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
-# NO_PERMUTATION_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
-
 DEFAULT_FACE_COLOUR = numpy.array([252, 141, 98], dtype=float) / 255
 SOUNDING_COLOUR = numpy.array([141, 160, 203], dtype=float) / 255
 NO_PERMUTATION_COLOUR = numpy.full(3, 1.)
 
-DEFAULT_EDGE_COLOUR = numpy.full(3, 0.)
-DEFAULT_REFERENCE_LINE_COLOUR = numpy.full(3, 152. / 255)
+BAR_EDGE_WIDTH = 2
+BAR_EDGE_COLOUR = numpy.full(3, 0.)
 
-DEFAULT_EDGE_WIDTH = 2
-DEFAULT_REFERENCE_LINE_WIDTH = 4
+REFERENCE_LINE_WIDTH = 4
+REFERENCE_LINE_COLOUR = numpy.full(3, 152. / 255)
 
-ERROR_BAR_COLOUR = numpy.full(3, 152. / 255)
-# ERROR_BAR_COLOUR = numpy.full(3, 0.)
-ERROR_BAR_CAP_SIZE = 6
-ERROR_BAR_DICT = {'alpha': 0.75, 'linewidth': 4, 'capthick': 4}
+ERROR_BAR_COLOUR = numpy.full(3, 0.)
+ERROR_BAR_CAP_SIZE = 8
+ERROR_BAR_DICT = {'alpha': 1., 'linewidth': 4, 'capthick': 4}
 
-TEXT_COLOUR = numpy.full(3, 0.)
+BAR_TEXT_COLOUR = numpy.full(3, 0.)
+BAR_FONT_SIZE = 20
+DEFAULT_FONT_SIZE = 20
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
-FONT_SIZE = 20
-LABEL_FONT_SIZE = 20
-
-pyplot.rc('font', size=FONT_SIZE)
-pyplot.rc('axes', titlesize=FONT_SIZE)
-pyplot.rc('axes', labelsize=FONT_SIZE)
-pyplot.rc('xtick', labelsize=FONT_SIZE)
-pyplot.rc('ytick', labelsize=FONT_SIZE)
-pyplot.rc('legend', fontsize=FONT_SIZE)
-pyplot.rc('figure', titlesize=FONT_SIZE)
+pyplot.rc('font', size=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
+pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 
-def _label_bars(axes_object, y_coords, y_strings):
+def _label_bars(axes_object, y_tick_coords, y_tick_strings):
     """Labels bars in graph.
 
     J = number of bars
 
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    :param y_coords: length-J numpy array with y-coordinates of bars.
-    :param y_strings: length-J list of labels.
+    :param y_tick_coords: length-J numpy array with y-coordinates of bars.
+    :param y_tick_strings: length-J list of labels.
     """
 
     x_min, x_max = pyplot.xlim()
     x_coord_for_text = x_min + 0.025 * (x_max - x_min)
 
-    this_colour = plotting_utils.colour_from_numpy_to_tuple(TEXT_COLOUR)
+    this_colour = plotting_utils.colour_from_numpy_to_tuple(BAR_TEXT_COLOUR)
 
-    for j in range(len(y_coords)):
+    for j in range(len(y_tick_coords)):
         axes_object.text(
-            x_coord_for_text, y_coords[j], '   ' + y_strings[j],
+            x_coord_for_text, y_tick_coords[j], '   ' + y_tick_strings[j],
             color=this_colour, horizontalalignment='left',
-            verticalalignment='center', fontsize=LABEL_FONT_SIZE)
+            verticalalignment='center', fontsize=BAR_FONT_SIZE)
 
 
 def _predictor_name_to_face_colour(predictor_name):
@@ -91,251 +83,273 @@ def _predictor_name_to_face_colour(predictor_name):
     return plotting_utils.colour_from_numpy_to_tuple(DEFAULT_FACE_COLOUR)
 
 
-def plot_breiman_results(
-        permutation_dict, axes_object, num_predictors_to_plot=None,
-        plot_percent_increase=False, bar_face_colour=None,
-        bar_edge_colour=DEFAULT_EDGE_COLOUR,
-        bar_edge_width=DEFAULT_EDGE_WIDTH,
-        reference_line_colour=DEFAULT_REFERENCE_LINE_COLOUR,
-        reference_line_width=DEFAULT_REFERENCE_LINE_WIDTH):
-    """Plots results of Breiman (single-pass) permutation test.
+def _get_error_matrix(cost_matrix, confidence_level):
+    """Creates error matrix (used to plot error bars).
 
-    :param permutation_dict: Dictionary created by
-        `permutation.run_permutation_test`.
-    :param axes_object: Will plot on these axes (instance of
-        `matplotlib.axes._subplots.AxesSubplot`).
-    :param num_predictors_to_plot: Number of predictors to plot.  Will plot only
-        the K most important, where K = `num_predictors_to_plot`.  If
-        `num_predictors_to_plot is None`, will plot all predictors.
-    :param plot_percent_increase: Boolean flag.  If True, x-axis will be
-        percentage of original cost (before permutation).  If False, will be
-        actual cost.
-    :param bar_face_colour: Interior colour (any format accepted by
-        `matplotlib.colors`) of each bar in the graph.  If this is None, will
-        use the method `_predictor_name_to_face_colour` to make bar colours.
-    :param bar_edge_colour: Edge colour of each bar in the graph.
-    :param bar_edge_width: Edge width of each bar in the graph.
-    :param reference_line_colour: Colour of reference line (dashed vertical
-        line, showing cost with no permutation).
-    :param reference_line_width: Width of reference line.
+    S = number of steps in permutation test
+    B = number of bootstrap replicates
+
+    :param cost_matrix: S-by-B numpy array of costs.
+    :param confidence_level: Confidence level (in range 0...1).
+    :return: error_matrix: 2-by-S numpy array, where the first row contains
+        negative errors and second row contains positive errors.
     """
 
-    error_checking.assert_is_boolean(plot_percent_increase)
-    predictor_names = permutation_dict[permutation.STEP1_PREDICTORS_KEY]
+    error_checking.assert_is_geq(confidence_level, 0.9)
+    error_checking.assert_is_less_than(confidence_level, 1.)
 
+    mean_costs = numpy.mean(cost_matrix, axis=-1)
+    min_costs = numpy.percentile(
+        cost_matrix, 50 * (1. - confidence_level), axis=-1
+    )
+    max_costs = numpy.percentile(
+        cost_matrix, 50 * (1. + confidence_level), axis=-1
+    )
+
+    negative_errors = mean_costs - min_costs
+    positive_errors = max_costs - mean_costs
+
+    negative_errors = numpy.reshape(negative_errors, (1, negative_errors.size))
+    positive_errors = numpy.reshape(positive_errors, (1, positive_errors.size))
+    return numpy.vstack((negative_errors, positive_errors))
+
+
+def _plot_bars(
+        cost_matrix, predictor_names, plot_percent_increase, backwards_flag,
+        multipass_flag, confidence_level, axes_object, bar_face_colour):
+    """Plots bar graph for either single-pass or multi-pass test.
+
+    P = number of predictors permuted or unpermuted
+    B = number of bootstrap replicates
+
+    :param cost_matrix: (P + 1)-by-B numpy array of costs.  The first row
+        contains costs at the beginning of the test -- before (un)permuting any
+        variables -- and the [i]th row contains costs after (un)permuting the
+        variable represented by predictor_names[i - 1].
+    :param predictor_names: length-P list of predictor names (used to label
+        bars).
+    :param plot_percent_increase: Boolean flag.  If True, the x-axis will show
+        percentage of original cost.  If False, will show actual cost.
+    :param backwards_flag: Boolean flag.  If True, will plot backwards version
+        of permutation, where each step involves *un*permuting a variable.  If
+        False, will plot forward version, where each step involves permuting a
+        variable.
+    :param multipass_flag: Boolean flag.  If True, plotting multi-pass version
+        of test.  If False, plotting single-pass version.
+    :param confidence_level: Confidence level for error bars (in range 0...1).
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).  If None, will create new
+        axes.
+    :param bar_face_colour: Interior colour (in any format accepted by
+        matplotlib), used for each bar in the graph.  If None, will use the
+        method `_predictor_name_to_face_colour` to determine bar colours.
+    """
+
+    original_cost_array = cost_matrix[0, ...]
+    mean_original_cost = numpy.mean(original_cost_array)
+
+    if numpy.any(cost_matrix < 0):
+        cost_matrix *= -1
+        x_axis_label_string = 'AUC'
+
+        if plot_percent_increase:
+            cost_matrix = 200 * (cost_matrix - 0.5)
+            x_axis_label_string += ' (percent improvement above random)'
+    else:
+        x_axis_label_string = 'Cross-entropy'
+
+        if plot_percent_increase:
+            cost_matrix = 100 * cost_matrix / mean_original_cost
+            x_axis_label_string += ' (percentage of original)'
+
+    if backwards_flag:
+        y_tick_strings = ['All permuted'] + predictor_names
+    else:
+        y_tick_strings = ['None permuted'] + predictor_names
+
+    y_tick_coords = numpy.linspace(
+        0, len(y_tick_strings) - 1, num=len(y_tick_strings), dtype=float
+    )
+
+    if multipass_flag:
+        y_tick_coords = y_tick_coords[::-1]
+
+    if bar_face_colour is None:
+        face_colour_arg = [
+            _predictor_name_to_face_colour(n) for n in predictor_names
+        ]
+
+        face_colour_arg.insert(
+            0, plotting_utils.colour_from_numpy_to_tuple(NO_PERMUTATION_COLOUR)
+        )
+    else:
+        face_colour_arg = plotting_utils.colour_from_numpy_to_tuple(
+            bar_face_colour)
+
+    if axes_object is None:
+        _, axes_object = pyplot.subplots(
+            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+        )
+
+    mean_costs = numpy.mean(cost_matrix, axis=-1)
+    num_bootstrap_reps = len(original_cost_array)
+
+    if num_bootstrap_reps > 1:
+        error_matrix = _get_error_matrix(
+            cost_matrix=cost_matrix, confidence_level=confidence_level)
+
+        axes_object.barh(
+            y_tick_coords, mean_costs, color=face_colour_arg,
+            edgecolor=plotting_utils.colour_from_numpy_to_tuple(
+                BAR_EDGE_COLOUR),
+            linewidth=BAR_EDGE_WIDTH, xerr=error_matrix,
+            ecolor=plotting_utils.colour_from_numpy_to_tuple(ERROR_BAR_COLOUR),
+            capsize=ERROR_BAR_CAP_SIZE, error_kw=ERROR_BAR_DICT
+        )
+    else:
+        axes_object.barh(
+            y_tick_coords, mean_costs, color=face_colour_arg,
+            edgecolor=plotting_utils.colour_from_numpy_to_tuple(
+                BAR_EDGE_COLOUR),
+            linewidth=BAR_EDGE_WIDTH
+        )
+
+    reference_x_coords = numpy.full(2, mean_costs[0])
+    reference_y_tick_coords = numpy.array([
+        numpy.min(y_tick_coords) - 0.75, numpy.max(y_tick_coords) + 0.75
+    ])
+
+    axes_object.plot(
+        reference_x_coords, reference_y_tick_coords,
+        color=plotting_utils.colour_from_numpy_to_tuple(REFERENCE_LINE_COLOUR),
+        linestyle='--', linewidth=REFERENCE_LINE_WIDTH
+    )
+
+    axes_object.set_yticks([], [])
+    axes_object.set_xlabel(x_axis_label_string)
+
+    if backwards_flag:
+        axes_object.set_ylabel('Variable unpermuted')
+    else:
+        axes_object.set_ylabel('Variable permuted')
+
+    _label_bars(axes_object=axes_object, y_tick_coords=y_tick_coords,
+                y_tick_strings=y_tick_strings)
+
+    axes_object.set_ylim(
+        numpy.min(y_tick_coords) - 0.75, numpy.max(y_tick_coords) + 0.75
+    )
+
+
+def plot_single_pass_test(
+        permutation_dict, axes_object=None, num_predictors_to_plot=None,
+        plot_percent_increase=False, confidence_level=DEFAULT_CONFIDENCE_LEVEL,
+        bar_face_colour=None):
+    """Plots results of single-pass (Breiman) permutation test.
+
+    :param permutation_dict: Dictionary created by
+        `permutation.run_forward_test` or `permutation.run_backwards_test`.
+    :param axes_object: See doc for `_plot_bars`.
+    :param num_predictors_to_plot: Number of predictors to plot.  Will plot only
+        the K most important, where K = `num_predictors_to_plot`.  If None, will
+        plot all predictors.
+    :param plot_percent_increase: See doc for `_plot_bars`.
+    :param confidence_level: Same.
+    :param bar_face_colour: Same.
+    """
+
+    # Check input args.
+    predictor_names = permutation_dict[permutation.STEP1_PREDICTORS_KEY]
     if num_predictors_to_plot is None:
         num_predictors_to_plot = len(predictor_names)
 
     error_checking.assert_is_integer(num_predictors_to_plot)
     error_checking.assert_is_greater(num_predictors_to_plot, 0)
-    num_predictors_to_plot = min([num_predictors_to_plot, len(predictor_names)])
-
-    original_cost_bs_array = permutation_dict[permutation.ORIGINAL_COST_KEY]
-    cost_by_predictor_bs_matrix = permutation_dict[permutation.STEP1_COSTS_KEY]
-
-    sort_indices = numpy.argsort(
-        cost_by_predictor_bs_matrix[:, 1]
-    )[-num_predictors_to_plot:]
-
-    cost_by_predictor_bs_matrix = cost_by_predictor_bs_matrix[sort_indices, :]
-    predictor_names = [predictor_names[k] for k in sort_indices]
-
-    original_cost_bs_matrix = numpy.reshape(
-        original_cost_bs_array, (1, original_cost_bs_array.size)
-    )
-
-    x_coord_matrix = numpy.concatenate(
-        (original_cost_bs_matrix, cost_by_predictor_bs_matrix), axis=0
-    )
-
-    if numpy.any(x_coord_matrix < 0):
-        x_coord_matrix *= -1
-        x_label_string = 'AUC'
-
-        if plot_percent_increase:
-            x_coord_matrix = 200 * (x_coord_matrix - 0.5)
-            x_label_string += ' (percent improvement above 0.5)'
-    else:
-        x_label_string = 'Cost'
-
-        if plot_percent_increase:
-            x_coord_matrix = 100 * x_coord_matrix / x_coord_matrix[0, 1]
-            x_label_string += ' (percentage of original)'
-
-    y_strings = ['No permutation'] + predictor_names
-    y_coords = numpy.linspace(
-        0, len(y_strings) - 1, num=len(y_strings), dtype=float
-    )
-
-    if bar_face_colour is None:
-        bar_face_colours = [
-            _predictor_name_to_face_colour(n) for n in predictor_names
-        ]
-
-        face_colour_arg = (
-            [plotting_utils.colour_from_numpy_to_tuple(NO_PERMUTATION_COLOUR)] +
-            bar_face_colours
-        )
-    else:
-        face_colour_arg = plotting_utils.colour_from_numpy_to_tuple(
-            bar_edge_colour)
-
-    negative_errors = x_coord_matrix[:, 1] - x_coord_matrix[:, 0]
-    positive_errors = x_coord_matrix[:, 2] - x_coord_matrix[:, 1]
-
-    negative_errors = numpy.reshape(
-        negative_errors, (1, negative_errors.size)
-    )
-    positive_errors = numpy.reshape(
-        positive_errors, (1, positive_errors.size)
-    )
-
-    error_matrix = numpy.vstack((negative_errors, positive_errors))
-
-    axes_object.barh(
-        y_coords, x_coord_matrix[:, 1], color=face_colour_arg,
-        edgecolor=plotting_utils.colour_from_numpy_to_tuple(bar_edge_colour),
-        linewidth=bar_edge_width, xerr=error_matrix,
-        ecolor=plotting_utils.colour_from_numpy_to_tuple(ERROR_BAR_COLOUR),
-        capsize=ERROR_BAR_CAP_SIZE, error_kw=ERROR_BAR_DICT
-    )
-
-    reference_x_coords = numpy.full(2, x_coord_matrix[0, 1])
-    reference_y_coords = numpy.array([
-        numpy.min(y_coords) - 0.75, numpy.max(y_coords) + 0.75
+    num_predictors_to_plot = min([
+        num_predictors_to_plot, len(predictor_names)
     ])
-
-    axes_object.plot(
-        reference_x_coords, reference_y_coords,
-        color=plotting_utils.colour_from_numpy_to_tuple(reference_line_colour),
-        linestyle='--', linewidth=reference_line_width
-    )
-
-    axes_object.set_yticks([], [])
-    axes_object.set_xlabel(x_label_string)
-    axes_object.set_ylabel('Predictor permuted')
-
-    _label_bars(axes_object=axes_object, y_coords=y_coords, y_strings=y_strings)
-    axes_object.set_ylim(numpy.min(y_coords) - 0.75, numpy.max(y_coords) + 0.75)
-
-
-def plot_lakshmanan_results(
-        permutation_dict, axes_object, num_steps_to_plot=None,
-        plot_percent_increase=False, bar_face_colour=None,
-        bar_edge_colour=DEFAULT_EDGE_COLOUR,
-        bar_edge_width=DEFAULT_EDGE_WIDTH,
-        reference_line_colour=DEFAULT_REFERENCE_LINE_COLOUR,
-        reference_line_width=DEFAULT_REFERENCE_LINE_WIDTH):
-    """Plots results of Lakshmanan (multi-pass) permutation test.
-
-    :param permutation_dict: See doc for `plot_breiman_results`.
-    :param axes_object: Same.
-    :param num_steps_to_plot: See doc for `num_predictors_to_plot` in
-        `plot_breiman_results`.
-    :param plot_percent_increase: See doc for `plot_breiman_results`.
-    :param bar_face_colour: Same.
-    :param bar_edge_colour: Same.
-    :param bar_edge_width: Same.
-    :param reference_line_colour: Same.
-    :param reference_line_width: Same.
-    """
 
     error_checking.assert_is_boolean(plot_percent_increase)
 
-    highest_cost_by_step_bs_matrix = permutation_dict[
-        permutation.HIGHEST_COSTS_KEY]
-    predictor_name_by_step = permutation_dict[
-        permutation.SELECTED_PREDICTORS_KEY]
+    # Set up plotting args.
+    backwards_flag = permutation_dict[permutation.BACKWARDS_FLAG]
+    perturbed_cost_matrix = permutation_dict[permutation.STEP1_COST_MATRIX_KEY]
+    mean_perturbed_costs = numpy.mean(perturbed_cost_matrix, axis=-1)
 
-    if num_steps_to_plot is None:
-        num_steps_to_plot = len(predictor_name_by_step)
+    if backwards_flag:
+        sort_indices = numpy.argsort(
+            mean_perturbed_costs
+        )[:num_predictors_to_plot]
+    else:
+        sort_indices = numpy.argsort(
+            mean_perturbed_costs
+        )[-num_predictors_to_plot:]
 
-    error_checking.assert_is_integer(num_steps_to_plot)
-    error_checking.assert_is_greater(num_steps_to_plot, 0)
-    num_steps_to_plot = min([
-        num_steps_to_plot, len(predictor_name_by_step)
+    perturbed_cost_matrix = perturbed_cost_matrix[sort_indices, :]
+    predictor_names = [predictor_names[k] for k in sort_indices]
+
+    original_cost_array = permutation_dict[permutation.ORIGINAL_COST_ARRAY_KEY]
+    original_cost_matrix = numpy.reshape(
+        original_cost_array, (1, original_cost_array.size)
+    )
+    cost_matrix = numpy.concatenate(
+        (original_cost_matrix, perturbed_cost_matrix), axis=0
+    )
+
+    # Do plotting.
+    _plot_bars(
+        cost_matrix=cost_matrix, predictor_names=predictor_names,
+        plot_percent_increase=plot_percent_increase,
+        backwards_flag=backwards_flag, multipass_flag=False,
+        confidence_level=confidence_level, axes_object=axes_object,
+        bar_face_colour=bar_face_colour)
+
+
+def plot_multipass_test(
+        permutation_dict, axes_object=None, num_predictors_to_plot=None,
+        plot_percent_increase=False, confidence_level=DEFAULT_CONFIDENCE_LEVEL,
+        bar_face_colour=None):
+    """Plots results of multi-pass (Lakshmanan) permutation test.
+
+    :param permutation_dict: See doc for `plot_single_pass_test`.
+    :param axes_object: Same.
+    :param num_predictors_to_plot: Same.
+    :param plot_percent_increase: Same.
+    :param confidence_level: Same.
+    :param bar_face_colour: Same.
+    """
+
+    # Check input args.
+    predictor_names = permutation_dict[permutation.BEST_PREDICTORS_KEY]
+    if num_predictors_to_plot is None:
+        num_predictors_to_plot = len(predictor_names)
+
+    error_checking.assert_is_integer(num_predictors_to_plot)
+    error_checking.assert_is_greater(num_predictors_to_plot, 0)
+    num_predictors_to_plot = min([
+        num_predictors_to_plot, len(predictor_names)
     ])
 
-    highest_cost_by_step_bs_matrix = highest_cost_by_step_bs_matrix[
-        :num_steps_to_plot, :
-    ]
-    predictor_name_by_step = predictor_name_by_step[:num_steps_to_plot]
+    error_checking.assert_is_boolean(plot_percent_increase)
 
-    original_cost_bs_array = permutation_dict[permutation.ORIGINAL_COST_KEY]
-    original_cost_bs_matrix = numpy.reshape(
-        original_cost_bs_array, (1, original_cost_bs_array.size)
+    # Set up plotting args.
+    backwards_flag = permutation_dict[permutation.BACKWARDS_FLAG]
+    perturbed_cost_matrix = permutation_dict[permutation.BEST_COST_MATRIX_KEY]
+    perturbed_cost_matrix = perturbed_cost_matrix[:num_predictors_to_plot, :]
+    predictor_names = predictor_names[:num_predictors_to_plot]
+
+    original_cost_array = permutation_dict[permutation.ORIGINAL_COST_ARRAY_KEY]
+    original_cost_matrix = numpy.reshape(
+        original_cost_array, (1, original_cost_array.size)
+    )
+    cost_matrix = numpy.concatenate(
+        (original_cost_matrix, perturbed_cost_matrix), axis=0
     )
 
-    x_coord_matrix = numpy.concatenate(
-        (original_cost_bs_matrix, highest_cost_by_step_bs_matrix), axis=0
-    )
-
-    if numpy.any(x_coord_matrix < 0):
-        x_coord_matrix *= -1
-        x_label_string = 'AUC'
-
-        if plot_percent_increase:
-            x_coord_matrix = 200 * (x_coord_matrix - 0.5)
-            x_label_string += ' (percent improvement above 0.5)'
-    else:
-        x_label_string = 'Cost'
-
-        if plot_percent_increase:
-            x_coord_matrix = 100 * x_coord_matrix / x_coord_matrix[0, 1]
-            x_label_string += ' (percentage of original)'
-
-    y_strings = ['No permutation'] + predictor_name_by_step
-    y_coords = numpy.linspace(
-        0, len(y_strings) - 1, num=len(y_strings), dtype=float
-    )[::-1]
-
-    if bar_face_colour is None:
-        bar_face_colours = [
-            _predictor_name_to_face_colour(n) for n in predictor_name_by_step
-        ]
-
-        face_colour_arg = (
-            [plotting_utils.colour_from_numpy_to_tuple(NO_PERMUTATION_COLOUR)] +
-            bar_face_colours
-        )
-    else:
-        face_colour_arg = plotting_utils.colour_from_numpy_to_tuple(
-            bar_edge_colour)
-
-    negative_errors = x_coord_matrix[:, 1] - x_coord_matrix[:, 0]
-    positive_errors = x_coord_matrix[:, 2] - x_coord_matrix[:, 1]
-
-    negative_errors = numpy.reshape(
-        negative_errors, (1, negative_errors.size)
-    )
-    positive_errors = numpy.reshape(
-        positive_errors, (1, positive_errors.size)
-    )
-
-    error_matrix = numpy.vstack((negative_errors, positive_errors))
-
-    axes_object.barh(
-        y_coords, x_coord_matrix[:, 1], color=face_colour_arg,
-        edgecolor=plotting_utils.colour_from_numpy_to_tuple(bar_edge_colour),
-        linewidth=bar_edge_width, xerr=error_matrix,
-        ecolor=plotting_utils.colour_from_numpy_to_tuple(ERROR_BAR_COLOUR),
-        capsize=ERROR_BAR_CAP_SIZE, error_kw=ERROR_BAR_DICT
-    )
-
-    reference_x_coords = numpy.full(2, x_coord_matrix[0, 1])
-    reference_y_coords = numpy.array(
-        [numpy.min(y_coords) - 0.75, numpy.max(y_coords) + 0.75]
-    )
-
-    axes_object.plot(
-        reference_x_coords, reference_y_coords,
-        color=plotting_utils.colour_from_numpy_to_tuple(reference_line_colour),
-        linestyle='--', linewidth=reference_line_width
-    )
-
-    axes_object.set_yticks([], [])
-    axes_object.set_xlabel(x_label_string)
-    axes_object.set_ylabel('Predictor permuted')
-
-    _label_bars(axes_object=axes_object, y_coords=y_coords, y_strings=y_strings)
-    axes_object.set_ylim(numpy.min(y_coords) - 0.75, numpy.max(y_coords) + 0.75)
+    # Do plotting.
+    _plot_bars(
+        cost_matrix=cost_matrix, predictor_names=predictor_names,
+        plot_percent_increase=plot_percent_increase,
+        backwards_flag=backwards_flag, multipass_flag=True,
+        confidence_level=confidence_level, axes_object=axes_object,
+        bar_face_colour=bar_face_colour)
