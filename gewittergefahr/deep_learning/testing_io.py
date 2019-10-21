@@ -159,7 +159,8 @@ def _find_examples_to_read(
             target_values, this_example_dict[input_examples.TARGET_VALUES_KEY]
         ))
 
-        these_file_indices = numpy.full(len(target_values), i, dtype=int)
+        this_num_examples = len(this_example_dict[input_examples.FULL_IDS_KEY])
+        these_file_indices = numpy.full(this_num_examples, i, dtype=int)
         file_indices = numpy.concatenate((file_indices, these_file_indices))
 
     indices_to_keep = numpy.where(
