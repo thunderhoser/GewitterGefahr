@@ -9,11 +9,11 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 AZ_SHEAR_TO_VORTICITY = 0.5
 MAX_LL_SHEAR_HEIGHT_M_AGL = 2000
-# NEW_RADAR_HEIGHTS_M_AGL = numpy.array(
-#     [0, 1000, 2000, 3000, 4000, 5000, 6000], dtype=int
-# )
-NEW_RADAR_HEIGHTS_M_AGL = numpy.array(
+REFL_HEIGHTS_M_AGL = numpy.array(
     [1000, 2000, 3000, 4000, 5000, 6000], dtype=int
+)
+NEW_RADAR_HEIGHTS_M_AGL = numpy.array(
+    [0, 1000, 2000, 3000, 4000, 5000, 6000], dtype=int
 )
 
 INPUT_DIR_ARG_NAME = 'input_example_dir_name'
@@ -64,18 +64,23 @@ def _convert_one_file(input_file_name, output_file_name):
         `input_examples.write_example_file`.
     """
 
-    num_radar_heights = len(NEW_RADAR_HEIGHTS_M_AGL)
-
     print('Reading MYRORSS examples from: "{0:s}"...'.format(input_file_name))
     example_dict = input_examples.read_example_file(
         netcdf_file_name=input_file_name, read_all_target_vars=True,
-        radar_heights_to_keep_m_agl=NEW_RADAR_HEIGHTS_M_AGL)
+        radar_heights_to_keep_m_agl=REFL_HEIGHTS_M_AGL)
 
-    reflectivity_matrix_dbz = trainval_io.upsample_reflectivity(
-        reflectivity_matrix_dbz=example_dict[
-            input_examples.REFL_IMAGE_MATRIX_KEY][..., 0]
+    # Add surface reflectivity, then double horizontal resolution.
+    reflectivity_matrix_dbz = example_dict[
+        input_examples.REFL_IMAGE_MATRIX_KEY][..., 0]
+
+    reflectivity_matrix_dbz = numpy.concatenate(
+        (reflectivity_matrix_dbz, reflectivity_matrix_dbz[..., [0]]), axis=-1
     )
 
+    reflectivity_matrix_dbz = trainval_io.upsample_reflectivity(
+        reflectivity_matrix_dbz=reflectivity_matrix_dbz, upsampling_factor=2)
+
+    # Create vorticity matrix.
     shear_field_names = example_dict[input_examples.RADAR_FIELDS_KEY]
     ll_shear_index = shear_field_names.index(radar_utils.LOW_LEVEL_SHEAR_NAME)
     ml_shear_index = shear_field_names.index(radar_utils.MID_LEVEL_SHEAR_NAME)
@@ -88,6 +93,7 @@ def _convert_one_file(input_file_name, output_file_name):
         input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY
     ][..., ml_shear_index]
 
+    num_radar_heights = len(NEW_RADAR_HEIGHTS_M_AGL)
     these_dimensions = numpy.array(
         ll_shear_matrix_s01.shape + (num_radar_heights,), dtype=int
     )
@@ -109,7 +115,7 @@ def _convert_one_file(input_file_name, output_file_name):
     example_dict[input_examples.RADAR_FIELDS_KEY] = [
         radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME
     ]
-    example_dict[input_examples.ROTATED_GRID_SPACING_KEY] *= 2
+    example_dict[input_examples.ROTATED_GRID_SPACING_KEY] *= 0.5
 
     example_dict.pop(input_examples.REFL_IMAGE_MATRIX_KEY, None)
     example_dict.pop(input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY, None)

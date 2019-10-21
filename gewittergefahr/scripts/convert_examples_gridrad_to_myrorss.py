@@ -1,4 +1,4 @@
-"""Converts storm-centered radar images from GridRad to MYRORSS format."""
+"""Converts examples from GridRad to MYRORSS format."""
 
 import argparse
 import numpy
@@ -6,6 +6,8 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+
+# TODO(thunderhoser): Allow this to be done for shuffled example files?
 
 LL_SHEAR_OPERATION_DICT = {
     input_examples.RADAR_FIELD_KEY: radar_utils.VORTICITY_NAME,
@@ -28,8 +30,6 @@ FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 RESOLUTION_FACTOR_ARG_NAME = 'resolution_factor'
 OUTPUT_DIR_ARG_NAME = 'output_example_dir_name'
-
-# TODO(thunderhoser): Allow this to be done for shuffled example files?
 
 INPUT_DIR_HELP_STRING = (
     'Name of top-level directory with original examples (in GridRad format).  '
@@ -74,7 +74,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _convert_one_file(input_file_name, resolution_factor, output_file_name):
-    """Converts radar images in one file from GridRad to MYRORSS format.
+    """Converts examples in one file from GridRad to MYRORSS format.
 
     :param input_file_name: Path to input file (with GridRad examples).  Will be
         read by `input_examples.read_example_file`.
@@ -165,7 +165,7 @@ def _convert_one_file(input_file_name, resolution_factor, output_file_name):
 
 def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
          resolution_factor, top_output_dir_name):
-    """Converts storm-centered radar images from GridRad to MYRORSS format.
+    """Converts examples from GridRad to MYRORSS format.
 
     This is effectively the main method.
 
