@@ -1306,6 +1306,8 @@ def read_predictors_specific_examples(
         except StopIteration:
             break
 
+        print(this_storm_object_dict[STORM_TIMES_KEY])
+
         full_storm_id_strings += this_storm_object_dict[FULL_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
             storm_times_unix_sec, this_storm_object_dict[STORM_TIMES_KEY]
