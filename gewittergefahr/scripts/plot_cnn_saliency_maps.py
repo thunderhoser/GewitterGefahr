@@ -6,6 +6,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -26,6 +27,7 @@ SOUNDING_IMAGE_SIZE_PX = int(1e7)
 INPUT_FILE_ARG_NAME = 'input_file_name'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
+SMOOTHING_HW_SIZE_ARG_NAME = 'smoothing_half_window_size'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 PLOT_SOUNDINGS_ARG_NAME = plot_examples.PLOT_SOUNDINGS_ARG_NAME
 ALLOW_WHITESPACE_ARG_NAME = plot_examples.ALLOW_WHITESPACE_ARG_NAME
@@ -49,6 +51,10 @@ MAX_PERCENTILE_HELP_STRING = (
     'saliency values for example e, where q = `{0:s}`.'
 ).format(MAX_PERCENTILE_ARG_NAME)
 
+SMOOTHING_HW_SIZE_HELP_STRING = (
+    'Number of grid cells in half-window for median smoother.  If you do not '
+    'want to smooth class-activation maps, leave this alone.')
+
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  Figures will be saved here.')
 
@@ -71,6 +77,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
     default=99., help=MAX_PERCENTILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_HW_SIZE_ARG_NAME, type=int, required=False,
+    default=-1, help=SMOOTHING_HW_SIZE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -365,9 +375,43 @@ def _plot_sounding_saliency(
     os.remove(right_panel_file_name)
 
 
+def _smooth_maps(saliency_matrices, smoothing_half_window_size):
+    """Smooths saliency maps via median filter.
+
+    T = number of input tensors to the model
+
+    :param saliency_matrices: length-T list of numpy arrays.
+    :param smoothing_half_window_size: Number of grid cells in half-window for
+        median filter.
+    :return: saliency_matrices: Smoothed version of input.
+    """
+
+    print('Smoothing saliency maps with {0:d}-by-{0:d} median filter...'.format(
+        2 * smoothing_half_window_size + 1
+    ))
+
+    num_matrices = len(saliency_matrices)
+    num_examples = saliency_matrices[0].shape[0]
+
+    for j in range(num_matrices):
+        this_num_channels = saliency_matrices[j].shape[-1]
+
+        for i in range(num_examples):
+            for k in range(this_num_channels):
+                saliency_matrices[j][i, ..., k] = (
+                    general_utils.apply_median_filter(
+                        input_matrix=saliency_matrices[j][i, ..., k],
+                        num_cells_in_half_window=smoothing_half_window_size
+                    )
+                )
+
+    return saliency_matrices
+
+
 def _run(input_file_name, colour_map_name, max_colour_percentile,
-         plot_soundings, allow_whitespace, plot_panel_names, add_titles,
-         label_colour_bars, colour_bar_length, output_dir_name):
+         smoothing_half_window_size, plot_soundings, allow_whitespace,
+         plot_panel_names, add_titles, label_colour_bars, colour_bar_length,
+         output_dir_name):
     """Plots saliency maps.
 
     This is effectively the main method.
@@ -375,6 +419,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
     :param input_file_name: See documentation at top of file.
     :param colour_map_name: Same.
     :param max_colour_percentile: Same.
+    :param smoothing_half_window_size: Same.
     :param plot_soundings: Same.
     :param allow_whitespace: Same.
     :param plot_panel_names: Same.
@@ -383,6 +428,9 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
     :param colour_bar_length: Same.
     :param output_dir_name: Same.
     """
+
+    if smoothing_half_window_size < 1:
+        smoothing_half_window_size = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -426,6 +474,11 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
         storm_times_unix_sec = saliency_dict[saliency_maps.STORM_TIMES_KEY]
         sounding_pressure_matrix_pa = saliency_dict[
             saliency_maps.SOUNDING_PRESSURES_KEY]
+
+    if smoothing_half_window_size is not None:
+        saliency_matrices = _smooth_maps(
+            saliency_matrices=saliency_matrices,
+            smoothing_half_window_size=smoothing_half_window_size)
 
     num_examples = predictor_matrices[0].shape[0]
     max_colour_value_by_example = numpy.full(num_examples, numpy.nan)
@@ -524,6 +577,8 @@ if __name__ == '__main__':
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
+        smoothing_half_window_size=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_HW_SIZE_ARG_NAME),
         plot_soundings=bool(getattr(INPUT_ARG_OBJECT, PLOT_SOUNDINGS_ARG_NAME)),
         allow_whitespace=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME

@@ -6,6 +6,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -30,6 +31,7 @@ FIGURE_RESOLUTION_DPI = 300
 INPUT_FILE_ARG_NAME = 'input_file_name'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
+SMOOTHING_HW_SIZE_ARG_NAME = 'smoothing_half_window_size'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 ALLOW_WHITESPACE_ARG_NAME = plot_examples.ALLOW_WHITESPACE_ARG_NAME
 PLOT_PANEL_NAMES_ARG_NAME = plot_examples.PLOT_PANEL_NAMES_ARG_NAME
@@ -50,6 +52,10 @@ MAX_PERCENTILE_HELP_STRING = (
     '  The max value for the [i]th example will be the [q]th percentile of all '
     'class activations for the [i]th example, where q = `{0:s}`.'
 ).format(MAX_PERCENTILE_ARG_NAME)
+
+SMOOTHING_HW_SIZE_HELP_STRING = (
+    'Number of grid cells in half-window for median smoother.  If you do not '
+    'want to smooth class-activation maps, leave this alone.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  Figures will be saved here.')
@@ -72,6 +78,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
     default=99., help=MAX_PERCENTILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_HW_SIZE_ARG_NAME, type=int, required=False,
+    default=-1, help=SMOOTHING_HW_SIZE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -283,9 +293,56 @@ def _plot_2d_radar_cam(
     pyplot.close(figure_objects[figure_index])
 
 
+def _smooth_maps(cam_matrices, guided_cam_matrices, smoothing_half_window_size):
+    """Smooths guided and unguided class-activation maps, using median filter.
+
+    T = number of input tensors to the model
+
+    :param cam_matrices: length-T list of numpy arrays with unguided class-
+        activation maps (CAMs).
+    :param guided_cam_matrices: length-T list of numpy arrays with guided CAMs.
+    :param smoothing_half_window_size: Number of grid cells in half-window for
+        median filter.
+    :return: cam_matrices: Smoothed version of input.
+    :return: guided_cam_matrices: Smoothed version of input.
+    """
+
+    print((
+        'Smoothing guided and unguided CAMs with {0:d}-by-{0:d} median '
+        'filter...'
+    ).format(
+        2 * smoothing_half_window_size + 1
+    ))
+
+    num_matrices = len(cam_matrices)
+
+    for j in range(num_matrices):
+        if cam_matrices[j] is None:
+            continue
+
+        num_examples = cam_matrices[j].shape[0]
+        this_num_channels = guided_cam_matrices[j].shape[-1]
+
+        for i in range(num_examples):
+            cam_matrices[j][i, ...] = general_utils.apply_median_filter(
+                input_matrix=cam_matrices[j][i, ...],
+                num_cells_in_half_window=smoothing_half_window_size
+            )
+
+            for k in range(this_num_channels):
+                guided_cam_matrices[j][i, ..., k] = (
+                    general_utils.apply_median_filter(
+                        input_matrix=guided_cam_matrices[j][i, ..., k],
+                        num_cells_in_half_window=smoothing_half_window_size
+                    )
+                )
+
+    return cam_matrices, guided_cam_matrices
+
+
 def _run(input_file_name, colour_map_name, max_colour_percentile,
-         allow_whitespace, plot_panel_names, add_titles, label_colour_bars,
-         colour_bar_length, top_output_dir_name):
+         smoothing_half_window_size, allow_whitespace, plot_panel_names,
+         add_titles, label_colour_bars, colour_bar_length, top_output_dir_name):
     """Plots Grad-CAM output (guided and unguided class-activation maps).
 
     This is effectively the main method.
@@ -293,6 +350,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
     :param input_file_name: See documentation at top of file.
     :param colour_map_name: Same.
     :param max_colour_percentile: Same.
+    :param smoothing_half_window_size: Same.
     :param allow_whitespace: Same.
     :param plot_panel_names: Same.
     :param add_titles: Same.
@@ -300,6 +358,9 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
     :param colour_bar_length: Same.
     :param top_output_dir_name: Same.
     """
+
+    if smoothing_half_window_size < 1:
+        smoothing_half_window_size = None
 
     unguided_cam_dir_name = '{0:s}/main_gradcam'.format(top_output_dir_name)
     guided_cam_dir_name = '{0:s}/guided_gradcam'.format(top_output_dir_name)
@@ -327,19 +388,19 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
         full_storm_id_strings = [None]
         storm_times_unix_sec = [None]
 
-        for i in range(len(predictor_matrices)):
-            predictor_matrices[i] = numpy.expand_dims(
-                predictor_matrices[i], axis=0
+        for j in range(len(predictor_matrices)):
+            predictor_matrices[j] = numpy.expand_dims(
+                predictor_matrices[j], axis=0
             )
 
-            if cam_matrices[i] is None:
+            if cam_matrices[j] is None:
                 continue
 
-            cam_matrices[i] = numpy.expand_dims(
-                cam_matrices[i], axis=0
+            cam_matrices[j] = numpy.expand_dims(
+                cam_matrices[j], axis=0
             )
-            guided_cam_matrices[i] = numpy.expand_dims(
-                guided_cam_matrices[i], axis=0
+            guided_cam_matrices[j] = numpy.expand_dims(
+                guided_cam_matrices[j], axis=0
             )
     else:
         predictor_matrices = gradcam_dict.pop(gradcam.PREDICTOR_MATRICES_KEY)
@@ -348,6 +409,11 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
 
         full_storm_id_strings = gradcam_dict[gradcam.FULL_STORM_IDS_KEY]
         storm_times_unix_sec = gradcam_dict[gradcam.STORM_TIMES_KEY]
+
+    if smoothing_half_window_size is not None:
+        cam_matrices, guided_cam_matrices = _smooth_maps(
+            cam_matrices=cam_matrices, guided_cam_matrices=guided_cam_matrices,
+            smoothing_half_window_size=smoothing_half_window_size)
 
     # Read metadata for CNN.
     model_file_name = gradcam_dict[gradcam.MODEL_FILE_KEY]
@@ -360,7 +426,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
     print(SEPARATOR_STRING)
 
     num_examples = predictor_matrices[0].shape[0]
-    num_input_matrices = len(predictor_matrices)
+    num_matrices = len(predictor_matrices)
 
     for i in range(num_examples):
         this_handle_dict = plot_examples.plot_one_example(
@@ -378,7 +444,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
 
         these_activations = numpy.array([])
 
-        for j in range(num_input_matrices):
+        for j in range(num_matrices):
             if cam_matrices[j] is None:
                 continue
 
@@ -389,7 +455,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
         this_max_contour_value = numpy.percentile(
             these_activations, max_colour_percentile)
 
-        for j in range(num_input_matrices):
+        for j in range(num_matrices):
             if cam_matrices[j] is None:
                 continue
 
@@ -435,7 +501,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
 
         these_activations = numpy.array([])
 
-        for j in range(num_input_matrices):
+        for j in range(num_matrices):
             if guided_cam_matrices[j] is None:
                 continue
 
@@ -447,7 +513,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
             numpy.absolute(these_activations), max_colour_percentile
         )
 
-        for j in range(num_input_matrices):
+        for j in range(num_matrices):
             if guided_cam_matrices[j] is None:
                 continue
 
@@ -487,6 +553,8 @@ if __name__ == '__main__':
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
+        smoothing_half_window_size=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_HW_SIZE_ARG_NAME),
         allow_whitespace=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
         )),
