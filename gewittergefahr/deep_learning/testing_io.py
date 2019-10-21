@@ -1268,13 +1268,14 @@ def read_predictors_specific_examples(
         for d in list(set(spc_date_strings))
     ]
 
+    option_dict[trainval_io.EXAMPLE_FILES_KEY] = example_file_names
+    option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY] = LARGE_INTEGER
+
     this_dataset_object = netCDF4.Dataset(example_file_names[0])
     myrorss_2d3d = (
         input_examples.REFL_IMAGE_MATRIX_KEY in this_dataset_object.variables
     )
     this_dataset_object.close()
-
-    option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY] = LARGE_INTEGER
 
     if layer_operation_dicts is not None:
         generator_object = gridrad_generator_2d_reduced(
