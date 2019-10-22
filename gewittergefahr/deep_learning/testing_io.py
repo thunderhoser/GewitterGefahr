@@ -214,6 +214,12 @@ def _find_examples_to_read(
     full_storm_id_strings = [full_storm_id_strings[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     file_indices = file_indices[indices_to_keep]
+    del target_values
+
+    sort_indices = numpy.argsort(file_indices)
+    full_storm_id_strings = [full_storm_id_strings[k] for k in sort_indices]
+    storm_times_unix_sec = storm_times_unix_sec[sort_indices]
+    file_indices = file_indices[sort_indices]
 
     print(len(full_storm_id_strings))
     print(len(storm_times_unix_sec))
