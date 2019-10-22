@@ -163,6 +163,11 @@ def _find_examples_to_read(
         these_file_indices = numpy.full(this_num_examples, i, dtype=int)
         file_indices = numpy.concatenate((file_indices, these_file_indices))
 
+    print(len(full_storm_id_strings))
+    print(len(storm_times_unix_sec))
+    print(len(target_values))
+    print(len(file_indices))
+
     indices_to_keep = numpy.where(
         target_values != target_val_utils.INVALID_STORM_INTEGER
     )[0]
