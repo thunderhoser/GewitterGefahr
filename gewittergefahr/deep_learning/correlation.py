@@ -1,5 +1,6 @@
 """Deals with correlations."""
 
+import copy
 import numpy
 from scipy.stats import pearsonr
 from gewittergefahr.gg_utils import error_checking
@@ -66,6 +67,11 @@ def get_pearson_correlations(predictor_matrices, cnn_metadata_dict,
 
     error_checking.assert_is_boolean(separate_radar_heights)
 
+    first_num_dimensions = len(predictor_matrices[0].shape)
+    separate_radar_heights = (
+        separate_radar_heights and first_num_dimensions == 5
+    )
+
     predictor_names_by_matrix = permutation.create_nice_predictor_names(
         predictor_matrices=predictor_matrices,
         cnn_metadata_dict=cnn_metadata_dict,
@@ -79,16 +85,19 @@ def get_pearson_correlations(predictor_matrices, cnn_metadata_dict,
 
     print(SEPARATOR_STRING)
 
+    predictor_matrices_to_use = copy.deepcopy(predictor_matrices)
+    if separate_radar_heights:
+        predictor_matrices_to_use[0] = permutation.flatten_last_two_dim(
+            predictor_matrices_to_use[0]
+        )[0]
+
+    num_predictors_by_matrix = numpy.array(
+        [len(n) for n in predictor_names_by_matrix], dtype=int
+    )
+
     predictor_names = sum(predictor_names_by_matrix, [])
     num_predictors = len(predictor_names)
     correlation_matrix = numpy.full((num_predictors, num_predictors), numpy.nan)
-
-    predictor_matrices_to_use = [
-        permutation.flatten_last_two_dim(a)[0] for a in predictor_matrices
-    ]
-    num_predictors_by_matrix = numpy.array(
-        [a.shape[-1] for a in predictor_matrices_to_use], dtype=int
-    )
 
     for i in range(num_predictors):
         for j in range(i, num_predictors):

@@ -163,12 +163,6 @@ def _find_examples_to_read(
         these_file_indices = numpy.full(this_num_examples, i, dtype=int)
         file_indices = numpy.concatenate((file_indices, these_file_indices))
 
-    print(len(full_storm_id_strings))
-    print(len(storm_times_unix_sec))
-    print(len(target_values))
-    print(len(file_indices))
-    print('\n\n**************\n\n')
-
     indices_to_keep = numpy.where(
         target_values != target_val_utils.INVALID_STORM_INTEGER
     )[0]
@@ -177,12 +171,6 @@ def _find_examples_to_read(
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     target_values = target_values[indices_to_keep]
     file_indices = file_indices[indices_to_keep]
-
-    print(len(full_storm_id_strings))
-    print(len(storm_times_unix_sec))
-    print(len(target_values))
-    print(len(file_indices))
-    print('\n\n**************\n\n')
 
     num_examples = len(full_storm_id_strings)
 
@@ -204,8 +192,6 @@ def _find_examples_to_read(
                 indices_to_keep = numpy.random.choice(
                     indices_to_keep, size=desired_num_examples, replace=False)
         else:
-            print(downsampling_dict)
-
             indices_to_keep = dl_utils.sample_by_class(
                 sampling_fraction_by_class_dict=downsampling_dict,
                 target_name=target_name, target_values=target_values,
@@ -220,13 +206,6 @@ def _find_examples_to_read(
     full_storm_id_strings = [full_storm_id_strings[k] for k in sort_indices]
     storm_times_unix_sec = storm_times_unix_sec[sort_indices]
     file_indices = file_indices[sort_indices]
-
-    print(len(full_storm_id_strings))
-    print(len(storm_times_unix_sec))
-    print(len(file_indices))
-    print('\n\n**************\n\n')
-
-    print(file_indices)
 
     return full_storm_id_strings, storm_times_unix_sec, file_indices
 
