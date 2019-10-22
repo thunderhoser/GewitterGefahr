@@ -167,6 +167,7 @@ def _find_examples_to_read(
     print(len(storm_times_unix_sec))
     print(len(target_values))
     print(len(file_indices))
+    print('\n\n**************\n\n')
 
     indices_to_keep = numpy.where(
         target_values != target_val_utils.INVALID_STORM_INTEGER
@@ -176,6 +177,12 @@ def _find_examples_to_read(
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     target_values = target_values[indices_to_keep]
     file_indices = file_indices[indices_to_keep]
+
+    print(len(full_storm_id_strings))
+    print(len(storm_times_unix_sec))
+    print(len(target_values))
+    print(len(file_indices))
+    print('\n\n**************\n\n')
 
     num_examples = len(full_storm_id_strings)
 
@@ -207,6 +214,12 @@ def _find_examples_to_read(
     full_storm_id_strings = [full_storm_id_strings[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     file_indices = file_indices[indices_to_keep]
+
+    print(len(full_storm_id_strings))
+    print(len(storm_times_unix_sec))
+    print(len(target_values))
+    print(len(file_indices))
+    print('\n\n**************\n\n')
 
     return full_storm_id_strings, storm_times_unix_sec, file_indices
 
