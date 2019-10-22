@@ -83,7 +83,8 @@ THIS_TRAINING_OPTION_DICT = {
     trainval_io.RADAR_FIELDS_KEY:
         [radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME],
     trainval_io.RADAR_HEIGHTS_KEY: RADAR_HEIGHTS_M_AGL,
-    trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES
+    trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES,
+    trainval_io.UPSAMPLE_REFLECTIVITY_KEY: False
 }
 
 FIRST_METADATA_DICT = {
@@ -113,7 +114,8 @@ THIS_TRAINING_OPTION_DICT = {
     trainval_io.RADAR_FIELDS_KEY:
         [radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME],
     trainval_io.RADAR_HEIGHTS_KEY: RADAR_HEIGHTS_M_AGL,
-    trainval_io.SOUNDING_FIELDS_KEY: None
+    trainval_io.SOUNDING_FIELDS_KEY: None,
+    trainval_io.UPSAMPLE_REFLECTIVITY_KEY: False
 }
 
 THIRD_METADATA_DICT = {
@@ -138,26 +140,53 @@ FOURTH_NICE_PREDICTOR_NAMES = [
 ]
 
 THIS_TRAINING_OPTION_DICT = {
-    trainval_io.RADAR_FIELDS_KEY: RADAR_FIELD_NAMES_3D,
+    trainval_io.RADAR_FIELDS_KEY:
+        [radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME],
     trainval_io.RADAR_HEIGHTS_KEY: RADAR_HEIGHTS_M_AGL,
-    trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES
+    trainval_io.SOUNDING_FIELDS_KEY: None,
+    trainval_io.UPSAMPLE_REFLECTIVITY_KEY: True
 }
 
 FIFTH_METADATA_DICT = {
-    cnn.CONV_2D3D_KEY: False,
+    cnn.CONV_2D3D_KEY: True,
     cnn.LAYER_OPERATIONS_KEY: None,
     cnn.TRAINING_OPTION_DICT_KEY: THIS_TRAINING_OPTION_DICT
 }
-FIFTH_PREDICTOR_MATRICES = [RADAR_MATRIX_3D, SOUNDING_MATRIX]
+FIFTH_PREDICTOR_MATRICES = [
+    REFLECTIVITY_MATRIX_DBZ, AZIMUTHAL_SHEAR_MATRIX_S01
+]
 FIFTH_SEPARATE_HEIGHTS_FLAG = False
 FIFTH_NICE_PREDICTOR_NAMES = [
-    'Reflectivity', 'Vorticity', 'Temperature', 'Relative humidity'
+    'Reflectivity at 2000 m AGL', 'Reflectivity at 6000 m AGL',
+    'Reflectivity at 10000 m AGL', 'Low-level shear', 'Mid-level shear'
 ]
 
 SIXTH_METADATA_DICT = FIFTH_METADATA_DICT
 SIXTH_PREDICTOR_MATRICES = FIFTH_PREDICTOR_MATRICES
 SIXTH_SEPARATE_HEIGHTS_FLAG = True
-SIXTH_NICE_PREDICTOR_NAMES = [
+SIXTH_NICE_PREDICTOR_NAMES = FIFTH_NICE_PREDICTOR_NAMES
+
+THIS_TRAINING_OPTION_DICT = {
+    trainval_io.RADAR_FIELDS_KEY: RADAR_FIELD_NAMES_3D,
+    trainval_io.RADAR_HEIGHTS_KEY: RADAR_HEIGHTS_M_AGL,
+    trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES
+}
+
+SEVENTH_METADATA_DICT = {
+    cnn.CONV_2D3D_KEY: False,
+    cnn.LAYER_OPERATIONS_KEY: None,
+    cnn.TRAINING_OPTION_DICT_KEY: THIS_TRAINING_OPTION_DICT
+}
+SEVENTH_PREDICTOR_MATRICES = [RADAR_MATRIX_3D, SOUNDING_MATRIX]
+SEVENTH_SEPARATE_HEIGHTS_FLAG = False
+SEVENTH_NICE_PREDICTOR_NAMES = [
+    'Reflectivity', 'Vorticity', 'Temperature', 'Relative humidity'
+]
+
+EIGHTH_METADATA_DICT = SEVENTH_METADATA_DICT
+EIGHTH_PREDICTOR_MATRICES = SEVENTH_PREDICTOR_MATRICES
+EIGHTH_SEPARATE_HEIGHTS_FLAG = True
+EIGHTH_NICE_PREDICTOR_NAMES = [
     'Reflectivity at 2000 m AGL', 'Reflectivity at 6000 m AGL',
     'Reflectivity at 10000 m AGL', 'Vorticity at 2000 m AGL',
     'Vorticity at 6000 m AGL', 'Vorticity at 10000 m AGL',
@@ -197,13 +226,13 @@ THIS_TRAINING_OPTION_DICT = {
     trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES
 }
 
-SEVENTH_METADATA_DICT = {
+NINTH_METADATA_DICT = {
     cnn.CONV_2D3D_KEY: False,
     cnn.LAYER_OPERATIONS_KEY: LAYER_OPERATION_DICTS,
     cnn.TRAINING_OPTION_DICT_KEY: THIS_TRAINING_OPTION_DICT
 }
-SEVENTH_PREDICTOR_MATRICES = [RADAR_MATRIX_2D, SOUNDING_MATRIX]
-SEVENTH_NICE_PREDICTOR_NAMES = [
+NINTH_PREDICTOR_MATRICES = [RADAR_MATRIX_2D, SOUNDING_MATRIX]
+NINTH_NICE_PREDICTOR_NAMES = [
     'Vorticity; MIN from 6000-10000 m AGL',
     'Reflectivity; MAX from 2000-6000 m AGL',
     'Temperature', 'Relative humidity'
@@ -656,10 +685,38 @@ class PermutationTests(unittest.TestCase):
 
         these_names_by_matrix = permutation.create_nice_predictor_names(
             predictor_matrices=SEVENTH_PREDICTOR_MATRICES,
-            cnn_metadata_dict=SEVENTH_METADATA_DICT)
+            cnn_metadata_dict=SEVENTH_METADATA_DICT,
+            separate_radar_heights=SEVENTH_SEPARATE_HEIGHTS_FLAG)
 
         these_predictor_names = sum(these_names_by_matrix, [])
         self.assertTrue(these_predictor_names == SEVENTH_NICE_PREDICTOR_NAMES)
+
+    def test_create_nice_predictor_names_eighth(self):
+        """Ensures correct output from create_nice_predictor_names.
+
+        In this case, using eighth set of inputs.
+        """
+
+        these_names_by_matrix = permutation.create_nice_predictor_names(
+            predictor_matrices=EIGHTH_PREDICTOR_MATRICES,
+            cnn_metadata_dict=EIGHTH_METADATA_DICT,
+            separate_radar_heights=EIGHTH_SEPARATE_HEIGHTS_FLAG)
+
+        these_predictor_names = sum(these_names_by_matrix, [])
+        self.assertTrue(these_predictor_names == EIGHTH_NICE_PREDICTOR_NAMES)
+
+    def test_create_nice_predictor_names_ninth(self):
+        """Ensures correct output from create_nice_predictor_names.
+
+        In this case, using ninth set of inputs.
+        """
+
+        these_names_by_matrix = permutation.create_nice_predictor_names(
+            predictor_matrices=NINTH_PREDICTOR_MATRICES,
+            cnn_metadata_dict=NINTH_METADATA_DICT)
+
+        these_predictor_names = sum(these_names_by_matrix, [])
+        self.assertTrue(these_predictor_names == NINTH_NICE_PREDICTOR_NAMES)
 
     def test_cross_entropy_function_binary(self):
         """Ensures correct output from cross_entropy_function.

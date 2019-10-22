@@ -266,6 +266,7 @@ def _run_forward_test_one_step(
 
             this_probability_matrix = prediction_function(
                 model_object, these_predictor_matrices)
+            print(MINOR_SEPARATOR_STRING)
 
             this_cost_array = _bootstrap_cost(
                 target_values=target_values,
@@ -398,6 +399,7 @@ def _run_backwards_test_one_step(
 
             this_probability_matrix = prediction_function(
                 model_object, these_predictor_matrices)
+            print(MINOR_SEPARATOR_STRING)
 
             this_cost_array = _bootstrap_cost(
                 target_values=target_values,
@@ -828,6 +830,7 @@ def run_forward_test(
     print('Finding original cost (before permutation)...')
     class_probability_matrix = prediction_function(
         model_object, predictor_matrices)
+    print(MINOR_SEPARATOR_STRING)
 
     original_cost_array = _bootstrap_cost(
         target_values=target_values,
@@ -968,6 +971,7 @@ def run_backwards_test(
     print('Finding original cost (before unpermutation)...')
     class_probability_matrix = prediction_function(
         model_object, predictor_matrices)
+    print(MINOR_SEPARATOR_STRING)
 
     original_cost_array = _bootstrap_cost(
         target_values=target_values,
