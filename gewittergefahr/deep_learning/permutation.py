@@ -626,8 +626,9 @@ def prediction_function_2d3d_cnn(model_object, list_of_input_matrices):
     """
 
     num_input_matrices = len(list_of_input_matrices)
-    first_num_dimensions = len(list_of_input_matrices[0].shape)
-    upsample_refl = first_num_dimensions == 5
+    upsample_refl = not (
+        num_input_matrices > 1 and len(list_of_input_matrices[1].shape) == 4
+    )
 
     if upsample_refl:
         if num_input_matrices == 2:
