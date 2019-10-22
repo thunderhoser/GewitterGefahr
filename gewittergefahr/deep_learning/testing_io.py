@@ -192,6 +192,8 @@ def _find_examples_to_read(
                 indices_to_keep = numpy.random.choice(
                     indices_to_keep, size=desired_num_examples, replace=False)
         else:
+            print(downsampling_dict)
+
             indices_to_keep = dl_utils.sample_by_class(
                 sampling_fraction_by_class_dict=downsampling_dict,
                 target_name=target_name, target_values=target_values,
