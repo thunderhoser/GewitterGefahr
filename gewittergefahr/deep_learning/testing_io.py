@@ -221,6 +221,8 @@ def _find_examples_to_read(
     print(len(file_indices))
     print('\n\n**************\n\n')
 
+    print(file_indices)
+
     return full_storm_id_strings, storm_times_unix_sec, file_indices
 
 
