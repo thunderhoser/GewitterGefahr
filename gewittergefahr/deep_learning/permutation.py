@@ -465,9 +465,13 @@ def create_nice_predictor_names(
     error_checking.assert_is_boolean(separate_radar_heights)
 
     myrorss_2d3d = cnn_metadata_dict[cnn.CONV_2D3D_KEY]
-    layer_operation_dicts = cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
-
     training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    upsample_refl = (
+        myrorss_2d3d and
+        training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]
+    )
+
+    layer_operation_dicts = cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
     radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
 
@@ -479,7 +483,29 @@ def create_nice_predictor_names(
     num_matrices = len(predictor_matrices)
     predictor_names_by_matrix = [[]] * num_matrices
 
-    if myrorss_2d3d:
+    if upsample_refl:
+        # TODO(thunderhoser): This hacky bullshit is terrible.  Nets that
+        # upsample reflectivity, should take reflectivity in a separate tensor
+        # and then concat the reflectivity and az-shear tensors before the first
+        # conv layer.
+
+        these_field_names = (
+            [radar_utils.REFL_NAME] * len(radar_heights_m_agl)
+        )
+
+        predictor_names_by_matrix[0] = (
+            radar_plotting.fields_and_heights_to_names(
+                field_names=these_field_names,
+                heights_m_agl=radar_heights_m_agl, include_units=False)
+        )
+
+        predictor_names_by_matrix[0] = [
+            n.replace('\n', ' ') for n in predictor_names_by_matrix[0]
+        ]
+
+        predictor_names_by_matrix[0] += nice_radar_field_names
+
+    elif myrorss_2d3d:
         if separate_radar_heights:
             these_field_names = (
                 [radar_utils.REFL_NAME] * len(radar_heights_m_agl)
