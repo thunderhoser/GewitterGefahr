@@ -223,7 +223,6 @@ def _find_examples_to_read(
 
     print(len(full_storm_id_strings))
     print(len(storm_times_unix_sec))
-    print(len(target_values))
     print(len(file_indices))
     print('\n\n**************\n\n')
 
