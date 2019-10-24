@@ -30,7 +30,8 @@ NICE_TIME_FORMAT = '%H%M UTC %-d %b %Y'
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = 0.5
-BORDER_COLOUR = numpy.full(3, 152. / 255)
+# BORDER_COLOUR = numpy.full(3, 152. / 255)
+BORDER_COLOUR = numpy.array([139, 69, 19], dtype=float) / 255
 DEFAULT_TRACK_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
@@ -456,7 +457,7 @@ def _plot_storm_outlines_one_time(
             colour_norm_object=colour_norm_object,
             orientation_string=orientation_string,
             extend_min=radar_field_name in radar_plotting.SHEAR_VORT_DIV_NAMES,
-            extend_max=True, fraction_of_axis_length=0.9, padding=0.05)
+            extend_max=True, fraction_of_axis_length=1., padding=0.05)
 
         radar_field_name_verbose = radar_utils.field_name_to_verbose(
             field_name=radar_field_name, include_units=True)
