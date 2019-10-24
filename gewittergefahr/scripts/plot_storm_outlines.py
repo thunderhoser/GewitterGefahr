@@ -456,7 +456,7 @@ def _plot_storm_outlines_one_time(
             colour_norm_object=colour_norm_object,
             orientation_string=orientation_string,
             extend_min=radar_field_name in radar_plotting.SHEAR_VORT_DIV_NAMES,
-            extend_max=True, fraction_of_axis_length=0.9)
+            extend_max=True, fraction_of_axis_length=0.9, padding=0.05)
 
         radar_field_name_verbose = radar_utils.field_name_to_verbose(
             field_name=radar_field_name, include_units=True)
