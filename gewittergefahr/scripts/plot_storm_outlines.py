@@ -386,11 +386,13 @@ def _plot_storm_outlines_one_time(
 
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS)
+        num_parallels=NUM_PARALLELS,
+        line_colour=numpy.full(3, 1.), z_order=-1e20)
 
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS)
+        num_meridians=NUM_MERIDIANS,
+        line_colour=numpy.full(3, 1.), z_order=-1e20)
 
     if radar_matrix is not None:
         custom_colour_map = radar_colour_map_object is not None
