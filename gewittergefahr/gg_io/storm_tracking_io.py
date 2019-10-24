@@ -3,7 +3,6 @@
 import os
 import copy
 import glob
-import dill
 import pickle
 import numpy
 import pandas
@@ -12,8 +11,6 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-
-dill._dill._reverse_typemap['ObjectType'] = object
 
 RANDOM_LEAP_YEAR = 4000
 
@@ -513,7 +510,7 @@ def read_file(pickle_file_name):
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    storm_object_table = pickle.load(pickle_file_handle, encoding='bytes')
+    storm_object_table = pickle.load(pickle_file_handle, encoding='latin1')
     pickle_file_handle.close()
 
     error_checking.assert_columns_in_dataframe(
