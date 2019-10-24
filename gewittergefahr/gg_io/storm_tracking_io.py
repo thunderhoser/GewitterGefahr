@@ -510,7 +510,7 @@ def read_file(pickle_file_name):
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    storm_object_table = pickle.load(pickle_file_handle, encoding='latin1')
+    storm_object_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
     error_checking.assert_columns_in_dataframe(
