@@ -513,6 +513,8 @@ def read_file(pickle_file_name):
     storm_object_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
+    print(list(storm_object_table))
+
     error_checking.assert_columns_in_dataframe(
         storm_object_table, REQUIRED_COLUMNS)
 
