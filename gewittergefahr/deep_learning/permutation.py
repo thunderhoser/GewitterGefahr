@@ -376,7 +376,7 @@ def _run_backwards_test_one_step(
 
     unpermuted_predictor_names = []
     unpermuted_cost_matrix = numpy.full((0, num_bootstrap_reps), numpy.nan)
-    best_cost_array = numpy.full(num_bootstrap_reps, -numpy.inf)
+    best_cost_array = numpy.full(num_bootstrap_reps, numpy.inf)
 
     num_matrices = len(predictor_matrices)
 
