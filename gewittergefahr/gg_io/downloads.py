@@ -4,7 +4,7 @@ import os
 import warnings
 import subprocess
 import ftplib
-import urllib.request, urllib.error, urllib.parse
+# import urllib.request, urllib.error, urllib.parse
 import numpy
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -111,19 +111,19 @@ def download_files_via_http(
         error will be raised regardless of the flag `raise_error_if_fails`.
     """
 
-    if not(user_name is None or password is None):
-        error_checking.assert_is_string(user_name)
-        error_checking.assert_is_string(password)
-        error_checking.assert_is_string(host_name)
-
-        manager_object = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-        manager_object.add_password(
-            realm=None, uri=host_name, user=user_name, passwd=password)
-
-        authentication_handler = urllib.request.HTTPBasicAuthHandler(
-            manager_object)
-        opener_object = urllib.request.build_opener(authentication_handler)
-        urllib.request.install_opener(opener_object)
+    # if not(user_name is None or password is None):
+    #     error_checking.assert_is_string(user_name)
+    #     error_checking.assert_is_string(password)
+    #     error_checking.assert_is_string(host_name)
+    #
+    #     manager_object = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+    #     manager_object.add_password(
+    #         realm=None, uri=host_name, user=user_name, passwd=password)
+    #
+    #     authentication_handler = urllib.request.HTTPBasicAuthHandler(
+    #         manager_object)
+    #     opener_object = urllib.request.build_opener(authentication_handler)
+    #     urllib.request.install_opener(opener_object)
 
     error_checking.assert_is_string_list(online_file_names)
     error_checking.assert_is_numpy_array(
@@ -138,52 +138,54 @@ def download_files_via_http(
     error_checking.assert_is_boolean(raise_error_if_fails)
 
     for i in range(num_files):
-        this_download_succeeded = False
-        this_response_object = None
-
-        try:
-            this_response_object = urllib.request.urlopen(online_file_names[i])
-            this_download_succeeded = True
-
-        except urllib.error.HTTPError as this_error:
-            if (raise_error_if_fails or
-                    this_error.code not in ACCEPTABLE_HTTP_ERROR_CODES):
-                raise
-
-        except urllib.error.URLError as this_error:
-            error_words = this_error.reason.split()
-            acceptable_error_flags = numpy.array(
-                [w in str(ACCEPTABLE_URL_ERROR_CODES) for w in error_words])
-            if raise_error_if_fails or not numpy.any(acceptable_error_flags):
-                raise
-
-        if not this_download_succeeded:
-            warnings.warn(
-                'Could not download file: {0:s}'.format(online_file_names[i])
-            )
-
-            local_file_names[i] = None
-            continue
-
-        file_system_utils.mkdir_recursive_if_necessary(
-            file_name=local_file_names[i])
-        with open(local_file_names[i], 'wb') as this_file_handle:
-            while True:
-                this_chunk = this_response_object.read(NUM_BYTES_PER_BLOCK)
-                if not this_chunk:
-                    break
-                this_file_handle.write(this_chunk)
-
-        if not os.path.isfile(local_file_names[i]):
-            error_string = (
-                'Could not download file.  Local file expected at: "{0:s}"'
-            ).format(local_file_names[i])
-
-            if raise_error_if_fails:
-                raise ValueError(error_string)
-
-            warnings.warn(error_string)
-            local_file_names[i] = None
+        continue
+        
+        # this_download_succeeded = False
+        # this_response_object = None
+        #
+        # try:
+        #     this_response_object = urllib.request.urlopen(online_file_names[i])
+        #     this_download_succeeded = True
+        #
+        # except urllib.error.HTTPError as this_error:
+        #     if (raise_error_if_fails or
+        #             this_error.code not in ACCEPTABLE_HTTP_ERROR_CODES):
+        #         raise
+        #
+        # except urllib.error.URLError as this_error:
+        #     error_words = this_error.reason.split()
+        #     acceptable_error_flags = numpy.array(
+        #         [w in str(ACCEPTABLE_URL_ERROR_CODES) for w in error_words])
+        #     if raise_error_if_fails or not numpy.any(acceptable_error_flags):
+        #         raise
+        #
+        # if not this_download_succeeded:
+        #     warnings.warn(
+        #         'Could not download file: {0:s}'.format(online_file_names[i])
+        #     )
+        #
+        #     local_file_names[i] = None
+        #     continue
+        #
+        # file_system_utils.mkdir_recursive_if_necessary(
+        #     file_name=local_file_names[i])
+        # with open(local_file_names[i], 'wb') as this_file_handle:
+        #     while True:
+        #         this_chunk = this_response_object.read(NUM_BYTES_PER_BLOCK)
+        #         if not this_chunk:
+        #             break
+        #         this_file_handle.write(this_chunk)
+        #
+        # if not os.path.isfile(local_file_names[i]):
+        #     error_string = (
+        #         'Could not download file.  Local file expected at: "{0:s}"'
+        #     ).format(local_file_names[i])
+        #
+        #     if raise_error_if_fails:
+        #         raise ValueError(error_string)
+        #
+        #     warnings.warn(error_string)
+        #     local_file_names[i] = None
 
     return local_file_names
 
