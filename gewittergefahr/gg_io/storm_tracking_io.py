@@ -513,35 +513,6 @@ def read_file(pickle_file_name):
     storm_object_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    # ['storm_id', 'unix_time_sec', 'spc_date_unix_sec', 'east_velocity_m_s01',
-    #  'north_velocity_m_s01', 'age_sec', 'centroid_lat_deg', 'centroid_lng_deg',
-    #  'grid_point_latitudes_deg', 'grid_point_longitudes_deg', 'grid_point_rows',
-    #  'grid_point_columns', 'polygon_object_latlng', 'polygon_object_rowcol',
-    #  'tracking_start_time_unix_sec', 'tracking_end_time_unix_sec']
-
-    storm_object_table[tracking_utils.FULL_ID_COLUMN] = storm_object_table['storm_id']
-    storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] = storm_object_table['storm_id']
-    storm_object_table[tracking_utils.SECONDARY_ID_COLUMN] = storm_object_table['storm_id']
-    storm_object_table[tracking_utils.FIRST_PREV_SECONDARY_ID_COLUMN] = storm_object_table['storm_id']
-    storm_object_table[tracking_utils.SECOND_PREV_SECONDARY_ID_COLUMN] = storm_object_table['storm_id']
-    storm_object_table[tracking_utils.FIRST_NEXT_SECONDARY_ID_COLUMN] = storm_object_table['storm_id']
-    storm_object_table[tracking_utils.SECOND_NEXT_SECONDARY_ID_COLUMN] = storm_object_table['storm_id']
-    storm_object_table[tracking_utils.VALID_TIME_COLUMN] = storm_object_table['unix_time_sec']
-    storm_object_table[tracking_utils.SPC_DATE_COLUMN] = [time_conversion.time_to_spc_date_string(t) for t in storm_object_table['unix_time_sec'].values]
-    storm_object_table[tracking_utils.CELL_START_TIME_COLUMN] = storm_object_table['tracking_start_time_unix_sec']
-    storm_object_table[tracking_utils.CELL_END_TIME_COLUMN] = storm_object_table['tracking_end_time_unix_sec']
-    storm_object_table[tracking_utils.AGE_COLUMN] = storm_object_table['age_sec']
-    storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN] = storm_object_table['centroid_lat_deg']
-    storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN] = storm_object_table['centroid_lng_deg']
-    storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN] = storm_object_table['east_velocity_m_s01']
-    storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN] = storm_object_table['north_velocity_m_s01']
-    storm_object_table[tracking_utils.LATITUDES_IN_STORM_COLUMN] = storm_object_table['grid_point_latitudes_deg']
-    storm_object_table[tracking_utils.LONGITUDES_IN_STORM_COLUMN] = storm_object_table['grid_point_longitudes_deg']
-    storm_object_table[tracking_utils.ROWS_IN_STORM_COLUMN] = storm_object_table['grid_point_rows']
-    storm_object_table[tracking_utils.COLUMNS_IN_STORM_COLUMN] = storm_object_table['grid_point_columns']
-    storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN] = storm_object_table['polygon_object_latlng']
-    storm_object_table[tracking_utils.ROWCOL_POLYGON_COLUMN] = storm_object_table['polygon_object_rowcol']
-
     error_checking.assert_columns_in_dataframe(
         storm_object_table, REQUIRED_COLUMNS)
 
