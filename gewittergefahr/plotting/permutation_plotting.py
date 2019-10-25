@@ -116,8 +116,9 @@ def _get_error_matrix(cost_matrix, confidence_level):
 
 
 def _plot_bars(
-        cost_matrix, predictor_names, plot_percent_increase, backwards_flag,
-        multipass_flag, confidence_level, axes_object, bar_face_colour):
+        cost_matrix, predictor_names, clean_cost,
+        plot_percent_increase, backwards_flag, multipass_flag, confidence_level,
+        axes_object, bar_face_colour):
     """Plots bar graph for either single-pass or multi-pass test.
 
     P = number of predictors permuted or unpermuted
@@ -129,6 +130,7 @@ def _plot_bars(
         variable represented by predictor_names[i - 1].
     :param predictor_names: length-P list of predictor names (used to label
         bars).
+    :param clean_cost: Cost with all predictors clean (unpermuted).
     :param plot_percent_increase: Boolean flag.  If True, the x-axis will show
         percentage of original cost.  If False, will show actual cost.
     :param backwards_flag: Boolean flag.  If True, will plot backwards version
@@ -215,11 +217,7 @@ def _plot_bars(
             linewidth=BAR_EDGE_WIDTH
         )
 
-    if backwards_flag:
-        reference_x_coords = numpy.full(2, mean_costs[-1])
-    else:
-        reference_x_coords = numpy.full(2, mean_costs[0])
-
+    reference_x_coords = numpy.full(2, clean_cost)
     reference_y_tick_coords = numpy.array([
         numpy.min(y_tick_coords) - 0.75, numpy.max(y_tick_coords) + 0.75
     ])
@@ -302,12 +300,19 @@ def plot_single_pass_test(
     )
 
     # Do plotting.
+    if backwards_flag:
+        clean_cost = numpy.mean(
+            permutation_dict[permutation.BEST_COST_MATRIX_KEY][-1, :]
+        )
+    else:
+        clean_cost = numpy.mean(original_cost_array)
+
     _plot_bars(
         cost_matrix=cost_matrix, predictor_names=predictor_names,
         plot_percent_increase=plot_percent_increase,
         backwards_flag=backwards_flag, multipass_flag=False,
         confidence_level=confidence_level, axes_object=axes_object,
-        bar_face_colour=bar_face_colour)
+        bar_face_colour=bar_face_colour, clean_cost=clean_cost)
 
 
 def plot_multipass_test(
@@ -352,9 +357,16 @@ def plot_multipass_test(
     )
 
     # Do plotting.
+    if backwards_flag:
+        clean_cost = numpy.mean(
+            permutation_dict[permutation.BEST_COST_MATRIX_KEY][-1, :]
+        )
+    else:
+        clean_cost = numpy.mean(original_cost_array)
+
     _plot_bars(
         cost_matrix=cost_matrix, predictor_names=predictor_names,
         plot_percent_increase=plot_percent_increase,
         backwards_flag=backwards_flag, multipass_flag=True,
         confidence_level=confidence_level, axes_object=axes_object,
-        bar_face_colour=bar_face_colour)
+        bar_face_colour=bar_face_colour, clean_cost=clean_cost)
