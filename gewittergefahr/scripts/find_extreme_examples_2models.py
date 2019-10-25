@@ -115,8 +115,9 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIRS_HELP_STRING)
 
 
-def _find_examples_in_prediction_dict(prediction_dict, full_storm_id_strings,
-                                      storm_times_unix_sec):
+def _find_examples_in_prediction_dict(
+        prediction_dict, full_storm_id_strings, storm_times_unix_sec,
+        allow_missing):
     """Finds examples (with given ID-timem pairs) in dictionary w/ predictions.
 
     E = number of desired examples
@@ -125,6 +126,8 @@ def _find_examples_in_prediction_dict(prediction_dict, full_storm_id_strings,
         `prediction_io.read_ungridded_predictions`.
     :param full_storm_id_strings: length-E list of storm IDs.
     :param storm_times_unix_sec: length-E numpy array of valid times.
+    :param allow_missing: Boolean flag.  If True, will allow for missing storm
+        objects.
     :return: indices_in_dict: length-E numpy array of indices.  If
         `k in indices_in_dict`, the [k]th example in the dictionary is one of
         the desired examples.
@@ -144,22 +147,28 @@ def _find_examples_in_prediction_dict(prediction_dict, full_storm_id_strings,
             all_times_unix_sec=
             prediction_dict[prediction_io.STORM_TIMES_KEY][indices_in_dict],
             id_strings_to_keep=full_storm_id_strings,
-            times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=False
+            times_to_keep_unix_sec=storm_times_unix_sec,
+            allow_missing=allow_missing
         )
 
+        subindices = subindices[subindices >= 0]
         indices_in_dict = indices_in_dict[subindices]
         return indices_in_dict
 
-    return tracking_utils.find_storm_objects(
+    indices_in_dict = tracking_utils.find_storm_objects(
         all_id_strings=prediction_dict[prediction_io.STORM_IDS_KEY],
         all_times_unix_sec=prediction_dict[prediction_io.STORM_TIMES_KEY],
         id_strings_to_keep=full_storm_id_strings,
-        times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=False
+        times_to_keep_unix_sec=storm_times_unix_sec,
+        allow_missing=allow_missing
     )
+
+    return indices_in_dict[indices_in_dict >= 0]
 
 
 def _match_storm_objects_one_time(
-        first_prediction_dict, second_prediction_dict, match_dict):
+        first_prediction_dict, second_prediction_dict, match_dict,
+        allow_missing=True):
     """Matches storm objects at one time step.
 
     E = number of matched storm objects
@@ -167,6 +176,8 @@ def _match_storm_objects_one_time(
     :param first_prediction_dict: See doc for `_match_storm_objects`.
     :param second_prediction_dict: Same.
     :param match_dict: Dictionary returned by `storm_tracking_io.read_matches`.
+    :param allow_missing: Boolean flag.  If True, will allow for missing storm
+        objects.
     :return: first_indices: length-E numpy array with indices of matched storm
         objects in `first_prediction_dict`.
     :return: second_indices: Same but for `second_prediction_dict`.
@@ -188,7 +199,7 @@ def _match_storm_objects_one_time(
     first_indices = _find_examples_in_prediction_dict(
         prediction_dict=first_prediction_dict,
         full_storm_id_strings=first_full_id_strings,
-        storm_times_unix_sec=first_times_unix_sec)
+        storm_times_unix_sec=first_times_unix_sec, allow_missing=allow_missing)
 
     second_full_id_strings = [
         match_dict[p][0] for p in first_id_time_pairs
@@ -197,14 +208,10 @@ def _match_storm_objects_one_time(
         match_dict[p][1] for p in first_id_time_pairs
     ], dtype=int)
 
-    try:
-        second_indices = _find_examples_in_prediction_dict(
-            prediction_dict=second_prediction_dict,
-            full_storm_id_strings=second_full_id_strings,
-            storm_times_unix_sec=second_times_unix_sec)
-    except Exception as e:
-        print(second_times_unix_sec)
-        raise e
+    second_indices = _find_examples_in_prediction_dict(
+        prediction_dict=second_prediction_dict,
+        full_storm_id_strings=second_full_id_strings,
+        storm_times_unix_sec=second_times_unix_sec, allow_missing=allow_missing)
 
     good_subindices = numpy.where(
         first_prediction_dict[prediction_io.OBSERVED_LABELS_KEY][first_indices]

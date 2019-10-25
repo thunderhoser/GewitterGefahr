@@ -244,7 +244,7 @@ def find_storm_objects(
     relevant_indices[relevant_indices < 0] = 0
     relevant_indices[
         relevant_indices >= len(all_object_id_strings)
-        ] = len(all_object_id_strings) - 1
+    ] = len(all_object_id_strings) - 1
     relevant_indices = sort_indices[relevant_indices]
 
     if allow_missing:

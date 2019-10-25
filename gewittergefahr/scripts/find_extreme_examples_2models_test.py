@@ -88,7 +88,7 @@ class FindExtremeExamples2ModelsTests(unittest.TestCase):
             fee_2models._match_storm_objects_one_time(
                 first_prediction_dict=FIRST_PREDICTION_DICT,
                 second_prediction_dict=SECOND_PREDICTION_DICT,
-                match_dict=MATCH_DICT)
+                match_dict=MATCH_DICT, allow_missing=False)
         )
 
         self.assertTrue(numpy.array_equal(these_first_indices, FIRST_INDICES))
