@@ -10,7 +10,7 @@ from gewittergefahr.deep_learning import permutation
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import permutation_plotting
 
-WHITE_COLOUR = numpy.array(3, 1.)
+WHITE_COLOUR = numpy.full(3, 1.)
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
