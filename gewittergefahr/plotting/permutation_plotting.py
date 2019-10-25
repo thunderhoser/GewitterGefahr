@@ -32,6 +32,7 @@ REFERENCE_LINE_COLOUR = numpy.full(3, 152. / 255)
 ERROR_BAR_CAP_SIZE = 8
 ERROR_BAR_DICT = {'alpha': 1., 'linewidth': 4, 'capthick': 4}
 ERROR_BAR_COLOUR = matplotlib.colors.to_rgba(c=numpy.full(3, 0.), alpha=0.5)
+print(ERROR_BAR_COLOUR)
 
 BAR_TEXT_COLOUR = numpy.full(3, 0.)
 BAR_FONT_SIZE = 20
