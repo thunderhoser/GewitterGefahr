@@ -221,6 +221,11 @@ def _match_storm_objects_one_time(
     )[0]
 
     if len(good_subindices) != len(first_indices):
+        print(first_indices)
+        print('\n')
+        print(second_indices)
+        print('\n')
+
         print((
             '{0:d} of {1:d} storm-object pairs have different labels!\n'
         ).format(
