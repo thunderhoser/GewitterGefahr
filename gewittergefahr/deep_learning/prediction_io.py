@@ -358,7 +358,7 @@ def read_ungridded_predictions(netcdf_file_name):
         return prediction_dict
 
     prediction_dict = {
-        MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY)),
+        MODEL_FILE_KEY: '/condo/swatwork/ralager/prediction_paper_2019/myrorss_experiment/dropout=0.750_l2=0.001000_num-dense-layers=2_data-aug=0/model.h5',
         TARGET_NAME_KEY: str(getattr(dataset_object, TARGET_NAME_KEY)),
         STORM_IDS_KEY: [
             str(s) for s in
