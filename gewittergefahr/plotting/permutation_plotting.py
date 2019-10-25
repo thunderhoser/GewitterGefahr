@@ -155,13 +155,13 @@ def _plot_bars(
 
         if plot_percent_increase:
             cost_matrix = 200 * (cost_matrix - 0.5)
-            x_axis_label_string += ' (percent improvement above random)'
+            x_axis_label_string += ' (% improvement above random)'
     else:
         x_axis_label_string = 'Cross-entropy'
 
         if plot_percent_increase:
             cost_matrix = 100 * cost_matrix / mean_original_cost
-            x_axis_label_string += ' (percentage of original)'
+            x_axis_label_string += ' (% of original)'
 
     if backwards_flag:
         y_tick_strings = ['All permuted'] + predictor_names
