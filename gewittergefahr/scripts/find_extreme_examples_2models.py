@@ -161,13 +161,28 @@ def _match_storm_objects_one_time(
         match_dict[p][1] for p in first_id_time_pairs
     ], dtype=int)
 
-    second_indices = tracking_utils.find_storm_objects(
-        all_id_strings=second_prediction_dict[prediction_io.STORM_IDS_KEY],
-        all_times_unix_sec=second_prediction_dict[
-            prediction_io.STORM_TIMES_KEY],
-        id_strings_to_keep=second_full_id_strings,
-        times_to_keep_unix_sec=second_times_unix_sec, allow_missing=False
-    )
+    if len(numpy.unique(second_times_unix_sec)) == 1:
+        second_indices = numpy.where(
+            second_prediction_dict[prediction_io.STORM_TIMES_KEY] ==
+            second_times_unix_sec[0]
+        )[0]
+
+        second_subindices = tracking_utils.find_storm_objects(
+            all_id_strings=[second_prediction_dict[prediction_io.STORM_IDS_KEY][k] for k in second_indices],
+            all_times_unix_sec=second_prediction_dict[prediction_io.STORM_TIMES_KEY][second_indices],
+            id_strings_to_keep=second_full_id_strings,
+            times_to_keep_unix_sec=second_times_unix_sec, allow_missing=False
+        )
+
+        second_indices = second_indices[second_subindices]
+    else:
+        second_indices = tracking_utils.find_storm_objects(
+            all_id_strings=second_prediction_dict[prediction_io.STORM_IDS_KEY],
+            all_times_unix_sec=second_prediction_dict[
+                prediction_io.STORM_TIMES_KEY],
+            id_strings_to_keep=second_full_id_strings,
+            times_to_keep_unix_sec=second_times_unix_sec, allow_missing=False
+        )
 
     good_subindices = numpy.where(
         first_prediction_dict[prediction_io.OBSERVED_LABELS_KEY][first_indices]
