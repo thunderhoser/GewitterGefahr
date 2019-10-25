@@ -197,10 +197,14 @@ def _match_storm_objects_one_time(
         match_dict[p][1] for p in first_id_time_pairs
     ], dtype=int)
 
-    second_indices = _find_examples_in_prediction_dict(
-        prediction_dict=second_prediction_dict,
-        full_storm_id_strings=second_full_id_strings,
-        storm_times_unix_sec=second_times_unix_sec)
+    try:
+        second_indices = _find_examples_in_prediction_dict(
+            prediction_dict=second_prediction_dict,
+            full_storm_id_strings=second_full_id_strings,
+            storm_times_unix_sec=second_times_unix_sec)
+    except Exception as e:
+        print(second_times_unix_sec)
+        raise e
 
     good_subindices = numpy.where(
         first_prediction_dict[prediction_io.OBSERVED_LABELS_KEY][first_indices]
@@ -210,7 +214,9 @@ def _match_storm_objects_one_time(
     )[0]
 
     if len(good_subindices) != len(first_indices):
-        print('{0:d} of {1:d} storm-object pairs have different labels!'.format(
+        print((
+            '{0:d} of {1:d} storm-object pairs have different labels!\n'
+        ).format(
             len(first_indices) - len(good_subindices), len(first_indices)
         ))
 
@@ -262,9 +268,6 @@ def _match_storm_objects(first_prediction_dict, second_prediction_dict,
         print('Time elapsed matching storm objects = {0:.4f} seconds'.format(
             time.time() - exec_start_time_unix_sec
         ))
-
-        if i != len(first_unique_times_unix_sec) - 1:
-            print('\n')
 
         first_indices = numpy.concatenate((first_indices, these_first_indices))
         second_indices = numpy.concatenate((
