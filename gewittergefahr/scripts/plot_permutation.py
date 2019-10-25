@@ -1,6 +1,7 @@
 """Plots results of permutation test."""
 
 import argparse
+import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
@@ -9,6 +10,7 @@ from gewittergefahr.deep_learning import permutation
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import permutation_plotting
 
+WHITE_COLOUR = numpy.array(3, 1.)
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
@@ -85,7 +87,7 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         num_predictors_to_plot=num_predictors_to_plot,
         plot_percent_increase=False, confidence_level=confidence_level)
 
-    axes_object_matrix[0, 1].set_ylabel('')
+    axes_object_matrix[0, 1].set_ylabel('Variable permuted', color=WHITE_COLOUR)
     axes_object_matrix[0, 1].set_title('Multi-pass test')
 
     figure_file_name = '{0:s}/permutation_test_abs-values.jpg'.format(
@@ -106,14 +108,14 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         num_predictors_to_plot=num_predictors_to_plot,
         plot_percent_increase=True, confidence_level=confidence_level)
 
-    axes_object_matrix[0, 1].set_title('Single-pass test')
+    axes_object_matrix[0, 0].set_title('Single-pass test')
 
     permutation_plotting.plot_multipass_test(
         permutation_dict=permutation_dict, axes_object=axes_object_matrix[0, 1],
         num_predictors_to_plot=num_predictors_to_plot,
         plot_percent_increase=True, confidence_level=confidence_level)
 
-    axes_object_matrix[0, 1].set_ylabel('')
+    axes_object_matrix[0, 1].set_ylabel('Variable permuted', color=WHITE_COLOUR)
     axes_object_matrix[0, 1].set_title('Multi-pass test')
 
     figure_file_name = '{0:s}/permutation_test_percentage.jpg'.format(
