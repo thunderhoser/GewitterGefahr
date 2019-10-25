@@ -116,15 +116,18 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
         full_storm_id_strings = full_storm_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
-    predictor_matrices, sounding_pressure_matrix_pa = (
-        testing_io.read_predictors_specific_examples(
-            top_example_dir_name=top_example_dir_name,
-            desired_full_id_strings=full_storm_id_strings,
-            desired_times_unix_sec=storm_times_unix_sec,
-            option_dict=training_option_dict,
-            layer_operation_dicts=model_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
-        )
+    example_dict = testing_io.read_predictors_specific_examples(
+        top_example_dir_name=top_example_dir_name,
+        desired_full_id_strings=full_storm_id_strings,
+        desired_times_unix_sec=storm_times_unix_sec,
+        option_dict=training_option_dict,
+        layer_operation_dicts=model_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
     )
+    print(SEPARATOR_STRING)
+
+    predictor_matrices = example_dict[testing_io.INPUT_MATRICES_KEY]
+    sounding_pressure_matrix_pa = example_dict[
+        testing_io.SOUNDING_PRESSURES_KEY]
 
     radar_matrix = predictor_matrices[0]
     num_examples = radar_matrix.shape[0]

@@ -182,14 +182,16 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
     print(SEPARATOR_STRING)
-    predictor_matrices = testing_io.read_predictors_specific_examples(
+    example_dict = testing_io.read_predictors_specific_examples(
         top_example_dir_name=top_example_dir_name,
         desired_full_id_strings=full_storm_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
         layer_operation_dicts=model_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
-    )[0]
+    )
     print(SEPARATOR_STRING)
+
+    predictor_matrices = example_dict[testing_io.INPUT_MATRICES_KEY]
 
     # TODO(thunderhoser): The rest of this code is very HACKY.
     predictor_matrices[0] = trainval_io.upsample_reflectivity(

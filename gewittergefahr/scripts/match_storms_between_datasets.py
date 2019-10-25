@@ -52,10 +52,10 @@ DATE_HELP_STRING = (
     ' in the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
-# TODO(thunderhoser): Update this help string.
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Files will be written here by ``, to exact '
-    'locations determined by ``.')
+    'Name of output directory.  Files will be written here by '
+    '`storm_tracking_io.write_matches`, to exact locations determined by \
+    `storm_tracking_io.find_match_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(

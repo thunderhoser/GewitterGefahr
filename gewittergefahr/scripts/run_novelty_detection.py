@@ -320,7 +320,8 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         desired_times_unix_sec=baseline_times_unix_sec,
         option_dict=cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
         layer_operation_dicts=cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
-    )[0]
+    )[testing_io.INPUT_MATRICES_KEY]
+
     print(SEPARATOR_STRING)
 
     trial_predictor_matrices = testing_io.read_predictors_specific_examples(
@@ -329,7 +330,8 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         desired_times_unix_sec=trial_times_unix_sec,
         option_dict=cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
         layer_operation_dicts=cnn_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
-    )[0]
+    )[testing_io.INPUT_MATRICES_KEY]
+
     print(SEPARATOR_STRING)
 
     novelty_dict = novelty_detection.do_novelty_detection(

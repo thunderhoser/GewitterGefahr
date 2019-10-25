@@ -266,15 +266,16 @@ def _run(model_file_name, layer_names, top_example_dir_name,
         full_id_strings = full_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
-    predictor_matrices = testing_io.read_predictors_specific_examples(
+    example_dict = testing_io.read_predictors_specific_examples(
         top_example_dir_name=top_example_dir_name,
         desired_full_id_strings=full_id_strings,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
         layer_operation_dicts=model_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
-    )[0]
+    )
 
     print(SEPARATOR_STRING)
+    predictor_matrices = example_dict[testing_io.INPUT_MATRICES_KEY]
 
     include_soundings = (
         training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None

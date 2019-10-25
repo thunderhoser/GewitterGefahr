@@ -308,19 +308,19 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
             full_storm_id_strings = full_storm_id_strings[:num_examples]
             storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
-        input_matrices, sounding_pressure_matrix_pa = (
-            testing_io.read_predictors_specific_examples(
-                top_example_dir_name=top_example_dir_name,
-                desired_full_id_strings=full_storm_id_strings,
-                desired_times_unix_sec=storm_times_unix_sec,
-                option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-                layer_operation_dicts=model_metadata_dict[
-                    cnn.LAYER_OPERATIONS_KEY]
-            )
+        example_dict = testing_io.read_predictors_specific_examples(
+            top_example_dir_name=top_example_dir_name,
+            desired_full_id_strings=full_storm_id_strings,
+            desired_times_unix_sec=storm_times_unix_sec,
+            option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
+            layer_operation_dicts=model_metadata_dict[cnn.LAYER_OPERATIONS_KEY]
         )
-
-        num_examples = input_matrices[0].shape[0]
         print(SEPARATOR_STRING)
+
+        input_matrices = example_dict[testing_io.INPUT_MATRICES_KEY]
+        sounding_pressure_matrix_pa = example_dict[
+            testing_io.SOUNDING_PRESSURES_KEY]
+        num_examples = input_matrices[0].shape[0]
     else:
         num_examples = 1
         init_function = _create_initializer(

@@ -1245,8 +1245,6 @@ def read_predictors_specific_examples(
     """Reads predictors (no targets) for specific examples.
 
     E = number of examples (storm objects)
-    T = number of input tensors to model
-    H = number of sounding heights
 
     :param top_example_dir_name: Name of top-level directory with examples.
         Files therein will be found by `input_examples.find_example_file` and
@@ -1256,10 +1254,11 @@ def read_predictors_specific_examples(
     :param option_dict: See doc for any generator in this file.
     :param layer_operation_dicts: See doc for `gridrad_generator_2d_reduced`.
         If you are not reducing 3-D GridRad images to 2-D, leave this alone.
-    :return: predictor_matrices: length-T list of numpy arrays, where the first
-        axis of each has length E.
-    :return: sounding_pressure_matrix_pa: E-by-H numpy array of sounding
-        pressures.  If soundings were not read, this is None.
+    :return: storm_object_dict: Dictionary with the following keys.
+    storm_object_dict['list_of_input_matrices']: See doc for any generator in
+        this file.
+    storm_object_dict['target_array']: Same.
+    storm_object_dict['sounding_pressure_matrix_pascals']: Same.
     """
 
     spc_date_strings = [
@@ -1304,6 +1303,7 @@ def read_predictors_specific_examples(
     full_storm_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)
     predictor_matrices = None
+    target_array = None
     sounding_pressure_matrix_pa = None
 
     while True:
@@ -1332,6 +1332,9 @@ def read_predictors_specific_examples(
             predictor_matrices = copy.deepcopy(
                 this_storm_object_dict[INPUT_MATRICES_KEY]
             )
+            target_array = copy.deepcopy(
+                this_storm_object_dict[TARGET_ARRAY_KEY]
+            )
 
             continue
 
@@ -1340,6 +1343,10 @@ def read_predictors_specific_examples(
                 predictor_matrices[k],
                 this_storm_object_dict[INPUT_MATRICES_KEY][k]
             ), axis=0)
+
+        target_array = numpy.concatenate(
+            (target_array, this_storm_object_dict[TARGET_ARRAY_KEY]), axis=0
+        )
 
     sort_indices = tracking_utils.find_storm_objects(
         all_id_strings=full_storm_id_strings,
@@ -1350,8 +1357,14 @@ def read_predictors_specific_examples(
     for k in range(len(predictor_matrices)):
         predictor_matrices[k] = predictor_matrices[k][sort_indices, ...]
 
+    target_array = target_array[sort_indices, ...]
+
     if sounding_pressure_matrix_pa is not None:
         sounding_pressure_matrix_pa = sounding_pressure_matrix_pa[
             sort_indices, ...]
 
-    return predictor_matrices, sounding_pressure_matrix_pa
+    return {
+        INPUT_MATRICES_KEY: predictor_matrices,
+        TARGET_ARRAY_KEY: target_array,
+        SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pa
+    }
