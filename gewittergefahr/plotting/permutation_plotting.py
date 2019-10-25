@@ -116,7 +116,7 @@ def _get_error_matrix(cost_matrix, confidence_level):
 
 
 def _plot_bars(
-        cost_matrix, predictor_names, clean_cost,
+        cost_matrix, clean_cost_array, predictor_names,
         plot_percent_increase, backwards_flag, multipass_flag, confidence_level,
         axes_object, bar_face_colour):
     """Plots bar graph for either single-pass or multi-pass test.
@@ -128,9 +128,10 @@ def _plot_bars(
         contains costs at the beginning of the test -- before (un)permuting any
         variables -- and the [i]th row contains costs after (un)permuting the
         variable represented by predictor_names[i - 1].
+    :param clean_cost_array: length-B numpy array of costs with clean
+        (unpermuted) predictors.
     :param predictor_names: length-P list of predictor names (used to label
         bars).
-    :param clean_cost: Cost with all predictors clean (unpermuted).
     :param plot_percent_increase: Boolean flag.  If True, the x-axis will show
         percentage of original cost.  If False, will show actual cost.
     :param backwards_flag: Boolean flag.  If True, will plot backwards version
@@ -148,21 +149,23 @@ def _plot_bars(
         method `_predictor_name_to_face_colour` to determine bar colours.
     """
 
-    original_cost_array = cost_matrix[0, ...]
-    mean_original_cost = numpy.mean(original_cost_array)
+    mean_clean_cost = numpy.mean(clean_cost_array)
 
     if numpy.any(cost_matrix < 0):
         cost_matrix *= -1
+        mean_clean_cost *= -1
         x_axis_label_string = 'AUC'
 
         if plot_percent_increase:
             cost_matrix = 200 * (cost_matrix - 0.5)
-            x_axis_label_string += ' (% improvement above random)'
+            mean_clean_cost = 200 * (mean_clean_cost - 0.5)
+            x_axis_label_string += '\n(% improvement above random)'
     else:
         x_axis_label_string = 'Cross-entropy'
 
         if plot_percent_increase:
-            cost_matrix = 100 * cost_matrix / mean_original_cost
+            cost_matrix = 100 * cost_matrix / mean_clean_cost
+            mean_clean_cost = 100.
             x_axis_label_string += ' (% of original)'
 
     if backwards_flag:
@@ -195,7 +198,7 @@ def _plot_bars(
         )
 
     mean_costs = numpy.mean(cost_matrix, axis=-1)
-    num_bootstrap_reps = len(original_cost_array)
+    num_bootstrap_reps = cost_matrix.shape[1]
 
     if num_bootstrap_reps > 1:
         error_matrix = _get_error_matrix(
@@ -217,7 +220,7 @@ def _plot_bars(
             linewidth=BAR_EDGE_WIDTH
         )
 
-    reference_x_coords = numpy.full(2, clean_cost)
+    reference_x_coords = numpy.full(2, mean_clean_cost)
     reference_y_tick_coords = numpy.array([
         numpy.min(y_tick_coords) - 0.75, numpy.max(y_tick_coords) + 0.75
     ])
@@ -301,18 +304,18 @@ def plot_single_pass_test(
 
     # Do plotting.
     if backwards_flag:
-        clean_cost = numpy.mean(
-            permutation_dict[permutation.BEST_COST_MATRIX_KEY][-1, :]
-        )
+        clean_cost_array = permutation_dict[
+            permutation.BEST_COST_MATRIX_KEY][-1, :]
     else:
-        clean_cost = numpy.mean(original_cost_array)
+        clean_cost_array = original_cost_array
 
     _plot_bars(
-        cost_matrix=cost_matrix, predictor_names=predictor_names,
+        cost_matrix=cost_matrix, clean_cost_array=clean_cost_array,
+        predictor_names=predictor_names,
         plot_percent_increase=plot_percent_increase,
         backwards_flag=backwards_flag, multipass_flag=False,
         confidence_level=confidence_level, axes_object=axes_object,
-        bar_face_colour=bar_face_colour, clean_cost=clean_cost)
+        bar_face_colour=bar_face_colour)
 
 
 def plot_multipass_test(
@@ -358,15 +361,15 @@ def plot_multipass_test(
 
     # Do plotting.
     if backwards_flag:
-        clean_cost = numpy.mean(
-            permutation_dict[permutation.BEST_COST_MATRIX_KEY][-1, :]
-        )
+        clean_cost_array = permutation_dict[
+            permutation.BEST_COST_MATRIX_KEY][-1, :]
     else:
-        clean_cost = numpy.mean(original_cost_array)
+        clean_cost_array = original_cost_array
 
     _plot_bars(
-        cost_matrix=cost_matrix, predictor_names=predictor_names,
+        cost_matrix=cost_matrix, clean_cost_array=clean_cost_array,
+        predictor_names=predictor_names,
         plot_percent_increase=plot_percent_increase,
         backwards_flag=backwards_flag, multipass_flag=True,
         confidence_level=confidence_level, axes_object=axes_object,
-        bar_face_colour=bar_face_colour, clean_cost=clean_cost)
+        bar_face_colour=bar_face_colour)
