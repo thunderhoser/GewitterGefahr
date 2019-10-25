@@ -85,8 +85,8 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         num_predictors_to_plot=num_predictors_to_plot,
         plot_percent_increase=False, confidence_level=confidence_level)
 
-    axes_object_matrix[0, 0].set_ylabel('')
-    axes_object_matrix[0, 0].set_title('Multi-pass test')
+    axes_object_matrix[0, 1].set_ylabel('')
+    axes_object_matrix[0, 1].set_title('Multi-pass test')
 
     figure_file_name = '{0:s}/permutation_test_abs-values.jpg'.format(
         output_dir_name)
