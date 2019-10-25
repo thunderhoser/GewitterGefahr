@@ -29,10 +29,9 @@ BAR_EDGE_COLOUR = numpy.full(3, 0.)
 REFERENCE_LINE_WIDTH = 4
 REFERENCE_LINE_COLOUR = numpy.full(3, 152. / 255)
 
+ERROR_BAR_COLOUR = numpy.full(3, 0.)
 ERROR_BAR_CAP_SIZE = 8
-ERROR_BAR_DICT = {'alpha': 1., 'linewidth': 4, 'capthick': 4}
-ERROR_BAR_COLOUR = matplotlib.colors.to_rgba(c=numpy.full(3, 0.), alpha=0.5)
-print(ERROR_BAR_COLOUR)
+ERROR_BAR_DICT = {'alpha': 0.5, 'linewidth': 4, 'capthick': 4}
 
 BAR_TEXT_COLOUR = numpy.full(3, 0.)
 BAR_FONT_SIZE = 20
