@@ -133,11 +133,16 @@ def _find_examples_in_prediction_dict(
         the desired examples.
     """
 
+    num_desired_examples = len(full_storm_id_strings)
+
     if len(numpy.unique(storm_times_unix_sec)) == 1:
         indices_in_dict = numpy.where(
             prediction_dict[prediction_io.STORM_TIMES_KEY] ==
             storm_times_unix_sec[0]
         )[0]
+
+        if len(indices_in_dict) == 0:
+            return numpy.full(num_desired_examples, -1, dtype=int)
 
         subindices = tracking_utils.find_storm_objects(
             all_id_strings=[
