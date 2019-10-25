@@ -215,7 +215,11 @@ def _plot_bars(
             linewidth=BAR_EDGE_WIDTH
         )
 
-    reference_x_coords = numpy.full(2, mean_costs[0])
+    if backwards_flag:
+        reference_x_coords = numpy.full(2, mean_costs[-1])
+    else:
+        reference_x_coords = numpy.full(2, mean_costs[0])
+
     reference_y_tick_coords = numpy.array([
         numpy.min(y_tick_coords) - 0.75, numpy.max(y_tick_coords) + 0.75
     ])
