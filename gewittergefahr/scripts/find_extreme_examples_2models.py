@@ -205,7 +205,7 @@ def _match_storm_objects_one_time(
     first_indices = _find_examples_in_prediction_dict(
         prediction_dict=first_prediction_dict,
         full_storm_id_strings=first_full_id_strings,
-        storm_times_unix_sec=first_times_unix_sec, allow_missing=False)
+        storm_times_unix_sec=first_times_unix_sec, allow_missing=allow_missing)
 
     second_full_id_strings = [
         match_dict[p][0] for p in first_id_time_pairs
@@ -219,12 +219,12 @@ def _match_storm_objects_one_time(
         full_storm_id_strings=second_full_id_strings,
         storm_times_unix_sec=second_times_unix_sec, allow_missing=allow_missing)
 
-    bad_subflags = second_indices < 0
+    bad_subflags = numpy.logical_or(first_indices < 0, second_indices < 0)
 
     if numpy.any(bad_subflags):
         warning_string = (
             'WARNING: cannot find {0:d} of {1:d} desired storm objects in '
-            'second dataset.  This *might* be a problem.'
+            'one or both datasets.  This *might* be a problem.'
         ).format(
             numpy.sum(bad_subflags.astype(int)), len(bad_subflags)
         )
