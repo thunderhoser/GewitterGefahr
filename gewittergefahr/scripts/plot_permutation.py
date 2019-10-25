@@ -73,7 +73,7 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=1, num_columns=2, shared_x_axis=False, shared_y_axis=True,
-        keep_aspect_ratio=False)
+        keep_aspect_ratio=False, horizontal_spacing=0.05)
 
     permutation_plotting.plot_single_pass_test(
         permutation_dict=permutation_dict, axes_object=axes_object_matrix[0, 0],
@@ -101,7 +101,7 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=1, num_columns=2, shared_x_axis=False, shared_y_axis=True,
-        keep_aspect_ratio=False)
+        keep_aspect_ratio=False, horizontal_spacing=0.05)
 
     permutation_plotting.plot_single_pass_test(
         permutation_dict=permutation_dict, axes_object=axes_object_matrix[0, 0],
