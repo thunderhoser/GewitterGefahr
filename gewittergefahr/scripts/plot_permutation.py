@@ -88,6 +88,7 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         plot_percent_increase=False, confidence_level=confidence_level)
 
     # axes_object_matrix[0, 1].set_ylabel('Variable permuted', color=WHITE_COLOUR)
+    axes_object_matrix[0, 1].set_ylabel('')
     axes_object_matrix[0, 1].set_title('Multi-pass test')
 
     figure_file_name = '{0:s}/permutation_test_abs-values.jpg'.format(
@@ -116,6 +117,7 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         plot_percent_increase=True, confidence_level=confidence_level)
 
     # axes_object_matrix[0, 1].set_ylabel('Variable permuted', color=WHITE_COLOUR)
+    axes_object_matrix[0, 1].set_ylabel('')
     axes_object_matrix[0, 1].set_title('Multi-pass test')
 
     figure_file_name = '{0:s}/permutation_test_percentage.jpg'.format(
