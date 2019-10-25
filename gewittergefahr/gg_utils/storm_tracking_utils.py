@@ -241,6 +241,8 @@ def find_storm_objects(
         side='left'
     ).astype(int)
 
+    print(relevant_indices)
+
     relevant_indices[relevant_indices < 0] = 0
     relevant_indices[
         relevant_indices >= len(all_object_id_strings)
