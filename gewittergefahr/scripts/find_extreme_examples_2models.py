@@ -151,19 +151,20 @@ def _find_examples_in_prediction_dict(
             allow_missing=allow_missing
         )
 
-        subindices = subindices[subindices >= 0]
-        indices_in_dict = indices_in_dict[subindices]
+        indices_in_dict = numpy.array(
+            [indices_in_dict[k] if k >= 0 else -1 for k in subindices],
+            dtype=int
+        )
+
         return indices_in_dict
 
-    indices_in_dict = tracking_utils.find_storm_objects(
+    return tracking_utils.find_storm_objects(
         all_id_strings=prediction_dict[prediction_io.STORM_IDS_KEY],
         all_times_unix_sec=prediction_dict[prediction_io.STORM_TIMES_KEY],
         id_strings_to_keep=full_storm_id_strings,
         times_to_keep_unix_sec=storm_times_unix_sec,
         allow_missing=allow_missing
     )
-
-    return indices_in_dict[indices_in_dict >= 0]
 
 
 def _match_storm_objects_one_time(
@@ -199,7 +200,7 @@ def _match_storm_objects_one_time(
     first_indices = _find_examples_in_prediction_dict(
         prediction_dict=first_prediction_dict,
         full_storm_id_strings=first_full_id_strings,
-        storm_times_unix_sec=first_times_unix_sec, allow_missing=allow_missing)
+        storm_times_unix_sec=first_times_unix_sec, allow_missing=False)
 
     second_full_id_strings = [
         match_dict[p][0] for p in first_id_time_pairs
@@ -213,26 +214,43 @@ def _match_storm_objects_one_time(
         full_storm_id_strings=second_full_id_strings,
         storm_times_unix_sec=second_times_unix_sec, allow_missing=allow_missing)
 
-    good_subindices = numpy.where(
-        first_prediction_dict[prediction_io.OBSERVED_LABELS_KEY][first_indices]
-        ==
-        second_prediction_dict[prediction_io.OBSERVED_LABELS_KEY][
-            second_indices]
-    )[0]
+    bad_subflags = second_indices < 0
 
-    if len(good_subindices) != len(first_indices):
-        print(first_indices)
-        print('\n')
-        print(second_indices)
-        print('\n')
-
-        print((
-            '{0:d} of {1:d} storm-object pairs have different labels!\n'
+    if numpy.any(bad_subflags):
+        warning_string = (
+            'WARNING: cannot find {0:d} of {1:d} desired storm objects in '
+            'second dataset.  This *might* be a problem.'
         ).format(
-            len(first_indices) - len(good_subindices), len(first_indices)
-        ))
+            numpy.sum(bad_subflags.astype(int)), len(bad_subflags)
+        )
 
-    return first_indices[good_subindices], second_indices[good_subindices]
+        print(warning_string)
+
+        good_subindices = numpy.where(numpy.invert(bad_subflags))[0]
+        first_indices = first_indices[good_subindices]
+        second_indices = second_indices[good_subindices]
+
+    bad_subflags = (
+        first_prediction_dict[prediction_io.OBSERVED_LABELS_KEY][first_indices]
+        != second_prediction_dict[prediction_io.OBSERVED_LABELS_KEY][
+            second_indices]
+    )
+
+    if numpy.any(bad_subflags):
+        warning_string = (
+            'WARNING: {0:d} of {1:d} storm-object pairs have different labels.'
+            '  This *might* be a problem (I would worry if it happens a lot).'
+        ).format(
+            numpy.sum(bad_subflags.astype(int)), len(bad_subflags)
+        )
+
+        print(warning_string)
+
+        good_subindices = numpy.where(numpy.invert(bad_subflags))[0]
+        first_indices = first_indices[good_subindices]
+        second_indices = second_indices[good_subindices]
+
+    return first_indices, second_indices
 
 
 def _match_storm_objects(first_prediction_dict, second_prediction_dict,
