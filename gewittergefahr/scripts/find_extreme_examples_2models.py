@@ -137,19 +137,22 @@ def _match_storm_objects_one_time(
         empty_array = numpy.array([], dtype=int)
         return empty_array, empty_array
 
+    first_time_unix_sec = first_id_time_pairs[0][1]
+    first_indices = numpy.where(
+        first_prediction_dict[prediction_io.STORM_TIMES_KEY] ==
+        first_time_unix_sec
+    )[0]
+
     first_full_id_strings = [p[0] for p in first_id_time_pairs]
-    first_times_unix_sec = numpy.array(
-        [p[1] for p in first_id_time_pairs], dtype=int
-    )
 
-    # assert len(numpy.unique(first_times_unix_sec)) == 1
-
-    first_indices = tracking_utils.find_storm_objects(
-        all_id_strings=first_prediction_dict[prediction_io.STORM_IDS_KEY],
-        all_times_unix_sec=first_prediction_dict[prediction_io.STORM_TIMES_KEY],
+    first_subindices = tracking_utils.find_storm_objects(
+        all_id_strings=[first_prediction_dict[prediction_io.STORM_IDS_KEY][k] for k in first_indices],
+        all_times_unix_sec=first_prediction_dict[prediction_io.STORM_TIMES_KEY][first_indices],
         id_strings_to_keep=first_full_id_strings,
-        times_to_keep_unix_sec=first_times_unix_sec, allow_missing=False
+        times_to_keep_unix_sec=numpy.full(len(first_full_id_strings), first_time_unix_sec, dtype=int), allow_missing=False
     )
+
+    first_indices = first_indices[first_subindices]
 
     second_full_id_strings = [
         match_dict[p][0] for p in first_id_time_pairs
