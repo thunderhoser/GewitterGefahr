@@ -279,7 +279,7 @@ def plot_single_pass_test(
     if backwards_flag:
         sort_indices = numpy.argsort(
             mean_perturbed_costs
-        )[:num_predictors_to_plot]
+        )[:num_predictors_to_plot][::-1]
     else:
         sort_indices = numpy.argsort(
             mean_perturbed_costs

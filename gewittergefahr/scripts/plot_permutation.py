@@ -97,7 +97,7 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         bbox_inches='tight')
     pyplot.close(figure_object)
 
-    _, axes_object_matrix = plotting_utils.create_paneled_figure(
+    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=1, num_columns=2, shared_x_axis=False, shared_y_axis=True,
         keep_aspect_ratio=False)
 
