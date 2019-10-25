@@ -248,6 +248,7 @@ def find_storm_objects(
         relevant_indices >= len(all_object_id_strings)
     ] = len(all_object_id_strings) - 1
 
+    print(len(all_object_id_strings))
     print(relevant_indices)
     print('\n\n**********\n\n')
     relevant_indices = sort_indices[relevant_indices]
