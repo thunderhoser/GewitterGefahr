@@ -3,6 +3,7 @@
 import math
 import numpy
 from scipy.ndimage import median_filter
+from scipy.ndimage.filters import gaussian_filter
 from gewittergefahr.gg_utils import error_checking
 
 
@@ -70,3 +71,20 @@ def apply_median_filter(input_matrix, num_cells_in_half_window):
     return median_filter(
         input_matrix, size=2 * num_cells_in_half_window + 1, mode='nearest',
         origin=0)
+
+
+def apply_gaussian_filter(input_matrix, e_folding_radius_grid_cells):
+    """Applies Gaussian filter to any-dimensional grid.
+
+    :param input_matrix: numpy array with any dimensions.
+    :param e_folding_radius_grid_cells: e-folding radius (num grid cells).
+    :return: output_matrix: numpy array after smoothing (same dimensions as
+        input).
+    """
+
+    error_checking.assert_is_numpy_array(input_matrix)
+    error_checking.assert_is_greater(e_folding_radius_grid_cells, 0.)
+
+    return gaussian_filter(
+        input_matrix, sigma=e_folding_radius_grid_cells, order=0, mode='nearest'
+    )

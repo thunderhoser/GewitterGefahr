@@ -3,7 +3,6 @@
 import os
 import argparse
 import numpy
-from scipy.ndimage.filters import gaussian_filter
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
@@ -30,7 +29,7 @@ INPUT_FILE_ARG_NAME = 'input_file_name'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
 HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
-SMOOTHING_HW_SIZE_ARG_NAME = 'smoothing_half_window_size'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 PLOT_SOUNDINGS_ARG_NAME = plot_examples.PLOT_SOUNDINGS_ARG_NAME
 ALLOW_WHITESPACE_ARG_NAME = plot_examples.ALLOW_WHITESPACE_ARG_NAME
@@ -56,9 +55,9 @@ MAX_COLOUR_VALUE_HELP_STRING = (
 HALF_NUM_CONTOURS_HELP_STRING = (
     'Number of contours on each side of zero (positive and negative).')
 
-SMOOTHING_HW_SIZE_HELP_STRING = (
-    'Number of grid cells in half-window for median smoother.  If you do not '
-    'want to smooth class-activation maps, leave this alone.')
+SMOOTHING_RADIUS_HELP_STRING = (
+    'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
+    'want to smooth saliency maps, make this non-positive.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  Figures will be saved here.')
@@ -88,8 +87,8 @@ INPUT_ARG_PARSER.add_argument(
     default=10, help=HALF_NUM_CONTOURS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SMOOTHING_HW_SIZE_ARG_NAME, type=int, required=False,
-    default=-1, help=SMOOTHING_HW_SIZE_HELP_STRING)
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
+    default=2., help=SMOOTHING_RADIUS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -393,39 +392,6 @@ def _plot_sounding_saliency(
     os.remove(right_panel_file_name)
 
 
-def _smooth_maps_old(saliency_matrices, smoothing_half_window_size):
-    """Smooths saliency maps via median filter.
-
-    T = number of input tensors to the model
-
-    :param saliency_matrices: length-T list of numpy arrays.
-    :param smoothing_half_window_size: Number of grid cells in half-window for
-        median filter.
-    :return: saliency_matrices: Smoothed version of input.
-    """
-
-    print('Smoothing saliency maps with {0:d}-by-{0:d} median filter...'.format(
-        2 * smoothing_half_window_size + 1
-    ))
-
-    num_matrices = len(saliency_matrices)
-    num_examples = saliency_matrices[0].shape[0]
-
-    for j in range(num_matrices):
-        this_num_channels = saliency_matrices[j].shape[-1]
-
-        for i in range(num_examples):
-            for k in range(this_num_channels):
-                saliency_matrices[j][i, ..., k] = (
-                    general_utils.apply_median_filter(
-                        input_matrix=saliency_matrices[j][i, ..., k],
-                        num_cells_in_half_window=smoothing_half_window_size
-                    )
-                )
-
-    return saliency_matrices
-
-
 def _smooth_maps(saliency_matrices, smoothing_radius_grid_cells):
     """Smooths saliency maps via Gaussian filter.
 
@@ -451,16 +417,16 @@ def _smooth_maps(saliency_matrices, smoothing_radius_grid_cells):
 
         for i in range(num_examples):
             for k in range(this_num_channels):
-                saliency_matrices[j][i, ..., k] = gaussian_filter(
-                    input=saliency_matrices[j][i, ..., k],
-                    sigma=smoothing_radius_grid_cells, order=0, mode='nearest'
+                general_utils.apply_gaussian_filter(
+                    input_matrix=saliency_matrices[j][i, ..., k],
+                    e_folding_radius_grid_cells=smoothing_radius_grid_cells
                 )
 
     return saliency_matrices
 
 
 def _run(input_file_name, colour_map_name, max_colour_value, half_num_contours,
-         smoothing_half_window_size, plot_soundings, allow_whitespace,
+         smoothing_radius_grid_cells, plot_soundings, allow_whitespace,
          plot_panel_names, add_titles, label_colour_bars, colour_bar_length,
          output_dir_name):
     """Plots saliency maps.
@@ -471,7 +437,7 @@ def _run(input_file_name, colour_map_name, max_colour_value, half_num_contours,
     :param colour_map_name: Same.
     :param max_colour_value: Same.
     :param half_num_contours: Same.
-    :param smoothing_half_window_size: Same.
+    :param smoothing_radius_grid_cells: Same.
     :param plot_soundings: Same.
     :param allow_whitespace: Same.
     :param plot_panel_names: Same.
@@ -481,8 +447,8 @@ def _run(input_file_name, colour_map_name, max_colour_value, half_num_contours,
     :param output_dir_name: Same.
     """
 
-    if smoothing_half_window_size < 1:
-        smoothing_half_window_size = None
+    if smoothing_radius_grid_cells <= 0:
+        smoothing_radius_grid_cells = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -527,10 +493,10 @@ def _run(input_file_name, colour_map_name, max_colour_value, half_num_contours,
         sounding_pressure_matrix_pa = saliency_dict[
             saliency_maps.SOUNDING_PRESSURES_KEY]
 
-    if smoothing_half_window_size is not None:
+    if smoothing_radius_grid_cells is not None:
         saliency_matrices = _smooth_maps(
             saliency_matrices=saliency_matrices,
-            smoothing_radius_grid_cells=smoothing_half_window_size)
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells)
 
     model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
@@ -626,8 +592,8 @@ if __name__ == '__main__':
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_COLOUR_VALUE_ARG_NAME),
         half_num_contours=getattr(INPUT_ARG_OBJECT, HALF_NUM_CONTOURS_ARG_NAME),
-        smoothing_half_window_size=getattr(
-            INPUT_ARG_OBJECT, SMOOTHING_HW_SIZE_ARG_NAME),
+        smoothing_radius_grid_cells=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME),
         plot_soundings=bool(getattr(INPUT_ARG_OBJECT, PLOT_SOUNDINGS_ARG_NAME)),
         allow_whitespace=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME

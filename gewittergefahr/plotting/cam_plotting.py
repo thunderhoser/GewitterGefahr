@@ -9,7 +9,7 @@ DEFAULT_CONTOUR_WIDTH = 2
 
 
 def plot_2d_grid(class_activation_matrix_2d, axes_object, colour_map_object,
-                 max_contour_level, contour_interval,
+                 min_contour_level, max_contour_level, contour_interval,
                  line_width=DEFAULT_CONTOUR_WIDTH):
     """Plots 2-D class-activation map with line contours.
 
@@ -21,7 +21,8 @@ def plot_2d_grid(class_activation_matrix_2d, axes_object, colour_map_object,
         Will plot on these axes.
     :param colour_map_object: Colour scheme (instance of
         `matplotlib.pyplot.cm`).
-    :param max_contour_level: Max value to plot.  Minimum value will be 0.
+    :param min_contour_level: Minimum value to plot.
+    :param max_contour_level: Max value to plot.
     :param contour_interval: Interval (in class-activation units) between
         successive contours.
     :param line_width: Width of contour lines.
@@ -31,46 +32,53 @@ def plot_2d_grid(class_activation_matrix_2d, axes_object, colour_map_object,
     error_checking.assert_is_numpy_array(
         class_activation_matrix_2d, num_dimensions=2)
 
-    error_checking.assert_is_geq(max_contour_level, 0.)
-    max_contour_level = max([max_contour_level, 0.001])
+    # Determine contour levels.
+    max_contour_level = max([
+        min_contour_level + 1e-3, max_contour_level
+    ])
 
-    error_checking.assert_is_geq(contour_interval, 0.)
-    contour_interval = max([contour_interval, 0.0001])
-    error_checking.assert_is_less_than(contour_interval, max_contour_level)
+    contour_interval = max([contour_interval, 1e-4])
+    contour_interval = min([
+        contour_interval, max_contour_level - min_contour_level
+    ])
 
+    num_contours = 1 + int(numpy.round(
+        (max_contour_level - min_contour_level) / contour_interval
+    ))
+    contour_levels = numpy.linspace(
+        min_contour_level, max_contour_level, num=num_contours, dtype=float)
+
+    # Determine grid coordinates.
     num_grid_rows = class_activation_matrix_2d.shape[0]
     num_grid_columns = class_activation_matrix_2d.shape[1]
 
     x_coords_unique = numpy.linspace(
-        0, num_grid_columns, num=num_grid_columns + 1, dtype=float)
+        0, num_grid_columns, num=num_grid_columns + 1, dtype=float
+    )
     x_coords_unique = x_coords_unique[:-1]
     x_coords_unique = x_coords_unique + numpy.diff(x_coords_unique[:2]) / 2
 
     y_coords_unique = numpy.linspace(
-        0, num_grid_rows, num=num_grid_rows + 1, dtype=float)
+        0, num_grid_rows, num=num_grid_rows + 1, dtype=float
+    )
     y_coords_unique = y_coords_unique[:-1]
     y_coords_unique = y_coords_unique + numpy.diff(y_coords_unique[:2]) / 2
 
-    x_coord_matrix, y_coord_matrix = numpy.meshgrid(x_coords_unique,
-                                                    y_coords_unique)
+    x_coord_matrix, y_coord_matrix = numpy.meshgrid(
+        x_coords_unique, y_coords_unique)
 
-    num_contours = int(numpy.round(
-        1 + max_contour_level / contour_interval
-    ))
-
-    contour_levels = numpy.linspace(0., max_contour_level, num=num_contours)
-
+    # Plot.
     axes_object.contour(
         x_coord_matrix, y_coord_matrix, class_activation_matrix_2d,
-        contour_levels[1:], cmap=colour_map_object,
+        contour_levels, cmap=colour_map_object,
         vmin=numpy.min(contour_levels), vmax=numpy.max(contour_levels),
         linewidths=line_width, linestyles='solid', zorder=1e6)
 
 
 def plot_many_2d_grids(
         class_activation_matrix_3d, axes_object_matrix, colour_map_object,
-        max_contour_level, contour_interval, line_width=DEFAULT_CONTOUR_WIDTH,
-        row_major=True):
+        min_contour_level, max_contour_level, contour_interval,
+        line_width=DEFAULT_CONTOUR_WIDTH, row_major=True):
     """Plots the same 2-D class-activation map for each predictor.
 
     M = number of rows in spatial grid
@@ -81,6 +89,7 @@ def plot_many_2d_grids(
         activations.
     :param axes_object_matrix: See doc for `plotting_utils.init_panels`.
     :param colour_map_object: See doc for `plot_2d_grid`.
+    :param min_contour_level: Same.
     :param max_contour_level: Same.
     :param contour_interval: Same.
     :param line_width: Same.
@@ -112,5 +121,6 @@ def plot_many_2d_grids(
             class_activation_matrix_2d=class_activation_matrix_3d[..., k],
             axes_object=axes_object_matrix[this_panel_row, this_panel_column],
             colour_map_object=colour_map_object,
+            min_contour_level=min_contour_level,
             max_contour_level=max_contour_level,
             contour_interval=contour_interval, line_width=line_width)
