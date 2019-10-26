@@ -93,7 +93,7 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_GUIDED_VALUE_ARG_NAME, type=float, required=False,
-    default=1.25, help=MAX_GUIDED_VALUE_HELP_STRING)
+    default=0.5, help=MAX_GUIDED_VALUE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + HALF_NUM_GUIDED_CONTOURS_ARG_NAME, type=int, required=False,
@@ -325,7 +325,7 @@ def _plot_2d_radar_cam(
             data_matrix=guided_cam_matrix,
             colour_map_object=colour_map_object, min_value=0.,
             max_value=max_guided_value, orientation_string='horizontal',
-            fraction_of_axis_length=colour_bar_length,
+            fraction_of_axis_length=colour_bar_length / (1 + int(conv_2d3d)),
             extend_min=False, extend_max=True,
             font_size=COLOUR_BAR_FONT_SIZE)
 
@@ -357,7 +357,7 @@ def _plot_2d_radar_cam(
             min_value=MIN_UNGUIDED_VALUE_LOG10,
             max_value=max_unguided_value_log10,
             orientation_string='horizontal',
-            fraction_of_axis_length=colour_bar_length,
+            fraction_of_axis_length=colour_bar_length / (1 + int(conv_2d3d)),
             extend_min=True, extend_max=True,
             font_size=COLOUR_BAR_FONT_SIZE)
 
