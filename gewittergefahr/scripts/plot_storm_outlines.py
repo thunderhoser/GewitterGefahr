@@ -25,7 +25,15 @@ DUMMY_SOURCE_NAME = tracking_utils.SEGMOTION_NAME
 SENTINEL_VALUE = -9999
 
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
-NICE_TIME_FORMAT = '%H%M UTC %-d %b %Y'
+NICE_TIME_FORMAT = '%H%M%S UTC %-d %b %Y'
+
+BOUNDING_BOX_DICT = {
+    'facecolor': 'white',
+    'alpha': 0.5,
+    'edgecolor': 'black',
+    'linewidth': 2,
+    'boxstyle': 'round'
+}
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -551,7 +559,7 @@ def _plot_storm_outlines_one_time(
 
         axes_object.text(
             this_x_coord_metres, this_y_coord_metres, this_label_string,
-            fontsize=30, fontweight='bold', color=numpy.full(3, 152. / 255),
+            bbox=BOUNDING_BOX_DICT, color='k', fontsize=30, fontweight='bold',
             horizontalalignment='center', verticalalignment='center')
 
     nice_time_string = time_conversion.unix_sec_to_string(
