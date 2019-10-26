@@ -30,7 +30,8 @@ NICE_TIME_FORMAT = '%H%M UTC %-d %b %Y'
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = 0.5
-BORDER_COLOUR = numpy.full(3, 0.)
+# BORDER_COLOUR = numpy.full(3, 152. / 255)
+BORDER_COLOUR = numpy.array([139, 69, 19], dtype=float) / 255
 DEFAULT_TRACK_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
