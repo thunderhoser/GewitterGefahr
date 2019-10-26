@@ -254,6 +254,18 @@ def _match_storm_objects_one_time(
         first_indices = first_indices[good_subindices]
         second_indices = second_indices[good_subindices]
 
+    bad_subflags = numpy.logical_or(
+        first_prediction_dict[prediction_io.OBSERVED_LABELS_KEY][
+            first_indices] < 0,
+        second_prediction_dict[prediction_io.OBSERVED_LABELS_KEY][
+            second_indices] < 0
+    )
+
+    if numpy.any(bad_subflags):
+        good_subindices = numpy.where(numpy.invert(bad_subflags))[0]
+        first_indices = first_indices[good_subindices]
+        second_indices = second_indices[good_subindices]
+
     return first_indices, second_indices
 
 
