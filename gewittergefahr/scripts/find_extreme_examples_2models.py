@@ -314,6 +314,14 @@ def _match_storm_objects(first_prediction_dict, second_prediction_dict,
             second_indices, these_second_indices
         ))
 
+    _, unique_subindices = numpy.unique(first_indices, return_index=True)
+    first_indices = first_indices[unique_subindices]
+    second_indices = second_indices[unique_subindices]
+
+    _, unique_subindices = numpy.unique(second_indices, return_index=True)
+    first_indices = first_indices[unique_subindices]
+    second_indices = second_indices[unique_subindices]
+
     first_prediction_dict = prediction_io.subset_ungridded_predictions(
         prediction_dict=first_prediction_dict,
         desired_storm_indices=first_indices)
