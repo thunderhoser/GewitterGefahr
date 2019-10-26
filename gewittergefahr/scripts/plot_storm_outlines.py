@@ -551,7 +551,7 @@ def _plot_storm_outlines_one_time(
 
         axes_object.text(
             this_x_coord_metres, this_y_coord_metres, this_label_string,
-            fontsize=30, fontweight='bold', color='k',
+            fontsize=30, fontweight='bold', color=numpy.full(3, 152. / 255),
             horizontalalignment='center', verticalalignment='center')
 
     nice_time_string = time_conversion.unix_sec_to_string(
