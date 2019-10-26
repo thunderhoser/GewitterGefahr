@@ -35,6 +35,17 @@ BORDER_COLOUR = numpy.array([139, 69, 19], dtype=float) / 255
 DEFAULT_TRACK_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
+FULL_ID_TO_LABEL_DICT = {
+    '6414_20110426': 'S',
+    '7315_20110426': 'S',
+    '7574_20110426': 'S',
+    '8102_20110426': 'S',
+    '8476_20110426': 'MS',
+    '8579_20110426': 'S',
+    '9082_20110426': 'S',
+    '9371_20110426': 'MS'
+}
+
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
@@ -364,7 +375,8 @@ def _plot_storm_outlines_one_time(
         default for the given field.
     """
 
-    plot_storm_ids = radar_matrix is None or radar_colour_map_object is None
+    # plot_storm_ids = radar_matrix is None or radar_colour_map_object is None
+    plot_storm_ids = False
 
     min_plot_latitude_deg = basemap_object.llcrnrlat
     max_plot_latitude_deg = basemap_object.urcrnrlat
@@ -385,11 +397,13 @@ def _plot_storm_outlines_one_time(
 
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS)
+        num_parallels=NUM_PARALLELS,
+        line_colour=numpy.full(3, 1.), z_order=-1e20)
 
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS)
+        num_meridians=NUM_MERIDIANS,
+        line_colour=numpy.full(3, 1.), z_order=-1e20)
 
     if radar_matrix is not None:
         custom_colour_map = radar_colour_map_object is not None
@@ -456,7 +470,7 @@ def _plot_storm_outlines_one_time(
             colour_norm_object=colour_norm_object,
             orientation_string=orientation_string,
             extend_min=radar_field_name in radar_plotting.SHEAR_VORT_DIV_NAMES,
-            extend_max=True, fraction_of_axis_length=0.9)
+            extend_max=True, fraction_of_axis_length=1., padding=0.05)
 
         radar_field_name_verbose = radar_utils.field_name_to_verbose(
             field_name=radar_field_name, include_units=True)
@@ -493,27 +507,47 @@ def _plot_storm_outlines_one_time(
             include_secondary_ids=include_secondary_ids,
             font_colour=storm_plotting.DEFAULT_FONT_COLOUR)
 
-    if primary_id_to_track_colour is None:
-        storm_plotting.plot_storm_tracks(
-            storm_object_table=storm_object_table, axes_object=axes_object,
-            basemap_object=basemap_object, colour_map_object=None,
-            line_colour=DEFAULT_TRACK_COLOUR)
-    else:
-        for this_primary_id_string in primary_id_to_track_colour:
-            this_storm_object_table = storm_object_table.loc[
-                storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
-                this_primary_id_string
-            ]
+    # if primary_id_to_track_colour is None:
+    #     storm_plotting.plot_storm_tracks(
+    #         storm_object_table=storm_object_table, axes_object=axes_object,
+    #         basemap_object=basemap_object, colour_map_object=None,
+    #         line_colour=DEFAULT_TRACK_COLOUR)
+    # else:
+    #     for this_primary_id_string in primary_id_to_track_colour:
+    #         this_storm_object_table = storm_object_table.loc[
+    #             storm_object_table[tracking_utils.PRIMARY_ID_COLUMN] ==
+    #             this_primary_id_string
+    #         ]
+    #
+    #         if len(this_storm_object_table.index) == 0:
+    #             continue
+    #
+    #         storm_plotting.plot_storm_tracks(
+    #             storm_object_table=this_storm_object_table,
+    #             axes_object=axes_object, basemap_object=basemap_object,
+    #             colour_map_object=None,
+    #             line_colour=primary_id_to_track_colour[this_primary_id_string]
+    #         )
 
-            if len(this_storm_object_table.index) == 0:
-                continue
+    for this_full_id_string in FULL_ID_TO_LABEL_DICT:
+        this_index = numpy.where(
+            storm_object_table[tracking_utils.FULL_ID_COLUMN].values ==
+            this_full_id_string
+        )[0][0]
 
-            storm_plotting.plot_storm_tracks(
-                storm_object_table=this_storm_object_table,
-                axes_object=axes_object, basemap_object=basemap_object,
-                colour_map_object=None,
-                line_colour=primary_id_to_track_colour[this_primary_id_string]
-            )
+        this_latitude_deg = storm_object_table[
+            tracking_utils.CENTROID_LATITUDE_COLUMN].values[this_index]
+        this_longitude_deg = storm_object_table[
+            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[this_index]
+        this_x_coord_metres, this_y_coord_metres = basemap_object(
+            this_longitude_deg, this_latitude_deg)
+
+        this_label_string = FULL_ID_TO_LABEL_DICT[this_full_id_string]
+
+        axes_object.text(
+            this_x_coord_metres, this_y_coord_metres, this_label_string,
+            fontsize=30, fontweight='bold', color='k',
+            horizontalalignment='center', verticalalignment='center')
 
     nice_time_string = time_conversion.unix_sec_to_string(
         valid_time_unix_sec, NICE_TIME_FORMAT)
