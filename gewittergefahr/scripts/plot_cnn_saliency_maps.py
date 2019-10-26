@@ -183,12 +183,12 @@ def _plot_3d_radar_saliency(
             axes_object_or_matrix=axes_object_matrices[j],
             data_matrix=saliency_matrix[..., j],
             colour_map_object=colour_map_object, min_value=0.,
-            max_value=max_colour_value, orientation_string='horizontal',
+            max_value=max_colour_value, orientation_string='vertical',
             fraction_of_axis_length=0.8,
             extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
 
-        this_colour_bar_object.set_label(
-            'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE)
+        # this_colour_bar_object.set_label(
+        #     'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE)
 
         this_file_name = plot_examples.metadata_to_file_name(
             output_dir_name=output_dir_name, is_sounding=False,
@@ -265,12 +265,12 @@ def _plot_2d_radar_saliency(
         axes_object_or_matrix=axes_object_matrices[figure_index],
         data_matrix=saliency_matrix,
         colour_map_object=colour_map_object, min_value=0.,
-        max_value=max_colour_value, orientation_string='horizontal',
+        max_value=max_colour_value, orientation_string='vertical',
         fraction_of_axis_length=0.8,
         extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
 
-    colour_bar_object.set_label(
-        'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE)
+    # colour_bar_object.set_label(
+    #     'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE)
 
     output_file_name = plot_examples.metadata_to_file_name(
         output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
