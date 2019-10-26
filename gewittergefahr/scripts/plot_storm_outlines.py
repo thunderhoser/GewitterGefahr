@@ -529,6 +529,8 @@ def _plot_storm_outlines_one_time(
     #             line_colour=primary_id_to_track_colour[this_primary_id_string]
     #         )
 
+    print(storm_object_table[tracking_utils.FULL_ID_COLUMN].values)
+
     for this_full_id_string in FULL_ID_TO_LABEL_DICT:
         this_index = numpy.where(
             storm_object_table[tracking_utils.FULL_ID_COLUMN].values ==
