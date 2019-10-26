@@ -51,7 +51,7 @@ FULL_ID_TO_LABEL_DICT = {
     '8476_20110426': 'MS',
     '8579_20110426': 'S',
     '9082_20110426': 'S',
-    '9371_20110426': 'MS'
+    # '9371_20110426': 'MS'
 }
 
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
