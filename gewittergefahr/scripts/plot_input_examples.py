@@ -332,7 +332,7 @@ def _plot_3d_radar_scan(
     radar_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
 
     radar_field_names_verbose = [
-        radar_utils.field_name_to_verbose(field_name=f, include_units=True)
+        radar_plotting.field_name_to_verbose(field_name=f, include_units=True)
         for f in radar_field_names
     ]
 
@@ -481,12 +481,12 @@ def _plot_2d3d_radar_scan(
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     shear_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     shear_field_names_verbose = [
-        radar_utils.field_name_to_verbose(field_name=f, include_units=True)
+        radar_plotting.field_name_to_verbose(field_name=f, include_units=True)
         for f in shear_field_names
     ]
 
     refl_heights_m_agl = training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
-    refl_name_verbose = radar_utils.field_name_to_verbose(
+    refl_name_verbose = radar_plotting.field_name_to_verbose(
         field_name=radar_utils.REFL_NAME, include_units=True)
 
     num_refl_heights = len(refl_heights_m_agl)
@@ -630,7 +630,7 @@ def _plot_2d3d_radar_scan(
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', padding=COLOUR_BAR_PADDING,
             font_size=colour_bar_font_size,
-            fraction_of_axis_length=colour_bar_length,
+            fraction_of_axis_length=colour_bar_length / 2,
             extend_min=True, extend_max=True)
 
         this_label_string = r'Azimuthal shear (ks$^{-1}$)'

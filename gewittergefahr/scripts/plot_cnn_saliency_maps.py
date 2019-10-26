@@ -121,8 +121,9 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_3d_radar_saliency(
         saliency_matrix, colour_map_object, max_colour_value, half_num_contours,
-        figure_objects, axes_object_matrices, model_metadata_dict,
-        output_dir_name, significance_matrix=None, full_storm_id_string=None,
+        label_colour_bars, colour_bar_length, figure_objects,
+        axes_object_matrices, model_metadata_dict, output_dir_name,
+        significance_matrix=None, full_storm_id_string=None,
         storm_time_unix_sec=None):
     """Plots saliency map for 3-D radar data.
 
@@ -138,6 +139,8 @@ def _plot_3d_radar_saliency(
     :param colour_map_object: See documentation at top of file.
     :param max_colour_value: Same.
     :param half_num_contours: Same.
+    :param label_colour_bars: Same.
+    :param colour_bar_length: Same.
     :param figure_objects: See doc for
         `plot_input_examples._plot_3d_radar_scan`.
     :param axes_object_matrices: Same.
@@ -183,12 +186,13 @@ def _plot_3d_radar_saliency(
             axes_object_or_matrix=axes_object_matrices[j],
             data_matrix=saliency_matrix[..., j],
             colour_map_object=colour_map_object, min_value=0.,
-            max_value=max_colour_value, orientation_string='vertical',
-            fraction_of_axis_length=0.8,
+            max_value=max_colour_value, orientation_string='horizontal',
+            fraction_of_axis_length=colour_bar_length,
             extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
 
-        # this_colour_bar_object.set_label(
-        #     'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE)
+        if label_colour_bars:
+            this_colour_bar_object.set_label(
+                'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE)
 
         this_file_name = plot_examples.metadata_to_file_name(
             output_dir_name=output_dir_name, is_sounding=False,
@@ -207,8 +211,9 @@ def _plot_3d_radar_saliency(
 
 def _plot_2d_radar_saliency(
         saliency_matrix, colour_map_object, max_colour_value, half_num_contours,
-        figure_objects, axes_object_matrices, model_metadata_dict,
-        output_dir_name, significance_matrix=None, full_storm_id_string=None,
+        label_colour_bars, colour_bar_length, figure_objects,
+        axes_object_matrices, model_metadata_dict, output_dir_name,
+        significance_matrix=None, full_storm_id_string=None,
         storm_time_unix_sec=None):
     """Plots saliency map for 2-D radar data.
 
@@ -223,6 +228,8 @@ def _plot_2d_radar_saliency(
     :param colour_map_object: See documentation at top of file.
     :param max_colour_value: Same.
     :param half_num_contours: Same.
+    :param label_colour_bars: Same.
+    :param colour_bar_length: Same.
     :param figure_objects: See doc for
         `plot_input_examples._plot_2d_radar_scan`.
     :param axes_object_matrices: Same.
@@ -265,12 +272,13 @@ def _plot_2d_radar_saliency(
         axes_object_or_matrix=axes_object_matrices[figure_index],
         data_matrix=saliency_matrix,
         colour_map_object=colour_map_object, min_value=0.,
-        max_value=max_colour_value, orientation_string='vertical',
-        fraction_of_axis_length=0.8,
+        max_value=max_colour_value, orientation_string='horizontal',
+        fraction_of_axis_length=colour_bar_length / (1 + int(conv_2d3d)),
         extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
 
-    # colour_bar_object.set_label(
-    #     'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE)
+    if label_colour_bars:
+        colour_bar_object.set_label(
+            'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE)
 
     output_file_name = plot_examples.metadata_to_file_name(
         output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
@@ -548,6 +556,8 @@ def _run(input_file_name, colour_map_name, max_colour_value, half_num_contours,
                     colour_map_object=colour_map_object,
                     max_colour_value=max_colour_value,
                     half_num_contours=half_num_contours,
+                    label_colour_bars=label_colour_bars,
+                    colour_bar_length=colour_bar_length,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
                     model_metadata_dict=model_metadata_dict,
@@ -562,6 +572,8 @@ def _run(input_file_name, colour_map_name, max_colour_value, half_num_contours,
                     colour_map_object=colour_map_object,
                     max_colour_value=max_colour_value,
                     half_num_contours=half_num_contours,
+                    label_colour_bars=label_colour_bars,
+                    colour_bar_length=colour_bar_length,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
                     model_metadata_dict=model_metadata_dict,
