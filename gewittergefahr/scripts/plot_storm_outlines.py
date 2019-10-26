@@ -529,18 +529,21 @@ def _plot_storm_outlines_one_time(
     #             line_colour=primary_id_to_track_colour[this_primary_id_string]
     #         )
 
-    print(storm_object_table[tracking_utils.FULL_ID_COLUMN].values)
-
     for this_full_id_string in FULL_ID_TO_LABEL_DICT:
-        this_index = numpy.where(
+        these_indices = numpy.where(
             storm_object_table[tracking_utils.FULL_ID_COLUMN].values ==
             this_full_id_string
-        )[0][0]
+        )[0]
+
+        if len(these_indices) == 0:
+            continue
+
+        k = these_indices[0]
 
         this_latitude_deg = storm_object_table[
-            tracking_utils.CENTROID_LATITUDE_COLUMN].values[this_index]
+            tracking_utils.CENTROID_LATITUDE_COLUMN].values[k]
         this_longitude_deg = storm_object_table[
-            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[this_index]
+            tracking_utils.CENTROID_LONGITUDE_COLUMN].values[k]
         this_x_coord_metres, this_y_coord_metres = basemap_object(
             this_longitude_deg, this_latitude_deg)
 
