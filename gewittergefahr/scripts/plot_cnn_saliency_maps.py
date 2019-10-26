@@ -3,6 +3,7 @@
 import os
 import argparse
 import numpy
+from scipy.ndimage.filters import gaussian_filter
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
@@ -392,7 +393,7 @@ def _plot_sounding_saliency(
     os.remove(right_panel_file_name)
 
 
-def _smooth_maps(saliency_matrices, smoothing_half_window_size):
+def _smooth_maps_old(saliency_matrices, smoothing_half_window_size):
     """Smooths saliency maps via median filter.
 
     T = number of input tensors to the model
@@ -420,6 +421,39 @@ def _smooth_maps(saliency_matrices, smoothing_half_window_size):
                         input_matrix=saliency_matrices[j][i, ..., k],
                         num_cells_in_half_window=smoothing_half_window_size
                     )
+                )
+
+    return saliency_matrices
+
+
+def _smooth_maps(saliency_matrices, smoothing_radius_grid_cells):
+    """Smooths saliency maps via Gaussian filter.
+
+    T = number of input tensors to the model
+
+    :param saliency_matrices: length-T list of numpy arrays.
+    :param smoothing_radius_grid_cells: e-folding radius (number of grid cells).
+    :return: saliency_matrices: Smoothed version of input.
+    """
+
+    print((
+        'Smoothing saliency maps with Gaussian filter (e-folding radius of '
+        '{0:d} grid cells)...'
+    ).format(
+        smoothing_radius_grid_cells
+    ))
+
+    num_matrices = len(saliency_matrices)
+    num_examples = saliency_matrices[0].shape[0]
+
+    for j in range(num_matrices):
+        this_num_channels = saliency_matrices[j].shape[-1]
+
+        for i in range(num_examples):
+            for k in range(this_num_channels):
+                saliency_matrices[j][i, ..., k] = gaussian_filter(
+                    input=saliency_matrices[j][i, ..., k],
+                    sigma=smoothing_radius_grid_cells, order=0, mode='nearest'
                 )
 
     return saliency_matrices
@@ -496,7 +530,7 @@ def _run(input_file_name, colour_map_name, max_colour_value, half_num_contours,
     if smoothing_half_window_size is not None:
         saliency_matrices = _smooth_maps(
             saliency_matrices=saliency_matrices,
-            smoothing_half_window_size=smoothing_half_window_size)
+            smoothing_radius_grid_cells=smoothing_half_window_size)
 
     model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
