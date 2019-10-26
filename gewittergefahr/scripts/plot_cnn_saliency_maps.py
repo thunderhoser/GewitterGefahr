@@ -417,9 +417,11 @@ def _smooth_maps(saliency_matrices, smoothing_radius_grid_cells):
 
         for i in range(num_examples):
             for k in range(this_num_channels):
-                general_utils.apply_gaussian_filter(
-                    input_matrix=saliency_matrices[j][i, ..., k],
-                    e_folding_radius_grid_cells=smoothing_radius_grid_cells
+                saliency_matrices[j][i, ..., k] = (
+                    general_utils.apply_gaussian_filter(
+                        input_matrix=saliency_matrices[j][i, ..., k],
+                        e_folding_radius_grid_cells=smoothing_radius_grid_cells
+                    )
                 )
 
     return saliency_matrices
