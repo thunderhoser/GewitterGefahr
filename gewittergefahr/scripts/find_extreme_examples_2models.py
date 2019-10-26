@@ -10,7 +10,6 @@ The 6 sets of extreme examples are as follows:
 - best correct nulls (negative examples with low probability)
 """
 
-import time
 import argparse
 import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
@@ -291,18 +290,12 @@ def _match_storm_objects(first_prediction_dict, second_prediction_dict,
         print('Reading data from: "{0:s}"...'.format(this_match_file_name))
         this_match_dict = tracking_io.read_matches(this_match_file_name)[0]
 
-        exec_start_time_unix_sec = time.time()
-
         these_first_indices, these_second_indices = (
             _match_storm_objects_one_time(
                 first_prediction_dict=first_prediction_dict,
                 second_prediction_dict=second_prediction_dict,
                 match_dict=this_match_dict)
         )
-
-        print('Time elapsed matching storm objects = {0:.4f} seconds'.format(
-            time.time() - exec_start_time_unix_sec
-        ))
 
         first_indices = numpy.concatenate((first_indices, these_first_indices))
         second_indices = numpy.concatenate((
@@ -601,7 +594,7 @@ def _run(prediction_file_names, top_match_dir_name, unique_storm_cells,
             component_type_string=CLASS_COMPONENT_STRING, target_class=1
         )
 
-    if miss_indices > 0:
+    if num_misses > 0:
         print((
             'Mean probability from first and second model for {0:d} worst '
             'misses: {1:.3f}, {2:.3f}'
