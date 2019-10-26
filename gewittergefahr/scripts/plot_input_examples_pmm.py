@@ -15,7 +15,7 @@ from gewittergefahr.scripts import plot_input_examples
 
 MODEL_FILE_KEY = model_interpretation.MODEL_FILE_KEY
 MEAN_PREDICTOR_MATRICES_KEY = model_interpretation.MEAN_PREDICTOR_MATRICES_KEY
-MEAN_SOUNDING_PRESSURES_KEY = 'mean_sounding_pressures_pascals'
+MEAN_SOUNDING_PRESSURES_KEY = model_interpretation.MEAN_SOUNDING_PRESSURES_KEY
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
