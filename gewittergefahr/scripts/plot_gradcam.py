@@ -396,7 +396,7 @@ def _smooth_maps(cam_matrices, guided_cam_matrices,
 
     print((
         'Smoothing guided and unguided CAMs with Gaussian filter (e-folding '
-        'radius of {0:d} grid cells)...'
+        'radius of {0:.1f} grid cells)...'
     ).format(
         smoothing_radius_grid_cells
     ))

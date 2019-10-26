@@ -404,7 +404,7 @@ def _smooth_maps(saliency_matrices, smoothing_radius_grid_cells):
 
     print((
         'Smoothing saliency maps with Gaussian filter (e-folding radius of '
-        '{0:d} grid cells)...'
+        '{0:.1f} grid cells)...'
     ).format(
         smoothing_radius_grid_cells
     ))
