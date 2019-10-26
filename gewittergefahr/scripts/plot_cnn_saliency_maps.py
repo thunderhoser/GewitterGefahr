@@ -12,6 +12,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import significance_plotting
 from gewittergefahr.plotting import imagemagick_utils
@@ -20,13 +21,14 @@ from gewittergefahr.scripts import plot_input_examples as plot_examples
 PASCALS_TO_MB = 0.01
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-HALF_NUM_CONTOURS = 10
+COLOUR_BAR_FONT_SIZE = plot_examples.DEFAULT_CBAR_FONT_SIZE
 FIGURE_RESOLUTION_DPI = 300
 SOUNDING_IMAGE_SIZE_PX = int(1e7)
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
-MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
+MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
+HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
 SMOOTHING_HW_SIZE_ARG_NAME = 'smoothing_half_window_size'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 PLOT_SOUNDINGS_ARG_NAME = plot_examples.PLOT_SOUNDINGS_ARG_NAME
@@ -45,11 +47,13 @@ COLOUR_MAP_HELP_STRING = (
     'will be `pyplot.cm.Greys`.  This argument supports only pyplot colour '
     'maps.')
 
-MAX_PERCENTILE_HELP_STRING = (
-    'Used to set max absolute value for each saliency map.  The max absolute '
-    'value for example e and predictor p will be the [q]th percentile of all '
-    'saliency values for example e, where q = `{0:s}`.'
-).format(MAX_PERCENTILE_ARG_NAME)
+MAX_COLOUR_VALUE_HELP_STRING = (
+    'Max saliency value in colour scheme.  Keep in mind that the colour scheme '
+    'encodes *absolute* value, with positive values in solid contours and '
+    'negative values in dashed contours.')
+
+HALF_NUM_CONTOURS_HELP_STRING = (
+    'Number of contours on each side of zero (positive and negative).')
 
 SMOOTHING_HW_SIZE_HELP_STRING = (
     'Number of grid cells in half-window for median smoother.  If you do not '
@@ -75,8 +79,12 @@ INPUT_ARG_PARSER.add_argument(
     help=COLOUR_MAP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
-    default=99., help=MAX_PERCENTILE_HELP_STRING)
+    '--' + MAX_COLOUR_VALUE_ARG_NAME, type=float, required=False,
+    default=1.25, help=MAX_COLOUR_VALUE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + HALF_NUM_CONTOURS_ARG_NAME, type=int, required=False,
+    default=10, help=HALF_NUM_CONTOURS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_HW_SIZE_ARG_NAME, type=int, required=False,
@@ -112,9 +120,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_3d_radar_saliency(
-        saliency_matrix, colour_map_object, max_colour_value, figure_objects,
-        axes_object_matrices, model_metadata_dict, output_dir_name,
-        significance_matrix=None, full_storm_id_string=None,
+        saliency_matrix, colour_map_object, max_colour_value, half_num_contours,
+        figure_objects, axes_object_matrices, model_metadata_dict,
+        output_dir_name, significance_matrix=None, full_storm_id_string=None,
         storm_time_unix_sec=None):
     """Plots saliency map for 3-D radar data.
 
@@ -128,7 +136,8 @@ def _plot_3d_radar_saliency(
 
     :param saliency_matrix: M-by-N-by-H-by-F numpy array of saliency values.
     :param colour_map_object: See documentation at top of file.
-    :param max_colour_value: Max value in colour scheme for saliency.
+    :param max_colour_value: Same.
+    :param half_num_contours: Same.
     :param figure_objects: See doc for
         `plot_input_examples._plot_3d_radar_scan`.
     :param axes_object_matrices: Same.
@@ -160,7 +169,7 @@ def _plot_3d_radar_saliency(
             axes_object_matrix=axes_object_matrices[j],
             colour_map_object=colour_map_object,
             max_absolute_contour_level=max_colour_value,
-            contour_interval=max_colour_value / HALF_NUM_CONTOURS)
+            contour_interval=max_colour_value / half_num_contours)
 
         if significance_matrix is not None:
             this_matrix = numpy.flip(significance_matrix[..., j], axis=0)
@@ -170,16 +179,15 @@ def _plot_3d_radar_saliency(
                 axes_object_matrix=axes_object_matrices[j]
             )
 
-        this_title_object = figure_objects[j]._suptitle
+        this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
+            axes_object_or_matrix=axes_object_matrices[j],
+            data_matrix=saliency_matrix[..., j],
+            colour_map_object=colour_map_object, min_value=0.,
+            max_value=max_colour_value, orientation_string='vertical',
+            extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
 
-        if this_title_object is not None:
-            this_title_string = (
-                '{0:s} ... max absolute saliency = {1:.2e}'
-            ).format(this_title_object.get_text(), max_colour_value)
-
-            figure_objects[j].suptitle(
-                this_title_string,
-                fontsize=plot_examples.DEFAULT_TITLE_FONT_SIZE)
+        this_colour_bar_object.set_label(
+            'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE)
 
         this_file_name = plot_examples.metadata_to_file_name(
             output_dir_name=output_dir_name, is_sounding=False,
@@ -197,9 +205,9 @@ def _plot_3d_radar_saliency(
 
 
 def _plot_2d_radar_saliency(
-        saliency_matrix, colour_map_object, max_colour_value, figure_objects,
-        axes_object_matrices, model_metadata_dict, output_dir_name,
-        significance_matrix=None, full_storm_id_string=None,
+        saliency_matrix, colour_map_object, max_colour_value, half_num_contours,
+        figure_objects, axes_object_matrices, model_metadata_dict,
+        output_dir_name, significance_matrix=None, full_storm_id_string=None,
         storm_time_unix_sec=None):
     """Plots saliency map for 2-D radar data.
 
@@ -212,7 +220,8 @@ def _plot_2d_radar_saliency(
 
     :param saliency_matrix: M-by-N-by-C numpy array of saliency values.
     :param colour_map_object: See documentation at top of file.
-    :param max_colour_value: Max value in colour scheme for saliency.
+    :param max_colour_value: Same.
+    :param half_num_contours: Same.
     :param figure_objects: See doc for
         `plot_input_examples._plot_2d_radar_scan`.
     :param axes_object_matrices: Same.
@@ -242,7 +251,7 @@ def _plot_2d_radar_saliency(
         axes_object_matrix=axes_object_matrices[figure_index],
         colour_map_object=colour_map_object,
         max_absolute_contour_level=max_colour_value,
-        contour_interval=max_colour_value / HALF_NUM_CONTOURS,
+        contour_interval=max_colour_value / half_num_contours,
         row_major=False)
 
     if significance_matrix is not None:
@@ -251,16 +260,15 @@ def _plot_2d_radar_saliency(
             axes_object_matrix=axes_object_matrices[figure_index],
             row_major=False)
 
-    this_title_object = figure_objects[figure_index]._suptitle
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object_matrices[figure_index],
+        data_matrix=saliency_matrix,
+        colour_map_object=colour_map_object, min_value=0.,
+        max_value=max_colour_value, orientation_string='vertical',
+        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
 
-    if this_title_object is not None:
-        this_title_string = '{0:s} ... max absolute saliency = {1:.2e}'.format(
-            this_title_object.get_text(), max_colour_value
-        )
-
-        figure_objects[figure_index].suptitle(
-            this_title_string,
-            fontsize=plot_examples.DEFAULT_TITLE_FONT_SIZE)
+    colour_bar_object.set_label(
+        'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE)
 
     output_file_name = plot_examples.metadata_to_file_name(
         output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
@@ -287,9 +295,8 @@ def _plot_sounding_saliency(
     F = number of sounding fields
 
     :param saliency_matrix: H-by-F numpy array of saliency values.
-    :param colour_map_object: Colour scheme for saliency (instance of
-        `matplotlib.pyplot.cm` or similar).
-    :param max_colour_value: Max value for colour scheme.
+    :param colour_map_object: See documentation at top of file.
+    :param max_colour_value: Same.
     :param sounding_figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`) for sounding itself.
     :param sounding_axes_object: Axes handle (instance of
@@ -408,7 +415,7 @@ def _smooth_maps(saliency_matrices, smoothing_half_window_size):
     return saliency_matrices
 
 
-def _run(input_file_name, colour_map_name, max_colour_percentile,
+def _run(input_file_name, colour_map_name, max_colour_value, half_num_contours,
          smoothing_half_window_size, plot_soundings, allow_whitespace,
          plot_panel_names, add_titles, label_colour_bars, colour_bar_length,
          output_dir_name):
@@ -418,7 +425,8 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
 
     :param input_file_name: See documentation at top of file.
     :param colour_map_name: Same.
-    :param max_colour_percentile: Same.
+    :param max_colour_value: Same.
+    :param half_num_contours: Same.
     :param smoothing_half_window_size: Same.
     :param plot_soundings: Same.
     :param allow_whitespace: Same.
@@ -435,9 +443,9 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    error_checking.assert_is_geq(max_colour_percentile, 0.)
-    error_checking.assert_is_leq(max_colour_percentile, 100.)
     colour_map_object = pyplot.cm.get_cmap(colour_map_name)
+    error_checking.assert_is_greater(max_colour_value, 0.)
+    error_checking.assert_is_geq(half_num_contours, 5)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
     saliency_dict, pmm_flag = saliency_maps.read_file(input_file_name)
@@ -480,17 +488,6 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
             saliency_matrices=saliency_matrices,
             smoothing_half_window_size=smoothing_half_window_size)
 
-    num_examples = predictor_matrices[0].shape[0]
-    max_colour_value_by_example = numpy.full(num_examples, numpy.nan)
-
-    for i in range(num_examples):
-        these_saliency_values = numpy.concatenate(
-            [numpy.ravel(s[i, ...]) for s in saliency_matrices]
-        )
-        max_colour_value_by_example[i] = numpy.percentile(
-            numpy.absolute(these_saliency_values), max_colour_percentile
-        )
-
     model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
@@ -508,6 +505,8 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
     else:
         num_radar_matrices -= 1
 
+    num_examples = predictor_matrices[0].shape[0]
+
     for i in range(num_examples):
         this_handle_dict = plot_examples.plot_one_example(
             list_of_predictor_matrices=predictor_matrices,
@@ -523,7 +522,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
             _plot_sounding_saliency(
                 saliency_matrix=saliency_matrices[-1][i, ...],
                 colour_map_object=colour_map_object,
-                max_colour_value=max_colour_value_by_example[i],
+                max_colour_value=max_colour_value,
                 sounding_figure_object=this_handle_dict[
                     plot_examples.SOUNDING_FIGURE_KEY],
                 sounding_axes_object=this_handle_dict[
@@ -545,7 +544,8 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
                 _plot_3d_radar_saliency(
                     saliency_matrix=saliency_matrices[j][i, ...],
                     colour_map_object=colour_map_object,
-                    max_colour_value=max_colour_value_by_example[i],
+                    max_colour_value=max_colour_value,
+                    half_num_contours=half_num_contours,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
                     model_metadata_dict=model_metadata_dict,
@@ -558,7 +558,8 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
                 _plot_2d_radar_saliency(
                     saliency_matrix=saliency_matrices[j][i, ...],
                     colour_map_object=colour_map_object,
-                    max_colour_value=max_colour_value_by_example[i],
+                    max_colour_value=max_colour_value,
+                    half_num_contours=half_num_contours,
                     figure_objects=these_figure_objects,
                     axes_object_matrices=these_axes_object_matrices,
                     model_metadata_dict=model_metadata_dict,
@@ -575,8 +576,8 @@ if __name__ == '__main__':
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
-        max_colour_percentile=getattr(
-            INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
+        max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_COLOUR_VALUE_ARG_NAME),
+        half_num_contours=getattr(INPUT_ARG_OBJECT, HALF_NUM_CONTOURS_ARG_NAME),
         smoothing_half_window_size=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_HW_SIZE_ARG_NAME),
         plot_soundings=bool(getattr(INPUT_ARG_OBJECT, PLOT_SOUNDINGS_ARG_NAME)),

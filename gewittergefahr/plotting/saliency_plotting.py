@@ -234,9 +234,9 @@ def plot_saliency_for_sounding(
         axes_object_or_matrix=axes_object, data_matrix=saliency_matrix,
         colour_map_object=colour_map_object, min_value=0.,
         max_value=max_absolute_colour_value, orientation_string='vertical',
-        extend_min=True, extend_max=True)
+        extend_min=False, extend_max=True)
 
-    colour_bar_object.set_label('Saliency (absolute value)')
+    colour_bar_object.set_label('Absolute saliency')
 
 
 def plot_2d_grid_with_contours(
