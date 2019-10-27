@@ -17,6 +17,9 @@ from gewittergefahr.plotting import cam_plotting
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.scripts import plot_input_examples as plot_examples
 
+# TODO(thunderhoser): Think about logarithmic colour scale for guided CAMs as
+# well.
+
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
