@@ -382,7 +382,8 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold,
             axes_object_or_matrix=axes_object, data_matrix=peirce_score_matrix,
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=False)
+            orientation_string='vertical', extend_min=False, extend_max=False,
+            fraction_of_axis_length=0.8)
 
         colour_bar_object.set_label('Peirce score (POD minus POFD)')
 
@@ -529,7 +530,8 @@ def plot_performance_diagram(
             axes_object_or_matrix=axes_object, data_matrix=csi_matrix,
             colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=False)
+            orientation_string='vertical', extend_min=False, extend_max=False,
+            fraction_of_axis_length=0.8)
 
         colour_bar_object.set_label('CSI (critical success index)')
 
