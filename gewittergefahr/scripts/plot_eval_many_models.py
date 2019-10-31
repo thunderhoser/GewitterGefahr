@@ -224,12 +224,12 @@ def _plot_roc_curves(evaluation_tables, model_names, best_threshold_indices,
                 stat_values=evaluation_tables[i][model_eval.AUC_KEY].values,
                 confidence_level=confidence_level)
 
-            legend_strings[i] = '{0:s} ... AUC = [{1:.3f}, {2:.3f}]'.format(
+            legend_strings[i] = '{0:s}: AUC = [{1:.3f}, {2:.3f}]'.format(
                 model_names[i], this_min_auc, this_max_auc
             )
         else:
             this_auc = evaluation_tables[i][model_eval.AUC_KEY].values[0]
-            legend_strings[i] = '{0:s} ... AUC = {1:.3f}'.format(
+            legend_strings[i] = '{0:s}: AUC = {1:.3f}'.format(
                 model_names[i], this_auc
             )
 
@@ -348,12 +348,12 @@ def _plot_perf_diagrams(evaluation_tables, model_names, best_threshold_indices,
                 )
             )
 
-            legend_strings[i] = '{0:s} ... AUC = [{1:.3f}, {2:.3f}]'.format(
+            legend_strings[i] = '{0:s}: AUC = [{1:.3f}, {2:.3f}]'.format(
                 model_names[i], this_min_aupd, this_max_aupd
             )
         else:
             this_aupd = evaluation_tables[i][model_eval.AUPD_KEY].values[0]
-            legend_strings[i] = '{0:s} ... AUC = {1:.3f}'.format(
+            legend_strings[i] = '{0:s}: AUC = {1:.3f}'.format(
                 model_names[i], this_aupd
             )
 
