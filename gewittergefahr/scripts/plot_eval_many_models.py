@@ -296,7 +296,7 @@ def _plot_roc_curves(evaluation_tables, model_names, best_threshold_indices,
         axes_object=axes_object, label_string='(a)', y_coord_normalized=1.025
     )
 
-    axes_object.axis('equal')
+    axes_object.set_aspect('equal')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
@@ -429,7 +429,7 @@ def _plot_perf_diagrams(evaluation_tables, model_names, best_threshold_indices,
         axes_object=axes_object, label_string='(b)', y_coord_normalized=1.025
     )
 
-    axes_object.axis('equal')
+    axes_object.set_aspect('equal')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
