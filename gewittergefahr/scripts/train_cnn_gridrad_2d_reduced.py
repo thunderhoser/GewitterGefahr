@@ -20,8 +20,6 @@ from gewittergefahr.deep_learning import cnn_setup
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import deep_learning_helper as dl_helper
 
-# TODO(thunderhoser): Allow this script to handle MYRORSS data.
-
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=7, inter_op_parallelism_threads=7
 )))
@@ -176,6 +174,18 @@ def _run(input_model_file_name, radar_field_name_by_channel,
     :param output_dir_name: Same.
     """
 
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
+
+    # argument_file_name = '{0:s}/input_args.p'.format(output_dir_name)
+    # print('Writing input args to: "{0:s}"...'.format(argument_file_name))
+    #
+    # argument_file_handle = open(argument_file_name, 'wb')
+    # pickle.dump(INPUT_ARG_OBJECT.__dict__, argument_file_handle)
+    # argument_file_handle.close()
+    #
+    # return
+
     # Process input args.
     first_training_time_unix_sec = time_conversion.string_to_unix_sec(
         first_training_time_string, TIME_FORMAT)
@@ -238,9 +248,6 @@ def _run(input_model_file_name, radar_field_name_by_channel,
         }
 
     # Set output locations.
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
-
     output_model_file_name = '{0:s}/model.h5'.format(output_dir_name)
     history_file_name = '{0:s}/model_history.csv'.format(output_dir_name)
     tensorboard_dir_name = '{0:s}/tensorboard'.format(output_dir_name)
