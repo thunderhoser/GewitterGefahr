@@ -240,7 +240,18 @@ def init_basemap(
         last_column_in_full_grid=last_column_in_full_grid)
 
     grid_point_x_matrix_metres = coordinate_dict[X_COORD_MATRIX_KEY]
+    x_spacing_metres = (
+        grid_point_x_matrix_metres[0, 1] - grid_point_x_matrix_metres[0, 0]
+    )
+    x_min_metres = grid_point_x_matrix_metres[0, 0] - x_spacing_metres / 2
+    x_max_metres = grid_point_x_matrix_metres[-1, -1] + x_spacing_metres / 2
+
     grid_point_y_matrix_metres = coordinate_dict[Y_COORD_MATRIX_KEY]
+    y_spacing_metres = (
+        grid_point_y_matrix_metres[0, 1] - grid_point_y_matrix_metres[0, 0]
+    )
+    y_min_metres = grid_point_y_matrix_metres[0, 0] - y_spacing_metres / 2
+    y_max_metres = grid_point_y_matrix_metres[-1, -1] + y_spacing_metres / 2
 
     figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(figure_width_inches, figure_height_inches))
@@ -254,11 +265,8 @@ def init_basemap(
         lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
         rsphere=projections.DEFAULT_EARTH_RADIUS_METRES, ellps='sphere',
         resolution=resolution_string,
-        llcrnrx=grid_point_x_matrix_metres[0, 0],
-        llcrnry=grid_point_y_matrix_metres[0, 0],
-        urcrnrx=grid_point_x_matrix_metres[-1, -1],
-        urcrnry=grid_point_y_matrix_metres[-1, -1]
-    )
+        llcrnrx=x_min_metres, llcrnry=y_min_metres,
+        urcrnrx=x_max_metres, urcrnry=y_max_metres)
 
     return figure_object, axes_object, basemap_object
 
