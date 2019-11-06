@@ -545,7 +545,7 @@ def plot_rivers(
 def plot_parallels(
         basemap_object, axes_object, min_latitude_deg=None,
         max_latitude_deg=None, num_parallels=DEFAULT_NUM_PARALLELS,
-        line_width=DEFAULT_GRID_LINE_WIDTH,
+        font_size=FONT_SIZE, line_width=DEFAULT_GRID_LINE_WIDTH,
         line_colour=DEFAULT_GRID_LINE_COLOUR,
         z_order=DEFAULT_GRID_LINE_Z_ORDER):
     """Plots parallels (grid lines for latitude).
@@ -558,6 +558,7 @@ def plot_parallels(
     :param min_latitude_deg: Minimum latitude for grid lines.
     :param max_latitude_deg: Max latitude for grid lines.
     :param num_parallels: Number of parallels.
+    :param font_size: Font size for tick labels.
     :param line_width: See doc for `plot_countries`.
     :param line_colour: Same.
     :param z_order: Same.
@@ -599,15 +600,15 @@ def plot_parallels(
 
     basemap_object.drawparallels(
         latitudes_deg, color=colour_from_numpy_to_tuple(line_colour),
-        linewidth=line_width, labels=[True, False, False, False],
-        ax=axes_object, zorder=z_order
+        fontsize=font_size, linewidth=line_width,
+        labels=[True, False, False, False], ax=axes_object, zorder=z_order
     )
 
 
 def plot_meridians(
         basemap_object, axes_object, min_longitude_deg=None,
         max_longitude_deg=None, num_meridians=DEFAULT_NUM_MERIDIANS,
-        line_width=DEFAULT_GRID_LINE_WIDTH,
+        font_size=FONT_SIZE, line_width=DEFAULT_GRID_LINE_WIDTH,
         line_colour=DEFAULT_GRID_LINE_COLOUR,
         z_order=DEFAULT_GRID_LINE_Z_ORDER):
     """Plots meridians (grid lines for longitude).
@@ -620,6 +621,7 @@ def plot_meridians(
     :param min_longitude_deg: Minimum longitude for grid lines.
     :param max_longitude_deg: Max longitude for grid lines.
     :param num_meridians: Number of meridians.
+    :param font_size: Font size for tick labels.
     :param line_width: See doc for `plot_countries`.
     :param line_colour: Same.
     :param z_order: Same.
@@ -663,8 +665,8 @@ def plot_meridians(
 
     basemap_object.drawmeridians(
         longitudes_deg, color=colour_from_numpy_to_tuple(line_colour),
-        linewidth=line_width, labels=[False, False, False, True],
-        ax=axes_object, zorder=z_order
+        fontsize=font_size, linewidth=line_width,
+        labels=[False, False, False, True], ax=axes_object, zorder=z_order
     )
 
 
