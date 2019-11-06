@@ -130,6 +130,9 @@ def _basemap_to_latlng_limits(basemap_object):
     longitude_matrix_deg, latitude_matrix_deg = basemap_object(
         x_matrix_metres, y_matrix_metres, inverse=True)
 
+    longitude_matrix_deg = lng_conversion.convert_lng_positive_in_west(
+        longitude_matrix_deg)
+
     latitude_limits_deg = numpy.array([
         numpy.min(latitude_matrix_deg), numpy.max(latitude_matrix_deg)
     ])
