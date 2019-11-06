@@ -248,13 +248,14 @@ def init_basemap(
 
     grid_point_y_matrix_metres = coordinate_dict[Y_COORD_MATRIX_KEY]
     y_spacing_metres = (
-        grid_point_y_matrix_metres[0, 1] - grid_point_y_matrix_metres[0, 0]
+        grid_point_y_matrix_metres[1, 0] - grid_point_y_matrix_metres[0, 0]
     )
     y_min_metres = grid_point_y_matrix_metres[0, 0] - y_spacing_metres / 2
     y_max_metres = grid_point_y_matrix_metres[-1, -1] + y_spacing_metres / 2
 
     figure_object, axes_object = pyplot.subplots(
-        1, 1, figsize=(figure_width_inches, figure_height_inches))
+        1, 1, figsize=(figure_width_inches, figure_height_inches)
+    )
 
     standard_latitudes_deg, central_longitude_deg = (
         nwp_model_utils.get_projection_params(model_name)
