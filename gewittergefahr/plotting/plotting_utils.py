@@ -109,6 +109,37 @@ def _check_basemap_args(
     return min_longitude_deg, max_longitude_deg
 
 
+def _basemap_to_latlng_limits(basemap_object):
+    """Returns lat-long limits for basemap.
+
+    :param basemap_object: Basemap handle (instance of
+        `mpl_toolkits.basemap.Basemap`).
+    :return: latitude_limits_deg: length-2 numpy array with min and max
+        latitudes in deg N.
+    :return: longitude_limits_deg: length-2 numpy array with min and max
+        longitudes in deg E.
+    """
+
+    x_coords_metres = numpy.linspace(
+        basemap_object.llcrnrx, basemap_object.urcrnrx, num=25)
+    y_coords_metres = numpy.linspace(
+        basemap_object.llcrnry, basemap_object.urcrnry, num=25)
+
+    x_matrix_metres, y_matrix_metres = numpy.meshgrid(
+        x_coords_metres, y_coords_metres)
+    longitude_matrix_deg, latitude_matrix_deg = basemap_object(
+        x_matrix_metres, y_matrix_metres, inverse=True)
+
+    latitude_limits_deg = numpy.array([
+        numpy.min(latitude_matrix_deg), numpy.max(latitude_matrix_deg)
+    ])
+    longitude_limits_deg = numpy.array([
+        numpy.min(longitude_matrix_deg), numpy.max(longitude_matrix_deg)
+    ])
+
+    return latitude_limits_deg, longitude_limits_deg
+
+
 def colour_from_numpy_to_tuple(input_colour):
     """Converts colour from numpy array to tuple (if necessary).
 
@@ -565,8 +596,9 @@ def plot_parallels(
     """
 
     if min_latitude_deg is None or max_latitude_deg is None:
-        min_latitude_deg = basemap_object.llcrnrlat
-        max_latitude_deg = basemap_object.urcrnrlat
+        latitude_limits_deg = _basemap_to_latlng_limits(basemap_object)[0]
+        min_latitude_deg = latitude_limits_deg[0]
+        max_latitude_deg = latitude_limits_deg[1]
 
     error_checking.assert_is_valid_latitude(min_latitude_deg)
     error_checking.assert_is_valid_latitude(max_latitude_deg)
@@ -628,8 +660,9 @@ def plot_meridians(
     """
 
     if min_longitude_deg is None or max_longitude_deg is None:
-        min_longitude_deg = basemap_object.llcrnrlon
-        max_longitude_deg = basemap_object.urcrnrlon
+        longitude_limits_deg = _basemap_to_latlng_limits(basemap_object)[1]
+        min_longitude_deg = longitude_limits_deg[0]
+        max_longitude_deg = longitude_limits_deg[1]
 
     min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
         min_longitude_deg)
