@@ -743,7 +743,7 @@ def plot_colour_bar(
     error_checking.assert_is_boolean(extend_min)
     error_checking.assert_is_boolean(extend_max)
     error_checking.assert_is_greater(fraction_of_axis_length, 0.)
-    error_checking.assert_is_leq(fraction_of_axis_length, 1.)
+    # error_checking.assert_is_leq(fraction_of_axis_length, 1.)
 
     scalar_mappable_object = pyplot.cm.ScalarMappable(
         cmap=colour_map_object, norm=colour_norm_object
