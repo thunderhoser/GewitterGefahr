@@ -171,8 +171,7 @@ def _composite_saliency_maps(
         mean_sounding_pressures_pa=mean_sounding_pressures_pa)
 
 
-def _composite_gradcam(
-        input_file_name, max_percentile_level, output_file_name):
+def _composite_gradcam(input_file_name, max_percentile_level, output_file_name):
     """Composites predictors and resulting class-activation maps.
 
     :param input_file_name: Path to input file.  Will be read by

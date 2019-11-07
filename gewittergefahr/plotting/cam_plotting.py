@@ -2,6 +2,7 @@
 
 import numpy
 import matplotlib
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import error_checking
 
 matplotlib.use('agg')
@@ -51,28 +52,23 @@ def plot_2d_grid(class_activation_matrix_2d, axes_object, colour_map_object,
     # Determine grid coordinates.
     num_grid_rows = class_activation_matrix_2d.shape[0]
     num_grid_columns = class_activation_matrix_2d.shape[1]
+    x_coord_spacing = num_grid_columns ** -1
+    y_coord_spacing = num_grid_rows ** -1
 
-    x_coords_unique = numpy.linspace(
-        0, num_grid_columns, num=num_grid_columns + 1, dtype=float
-    )
-    x_coords_unique = x_coords_unique[:-1]
-    x_coords_unique = x_coords_unique + numpy.diff(x_coords_unique[:2]) / 2
+    x_coords, y_coords = grids.get_xy_grid_points(
+        x_min_metres=x_coord_spacing / 2, y_min_metres=y_coord_spacing / 2,
+        x_spacing_metres=x_coord_spacing, y_spacing_metres=y_coord_spacing,
+        num_rows=num_grid_rows, num_columns=num_grid_columns)
 
-    y_coords_unique = numpy.linspace(
-        0, num_grid_rows, num=num_grid_rows + 1, dtype=float
-    )
-    y_coords_unique = y_coords_unique[:-1]
-    y_coords_unique = y_coords_unique + numpy.diff(y_coords_unique[:2]) / 2
-
-    x_coord_matrix, y_coord_matrix = numpy.meshgrid(
-        x_coords_unique, y_coords_unique)
+    x_coord_matrix, y_coord_matrix = numpy.meshgrid(x_coords, y_coords)
 
     # Plot.
     axes_object.contour(
         x_coord_matrix, y_coord_matrix, class_activation_matrix_2d,
         contour_levels, cmap=colour_map_object,
         vmin=numpy.min(contour_levels), vmax=numpy.max(contour_levels),
-        linewidths=line_width, linestyles='solid', zorder=1e6)
+        linewidths=line_width, linestyles='solid', zorder=1e6,
+        transform=axes_object.transAxes)
 
 
 def plot_many_2d_grids(
