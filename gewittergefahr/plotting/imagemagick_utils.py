@@ -170,20 +170,10 @@ def create_gif(input_file_names, output_file_name, num_seconds_per_frame,
     resize_percentage = int(numpy.round(100 * resize_factor))
     resize_percentage = max([resize_percentage, 1])
 
-    # command_string = '"{0:s}" -delay {1:d} '.format(
-    #     convert_exe_name, num_centiseconds_per_frame)
-    #
-    # command_string += ' '.join(['"{0:s}"'.format(f) for f in input_file_names])
-
     command_string = '"{0:s}" -delay {1:d} '.format(
         convert_exe_name, num_centiseconds_per_frame)
 
-    command_string += '"{0:s}"'.format(input_file_names[0])
-
-    for f in input_file_names[1:-1]:
-        command_string += ' -delay {0:d} "{1:s}"'.format(num_centiseconds_per_frame, f)
-
-    command_string += ' -delay {0:d} "{1:s}"'.format(3 * num_centiseconds_per_frame, input_file_names[-1])
+    command_string += ' '.join(['"{0:s}"'.format(f) for f in input_file_names])
 
     command_string += ' -resize {0:d}% "{1:s}"'.format(
         resize_percentage, output_file_name)
