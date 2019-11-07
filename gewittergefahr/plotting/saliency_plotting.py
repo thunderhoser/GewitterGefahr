@@ -310,7 +310,7 @@ def plot_2d_grid_with_contours(
         these_contour_levels, cmap=colour_map_object,
         vmin=numpy.min(these_contour_levels),
         vmax=numpy.max(these_contour_levels), linewidths=line_width,
-        linestyles='dashed', zorder=1e6)
+        linestyles='dashed', zorder=1e6, transform=axes_object.transAxes)
 
 
 def plot_many_2d_grids_with_contours(
