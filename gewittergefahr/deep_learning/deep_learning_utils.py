@@ -183,6 +183,27 @@ def class_fractions_to_num_examples(
     return num_examples_by_class_dict
 
 
+def event_probs_to_multiclass(event_probabilities):
+    """Converts 1-D array of event probabilities to 2-D array.
+
+    E = number of examples
+
+    :param event_probabilities: length-E numpy array of event probabilities.
+    :return: class_probability_matrix: E-by-2 numpy array, where second column
+        contains probabilities of event and first column contains probabilities
+        of non-event.
+    """
+
+    error_checking.assert_is_numpy_array(event_probabilities, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(event_probabilities, 0.)
+    error_checking.assert_is_leq_numpy_array(event_probabilities, 1.)
+
+    these_probs = numpy.reshape(
+        event_probabilities, (len(event_probabilities), 1)
+    )
+    return numpy.hstack((1. - these_probs, these_probs))
+
+
 def class_fractions_to_weights(
         sampling_fraction_by_class_dict, target_name, binarize_target):
     """For each target class, converts sampling fraction to loss-fctn weight.

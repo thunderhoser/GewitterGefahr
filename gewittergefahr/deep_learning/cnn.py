@@ -215,26 +215,6 @@ def _remove_data_augmentation(validation_option_dict):
     return validation_option_dict
 
 
-def _binary_probabilities_to_matrix(binary_probabilities):
-    """Converts probabilities of binary event to 2-class probability matrix.
-
-    E = number of examples
-
-    :param binary_probabilities: length-E numpy array of probabilities.
-    :return: class_probability_matrix: E-by-2 numpy array, where
-        class_probability_matrix[i, k] = probability of [k]th class.
-    """
-
-    num_dimensions = len(binary_probabilities.shape)
-    if num_dimensions == 2 and binary_probabilities.shape[1] > 1:
-        return binary_probabilities
-
-    binary_probabilities = numpy.reshape(
-        binary_probabilities, (len(binary_probabilities), 1)
-    )
-    return numpy.hstack((1. - binary_probabilities, binary_probabilities))
-
-
 def get_connected_input_layers(model_object, target_layer_name):
     """Gets input layers connected to target layer.
 
@@ -894,7 +874,10 @@ def apply_2d_or_3d_cnn(
     if return_features:
         return output_matrix
 
-    return _binary_probabilities_to_matrix(output_matrix)
+    if len(output_matrix.shape) == 1:
+        output_matrix = dl_utils.event_probs_to_multiclass(output_matrix)
+
+    return output_matrix
 
 
 def apply_cnn_soundings_only(
@@ -976,7 +959,10 @@ def apply_cnn_soundings_only(
     if return_features:
         return output_matrix
 
-    return _binary_probabilities_to_matrix(output_matrix)
+    if len(output_matrix.shape) == 1:
+        output_matrix = dl_utils.event_probs_to_multiclass(output_matrix)
+
+    return output_matrix
 
 
 def apply_2d3d_cnn(
@@ -1092,7 +1078,10 @@ def apply_2d3d_cnn(
     if return_features:
         return output_matrix
 
-    return _binary_probabilities_to_matrix(output_matrix)
+    if len(output_matrix.shape) == 1:
+        output_matrix = dl_utils.event_probs_to_multiclass(output_matrix)
+
+    return output_matrix
 
 
 def write_features(

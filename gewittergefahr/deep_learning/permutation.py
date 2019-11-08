@@ -1,4 +1,4 @@
-"""Deals with permutation test for GewitterGefahr models."""
+"""Methods to run permutation test for GewitterGefahr models."""
 
 import copy
 import numpy

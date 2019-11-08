@@ -19,6 +19,24 @@ TOLERANCE_FOR_METPY_DICTIONARIES = 1e-3
 PASCALS_TO_MB = 0.01
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
+# The following constants are used to test event_probs_to_multiclass.
+EVENT_PROBABILITIES_1D = numpy.array([
+    1, 0.8, 0.9, 0.7, 0.3, 1, 0.8, 0.7, 0.4, 0.7
+])
+
+EVENT_PROBABILITIES_2D = numpy.array([
+    [0, 1],
+    [0.2, 0.8],
+    [0.1, 0.9],
+    [0.3, 0.7],
+    [0.7, 0.3],
+    [0, 1],
+    [0.2, 0.8],
+    [0.3, 0.7],
+    [0.6, 0.4],
+    [0.3, 0.7]
+])
+
 # The following constants are used to test class_fractions_to_num_examples.
 SAMPLING_FRACTION_BY_TORNADO_CLASS_DICT = {0: 0.1, 1: 0.9}
 SAMPLING_FRACTION_BY_WIND_3CLASS_DICT = {-2: 0.1, 0: 0.2, 1: 0.7}
@@ -508,6 +526,16 @@ def _compare_lists_of_metpy_dicts(first_list_of_dicts, second_list_of_dicts):
 
 class DeepLearningUtilsTests(unittest.TestCase):
     """Each method is a unit test for deep_learning_utils.py."""
+
+    def test_event_probs_to_multiclass(self):
+        """Ensures correct output from event_probs_to_multiclass."""
+
+        this_prob_matrix = dl_utils.event_probs_to_multiclass(
+            EVENT_PROBABILITIES_1D)
+
+        self.assertTrue(numpy.allclose(
+            this_prob_matrix, EVENT_PROBABILITIES_2D, atol=TOLERANCE
+        ))
 
     def test_class_fractions_to_num_examples_tornado_large(self):
         """Ensures correct output from class_fractions_to_num_examples.
