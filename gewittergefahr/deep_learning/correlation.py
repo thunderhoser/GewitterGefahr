@@ -5,6 +5,7 @@ import numpy
 from scipy.stats import pearsonr
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import permutation
+from gewittergefahr.deep_learning import permutation_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -58,7 +59,8 @@ def get_pearson_correlations(predictor_matrices, cnn_metadata_dict,
 
     P = total number of predictors (over all matrices)
 
-    :param predictor_matrices: See doc for `permutation.run_forward_test`.
+    :param predictor_matrices: See doc for
+        `permutation.create_nice_predictor_names`.
     :param cnn_metadata_dict: Same.
     :param separate_radar_heights: Same.
     :return: correlation_matrix: P-by-P numpy array of Pearson correlations.
@@ -87,7 +89,7 @@ def get_pearson_correlations(predictor_matrices, cnn_metadata_dict,
 
     predictor_matrices_to_use = copy.deepcopy(predictor_matrices)
     if separate_radar_heights:
-        predictor_matrices_to_use[0] = permutation.flatten_last_two_dim(
+        predictor_matrices_to_use[0] = permutation_utils.flatten_last_two_dim(
             predictor_matrices_to_use[0]
         )[0]
 

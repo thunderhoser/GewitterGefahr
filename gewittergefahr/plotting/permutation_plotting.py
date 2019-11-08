@@ -3,10 +3,9 @@
 import numpy
 import matplotlib
 matplotlib.use('agg')
-import matplotlib.colors
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.deep_learning import permutation
+from gewittergefahr.deep_learning import permutation_utils
 from gewittergefahr.plotting import plotting_utils
 
 DEFAULT_CONFIDENCE_LEVEL = 0.95
@@ -265,7 +264,7 @@ def plot_single_pass_test(
     """
 
     # Check input args.
-    predictor_names = permutation_dict[permutation.STEP1_PREDICTORS_KEY]
+    predictor_names = permutation_dict[permutation_utils.STEP1_PREDICTORS_KEY]
     if num_predictors_to_plot is None:
         num_predictors_to_plot = len(predictor_names)
 
@@ -278,8 +277,9 @@ def plot_single_pass_test(
     error_checking.assert_is_boolean(plot_percent_increase)
 
     # Set up plotting args.
-    backwards_flag = permutation_dict[permutation.BACKWARDS_FLAG]
-    perturbed_cost_matrix = permutation_dict[permutation.STEP1_COST_MATRIX_KEY]
+    backwards_flag = permutation_dict[permutation_utils.BACKWARDS_FLAG]
+    perturbed_cost_matrix = permutation_dict[
+        permutation_utils.STEP1_COST_MATRIX_KEY]
     mean_perturbed_costs = numpy.mean(perturbed_cost_matrix, axis=-1)
 
     if backwards_flag:
@@ -294,7 +294,9 @@ def plot_single_pass_test(
     perturbed_cost_matrix = perturbed_cost_matrix[sort_indices, :]
     predictor_names = [predictor_names[k] for k in sort_indices]
 
-    original_cost_array = permutation_dict[permutation.ORIGINAL_COST_ARRAY_KEY]
+    original_cost_array = permutation_dict[
+        permutation_utils.ORIGINAL_COST_ARRAY_KEY
+    ]
     original_cost_matrix = numpy.reshape(
         original_cost_array, (1, original_cost_array.size)
     )
@@ -305,7 +307,7 @@ def plot_single_pass_test(
     # Do plotting.
     if backwards_flag:
         clean_cost_array = permutation_dict[
-            permutation.BEST_COST_MATRIX_KEY][-1, :]
+            permutation_utils.BEST_COST_MATRIX_KEY][-1, :]
     else:
         clean_cost_array = original_cost_array
 
@@ -333,7 +335,7 @@ def plot_multipass_test(
     """
 
     # Check input args.
-    predictor_names = permutation_dict[permutation.BEST_PREDICTORS_KEY]
+    predictor_names = permutation_dict[permutation_utils.BEST_PREDICTORS_KEY]
     if num_predictors_to_plot is None:
         num_predictors_to_plot = len(predictor_names)
 
@@ -346,12 +348,16 @@ def plot_multipass_test(
     error_checking.assert_is_boolean(plot_percent_increase)
 
     # Set up plotting args.
-    backwards_flag = permutation_dict[permutation.BACKWARDS_FLAG]
-    perturbed_cost_matrix = permutation_dict[permutation.BEST_COST_MATRIX_KEY]
+    backwards_flag = permutation_dict[permutation_utils.BACKWARDS_FLAG]
+    perturbed_cost_matrix = permutation_dict[
+        permutation_utils.BEST_COST_MATRIX_KEY]
+
     perturbed_cost_matrix = perturbed_cost_matrix[:num_predictors_to_plot, :]
     predictor_names = predictor_names[:num_predictors_to_plot]
 
-    original_cost_array = permutation_dict[permutation.ORIGINAL_COST_ARRAY_KEY]
+    original_cost_array = permutation_dict[
+        permutation_utils.ORIGINAL_COST_ARRAY_KEY
+    ]
     original_cost_matrix = numpy.reshape(
         original_cost_array, (1, original_cost_array.size)
     )
@@ -362,7 +368,7 @@ def plot_multipass_test(
     # Do plotting.
     if backwards_flag:
         clean_cost_array = permutation_dict[
-            permutation.BEST_COST_MATRIX_KEY][-1, :]
+            permutation_utils.BEST_COST_MATRIX_KEY][-1, :]
     else:
         clean_cost_array = original_cost_array
 

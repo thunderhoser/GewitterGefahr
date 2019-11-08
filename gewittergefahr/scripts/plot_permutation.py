@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import file_system_utils
-from gewittergefahr.deep_learning import permutation
+from gewittergefahr.deep_learning import permutation_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import permutation_plotting
 
@@ -19,7 +19,7 @@ CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file (will be read by `permutation.read_results`).')
+    'Path to input file (will be read by `permutation_utils.read_results`).')
 
 NUM_PREDICTORS_HELP_STRING = (
     'Will plot only the `{0:s}` most important predictors in each figure.  To '
@@ -69,7 +69,7 @@ def _run(input_file_name, num_predictors_to_plot, confidence_level,
         directory_name=output_dir_name)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    permutation_dict = permutation.read_results(input_file_name)
+    permutation_dict = permutation_utils.read_results(input_file_name)
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=1, num_columns=2, shared_x_axis=False, shared_y_axis=True,

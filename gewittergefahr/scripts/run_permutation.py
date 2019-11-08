@@ -12,6 +12,7 @@ from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import permutation
+from gewittergefahr.deep_learning import permutation_utils
 from gewittergefahr.deep_learning import correlation
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
@@ -76,7 +77,7 @@ NUM_BOOTSTRAP_HELP_STRING = (
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output (Pickle) file.  Will be written by '
-    '`permutation.write_results`.')
+    '`permutation_utils.write_results`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -262,26 +263,26 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
         result_dict = permutation.run_backwards_test(
             model_object=model_object, predictor_matrices=predictor_matrices,
             target_values=target_values, cnn_metadata_dict=cnn_metadata_dict,
-            cost_function=permutation.negative_auc_function,
+            cost_function=permutation_utils.negative_auc_function,
             separate_radar_heights=separate_radar_heights,
             num_bootstrap_reps=num_bootstrap_reps)
     else:
         result_dict = permutation.run_forward_test(
             model_object=model_object, predictor_matrices=predictor_matrices,
             target_values=target_values, cnn_metadata_dict=cnn_metadata_dict,
-            cost_function=permutation.negative_auc_function,
+            cost_function=permutation_utils.negative_auc_function,
             separate_radar_heights=separate_radar_heights,
             num_bootstrap_reps=num_bootstrap_reps)
 
     print(SEPARATOR_STRING)
 
-    result_dict[permutation.MODEL_FILE_KEY] = model_file_name
-    result_dict[permutation.TARGET_VALUES_KEY] = target_values
-    result_dict[permutation.FULL_IDS_KEY] = full_storm_id_strings
-    result_dict[permutation.STORM_TIMES_KEY] = storm_times_unix_sec
+    result_dict[permutation_utils.MODEL_FILE_KEY] = model_file_name
+    result_dict[permutation_utils.TARGET_VALUES_KEY] = target_values
+    result_dict[permutation_utils.FULL_IDS_KEY] = full_storm_id_strings
+    result_dict[permutation_utils.STORM_TIMES_KEY] = storm_times_unix_sec
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
-    permutation.write_results(
+    permutation_utils.write_results(
         result_dict=result_dict, pickle_file_name=output_file_name)
 
 
