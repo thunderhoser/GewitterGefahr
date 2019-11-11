@@ -1,5 +1,7 @@
 """Trains upconvnet."""
 
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import keras
 from keras import backend as K
@@ -9,7 +11,8 @@ from gewittergefahr.deep_learning import upconvnet
 from gewittergefahr.deep_learning import input_examples
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-    intra_op_parallelism_threads=7, inter_op_parallelism_threads=7
+    intra_op_parallelism_threads=7, inter_op_parallelism_threads=7,
+    allow_soft_placement=False
 )))
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
