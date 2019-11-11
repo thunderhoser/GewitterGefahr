@@ -78,11 +78,6 @@ OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  The newly trained upconvnet and metafiles will '
     'be saved here.')
 
-DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
-DEFAULT_NUM_EPOCHS = 100
-DEFAULT_NUM_TRAINING_BATCHES = 32
-DEFAULT_NUM_VALIDATION_BATCHES = 16
-
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + CNN_FILE_ARG_NAME, type=str, required=True,
@@ -122,20 +117,19 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_EX_PER_BATCH_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_EXAMPLES_PER_BATCH, help=NUM_EX_PER_BATCH_HELP_STRING)
+    default=1024, help=NUM_EX_PER_BATCH_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_EPOCHS_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_EPOCHS, help=NUM_EPOCHS_HELP_STRING)
+    default=100, help=NUM_EPOCHS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_TRAINING_BATCHES_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_TRAINING_BATCHES, help=NUM_TRAINING_BATCHES_HELP_STRING)
+    default=32, help=NUM_TRAINING_BATCHES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_VALIDATION_BATCHES_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_VALIDATION_BATCHES,
-    help=NUM_VALIDATION_BATCHES_HELP_STRING)
+    default=16, help=NUM_VALIDATION_BATCHES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,

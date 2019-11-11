@@ -17,7 +17,6 @@ CONV_FILTER_SIZE = 3
 
 DEFAULT_L1_WEIGHT = 0.
 DEFAULT_L2_WEIGHT = 0.001
-DEFAULT_ACTIV_FUNC_NAME = architecture_utils.RELU_FUNCTION_STRING
 DEFAULT_ALPHA_FOR_ELU = architecture_utils.DEFAULT_ALPHA_FOR_ELU
 DEFAULT_ALPHA_FOR_RELU = architecture_utils.DEFAULT_ALPHA_FOR_RELU
 
@@ -113,9 +112,8 @@ def create_smoothing_filter(
 def create_3d_net(
         num_input_features, first_spatial_dimensions, rowcol_upsampling_factors,
         height_upsampling_factors, num_output_channels,
-        use_transposed_conv=True,
         l1_weight=DEFAULT_L1_WEIGHT, l2_weight=DEFAULT_L2_WEIGHT,
-        activation_function_name=DEFAULT_ACTIV_FUNC_NAME,
+        use_transposed_conv=True, activation_function_name=None,
         alpha_for_elu=DEFAULT_ALPHA_FOR_ELU,
         alpha_for_relu=DEFAULT_ALPHA_FOR_RELU,
         use_activn_for_last_layer=False,
@@ -134,12 +132,12 @@ def create_3d_net(
     :param height_upsampling_factors: length-L numpy array of upsampling factors
         for vertical dimension.
     :param num_output_channels: Number of channels in output image.
-    :param use_transposed_conv: Boolean flag.  If True, each upsampling will be
-        done with a transposed-conv layer.  If False, each upsampling will be
-        done with an upsampling layer followed by a normal conv layer.
     :param l1_weight: Weight of L1 regularization for conv and transposed-conv
         layers.
     :param l2_weight: Same but for L2 regularization.
+    :param use_transposed_conv: Boolean flag.  If True, each upsampling will be
+        done with a transposed-conv layer.  If False, each upsampling will be
+        done with an upsampling layer followed by a normal conv layer.
     :param activation_function_name: Activation function.  If you do not want
         activation, make this None.  Otherwise, must be accepted by
         `architecture_utils.check_activation_function`.
@@ -282,9 +280,9 @@ def create_3d_net(
 
 def create_2d_net(
         num_input_features, first_spatial_dimensions, upsampling_factors,
-        num_output_channels, use_transposed_conv=True,
+        num_output_channels,
         l1_weight=DEFAULT_L1_WEIGHT, l2_weight=DEFAULT_L2_WEIGHT,
-        activation_function_name=DEFAULT_ACTIV_FUNC_NAME,
+        use_transposed_conv=True, activation_function_name=None,
         alpha_for_elu=DEFAULT_ALPHA_FOR_ELU,
         alpha_for_relu=DEFAULT_ALPHA_FOR_RELU,
         use_activn_for_last_layer=False,
@@ -300,9 +298,9 @@ def create_2d_net(
         a grid with these dimensions.
     :param upsampling_factors: length-L numpy array of upsampling factors.
     :param num_output_channels: See doc for `create_3d_net`.
-    :param use_transposed_conv: Same.
     :param l1_weight: Same.
     :param l2_weight: Same.
+    :param use_transposed_conv: Same.
     :param activation_function_name: Same.
     :param alpha_for_elu: Same.
     :param alpha_for_relu: Same.
