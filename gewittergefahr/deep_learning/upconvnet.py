@@ -14,7 +14,6 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 NUM_EX_PER_TESTING_BATCH = 1000
 
 CONV_FILTER_SIZE = 3
-SMOOTHING_FILTER_SIZE = 5
 
 DEFAULT_L1_WEIGHT = 0.
 DEFAULT_L2_WEIGHT = 0.001
@@ -359,6 +358,11 @@ def create_2d_net(
     for i in range(num_main_layers):
         if i == num_main_layers - 1:
             current_num_filters = num_output_channels + 0
+
+            # layer_object = keras.layers.ZeroPadding2D(
+            #     padding=((1, 0), (1, 0)), data_format='channels_last'
+            # )(layer_object)
+
         elif upsampling_factors[i] == 1:
             current_num_filters = int(numpy.round(current_num_filters / 2))
 
