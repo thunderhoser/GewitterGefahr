@@ -796,11 +796,12 @@ def read_model_metadata(pickle_file_name):
 
 
 def apply_upconvnet(
-        radar_matrix, cnn_model_object, cnn_feature_layer_name,
+        cnn_input_matrices, cnn_model_object, cnn_feature_layer_name,
         ucn_model_object, num_examples_per_batch=1000, verbose=True):
     """Applies upconvnet to new radar images.
 
-    :param radar_matrix: numpy array of original images (inputs to CNN).
+    :param cnn_input_matrices: 1-D list of input matrices to CNN.  Each must be
+        a numpy array.
     :param cnn_model_object: Trained CNN (instance of `keras.models.Model` or
         `keras.models.Sequential`).  Will be used to convert images to feature
         vectors.
@@ -812,7 +813,8 @@ def apply_upconvnet(
     :param num_examples_per_batch: Number of examples per batch.
     :param verbose: Boolean flag.  If True, will print progress messages to
         command window.
-    :return: reconstructed_radar_matrix: Reconstructed version of input.
+    :return: reconstructed_radar_matrix: Reconstructed version of first input
+        matrix to CNN.
     """
 
     partial_cnn_model_object = cnn.model_to_feature_generator(
@@ -820,13 +822,8 @@ def apply_upconvnet(
         feature_layer_name=cnn_feature_layer_name)
 
     error_checking.assert_is_boolean(verbose)
-    error_checking.assert_is_numpy_array_without_nan(radar_matrix)
 
-    num_dimensions = len(radar_matrix.shape)
-    error_checking.assert_is_geq(num_dimensions, 4)
-    error_checking.assert_is_leq(num_dimensions, 5)
-
-    num_examples = radar_matrix.shape[0]
+    num_examples = cnn_input_matrices[0].shape[0]
     if num_examples_per_batch is None:
         num_examples_per_batch = num_examples + 0
 
@@ -851,7 +848,7 @@ def apply_upconvnet(
             ))
 
         this_feature_matrix = partial_cnn_model_object.predict(
-            radar_matrix[these_example_indices, ...],
+            [a[[these_example_indices, ...]] for a in cnn_input_matrices],
             batch_size=len(these_example_indices)
         )
 

@@ -159,11 +159,13 @@ def _apply_upconvnet_one_file(
             this_storm_object_dict[testing_io.STORM_TIMES_KEY]
         ))
 
-        this_actual_matrix = this_storm_object_dict[
-            testing_io.INPUT_MATRICES_KEY][0]
+        these_input_matrices = this_storm_object_dict[
+            testing_io.INPUT_MATRICES_KEY]
+        this_actual_matrix = these_input_matrices[0]
 
         this_reconstructed_matrix = upconvnet.apply_upconvnet(
-            radar_matrix=this_actual_matrix, cnn_model_object=cnn_model_object,
+            cnn_input_matrices=these_input_matrices,
+            cnn_model_object=cnn_model_object,
             cnn_feature_layer_name=cnn_feature_layer_name,
             ucn_model_object=upconvnet_model_object, verbose=True)
         print(MINOR_SEPARATOR_STRING)
