@@ -6,6 +6,7 @@ import argparse
 import keras
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import upconvnet
 from gewittergefahr.deep_learning import input_examples
@@ -164,6 +165,16 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
     :param num_validation_batches_per_epoch: Same.
     :param output_dir_name: Same.
     """
+
+    file_system_utils.mkdir_recursive_if_necessary(directory_name=output_dir_name)
+    # argument_file_name = '{0:s}/input_args.p'.format(output_dir_name)
+    # print('Writing input args to: "{0:s}"...'.format(argument_file_name))
+    #
+    # argument_file_handle = open(argument_file_name, 'wb')
+    # pickle.dump(INPUT_ARG_OBJECT.__dict__, argument_file_handle)
+    # argument_file_handle.close()
+    #
+    # return
 
     # Process input args.
     first_training_time_unix_sec = time_conversion.string_to_unix_sec(

@@ -676,7 +676,7 @@ def train_upconvnet(
         steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
         verbose=1, callbacks=list_of_callback_objects,
         validation_data=validation_generator,
-        validation_steps=num_validation_batches_per_epoch, workers=0)
+        validation_steps=num_validation_batches_per_epoch)
 
 
 def write_model_metadata(
