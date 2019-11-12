@@ -108,14 +108,15 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
     ))
     prediction_dict = upconvnet.read_predictions(prediction_file_name)
 
-    reconstructed_radar_matrix = prediction_dict[
-        upconvnet.RECON_IMAGE_MATRIX_KEY]
+    reconstructed_matrices = prediction_dict[
+        upconvnet.RECON_IMAGE_MATRICES_KEY]
     full_storm_id_strings = prediction_dict[upconvnet.FULL_STORM_IDS_KEY]
     storm_times_unix_sec = prediction_dict[upconvnet.STORM_TIMES_KEY]
 
     if 0 < num_examples < len(full_storm_id_strings):
-        reconstructed_radar_matrix = reconstructed_radar_matrix[
-            :num_examples, ...]
+        reconstructed_matrices = [
+            a[:num_examples, ...] for a in reconstructed_matrices
+        ]
         full_storm_id_strings = full_storm_id_strings[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
@@ -162,7 +163,7 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
     print(SEPARATOR_STRING)
 
     plot_examples.plot_examples(
-        list_of_predictor_matrices=[reconstructed_radar_matrix],
+        list_of_predictor_matrices=reconstructed_matrices,
         model_metadata_dict=cnn_metadata_dict,
         output_dir_name=
         '{0:s}/reconstructed_images'.format(top_output_dir_name),
@@ -174,19 +175,23 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
         storm_times_unix_sec=storm_times_unix_sec)
     print(SEPARATOR_STRING)
 
-    # difference_matrix = reconstructed_radar_matrix - actual_radar_matrix
-    #
-    # plot_examples.plot_examples(
-    #     list_of_predictor_matrices=[difference_matrix],
-    #     model_metadata_dict=cnn_metadata_dict,
-    #     output_dir_name='{0:s}/differences'.format(top_output_dir_name),
-    #     pmm_flag=False, plot_soundings=False, plot_radar_diffs=True,
-    #     diff_colour_map_object=diff_colour_map_object, max_diff_percentile=99.,
-    #     allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
-    #     add_titles=add_titles, label_colour_bars=label_colour_bars,
-    #     colour_bar_length=colour_bar_length,
-    #     full_storm_id_strings=full_storm_id_strings,
-    #     storm_times_unix_sec=storm_times_unix_sec)
+    difference_matrices = [
+        r - a for r, a in zip(
+            reconstructed_matrices, example_dict[testing_io.INPUT_MATRICES_KEY]
+        )
+    ]
+
+    plot_examples.plot_examples(
+        list_of_predictor_matrices=difference_matrices,
+        model_metadata_dict=cnn_metadata_dict,
+        output_dir_name='{0:s}/differences'.format(top_output_dir_name),
+        pmm_flag=False, plot_soundings=False, plot_radar_diffs=True,
+        diff_colour_map_object=diff_colour_map_object, max_diff_percentile=99.,
+        allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
+        add_titles=add_titles, label_colour_bars=label_colour_bars,
+        colour_bar_length=colour_bar_length,
+        full_storm_id_strings=full_storm_id_strings,
+        storm_times_unix_sec=storm_times_unix_sec)
 
 
 if __name__ == '__main__':
