@@ -40,9 +40,9 @@ TIME_INTERVAL_SECONDS = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 FORECAST_PROBABILITY_COLUMN = 'forecast_probability'
 
-BOUNDING_BOX_DICT = {
+TEXT_BOUNDING_BOX_DICT = {
     'facecolor': 'white',
-    'alpha': 0.75,
+    'alpha': 0.7,
     'edgecolor': numpy.full(3, 152. / 255),
     'linewidth': 2,
     'boxstyle': 'round'
@@ -358,7 +358,7 @@ def _plot_one_example_one_time(
         this_polygon_object_latlng = this_storm_object_table[
             tracking_utils.LATLNG_POLYGON_COLUMN].values[0]
 
-        this_latitude_deg = numpy.min(
+        this_latitude_deg = numpy.mean(
             numpy.array(this_polygon_object_latlng.exterior.xy[1])
         )
         this_longitude_deg = numpy.mean(
@@ -373,7 +373,7 @@ def _plot_one_example_one_time(
 
         axes_object.text(
             this_longitude_deg, this_latitude_deg, label_string,
-            fontsize=FONT_SIZE, color=FONT_COLOUR, bbox=BOUNDING_BOX_DICT,
+            fontsize=FONT_SIZE, color=FONT_COLOUR, bbox=TEXT_BOUNDING_BOX_DICT,
             horizontalalignment='center', verticalalignment='top', zorder=1e10)
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
@@ -400,10 +400,10 @@ def _plot_one_example_one_time(
 
     for j in range(num_tornadoes):
         axes_object.text(
-            tornado_longitudes_deg[j] + 0.02, tornado_latitudes_deg[j] - 0.02,
+            tornado_longitudes_deg[j], tornado_latitudes_deg[j] - 0.02,
             tornado_time_strings[j], fontsize=FONT_SIZE,
-            color=FONT_COLOUR, fontweight='bold',
-            horizontalalignment='left', verticalalignment='top')
+            color=FONT_COLOUR, bbox=TEXT_BOUNDING_BOX_DICT, rotation=-90,
+            horizontalalignment='center', verticalalignment='top', zorder=1e10)
 
 
 def _find_tracking_files_one_example(
