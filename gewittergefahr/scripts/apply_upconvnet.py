@@ -164,7 +164,6 @@ def _apply_upconvnet_one_file(
 
         these_input_matrices = this_storm_object_dict[
             testing_io.INPUT_MATRICES_KEY]
-        print(len(these_input_matrices))
         this_actual_matrix = these_input_matrices[0]
 
         this_reconstructed_matrix = upconvnet.apply_upconvnet(
@@ -180,7 +179,7 @@ def _apply_upconvnet_one_file(
             reconstructed_radar_matrix = numpy.concatenate(
                 (reconstructed_radar_matrix, this_reconstructed_matrix), axis=0
             )
-        
+
         num_dimensions = len(this_actual_matrix.shape)
         all_axes_except_first = numpy.linspace(
             1, num_dimensions - 1, num=num_dimensions - 1, dtype=int
@@ -209,13 +208,13 @@ def _apply_upconvnet_one_file(
         cnn.TRAINING_OPTION_DICT_KEY
     ]
 
-    list_of_recon_matrices = trainval_io.separate_shear_and_reflectivity(
+    denorm_recon_radar_matrices = trainval_io.separate_shear_and_reflectivity(
         list_of_input_matrices=[reconstructed_radar_matrix],
         training_option_dict=option_dict_no_soundings
     )
 
-    list_of_recon_matrices = model_interpretation.denormalize_data(
-        list_of_input_matrices=list_of_recon_matrices,
+    denorm_recon_radar_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=denorm_recon_radar_matrices,
         model_metadata_dict=metadata_dict_no_soundings)
 
     # Write reconstructed images.
@@ -230,8 +229,8 @@ def _apply_upconvnet_one_file(
     print('Writing predictions to: "{0:s}"...'.format(output_file_name))
 
     upconvnet.write_predictions(
-        netcdf_file_name=output_file_name,
-        denorm_recon_radar_matrix=reconstructed_radar_matrix,
+        pickle_file_name=output_file_name,
+        denorm_recon_radar_matrices=denorm_recon_radar_matrices,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
         mse_by_example=mse_by_example, upconvnet_file_name=upconvnet_file_name)

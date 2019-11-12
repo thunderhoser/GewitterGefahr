@@ -5,7 +5,6 @@ import pickle
 import os.path
 import numpy
 import keras
-import netCDF4
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -54,18 +53,16 @@ METADATA_KEYS = [
     VALIDATION_FILES_KEY, FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY
 ]
 
-RECON_IMAGE_MATRIX_KEY = 'denorm_recon_radar_matrix'
+RECON_IMAGE_MATRICES_KEY = 'denorm_recon_radar_matrices'
 MEAN_SQUARED_ERRORS_KEY = 'mse_by_example'
 FULL_STORM_IDS_KEY = 'full_storm_id_strings'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
 UPCONVNET_FILE_KEY = 'upconvnet_file_name'
 
-EXAMPLE_DIMENSION_KEY = 'example'
-ROW_DIMENSION_KEY = 'grid_row'
-COLUMN_DIMENSION_KEY = 'grid_column'
-HEIGHT_DIMENSION_KEY = 'grid_height'
-CHANNEL_DIMENSION_KEY = 'channel'
-ID_CHAR_DIMENSION_KEY = 'storm_id_char'
+PREDICTION_KEYS = [
+    RECON_IMAGE_MATRICES_KEY, MEAN_SQUARED_ERRORS_KEY, FULL_STORM_IDS_KEY,
+    STORM_TIMES_KEY, UPCONVNET_FILE_KEY
+]
 
 
 def create_smoothing_filter(
@@ -888,7 +885,7 @@ def find_prediction_file(top_directory_name, spc_date_string,
     time_conversion.spc_date_string_to_unix_sec(spc_date_string)
 
     prediction_file_name = (
-        '{0:s}/{1:s}/{2:s}_{3:s}.nc'
+        '{0:s}/{1:s}/{2:s}_{3:s}.p'
     ).format(
         top_directory_name, spc_date_string[:4], PATHLESS_FILE_NAME_PREFIX,
         spc_date_string
@@ -903,16 +900,16 @@ def find_prediction_file(top_directory_name, spc_date_string,
 
 
 def write_predictions(
-        netcdf_file_name, denorm_recon_radar_matrix, full_storm_id_strings,
+        pickle_file_name, denorm_recon_radar_matrices, full_storm_id_strings,
         storm_times_unix_sec, mse_by_example, upconvnet_file_name):
-    """Writes predictions (reconstructed radar images) to NetCDF file.
+    """Writes predictions (reconstructed radar images) to Pickle file.
 
     E = number of examples
 
-    :param netcdf_file_name: Path to output file.
-    :param denorm_recon_radar_matrix: numpy array of denormalized, reconstructed
-        radar images.  Must be 4-D or 5-D numpy array where first axis has
-        length E.
+    :param pickle_file_name: Path to output file.
+    :param denorm_recon_radar_matrices: 1-D list of denormalized, reconstructed
+        radar images.  Each item must be a 4-D or 5-D numpy array where the
+        first axis has length E.
     :param full_storm_id_strings: length-E list of storm IDs.
     :param storm_times_unix_sec: length-E numpy array of valid times.
     :param mse_by_example: length-E numpy array of mean squared errors (in
@@ -921,19 +918,27 @@ def write_predictions(
         reconstructed images (readable by `cnn.read_model`).
     """
 
-    error_checking.assert_is_numpy_array_without_nan(denorm_recon_radar_matrix)
-    num_dimensions = len(denorm_recon_radar_matrix.shape)
-    error_checking.assert_is_geq(num_dimensions, 4)
-    error_checking.assert_is_leq(num_dimensions, 5)
-
-    num_spatial_dim = len(denorm_recon_radar_matrix.shape) - 2
-    num_examples = denorm_recon_radar_matrix.shape[0]
-    these_expected_dim = numpy.array([num_examples], dtype=int)
-
     error_checking.assert_is_string_list(full_storm_id_strings)
     error_checking.assert_is_numpy_array(
-        numpy.array(full_storm_id_strings), exact_dimensions=these_expected_dim
+        numpy.array(full_storm_id_strings), num_dimensions=1
     )
+    num_examples = len(full_storm_id_strings)
+
+    error_checking.assert_is_list(denorm_recon_radar_matrices)
+
+    for this_matrix in denorm_recon_radar_matrices:
+        error_checking.assert_is_numpy_array_without_nan(this_matrix)
+        this_num_dimensions = len(this_matrix.shape)
+        error_checking.assert_is_geq(this_num_dimensions, 4)
+        error_checking.assert_is_leq(this_num_dimensions, 5)
+
+        these_expected_dim = numpy.array(
+            (num_examples,) + this_matrix.shape[1:], dtype=int
+        )
+        error_checking.assert_is_numpy_array(
+            this_matrix, exact_dimensions=these_expected_dim)
+
+    these_expected_dim = numpy.array([num_examples], dtype=int)
 
     error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
@@ -943,112 +948,51 @@ def write_predictions(
     error_checking.assert_is_numpy_array(
         mse_by_example, exact_dimensions=these_expected_dim)
 
-    error_checking.assert_is_string(netcdf_file_name)
     error_checking.assert_is_string(upconvnet_file_name)
 
-    # Open NetCDF file.
-    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
-    dataset_object = netCDF4.Dataset(
-        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+    prediction_dict = {
+        RECON_IMAGE_MATRICES_KEY: denorm_recon_radar_matrices,
+        MEAN_SQUARED_ERRORS_KEY: mse_by_example,
+        STORM_TIMES_KEY: storm_times_unix_sec,
+        FULL_STORM_IDS_KEY: full_storm_id_strings,
+        UPCONVNET_FILE_KEY: upconvnet_file_name
+    }
 
-    dataset_object.setncattr(UPCONVNET_FILE_KEY, upconvnet_file_name)
-
-    # Set up dimensions.
-    dataset_object.createDimension(EXAMPLE_DIMENSION_KEY, num_examples)
-    dataset_object.createDimension(
-        ROW_DIMENSION_KEY, denorm_recon_radar_matrix.shape[1]
-    )
-    dataset_object.createDimension(
-        COLUMN_DIMENSION_KEY, denorm_recon_radar_matrix.shape[2]
-    )
-    dataset_object.createDimension(
-        CHANNEL_DIMENSION_KEY, denorm_recon_radar_matrix.shape[-1]
-    )
-    spatial_dimensions = (
-        EXAMPLE_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY
-    )
-
-    if num_spatial_dim == 3:
-        dataset_object.createDimension(
-            HEIGHT_DIMENSION_KEY, denorm_recon_radar_matrix.shape[3]
-        )
-        spatial_dimensions += (HEIGHT_DIMENSION_KEY,)
-
-    num_id_characters = numpy.max(numpy.array([
-        len(id) for id in full_storm_id_strings
-    ]))
-    dataset_object.createDimension(ID_CHAR_DIMENSION_KEY, num_id_characters)
-
-    # Add reconstructed images.
-    dataset_object.createVariable(
-        RECON_IMAGE_MATRIX_KEY, datatype=numpy.float32,
-        dimensions=spatial_dimensions + (CHANNEL_DIMENSION_KEY,)
-    )
-    dataset_object.variables[RECON_IMAGE_MATRIX_KEY][:] = (
-        denorm_recon_radar_matrix
-    )
-
-    # Add mean squared errors.
-    dataset_object.createVariable(
-        MEAN_SQUARED_ERRORS_KEY, datatype=numpy.float32,
-        dimensions=EXAMPLE_DIMENSION_KEY
-    )
-    dataset_object.variables[MEAN_SQUARED_ERRORS_KEY][:] = mse_by_example
-
-    # Add storm IDs.
-    this_string_format = 'S{0:d}'.format(num_id_characters)
-    full_storm_ids_char_array = netCDF4.stringtochar(numpy.array(
-        full_storm_id_strings, dtype=this_string_format
-    ))
-
-    dataset_object.createVariable(
-        FULL_STORM_IDS_KEY, datatype='S1',
-        dimensions=(EXAMPLE_DIMENSION_KEY, ID_CHAR_DIMENSION_KEY)
-    )
-    dataset_object.variables[FULL_STORM_IDS_KEY][:] = numpy.array(
-        full_storm_ids_char_array)
-
-    # Add storm times.
-    dataset_object.createVariable(
-        STORM_TIMES_KEY, datatype=numpy.int32, dimensions=EXAMPLE_DIMENSION_KEY
-    )
-    dataset_object.variables[STORM_TIMES_KEY][:] = storm_times_unix_sec
-
-    dataset_object.close()
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(prediction_dict, pickle_file_handle)
+    pickle_file_handle.close()
 
 
-def read_predictions(netcdf_file_name):
-    """Reads predictions (reconstructed radar images) from NetCDF file.
+def read_predictions(pickle_file_name):
+    """Reads predictions (reconstructed radar images) from Pickle file.
 
-    :param netcdf_file_name: Path to input file.
+    :param pickle_file_name: Path to input file.
     :return: prediction_dict: Dictionary with the following keys.
-    prediction_dict["denorm_recon_radar_matrix"]: See doc for
+    prediction_dict["denorm_recon_radar_matrices"]: See doc for
         `write_predictions`.
     prediction_dict["mse_by_example"]: Same.
     prediction_dict["full_storm_id_strings"]: Same.
     prediction_dict["storm_times_unix_sec"]: Same.
     prediction_dict["upconvnet_file_name"]: Same.
+
+    :raises: ValueError: if dictionary does not contain expected keys.
     """
 
-    dataset_object = netCDF4.Dataset(netcdf_file_name)
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    prediction_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
 
-    prediction_dict = {
-        RECON_IMAGE_MATRIX_KEY: numpy.array(
-            dataset_object.variables[RECON_IMAGE_MATRIX_KEY][:]
-        ),
-        MEAN_SQUARED_ERRORS_KEY: numpy.array(
-            dataset_object.variables[MEAN_SQUARED_ERRORS_KEY][:]
-        ),
-        STORM_TIMES_KEY: numpy.array(
-            dataset_object.variables[STORM_TIMES_KEY][:], dtype=int
-        ),
-        FULL_STORM_IDS_KEY: [
-            str(s) for s in netCDF4.chartostring(
-                dataset_object.variables[FULL_STORM_IDS_KEY][:]
-            )
-        ],
-        UPCONVNET_FILE_KEY: str(getattr(dataset_object, UPCONVNET_FILE_KEY))
-    }
+    missing_keys = list(
+        set(PREDICTION_KEYS) - set(prediction_dict.keys())
+    )
 
-    dataset_object.close()
-    return prediction_dict
+    if len(missing_keys) == 0:
+        return prediction_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
