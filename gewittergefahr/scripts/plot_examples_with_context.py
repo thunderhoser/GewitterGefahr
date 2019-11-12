@@ -292,7 +292,8 @@ def _plot_one_example_one_time(
         axes_object_or_matrix=axes_object, data_matrix=radar_matrix,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object, orientation_string='horizontal',
-        extend_min=False, extend_max=True, fraction_of_axis_length=0.8)
+        padding=0.5, extend_min=False, extend_max=True,
+        fraction_of_axis_length=0.8)
 
     first_list, second_list = temporal_tracking.full_to_partial_ids(
         [full_id_string]
