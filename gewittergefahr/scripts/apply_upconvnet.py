@@ -210,24 +210,16 @@ def _apply_upconvnet_one_file(
         training_option_dict=option_dict_no_soundings
     )
 
-    print(list_of_recon_matrices[0].shape)
-    print(list_of_recon_matrices[1].shape)
-
     list_of_recon_matrices = model_interpretation.denormalize_data(
         list_of_input_matrices=list_of_recon_matrices,
         model_metadata_dict=metadata_dict_no_soundings)
 
-    print(list_of_recon_matrices[0].shape)
-    print(list_of_recon_matrices[1].shape)
-
     # TODO(thunderhoser): UGH, this code is very hacky.
     if len(list_of_recon_matrices) > 1:
-        this_refl_matrix_dbz = trainval_io.upsample_reflectivity(
-            list_of_recon_matrices[0][..., 0]
-        )
-
+        reflectivity_matrix_dbz = list_of_recon_matrices[0][..., 0]
+        az_shear_matrix_s01 = list_of_recon_matrices[1]
         reconstructed_radar_matrix = numpy.concatenate(
-            (this_refl_matrix_dbz, list_of_recon_matrices[1]), axis=-1
+            (reflectivity_matrix_dbz, az_shear_matrix_s01), axis=-1
         )
     else:
         reconstructed_radar_matrix = list_of_recon_matrices[0]
