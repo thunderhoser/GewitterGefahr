@@ -182,9 +182,11 @@ def _apply_upconvnet_one_file(
             1, num_dimensions - 1, num=num_dimensions - 1, dtype=int
         ).tolist()
 
+        print(axes_for_mean)
+
         these_mse = numpy.mean(
             (this_actual_matrix - this_reconstructed_matrix) ** 2,
-            axis=axes_for_mean
+            axis=tuple(axes_for_mean)
         )
         mse_by_example = numpy.concatenate((mse_by_example, these_mse))
 
