@@ -267,7 +267,6 @@ def _run(upconvnet_file_name, top_example_dir_name, first_spc_date_string,
 
     training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = downsampling_dict
 
-    training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
     training_option_dict[trainval_io.NUM_EXAMPLES_PER_BATCH_KEY] = (
         NUM_EXAMPLES_PER_BATCH
     )
