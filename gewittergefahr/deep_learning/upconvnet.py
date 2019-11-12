@@ -702,6 +702,20 @@ def write_model_metadata(
     :param first_validation_time_unix_sec: Same.
     :param last_validation_time_unix_sec: Same.
     :param pickle_file_name: Path to output file.
+
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict['cnn_file_name']: See doc for `read_model_metadata`.
+    metadata_dict['cnn_feature_layer_name']: Same.
+    metadata_dict['num_epochs']: Same.
+    metadata_dict['num_examples_per_batch']: Same.
+    metadata_dict['num_training_batches_per_epoch']: Same.
+    metadata_dict['training_example_file_names']: Same.
+    metadata_dict['first_training_time_unix_sec']: Same.
+    metadata_dict['last_training_time_unix_sec']: Same.
+    metadata_dict['num_validation_batches_per_epoch']: Same.
+    metadata_dict['validation_example_file_names']: Same.
+    metadata_dict['first_validation_time_unix_sec']: Same.
+    metadata_dict['last_validation_time_unix_sec']: Same.
     """
 
     error_checking.assert_is_string(cnn_file_name)
@@ -754,25 +768,14 @@ def write_model_metadata(
     pickle.dump(metadata_dict, pickle_file_handle)
     pickle_file_handle.close()
 
+    return metadata_dict
+
 
 def read_model_metadata(pickle_file_name):
     """Reads metadata from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['cnn_file_name']: See doc for `read_model_metadata`.
-    metadata_dict['cnn_feature_layer_name']: Same.
-    metadata_dict['num_epochs']: Same.
-    metadata_dict['num_examples_per_batch']: Same.
-    metadata_dict['num_training_batches_per_epoch']: Same.
-    metadata_dict['training_example_file_names']: Same.
-    metadata_dict['first_training_time_unix_sec']: Same.
-    metadata_dict['last_training_time_unix_sec']: Same.
-    metadata_dict['num_validation_batches_per_epoch']: Same.
-    metadata_dict['validation_example_file_names']: Same.
-    metadata_dict['first_validation_time_unix_sec']: Same.
-    metadata_dict['last_validation_time_unix_sec']: Same.
-
+    :return: metadata_dict: See doc for `write_model_metadata`.
     :raises: ValueError: if any expected key is missing from the dictionary.
     """
 
