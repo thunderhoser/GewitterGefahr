@@ -848,7 +848,7 @@ def apply_upconvnet(
             ))
 
         this_feature_matrix = partial_cnn_model_object.predict(
-            [a[[these_example_indices, ...]] for a in cnn_input_matrices],
+            [a[these_example_indices, ...] for a in cnn_input_matrices],
             batch_size=len(these_example_indices)
         )
 
