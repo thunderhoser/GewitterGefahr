@@ -935,7 +935,7 @@ def write_predictions(
         numpy.array(full_storm_id_strings), exact_dimensions=these_expected_dim
     )
 
-    error_checking.assert_is_integer(storm_times_unix_sec)
+    error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
         storm_times_unix_sec, exact_dimensions=these_expected_dim)
 
