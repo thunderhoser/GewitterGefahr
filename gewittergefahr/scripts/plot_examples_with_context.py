@@ -377,7 +377,7 @@ def _plot_one_example_one_time(
         #     horizontalalignment='center', verticalalignment='top', zorder=1e10)
 
         axes_object.set_title(
-            label_string.replace('\n', ''), fontsize=TITLE_FONT_SIZE
+            label_string.replace('\n', ' '), fontsize=TITLE_FONT_SIZE
         )
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
