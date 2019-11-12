@@ -15,7 +15,6 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 PREDICTION_FILE_ARG_NAME = 'input_prediction_file_name'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 COLOUR_MAP_ARG_NAME = 'diff_colour_map_name'
-MAX_PERCENTILE_ARG_NAME = 'max_diff_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 NUM_EXAMPLES_ARG_NAME = plot_examples.NUM_EXAMPLES_ARG_NAME
 ALLOW_WHITESPACE_ARG_NAME = plot_examples.ALLOW_WHITESPACE_ARG_NAME
@@ -37,12 +36,6 @@ COLOUR_MAP_HELP_STRING = (
     'Name of colour map (must be accepted by `pyplot.get_cmap`).  Will be used '
     'to plot differences (reconstructed minus actual).')
 
-MAX_PERCENTILE_HELP_STRING = (
-    'Determines max value in colour scheme for differences.  For each example '
-    'and radar field, max value will be [q]th percentile of absolute '
-    'differences, where q = `{0:s}`.'
-).format(MAX_PERCENTILE_ARG_NAME)
-
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  Figures will be saved here.')
 
@@ -58,10 +51,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='seismic',
     help=COLOUR_MAP_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
-    default=99., help=MAX_PERCENTILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -93,8 +82,8 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
-         max_diff_percentile, num_examples, allow_whitespace, plot_panel_names,
-         add_titles, label_colour_bars, colour_bar_length, top_output_dir_name):
+         num_examples, allow_whitespace, plot_panel_names, add_titles,
+         label_colour_bars, colour_bar_length, top_output_dir_name):
     """Plots one or more radar images and their upconvnet reconstructions.
 
     This is effectively the main method.
@@ -102,7 +91,6 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
     :param prediction_file_name: See documentation at top of file.
     :param top_example_dir_name: Same.
     :param diff_colour_map_name: Same.
-    :param max_diff_percentile: Same.
     :param num_examples: Same.
     :param allow_whitespace: Same.
     :param plot_panel_names: Same.
@@ -160,8 +148,11 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
     )
     print(SEPARATOR_STRING)
 
-    print(len(example_dict[testing_io.INPUT_MATRICES_KEY]))
     actual_radar_matrix = example_dict[testing_io.INPUT_MATRICES_KEY][0]
+
+    print(len(full_storm_id_strings))
+    print(len(example_dict[testing_io.INPUT_MATRICES_KEY]))
+    print(actual_radar_matrix.shape)
 
     plot_examples.plot_examples(
         list_of_predictor_matrices=[actual_radar_matrix],
@@ -195,8 +186,7 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
         model_metadata_dict=cnn_metadata_dict,
         output_dir_name='{0:s}/differences'.format(top_output_dir_name),
         pmm_flag=False, plot_soundings=False, plot_radar_diffs=True,
-        diff_colour_map_object=diff_colour_map_object,
-        max_diff_percentile=max_diff_percentile,
+        diff_colour_map_object=diff_colour_map_object, max_diff_percentile=99.,
         allow_whitespace=allow_whitespace, plot_panel_names=plot_panel_names,
         add_titles=add_titles, label_colour_bars=label_colour_bars,
         colour_bar_length=colour_bar_length,
@@ -213,9 +203,6 @@ if __name__ == '__main__':
         ),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         diff_colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
-        max_diff_percentile=getattr(
-            INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME
-        ),
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         allow_whitespace=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
