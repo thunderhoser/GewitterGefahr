@@ -213,6 +213,15 @@ def _apply_upconvnet_one_file(
         training_option_dict=option_dict_no_soundings
     )
 
+    if training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]:
+        denorm_recon_radar_matrices[0] = trainval_io.downsample_reflectivity(
+            reflectivity_matrix_dbz=denorm_recon_radar_matrices[0][..., 0]
+        )
+
+        denorm_recon_radar_matrices[0] = numpy.expand_dims(
+            denorm_recon_radar_matrices[0], axis=-1
+        )
+
     denorm_recon_radar_matrices = model_interpretation.denormalize_data(
         list_of_input_matrices=denorm_recon_radar_matrices,
         model_metadata_dict=metadata_dict_no_soundings)

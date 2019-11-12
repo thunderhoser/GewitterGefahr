@@ -480,8 +480,8 @@ def upsample_reflectivity(reflectivity_matrix_dbz, upsampling_factor=2):
     E = number of examples
     m = number of rows in original grid
     n = number of columns in original grid
-    M = 2 * m = number of rows in new grid
-    N = 2 * n = number of columns in new grid
+    M = number of rows in new grid
+    N = number of columns in new grid
     H = number of heights in grid
 
     :param reflectivity_matrix_dbz: E-by-m-by-n-by-H numpy array of reflectivity
@@ -517,6 +517,63 @@ def upsample_reflectivity(reflectivity_matrix_dbz, upsampling_factor=2):
     )
     column_indices_orig = numpy.linspace(
         1, num_columns_new, num=num_columns_orig, dtype=float
+    )
+
+    num_examples = orig_refl_matrix_dbz.shape[0]
+    num_heights = orig_refl_matrix_dbz.shape[3]
+    new_refl_matrix_dbz = numpy.full(
+        (num_examples, num_rows_new, num_columns_new, num_heights), numpy.nan
+    )
+
+    for i in range(num_examples):
+        for k in range(num_heights):
+            this_interp_object = RectBivariateSpline(
+                x=row_indices_orig, y=column_indices_orig,
+                z=orig_refl_matrix_dbz[i, ..., k], kx=3, ky=3, s=0
+            )
+
+            new_refl_matrix_dbz[i, ..., k] = this_interp_object(
+                x=row_indices_new, y=column_indices_new, grid=True)
+
+    return new_refl_matrix_dbz
+
+
+def downsample_reflectivity(reflectivity_matrix_dbz, downsampling_factor=2):
+    """Downsamples horizontal resolution of reflectivity field.
+
+    This method is the inverse of `upsample_reflectivity`.
+
+    :param reflectivity_matrix_dbz: See output doc for `upsample_reflectivity`.
+    :param downsampling_factor: Downsampling factor (integer > 1).
+    :return: reflectivity_matrix_dbz: See input doc for `upsample_reflectivity`.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(reflectivity_matrix_dbz)
+    error_checking.assert_is_numpy_array(
+        reflectivity_matrix_dbz, num_dimensions=4)
+
+    error_checking.assert_is_integer(downsampling_factor)
+    error_checking.assert_is_greater(downsampling_factor, 1)
+
+    orig_refl_matrix_dbz = reflectivity_matrix_dbz + 0.
+    num_rows_orig = orig_refl_matrix_dbz.shape[1]
+    num_rows_new = int(numpy.round(num_rows_orig / downsampling_factor))
+
+    row_indices_new = numpy.linspace(
+        1, num_rows_orig, num=num_rows_new, dtype=float
+    )
+    row_indices_orig = numpy.linspace(
+        1, num_rows_orig, num=num_rows_orig, dtype=float
+    )
+
+    num_columns_orig = orig_refl_matrix_dbz.shape[2]
+    num_columns_new = int(numpy.round(num_columns_orig / downsampling_factor))
+
+    column_indices_new = numpy.linspace(
+        1, num_columns_orig, num=num_columns_new, dtype=float
+    )
+    column_indices_orig = numpy.linspace(
+        1, num_columns_orig, num=num_columns_orig, dtype=float
     )
 
     num_examples = orig_refl_matrix_dbz.shape[0]

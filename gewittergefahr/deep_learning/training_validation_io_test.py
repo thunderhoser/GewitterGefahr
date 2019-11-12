@@ -40,7 +40,10 @@ TARGET_VALUES_WIND[THESE_INDICES[:30]] = 2
 TARGET_VALUES_WIND[THESE_INDICES[30:70]] = 1
 TARGET_VALUES_WIND[THESE_INDICES[70:]] = -2
 
-# The following constants are used to test upsample_reflectivity.
+# The following constants are used to test upsample_reflectivity and
+# downsample_reflectivity.
+UPSAMPLING_FACTOR = 2
+
 THIS_MATRIX_EXAMPLE1_HEIGHT1 = numpy.array([
     [0, 1, 2, 3, 4, 5],
     [0, 1, 2, 3, 4, 5],
@@ -370,10 +373,22 @@ class TrainingValidationIoTests(unittest.TestCase):
         """Ensures correct output from upsample_reflectivity."""
 
         this_radar_matrix = trainval_io.upsample_reflectivity(
-            RADAR_MATRIX_ORIG + 0.)
+            reflectivity_matrix_dbz=RADAR_MATRIX_ORIG + 0.,
+            upsampling_factor=UPSAMPLING_FACTOR)
 
         self.assertTrue(numpy.allclose(
             this_radar_matrix, RADAR_MATRIX_UPSAMPLED, atol=TOLERANCE
+        ))
+
+    def test_downsample_reflectivity(self):
+        """Ensures correct output from downsample_reflectivity."""
+
+        this_radar_matrix = trainval_io.downsample_reflectivity(
+            reflectivity_matrix_dbz=RADAR_MATRIX_UPSAMPLED + 0.,
+            downsampling_factor=UPSAMPLING_FACTOR)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_ORIG, atol=TOLERANCE
         ))
 
     def test_layer_ops_to_field_height_pairs(self):
