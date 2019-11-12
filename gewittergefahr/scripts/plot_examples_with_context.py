@@ -292,7 +292,7 @@ def _plot_one_example_one_time(
         axes_object_or_matrix=axes_object, data_matrix=radar_matrix,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object, orientation_string='horizontal',
-        padding=0.5, extend_min=False, extend_max=True,
+        padding=0.05, extend_min=False, extend_max=True,
         fraction_of_axis_length=0.8)
 
     first_list, second_list = temporal_tracking.full_to_partial_ids(
@@ -307,10 +307,10 @@ def _plot_one_example_one_time(
         primary_id_string
     ]
 
-    storm_plotting.plot_storm_outlines(
-        storm_object_table=this_storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, line_width=2, line_colour='k',
-        line_style='dashed')
+    # storm_plotting.plot_storm_outlines(
+    #     storm_object_table=this_storm_object_table, axes_object=axes_object,
+    #     basemap_object=basemap_object, line_width=2, line_colour='k',
+    #     line_style='dashed')
 
     # Plot outlines of related storms (with the same primary ID).
     this_storm_object_table = storm_object_table.loc[
