@@ -136,6 +136,7 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
     training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY] = None
     training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
+    training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY] = False
     cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
 
     print(SEPARATOR_STRING)

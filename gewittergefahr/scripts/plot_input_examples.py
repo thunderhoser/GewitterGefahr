@@ -1150,7 +1150,8 @@ def plot_one_example(
                 colour_bar_length=colour_bar_length,
                 colour_bar_font_size=colour_bar_font_size,
                 refl_opacity=refl_opacity, plot_grid_lines=plot_grid_lines,
-                num_panel_rows=num_panel_rows, plot_differences=plot_radar_diffs,
+                num_panel_rows=num_panel_rows,
+                plot_differences=plot_radar_diffs,
                 diff_colour_map_object=diff_colour_map_object,
                 max_diff_percentile=max_diff_percentile)
         )
