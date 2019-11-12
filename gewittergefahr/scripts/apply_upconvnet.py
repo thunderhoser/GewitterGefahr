@@ -226,7 +226,7 @@ def _apply_upconvnet_one_file(
 
     # Write reconstructed images.
     spc_date_string = time_conversion.time_to_spc_date_string(
-        numpy.median(storm_times_unix_sec)
+        numpy.median(storm_times_unix_sec).astype(int)
     )
 
     output_file_name = upconvnet.find_prediction_file(
