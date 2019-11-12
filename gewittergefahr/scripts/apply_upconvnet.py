@@ -210,9 +210,15 @@ def _apply_upconvnet_one_file(
         training_option_dict=option_dict_no_soundings
     )
 
+    print(list_of_recon_matrices[0].shape)
+    print(list_of_recon_matrices[1].shape)
+
     list_of_recon_matrices = model_interpretation.denormalize_data(
         list_of_input_matrices=list_of_recon_matrices,
         model_metadata_dict=metadata_dict_no_soundings)
+
+    print(list_of_recon_matrices[0].shape)
+    print(list_of_recon_matrices[1].shape)
 
     # TODO(thunderhoser): UGH, this code is very hacky.
     if len(list_of_recon_matrices) > 1:
