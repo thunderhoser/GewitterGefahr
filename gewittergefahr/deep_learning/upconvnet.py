@@ -2,8 +2,11 @@
 
 import copy
 import pickle
+import os.path
 import numpy
 import keras
+import netCDF4
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -11,9 +14,10 @@ from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import architecture_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
-NUM_EX_PER_TESTING_BATCH = 1000
+PATHLESS_FILE_NAME_PREFIX = 'upconvnet_predictions'
 
 CONV_FILTER_SIZE = 3
+NUM_EX_PER_TESTING_BATCH = 1000
 
 DEFAULT_L1_WEIGHT = 0.
 DEFAULT_L2_WEIGHT = 0.001
@@ -49,6 +53,19 @@ METADATA_KEYS = [
     FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY, NUM_VALIDATION_BATCHES_KEY,
     VALIDATION_FILES_KEY, FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY
 ]
+
+RECON_IMAGE_MATRIX_KEY = 'denorm_recon_radar_matrix'
+MEAN_SQUARED_ERRORS_KEY = 'mse_by_example'
+FULL_STORM_IDS_KEY = 'full_storm_id_strings'
+STORM_TIMES_KEY = 'storm_times_unix_sec'
+UPCONVNET_FILE_KEY = 'upconvnet_file_name'
+
+EXAMPLE_DIMENSION_KEY = 'example'
+ROW_DIMENSION_KEY = 'grid_row'
+COLUMN_DIMENSION_KEY = 'grid_column'
+HEIGHT_DIMENSION_KEY = 'grid_height'
+CHANNEL_DIMENSION_KEY = 'channel'
+ID_CHAR_DIMENSION_KEY = 'storm_id_char'
 
 
 def create_smoothing_filter(
@@ -775,29 +792,38 @@ def read_model_metadata(pickle_file_name):
     raise ValueError(error_string)
 
 
-def apply_upconvnet(model_object, feature_matrix, num_examples_per_batch=100,
-                    verbose=True):
-    """Applies trained upconvnet to one or more feature vectors.
+def apply_upconvnet(
+        radar_matrix, cnn_model_object, cnn_feature_layer_name,
+        ucn_model_object, num_examples_per_batch=1000, verbose=True):
+    """Applies upconvnet to new radar images.
 
-    E = number of examples
-    Z = number of scalar features
-
-    :param model_object: Trained upconvnet (instance of `keras.models.Model` or
-        `keras.models.Sequential`).
-    :param feature_matrix: E-by-Z numpy array of features.
-    :param num_examples_per_batch: Number of examples per batch.  Will apply
-        upconvnet to this many examples at once.  If None, will apply to all
-        examples at once.
-    :param verbose: Boolean flag.
-    :return: reconstructed_image_matrix: numpy array of reconstructed images.
-        This will have >= 2 dimensions, and the first axis will have length E.
+    :param radar_matrix: numpy array of original images (inputs to CNN).
+    :param cnn_model_object: Trained CNN (instance of `keras.models.Model` or
+        `keras.models.Sequential`).  Will be used to convert images to feature
+        vectors.
+    :param cnn_feature_layer_name: Name of feature-generating layer in CNN.
+        Feature vectors (inputs to upconvnet) will be outputs from this layer.
+    :param ucn_model_object: Trained upconvnet (instance of `keras.models.Model`
+        or `keras.models.Sequential`).  Will be used to convert feature vectors
+        back to images (ideally back to original images).
+    :param num_examples_per_batch: Number of examples per batch.
+    :param verbose: Boolean flag.  If True, will print progress messages to
+        command window.
+    :return: reconstructed_radar_matrix: Reconstructed version of input.
     """
 
-    error_checking.assert_is_boolean(verbose)
-    error_checking.assert_is_numpy_array_without_nan(feature_matrix)
-    error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=2)
+    partial_cnn_model_object = cnn.model_to_feature_generator(
+        model_object=cnn_model_object,
+        feature_layer_name=cnn_feature_layer_name)
 
-    num_examples = feature_matrix.shape[0]
+    error_checking.assert_is_boolean(verbose)
+    error_checking.assert_is_numpy_array_without_nan(radar_matrix)
+
+    num_dimensions = len(radar_matrix.shape)
+    error_checking.assert_is_geq(num_dimensions, 4)
+    error_checking.assert_is_leq(num_dimensions, 5)
+
+    num_examples = radar_matrix.shape[0]
     if num_examples_per_batch is None:
         num_examples_per_batch = num_examples + 0
 
@@ -805,37 +831,224 @@ def apply_upconvnet(model_object, feature_matrix, num_examples_per_batch=100,
     error_checking.assert_is_greater(num_examples_per_batch, 0)
     num_examples_per_batch = min([num_examples_per_batch, num_examples])
 
-    reconstructed_image_matrix = None
+    reconstructed_radar_matrix = None
 
     for i in range(0, num_examples, num_examples_per_batch):
-        this_first_index = i
-        this_last_index = min(
-            [i + num_examples_per_batch - 1, num_examples - 1]
-        )
-
-        these_indices = numpy.linspace(
-            this_first_index, this_last_index,
-            num=this_last_index - this_first_index + 1, dtype=int)
+        j = i
+        k = min([i + num_examples_per_batch - 1, num_examples - 1])
+        these_example_indices = numpy.linspace(j, k, num=k - j + 1, dtype=int)
 
         if verbose:
             print((
-                'Applying model to examples {0:d}-{1:d} of {2:d}...'
+                'Applying upconvnet to examples {0:d}-{1:d} of {2:d}...'
             ).format(
-                this_first_index + 1, this_last_index + 1, num_examples
+                numpy.min(these_example_indices) + 1,
+                numpy.max(these_example_indices) + 1,
+                num_examples
             ))
 
-        this_image_matrix = model_object.predict(
-            feature_matrix[these_indices, ...], batch_size=len(these_indices)
+        this_feature_matrix = partial_cnn_model_object.predict(
+            radar_matrix[these_example_indices, ...],
+            batch_size=len(these_example_indices)
         )
 
-        if reconstructed_image_matrix is None:
-            reconstructed_image_matrix = this_image_matrix + 0.
-        else:
-            reconstructed_image_matrix = numpy.concatenate(
-                (reconstructed_image_matrix, this_image_matrix), axis=0
+        this_reconstructed_matrix = ucn_model_object.predict(
+            this_feature_matrix, batch_size=len(these_example_indices)
+        )
+
+    if reconstructed_radar_matrix is None:
+        dimensions = numpy.array(
+            (num_examples,) + this_reconstructed_matrix.shape[1:], dtype=int
+        )
+        reconstructed_radar_matrix = numpy.full(dimensions, numpy.nan)
+
+    reconstructed_radar_matrix[
+        these_example_indices, ...] = this_reconstructed_matrix
+
+    print('Have applied upconvnet to all {0:d} examples!'.format(num_examples))
+    return reconstructed_radar_matrix
+
+
+def find_prediction_file(top_directory_name, spc_date_string,
+                         raise_error_if_missing=False):
+    """Finds file with upconvnet predictions (reconstructed radar images).
+
+    :param top_directory_name: Name of top-level directory with upconvnet
+        predictions.
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: prediction_file_name: Path to prediction file.  If file is missing
+        and `raise_error_if_missing = False`, this will be the expected path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+    time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+
+    prediction_file_name = (
+        '{0:s}/{1:s}/{2:s}_{3:s}.nc'
+    ).format(
+        top_directory_name, spc_date_string[:4], PATHLESS_FILE_NAME_PREFIX,
+        spc_date_string
+    )
+
+    if raise_error_if_missing and not os.path.isfile(prediction_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            prediction_file_name)
+        raise ValueError(error_string)
+
+    return prediction_file_name
+
+
+def write_predictions(
+        netcdf_file_name, denorm_recon_radar_matrix, full_storm_id_strings,
+        storm_times_unix_sec, mse_by_example, upconvnet_file_name):
+    """Writes predictions (reconstructed radar images) to NetCDF file.
+
+    E = number of examples
+
+    :param netcdf_file_name: Path to output file.
+    :param denorm_recon_radar_matrix: numpy array of denormalized, reconstructed
+        radar images.  Must be 4-D or 5-D numpy array where first axis has
+        length E.
+    :param full_storm_id_strings: length-E list of storm IDs.
+    :param storm_times_unix_sec: length-E numpy array of valid times.
+    :param mse_by_example: length-E numpy array of mean squared errors (in
+        normalized, not physical, units).
+    :param upconvnet_file_name: Path to upconvnet that generated the
+        reconstructed images (readable by `cnn.read_model`).
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(denorm_recon_radar_matrix)
+    num_dimensions = len(denorm_recon_radar_matrix.shape)
+    error_checking.assert_is_geq(num_dimensions, 4)
+    error_checking.assert_is_leq(num_dimensions, 5)
+
+    num_spatial_dim = len(denorm_recon_radar_matrix.shape) - 2
+    num_examples = denorm_recon_radar_matrix.shape[0]
+    these_expected_dim = numpy.array([num_examples], dtype=int)
+
+    error_checking.assert_is_string_list(full_storm_id_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(full_storm_id_strings), exact_dimensions=these_expected_dim
+    )
+
+    error_checking.assert_is_integer(storm_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        storm_times_unix_sec, exact_dimensions=these_expected_dim)
+
+    error_checking.assert_is_geq_numpy_array(mse_by_example, 0.)
+    error_checking.assert_is_numpy_array(
+        mse_by_example, exact_dimensions=these_expected_dim)
+
+    error_checking.assert_is_string(netcdf_file_name)
+    error_checking.assert_is_string(upconvnet_file_name)
+
+    # Open NetCDF file.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    dataset_object.setncattr(UPCONVNET_FILE_KEY, upconvnet_file_name)
+
+    # Set up dimensions.
+    dataset_object.createDimension(EXAMPLE_DIMENSION_KEY, num_examples)
+    dataset_object.createDimension(
+        ROW_DIMENSION_KEY, denorm_recon_radar_matrix.shape[1]
+    )
+    dataset_object.createDimension(
+        COLUMN_DIMENSION_KEY, denorm_recon_radar_matrix.shape[2]
+    )
+    dataset_object.createDimension(
+        CHANNEL_DIMENSION_KEY, denorm_recon_radar_matrix.shape[-1]
+    )
+    spatial_dimensions = (
+        EXAMPLE_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY
+    )
+
+    if num_spatial_dim == 3:
+        dataset_object.createDimension(
+            HEIGHT_DIMENSION_KEY, denorm_recon_radar_matrix.shape[3]
+        )
+        spatial_dimensions += (HEIGHT_DIMENSION_KEY,)
+
+    num_id_characters = numpy.max(numpy.array([
+        len(id) for id in full_storm_id_strings
+    ]))
+    dataset_object.createDimension(ID_CHAR_DIMENSION_KEY, num_id_characters)
+
+    # Add reconstructed images.
+    dataset_object.createVariable(
+        RECON_IMAGE_MATRIX_KEY, datatype=numpy.float32,
+        dimensions=spatial_dimensions + (CHANNEL_DIMENSION_KEY,)
+    )
+    dataset_object.variables[RECON_IMAGE_MATRIX_KEY][:] = (
+        denorm_recon_radar_matrix
+    )
+
+    # Add mean squared errors.
+    dataset_object.createVariable(
+        MEAN_SQUARED_ERRORS_KEY, datatype=numpy.float32,
+        dimensions=EXAMPLE_DIMENSION_KEY
+    )
+    dataset_object.variables[MEAN_SQUARED_ERRORS_KEY][:] = mse_by_example
+
+    # Add storm IDs.
+    this_string_format = 'S{0:d}'.format(num_id_characters)
+    full_storm_ids_char_array = netCDF4.stringtochar(numpy.array(
+        full_storm_id_strings, dtype=this_string_format
+    ))
+
+    dataset_object.createVariable(
+        FULL_STORM_IDS_KEY, datatype='S1',
+        dimensions=(EXAMPLE_DIMENSION_KEY, ID_CHAR_DIMENSION_KEY)
+    )
+    dataset_object.variables[FULL_STORM_IDS_KEY][:] = numpy.array(
+        full_storm_ids_char_array)
+
+    # Add storm times.
+    dataset_object.createVariable(
+        STORM_TIMES_KEY, datatype=numpy.int32, dimensions=EXAMPLE_DIMENSION_KEY
+    )
+    dataset_object.variables[STORM_TIMES_KEY][:] = storm_times_unix_sec
+
+    dataset_object.close()
+
+
+def read_predictions(netcdf_file_name):
+    """Reads predictions (reconstructed radar images) from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: prediction_dict: Dictionary with the following keys.
+    prediction_dict["denorm_recon_radar_matrix"]: See doc for
+        `write_predictions`.
+    prediction_dict["mse_by_example"]: Same.
+    prediction_dict["full_storm_id_strings"]: Same.
+    prediction_dict["storm_times_unix_sec"]: Same.
+    prediction_dict["upconvnet_file_name"]: Same.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    prediction_dict = {
+        RECON_IMAGE_MATRIX_KEY: numpy.array(
+            dataset_object.variables[RECON_IMAGE_MATRIX_KEY][:]
+        ),
+        MEAN_SQUARED_ERRORS_KEY: numpy.array(
+            dataset_object.variables[MEAN_SQUARED_ERRORS_KEY][:]
+        ),
+        STORM_TIMES_KEY: numpy.array(
+            dataset_object.variables[STORM_TIMES_KEY][:], dtype=int
+        ),
+        FULL_STORM_IDS_KEY: [
+            str(s) for s in netCDF4.chartostring(
+                dataset_object.variables[FULL_STORM_IDS_KEY][:]
             )
+        ],
+        UPCONVNET_FILE_KEY: str(getattr(dataset_object, UPCONVNET_FILE_KEY))
+    }
 
-    if verbose:
-        print('Have applied model to all {0:d} examples!'.format(num_examples))
-
-    return reconstructed_image_matrix
+    dataset_object.close()
+    return prediction_dict

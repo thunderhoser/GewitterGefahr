@@ -33,7 +33,7 @@ for k in range(NUM_CHANNELS):
 class UpconvnetTests(unittest.TestCase):
     """Each method is a unit test for upconvnet.py."""
 
-    def testcreate_smoothing_filter(self):
+    def test_create_smoothing_filter(self):
         """Ensures correct output from create_smoothing_filter."""
 
         this_weight_matrix = upconvnet.create_smoothing_filter(

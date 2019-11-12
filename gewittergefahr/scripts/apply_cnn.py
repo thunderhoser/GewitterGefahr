@@ -1,6 +1,5 @@
 """Makes predictions from trained CNN."""
 
-import random
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
@@ -14,9 +13,6 @@ from gewittergefahr.deep_learning import prediction_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 NUM_EXAMPLES_PER_BATCH = 1000
-
-random.seed(6695)
-numpy.random.seed(6695)
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
