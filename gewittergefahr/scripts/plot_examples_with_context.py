@@ -404,10 +404,10 @@ def _plot_one_example_one_time(
 
     for j in range(num_tornadoes):
         axes_object.text(
-            tornado_longitudes_deg[j], tornado_latitudes_deg[j] - 0.02,
+            tornado_longitudes_deg[j] + 0.02, tornado_latitudes_deg[j] - 0.02,
             tornado_time_strings[j], fontsize=FONT_SIZE,
-            color=FONT_COLOUR, bbox=TEXT_BOUNDING_BOX_DICT, rotation=-90,
-            horizontalalignment='center', verticalalignment='top', zorder=1e10)
+            color=FONT_COLOUR, rotation=-90,
+            horizontalalignment='left', verticalalignment='top', zorder=1e10)
 
 
 def _find_tracking_files_one_example(
