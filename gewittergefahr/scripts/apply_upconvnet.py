@@ -192,6 +192,9 @@ def _apply_upconvnet_one_file(
         mse_by_example = numpy.concatenate((mse_by_example, these_mse))
 
     print(MINOR_SEPARATOR_STRING)
+    if len(full_storm_id_strings) == 0:
+        return
+
     print('Mean sqaured error = {0:.3e}'.format(numpy.mean(mse_by_example)))
 
     # Denormalize reconstructed images.

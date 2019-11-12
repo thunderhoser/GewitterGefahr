@@ -160,6 +160,7 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
     )
     print(SEPARATOR_STRING)
 
+    print(len(example_dict[testing_io.INPUT_MATRICES_KEY]))
     actual_radar_matrix = example_dict[testing_io.INPUT_MATRICES_KEY][0]
 
     plot_examples.plot_examples(
