@@ -58,7 +58,7 @@ TORNADO_MARKER_EDGE_WIDTH = 1
 TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
 
 NUM_PARALLELS = 8
-NUM_MERIDIANS = 5
+NUM_MERIDIANS = 6
 TITLE_FONT_SIZE = 16
 BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
@@ -371,10 +371,12 @@ def _plot_one_example_one_time(
                 valid_time_unix_sec, TORNADO_TIME_FORMAT)
         )
 
-        axes_object.text(
-            this_longitude_deg, this_latitude_deg, label_string,
-            fontsize=FONT_SIZE, color=FONT_COLOUR, bbox=TEXT_BOUNDING_BOX_DICT,
-            horizontalalignment='center', verticalalignment='top', zorder=1e10)
+        # axes_object.text(
+        #     this_longitude_deg, this_latitude_deg, label_string,
+        #     fontsize=FONT_SIZE, color=FONT_COLOUR, bbox=TEXT_BOUNDING_BOX_DICT,
+        #     horizontalalignment='center', verticalalignment='top', zorder=1e10)
+
+        axes_object.set_title(label_string, fontsize=TITLE_FONT_SIZE)
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
     tornado_longitudes_deg = tornado_table[
