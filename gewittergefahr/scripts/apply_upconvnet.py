@@ -2,6 +2,7 @@
 
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+import copy
 import argparse
 import numpy
 from keras import backend as K
@@ -122,6 +123,7 @@ def _apply_upconvnet_one_file(
     :param top_output_dir_name: Same.
     """
 
+    # Do housekeeping.
     training_option_dict = cnn_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     training_option_dict[trainval_io.EXAMPLE_FILES_KEY] = [example_file_name]
 
@@ -141,6 +143,7 @@ def _apply_upconvnet_one_file(
             option_dict=training_option_dict,
             desired_num_examples=num_examples)
 
+    # Apply upconvnet.
     full_storm_id_strings = []
     storm_times_unix_sec = numpy.array([], dtype=int)
     reconstructed_radar_matrix = None
@@ -176,34 +179,54 @@ def _apply_upconvnet_one_file(
             reconstructed_radar_matrix = numpy.concatenate(
                 (reconstructed_radar_matrix, this_reconstructed_matrix), axis=0
             )
-
+        
         num_dimensions = len(this_actual_matrix.shape)
-        axes_for_mean = numpy.linspace(
+        all_axes_except_first = numpy.linspace(
             1, num_dimensions - 1, num=num_dimensions - 1, dtype=int
         ).tolist()
 
-        print(axes_for_mean)
-
         these_mse = numpy.mean(
             (this_actual_matrix - this_reconstructed_matrix) ** 2,
-            axis=tuple(axes_for_mean)
+            axis=tuple(all_axes_except_first)
         )
         mse_by_example = numpy.concatenate((mse_by_example, these_mse))
 
     print(MINOR_SEPARATOR_STRING)
     print('Mean sqaured error = {0:.3e}'.format(numpy.mean(mse_by_example)))
 
-    reconstructed_radar_matrix = trainval_io.separate_shear_and_reflectivity(
-        list_of_input_matrices=[reconstructed_radar_matrix],
-        training_option_dict=training_option_dict
-    )[0]
-
+    # Denormalize reconstructed images.
     print('Denormalizing reconstructed radar images...')
-    reconstructed_radar_matrix = model_interpretation.denormalize_data(
-        list_of_input_matrices=[reconstructed_radar_matrix],
-        model_metadata_dict=cnn_metadata_dict
-    )[0]
 
+    metadata_dict_no_soundings = copy.deepcopy(cnn_metadata_dict)
+    metadata_dict_no_soundings[cnn.TRAINING_OPTION_DICT_KEY][
+        trainval_io.SOUNDING_FIELDS_KEY
+    ] = None
+    option_dict_no_soundings = metadata_dict_no_soundings[
+        cnn.TRAINING_OPTION_DICT_KEY
+    ]
+
+    list_of_recon_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=[reconstructed_radar_matrix],
+        training_option_dict=option_dict_no_soundings
+    )
+
+    list_of_recon_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=list_of_recon_matrices,
+        model_metadata_dict=metadata_dict_no_soundings)
+
+    # TODO(thunderhoser): UGH, this code is very hacky.
+    if len(list_of_recon_matrices) > 1:
+        this_refl_matrix_dbz = trainval_io.upsample_reflectivity(
+            list_of_recon_matrices[0][..., 0]
+        )
+
+        reconstructed_radar_matrix = numpy.concatenate(
+            (this_refl_matrix_dbz, list_of_recon_matrices[1]), axis=-1
+        )
+    else:
+        reconstructed_radar_matrix = list_of_recon_matrices[0]
+
+    # Write reconstructed images.
     spc_date_string = time_conversion.time_to_spc_date_string(
         numpy.median(storm_times_unix_sec)
     )
