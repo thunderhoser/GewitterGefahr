@@ -52,9 +52,9 @@ FONT_SIZE = 20
 FONT_COLOUR = numpy.full(3, 0.)
 
 TORNADO_TIME_FORMAT = '%H%MZ'
-TORNADO_MARKER_TYPE = 'D'
+TORNADO_MARKER_TYPE = '*'
 TORNADO_MARKER_SIZE = 24
-TORNADO_MARKER_EDGE_WIDTH = 0
+TORNADO_MARKER_EDGE_WIDTH = 2
 TORNADO_MARKER_COLOUR = numpy.full(3, 152. / 255)
 
 NUM_PARALLELS = 8
@@ -412,8 +412,7 @@ def _plot_one_example_one_time(
         markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
         markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
             TORNADO_MARKER_COLOUR),
-        markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
-            TORNADO_MARKER_COLOUR)
+        markeredgecolor='k'
     )
 
     num_tornadoes = len(tornado_latitudes_deg)
