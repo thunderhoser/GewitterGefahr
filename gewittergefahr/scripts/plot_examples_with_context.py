@@ -53,8 +53,8 @@ FONT_COLOUR = numpy.full(3, 0.)
 
 TORNADO_TIME_FORMAT = '%H%MZ'
 TORNADO_MARKER_TYPE = 'D'
-TORNADO_MARKER_SIZE = 16
-TORNADO_MARKER_EDGE_WIDTH = 1
+TORNADO_MARKER_SIZE = 24
+TORNADO_MARKER_EDGE_WIDTH = 0
 TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
 
 NUM_PARALLELS = 8
@@ -345,7 +345,7 @@ def _plot_one_example_one_time(
 
     storm_plotting.plot_storm_outlines(
         storm_object_table=this_storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, line_width=4, line_colour='k',
+        basemap_object=basemap_object, line_width=6, line_colour='k',
         line_style='solid')
 
     this_num_storm_objects = len(this_storm_object_table.index)
@@ -385,6 +385,21 @@ def _plot_one_example_one_time(
     tornado_longitudes_deg = tornado_table[
         linkage.EVENT_LONGITUDE_COLUMN].values
 
+    these_distances_deg2 = (
+        (
+            this_storm_object_table[
+                tracking_utils.CENTROID_LATITUDE_COLUMN].values[0] -
+            tornado_latitudes_deg
+        ) ** 2 +
+        (
+            this_storm_object_table[
+                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[0] -
+            tornado_longitudes_deg
+        ) ** 2
+    )
+
+    this_index = numpy.argmin(these_distances_deg2)
+
     tornado_times_unix_sec = tornado_table[linkage.EVENT_TIME_COLUMN].values
     tornado_time_strings = [
         time_conversion.unix_sec_to_string(t, TORNADO_TIME_FORMAT)
@@ -392,7 +407,7 @@ def _plot_one_example_one_time(
     ]
 
     axes_object.plot(
-        tornado_longitudes_deg, tornado_latitudes_deg, linestyle='None',
+        tornado_longitudes_deg[this_index], tornado_latitudes_deg[this_index], linestyle='None',
         marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
         markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
         markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
