@@ -21,6 +21,7 @@ from gewittergefahr.scripts import plot_input_examples as plot_examples
 PASCALS_TO_MB = 0.01
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+MAX_COLOUR_PERCENTILE = 99.
 COLOUR_BAR_FONT_SIZE = plot_examples.DEFAULT_CBAR_FONT_SIZE
 FIGURE_RESOLUTION_DPI = 300
 SOUNDING_IMAGE_SIZE_PX = int(1e7)
@@ -50,7 +51,8 @@ COLOUR_MAP_HELP_STRING = (
 MAX_COLOUR_VALUE_HELP_STRING = (
     'Max saliency value in colour scheme.  Keep in mind that the colour scheme '
     'encodes *absolute* value, with positive values in solid contours and '
-    'negative values in dashed contours.')
+    'negative values in dashed contours.  To use a data-dependent default '
+    'value, make this argument negative.')
 
 HALF_NUM_CONTOURS_HELP_STRING = (
     'Number of contours on each side of zero (positive and negative).')
@@ -155,6 +157,10 @@ def _plot_3d_radar_saliency(
     :param storm_time_unix_sec: Storm time.
     """
 
+    if max_colour_value is None:
+        max_colour_value = numpy.percentile(
+            saliency_matrix, MAX_COLOUR_PERCENTILE)
+
     pmm_flag = full_storm_id_string is None and storm_time_unix_sec is None
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
 
@@ -244,6 +250,10 @@ def _plot_2d_radar_saliency(
     :param storm_time_unix_sec: Storm time.
     """
 
+    if max_colour_value is None:
+        max_colour_value = numpy.percentile(
+            saliency_matrix, MAX_COLOUR_PERCENTILE)
+
     pmm_flag = full_storm_id_string is None and storm_time_unix_sec is None
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
 
@@ -324,6 +334,10 @@ def _plot_sounding_saliency(
     :param example_index: [used only if `pmm_flag == False`]
         Plotting the [i]th example, where i = `example_index`.
     """
+
+    if max_colour_value is None:
+        max_colour_value = numpy.percentile(
+            saliency_matrix, MAX_COLOUR_PERCENTILE)
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
@@ -449,6 +463,8 @@ def _run(input_file_name, colour_map_name, max_colour_value, half_num_contours,
     :param output_dir_name: Same.
     """
 
+    if max_colour_value <= 0:
+        max_colour_value = None
     if smoothing_radius_grid_cells <= 0:
         smoothing_radius_grid_cells = None
 
@@ -456,7 +472,6 @@ def _run(input_file_name, colour_map_name, max_colour_value, half_num_contours,
         directory_name=output_dir_name)
 
     colour_map_object = pyplot.cm.get_cmap(colour_map_name)
-    error_checking.assert_is_greater(max_colour_value, 0.)
     error_checking.assert_is_geq(half_num_contours, 5)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
