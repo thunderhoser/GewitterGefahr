@@ -215,8 +215,6 @@ def _plot_3d_radar_cam(
                     fontsize=COLOUR_BAR_FONT_SIZE)
         else:
             cam_matrix_log10 = numpy.log10(cam_matrix)
-            print(cam_matrix.shape)
-            print(cam_matrix[..., 0])
 
             cam_plotting.plot_many_2d_grids(
                 class_activation_matrix_3d=numpy.flip(cam_matrix_log10, axis=0),

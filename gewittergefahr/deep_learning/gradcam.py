@@ -155,8 +155,8 @@ def _upsample_cam(class_activation_matrix, new_dimensions):
         values=class_activation_matrix, method='linear'
     )
 
-    row_index_matrix, column_index_matrix, height_index_matrix = (
-        numpy.meshgrid(row_indices_new, column_indices_new, height_indices_new)
+    column_index_matrix, row_index_matrix, height_index_matrix = (
+        numpy.meshgrid(column_indices_new, row_indices_new, height_indices_new)
     )
     query_point_matrix = numpy.stack(
         (row_index_matrix, column_index_matrix, height_index_matrix), axis=-1
