@@ -18,6 +18,8 @@ from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import standalone_utils
 
+# TODO(thunderhoser): Make this script deal with input tensors other than first.
+
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
     allow_soft_placement=False
@@ -25,11 +27,33 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-EDGE_DETECTOR_MATRIX = numpy.array([
-    [-1, -1, -1],
-    [-1, 8, -1],
-    [-1, -1, -1]
-], dtype=float)
+# EDGE_DETECTOR_MATRIX_2D = numpy.array([
+#     [-1, -1, -1],
+#     [-1, 8, -1],
+#     [-1, -1, -1]
+# ], dtype=float)
+
+EDGE_DETECTOR_MATRIX_2D = numpy.array([
+    [0.25, 0.5, 0.25],
+    [0.5, -3, 0.5],
+    [0.25, 0.5, 0.25]
+])
+
+THIS_FIRST_MATRIX = numpy.array([
+    [0, 0, 0],
+    [0, 1, 0],
+    [0, 0, 0]
+])
+
+THIS_SECOND_MATRIX = numpy.array([
+    [0, 1, 0],
+    [1, -6, 1],
+    [0, 1, 0]
+])
+
+EDGE_DETECTOR_MATRIX_3D = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX, THIS_FIRST_MATRIX), axis=-1
+).astype(float)
 
 MODEL_FILE_ARG_NAME = 'model_file_name'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
@@ -132,8 +156,13 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
     radar_matrix = predictor_matrices[0]
     num_examples = radar_matrix.shape[0]
     num_channels = radar_matrix.shape[-1]
+    num_spatial_dim = len(radar_matrix.shape) - 2
 
-    kernel_matrix = numpy.expand_dims(EDGE_DETECTOR_MATRIX, axis=-1)
+    if num_spatial_dim == 2:
+        kernel_matrix = numpy.expand_dims(EDGE_DETECTOR_MATRIX_2D, axis=-1)
+    else:
+        kernel_matrix = numpy.expand_dims(EDGE_DETECTOR_MATRIX_3D, axis=-1)
+
     kernel_matrix = numpy.repeat(kernel_matrix, num_channels, axis=-1)
     kernel_matrix = numpy.expand_dims(kernel_matrix, axis=-1)
     kernel_matrix = numpy.repeat(kernel_matrix, num_channels, axis=-1)
@@ -141,9 +170,16 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
     radar_saliency_matrix = numpy.full(radar_matrix.shape, numpy.nan)
 
     for i in range(num_examples):
-        this_saliency_matrix = standalone_utils.do_2d_convolution(
-            feature_matrix=radar_matrix[i, ...], kernel_matrix=kernel_matrix,
-            pad_edges=True, stride_length_px=1)
+        if num_spatial_dim == 2:
+            this_saliency_matrix = standalone_utils.do_2d_convolution(
+                feature_matrix=radar_matrix[i, ...],
+                kernel_matrix=kernel_matrix, pad_edges=True, stride_length_px=1
+            )
+        else:
+            this_saliency_matrix = standalone_utils.do_3d_convolution(
+                feature_matrix=radar_matrix[i, ...],
+                kernel_matrix=kernel_matrix, pad_edges=True, stride_length_px=1
+            )
 
         radar_saliency_matrix[i, ...] = this_saliency_matrix[0, ...]
 
