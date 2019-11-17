@@ -874,6 +874,9 @@ def apply_2d_or_3d_cnn(
     if return_features:
         return output_matrix
 
+    if len(output_matrix.shape) == 2 and output_matrix.shape[1] == 1:
+        output_matrix = output_matrix[:, 0]
+
     if len(output_matrix.shape) == 1:
         output_matrix = dl_utils.event_probs_to_multiclass(output_matrix)
 
@@ -958,6 +961,9 @@ def apply_cnn_soundings_only(
 
     if return_features:
         return output_matrix
+
+    if len(output_matrix.shape) == 2 and output_matrix.shape[1] == 1:
+        output_matrix = output_matrix[:, 0]
 
     if len(output_matrix.shape) == 1:
         output_matrix = dl_utils.event_probs_to_multiclass(output_matrix)
@@ -1077,6 +1083,9 @@ def apply_2d3d_cnn(
 
     if return_features:
         return output_matrix
+
+    if len(output_matrix.shape) == 2 and output_matrix.shape[1] == 1:
+        output_matrix = output_matrix[:, 0]
 
     if len(output_matrix.shape) == 1:
         output_matrix = dl_utils.event_probs_to_multiclass(output_matrix)
