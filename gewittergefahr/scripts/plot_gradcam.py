@@ -235,8 +235,10 @@ def _plot_3d_radar_cam(
                 extend_min=True, extend_max=True,
                 font_size=COLOUR_BAR_FONT_SIZE)
 
-            these_tick_values = 10 ** this_colour_bar_object.get_ticks()
-            these_tick_strings = ['{0:f}'.format(v) for v in these_tick_values]
+            these_tick_values = this_colour_bar_object.get_ticks()
+            these_tick_strings = [
+                '{0:.2f}'.format(10 ** v) for v in these_tick_values
+            ]
             this_colour_bar_object.set_ticks(these_tick_values)
             this_colour_bar_object.set_ticklabels(these_tick_strings)
 
@@ -371,8 +373,10 @@ def _plot_2d_radar_cam(
             extend_min=True, extend_max=True,
             font_size=COLOUR_BAR_FONT_SIZE)
 
-        these_tick_values = 10 ** this_colour_bar_object.get_ticks()
-        these_tick_strings = ['{0:f}'.format(v) for v in these_tick_values]
+        these_tick_values = this_colour_bar_object.get_ticks()
+        these_tick_strings = [
+            '{0:.2f}'.format(10 ** v) for v in these_tick_values
+        ]
         this_colour_bar_object.set_ticks(these_tick_values)
         this_colour_bar_object.set_ticklabels(these_tick_strings)
 
