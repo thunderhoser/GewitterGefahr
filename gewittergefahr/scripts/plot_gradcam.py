@@ -1,6 +1,7 @@
 """Plots Grad-CAM output (guided and unguided class-activation maps)."""
 
 import os
+import sys
 import argparse
 import numpy
 import matplotlib
@@ -186,6 +187,8 @@ def _plot_3d_radar_cam(
         (num_unguided_contours - 1)
     )
 
+    numpy.set_printoptions(threshold=sys.maxsize)
+
     for j in range(loop_max):
         if cam_matrix is None:
             saliency_plotting.plot_many_2d_grids_with_contours(
@@ -212,6 +215,8 @@ def _plot_3d_radar_cam(
                     fontsize=COLOUR_BAR_FONT_SIZE)
         else:
             cam_matrix_log10 = numpy.log10(cam_matrix)
+            print(cam_matrix.shape)
+            print(cam_matrix[..., 0])
 
             cam_plotting.plot_many_2d_grids(
                 class_activation_matrix_3d=numpy.flip(cam_matrix_log10, axis=0),
