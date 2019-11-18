@@ -186,9 +186,6 @@ def _plot_3d_radar_cam(
         (num_unguided_contours - 1)
     )
 
-    if guided_cam_matrix is not None:
-        print(numpy.percentile(numpy.absolute(guided_cam_matrix), 99.))
-
     for j in range(loop_max):
         if cam_matrix is None:
             saliency_plotting.plot_many_2d_grids_with_contours(
