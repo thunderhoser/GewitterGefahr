@@ -1,7 +1,6 @@
 """Plots Grad-CAM output (guided and unguided class-activation maps)."""
 
 import os
-import sys
 import argparse
 import numpy
 import matplotlib
@@ -187,7 +186,8 @@ def _plot_3d_radar_cam(
         (num_unguided_contours - 1)
     )
 
-    numpy.set_printoptions(threshold=sys.maxsize)
+    if guided_cam_matrix is not None:
+        print(numpy.percentile(numpy.absolute(guided_cam_matrix), 99.))
 
     for j in range(loop_max):
         if cam_matrix is None:
