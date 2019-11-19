@@ -106,7 +106,7 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
         plot_percent_increase=False, confidence_level=confidence_level)
 
     axes_object_matrix[1, 1].set_title('Backwards multi-pass test')
-    axes_object_matrix[1, 0].set_xlabel('Area under ROC curve')
+    axes_object_matrix[1, 1].set_xlabel('Area under ROC curve')
     axes_object_matrix[1, 1].set_ylabel('')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
