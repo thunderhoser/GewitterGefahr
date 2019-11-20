@@ -6,6 +6,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
+from PIL import Image
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -13,6 +14,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.scripts import plot_input_examples as plot_examples
@@ -388,6 +390,52 @@ def _run(saliency_file_names, composite_names, colour_map_name,
     imagemagick_utils.trim_whitespace(
         input_file_name=figure_file_name, output_file_name=figure_file_name,
         border_width_pixels=10)
+
+    this_image_matrix = Image.open(figure_file_name)
+    figure_width_px, figure_height_px = this_image_matrix.size
+    figure_width_inches = float(figure_width_px) / FIGURE_RESOLUTION_DPI
+    figure_height_inches = float(figure_height_px) / FIGURE_RESOLUTION_DPI
+
+    extra_figure_object, extra_axes_object = pyplot.subplots(
+        1, 1, figsize=(figure_width_inches, figure_height_inches)
+    )
+    extra_axes_object.axis('off')
+
+    dummy_values = numpy.array([0., max_colour_value])
+
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
+        colour_map_object=colour_map_object,
+        min_value=0., max_value=max_colour_value,
+        orientation_string='vertical', fraction_of_axis_length=1.,
+        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
+
+    colour_bar_object.set_label('Saliency', fontsize=COLOUR_BAR_FONT_SIZE)
+
+    tick_values = colour_bar_object.get_ticks()
+    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
+
+    extra_file_name = '{0:s}/saliency_colour-bar.jpg'.format(output_dir_name)
+    print('Saving colour bar to: "{0:s}"...'.format(extra_file_name))
+
+    extra_figure_object.savefig(extra_file_name, dpi=FIGURE_RESOLUTION_DPI,
+                                pad_inches=0, bbox_inches='tight')
+    pyplot.close(extra_figure_object)
+
+    print('Concatenating colour bar to: "{0:s}"...'.format(figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=[figure_file_name, extra_file_name],
+        output_file_name=figure_file_name,
+        num_panel_rows=1, num_panel_columns=2,
+        extra_args_string='-gravity Center')
+
+    os.remove(extra_file_name)
+
+    imagemagick_utils.trim_whitespace(input_file_name=figure_file_name,
+                                      output_file_name=figure_file_name)
 
 
 if __name__ == '__main__':
