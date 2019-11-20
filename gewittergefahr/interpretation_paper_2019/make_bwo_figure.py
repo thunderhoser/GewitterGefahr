@@ -36,6 +36,7 @@ TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
+SOUNDING_FIGURE_SIZE_PX = int(6e8)
 
 INPUT_FILE_ARG_NAME = 'input_bwo_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -165,7 +166,7 @@ def _write_sounding_figure(figure_object, title_string, output_file_name):
 
     imagemagick_utils.resize_image(
         input_file_name=output_file_name, output_file_name=output_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
+        output_size_pixels=SOUNDING_FIGURE_SIZE_PX)
 
     imagemagick_utils.trim_whitespace(
         input_file_name=output_file_name, output_file_name=output_file_name,
