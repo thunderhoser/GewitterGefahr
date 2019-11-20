@@ -157,9 +157,14 @@ def _plot_3d_radar_saliency(
     :param storm_time_unix_sec: Storm time.
     """
 
+    print(numpy.percentile(
+        numpy.absolute(saliency_matrix), MAX_COLOUR_PERCENTILE
+    ))
+
     if max_colour_value is None:
         max_colour_value = numpy.percentile(
-            saliency_matrix, MAX_COLOUR_PERCENTILE)
+            numpy.absolute(saliency_matrix), MAX_COLOUR_PERCENTILE
+        )
 
     pmm_flag = full_storm_id_string is None and storm_time_unix_sec is None
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
@@ -252,7 +257,8 @@ def _plot_2d_radar_saliency(
 
     if max_colour_value is None:
         max_colour_value = numpy.percentile(
-            saliency_matrix, MAX_COLOUR_PERCENTILE)
+            numpy.absolute(saliency_matrix), MAX_COLOUR_PERCENTILE
+        )
 
     pmm_flag = full_storm_id_string is None and storm_time_unix_sec is None
     conv_2d3d = model_metadata_dict[cnn.CONV_2D3D_KEY]
@@ -337,7 +343,8 @@ def _plot_sounding_saliency(
 
     if max_colour_value is None:
         max_colour_value = numpy.percentile(
-            saliency_matrix, MAX_COLOUR_PERCENTILE)
+            numpy.absolute(saliency_matrix), MAX_COLOUR_PERCENTILE
+        )
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
