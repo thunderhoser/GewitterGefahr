@@ -1,4 +1,4 @@
-"""Makes figure with saliency maps."""
+"""Makes figure with gradient-weighted class-activation maps (Grad-CAM)."""
 
 import os
 import argparse
@@ -12,11 +12,10 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import saliency_maps
+from gewittergefahr.deep_learning import gradcam
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import cam_plotting
-from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.scripts import plot_input_examples as plot_examples
 
@@ -26,7 +25,7 @@ RADAR_FIELD_NAMES = [
     radar_utils.SPECTRUM_WIDTH_NAME
 ]
 
-MIN_COLOUR_VALUE_LOG10 = -3.
+MIN_COLOUR_VALUE_LOG10 = -2.
 
 COLOUR_BAR_LENGTH = 0.25
 PANEL_NAME_FONT_SIZE = 30
@@ -39,43 +38,36 @@ TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-INPUT_FILES_ARG_NAME = 'input_saliency_file_names'
+INPUT_FILES_ARG_NAME = 'input_gradcam_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
-HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
+NUM_CONTOURS_ARG_NAME = 'num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
-LOG_SCALE_ARG_NAME = 'log_scale'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILES_HELP_STRING = (
-    'List of saliency files (each will be read by `saliency.read_file`).')
+    'List of Grad-CAM files (each will be read by `gradcam.read_file`).')
 
 COMPOSITE_NAMES_HELP_STRING = (
-    'List of composite names (one for each saliency file).  This list must be '
+    'List of composite names (one for each Grad-CAM file).  This list must be '
     'space-separated, but after reading the list, underscores within each item '
     'will be replaced by spaces.')
 
 COLOUR_MAP_HELP_STRING = (
-    'Name of colour map.  Saliency for each predictor will be plotted with the '
-    'same colour map.  For example, if name is "Greys", the colour map used '
-    'will be `pyplot.cm.Greys`.  This argument supports only pyplot colour '
-    'maps.')
+    'Name of colour map.  Class activation for each predictor will be plotted '
+    'with the same colour map.  For example, if name is "Greys", the colour map'
+    ' used will be `pyplot.cm.Greys`.  This argument supports only pyplot '
+    'colour maps.')
 
 MAX_COLOUR_VALUE_HELP_STRING = (
-    'Max saliency value in colour scheme.  Keep in mind that the colour scheme '
-    'encodes *absolute* value, with positive values in solid contours and '
-    'negative values in dashed contours.')
+    'Max class activation in colour scheme.  The minimum will be 0.')
 
-HALF_NUM_CONTOURS_HELP_STRING = (
-    'Number of contours on each side of zero (positive and negative).')
+NUM_CONTOURS_HELP_STRING = 'Number of contours for class activation.'
 
 SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
-    'want to smooth saliency maps, make this non-positive.')
-
-LOG_SCALE_HELP_STRING = (
-    'Boolean flag.  If 1, will plot saliency in logarithmic scale.')
+    'want to smooth CAMs, make this non-positive.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
@@ -95,27 +87,23 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_COLOUR_VALUE_ARG_NAME, type=float, required=False,
-    default=0.05, help=MAX_COLOUR_VALUE_HELP_STRING)
+    default=10 ** 1.5, help=MAX_COLOUR_VALUE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + HALF_NUM_CONTOURS_ARG_NAME, type=int, required=False,
-    default=10, help=HALF_NUM_CONTOURS_HELP_STRING)
+    '--' + NUM_CONTOURS_ARG_NAME, type=int, required=False,
+    default=15, help=NUM_CONTOURS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
     default=1., help=SMOOTHING_RADIUS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + LOG_SCALE_ARG_NAME, type=int, required=False,
-    default=0, help=LOG_SCALE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
-    """Reads saliency map for one composite.
+def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells):
+    """Reads class-activation map for one composite.
 
     E = number of examples
     M = number of rows in grid
@@ -123,29 +111,29 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
     H = number of heights in grid
     F = number of radar fields
 
-    :param saliency_file_name: Path to input file (will be read by
-        `saliency.read_file`).
+    :param gradcam_file_name: Path to input file (will be read by
+        `gradcam.read_file`).
     :param smoothing_radius_grid_cells: Radius for Gaussian smoother, used only
-        for saliency map.
+        for class-activation map.
     :return: mean_radar_matrix: E-by-M-by-N-by-H-by-F numpy array with mean
         radar fields.
-    :return: mean_saliency_matrix: E-by-M-by-N-by-H-by-F numpy array with mean
-        saliency fields.
+    :return: mean_class_activn_matrix: E-by-M-by-N-by-H numpy array with mean
+        class-activation fields.
     :return: model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     """
 
-    print('Reading data from: "{0:s}"...'.format(saliency_file_name))
-    saliency_dict = saliency_maps.read_file(saliency_file_name)[0]
+    print('Reading data from: "{0:s}"...'.format(gradcam_file_name))
+    gradcam_dict = gradcam.read_file(gradcam_file_name)[0]
 
     mean_radar_matrix = numpy.expand_dims(
-        saliency_dict[saliency_maps.MEAN_PREDICTOR_MATRICES_KEY][0], axis=0
+        gradcam_dict[gradcam.MEAN_PREDICTOR_MATRICES_KEY][0], axis=0
     )
-    mean_saliency_matrix = numpy.expand_dims(
-        saliency_dict[saliency_maps.MEAN_SALIENCY_MATRICES_KEY][0], axis=0
+    mean_class_activn_matrix = numpy.expand_dims(
+        gradcam_dict[gradcam.MEAN_CAM_MATRICES_KEY][0], axis=0
     )
 
-    model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
+    model_file_name = gradcam_dict[gradcam.MODEL_FILE_KEY]
     model_metafile_name = cnn.find_metafile(model_file_name)
 
     print('Reading CNN metadata from: "{0:s}"...'.format(model_metafile_name))
@@ -160,7 +148,7 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
     ], dtype=int)
 
     mean_radar_matrix = mean_radar_matrix[..., good_indices, :]
-    mean_saliency_matrix = mean_saliency_matrix[..., good_indices, :]
+    mean_class_activn_matrix = mean_class_activn_matrix[..., good_indices]
 
     good_indices = numpy.array([
         training_option_dict[trainval_io.RADAR_FIELDS_KEY].index(f)
@@ -168,7 +156,6 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
     ], dtype=int)
 
     mean_radar_matrix = mean_radar_matrix[..., good_indices]
-    mean_saliency_matrix = mean_saliency_matrix[..., good_indices]
 
     training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] = RADAR_HEIGHTS_M_AGL
     training_option_dict[trainval_io.RADAR_FIELDS_KEY] = RADAR_FIELD_NAMES
@@ -176,26 +163,21 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
 
     if smoothing_radius_grid_cells is None:
-        return mean_radar_matrix, mean_saliency_matrix, model_metadata_dict
+        return mean_radar_matrix, mean_class_activn_matrix, model_metadata_dict
 
     print((
-        'Smoothing saliency maps with Gaussian filter (e-folding radius of '
-        '{0:.1f} grid cells)...'
+        'Smoothing class-activation maps with Gaussian filter (e-folding radius'
+        ' of {0:.1f} grid cells)...'
     ).format(
         smoothing_radius_grid_cells
     ))
 
-    num_fields = mean_radar_matrix.shape[-1]
+    mean_class_activn_matrix[0, ...] = general_utils.apply_gaussian_filter(
+        input_matrix=mean_class_activn_matrix[0, ...],
+        e_folding_radius_grid_cells=smoothing_radius_grid_cells
+    )
 
-    for k in range(num_fields):
-        mean_saliency_matrix[0, ..., k] = (
-            general_utils.apply_gaussian_filter(
-                input_matrix=mean_saliency_matrix[0, ..., k],
-                e_folding_radius_grid_cells=smoothing_radius_grid_cells
-            )
-        )
-
-    return mean_radar_matrix, mean_saliency_matrix, model_metadata_dict
+    return mean_radar_matrix, mean_class_activn_matrix, model_metadata_dict
 
 
 def _overlay_text(
@@ -210,6 +192,8 @@ def _overlay_text(
     :raises: ValueError: if ImageMagick command (which is ultimately a Unix
         command) fails.
     """
+
+    # TODO(thunderhoser): Put this method somewhere more general.
 
     command_string = (
         '"{0:s}" "{1:s}" -gravity north -pointsize {2:d} -font "{3:s}" '
@@ -227,43 +211,39 @@ def _overlay_text(
 
 
 def _plot_one_composite(
-        saliency_file_name, composite_name_abbrev, composite_name_verbose,
-        colour_map_object, max_colour_value, half_num_contours,
-        smoothing_radius_grid_cells, log_scale, output_dir_name):
-    """Plots saliency map for one composite.
+        gradcam_file_name, composite_name_abbrev, composite_name_verbose,
+        colour_map_object, max_colour_value, num_contours,
+        smoothing_radius_grid_cells, output_dir_name):
+    """Plots class-activation map for one composite.
 
-    :param saliency_file_name: Path to input file (will be read by
-        `saliency.read_file`).
+    :param gradcam_file_name: Path to input file (will be read by
+        `gradcam.read_file`).
     :param composite_name_abbrev: Abbrev composite name (will be used in file
         names).
     :param composite_name_verbose: Verbose composite name (will be used in
         figure title).
     :param colour_map_object: See documentation at top of file.
     :param max_colour_value: Same.
-    :param half_num_contours: Same.
+    :param num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
-    :param log_scale: Same.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :return: main_figure_file_name: Path to main image file created by this
         method.
     """
 
-    mean_radar_matrix, mean_saliency_matrix, model_metadata_dict = (
+    mean_radar_matrix, mean_class_activn_matrix, model_metadata_dict = (
         _read_one_composite(
-            saliency_file_name=saliency_file_name,
+            gradcam_file_name=gradcam_file_name,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells)
     )
 
-    max_colour_value_log10 = None
-    contour_interval_log10 = None
-
-    if log_scale:
-        max_colour_value_log10 = numpy.log10(max_colour_value)
-        contour_interval_log10 = (
-            (max_colour_value_log10 - MIN_COLOUR_VALUE_LOG10) /
-            half_num_contours
-        )
+    max_colour_value_log10 = numpy.log10(max_colour_value)
+    contour_interval_log10 = (
+        (max_colour_value_log10 - MIN_COLOUR_VALUE_LOG10) /
+        (num_contours - 1)
+    )
+    mean_activn_matrix_log10 = numpy.log10(mean_class_activn_matrix)
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
@@ -285,45 +265,16 @@ def _plot_one_composite(
     axes_object_matrices = handle_dict[plot_examples.RADAR_AXES_KEY]
 
     for k in range(num_fields):
-        this_saliency_matrix = mean_saliency_matrix[0, ..., k]
-
-        if log_scale:
-            this_positive_matrix_log10 = numpy.log10(
-                numpy.maximum(this_saliency_matrix, 0.)
-            )
-
-            cam_plotting.plot_many_2d_grids(
-                class_activation_matrix_3d=numpy.flip(
-                    this_positive_matrix_log10, axis=0
-                ),
-                axes_object_matrix=axes_object_matrices[k],
-                colour_map_object=colour_map_object,
-                min_contour_level=MIN_COLOUR_VALUE_LOG10,
-                max_contour_level=max_colour_value_log10,
-                contour_interval=contour_interval_log10, line_style='solid'
-            )
-
-            this_negative_matrix_log10 = numpy.log10(
-                -1 * numpy.minimum(this_saliency_matrix, 0.)
-            )
-
-            cam_plotting.plot_many_2d_grids(
-                class_activation_matrix_3d=numpy.flip(
-                    this_negative_matrix_log10, axis=0
-                ),
-                axes_object_matrix=axes_object_matrices[k],
-                colour_map_object=colour_map_object,
-                min_contour_level=MIN_COLOUR_VALUE_LOG10,
-                max_contour_level=max_colour_value_log10,
-                contour_interval=contour_interval_log10, line_style='dashed'
-            )
-        else:
-            saliency_plotting.plot_many_2d_grids_with_contours(
-                saliency_matrix_3d=numpy.flip(this_saliency_matrix, axis=0),
-                axes_object_matrix=axes_object_matrices[k],
-                colour_map_object=colour_map_object,
-                max_absolute_contour_level=max_colour_value,
-                contour_interval=max_colour_value / half_num_contours)
+        cam_plotting.plot_many_2d_grids(
+            class_activation_matrix_3d=numpy.flip(
+                mean_activn_matrix_log10, axis=0
+            ),
+            axes_object_matrix=axes_object_matrices[k],
+            colour_map_object=colour_map_object,
+            min_contour_level=MIN_COLOUR_VALUE_LOG10,
+            max_contour_level=max_colour_value_log10,
+            contour_interval=contour_interval_log10
+        )
 
     panel_file_names = [None] * num_fields
 
@@ -341,7 +292,7 @@ def _plot_one_composite(
         )
         pyplot.close(figure_objects[k])
 
-    main_figure_file_name = '{0:s}/{1:s}_saliency.jpg'.format(
+    main_figure_file_name = '{0:s}/{1:s}_gradcam.jpg'.format(
         output_dir_name, composite_name_abbrev)
 
     print('Concatenating panels to: "{0:s}"...'.format(main_figure_file_name))
@@ -374,20 +325,18 @@ def _plot_one_composite(
     return main_figure_file_name
 
 
-def _run(saliency_file_names, composite_names, colour_map_name,
-         max_colour_value, half_num_contours, smoothing_radius_grid_cells,
-         log_scale, output_dir_name):
-    """Makes figure with saliency maps.
+def _run(gradcam_file_names, composite_names, colour_map_name, max_colour_value,
+         num_contours, smoothing_radius_grid_cells, output_dir_name):
+    """Makes figure with gradient-weighted class-activation maps (Grad-CAM).
 
     This is effectively the main method.
 
-    :param saliency_file_names: See documentation at top of file.
+    :param gradcam_file_names: See documentation at top of file.
     :param composite_names: Same.
     :param colour_map_name: Same.
     :param max_colour_value: Same.
-    :param half_num_contours: Same.
+    :param num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
-    :param log_scale: Same.
     :param output_dir_name: Same.
     """
 
@@ -398,9 +347,9 @@ def _run(saliency_file_names, composite_names, colour_map_name,
         directory_name=output_dir_name)
 
     colour_map_object = pyplot.cm.get_cmap(colour_map_name)
-    error_checking.assert_is_geq(half_num_contours, 5)
+    error_checking.assert_is_geq(num_contours, 10)
 
-    num_composites = len(saliency_file_names)
+    num_composites = len(gradcam_file_names)
     expected_dim = numpy.array([num_composites], dtype=int)
     error_checking.assert_is_numpy_array(
         numpy.array(composite_names), exact_dimensions=expected_dim
@@ -415,18 +364,17 @@ def _run(saliency_file_names, composite_names, colour_map_name,
 
     for i in range(num_composites):
         panel_file_names[i] = _plot_one_composite(
-            saliency_file_name=saliency_file_names[i],
+            gradcam_file_name=gradcam_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
             colour_map_object=colour_map_object,
-            max_colour_value=max_colour_value,
-            half_num_contours=half_num_contours,
+            max_colour_value=max_colour_value, num_contours=num_contours,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells,
-            log_scale=log_scale, output_dir_name=output_dir_name)
+            output_dir_name=output_dir_name)
 
         print('\n')
 
-    figure_file_name = '{0:s}/saliency_concat.jpg'.format(output_dir_name)
+    figure_file_name = '{0:s}/gradcam_concat.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(figure_file_name))
 
     num_panel_rows = int(numpy.floor(
@@ -457,36 +405,25 @@ def _run(saliency_file_names, composite_names, colour_map_name,
 
     dummy_values = numpy.array([0., max_colour_value])
 
-    if log_scale:
-        this_min_value = MIN_COLOUR_VALUE_LOG10
-        this_max_value = numpy.log10(max_colour_value)
-    else:
-        this_min_value = 0.
-        this_max_value = max_colour_value + 0.
-
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
         colour_map_object=colour_map_object,
-        min_value=this_min_value, max_value=this_max_value,
+        min_value=MIN_COLOUR_VALUE_LOG10,
+        max_value=numpy.log10(max_colour_value),
         orientation_string='vertical', fraction_of_axis_length=1.25,
         extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
 
-    colour_bar_object.set_label('Absolute saliency',
+    colour_bar_object.set_label('Class activation',
                                 fontsize=COLOUR_BAR_FONT_SIZE)
 
     tick_values = colour_bar_object.get_ticks()
-
-    if log_scale:
-        tick_strings = [
-            '{0:.3f}'.format(10 ** v)[:5] for v in tick_values
-        ]
-    else:
-        tick_strings = ['{0:.3f}'.format(v) for v in tick_values]
-
+    tick_strings = [
+        '{0:.2f}'.format(10 ** v)[:4] for v in tick_values
+    ]
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
-    extra_file_name = '{0:s}/saliency_colour-bar.jpg'.format(output_dir_name)
+    extra_file_name = '{0:s}/gradcam_colour-bar.jpg'.format(output_dir_name)
     print('Saving colour bar to: "{0:s}"...'.format(extra_file_name))
 
     extra_figure_object.savefig(extra_file_name, dpi=FIGURE_RESOLUTION_DPI,
@@ -511,14 +448,13 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        saliency_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
+        gradcam_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
         composite_names=getattr(INPUT_ARG_OBJECT, COMPOSITE_NAMES_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_COLOUR_VALUE_ARG_NAME),
-        half_num_contours=getattr(INPUT_ARG_OBJECT, HALF_NUM_CONTOURS_ARG_NAME),
+        num_contours=getattr(INPUT_ARG_OBJECT, NUM_CONTOURS_ARG_NAME),
         smoothing_radius_grid_cells=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
         ),
-        log_scale=bool(getattr(INPUT_ARG_OBJECT, LOG_SCALE_ARG_NAME)),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
