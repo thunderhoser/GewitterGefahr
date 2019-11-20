@@ -139,21 +139,21 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    good_flags = numpy.array([
-        h in RADAR_HEIGHTS_M_AGL
-        for h in training_option_dict[trainval_io.RADAR_HEIGHTS_KEY]
-    ], dtype=bool)
+    good_indices = numpy.array([
+        numpy.where(
+            training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] == h
+        )[0][0]
+        for h in RADAR_HEIGHTS_M_AGL
+    ], dtype=int)
 
-    good_indices = numpy.where(good_flags)[0]
     mean_radar_matrix = mean_radar_matrix[..., good_indices, :]
     mean_saliency_matrix = mean_saliency_matrix[..., good_indices, :]
 
-    good_flags = numpy.array([
-        f in RADAR_FIELD_NAMES
-        for f in training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-    ], dtype=bool)
+    good_indices = numpy.array([
+        training_option_dict[trainval_io.RADAR_FIELDS_KEY].index(f)
+        for f in RADAR_FIELD_NAMES
+    ], dtype=int)
 
-    good_indices = numpy.where(good_flags)[0]
     mean_radar_matrix = mean_radar_matrix[..., good_indices]
     mean_saliency_matrix = mean_saliency_matrix[..., good_indices]
 
