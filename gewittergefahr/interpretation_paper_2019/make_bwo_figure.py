@@ -351,7 +351,8 @@ def _run(bwo_file_name, output_dir_name):
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
         output_file_name=figure_file_name, border_width_pixels=100,
-        num_panel_rows=2, num_panel_columns=2)
+        num_panel_rows=2, num_panel_columns=2,
+        extra_args_string='-gravity Center')
 
     imagemagick_utils.trim_whitespace(
         input_file_name=figure_file_name, output_file_name=figure_file_name,
