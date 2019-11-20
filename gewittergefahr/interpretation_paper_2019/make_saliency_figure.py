@@ -407,13 +407,13 @@ def _run(saliency_file_names, composite_names, colour_map_name,
         axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
         colour_map_object=colour_map_object,
         min_value=0., max_value=max_colour_value,
-        orientation_string='vertical', fraction_of_axis_length=1.,
+        orientation_string='vertical', fraction_of_axis_length=1.25,
         extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
 
     colour_bar_object.set_label('Saliency', fontsize=COLOUR_BAR_FONT_SIZE)
 
     tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+    tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
