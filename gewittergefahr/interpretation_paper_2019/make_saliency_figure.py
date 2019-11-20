@@ -244,8 +244,8 @@ def _plot_one_composite(
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
 
-    num_fields = mean_radar_matrix.shape[0]
-    num_heights = mean_radar_matrix.shape[-1]
+    num_fields = mean_radar_matrix.shape[-1]
+    num_heights = mean_radar_matrix.shape[-2]
 
     handle_dict = plot_examples.plot_one_example(
         list_of_predictor_matrices=[mean_radar_matrix],
