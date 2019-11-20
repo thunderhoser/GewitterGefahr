@@ -3,7 +3,9 @@
 import numpy
 from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 
-MINMAX_WEIGHTS = numpy.logspace(-4, 1, num=26)
+MINMAX_WEIGHTS = numpy.concatenate((
+    numpy.logspace(-4, 1, num=26), numpy.logspace(1, 3, num=21)[1:]
+))
 
 TOP_EXPERIMENT_DIR_NAME = (
     '/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/'
