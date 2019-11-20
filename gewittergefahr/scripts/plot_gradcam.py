@@ -211,6 +211,7 @@ def _plot_3d_radar_cam(
                     'Absolute guided class activation',
                     fontsize=COLOUR_BAR_FONT_SIZE)
         else:
+            print(numpy.percentile(cam_matrix, 99.))
             cam_matrix_log10 = numpy.log10(cam_matrix)
 
             cam_plotting.plot_many_2d_grids(

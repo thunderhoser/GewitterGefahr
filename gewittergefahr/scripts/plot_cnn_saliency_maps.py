@@ -157,10 +157,6 @@ def _plot_3d_radar_saliency(
     :param storm_time_unix_sec: Storm time.
     """
 
-    print(numpy.percentile(
-        numpy.absolute(saliency_matrix), MAX_COLOUR_PERCENTILE
-    ))
-
     if max_colour_value is None:
         max_colour_value = numpy.percentile(
             numpy.absolute(saliency_matrix), MAX_COLOUR_PERCENTILE
