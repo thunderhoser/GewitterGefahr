@@ -267,7 +267,7 @@ def _plot_one_composite(
     for k in range(num_fields):
         cam_plotting.plot_many_2d_grids(
             class_activation_matrix_3d=numpy.flip(
-                mean_activn_matrix_log10, axis=0
+                mean_activn_matrix_log10[0, ...], axis=0
             ),
             axes_object_matrix=axes_object_matrices[k],
             colour_map_object=colour_map_object,
