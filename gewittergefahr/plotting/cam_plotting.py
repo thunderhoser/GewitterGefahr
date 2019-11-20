@@ -6,12 +6,15 @@ from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import error_checking
 
 matplotlib.use('agg')
+
 DEFAULT_CONTOUR_WIDTH = 2
+DEFAULT_CONTOUR_STYLE = 'solid'
 
 
-def plot_2d_grid(class_activation_matrix_2d, axes_object, colour_map_object,
-                 min_contour_level, max_contour_level, contour_interval,
-                 line_width=DEFAULT_CONTOUR_WIDTH):
+def plot_2d_grid(
+        class_activation_matrix_2d, axes_object, colour_map_object,
+        min_contour_level, max_contour_level, contour_interval,
+        line_width=DEFAULT_CONTOUR_WIDTH, line_style=DEFAULT_CONTOUR_STYLE):
     """Plots 2-D class-activation map with line contours.
 
     M = number of rows in spatial grid
@@ -27,6 +30,7 @@ def plot_2d_grid(class_activation_matrix_2d, axes_object, colour_map_object,
     :param contour_interval: Interval (in class-activation units) between
         successive contours.
     :param line_width: Width of contour lines.
+    :param line_style: Style (e.g., "solid") for contour lines.
     """
 
     error_checking.assert_is_numpy_array_without_nan(class_activation_matrix_2d)
@@ -67,14 +71,15 @@ def plot_2d_grid(class_activation_matrix_2d, axes_object, colour_map_object,
         x_coord_matrix, y_coord_matrix, class_activation_matrix_2d,
         contour_levels, cmap=colour_map_object,
         vmin=numpy.min(contour_levels), vmax=numpy.max(contour_levels),
-        linewidths=line_width, linestyles='solid', zorder=1e6,
+        linewidths=line_width, linestyles=line_style, zorder=1e6,
         transform=axes_object.transAxes)
 
 
 def plot_many_2d_grids(
         class_activation_matrix_3d, axes_object_matrix, colour_map_object,
         min_contour_level, max_contour_level, contour_interval,
-        line_width=DEFAULT_CONTOUR_WIDTH, row_major=True):
+        line_width=DEFAULT_CONTOUR_WIDTH, row_major=True,
+        line_style=DEFAULT_CONTOUR_STYLE):
     """Plots the same 2-D class-activation map for each predictor.
 
     M = number of rows in spatial grid
@@ -92,6 +97,7 @@ def plot_many_2d_grids(
     :param row_major: Boolean flag.  If True, panels will be filled along rows
         first, then down columns.  If False, down columns first, then along
         rows.
+    :param line_style: Style (e.g., "solid") for contour lines.
     """
 
     error_checking.assert_is_numpy_array_without_nan(class_activation_matrix_3d)
@@ -119,4 +125,5 @@ def plot_many_2d_grids(
             colour_map_object=colour_map_object,
             min_contour_level=min_contour_level,
             max_contour_level=max_contour_level,
-            contour_interval=contour_interval, line_width=line_width)
+            contour_interval=contour_interval,
+            line_width=line_width, line_style=line_style)

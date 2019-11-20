@@ -15,6 +15,7 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import cam_plotting
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.scripts import plot_input_examples as plot_examples
@@ -24,6 +25,8 @@ RADAR_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
     radar_utils.SPECTRUM_WIDTH_NAME
 ]
+
+MIN_COLOUR_VALUE_LOG10 = -3.
 
 COLOUR_BAR_LENGTH = 0.25
 PANEL_NAME_FONT_SIZE = 30
@@ -42,6 +45,7 @@ COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
 HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
+LOG_SCALE_ARG_NAME = 'log_scale'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILES_HELP_STRING = (
@@ -70,6 +74,9 @@ SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
     'want to smooth saliency maps, make this non-positive.')
 
+LOG_SCALE_HELP_STRING = (
+    'Boolean flag.  If 1, will plot saliency in logarithmic scale.')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
 
@@ -97,6 +104,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
     default=1., help=SMOOTHING_RADIUS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + LOG_SCALE_ARG_NAME, type=int, required=False,
+    default=0, help=LOG_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -218,7 +229,7 @@ def _overlay_text(
 def _plot_one_composite(
         saliency_file_name, composite_name_abbrev, composite_name_verbose,
         colour_map_object, max_colour_value, half_num_contours,
-        smoothing_radius_grid_cells, output_dir_name):
+        smoothing_radius_grid_cells, log_scale, output_dir_name):
     """Plots saliency map for one composite.
 
     :param saliency_file_name: Path to input file (will be read by
@@ -231,6 +242,7 @@ def _plot_one_composite(
     :param max_colour_value: Same.
     :param half_num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
+    :param log_scale: Same.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :return: main_figure_file_name: Path to main image file created by this
@@ -242,6 +254,16 @@ def _plot_one_composite(
             saliency_file_name=saliency_file_name,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells)
     )
+
+    max_colour_value_log10 = None
+    contour_interval_log10 = None
+
+    if log_scale:
+        max_colour_value_log10 = numpy.log10(max_colour_value)
+        contour_interval_log10 = (
+            (max_colour_value_log10 - MIN_COLOUR_VALUE_LOG10) /
+            half_num_contours
+        )
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
@@ -265,12 +287,41 @@ def _plot_one_composite(
     for k in range(num_fields):
         this_saliency_matrix = mean_saliency_matrix[0, ..., k]
 
-        saliency_plotting.plot_many_2d_grids_with_contours(
-            saliency_matrix_3d=numpy.flip(this_saliency_matrix, axis=0),
-            axes_object_matrix=axes_object_matrices[k],
-            colour_map_object=colour_map_object,
-            max_absolute_contour_level=max_colour_value,
-            contour_interval=max_colour_value / half_num_contours)
+        if log_scale:
+            this_positive_matrix_log10 = numpy.log10(
+                numpy.maximum(this_saliency_matrix, 0.)
+            )
+
+            cam_plotting.plot_many_2d_grids(
+                class_activation_matrix_3d=numpy.flip(
+                    numpy.log10(this_positive_matrix_log10), axis=0
+                ),
+                axes_object_matrix=axes_object_matrices[k],
+                colour_map_object=colour_map_object,
+                min_contour_level=MIN_COLOUR_VALUE_LOG10,
+                max_contour_level=max_colour_value_log10,
+                contour_interval=contour_interval_log10, line_style='solid')
+
+            this_negative_matrix_log10 = numpy.log10(
+                -1 * numpy.minimum(this_saliency_matrix, 0.)
+            )
+
+            cam_plotting.plot_many_2d_grids(
+                class_activation_matrix_3d=numpy.flip(
+                    numpy.log10(this_negative_matrix_log10), axis=0
+                ),
+                axes_object_matrix=axes_object_matrices[k],
+                colour_map_object=colour_map_object,
+                min_contour_level=MIN_COLOUR_VALUE_LOG10,
+                max_contour_level=max_colour_value_log10,
+                contour_interval=contour_interval_log10, line_style='dashed')
+        else:
+            saliency_plotting.plot_many_2d_grids_with_contours(
+                saliency_matrix_3d=numpy.flip(this_saliency_matrix, axis=0),
+                axes_object_matrix=axes_object_matrices[k],
+                colour_map_object=colour_map_object,
+                max_absolute_contour_level=max_colour_value,
+                contour_interval=max_colour_value / half_num_contours)
 
     panel_file_names = [None] * num_fields
 
@@ -323,7 +374,7 @@ def _plot_one_composite(
 
 def _run(saliency_file_names, composite_names, colour_map_name,
          max_colour_value, half_num_contours, smoothing_radius_grid_cells,
-         output_dir_name):
+         log_scale, output_dir_name):
     """Makes figure with saliency maps.
 
     This is effectively the main method.
@@ -334,6 +385,7 @@ def _run(saliency_file_names, composite_names, colour_map_name,
     :param max_colour_value: Same.
     :param half_num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
+    :param log_scale: Same.
     :param output_dir_name: Same.
     """
 
@@ -368,7 +420,7 @@ def _run(saliency_file_names, composite_names, colour_map_name,
             max_colour_value=max_colour_value,
             half_num_contours=half_num_contours,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells,
-            output_dir_name=output_dir_name)
+            log_scale=log_scale, output_dir_name=output_dir_name)
 
         print('\n')
 
@@ -403,17 +455,32 @@ def _run(saliency_file_names, composite_names, colour_map_name,
 
     dummy_values = numpy.array([0., max_colour_value])
 
+    if log_scale:
+        this_min_value = MIN_COLOUR_VALUE_LOG10
+        this_max_value = numpy.log10(max_colour_value)
+    else:
+        this_min_value = 0.
+        this_max_value = max_colour_value + 0.
+
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
         colour_map_object=colour_map_object,
-        min_value=0., max_value=max_colour_value,
+        min_value=this_min_value, max_value=this_max_value,
         orientation_string='vertical', fraction_of_axis_length=1.25,
         extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
 
-    colour_bar_object.set_label('Saliency', fontsize=COLOUR_BAR_FONT_SIZE)
+    colour_bar_object.set_label('Absolute saliency',
+                                fontsize=COLOUR_BAR_FONT_SIZE)
 
     tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
+
+    if log_scale:
+        tick_strings = [
+            '{0:.3f}'.format(10 ** v)[:5] for v in tick_values
+        ]
+    else:
+        tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
+
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
@@ -450,5 +517,6 @@ if __name__ == '__main__':
         smoothing_radius_grid_cells=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
         ),
+        log_scale=bool(getattr(INPUT_ARG_OBJECT, LOG_SCALE_ARG_NAME)),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
