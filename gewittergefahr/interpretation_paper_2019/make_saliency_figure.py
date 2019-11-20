@@ -146,6 +146,7 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
 
     good_indices = numpy.where(good_flags)[0]
     mean_radar_matrix = mean_radar_matrix[..., good_indices, :]
+    mean_saliency_matrix = mean_saliency_matrix[..., good_indices, :]
 
     good_flags = numpy.array([
         f in RADAR_FIELD_NAMES
@@ -154,6 +155,7 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
 
     good_indices = numpy.where(good_flags)[0]
     mean_radar_matrix = mean_radar_matrix[..., good_indices]
+    mean_saliency_matrix = mean_saliency_matrix[..., good_indices]
 
     training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] = RADAR_HEIGHTS_M_AGL
     training_option_dict[trainval_io.RADAR_FIELDS_KEY] = RADAR_FIELD_NAMES
