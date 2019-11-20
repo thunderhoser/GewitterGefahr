@@ -17,6 +17,7 @@ SHEAR_VORT_DIV_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
 ]
 
+METRES_TO_KM = 0.001
 KM_TO_KILOFEET = 3.2808
 PER_SECOND_TO_PER_KILOSECOND = 1e3
 
@@ -444,11 +445,17 @@ def layer_operations_to_names(
         this_field_name_verbose = field_name_to_verbose(
             field_name=field_name_by_panel[i], include_units=include_units)
 
-        panel_names[i] = '{0:s}\n{1:s} from {2:d}-{3:d} m AGL'.format(
+        this_min_height_km_agl = int(numpy.round(
+            this_operation_dict[input_examples.MIN_HEIGHT_KEY] * METRES_TO_KM
+        ))
+        this_max_height_km_agl = int(numpy.round(
+            this_operation_dict[input_examples.MAX_HEIGHT_KEY] * METRES_TO_KM
+        ))
+
+        panel_names[i] = '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'.format(
             this_field_name_verbose,
             this_operation_dict[input_examples.OPERATION_NAME_KEY].upper(),
-            this_operation_dict[input_examples.MIN_HEIGHT_KEY],
-            this_operation_dict[input_examples.MAX_HEIGHT_KEY]
+            this_min_height_km_agl, this_max_height_km_agl
         )
 
     return field_name_by_panel, panel_names
@@ -489,8 +496,9 @@ def fields_and_heights_to_names(
         this_field_name_verbose = field_name_to_verbose(
             field_name=field_names[i], include_units=include_units)
 
-        panel_names[i] = '{0:s}\nat {1:d} m AGL'.format(
-            this_field_name_verbose, heights_m_agl[i]
+        panel_names[i] = '{0:s}\nat {1:d} km AGL'.format(
+            this_field_name_verbose,
+            int(numpy.round(heights_m_agl[i] * METRES_TO_KM))
         )
 
     return panel_names
@@ -906,8 +914,8 @@ def plot_3d_grid(
 
     for k in range(num_heights):
         if plot_panel_names:
-            this_panel_name = '{0:d} m {1:s}'.format(
-                heights_metres[k],
+            this_panel_name = '{0:d} km {1:s}'.format(
+                int(numpy.round(heights_metres[k] * METRES_TO_KM)),
                 'AGL' if ground_relative else 'ASL'
             )
         else:
