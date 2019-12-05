@@ -31,9 +31,9 @@ DEFAULT_OPTION_DICT = {
     DRY_ADIABAT_COLOUR_KEY: numpy.array([217, 95, 2], dtype=float) / 255,
     MOIST_ADIABAT_COLOUR_KEY: numpy.array([117, 112, 179], dtype=float) / 255,
     ISOHUME_COLOUR_KEY: numpy.array([27, 158, 119], dtype=float) / 255,
-    CONTOUR_LINE_WIDTH_KEY: 0.5,
+    CONTOUR_LINE_WIDTH_KEY: 1,
     GRID_LINE_COLOUR_KEY: numpy.array([152, 152, 152], dtype=float) / 255,
-    GRID_LINE_WIDTH_KEY: 1.5,
+    GRID_LINE_WIDTH_KEY: 2,
     FIGURE_WIDTH_KEY: 15,
     FIGURE_HEIGHT_KEY: 15
 }
@@ -147,7 +147,7 @@ def plot_sounding(
     ))
 
     skewt_object.ax.text(
-        temperatures_deg_c[middle_index], pressures_mb[middle_index],
+        temperatures_deg_c[middle_index] + 3., pressures_mb[middle_index],
         'Air\ntemperature', fontsize=font_size,
         color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
         horizontalalignment='left', verticalalignment='center'
@@ -160,7 +160,7 @@ def plot_sounding(
     )
 
     skewt_object.ax.text(
-        dewpoints_deg_c[middle_index], pressures_mb[middle_index],
+        dewpoints_deg_c[middle_index] - 3., pressures_mb[middle_index],
         'Dewpoint\ntemperature', fontsize=font_size,
         color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
         horizontalalignment='right', verticalalignment='center'
@@ -181,7 +181,7 @@ def plot_sounding(
     axes_object = skewt_object.ax
     axes_object.grid(
         color=plotting_utils.colour_from_numpy_to_tuple(grid_line_colour),
-        linewidth=grid_line_width, linestyle='dashed'
+        linewidth=grid_line_width, linestyle='solid'
     )
 
     skewt_object.plot_dry_adiabats(
