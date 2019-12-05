@@ -97,7 +97,7 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     axes_object_matrix[0, 1].set_ylabel('')
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[0, 1], label_string='(b)',
-        x_coord_normalized=-0.01, y_coord_normalized=0.925
+        x_coord_normalized=1.01, y_coord_normalized=0.925
     )
 
     permutation_plotting.plot_single_pass_test(
@@ -122,7 +122,7 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     axes_object_matrix[1, 1].set_ylabel('')
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[1, 1], label_string='(d)',
-        x_coord_normalized=-0.01, y_coord_normalized=0.925
+        x_coord_normalized=1.01, y_coord_normalized=0.925
     )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
