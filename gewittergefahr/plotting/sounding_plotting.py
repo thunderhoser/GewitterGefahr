@@ -193,7 +193,7 @@ def plot_sounding(
     axes_object = skewt_object.ax
     axes_object.grid(
         color=plotting_utils.colour_from_numpy_to_tuple(grid_line_colour),
-        linewidth=grid_line_width, linestyle='solid'
+        linewidth=grid_line_width, linestyle='dashed'
     )
 
     skewt_object.plot_dry_adiabats(
