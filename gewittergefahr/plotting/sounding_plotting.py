@@ -147,7 +147,8 @@ def plot_sounding(
     ))
 
     skewt_object.ax.text(
-        temperatures_deg_c[middle_index] + 3., pressures_mb[middle_index],
+        temperatures_deg_c[middle_index] + 3 * metpy.units.units.degC,
+        pressures_mb[middle_index],
         'Air\ntemperature', fontsize=font_size,
         color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
         horizontalalignment='left', verticalalignment='center'
@@ -160,7 +161,8 @@ def plot_sounding(
     )
 
     skewt_object.ax.text(
-        dewpoints_deg_c[middle_index] - 3., pressures_mb[middle_index],
+        dewpoints_deg_c[middle_index] - 3 * metpy.units.units.degC,
+        pressures_mb[middle_index],
         'Dewpoint\ntemperature', fontsize=font_size,
         color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
         horizontalalignment='right', verticalalignment='center'
