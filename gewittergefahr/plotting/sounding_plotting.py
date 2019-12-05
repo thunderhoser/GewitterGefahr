@@ -150,7 +150,7 @@ def plot_sounding(
         pressures_mb[middle_index], temperatures_deg_c[middle_index],
         'Air\ntemperature', fontsize=font_size,
         color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
-        horizontalalignment='left', verticalalignment='middle'
+        horizontalalignment='left', verticalalignment='center'
     )
 
     skewt_object.plot(
@@ -163,7 +163,7 @@ def plot_sounding(
         pressures_mb[middle_index], dewpoints_deg_c[middle_index],
         'Dewpoint\ntemperature', fontsize=font_size,
         color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
-        horizontalalignment='right', verticalalignment='middle'
+        horizontalalignment='right', verticalalignment='center'
     )
 
     try:
