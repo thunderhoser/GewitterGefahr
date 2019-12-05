@@ -82,7 +82,8 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     axes_object_matrix[0, 0].set_xticks([])
     axes_object_matrix[0, 0].set_xlabel('')
     plotting_utils.label_axes(
-        axes_object=axes_object_matrix[0, 0], label_string='(a)'
+        axes_object=axes_object_matrix[0, 0], label_string='(a)',
+        x_coord_normalized=-0.01, y_coord_normalized=0.925
     )
 
     permutation_plotting.plot_multipass_test(
@@ -95,7 +96,8 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     axes_object_matrix[0, 1].set_xlabel('')
     axes_object_matrix[0, 1].set_ylabel('')
     plotting_utils.label_axes(
-        axes_object=axes_object_matrix[0, 1], label_string='(b)'
+        axes_object=axes_object_matrix[0, 1], label_string='(b)',
+        x_coord_normalized=-0.01, y_coord_normalized=0.925
     )
 
     permutation_plotting.plot_single_pass_test(
@@ -106,7 +108,8 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     axes_object_matrix[1, 0].set_title('Backwards single-pass test')
     axes_object_matrix[1, 0].set_xlabel('Area under ROC curve')
     plotting_utils.label_axes(
-        axes_object=axes_object_matrix[1, 0], label_string='(c)'
+        axes_object=axes_object_matrix[1, 0], label_string='(c)',
+        x_coord_normalized=-0.01, y_coord_normalized=0.925
     )
 
     permutation_plotting.plot_multipass_test(
@@ -118,7 +121,8 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     axes_object_matrix[1, 1].set_xlabel('Area under ROC curve')
     axes_object_matrix[1, 1].set_ylabel('')
     plotting_utils.label_axes(
-        axes_object=axes_object_matrix[1, 1], label_string='(d)'
+        axes_object=axes_object_matrix[1, 1], label_string='(d)',
+        x_coord_normalized=-0.01, y_coord_normalized=0.925
     )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))

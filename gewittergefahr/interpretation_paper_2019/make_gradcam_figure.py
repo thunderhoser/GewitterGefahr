@@ -358,7 +358,12 @@ def _run(gradcam_file_names, composite_names, colour_map_name, max_colour_value,
     composite_names_abbrev = [
         n.replace('_', '-').lower() for n in composite_names
     ]
-    composite_names_verbose = [n.replace('_', ' ') for n in composite_names]
+    composite_names_verbose = [
+        '({0:s}) {1:s}'.format(
+            chr(ord('a') + i), composite_names[i].replace('_', ' ')
+        )
+        for i in range(num_composites)
+    ]
 
     panel_file_names = [None] * num_composites
 

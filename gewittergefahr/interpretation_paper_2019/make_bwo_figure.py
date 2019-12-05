@@ -288,7 +288,7 @@ def _run(bwo_file_name, output_dir_name):
 
     _write_sounding_figure(
         figure_object=handle_dict[plot_examples.SOUNDING_FIGURE_KEY],
-        title_string='Sounding before optimization',
+        title_string='(c) Original sounding',
         output_file_name=panel_file_names[2]
     )
     print(SEPARATOR_STRING)
@@ -310,14 +310,14 @@ def _run(bwo_file_name, output_dir_name):
 
     _write_sounding_figure(
         figure_object=handle_dict[plot_examples.SOUNDING_FIGURE_KEY],
-        title_string='Sounding after optimization',
+        title_string='(d) Synthetic sounding',
         output_file_name=panel_file_names[3]
     )
 
     panel_file_names[0] = _write_radar_figures(
         figure_objects=handle_dict[plot_examples.RADAR_FIGURES_KEY],
         field_names=radar_field_names, composite_name='after',
-        concat_title_string='Radar after optimization',
+        concat_title_string='(a) Synthetic radar image',
         output_dir_name=output_dir_name)
 
     print(SEPARATOR_STRING)
@@ -341,7 +341,7 @@ def _run(bwo_file_name, output_dir_name):
     panel_file_names[1] = _write_radar_figures(
         figure_objects=handle_dict[plot_examples.RADAR_FIGURES_KEY],
         field_names=radar_field_names, composite_name='difference',
-        concat_title_string='Radar difference',
+        concat_title_string='(b) Radar difference',
         output_dir_name=output_dir_name)
 
     print(SEPARATOR_STRING)
