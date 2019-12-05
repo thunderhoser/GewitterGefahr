@@ -172,6 +172,8 @@ def _plot_roc_curve(evaluation_table, best_threshold_index, output_file_name,
         axes_object=axes_object, label_string='(a)', y_coord_normalized=1.025
     )
 
+    axes_object.set_aspect('equal')
+
     print('Saving ROC curve to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                    bbox_inches='tight')
@@ -288,6 +290,8 @@ def _plot_performance_diagram(
         axes_object=axes_object, label_string='(b)', y_coord_normalized=1.025
     )
 
+    axes_object.set_aspect('equal')
+
     print('Saving performance diagram to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
                    bbox_inches='tight')
@@ -388,6 +392,8 @@ def _plot_attributes_diagram(
     plotting_utils.label_axes(
         axes_object=axes_object, label_string='(c)', y_coord_normalized=1.025
     )
+
+    axes_object.set_aspect('equal')
 
     print('Saving attributes diagram to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
