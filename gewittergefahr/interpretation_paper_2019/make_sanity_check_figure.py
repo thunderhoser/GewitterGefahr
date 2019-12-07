@@ -1,6 +1,7 @@
 """Makes figure with sanity checks for saliency maps."""
 
 import os
+import pickle
 import argparse
 import numpy
 import matplotlib
@@ -9,6 +10,7 @@ from matplotlib import pyplot
 from PIL import Image
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -17,6 +19,7 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import cam_plotting
 from gewittergefahr.plotting import saliency_plotting
+from gewittergefahr.plotting import significance_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.scripts import plot_input_examples as plot_examples
 
@@ -39,7 +42,8 @@ TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-INPUT_FILES_ARG_NAME = 'input_saliency_file_names'
+SALIENCY_FILES_ARG_NAME = 'input_saliency_file_names'
+MC_FILES_ARG_NAME = 'input_monte_carlo_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
@@ -48,8 +52,12 @@ SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 LOG_SCALE_ARG_NAME = 'log_scale'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-INPUT_FILES_HELP_STRING = (
+SALIENCY_FILES_HELP_STRING = (
     'List of saliency files (each will be read by `saliency.read_file`).')
+
+MC_FILES_HELP_STRING = (
+    'List of files with Monte Carlo significance tests (one per saliency file).'
+    '  Each will be read by `_read_monte_carlo_test`.')
 
 COMPOSITE_NAMES_HELP_STRING = (
     'List of composite names (one for each saliency file).  This list must be '
@@ -82,8 +90,12 @@ OUTPUT_DIR_HELP_STRING = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + INPUT_FILES_ARG_NAME, type=str, nargs='+', required=True,
-    help=INPUT_FILES_HELP_STRING)
+    '--' + SALIENCY_FILES_ARG_NAME, type=str, nargs='+', required=True,
+    help=SALIENCY_FILES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MC_FILES_ARG_NAME, type=str, nargs='+', required=True,
+    help=MC_FILES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + COMPOSITE_NAMES_ARG_NAME, type=str, nargs='+', required=True,
@@ -227,13 +239,16 @@ def _overlay_text(
 
 
 def _plot_one_composite(
-        saliency_file_name, composite_name_abbrev, composite_name_verbose,
-        colour_map_object, max_colour_value, half_num_contours,
-        smoothing_radius_grid_cells, log_scale, output_dir_name):
+        saliency_file_name, monte_carlo_file_name, composite_name_abbrev,
+        composite_name_verbose, colour_map_object, max_colour_value,
+        half_num_contours, smoothing_radius_grid_cells, log_scale,
+        output_dir_name):
     """Plots saliency map for one composite.
 
-    :param saliency_file_name: Path to input file (will be read by
+    :param saliency_file_name: Path to saliency file (will be read by
         `saliency.read_file`).
+    :param monte_carlo_file_name: Path to Monte Carlo file (will be read by
+        `_read_monte_carlo_file`).
     :param composite_name_abbrev: Abbrev composite name (will be used in file
         names).
     :param composite_name_verbose: Verbose composite name (will be used in
@@ -253,6 +268,21 @@ def _plot_one_composite(
         _read_one_composite(
             saliency_file_name=saliency_file_name,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells)
+    )
+
+    print('Reading Monte Carlo test from: "{0:s}"...'.format(
+        monte_carlo_file_name
+    ))
+
+    this_file_handle = open(monte_carlo_file_name, 'rb')
+    monte_carlo_dict = pickle.load(this_file_handle)
+    this_file_handle.close()
+
+    significance_matrix = numpy.logical_or(
+        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+        monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+        monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
     )
 
     max_colour_value_log10 = None
@@ -325,6 +355,13 @@ def _plot_one_composite(
                 max_absolute_contour_level=max_colour_value,
                 contour_interval=max_colour_value / half_num_contours)
 
+        this_sig_matrix = numpy.flip(significance_matrix[..., k], axis=0)
+
+        significance_plotting.plot_many_2d_grids_without_coords(
+            significance_matrix=this_sig_matrix,
+            axes_object_matrix=axes_object_matrices[k]
+        )
+
     panel_file_names = [None] * num_fields
 
     for k in range(num_fields):
@@ -374,14 +411,15 @@ def _plot_one_composite(
     return main_figure_file_name
 
 
-def _run(saliency_file_names, composite_names, colour_map_name,
-         max_colour_value, half_num_contours, smoothing_radius_grid_cells,
-         log_scale, output_dir_name):
+def _run(saliency_file_names, monte_carlo_file_names, composite_names,
+         colour_map_name, max_colour_value, half_num_contours,
+         smoothing_radius_grid_cells, log_scale, output_dir_name):
     """Makes figure with saliency maps.
 
     This is effectively the main method.
 
     :param saliency_file_names: See documentation at top of file.
+    :param monte_carlo_file_names: Same.
     :param composite_names: Same.
     :param colour_map_name: Same.
     :param max_colour_value: Same.
@@ -402,8 +440,12 @@ def _run(saliency_file_names, composite_names, colour_map_name,
 
     num_composites = len(saliency_file_names)
     expected_dim = numpy.array([num_composites], dtype=int)
+
     error_checking.assert_is_numpy_array(
         numpy.array(composite_names), exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_numpy_array(
+        numpy.array(monte_carlo_file_names), exact_dimensions=expected_dim
     )
 
     composite_names_abbrev = [
@@ -421,6 +463,7 @@ def _run(saliency_file_names, composite_names, colour_map_name,
     for i in range(num_composites):
         panel_file_names[i] = _plot_one_composite(
             saliency_file_name=saliency_file_names[i],
+            monte_carlo_file_name=monte_carlo_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
             colour_map_object=colour_map_object,
@@ -516,7 +559,8 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        saliency_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
+        saliency_file_names=getattr(INPUT_ARG_OBJECT, SALIENCY_FILES_ARG_NAME),
+        monte_carlo_file_names=getattr(INPUT_ARG_OBJECT, MC_FILES_ARG_NAME),
         composite_names=getattr(INPUT_ARG_OBJECT, COMPOSITE_NAMES_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_COLOUR_VALUE_ARG_NAME),
