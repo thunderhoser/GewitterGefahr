@@ -375,7 +375,7 @@ def _plot_one_composite(
 
         this_sig_matrix = significance_matrix[0, ..., 0, k]
 
-        significance_matrix.plot_2d_grid_without_coords(
+        significance_plotting.plot_2d_grid_without_coords(
             significance_matrix=numpy.flip(this_sig_matrix, axis=0),
             axes_object=axes_object_matrices[k][0, 0]
         )
