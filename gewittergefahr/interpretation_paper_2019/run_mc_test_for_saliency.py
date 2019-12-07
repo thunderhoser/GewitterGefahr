@@ -9,12 +9,14 @@ import pickle
 import argparse
 import numpy
 import scipy.stats
+from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import saliency_maps
 
 ACTUAL_FILE_ARG_NAME = 'actual_saliency_file_name'
 DUMMY_FILE_ARG_NAME = 'dummy_saliency_file_name'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 MAX_PERCENTILE_ARG_NAME = 'max_pmm_percentile_level'
 NUM_ITERATIONS_ARG_NAME = 'num_iterations'
 CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
@@ -29,6 +31,10 @@ DUMMY_FILE_HELP_STRING = (
     'Path to file with dummy saliency maps, from edge-detector test or model-'
     'parameter-randomization test (will be read by `saliency.read_file`).'
 )
+
+SMOOTHING_RADIUS_HELP_STRING = (
+    'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
+    'want to smooth saliency maps, make this non-positive.')
 
 MAX_PERCENTILE_HELP_STRING = (
     'Max percentile level for probability-matched means (PMM).'
@@ -51,6 +57,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + DUMMY_FILE_ARG_NAME, type=str, required=True,
     help=DUMMY_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
+    default=1., help=SMOOTHING_RADIUS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
@@ -84,14 +94,44 @@ def _write_results(monte_carlo_dict, pickle_file_name):
     pickle_file_handle.close()
 
 
-def _run(actual_file_name, dummy_file_name, max_pmm_percentile_level,
-         num_iterations, confidence_level, output_file_name):
+def _smooth_maps(saliency_matrix, smoothing_radius_grid_cells):
+    """Smooths saliency maps via Gaussian filter.
+
+    :param saliency_matrix: numpy array of saliency values.
+    :param smoothing_radius_grid_cells: e-folding radius (number of grid cells).
+    :return: saliency_matrix: Smoothed version of input.
+    """
+
+    print((
+        'Smoothing saliency maps with Gaussian filter (e-folding radius of '
+        '{0:.1f} grid cells)...'
+    ).format(
+        smoothing_radius_grid_cells
+    ))
+
+    num_examples = saliency_matrix.shape[0]
+    num_channels = saliency_matrix.shape[-1]
+
+    for i in range(num_examples):
+        for j in range(num_channels):
+            saliency_matrix[i, ..., j] = general_utils.apply_gaussian_filter(
+                input_matrix=saliency_matrix[i, ..., j],
+                e_folding_radius_grid_cells=smoothing_radius_grid_cells
+            )
+
+    return saliency_matrix
+
+
+def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
+         max_pmm_percentile_level, num_iterations, confidence_level,
+         output_file_name):
     """Runs Monte Carlo test for saliency maps.
 
     This is effectively the main method.
 
     :param actual_file_name: See documentation at top of file.
     :param dummy_file_name: Same.
+    :param smoothing_radius_grid_cells: Same.
     :param max_pmm_percentile_level: Same.
     :param num_iterations: Same.
     :param confidence_level: Same.
@@ -129,6 +169,14 @@ def _run(actual_file_name, dummy_file_name, max_pmm_percentile_level,
     )
 
     # Convert saliency from absolute values to percentiles.
+    actual_saliency_matrix = _smooth_maps(
+        saliency_matrix=actual_saliency_matrix,
+        smoothing_radius_grid_cells=smoothing_radius_grid_cells)
+
+    dummy_saliency_matrix = _smooth_maps(
+        saliency_matrix=dummy_saliency_matrix,
+        smoothing_radius_grid_cells=smoothing_radius_grid_cells)
+
     num_examples = actual_saliency_matrix.shape[0]
     num_channels = actual_saliency_matrix.shape[-1]
 
@@ -174,6 +222,8 @@ if __name__ == '__main__':
     _run(
         actual_file_name=getattr(INPUT_ARG_OBJECT, ACTUAL_FILE_ARG_NAME),
         dummy_file_name=getattr(INPUT_ARG_OBJECT, DUMMY_FILE_ARG_NAME),
+        smoothing_radius_grid_cells=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME),
         max_pmm_percentile_level=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
