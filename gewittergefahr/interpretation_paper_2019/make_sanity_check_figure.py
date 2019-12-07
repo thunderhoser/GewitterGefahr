@@ -370,8 +370,11 @@ def _plot_one_composite(
                 max_absolute_contour_level=max_colour_value,
                 contour_interval=max_colour_value / half_num_contours)
 
-        this_sig_matrix = numpy.flip(significance_matrix[0, ..., k], axis=0)
+        if k != 0:
+            continue
 
+        this_sig_matrix = numpy.flip(significance_matrix[0, ... [0], k], axis=0)
+        
         significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=this_sig_matrix,
             axes_object_matrix=axes_object_matrices[k]
