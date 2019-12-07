@@ -5,6 +5,7 @@ those produced by two "sanity checks," the edge-detector test and
 model-parameter-randomization test.
 """
 
+import sys
 import pickle
 import argparse
 import numpy
@@ -187,6 +188,10 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
                 scipy.stats.rankdata(this_flat_array, method='average') /
                 len(this_flat_array)
             )
+
+            numpy.set_printoptions(threshold=sys.maxsize)
+            print(this_flat_array[:20])
+            print(these_flat_ranks[:20])
 
             actual_saliency_matrix[i, ..., j] = numpy.reshape(
                 these_flat_ranks, actual_saliency_matrix[i, ..., j].shape
