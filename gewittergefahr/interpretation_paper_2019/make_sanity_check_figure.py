@@ -126,7 +126,8 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
+def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
+                        monte_carlo_file_name):
     """Reads saliency map for one composite.
 
     E = number of examples
@@ -139,15 +140,19 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
         `saliency.read_file`).
     :param smoothing_radius_grid_cells: Radius for Gaussian smoother, used only
         for saliency map.
+    :param monte_carlo_file_name: Path to Monte Carlo file (will be read by
+        `_read_monte_carlo_file`).
     :return: mean_radar_matrix: E-by-M-by-N-by-H-by-F numpy array with mean
         radar fields.
     :return: mean_saliency_matrix: E-by-M-by-N-by-H-by-F numpy array with mean
         saliency fields.
+    :return: significance_matrix: E-by-M-by-N-by-H-by-F numpy array of Boolean
+        flags.
     :return: model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     """
 
-    print('Reading data from: "{0:s}"...'.format(saliency_file_name))
+    print('Reading saliency maps from: "{0:s}"...'.format(saliency_file_name))
     saliency_dict = saliency_maps.read_file(saliency_file_name)[0]
 
     mean_radar_matrix = numpy.expand_dims(
@@ -159,6 +164,22 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
 
     model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
     model_metafile_name = cnn.find_metafile(model_file_name)
+
+    print('Reading Monte Carlo test from: "{0:s}"...'.format(
+        monte_carlo_file_name
+    ))
+
+    this_file_handle = open(monte_carlo_file_name, 'rb')
+    monte_carlo_dict = pickle.load(this_file_handle)
+    this_file_handle.close()
+
+    significance_matrix = numpy.logical_or(
+        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+        monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+        monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+    )
+    significance_matrix = numpy.expand_dims(significance_matrix, axis=0)
 
     print('Reading CNN metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
@@ -173,6 +194,7 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
 
     mean_radar_matrix = mean_radar_matrix[..., good_indices, :]
     mean_saliency_matrix = mean_saliency_matrix[..., good_indices, :]
+    significance_matrix = significance_matrix[..., good_indices, :]
 
     good_indices = numpy.array([
         training_option_dict[trainval_io.RADAR_FIELDS_KEY].index(f)
@@ -181,6 +203,7 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
 
     mean_radar_matrix = mean_radar_matrix[..., good_indices]
     mean_saliency_matrix = mean_saliency_matrix[..., good_indices]
+    significance_matrix = significance_matrix[..., good_indices]
 
     training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] = RADAR_HEIGHTS_M_AGL
     training_option_dict[trainval_io.RADAR_FIELDS_KEY] = RADAR_FIELD_NAMES
@@ -188,7 +211,10 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
 
     if smoothing_radius_grid_cells is None:
-        return mean_radar_matrix, mean_saliency_matrix, model_metadata_dict
+        return (
+            mean_radar_matrix, mean_saliency_matrix, significance_matrix,
+            model_metadata_dict
+        )
 
     print((
         'Smoothing saliency maps with Gaussian filter (e-folding radius of '
@@ -207,7 +233,10 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
             )
         )
 
-    return mean_radar_matrix, mean_saliency_matrix, model_metadata_dict
+    return (
+        mean_radar_matrix, mean_saliency_matrix, significance_matrix,
+        model_metadata_dict
+    )
 
 
 def _overlay_text(
@@ -264,26 +293,12 @@ def _plot_one_composite(
         method.
     """
 
-    mean_radar_matrix, mean_saliency_matrix, model_metadata_dict = (
-        _read_one_composite(
-            saliency_file_name=saliency_file_name,
-            smoothing_radius_grid_cells=smoothing_radius_grid_cells)
-    )
-
-    print('Reading Monte Carlo test from: "{0:s}"...'.format(
-        monte_carlo_file_name
-    ))
-
-    this_file_handle = open(monte_carlo_file_name, 'rb')
-    monte_carlo_dict = pickle.load(this_file_handle)
-    this_file_handle.close()
-
-    significance_matrix = numpy.logical_or(
-        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
-        monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
-        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
-        monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
-    )
+    (mean_radar_matrix, mean_saliency_matrix, significance_matrix,
+     model_metadata_dict
+    ) = _read_one_composite(
+        saliency_file_name=saliency_file_name,
+        smoothing_radius_grid_cells=smoothing_radius_grid_cells,
+        monte_carlo_file_name=monte_carlo_file_name)
 
     max_colour_value_log10 = None
     contour_interval_log10 = None
