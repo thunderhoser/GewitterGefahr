@@ -213,15 +213,15 @@ def run_monte_carlo_test(
                 input_matrix=this_shuffled_matrix,
                 max_percentile_level=max_pmm_percentile_level)
 
-            this_shuffled_pmm_matrix = numpy.expand_dims(
-                this_shuffled_pmm_matrix, axis=0)
-
             if list_of_shuffled_pmm_matrices[j] is None:
-                list_of_shuffled_pmm_matrices[j] = this_shuffled_pmm_matrix + 0.
-            else:
-                list_of_shuffled_pmm_matrices[j] = numpy.concatenate((
-                    list_of_shuffled_pmm_matrices[j], this_shuffled_pmm_matrix
-                ))
+                dimensions = numpy.array(
+                    (num_iterations,) + this_shuffled_pmm_matrix.shape,
+                    dtype=int
+                )
+                list_of_shuffled_pmm_matrices[j] = numpy.full(
+                    dimensions, numpy.nan)
+
+            list_of_shuffled_pmm_matrices[j][i, ...] = this_shuffled_pmm_matrix
 
     print('Have run all {0:d} Monte Carlo iterations!'.format(num_iterations))
     print(SEPARATOR_STRING)
