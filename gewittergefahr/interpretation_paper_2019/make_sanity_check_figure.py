@@ -23,6 +23,9 @@ from gewittergefahr.plotting import significance_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.scripts import plot_input_examples as plot_examples
 
+# TODO(thunderhoser): A lot of this code is hacky and redundant with
+# make_saliency_figure.py.
+
 RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
 RADAR_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
