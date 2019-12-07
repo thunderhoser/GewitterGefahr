@@ -138,6 +138,9 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
     :param output_file_name: Same.
     """
 
+    if smoothing_radius_grid_cells <= 0:
+        smoothing_radius_grid_cells = None
+
     # Read saliency maps.
     print('Reading actual saliency maps from: "{0:s}"...'.format(
         actual_file_name
@@ -168,15 +171,16 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
         dummy_saliency_dict[saliency_maps.STORM_TIMES_KEY]
     )
 
+    if smoothing_radius_grid_cells is not None:
+        actual_saliency_matrix = _smooth_maps(
+            saliency_matrix=actual_saliency_matrix,
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells)
+
+        dummy_saliency_matrix = _smooth_maps(
+            saliency_matrix=dummy_saliency_matrix,
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells)
+
     # Convert saliency from absolute values to percentiles.
-    actual_saliency_matrix = _smooth_maps(
-        saliency_matrix=actual_saliency_matrix,
-        smoothing_radius_grid_cells=smoothing_radius_grid_cells)
-
-    dummy_saliency_matrix = _smooth_maps(
-        saliency_matrix=dummy_saliency_matrix,
-        smoothing_radius_grid_cells=smoothing_radius_grid_cells)
-
     num_examples = actual_saliency_matrix.shape[0]
     num_channels = actual_saliency_matrix.shape[-1]
 
