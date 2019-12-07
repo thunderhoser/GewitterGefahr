@@ -371,7 +371,7 @@ def _plot_one_composite(
                 contour_interval=max_colour_value / half_num_contours)
 
         print(significance_matrix.shape)
-        this_sig_matrix = numpy.flip(significance_matrix[..., k], axis=0)
+        this_sig_matrix = numpy.flip(significance_matrix[0, ..., k], axis=0)
 
         significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=this_sig_matrix,
