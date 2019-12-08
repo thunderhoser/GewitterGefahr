@@ -373,14 +373,21 @@ def _plot_one_composite(
                 max_absolute_contour_level=max_colour_value,
                 contour_interval=max_colour_value / half_num_contours)
 
-        if k != 0:
-            continue
+        # if k != 0:
+        #     continue
+        #
+        # this_sig_matrix = significance_matrix[0, ..., 0, k]
+        #
+        # significance_plotting.plot_2d_grid_without_coords(
+        #     significance_matrix=numpy.flip(this_sig_matrix, axis=0),
+        #     axes_object=axes_object_matrices[k][0, 0]
+        # )
 
-        this_sig_matrix = significance_matrix[0, ..., 0, k]
+        this_sig_matrix = significance_matrix[0, ..., k]
 
-        significance_plotting.plot_2d_grid_without_coords(
+        significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=numpy.flip(this_sig_matrix, axis=0),
-            axes_object=axes_object_matrices[k][0, 0]
+            axes_object_matrix=axes_object_matrices[k]
         )
 
     panel_file_names = [None] * num_fields
