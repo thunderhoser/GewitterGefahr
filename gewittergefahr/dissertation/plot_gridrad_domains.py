@@ -334,6 +334,8 @@ def _run(top_gridrad_dir_name, first_spc_date_string, last_spc_date_string,
         if numpy.allclose(these_limits_deg, last_limits_deg, TOLERANCE):
             continue
 
+        last_limits_deg = these_limits_deg + 0.
+
         min_latitudes_deg.append(these_limits_deg[0])
         max_latitudes_deg.append(these_limits_deg[1])
         min_longitudes_deg.append(these_limits_deg[2])
