@@ -152,12 +152,12 @@ def plot_sounding(
         + 3
     )
 
-    skewt_object.ax.text(
-        this_temperature_deg_c, pressures_mb[middle_index],
-        'Air\ntemperature', fontsize=font_size,
-        color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
-        horizontalalignment='left', verticalalignment='center'
-    )
+    # skewt_object.ax.text(
+    #     this_temperature_deg_c, pressures_mb[middle_index],
+    #     'Air\ntemperature', fontsize=font_size,
+    #     color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
+    #     horizontalalignment='left', verticalalignment='center'
+    # )
 
     skewt_object.plot(
         pressures_mb, dewpoints_deg_c,
@@ -171,12 +171,12 @@ def plot_sounding(
         - 3
     )
 
-    skewt_object.ax.text(
-        this_dewpoint_deg_c, pressures_mb[middle_index],
-        'Dewpoint\ntemperature', fontsize=font_size,
-        color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
-        horizontalalignment='right', verticalalignment='center'
-    )
+    # skewt_object.ax.text(
+    #     this_dewpoint_deg_c, pressures_mb[middle_index],
+    #     'Dewpoint\ntemperature', fontsize=font_size,
+    #     color=plotting_utils.colour_from_numpy_to_tuple(main_line_colour),
+    #     horizontalalignment='right', verticalalignment='center'
+    # )
 
     try:
         u_winds_kt = sounding_dict_for_metpy[

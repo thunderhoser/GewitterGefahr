@@ -271,17 +271,17 @@ def _plot_data(num_days_matrix, grid_metadata_dict, colour_map_object):
 
     basemap_object.pcolormesh(
         edge_x_coords_metres, edge_y_coords_metres, matrix_to_plot,
-        cmap=colour_map_object, vmin=0, vmax=numpy.max(num_days_matrix),
+        cmap=colour_map_object, vmin=1, vmax=numpy.max(num_days_matrix),
         shading='flat', edgecolors='None', axes=axes_object, zorder=-1e12)
 
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=num_days_matrix,
-        colour_map_object=colour_map_object, min_value=0,
+        colour_map_object=colour_map_object, min_value=1,
         max_value=numpy.max(num_days_matrix), orientation_string='horizontal',
         extend_min=False, extend_max=False, padding=0.05)
 
     tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+    tick_strings = ['{0:d}'.format(int(numpy.round(v))) for v in tick_values]
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 

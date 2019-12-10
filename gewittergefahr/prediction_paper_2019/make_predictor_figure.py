@@ -254,7 +254,7 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
         )[0]
 
         this_title_string = this_title_string.replace('\n', ' ').replace(
-            '.00 km AGL', ' km')
+            ' km AGL', ' km')
         this_title_string = 'GridRad {0:s}{1:s}'.format(
             this_title_string[0].lower(), this_title_string[1:]
         )
@@ -352,7 +352,7 @@ def _run(gridrad_example_dir_name, gridrad_full_id_string, gridrad_time_string,
             )[0]
 
             this_title_string = this_title_string.replace('\n', ' ').replace(
-                '.00 km AGL', ' km')
+                ' km AGL', ' km')
             this_title_string = 'MYRORSS {0:s}{1:s}'.format(
                 this_title_string[0].lower(), this_title_string[1:]
             )
