@@ -248,21 +248,25 @@ def _plot_tornado_histogram(num_tornadoes_by_day, output_file_name):
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
 
-    x_coords = numpy.linspace(0, num_bins - 1, num=num_bins, dtype=float) + 0.5
+    x_tick_coords = 0.5 + numpy.linspace(
+        0, num_bins - 1, num=num_bins, dtype=float
+    )
 
     axes_object.bar(
-        x=x_coords, height=num_days_by_bin, width=1.,
+        x=x_tick_coords, height=num_days_by_bin, width=1.,
         color=FACE_COLOUR, edgecolor=EDGE_COLOUR, linewidth=EDGE_WIDTH)
 
     axes_object.set_xlim([
-        x_coords[0] - 0.5, x_coords[-1] + 0.5
+        x_tick_coords[0] - 0.5, x_tick_coords[-1] + 0.5
     ])
 
     axes_object.set_title('Histogram of tornado reports')
     axes_object.set_ylabel('Number of convective days')
     axes_object.set_xlabel('Number of tornado reports')
     print(x_tick_labels)
-    axes_object.set_xticklabels(x_coords, x_tick_labels, rotation=90.)
+
+    axes_object.set_xticks(x_tick_coords)
+    axes_object.set_xticklabels(x_tick_labels, rotation=90.)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
