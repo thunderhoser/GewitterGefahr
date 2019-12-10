@@ -254,6 +254,10 @@ def _plot_tornado_histogram(num_tornadoes_by_day, output_file_name):
         x=x_coords, height=num_days_by_bin, width=1.,
         color=FACE_COLOUR, edgecolor=EDGE_COLOUR, linewidth=EDGE_WIDTH)
 
+    axes_object.set_xlim([
+        x_coords[0] - 0.5, x_coords[-1] + 0.5
+    ])
+
     axes_object.set_title('Histogram of tornado reports')
     axes_object.set_ylabel('Number of convective days')
     axes_object.set_xlabel('Number of tornado reports')
