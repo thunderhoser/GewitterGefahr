@@ -315,39 +315,54 @@ def _run(top_gridrad_dir_name, first_spc_date_string, last_spc_date_string,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=TIME_INTERVAL_SEC, include_endpoint=True)
 
-    min_latitudes_deg = []
-    max_latitudes_deg = []
-    min_longitudes_deg = []
-    max_longitudes_deg = []
-    last_limits_deg = numpy.full(4, numpy.nan)
+    valid_spc_date_strings = [
+        time_conversion.time_to_spc_date_string(t) for t in valid_times_unix_sec
+    ]
 
-    for this_time_unix_sec in valid_times_unix_sec:
+    domain_min_latitudes_deg = []
+    domain_max_latitudes_deg = []
+    domain_min_longitudes_deg = []
+    domain_max_longitudes_deg = []
+
+    prev_domain_limits_deg = numpy.full(4, numpy.nan)
+    prev_spc_date_string = 'foo'
+    num_times = len(valid_times_unix_sec)
+
+    for i in range(num_times):
         this_gridrad_file_name = gridrad_io.find_file(
-            unix_time_sec=this_time_unix_sec,
+            unix_time_sec=valid_times_unix_sec[i],
             top_directory_name=top_gridrad_dir_name,
             raise_error_if_missing=False)
 
         if not os.path.isfile(this_gridrad_file_name):
             continue
 
-        these_limits_deg = _get_domain_one_file(this_gridrad_file_name)
-        if numpy.allclose(these_limits_deg, last_limits_deg, TOLERANCE):
+        these_domain_limits_deg = _get_domain_one_file(this_gridrad_file_name)
+        same_domain = (
+            valid_spc_date_strings[i] == prev_spc_date_string and
+            numpy.allclose(
+                these_domain_limits_deg, prev_domain_limits_deg, TOLERANCE
+            )
+        )
+
+        if same_domain:
             continue
 
-        last_limits_deg = these_limits_deg + 0.
+        prev_domain_limits_deg = these_domain_limits_deg + 0.
+        prev_spc_date_string = valid_spc_date_strings[i]
 
-        min_latitudes_deg.append(these_limits_deg[0])
-        max_latitudes_deg.append(these_limits_deg[1])
-        min_longitudes_deg.append(these_limits_deg[2])
-        max_longitudes_deg.append(these_limits_deg[3])
+        domain_min_latitudes_deg.append(these_domain_limits_deg[0])
+        domain_max_latitudes_deg.append(these_domain_limits_deg[1])
+        domain_min_longitudes_deg.append(these_domain_limits_deg[2])
+        domain_max_longitudes_deg.append(these_domain_limits_deg[3])
 
     print(SEPARATOR_STRING)
 
-    min_latitudes_deg = numpy.array(min_latitudes_deg)
-    max_latitudes_deg = numpy.array(max_latitudes_deg)
-    min_longitudes_deg = numpy.array(min_longitudes_deg)
-    max_longitudes_deg = numpy.array(max_longitudes_deg)
-    num_domains = len(min_latitudes_deg)
+    domain_min_latitudes_deg = numpy.array(domain_min_latitudes_deg)
+    domain_max_latitudes_deg = numpy.array(domain_max_latitudes_deg)
+    domain_min_longitudes_deg = numpy.array(domain_min_longitudes_deg)
+    domain_max_longitudes_deg = numpy.array(domain_max_longitudes_deg)
+    num_domains = len(domain_min_latitudes_deg)
 
     grid_metadata_dict = grids.create_equidistant_grid(
         min_latitude_deg=OVERALL_MIN_LATITUDE_DEG,
@@ -383,12 +398,12 @@ def _run(top_gridrad_dir_name, first_spc_date_string, last_spc_date_string,
             ))
 
         this_lat_flag_matrix = numpy.logical_and(
-            latitude_matrix_deg >= min_latitudes_deg[i],
-            latitude_matrix_deg <= max_latitudes_deg[i]
+            latitude_matrix_deg >= domain_min_latitudes_deg[i],
+            latitude_matrix_deg <= domain_max_latitudes_deg[i]
         )
         this_lng_flag_matrix = numpy.logical_and(
-            longitude_matrix_deg >= min_longitudes_deg[i],
-            longitude_matrix_deg <= max_longitudes_deg[i]
+            longitude_matrix_deg >= domain_min_longitudes_deg[i],
+            longitude_matrix_deg <= domain_max_longitudes_deg[i]
         )
 
         num_days_matrix += numpy.logical_and(
