@@ -18,11 +18,27 @@ from gewittergefahr.gg_io import gridrad_io
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
-from gewittergefahr.plotting import plotting_utils
 
+LARGE_INTEGER = int(1e6)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TIME_INTERVAL_SEC = 300
+
+FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
+EDGE_COLOUR = numpy.full(3, 0.)
+EDGE_WIDTH = 1.5
+
+FIGURE_RESOLUTION_DPI = 300
+FIGURE_WIDTH_INCHES = FIGURE_HEIGHT_INCHES = 15
+
+FONT_SIZE = 30
+pyplot.rc('font', size=FONT_SIZE)
+pyplot.rc('axes', titlesize=FONT_SIZE)
+pyplot.rc('axes', labelsize=FONT_SIZE)
+pyplot.rc('xtick', labelsize=FONT_SIZE)
+pyplot.rc('ytick', labelsize=FONT_SIZE)
+pyplot.rc('legend', fontsize=FONT_SIZE)
+pyplot.rc('figure', titlesize=FONT_SIZE)
 
 TORNADO_DIR_ARG_NAME = 'input_tornado_dir_name'
 GRIDRAD_DIR_ARG_NAME = 'input_gridrad_dir_name'
@@ -188,6 +204,69 @@ def _get_num_tornadoes_in_day(tornado_table, spc_date_string):
     ))
 
 
+def _plot_tornado_histogram(num_tornadoes_by_day, output_file_name):
+    """Plots histogram for daily number of tornado reports.
+
+    D = number of SPC dates with GridRad data
+
+    :param num_tornadoes_by_day: length-D numpy array with number of tornado
+        reports by day.
+    :param output_file_name: Path to output file (figure will be saved here).
+    """
+
+    lower_bin_edges = numpy.concatenate((
+        numpy.linspace(0, 6, num=7, dtype=int),
+        numpy.linspace(11, 101, num=10, dtype=int)
+    ))
+
+    upper_bin_edges = numpy.concatenate((
+        numpy.linspace(0, 5, num=6, dtype=int),
+        numpy.linspace(10, 100, num=10, dtype=int),
+        numpy.array([LARGE_INTEGER], dtype=int)
+    ))
+
+    num_bins = len(lower_bin_edges)
+    num_days_by_bin = numpy.full(num_bins, -1, dtype=int)
+    x_tick_labels = [''] * num_bins
+
+    for k in range(num_bins):
+        num_days_by_bin[k] = numpy.sum(numpy.logical_and(
+            num_tornadoes_by_day >= lower_bin_edges[k],
+            num_tornadoes_by_day <= upper_bin_edges[k]
+        ))
+
+        if lower_bin_edges[k] == upper_bin_edges[k]:
+            x_tick_labels[k] = '{0:d}'.format(lower_bin_edges[k])
+        elif k == num_bins - 1:
+            x_tick_labels[k] = '{0:d}+'.format(lower_bin_edges[k])
+        else:
+            x_tick_labels[k] = '{0:d}-{1:d}'.format(
+                lower_bin_edges[k], upper_bin_edges[k]
+            )
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    x_coords = numpy.linspace(0, num_bins - 1, num=num_bins, dtype=float) + 0.5
+
+    axes_object.bar(
+        x=x_coords, height=num_days_by_bin, width=1.,
+        color=FACE_COLOUR, edgecolor=EDGE_COLOUR, linewidth=EDGE_WIDTH)
+
+    axes_object.set_title('Histogram of tornado reports')
+    axes_object.set_ylabel('Number of convective days')
+    axes_object.set_xlabel('Number of tornado reports')
+    axes_object.set_xticklabels(x_tick_labels, rotation=90.)
+
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+
 def _run(tornado_dir_name, top_gridrad_dir_name, first_spc_date_string,
          last_spc_date_string, output_dir_name):
     """Plots histograms for GridRad dataset.
@@ -240,6 +319,11 @@ def _run(tornado_dir_name, top_gridrad_dir_name, first_spc_date_string,
         ))
 
     print(SEPARATOR_STRING)
+
+    _plot_tornado_histogram(
+        num_tornadoes_by_day=num_tornadoes_by_day,
+        output_file_name='{0:s}/tornado_histogram.jpg'.format(output_dir_name)
+    )
 
 
 if __name__ == '__main__':
