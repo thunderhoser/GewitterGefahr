@@ -285,6 +285,7 @@ def _plot_one_composite(
     axes_object_matrices = handle_dict[plot_examples.RADAR_AXES_KEY]
 
     for k in range(num_fields):
+        continue
         this_saliency_matrix = mean_saliency_matrix[0, ..., k]
 
         if log_scale:
