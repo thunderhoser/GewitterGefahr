@@ -516,8 +516,10 @@ def plot_storm_tracks(
 
     if latitude_range_deg > longitude_range_deg:
         orientation_string = 'vertical'
+        padding = None
     else:
         orientation_string = 'horizontal'
+        padding = 0.05
 
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object,
@@ -526,7 +528,7 @@ def plot_storm_tracks(
         colour_map_object=colour_map_object, min_value=colour_norm_object.vmin,
         max_value=colour_norm_object.vmax,
         orientation_string=orientation_string,
-        extend_min=False, extend_max=False, fraction_of_axis_length=0.9,
+        extend_min=False, extend_max=False, padding=padding,
         font_size=COLOUR_BAR_FONT_SIZE)
 
     if orientation_string == 'horizontal':

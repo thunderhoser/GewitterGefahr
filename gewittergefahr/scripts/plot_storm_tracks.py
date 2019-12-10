@@ -21,7 +21,7 @@ SENTINEL_VALUE = -9999
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
-LATLNG_BUFFER_DEG = 0.5
+LATLNG_BUFFER_DEG = -0.25
 BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
@@ -240,7 +240,8 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         basemap_object=basemap_object, colour_map_object=colour_map_object)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+                   pad_inches=0, bbox_inches='tight')
     pyplot.close()
 
 
