@@ -15,7 +15,8 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
 COLOUR_BAR_FONT_SIZE = 25
-COLOUR_BAR_TIME_FORMAT = '%H%M %-d %b'
+# COLOUR_BAR_TIME_FORMAT = '%H%M %-d %b'
+COLOUR_BAR_TIME_FORMAT = '%H%M'
 
 DEFAULT_TRACK_COLOUR = numpy.full(3, 0.)
 DEFAULT_TRACK_WIDTH = 2
