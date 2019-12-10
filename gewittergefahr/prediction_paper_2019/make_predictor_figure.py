@@ -181,16 +181,17 @@ def _read_one_example(
 
     print(MINOR_SEPARATOR_STRING)
 
-    predictor_matrices, sounding_pressure_matrix_pa = (
-        testing_io.read_predictors_specific_examples(
-            top_example_dir_name=top_example_dir_name,
-            desired_full_id_strings=[full_storm_id_string],
-            desired_times_unix_sec=numpy.array(
-                [storm_time_unix_sec], dtype=int
-            ),
-            option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-            layer_operation_dicts=None)
+    example_dict = testing_io.read_predictors_specific_examples(
+        top_example_dir_name=top_example_dir_name,
+        desired_full_id_strings=[full_storm_id_string],
+        desired_times_unix_sec=numpy.array([storm_time_unix_sec], dtype=int),
+        option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
+        layer_operation_dicts=None
     )
+
+    predictor_matrices = example_dict[testing_io.INPUT_MATRICES_KEY]
+    sounding_pressure_matrix_pa = example_dict[
+        testing_io.SOUNDING_PRESSURES_KEY]
 
     if sounding_pressure_matrix_pa is None:
         sounding_pressures_pa = None
