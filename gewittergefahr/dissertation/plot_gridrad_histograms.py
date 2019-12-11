@@ -267,7 +267,7 @@ def _plot_tornado_histogram(num_tornadoes_by_day, output_file_name):
         'Histogram of daily tornado reports'
     )
     axes_object.set_ylabel('Number of convective days')
-    axes_object.set_xlabel('Number of tornado reports')
+    axes_object.set_xlabel('Tornado reports')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
