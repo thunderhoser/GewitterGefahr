@@ -363,7 +363,8 @@ def _plot_storm_outlines_one_time(
         default for the given field.
     """
 
-    plot_storm_ids = radar_matrix is None or radar_colour_map_object is None
+    # plot_storm_ids = radar_matrix is None or radar_colour_map_object is None
+    plot_storm_ids = False
 
     min_plot_latitude_deg = basemap_object.llcrnrlat
     max_plot_latitude_deg = basemap_object.urcrnrlat
