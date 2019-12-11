@@ -25,11 +25,11 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MIN_POLYGON_SIZES_PX = numpy.array([0, 0, 5], dtype=int)
 RECOMPUTE_CENTROID_FLAGS = numpy.array([0, 1, 1], dtype=bool)
 
-POLYGON_WIDTH = 3
+POLYGON_WIDTH = 4
 POLYGON_COLOUR = numpy.full(3, 0.)
 
 MARKER_TYPE = '*'
-MARKER_SIZE = 18
+MARKER_SIZE = 32
 MARKER_EDGE_WIDTH = 1
 MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
@@ -295,7 +295,7 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
         plot_colour_bar=False, convective_flag_matrix=None
     )[:2]
 
-    this_axes_object.set_title('All grid cells')
+    this_axes_object.set_title('All echoes')
     plotting_utils.label_axes(axes_object=this_axes_object, label_string='(a)')
 
     panel_file_names = [
@@ -315,7 +315,7 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
         plot_colour_bar=False, convective_flag_matrix=convective_flag_matrix
     )[:2]
 
-    this_axes_object.set_title('Convective grid cells only')
+    this_axes_object.set_title('Convective echoes only')
     plotting_utils.label_axes(axes_object=this_axes_object, label_string='(b)')
 
     panel_file_names.append(
@@ -371,7 +371,7 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
             markeredgewidth=MARKER_EDGE_WIDTH)
 
         this_title_string = (
-            'Minimum size = {0:d} grid cells, {1:s} storm centers'
+            'Minimum size = {0:d} GP, {1:s} storm centers'
         ).format(
             MIN_POLYGON_SIZES_PX[k],
             'recomputed' if RECOMPUTE_CENTROID_FLAGS[k] else 'original'
