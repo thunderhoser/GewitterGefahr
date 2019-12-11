@@ -23,6 +23,7 @@ LARGE_INTEGER = int(1e6)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TIME_INTERVAL_SEC = 300
+NUM_MONTHS_IN_YEAR = 12
 
 FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
 EDGE_COLOUR = numpy.full(3, 0.)
@@ -259,14 +260,83 @@ def _plot_tornado_histogram(num_tornadoes_by_day, output_file_name):
     axes_object.set_xlim([
         x_tick_coords[0] - 0.5, x_tick_coords[-1] + 0.5
     ])
-
-    axes_object.set_title('Histogram of tornado reports')
-    axes_object.set_ylabel('Number of convective days')
-    axes_object.set_xlabel('Number of tornado reports')
-    print(x_tick_labels)
-
     axes_object.set_xticks(x_tick_coords)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
+
+    axes_object.set_title(
+        'Histogram of daily tornado reports in GridRad dataset'
+    )
+    axes_object.set_ylabel('Number of convective days')
+    axes_object.set_xlabel('Number of tornado reports')
+
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
+        bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
+
+
+def _plot_month_histogram(spc_date_strings, output_file_name):
+    """Plots histogram of months.
+
+    :param spc_date_strings: 1-D list of SPC dates (format "yyyymmdd") with
+        GridRad data.
+    :param output_file_name: Path to output file (figure will be saved here).
+    """
+
+    start_times_unix_sec = numpy.array(
+        [time_conversion.get_start_of_spc_date(d) for d in spc_date_strings],
+        dtype=int
+    )
+    end_times_unix_sec = numpy.array(
+        [time_conversion.get_end_of_spc_date(d) for d in spc_date_strings],
+        dtype=int
+    )
+
+    start_month_by_date = numpy.array([
+        int(time_conversion.unix_sec_to_string(t, '%m'))
+        for t in start_times_unix_sec
+    ], dtype=int)
+
+    end_month_by_date = numpy.array([
+        int(time_conversion.unix_sec_to_string(t, '%m'))
+        for t in end_times_unix_sec
+    ], dtype=int)
+
+    num_days_by_month = numpy.full(NUM_MONTHS_IN_YEAR, numpy.nan)
+
+    for k in range(NUM_MONTHS_IN_YEAR):
+        num_days_by_month[k] = 0.5 * (
+            numpy.sum(start_month_by_date == k + 1) +
+            numpy.sum(end_month_by_date == k + 1)
+        )
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
+    x_tick_coords = 0.5 + numpy.linspace(
+        0, NUM_MONTHS_IN_YEAR - 1, num=NUM_MONTHS_IN_YEAR, dtype=float
+    )
+    x_tick_labels = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct',
+        'Nov', 'Dec'
+    ]
+
+    axes_object.bar(
+        x=x_tick_coords, height=num_days_by_month, width=1.,
+        color=FACE_COLOUR, edgecolor=EDGE_COLOUR, linewidth=EDGE_WIDTH)
+
+    axes_object.set_xlim([
+        x_tick_coords[0] - 0.5, x_tick_coords[-1] + 0.5
+    ])
+    axes_object.set_xticks(x_tick_coords)
+    axes_object.set_xticklabels(x_tick_labels, rotation=90.)
+
+    axes_object.set_title('Histogram of months in GridRad dataset')
+    axes_object.set_ylabel('Number of convective days')
+    axes_object.set_xlabel('Month')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
@@ -332,6 +402,11 @@ def _run(tornado_dir_name, top_gridrad_dir_name, first_spc_date_string,
     _plot_tornado_histogram(
         num_tornadoes_by_day=num_tornadoes_by_day,
         output_file_name='{0:s}/tornado_histogram.jpg'.format(output_dir_name)
+    )
+
+    _plot_month_histogram(
+        spc_date_strings=spc_date_strings,
+        output_file_name='{0:s}/month_histogram.jpg'.format(output_dir_name)
     )
 
 
