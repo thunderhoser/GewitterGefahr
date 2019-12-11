@@ -36,7 +36,6 @@ MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
 FIGURE_RESOLUTION_DPI = 300
-CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
 ECHO_CLASSIFN_DIR_ARG_NAME = 'input_echo_classifn_dir_name'
@@ -402,10 +401,6 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,
         num_panel_rows=2, num_panel_columns=3)
-
-    imagemagick_utils.resize_image(
-        input_file_name=concat_file_name, output_file_name=concat_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
 
 
 if __name__ == '__main__':
