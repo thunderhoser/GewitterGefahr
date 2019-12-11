@@ -285,6 +285,8 @@ def _plot_data(num_days_matrix, grid_metadata_dict, colour_map_object):
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
+    axes_object.set_title('Number of convective days by grid cell')
+
     return figure_object, axes_object
 
 

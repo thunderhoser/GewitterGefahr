@@ -264,7 +264,7 @@ def _plot_tornado_histogram(num_tornadoes_by_day, output_file_name):
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
 
     axes_object.set_title(
-        'Histogram of daily tornado reports in GridRad dataset'
+        'Histogram of daily tornado reports'
     )
     axes_object.set_ylabel('Number of convective days')
     axes_object.set_xlabel('Number of tornado reports')
@@ -334,7 +334,7 @@ def _plot_month_histogram(spc_date_strings, output_file_name):
     axes_object.set_xticks(x_tick_coords)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
 
-    axes_object.set_title('Histogram of months in GridRad dataset')
+    axes_object.set_title('Histogram of months')
     axes_object.set_ylabel('Number of convective days')
     axes_object.set_xlabel('Month')
 
