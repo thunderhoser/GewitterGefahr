@@ -18,6 +18,7 @@ from gewittergefahr.gg_io import gridrad_io
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.plotting import plotting_utils
 
 LARGE_INTEGER = int(1e6)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -31,15 +32,6 @@ EDGE_WIDTH = 1.5
 
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = FIGURE_HEIGHT_INCHES = 15
-
-FONT_SIZE = 30
-pyplot.rc('font', size=FONT_SIZE)
-pyplot.rc('axes', titlesize=FONT_SIZE)
-pyplot.rc('axes', labelsize=FONT_SIZE)
-pyplot.rc('xtick', labelsize=FONT_SIZE)
-pyplot.rc('ytick', labelsize=FONT_SIZE)
-pyplot.rc('legend', fontsize=FONT_SIZE)
-pyplot.rc('figure', titlesize=FONT_SIZE)
 
 TORNADO_DIR_ARG_NAME = 'input_tornado_dir_name'
 GRIDRAD_DIR_ARG_NAME = 'input_gridrad_dir_name'
@@ -268,6 +260,7 @@ def _plot_tornado_histogram(num_tornadoes_by_day, output_file_name):
     )
     axes_object.set_ylabel('Number of convective days')
     axes_object.set_xlabel('Tornado reports')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
@@ -337,6 +330,7 @@ def _plot_month_histogram(spc_date_strings, output_file_name):
     axes_object.set_title('Histogram of months')
     axes_object.set_ylabel('Number of convective days')
     axes_object.set_xlabel('Month')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(

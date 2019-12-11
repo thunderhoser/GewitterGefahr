@@ -414,10 +414,11 @@ def _run(top_gridrad_dir_name, first_spc_date_string, last_spc_date_string,
 
     print(SEPARATOR_STRING)
 
-    figure_object = _plot_data(
+    figure_object, axes_object = _plot_data(
         num_days_matrix=num_days_matrix, grid_metadata_dict=grid_metadata_dict,
-        colour_map_object=colour_map_object
-    )[0]
+        colour_map_object=colour_map_object)
+
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
