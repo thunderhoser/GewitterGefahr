@@ -400,7 +400,7 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,
-        num_panel_rows=2, num_panel_columns=3)
+        num_panel_rows=3, num_panel_columns=2)
 
 
 if __name__ == '__main__':
