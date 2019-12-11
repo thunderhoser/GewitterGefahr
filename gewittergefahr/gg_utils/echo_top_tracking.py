@@ -61,7 +61,8 @@ CENTRAL_PROJ_LONGITUDE_DEG = 265.
 VALID_RADAR_FIELD_NAMES = [
     radar_utils.ECHO_TOP_15DBZ_NAME, radar_utils.ECHO_TOP_18DBZ_NAME,
     radar_utils.ECHO_TOP_20DBZ_NAME, radar_utils.ECHO_TOP_25DBZ_NAME,
-    radar_utils.ECHO_TOP_40DBZ_NAME, radar_utils.ECHO_TOP_50DBZ_NAME
+    radar_utils.ECHO_TOP_40DBZ_NAME, radar_utils.ECHO_TOP_50DBZ_NAME,
+    radar_utils.REFL_COLUMN_MAX_NAME  # HACK
 ]
 
 VALID_RADAR_SOURCE_NAMES = [
