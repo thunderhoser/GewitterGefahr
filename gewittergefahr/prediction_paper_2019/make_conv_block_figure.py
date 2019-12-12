@@ -306,13 +306,13 @@ def _plot_one_example(
     #         label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
     #         x_coord_normalized=0.1, y_coord_normalized=1.125
     #     )
-    #
-    # print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    # figure_object.savefig(
-    #     output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-    #     pad_inches=0, bbox_inches='tight'
-    # )
-    # pyplot.close(figure_object)
+
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
 
 def _run(example_file_name, example_indices, num_radar_rows, num_radar_columns,
