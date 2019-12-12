@@ -54,7 +54,8 @@ KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-2)
 
 COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 MAX_COLOUR_PERCENTILE = 99.
-FONT_SIZE = 25
+TITLE_FONT_SIZE = 20
+DEFAULT_FONT_SIZE = 25
 
 NUM_PANEL_COLUMNS = 5
 FIGURE_RESOLUTION_DPI = 300
@@ -148,7 +149,7 @@ def _plot_one_feature_map(feature_matrix_2d, max_colour_value, plot_colour_bar,
         colour_map_object=COLOUR_MAP_OBJECT, min_value=min_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
         padding=0.015, fraction_of_axis_length=0.9,
-        extend_min=True, extend_max=True, font_size=FONT_SIZE)
+        extend_min=True, extend_max=True, font_size=DEFAULT_FONT_SIZE)
 
     tick_values = colour_bar_object.ax.get_xticks()
     tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
@@ -185,7 +186,7 @@ def _plot_one_example(
         numpy.absolute(input_feature_matrix), MAX_COLOUR_PERCENTILE
     )
 
-    axes_object_matrix[0, 0].set_title('Input', fontsize=FONT_SIZE)
+    axes_object_matrix[0, 0].set_title('Input', fontsize=TITLE_FONT_SIZE)
 
     for k in range(num_output_channels):
         if k == 0:
@@ -205,7 +206,7 @@ def _plot_one_example(
         colour_map_object=COLOUR_MAP_OBJECT, min_value=-1 * max_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
         padding=0.015, fraction_of_axis_length=0.9,
-        extend_min=True, extend_max=True, font_size=FONT_SIZE)
+        extend_min=True, extend_max=True, font_size=DEFAULT_FONT_SIZE)
 
     tick_values = colour_bar_object.ax.get_xticks()
     tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
@@ -215,8 +216,9 @@ def _plot_one_example(
     letter_label = 'a'
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[0, 0],
-        label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-        x_coord_normalized=0.1, y_coord_normalized=1.05
+        label_string='({0:s})'.format(letter_label),
+        font_size=DEFAULT_FONT_SIZE,
+        x_coord_normalized=0.125, y_coord_normalized=1.025
     )
 
     this_matrix = numpy.stack(
@@ -226,7 +228,8 @@ def _plot_one_example(
         numpy.absolute(this_matrix), MAX_COLOUR_PERCENTILE
     )
 
-    axes_object_matrix[0, 1].set_title('After convolution', fontsize=FONT_SIZE)
+    axes_object_matrix[0, 1].set_title(
+        'After convolution', fontsize=TITLE_FONT_SIZE)
 
     for k in range(num_output_channels):
         _plot_one_feature_map(
@@ -240,11 +243,13 @@ def _plot_one_example(
 
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 1],
-            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.1, y_coord_normalized=1.05
+            label_string='({0:s})'.format(letter_label),
+            font_size=DEFAULT_FONT_SIZE,
+            x_coord_normalized=0.125, y_coord_normalized=1.025
         )
 
-    axes_object_matrix[0, 2].set_title('After activation', fontsize=FONT_SIZE)
+    axes_object_matrix[0, 2].set_title(
+        'After activation', fontsize=TITLE_FONT_SIZE)
 
     for k in range(num_output_channels):
         _plot_one_feature_map(
@@ -258,15 +263,17 @@ def _plot_one_example(
 
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 2],
-            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.1, y_coord_normalized=1.05
+            label_string='({0:s})'.format(letter_label),
+            font_size=DEFAULT_FONT_SIZE,
+            x_coord_normalized=0.125, y_coord_normalized=1.025
         )
 
     max_colour_value = numpy.percentile(
         numpy.absolute(feature_matrix_after_bn), MAX_COLOUR_PERCENTILE
     )
 
-    axes_object_matrix[0, 3].set_title('After batch norm', fontsize=FONT_SIZE)
+    axes_object_matrix[0, 3].set_title(
+        'After batch norm', fontsize=TITLE_FONT_SIZE)
 
     for k in range(num_output_channels):
         _plot_one_feature_map(
@@ -280,15 +287,17 @@ def _plot_one_example(
 
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 3],
-            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.1, y_coord_normalized=1.05
+            label_string='({0:s})'.format(letter_label),
+            font_size=DEFAULT_FONT_SIZE,
+            x_coord_normalized=0.125, y_coord_normalized=1.025
         )
 
     max_colour_value = numpy.percentile(
         numpy.absolute(feature_matrix_after_pooling), MAX_COLOUR_PERCENTILE
     )
 
-    axes_object_matrix[0, 4].set_title('After pooling', fontsize=FONT_SIZE)
+    axes_object_matrix[0, 4].set_title(
+        'After pooling', fontsize=TITLE_FONT_SIZE)
 
     for k in range(num_output_channels):
         _plot_one_feature_map(
@@ -302,8 +311,9 @@ def _plot_one_example(
 
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 4],
-            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.1, y_coord_normalized=1.05
+            label_string='({0:s})'.format(letter_label),
+            font_size=DEFAULT_FONT_SIZE,
+            x_coord_normalized=0.125, y_coord_normalized=1.025
         )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -343,7 +353,8 @@ def _run(example_file_name, example_indices, num_radar_rows, num_radar_columns,
     )
 
     if input_examples.REFL_IMAGE_MATRIX_KEY in example_dict:
-        input_feature_matrix = example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]
+        input_feature_matrix = example_dict[
+            input_examples.REFL_IMAGE_MATRIX_KEY]
     else:
         field_index = example_dict[input_examples.RADAR_FIELDS_KEY].index(
             RADAR_FIELD_NAME
