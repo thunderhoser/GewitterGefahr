@@ -54,7 +54,7 @@ KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-2)
 
 COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 MAX_COLOUR_PERCENTILE = 99.
-FONT_SIZE = 20
+FONT_SIZE = 25
 
 NUM_PANEL_COLUMNS = 5
 FIGURE_RESOLUTION_DPI = 300
@@ -288,7 +288,7 @@ def _plot_one_example(
         numpy.absolute(feature_matrix_after_pooling), MAX_COLOUR_PERCENTILE
     )
 
-    axes_object_matrix[0, 4].set_title('After max-pooling', fontsize=FONT_SIZE)
+    axes_object_matrix[0, 4].set_title('After pooling', fontsize=FONT_SIZE)
 
     for k in range(num_output_channels):
         _plot_one_feature_map(
