@@ -19,44 +19,45 @@ RADAR_HEIGHT_M_ASL = 3000
 NORMALIZATION_TYPE_STRING = dl_utils.Z_NORMALIZATION_TYPE_STRING
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
-# FIRST_KERNEL_MATRIX = numpy.array([
-#     [0, 1, 0],
-#     [1, -4, 1],
-#     [0, 1, 0]
-# ])
-#
-# SECOND_KERNEL_MATRIX = numpy.array([
-#     [1, 0, -1],
-#     [0, 0, 0],
-#     [-1, 0, 1]
-# ])
-#
-# THIRD_KERNEL_MATRIX = numpy.array([
-#     [-1, -1, -1],
-#     [-1, 8, -1],
-#     [-1, -1, -1]
-# ])
-#
-# KERNEL_MATRIX = numpy.stack(
-#     (FIRST_KERNEL_MATRIX, SECOND_KERNEL_MATRIX, THIRD_KERNEL_MATRIX), axis=-1
-# ).astype(float)
-#
-# KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-2)
-
-KERNEL_MATRIX = numpy.array([
+FIRST_KERNEL_MATRIX = numpy.array([
     [0, 1, 0],
     [1, -4, 1],
     [0, 1, 0]
 ])
 
-KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-1)
-KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-1)
+SECOND_KERNEL_MATRIX = numpy.array([
+    [1, 0, -1],
+    [0, 0, 0],
+    [-1, 0, 1]
+])
+
+THIRD_KERNEL_MATRIX = numpy.array([
+    [-1, -1, -1],
+    [-1, 8, -1],
+    [-1, -1, -1]
+])
+
+KERNEL_MATRIX = numpy.stack(
+    (FIRST_KERNEL_MATRIX, SECOND_KERNEL_MATRIX, THIRD_KERNEL_MATRIX), axis=-1
+).astype(float)
+
+KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-2)
+
+# KERNEL_MATRIX = numpy.array([
+#     [0, 1, 0],
+#     [1, -4, 1],
+#     [0, 1, 0]
+# ])
+#
+# KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-1)
+# KERNEL_MATRIX = numpy.expand_dims(KERNEL_MATRIX, axis=-1)
 
 COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 MAX_COLOUR_PERCENTILE = 99.
 FONT_SIZE = 20
 
-NUM_PANEL_COLUMNS = 5
+# NUM_PANEL_COLUMNS = 5
+NUM_PANEL_COLUMNS = 4
 FIGURE_RESOLUTION_DPI = 300
 
 EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
@@ -268,50 +269,50 @@ def _plot_one_example(
 
     axes_object_matrix[0, 3].set_title('After batch norm', fontsize=FONT_SIZE)
 
-    for k in range(num_output_channels):
-        _plot_one_feature_map(
-            feature_matrix_2d=feature_matrix_after_bn[..., k],
-            max_colour_value=max_colour_value,
-            plot_colour_bar=k == num_output_channels - 1,
-            axes_object=axes_object_matrix[k, 3]
-        )
-
-        letter_label = chr(ord(letter_label) + 1)
-
-        plotting_utils.label_axes(
-            axes_object=axes_object_matrix[k, 3],
-            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.1, y_coord_normalized=1.125
-        )
-
-    max_colour_value = numpy.percentile(
-        numpy.absolute(feature_matrix_after_pooling), MAX_COLOUR_PERCENTILE
-    )
-
-    axes_object_matrix[0, 4].set_title('After max-pooling', fontsize=FONT_SIZE)
-
-    for k in range(num_output_channels):
-        _plot_one_feature_map(
-            feature_matrix_2d=feature_matrix_after_pooling[..., k],
-            max_colour_value=max_colour_value,
-            plot_colour_bar=k == num_output_channels - 1,
-            axes_object=axes_object_matrix[k, 4]
-        )
-
-        letter_label = chr(ord(letter_label) + 1)
-
-        plotting_utils.label_axes(
-            axes_object=axes_object_matrix[k, 4],
-            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.1, y_coord_normalized=1.125
-        )
-
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight'
-    )
-    pyplot.close(figure_object)
+    # for k in range(num_output_channels):
+    #     _plot_one_feature_map(
+    #         feature_matrix_2d=feature_matrix_after_bn[..., k],
+    #         max_colour_value=max_colour_value,
+    #         plot_colour_bar=k == num_output_channels - 1,
+    #         axes_object=axes_object_matrix[k, 3]
+    #     )
+    #
+    #     letter_label = chr(ord(letter_label) + 1)
+    #
+    #     plotting_utils.label_axes(
+    #         axes_object=axes_object_matrix[k, 3],
+    #         label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
+    #         x_coord_normalized=0.1, y_coord_normalized=1.125
+    #     )
+    #
+    # max_colour_value = numpy.percentile(
+    #     numpy.absolute(feature_matrix_after_pooling), MAX_COLOUR_PERCENTILE
+    # )
+    #
+    # axes_object_matrix[0, 4].set_title('After max-pooling', fontsize=FONT_SIZE)
+    #
+    # for k in range(num_output_channels):
+    #     _plot_one_feature_map(
+    #         feature_matrix_2d=feature_matrix_after_pooling[..., k],
+    #         max_colour_value=max_colour_value,
+    #         plot_colour_bar=k == num_output_channels - 1,
+    #         axes_object=axes_object_matrix[k, 4]
+    #     )
+    #
+    #     letter_label = chr(ord(letter_label) + 1)
+    #
+    #     plotting_utils.label_axes(
+    #         axes_object=axes_object_matrix[k, 4],
+    #         label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
+    #         x_coord_normalized=0.1, y_coord_normalized=1.125
+    #     )
+    #
+    # print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    # figure_object.savefig(
+    #     output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+    #     pad_inches=0, bbox_inches='tight'
+    # )
+    # pyplot.close(figure_object)
 
 
 def _run(example_file_name, example_indices, num_radar_rows, num_radar_columns,
@@ -341,8 +342,6 @@ def _run(example_file_name, example_indices, num_radar_rows, num_radar_columns,
         num_rows_to_keep=num_radar_rows, num_columns_to_keep=num_radar_columns,
         radar_heights_to_keep_m_agl=numpy.array([RADAR_HEIGHT_M_ASL], dtype=int)
     )
-
-    # print(numpy.where(example_dict[input_examples.TARGET_VALUES_KEY] == 1))
 
     if input_examples.REFL_IMAGE_MATRIX_KEY in example_dict:
         input_feature_matrix = example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]

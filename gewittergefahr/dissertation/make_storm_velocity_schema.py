@@ -158,9 +158,20 @@ def _plot_schema(storm_object_table, output_file_name):
             fontsize=FONT_SIZE, fontweight='bold',
             horizontalalignment='center', verticalalignment='top')
 
-    axes_object.set_xticks([], [])
     axes_object.set_yticks([], [])
-    axes_object.set_xlabel(r'Time $\longrightarrow$')
+
+    storm_times_minutes = storm_object_table[
+        tracking_utils.VALID_TIME_COLUMN].values
+
+    x_tick_values, unique_indices = numpy.unique(
+        centroid_x_coords, return_index=True)
+    x_tick_labels = [
+        '{0:d}'.format(storm_times_minutes[i]) for i in unique_indices
+    ]
+
+    axes_object.set_xticks(x_tick_values)
+    axes_object.set_xticklabels(x_tick_labels)
+    axes_object.set_xlabel('Time (minutes)')
 
     axes_object.legend(
         legend_handles, legend_strings, fontsize=FONT_SIZE, loc=(0.02, 0.6)
