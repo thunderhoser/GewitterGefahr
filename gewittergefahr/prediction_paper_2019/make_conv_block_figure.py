@@ -56,8 +56,7 @@ COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 MAX_COLOUR_PERCENTILE = 99.
 FONT_SIZE = 20
 
-# NUM_PANEL_COLUMNS = 5
-NUM_PANEL_COLUMNS = 4
+NUM_PANEL_COLUMNS = 5
 FIGURE_RESOLUTION_DPI = 300
 
 EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
@@ -217,7 +216,7 @@ def _plot_one_example(
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[0, 0],
         label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-        x_coord_normalized=0.1, y_coord_normalized=1.125
+        x_coord_normalized=0.1, y_coord_normalized=1.05
     )
 
     this_matrix = numpy.stack(
@@ -242,7 +241,7 @@ def _plot_one_example(
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 1],
             label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.1, y_coord_normalized=1.125
+            x_coord_normalized=0.1, y_coord_normalized=1.05
         )
 
     axes_object_matrix[0, 2].set_title('After activation', fontsize=FONT_SIZE)
@@ -260,7 +259,7 @@ def _plot_one_example(
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 2],
             label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-            x_coord_normalized=0.1, y_coord_normalized=1.125
+            x_coord_normalized=0.1, y_coord_normalized=1.05
         )
 
     max_colour_value = numpy.percentile(
@@ -269,43 +268,43 @@ def _plot_one_example(
 
     axes_object_matrix[0, 3].set_title('After batch norm', fontsize=FONT_SIZE)
 
-    # for k in range(num_output_channels):
-    #     _plot_one_feature_map(
-    #         feature_matrix_2d=feature_matrix_after_bn[..., k],
-    #         max_colour_value=max_colour_value,
-    #         plot_colour_bar=k == num_output_channels - 1,
-    #         axes_object=axes_object_matrix[k, 3]
-    #     )
-    #
-    #     letter_label = chr(ord(letter_label) + 1)
-    #
-    #     plotting_utils.label_axes(
-    #         axes_object=axes_object_matrix[k, 3],
-    #         label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-    #         x_coord_normalized=0.1, y_coord_normalized=1.125
-    #     )
-    #
-    # max_colour_value = numpy.percentile(
-    #     numpy.absolute(feature_matrix_after_pooling), MAX_COLOUR_PERCENTILE
-    # )
-    #
-    # axes_object_matrix[0, 4].set_title('After max-pooling', fontsize=FONT_SIZE)
-    #
-    # for k in range(num_output_channels):
-    #     _plot_one_feature_map(
-    #         feature_matrix_2d=feature_matrix_after_pooling[..., k],
-    #         max_colour_value=max_colour_value,
-    #         plot_colour_bar=k == num_output_channels - 1,
-    #         axes_object=axes_object_matrix[k, 4]
-    #     )
-    #
-    #     letter_label = chr(ord(letter_label) + 1)
-    #
-    #     plotting_utils.label_axes(
-    #         axes_object=axes_object_matrix[k, 4],
-    #         label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
-    #         x_coord_normalized=0.1, y_coord_normalized=1.125
-    #     )
+    for k in range(num_output_channels):
+        _plot_one_feature_map(
+            feature_matrix_2d=feature_matrix_after_bn[..., k],
+            max_colour_value=max_colour_value,
+            plot_colour_bar=k == num_output_channels - 1,
+            axes_object=axes_object_matrix[k, 3]
+        )
+
+        letter_label = chr(ord(letter_label) + 1)
+
+        plotting_utils.label_axes(
+            axes_object=axes_object_matrix[k, 3],
+            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
+            x_coord_normalized=0.1, y_coord_normalized=1.05
+        )
+
+    max_colour_value = numpy.percentile(
+        numpy.absolute(feature_matrix_after_pooling), MAX_COLOUR_PERCENTILE
+    )
+
+    axes_object_matrix[0, 4].set_title('After max-pooling', fontsize=FONT_SIZE)
+
+    for k in range(num_output_channels):
+        _plot_one_feature_map(
+            feature_matrix_2d=feature_matrix_after_pooling[..., k],
+            max_colour_value=max_colour_value,
+            plot_colour_bar=k == num_output_channels - 1,
+            axes_object=axes_object_matrix[k, 4]
+        )
+
+        letter_label = chr(ord(letter_label) + 1)
+
+        plotting_utils.label_axes(
+            axes_object=axes_object_matrix[k, 4],
+            label_string='({0:s})'.format(letter_label), font_size=FONT_SIZE,
+            x_coord_normalized=0.1, y_coord_normalized=1.05
+        )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
