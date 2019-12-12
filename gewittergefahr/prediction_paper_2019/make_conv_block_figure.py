@@ -217,7 +217,7 @@ def _plot_one_example(
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[0, 0],
         label_string='({0:s})'.format(letter_label),
-        font_size=DEFAULT_FONT_SIZE,
+        font_size=TITLE_FONT_SIZE,
         x_coord_normalized=0.125, y_coord_normalized=1.025
     )
 
@@ -244,7 +244,7 @@ def _plot_one_example(
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 1],
             label_string='({0:s})'.format(letter_label),
-            font_size=DEFAULT_FONT_SIZE,
+            font_size=TITLE_FONT_SIZE,
             x_coord_normalized=0.125, y_coord_normalized=1.025
         )
 
@@ -264,7 +264,7 @@ def _plot_one_example(
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 2],
             label_string='({0:s})'.format(letter_label),
-            font_size=DEFAULT_FONT_SIZE,
+            font_size=TITLE_FONT_SIZE,
             x_coord_normalized=0.125, y_coord_normalized=1.025
         )
 
@@ -288,7 +288,7 @@ def _plot_one_example(
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 3],
             label_string='({0:s})'.format(letter_label),
-            font_size=DEFAULT_FONT_SIZE,
+            font_size=TITLE_FONT_SIZE,
             x_coord_normalized=0.125, y_coord_normalized=1.025
         )
 
@@ -312,7 +312,7 @@ def _plot_one_example(
         plotting_utils.label_axes(
             axes_object=axes_object_matrix[k, 4],
             label_string='({0:s})'.format(letter_label),
-            font_size=DEFAULT_FONT_SIZE,
+            font_size=TITLE_FONT_SIZE,
             x_coord_normalized=0.125, y_coord_normalized=1.025
         )
 
