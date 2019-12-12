@@ -30,8 +30,8 @@ COLOUR_LIST = [
 ]
 
 COLOUR_LIST[1] = matplotlib.colors.to_rgba(COLOUR_LIST[1], 0.5)
-
 COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap(COLOUR_LIST)
+
 DEFAULT_FONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 SPECIAL_FONT_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 FEATURE_TO_KERNEL_LINE_COLOUR = numpy.full(3, 152. / 255)
