@@ -73,7 +73,7 @@ FIGURE_CAPTION = (
     'and b.\n'
     'When the filter runs off the edge of the 2-D grid, the missing input '
     'values are\n'
-    'assumed to be zero (the default behaviour in Keras).'
+    'assumed to be zero.'
 )
 
 INCLUDE_CAPTION_ARG_NAME = 'include_caption'
