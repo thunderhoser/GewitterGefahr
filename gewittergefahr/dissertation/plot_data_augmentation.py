@@ -175,8 +175,11 @@ def _run(example_file_name, example_indices, normalization_file_name,
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         normalization_param_file_name=normalization_file_name)
 
+    dummy_target_values = numpy.full(num_examples, 0, dtype=int)
+
     augmented_radar_matrix = trainval_io._augment_radar_images(
-        list_of_predictor_matrices=[orig_radar_matrix], target_array=None,
+        list_of_predictor_matrices=[orig_radar_matrix],
+        target_array=dummy_target_values,
         x_translations_pixels=X_TRANSLATIONS_PX,
         y_translations_pixels=Y_TRANSLATIONS_PX,
         ccw_rotation_angles_deg=CCW_ROTATION_ANGLES_DEG,
