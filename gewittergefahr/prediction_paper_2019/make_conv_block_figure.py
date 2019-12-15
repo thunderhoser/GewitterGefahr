@@ -15,7 +15,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.plotting import plotting_utils
 
 RADAR_FIELD_NAME = radar_utils.REFL_NAME
-RADAR_HEIGHT_M_ASL = 3000
+RADAR_HEIGHT_M_AGL = 3000
 NORMALIZATION_TYPE_STRING = dl_utils.Z_NORMALIZATION_TYPE_STRING
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
@@ -328,6 +328,8 @@ def _run(example_file_name, example_indices, num_radar_rows, num_radar_columns,
          normalization_file_name, output_dir_name):
     """Makes figure to explain one convolution block.
 
+    This is effectively the main method.
+
     :param example_file_name: See documentation at top of file.
     :param example_indices: Same.
     :param num_radar_rows: Same.
@@ -349,7 +351,7 @@ def _run(example_file_name, example_indices, num_radar_rows, num_radar_columns,
         netcdf_file_name=example_file_name, read_all_target_vars=False,
         target_name=DUMMY_TARGET_NAME, include_soundings=False,
         num_rows_to_keep=num_radar_rows, num_columns_to_keep=num_radar_columns,
-        radar_heights_to_keep_m_agl=numpy.array([RADAR_HEIGHT_M_ASL], dtype=int)
+        radar_heights_to_keep_m_agl=numpy.array([RADAR_HEIGHT_M_AGL], dtype=int)
     )
 
     if input_examples.REFL_IMAGE_MATRIX_KEY in example_dict:
