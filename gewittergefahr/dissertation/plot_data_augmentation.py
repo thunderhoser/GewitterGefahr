@@ -116,7 +116,7 @@ def _plot_one_example(
     axes_object_matrix[1, 0].set_title('(c) Rotated', fontsize=TITLE_FONT_SIZE)
     axes_object_matrix[1, 1].set_title('(d) Noised', fontsize=TITLE_FONT_SIZE)
 
-    output_file_name = '{0:s}/storm={1:s}_time={2:s}'.format(
+    output_file_name = '{0:s}/storm={1:s}_time={2:s}.jpg'.format(
         output_dir_name, full_storm_id_string.replace('_', '-'),
         time_conversion.unix_sec_to_string(
             storm_time_unix_sec, FILE_NAME_TIME_FORMAT)
