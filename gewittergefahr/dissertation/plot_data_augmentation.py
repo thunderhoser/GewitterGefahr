@@ -67,7 +67,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_one_example(
-        radar_matrix, translated_radar_matrix, rotated_radar_matrix,
+        orig_radar_matrix, translated_radar_matrix, rotated_radar_matrix,
         noised_radar_matrix, output_dir_name, full_storm_id_string,
         storm_time_unix_sec):
     """Plots original and augmented radar images for one example.
@@ -75,7 +75,7 @@ def _plot_one_example(
     M = number of rows in grid
     N = number of columns in grid
 
-    :param radar_matrix: M-by-N-by-1-by-1 numpy array with original values.
+    :param orig_radar_matrix: M-by-N-by-1-by-1 numpy array with original values.
     :param translated_radar_matrix: Same but with translated values.
     :param rotated_radar_matrix: Same but with rotated values.
     :param noised_radar_matrix: Same but with noised values.
@@ -87,7 +87,7 @@ def _plot_one_example(
 
     dummy_heights_m_agl = numpy.array([1000, 2000, 3000, 4000], dtype=int)
     concat_radar_matrix = numpy.concatenate((
-        radar_matrix, translated_radar_matrix, rotated_radar_matrix,
+        orig_radar_matrix, translated_radar_matrix, rotated_radar_matrix,
         noised_radar_matrix
     ), axis=-2)
 
@@ -202,7 +202,7 @@ def _run(example_file_name, example_indices, normalization_file_name,
 
     for i in range(num_examples):
         _plot_one_example(
-            radar_matrix=radar_matrix[i, ...],
+            orig_radar_matrix=orig_radar_matrix[i, ...],
             translated_radar_matrix=translated_radar_matrix[i, ...],
             rotated_radar_matrix=rotated_radar_matrix[i, ...],
             noised_radar_matrix=noised_radar_matrix[i, ...],
