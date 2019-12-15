@@ -175,6 +175,8 @@ def _run(example_file_name, example_indices, normalization_file_name,
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         normalization_param_file_name=normalization_file_name)
 
+    print(orig_radar_matrix.shape)
+
     dummy_target_values = numpy.full(num_examples, 0, dtype=int)
 
     augmented_radar_matrix = trainval_io._augment_radar_images(
@@ -186,6 +188,8 @@ def _run(example_file_name, example_indices, normalization_file_name,
         noise_standard_deviation=NOISE_STANDARD_DEVIATION,
         num_noisings=1, flip_in_x=False, flip_in_y=False
     )[0][0]
+
+    print(augmented_radar_matrix.shape)
 
     augmented_radar_matrix = dl_utils.denormalize_radar_images(
         radar_image_matrix=augmented_radar_matrix,
