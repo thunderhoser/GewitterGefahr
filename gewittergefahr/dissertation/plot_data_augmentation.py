@@ -158,10 +158,10 @@ def _run(example_file_name, example_indices, normalization_file_name,
     else:
         orig_radar_matrix = example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]
 
-    num_examples = orig_radar_matrix.shape[0]
+    num_examples_total = orig_radar_matrix.shape[0]
     error_checking.assert_is_geq_numpy_array(example_indices, 0)
     error_checking.assert_is_less_than_numpy_array(
-        example_indices, num_examples)
+        example_indices, num_examples_total)
 
     orig_radar_matrix = orig_radar_matrix[example_indices, ...]
     full_storm_id_strings = [
@@ -177,6 +177,7 @@ def _run(example_file_name, example_indices, normalization_file_name,
 
     print(orig_radar_matrix.shape)
 
+    num_examples = orig_radar_matrix.shape[0]
     dummy_target_values = numpy.full(num_examples, 0, dtype=int)
 
     augmented_radar_matrix = trainval_io._augment_radar_images(
