@@ -67,7 +67,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_one_example(
-        orig_radar_matrix, translated_radar_matrix, rotated_radar_matrix,
+        radar_matrix, translated_radar_matrix, rotated_radar_matrix,
         noised_radar_matrix, output_dir_name, full_storm_id_string,
         storm_time_unix_sec):
     """Plots original and augmented radar images for one example.
@@ -75,7 +75,7 @@ def _plot_one_example(
     M = number of rows in grid
     N = number of columns in grid
 
-    :param orig_radar_matrix: M-by-N-by-1-by-1 numpy array with original values.
+    :param radar_matrix: M-by-N-by-1-by-1 numpy array with original values.
     :param translated_radar_matrix: Same but with translated values.
     :param rotated_radar_matrix: Same but with rotated values.
     :param noised_radar_matrix: Same but with noised values.
@@ -87,7 +87,7 @@ def _plot_one_example(
 
     dummy_heights_m_agl = numpy.array([1000, 2000, 3000, 4000], dtype=int)
     concat_radar_matrix = numpy.concatenate((
-        orig_radar_matrix, translated_radar_matrix, rotated_radar_matrix,
+        radar_matrix, translated_radar_matrix, rotated_radar_matrix,
         noised_radar_matrix
     ), axis=-2)
 
@@ -154,32 +154,32 @@ def _run(example_file_name, example_indices, normalization_file_name,
     )
 
     if input_examples.REFL_IMAGE_MATRIX_KEY in example_dict:
-        orig_radar_matrix = example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]
+        radar_matrix = example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]
     else:
-        orig_radar_matrix = example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]
+        radar_matrix = example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]
 
-    num_examples_total = orig_radar_matrix.shape[0]
+    num_examples_total = radar_matrix.shape[0]
     error_checking.assert_is_geq_numpy_array(example_indices, 0)
     error_checking.assert_is_less_than_numpy_array(
         example_indices, num_examples_total)
 
-    orig_radar_matrix = orig_radar_matrix[example_indices, ...]
+    radar_matrix = radar_matrix[example_indices, ...]
     full_storm_id_strings = [
         example_dict[input_examples.FULL_IDS_KEY][k] for k in example_indices
     ]
     storm_times_unix_sec = example_dict[input_examples.STORM_TIMES_KEY][
         example_indices]
 
-    orig_radar_matrix = dl_utils.normalize_radar_images(
-        radar_image_matrix=orig_radar_matrix, field_names=[RADAR_FIELD_NAME],
+    radar_matrix = dl_utils.normalize_radar_images(
+        radar_image_matrix=radar_matrix, field_names=[RADAR_FIELD_NAME],
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         normalization_param_file_name=normalization_file_name)
 
-    num_examples = orig_radar_matrix.shape[0]
+    num_examples = radar_matrix.shape[0]
     dummy_target_values = numpy.full(num_examples, 0, dtype=int)
 
-    augmented_radar_matrix = trainval_io._augment_radar_images(
-        list_of_predictor_matrices=[orig_radar_matrix],
+    radar_matrix = trainval_io._augment_radar_images(
+        list_of_predictor_matrices=[radar_matrix],
         target_array=dummy_target_values,
         x_translations_pixels=X_TRANSLATIONS_PX,
         y_translations_pixels=Y_TRANSLATIONS_PX,
@@ -188,21 +188,21 @@ def _run(example_file_name, example_indices, normalization_file_name,
         num_noisings=1, flip_in_x=False, flip_in_y=False
     )[0][0]
 
-    augmented_radar_matrix = dl_utils.denormalize_radar_images(
-        radar_image_matrix=augmented_radar_matrix,
-        field_names=[RADAR_FIELD_NAME],
+    radar_matrix = dl_utils.denormalize_radar_images(
+        radar_image_matrix=radar_matrix, field_names=[RADAR_FIELD_NAME],
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         normalization_param_file_name=normalization_file_name)
 
-    augmented_radar_matrix = augmented_radar_matrix[num_examples:, ...]
-    translated_radar_matrix = augmented_radar_matrix[:num_examples, ...]
-    augmented_radar_matrix = augmented_radar_matrix[num_examples:, ...]
-    rotated_radar_matrix = augmented_radar_matrix[:num_examples, ...]
-    noised_radar_matrix = augmented_radar_matrix[num_examples:, ...]
+    orig_radar_matrix = radar_matrix[:num_examples, ...]
+    radar_matrix = radar_matrix[num_examples:, ...]
+    translated_radar_matrix = radar_matrix[:num_examples, ...]
+    radar_matrix = radar_matrix[num_examples:, ...]
+    rotated_radar_matrix = radar_matrix[:num_examples, ...]
+    noised_radar_matrix = radar_matrix[num_examples:, ...]
 
     for i in range(num_examples):
         _plot_one_example(
-            orig_radar_matrix=orig_radar_matrix[i, ...],
+            radar_matrix=radar_matrix[i, ...],
             translated_radar_matrix=translated_radar_matrix[i, ...],
             rotated_radar_matrix=rotated_radar_matrix[i, ...],
             noised_radar_matrix=noised_radar_matrix[i, ...],
