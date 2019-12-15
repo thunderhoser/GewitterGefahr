@@ -149,47 +149,13 @@ def _plot_feature_maps_one_layer(
         this_time_string = time_conversion.unix_sec_to_string(
             storm_times_unix_sec[i], TIME_FORMAT)
 
-        if num_spatial_dimensions == 2:
-            _, this_axes_object_matrix = (
-                feature_map_plotting.plot_many_2d_feature_maps(
-                    feature_matrix=numpy.flip(feature_matrix[i, ...], axis=0),
-                    annotation_string_by_panel=annotation_string_by_channel,
-                    num_panel_rows=num_panel_rows,
-                    colour_map_object=FEATURE_COLOUR_MAP_OBJECT,
-                    min_colour_value=min_colour_value,
-                    max_colour_value=max_colour_value, font_size=font_size)
-            )
-
-            plotting_utils.plot_linear_colour_bar(
-                axes_object_or_matrix=this_axes_object_matrix,
-                data_matrix=feature_matrix[i, ...],
-                colour_map_object=FEATURE_COLOUR_MAP_OBJECT,
-                min_value=min_colour_value, max_value=max_colour_value,
-                orientation_string='horizontal', padding=0.01,
-                extend_min=True, extend_max=True)
-
-            this_title_string = 'Layer "{0:s}", storm "{1:s}" at {2:s}'.format(
-                layer_name, full_id_strings[i], this_time_string
-            )
-            pyplot.suptitle(this_title_string, fontsize=MAIN_FONT_SIZE)
-
-            this_figure_file_name = (
-                '{0:s}/storm={1:s}_{2:s}_features.jpg'
-            ).format(
-                output_dir_name, full_id_strings[i].replace('_', '-'),
-                this_time_string
-            )
-
-            print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
-            pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
-            pyplot.close()
-
-        else:
+        if num_spatial_dimensions == 3:
             for k in range(num_heights):
-                _, this_axes_object_matrix = (
+                this_figure_object, this_axes_object_matrix = (
                     feature_map_plotting.plot_many_2d_feature_maps(
                         feature_matrix=numpy.flip(
-                            feature_matrix[i, :, :, k, :], axis=0),
+                            feature_matrix[i, :, :, k, :], axis=0
+                        ),
                         annotation_string_by_panel=annotation_string_by_channel,
                         num_panel_rows=num_panel_rows,
                         colour_map_object=FEATURE_COLOUR_MAP_OBJECT,
@@ -213,7 +179,8 @@ def _plot_feature_maps_one_layer(
                     this_time_string
                 )
 
-                pyplot.suptitle(this_title_string, fontsize=MAIN_FONT_SIZE)
+                this_figure_object.suptitle(this_title_string,
+                                            fontsize=MAIN_FONT_SIZE)
 
                 this_figure_file_name = (
                     '{0:s}/storm={1:s}_{2:s}_features_height{3:02d}.jpg'
@@ -223,10 +190,61 @@ def _plot_feature_maps_one_layer(
                 )
 
                 print('Saving figure to: "{0:s}"...'.format(
-                    this_figure_file_name))
+                    this_figure_file_name
+                ))
+                this_figure_object.savefig(
+                    this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+                    pad_inches=0, bbox_inches='tight'
+                )
+                pyplot.close(this_figure_object)
 
-                pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
-                pyplot.close()
+                continue
+
+        if num_spatial_dimensions == 1:
+            this_figure_object, this_axes_object_matrix = (
+                feature_map_plotting.plot_many_1d_feature_maps(
+                    feature_matrix=feature_matrix[i, ...],
+                    colour_map_object=FEATURE_COLOUR_MAP_OBJECT,
+                    min_colour_value=min_colour_value,
+                    max_colour_value=max_colour_value)
+            )
+        else:
+            this_figure_object, this_axes_object_matrix = (
+                feature_map_plotting.plot_many_2d_feature_maps(
+                    feature_matrix=numpy.flip(feature_matrix[i, ...], axis=0),
+                    annotation_string_by_panel=annotation_string_by_channel,
+                    num_panel_rows=num_panel_rows,
+                    colour_map_object=FEATURE_COLOUR_MAP_OBJECT,
+                    min_colour_value=min_colour_value,
+                    max_colour_value=max_colour_value, font_size=font_size)
+            )
+
+        plotting_utils.plot_linear_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=feature_matrix[i, ...],
+            colour_map_object=FEATURE_COLOUR_MAP_OBJECT,
+            min_value=min_colour_value, max_value=max_colour_value,
+            orientation_string='horizontal', padding=0.01,
+            extend_min=True, extend_max=True)
+
+        this_title_string = 'Layer "{0:s}", storm "{1:s}" at {2:s}'.format(
+            layer_name, full_id_strings[i], this_time_string
+        )
+        this_figure_object.suptitle(this_title_string, fontsize=MAIN_FONT_SIZE)
+
+        this_figure_file_name = (
+            '{0:s}/storm={1:s}_{2:s}_features.jpg'
+        ).format(
+            output_dir_name, full_id_strings[i].replace('_', '-'),
+            this_time_string
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
+        this_figure_object.savefig(
+            this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(this_figure_object)
 
 
 def _run(model_file_name, layer_names, top_example_dir_name,
@@ -287,7 +305,7 @@ def _run(model_file_name, layer_names, top_example_dir_name,
         sounding_matrix = None
 
     num_layers = len(layer_names)
-    feature_matrix_by_layer = [None] * num_layers
+    feature_matrix_by_layer = [numpy.array([])] * num_layers
 
     for k in range(num_layers):
         if model_metadata_dict[cnn.CONV_2D3D_KEY]:

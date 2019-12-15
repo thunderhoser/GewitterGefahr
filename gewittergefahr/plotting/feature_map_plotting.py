@@ -7,8 +7,6 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
-pyplot.rc('axes', linewidth=3)
-
 DEFAULT_FIG_WIDTH_INCHES = 15
 DEFAULT_FIG_HEIGHT_INCHES = 15
 DEFAULT_FONT_SIZE = 20
@@ -97,6 +95,7 @@ def plot_many_2d_feature_maps(
     :return: axes_object_matrix: Same.
     """
 
+    pyplot.rc('axes', linewidth=3)
     error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=3)
 
     num_panels = feature_matrix.shape[-1]
@@ -137,5 +136,56 @@ def plot_many_2d_feature_maps(
                 max_colour_value=max_colour_value,
                 annotation_string=annotation_string_by_panel[this_linear_index]
             )
+
+    return figure_object, axes_object_matrix
+
+
+def plot_many_1d_feature_maps(
+        feature_matrix, colour_map_object, colour_norm_object=None,
+        min_colour_value=None, max_colour_value=None,
+        figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
+        figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES):
+    """Plots many 1-D feature maps in the same figure (one per column).
+
+    N = number of points in spatial grid
+    C = number of channels
+
+    :param feature_matrix: N-by-C numpy array of feature values.
+    :param colour_map_object: See doc for `plot_many_2d_feature_maps`.
+    :param colour_norm_object: Same.
+    :param min_colour_value: Same.
+    :param max_colour_value: Same.
+    :param figure_width_inches: Same.
+    :param figure_height_inches: Same.
+    :return: figure_object: See doc for `plotting_utils.create_paneled_figure`.
+    :return: axes_object_matrix: Same.
+    """
+
+    pyplot.rc('axes', linewidth=1)
+    error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=2)
+
+    num_channels = feature_matrix.shape[1]
+    num_spatial_points = feature_matrix.shape[0]
+
+    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
+        num_rows=1, num_columns=num_channels,
+        figure_width_inches=figure_width_inches,
+        figure_height_inches=figure_height_inches,
+        horizontal_spacing=0., vertical_spacing=0.,
+        shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=False)
+
+    for k in range(num_channels):
+        this_matrix = numpy.reshape(
+            feature_matrix[..., k], (num_spatial_points, 1)
+        )
+
+        plot_2d_feature_map(
+            feature_matrix=this_matrix, axes_object=axes_object_matrix[0, k],
+            font_size=30, colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object,
+            min_colour_value=min_colour_value,
+            max_colour_value=max_colour_value,
+            annotation_string=''
+        )
 
     return figure_object, axes_object_matrix
