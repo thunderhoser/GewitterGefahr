@@ -203,6 +203,10 @@ def _run(example_file_name, example_indices, normalization_file_name,
     rotated_radar_matrix = augmented_radar_matrix[:num_examples, ...]
     noised_radar_matrix = augmented_radar_matrix[num_examples:, ...]
 
+    print(translated_radar_matrix.shape)
+    print(rotated_radar_matrix.shape)
+    print(noised_radar_matrix.shape)
+
     for i in range(num_examples):
         _plot_one_example(
             orig_radar_matrix=orig_radar_matrix[i, ...],
