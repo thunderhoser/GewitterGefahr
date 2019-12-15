@@ -198,7 +198,7 @@ def _plot_feature_maps_one_layer(
                 )
                 pyplot.close(this_figure_object)
 
-                continue
+            continue
 
         if num_spatial_dimensions == 1:
             this_figure_object, this_axes_object_matrix = (
