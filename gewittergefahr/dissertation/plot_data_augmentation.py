@@ -184,6 +184,12 @@ def _run(example_file_name, example_indices, normalization_file_name,
         num_noisings=1, flip_in_x=False, flip_in_y=False
     )[0][0]
 
+    augmented_radar_matrix = dl_utils.denormalize_radar_images(
+        radar_image_matrix=augmented_radar_matrix,
+        field_names=[RADAR_FIELD_NAME],
+        normalization_type_string=NORMALIZATION_TYPE_STRING,
+        normalization_param_file_name=normalization_file_name)
+
     augmented_radar_matrix = augmented_radar_matrix[num_examples:, ...]
     translated_radar_matrix = augmented_radar_matrix[:num_examples, ...]
     augmented_radar_matrix = augmented_radar_matrix[num_examples:, ...]
