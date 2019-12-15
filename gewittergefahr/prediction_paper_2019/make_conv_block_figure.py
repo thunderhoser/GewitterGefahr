@@ -75,12 +75,12 @@ EXAMPLE_INDICES_HELP_STRING = (
     'List of example indices.  One figure will be created for each example.')
 
 NUM_ROWS_HELP_STRING = (
-    'Number of rows in radar grid.  To use the number of rows in the file, '
-    'leave this alone.')
+    'Number of rows in radar grid.  To use all rows in the file, leave this '
+    'alone.')
 
 NUM_COLUMNS_HELP_STRING = (
-    'Number of columns in radar grid.  To use the number of rows in the file, '
-    'leave this alone.')
+    'Number of columns in radar grid.  To use all columns in the file, leave '
+    'this alone.')
 
 NORMALIZATION_FILE_HELP_STRING = (
     'Path to normalization file.  Will be read by `deep_learning_utils.'
