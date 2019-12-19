@@ -343,7 +343,7 @@ def read_ungridded_predictions(netcdf_file_name):
         num_classes = dataset_object.variables[PROBABILITY_MATRIX_KEY].shape[1]
 
         prediction_dict = {
-            MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY)),
+            # MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY)),
             TARGET_NAME_KEY: str(getattr(dataset_object, TARGET_NAME_KEY)),
             STORM_IDS_KEY: [],
             STORM_TIMES_KEY: numpy.array([], dtype=int),
@@ -358,7 +358,7 @@ def read_ungridded_predictions(netcdf_file_name):
         return prediction_dict
 
     prediction_dict = {
-        MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY)),
+        # MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY)),
         TARGET_NAME_KEY: str(getattr(dataset_object, TARGET_NAME_KEY)),
         STORM_IDS_KEY: [
             str(s) for s in
