@@ -20,7 +20,7 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import model_eval_plotting
 
 MARKER_TYPE = '*'
-MARKER_SIZE = 64
+MARKER_SIZE = 50
 MARKER_EDGE_WIDTH = 0
 
 # COLOUR_MATRIX = numpy.array([
