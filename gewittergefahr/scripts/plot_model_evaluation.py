@@ -89,11 +89,11 @@ def _plot_roc_curve(evaluation_table, best_threshold_index, output_file_name,
             stat_values=evaluation_table[model_eval.AUC_KEY].values,
             confidence_level=confidence_level)
 
-        annotation_string = 'Area under curve = [{0:.3f}, {1:.3f}]'.format(
+        annotation_string = 'AUC = [{0:.3f}, {1:.3f}]'.format(
             min_auc, max_auc)
     else:
         mean_auc = numpy.nanmean(evaluation_table[model_eval.AUC_KEY].values)
-        annotation_string = 'Area under curve = {0:.3f}'.format(mean_auc)
+        annotation_string = 'AUC = {0:.3f}'.format(mean_auc)
 
     print(annotation_string)
 
@@ -199,7 +199,7 @@ def _plot_performance_diagram(
     ))
 
     mean_aupd = numpy.nanmean(evaluation_table[model_eval.AUPD_KEY].values)
-    annotation_string = 'Area under curve = {0:.3f}'.format(mean_aupd)
+    annotation_string = 'AUPD = {0:.3f}'.format(mean_aupd)
 
     num_bootstrap_reps = pod_matrix.shape[0]
     num_prob_thresholds = pod_matrix.shape[1]
@@ -209,7 +209,7 @@ def _plot_performance_diagram(
             stat_values=evaluation_table[model_eval.AUPD_KEY].values,
             confidence_level=confidence_level)
 
-        annotation_string = 'Area under curve = [{0:.3f}, {1:.3f}]'.format(
+        annotation_string = 'AUPD = [{0:.3f}, {1:.3f}]'.format(
             min_aupd, max_aupd)
 
     print(annotation_string)

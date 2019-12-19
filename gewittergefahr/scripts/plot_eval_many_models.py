@@ -348,12 +348,12 @@ def _plot_perf_diagrams(evaluation_tables, model_names, best_threshold_indices,
                 )
             )
 
-            legend_strings[i] = '{0:s}: AUC = [{1:.3f}, {2:.3f}]'.format(
+            legend_strings[i] = '{0:s}: AUPD = [{1:.3f}, {2:.3f}]'.format(
                 model_names[i], this_min_aupd, this_max_aupd
             )
         else:
             this_aupd = evaluation_tables[i][model_eval.AUPD_KEY].values[0]
-            legend_strings[i] = '{0:s}: AUC = {1:.3f}'.format(
+            legend_strings[i] = '{0:s}: AUPD = {1:.3f}'.format(
                 model_names[i], this_aupd
             )
 
