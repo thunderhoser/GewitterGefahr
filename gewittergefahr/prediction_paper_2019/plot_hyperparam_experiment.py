@@ -35,8 +35,6 @@ CORRUPT_MODEL_MARKER_TYPE = 'x'
 CORRUPT_MODEL_MARKER_SIZE = 32
 CORRUPT_MODEL_MARKER_WIDTH = 4
 
-BIAS_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
-
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
@@ -382,9 +380,9 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
 
     _plot_one_score(
         score_matrix=frequency_bias_matrix,
-        colour_map_object=BIAS_COLOUR_MAP_OBJECT,
+        colour_map_object=main_colour_map_object,
         min_colour_value=0., max_colour_value=max_colour_value,
-        best_model_index=best_model_index, is_score_bias=False,
+        best_model_index=best_model_index, is_score_bias=True,
         colour_bar_label='Frequency bias', output_file_name=bias_file_name
     )
 
