@@ -79,8 +79,8 @@ OUTPUT_DIR_NAME = (
 )
 
 
-def _get_data_for_interp_with_merger():
-    """Creates synthetic data for interpolation with storm merger.
+def _get_data_for_interp_with_split():
+    """Creates synthetic data for interpolation with storm split.
 
     :return: storm_object_table: pandas DataFrame with the following columns.
         Each row is one storm object.
@@ -163,10 +163,10 @@ def _get_data_for_interp_with_merger():
     return storm_object_table, tornado_table
 
 
-def _get_data_for_interp_with_split():
-    """Creates synthetic data for interpolation with storm split.
+def _get_data_for_interp_with_merger():
+    """Creates synthetic data for interpolation with storm merger.
 
-    :return: storm_object_table: See doc for `_get_data_for_interp_with_merger`.
+    :return: storm_object_table: See doc for `_get_data_for_interp_with_split`.
     :return: tornado_table: Same.
     """
 
@@ -430,7 +430,7 @@ def _plot_interp_two_times(storm_object_table, tornado_table, legend_font_size,
                            legend_position_string):
     """Plots interpolation for one pair of times.
 
-    :param storm_object_table: See doc for `_get_interp_data_for_merger`.
+    :param storm_object_table: See doc for `_get_interp_data_for_split`.
     :param tornado_table: Same.
     :param legend_font_size: Font size in legend.
     :param legend_position_string: Legend position.
@@ -762,7 +762,7 @@ def _run():
     figure_object, axes_object = _plot_interp_two_times(
         storm_object_table=_get_data_for_interp_with_merger()[0],
         tornado_table=_get_data_for_interp_with_merger()[1],
-        legend_font_size=DEFAULT_FONT_SIZE, legend_position_string='upper left'
+        legend_font_size=SMALL_LEGEND_FONT_SIZE, legend_position_string='upper right'
     )
 
     axes_object.set_title('Interpolation with merger')
@@ -789,8 +789,8 @@ def _run():
     figure_object, axes_object = _plot_interp_two_times(
         storm_object_table=_get_data_for_interp_with_split()[0],
         tornado_table=_get_data_for_interp_with_split()[1],
-        legend_font_size=SMALL_LEGEND_FONT_SIZE,
-        legend_position_string='upper right'
+        legend_font_size=DEFAULT_FONT_SIZE,
+        legend_position_string='upper left'
     )
 
     axes_object.set_title('Interpolation with split')
