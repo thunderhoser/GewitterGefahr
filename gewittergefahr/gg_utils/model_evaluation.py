@@ -1636,50 +1636,63 @@ def combine_evaluation_files(input_file_names):
 
 
 def plot_hyperparam_grid(
-        score_matrix, min_colour_value, max_colour_value,
-        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT, axes_object=None):
+        score_matrix, colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        colour_norm_object=None, min_colour_value=None, max_colour_value=None,
+        axes_object=None):
     """Plots evaluation score vs. two hyperparameters.
 
     M = number of rows in grid
     N = number of columns in grid
 
     :param score_matrix: M-by-N numpy array of scores.
-    :param min_colour_value: Minimum value in colour scheme.
-    :param max_colour_value: Max value in colour scheme.
     :param colour_map_object: Colour scheme (instance of `matplotlib.pyplot.cm`
         or similar).
-    :param font_size: Font size.
+    :param colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
+    :param min_colour_value: [used only if `colour_norm_object is None`]
+        Minimum value in colour scheme.
+    :param max_colour_value: [used only if `colour_norm_object is None`]
+        Max value in colour scheme.
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).  If None, will create new
         axes.
     :return: axes_object: See input doc.
     """
 
+    if colour_norm_object is None:
+        error_checking.assert_is_greater(max_colour_value, min_colour_value)
+        colour_norm_object = None
+    else:
+        if hasattr(colour_norm_object, 'boundaries'):
+            min_colour_value = colour_norm_object.boundaries[0]
+            max_colour_value = colour_norm_object.boundaries[-1]
+        else:
+            min_colour_value = colour_norm_object.vmin
+            max_colour_value = colour_norm_object.vmax
+
     error_checking.assert_is_real_numpy_array(score_matrix)
     error_checking.assert_is_numpy_array(score_matrix, num_dimensions=2)
-    error_checking.assert_is_greater(max_colour_value, min_colour_value)
-
-    num_grid_rows = score_matrix.shape[0]
-    num_grid_columns = score_matrix.shape[1]
 
     if axes_object is None:
         _, axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
         )
 
-    score_matrix_to_plot = numpy.ma.masked_where(
+    matrix_to_plot = numpy.ma.masked_where(
         numpy.isnan(score_matrix), score_matrix
     )
     axes_object.imshow(
-        score_matrix_to_plot, cmap=colour_map_object, origin='lower',
-        vmin=min_colour_value, vmax=max_colour_value
+        matrix_to_plot, cmap=colour_map_object, norm=colour_norm_object,
+        vmin=min_colour_value, vmax=max_colour_value, origin='lower'
     )
 
+    num_rows = score_matrix.shape[0]
+    num_columns = score_matrix.shape[1]
+
     x_tick_values = numpy.linspace(
-        0, num_grid_columns - 1, num=num_grid_columns, dtype=float
+        0, num_columns - 1, num=num_columns, dtype=float
     )
     y_tick_values = numpy.linspace(
-        0, num_grid_rows - 1, num=num_grid_rows, dtype=float
+        0, num_rows - 1, num=num_rows, dtype=float
     )
 
     axes_object.set_xticks(x_tick_values)

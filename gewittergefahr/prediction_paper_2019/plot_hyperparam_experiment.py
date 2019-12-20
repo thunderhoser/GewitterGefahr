@@ -160,6 +160,7 @@ def _plot_one_score(
                 min_colour_value=min_colour_value,
                 max_colour_value=max_colour_value,
                 colour_map_object=colour_map_object,
+                colour_norm_object=colour_norm_object,
                 axes_object=axes_object_matrix[k, m]
             )
 
