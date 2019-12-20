@@ -6,6 +6,7 @@ import argparse
 import numpy
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.colors
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
@@ -16,7 +17,7 @@ from gewittergefahr.plotting import imagemagick_utils
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DEFAULT_FONT_SIZE = 20
-TICK_LABEL_FONT_SIZE = 35
+TICK_LABEL_FONT_SIZE = 20
 
 pyplot.rc('font', size=DEFAULT_FONT_SIZE)
 pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
@@ -83,9 +84,36 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _get_bias_colour_scheme(max_value):
+    """Returns colour scheme for frequency bias.
+
+    :param max_value: Max value in colour scheme.
+    :return: colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
+    :return: colour_norm_object: Colour normalization (maps from data space to
+        colour-bar space, which goes from 0...1).  This is an instance of
+        `matplotlib.colors.Normalize`.
+    """
+
+    orig_colour_map_object = pyplot.get_cmap('seismic')
+
+    negative_values = numpy.linspace(0, 1, num=1001, dtype=float)
+    positive_values = numpy.linspace(1, max_value, num=1001, dtype=float)
+    bias_values = numpy.concatenate((negative_values, positive_values))
+
+    normalized_values = numpy.linspace(0, 1, num=len(bias_values), dtype=float)
+    rgb_matrix = orig_colour_map_object(normalized_values)[:, :-1]
+
+    colour_map_object = matplotlib.colors.ListedColormap(rgb_matrix)
+    colour_norm_object = matplotlib.colors.BoundaryNorm(
+        bias_values, colour_map_object.N
+    )
+
+    return colour_map_object, colour_norm_object
+
+
 def _plot_one_score(
         score_matrix, colour_map_object, min_colour_value, max_colour_value,
-        colour_bar_label, best_model_index, output_file_name):
+        colour_bar_label, is_score_bias, best_model_index, output_file_name):
     """Plots one score.
 
     :param score_matrix: 4-D numpy array of scores, where the first axis
@@ -95,6 +123,8 @@ def _plot_one_score(
     :param min_colour_value: Minimum value in colour scheme.
     :param max_colour_value: Max value in colour scheme.
     :param colour_bar_label: Label string for colour bar.
+    :param is_score_bias: Boolean flag.  If True, score to be plotted is
+        frequency bias, which changes settings for colour scheme.
     :param best_model_index: Linear index of best model.
     :param output_file_name: Path to output file (figure will be saved here).
     """
@@ -176,12 +206,29 @@ def _plot_one_score(
             markerfacecolor=MARKER_COLOUR, markeredgecolor=MARKER_COLOUR,
             markeredgewidth=CORRUPT_MODEL_MARKER_WIDTH)
 
-    colour_bar_object = plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object_matrix, data_matrix=score_matrix,
-        colour_map_object=colour_map_object,
-        min_value=min_colour_value, max_value=max_colour_value,
-        orientation_string='vertical', extend_min=True, extend_max=True,
-        font_size=DEFAULT_FONT_SIZE)
+    if is_score_bias:
+        colour_map_object, colour_norm_object = _get_bias_colour_scheme(
+            max_value=max_colour_value)
+
+        colour_bar_object = plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=axes_object_matrix, data_matrix=score_matrix,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object,
+            orientation_string='vertical', extend_min=False, extend_max=True,
+            font_size=DEFAULT_FONT_SIZE)
+
+        tick_values = colour_bar_object.get_ticks()
+        tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+
+        colour_bar_object.set_ticks(tick_values)
+        colour_bar_object.set_ticklabels(tick_strings)
+    else:
+        colour_bar_object = plotting_utils.plot_linear_colour_bar(
+            axes_object_or_matrix=axes_object_matrix, data_matrix=score_matrix,
+            colour_map_object=colour_map_object,
+            min_value=min_colour_value, max_value=max_colour_value,
+            orientation_string='vertical', extend_min=True, extend_max=True,
+            font_size=DEFAULT_FONT_SIZE)
 
     colour_bar_object.set_label(colour_bar_label)
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -290,7 +337,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         min_colour_value=numpy.nanpercentile(
             auc_matrix, 100. - max_colour_percentile
         ),
-        best_model_index=best_model_index,
+        best_model_index=best_model_index, is_score_bias=False,
         colour_bar_label='AUC (area under ROC curve)',
         output_file_name=auc_file_name
     )
@@ -301,7 +348,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         min_colour_value=numpy.nanpercentile(
             csi_matrix, 100. - max_colour_percentile
         ),
-        best_model_index=best_model_index,
+        best_model_index=best_model_index, is_score_bias=False,
         colour_bar_label='CSI (critical success index)',
         output_file_name=csi_file_name
     )
@@ -312,7 +359,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         min_colour_value=numpy.nanpercentile(
             pod_matrix, 100. - max_colour_percentile
         ),
-        best_model_index=best_model_index,
+        best_model_index=best_model_index, is_score_bias=False,
         colour_bar_label='POD (probability of detection)',
         output_file_name=pod_file_name
     )
@@ -323,7 +370,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
         min_colour_value=numpy.nanpercentile(
             far_matrix, 100. - max_colour_percentile
         ),
-        best_model_index=best_model_index,
+        best_model_index=best_model_index, is_score_bias=False,
         colour_bar_label='FAR (false-alarm ratio)',
         output_file_name=far_file_name
     )
@@ -331,14 +378,13 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
     this_offset = numpy.nanpercentile(
         numpy.absolute(frequency_bias_matrix - 1.), max_colour_percentile
     )
-    min_colour_value = max([0., 1. - this_offset])
     max_colour_value = 1. + this_offset
 
     _plot_one_score(
         score_matrix=frequency_bias_matrix,
         colour_map_object=BIAS_COLOUR_MAP_OBJECT,
-        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
-        best_model_index=best_model_index,
+        min_colour_value=0., max_colour_value=max_colour_value,
+        best_model_index=best_model_index, is_score_bias=False,
         colour_bar_label='Frequency bias', output_file_name=bias_file_name
     )
 
