@@ -324,7 +324,7 @@ def _run(top_input_dir_name, main_colour_map_name, max_colour_percentile,
     this_offset = numpy.nanpercentile(
         numpy.absolute(frequency_bias_matrix - 1.), max_colour_percentile
     )
-    min_colour_value = 1. - this_offset
+    min_colour_value = max([0., 1. - this_offset])
     max_colour_value = 1. + this_offset
 
     _plot_one_score(
