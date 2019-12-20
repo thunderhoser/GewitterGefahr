@@ -7,7 +7,6 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
-from generalexam.machine_learning import evaluation_utils
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -16,14 +15,16 @@ from gewittergefahr.plotting import imagemagick_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-FONT_SIZE = 20
-pyplot.rc('font', size=FONT_SIZE)
-pyplot.rc('axes', titlesize=FONT_SIZE)
-pyplot.rc('axes', labelsize=FONT_SIZE)
-pyplot.rc('xtick', labelsize=FONT_SIZE)
-pyplot.rc('ytick', labelsize=FONT_SIZE)
-pyplot.rc('legend', fontsize=FONT_SIZE)
-pyplot.rc('figure', titlesize=FONT_SIZE)
+DEFAULT_FONT_SIZE = 20
+TICK_LABEL_FONT_SIZE = 35
+
+pyplot.rc('font', size=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', titlesize=DEFAULT_FONT_SIZE)
+pyplot.rc('axes', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('xtick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('ytick', labelsize=DEFAULT_FONT_SIZE)
+pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
+pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 MARKER_COLOUR = numpy.full(3, 0.)
 BEST_MODEL_MARKER_TYPE = '*'
@@ -120,17 +121,23 @@ def _plot_one_score(
 
     for k in range(num_dense_layer_counts):
         for m in range(num_data_aug_flags):
-            evaluation_utils.plot_scores_2d(
+            model_eval.plot_hyperparam_grid(
                 score_matrix=score_matrix[..., k, m],
                 min_colour_value=min_colour_value,
                 max_colour_value=max_colour_value,
-                x_tick_label_strings=x_tick_labels,
-                y_tick_label_strings=y_tick_labels,
                 colour_map_object=colour_map_object,
                 axes_object=axes_object_matrix[k, m]
             )
 
-            axes_object_matrix[k, m].set_ylabel(y_axis_label)
+            axes_object_matrix[k, m].set_xticklabels(
+                x_tick_labels, fontsize=TICK_LABEL_FONT_SIZE, rotation=90.
+            )
+            axes_object_matrix[k, m].set_yticklabels(
+                y_tick_labels, fontsize=TICK_LABEL_FONT_SIZE
+            )
+            axes_object_matrix[k, m].set_ylabel(
+                y_axis_label, fontsize=TICK_LABEL_FONT_SIZE
+            )
 
             if k == num_dense_layer_counts - 1 and m == num_data_aug_flags - 1:
                 axes_object_matrix[k, m].set_xlabel(x_axis_label)
@@ -174,7 +181,7 @@ def _plot_one_score(
         colour_map_object=colour_map_object,
         min_value=min_colour_value, max_value=max_colour_value,
         orientation_string='vertical', extend_min=True, extend_max=True,
-        font_size=FONT_SIZE)
+        font_size=DEFAULT_FONT_SIZE)
 
     colour_bar_object.set_label(colour_bar_label)
     print('Saving figure to: "{0:s}"...'.format(output_file_name))

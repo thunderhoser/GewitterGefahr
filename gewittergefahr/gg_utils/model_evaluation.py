@@ -19,6 +19,9 @@ import pickle
 import os.path
 import numpy
 import pandas
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as pyplot
 import sklearn.metrics
 from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import number_rounding as rounder
@@ -101,6 +104,10 @@ DEFAULT_FORECAST_PRECISION = 1e-4
 THRESHOLD_ARG_FOR_UNIQUE_FORECASTS = 'unique_forecasts'
 
 DEFAULT_GRID_SPACING = 0.01
+
+FIGURE_WIDTH_INCHES = 15
+FIGURE_HEIGHT_INCHES = 15
+DEFAULT_COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
 
 
 def _check_forecast_probs_and_observed_labels(
@@ -1626,3 +1633,56 @@ def combine_evaluation_files(input_file_names):
         list_of_evaluation_tables, axis=0, ignore_index=True)
 
     return evaluation_dict
+
+
+def plot_hyperparam_grid(
+        score_matrix, min_colour_value, max_colour_value,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT, axes_object=None):
+    """Plots evaluation score vs. two hyperparameters.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param score_matrix: M-by-N numpy array of scores.
+    :param min_colour_value: Minimum value in colour scheme.
+    :param max_colour_value: Max value in colour scheme.
+    :param colour_map_object: Colour scheme (instance of `matplotlib.pyplot.cm`
+        or similar).
+    :param font_size: Font size.
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).  If None, will create new
+        axes.
+    :return: axes_object: See input doc.
+    """
+
+    error_checking.assert_is_real_numpy_array(score_matrix)
+    error_checking.assert_is_numpy_array(score_matrix, num_dimensions=2)
+    error_checking.assert_is_greater(max_colour_value, min_colour_value)
+
+    num_grid_rows = score_matrix.shape[0]
+    num_grid_columns = score_matrix.shape[1]
+
+    if axes_object is None:
+        _, axes_object = pyplot.subplots(
+            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+        )
+
+    score_matrix_to_plot = numpy.ma.masked_where(
+        numpy.isnan(score_matrix), score_matrix
+    )
+    axes_object.imshow(
+        score_matrix_to_plot, cmap=colour_map_object, origin='lower',
+        vmin=min_colour_value, vmax=max_colour_value
+    )
+
+    x_tick_values = numpy.linspace(
+        0, num_grid_columns - 1, num=num_grid_columns, dtype=float
+    )
+    y_tick_values = numpy.linspace(
+        0, num_grid_rows - 1, num=num_grid_rows, dtype=float
+    )
+
+    axes_object.set_xticks(x_tick_values)
+    axes_object.set_yticks(y_tick_values)
+
+    return axes_object
