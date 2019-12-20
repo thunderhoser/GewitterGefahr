@@ -127,6 +127,12 @@ def _plot_one_score(
     :param output_file_name: Path to output file (figure will be saved here).
     """
 
+    if is_score_bias:
+        colour_map_object, colour_norm_object = _get_bias_colour_scheme(
+            max_value=max_colour_value)
+    else:
+        colour_norm_object = None
+
     num_dense_layer_counts = len(DENSE_LAYER_COUNTS)
     num_data_aug_flags = len(DATA_AUGMENTATION_FLAGS)
 
@@ -205,9 +211,6 @@ def _plot_one_score(
             markeredgewidth=CORRUPT_MODEL_MARKER_WIDTH)
 
     if is_score_bias:
-        colour_map_object, colour_norm_object = _get_bias_colour_scheme(
-            max_value=max_colour_value)
-
         colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object_matrix, data_matrix=score_matrix,
             colour_map_object=colour_map_object,
