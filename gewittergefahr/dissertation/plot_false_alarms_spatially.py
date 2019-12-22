@@ -214,11 +214,11 @@ def _run(prediction_file_name, top_tracking_dir_name, prob_threshold,
     num_false_alarms_matrix = num_false_alarms_matrix.astype(float)
     num_false_alarms_matrix[num_false_alarms_matrix == 0] = numpy.nan
 
-    max_colour_value = numpy.percentile(
+    max_colour_value = numpy.nanpercentile(
         num_false_alarms_matrix, MAX_COLOUR_PERCENTILE
     )
     if max_colour_value < 10:
-        max_colour_value = numpy.max(num_false_alarms_matrix)
+        max_colour_value = numpy.nanmax(num_false_alarms_matrix)
 
     figure_object = plotter._plot_one_value(
         data_matrix=num_false_alarms_matrix,
