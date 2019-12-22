@@ -214,7 +214,7 @@ def _run(prediction_file_name, top_tracking_dir_name, prob_threshold,
     max_colour_value = numpy.percentile(
         num_false_alarms_matrix, MAX_COLOUR_PERCENTILE)
 
-    if max_colour_value == 0:
+    if max_colour_value < 10:
         max_colour_value = numpy.max(num_false_alarms_matrix)
 
     figure_object = plotter._plot_one_value(
