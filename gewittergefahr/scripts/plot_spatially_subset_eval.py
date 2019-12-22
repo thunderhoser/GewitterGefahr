@@ -246,12 +246,24 @@ def _plot_one_value(
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None', axes=axes_object, zorder=-1e12)
 
-    plotting_utils.plot_linear_colour_bar(
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object, data_matrix=data_matrix,
         colour_map_object=colour_map_object, min_value=min_colour_value,
         max_value=max_colour_value, orientation_string='horizontal',
         extend_min=plot_cbar_min_arrow, extend_max=plot_cbar_max_arrow,
         padding=0.05)
+
+    tick_values = colour_bar_object.get_ticks()
+
+    if numpy.nanmax(data_matrix) >= 6:
+        tick_strings = [
+            '{0:d}'.format(int(numpy.round(v))) for v in tick_values
+        ]
+    else:
+        tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
 
     return figure_object, axes_object
 
