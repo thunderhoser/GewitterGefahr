@@ -13,7 +13,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 DUMMY_TRACKING_SCALE_METRES2 = echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2
 
 PREDICTION_FILE_ARG_NAME = 'input_prediction_file_name'
-TRACKING_DIR_ARG_NAME = 'top_tracking_dir_name'
+TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 PROB_THRESHOLD_ARG_NAME = 'prob_threshold'
 GRID_SPACING_ARG_NAME = 'grid_spacing_metres'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
