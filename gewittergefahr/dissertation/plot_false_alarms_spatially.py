@@ -87,9 +87,9 @@ def _run(prediction_file_name, top_tracking_dir_name, prob_threshold,
         prob_threshold
     ).astype(int)
 
-    false_alarm_indices = numpy.where(
+    false_alarm_indices = numpy.where(numpy.logical_and(
         observed_labels == 0, forecast_labels == 1
-    )[0]
+    ))[0]
 
     num_examples = len(observed_labels)
     num_false_alarms = len(false_alarm_indices)
