@@ -209,12 +209,14 @@ def _run(prediction_file_name, top_tracking_dir_name, prob_threshold,
         grid_point_x_coords_metres=grid_metadata_dict[grids.X_COORDS_KEY],
         grid_point_y_coords_metres=grid_metadata_dict[grids.Y_COORDS_KEY]
     )[0]
+    print(SEPARATOR_STRING)
 
     max_colour_value = numpy.percentile(
         num_false_alarms_matrix, MAX_COLOUR_PERCENTILE)
 
     figure_object = plotter._plot_one_value(
-        data_matrix=num_false_alarms, grid_metadata_dict=grid_metadata_dict,
+        data_matrix=num_false_alarms_matrix,
+        grid_metadata_dict=grid_metadata_dict,
         colour_map_object=COLOUR_MAP_OBJECT, min_colour_value=0,
         max_colour_value=max_colour_value, plot_cbar_min_arrow=False,
         plot_cbar_max_arrow=True
