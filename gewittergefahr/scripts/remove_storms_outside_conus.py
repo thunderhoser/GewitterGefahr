@@ -80,20 +80,49 @@ def _handle_one_storm_cell(
         tracking_utils.LATLNG_POLYGON_COLUMN
     ].values.tolist()
 
-    latitude_array_list_deg = [
-        numpy.array(p.exterior.xy[1]) for p in list_of_polygon_objects
-    ]
-    longitude_array_list_deg = [
-        numpy.array(p.exterior.xy[0]) for p in list_of_polygon_objects
-    ]
-    latitudes_deg = numpy.concatenate(tuple(latitude_array_list_deg))
-    longitudes_deg = numpy.concatenate(tuple(longitude_array_list_deg))
+    query_latitudes_deg = []
+    query_longitudes_deg = []
+
+    for p in list_of_polygon_objects:
+        these_latitudes_deg = numpy.array(p.exterior.xy[1])
+        these_longitudes_deg = numpy.array(p.exterior.xy[0])
+
+        # Find northeasternmost point in storm boundary.
+        this_index = numpy.argmax(these_latitudes_deg + these_longitudes_deg)
+        query_latitudes_deg.append(these_latitudes_deg[this_index])
+        query_longitudes_deg.append(these_longitudes_deg[this_index])
+
+        # Find southwesternmost point in storm boundary.
+        this_index = numpy.argmin(these_latitudes_deg + these_longitudes_deg)
+        query_latitudes_deg.append(these_latitudes_deg[this_index])
+        query_longitudes_deg.append(these_longitudes_deg[this_index])
+
+        # Find northwesternmost point in storm boundary.
+        this_index = numpy.argmax(these_latitudes_deg - these_longitudes_deg)
+        query_latitudes_deg.append(these_latitudes_deg[this_index])
+        query_longitudes_deg.append(these_longitudes_deg[this_index])
+
+        # Find northeasternmost point in storm boundary.
+        this_index = numpy.argmax(these_longitudes_deg - these_latitudes_deg)
+        query_latitudes_deg.append(these_latitudes_deg[this_index])
+        query_longitudes_deg.append(these_longitudes_deg[this_index])
+
+    # Commented out because too slow.
+
+    # latitude_array_list_deg = [
+    #     numpy.array(p.exterior.xy[1]) for p in list_of_polygon_objects
+    # ]
+    # longitude_array_list_deg = [
+    #     numpy.array(p.exterior.xy[0]) for p in list_of_polygon_objects
+    # ]
+    # query_latitudes_deg = numpy.concatenate(tuple(latitude_array_list_deg))
+    # query_longitudes_deg = numpy.concatenate(tuple(longitude_array_list_deg))
 
     in_conus_flags = conus_boundary.find_points_in_conus(
         conus_latitudes_deg=conus_latitudes_deg,
         conus_longitudes_deg=conus_longitudes_deg,
-        query_latitudes_deg=latitudes_deg,
-        query_longitudes_deg=longitudes_deg,
+        query_latitudes_deg=query_latitudes_deg,
+        query_longitudes_deg=query_longitudes_deg,
         use_shortcuts=True, verbose=False
     )
 
@@ -159,10 +188,11 @@ def _filter_storms_one_day(
     for j in range(num_storm_cells):
         if numpy.mod(j, 10) == 0:
             print((
-                'Have removed {0:d} of {1:d} storm cells for SPC date '
-                '"{2:s}"...'
+                'Have tried {0:d} of {1:d} storm cells, and removed {2:d} of '
+                '{0:d}, for SPC date "{3:s}"...'
             ).format(
-                num_bad_cells, j, spc_date_strings[target_date_index]
+                j, num_storm_cells, num_bad_cells,
+                spc_date_strings[target_date_index]
             ))
 
         these_rows = numpy.where(
