@@ -4,6 +4,7 @@ import argparse
 import numpy
 import pandas
 from gewittergefahr.gg_utils import conus_boundary
+from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
@@ -14,6 +15,7 @@ INPUT_DIR_ARG_NAME = 'input_tracking_dir_name'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 MAX_LINK_DISTANCE_ARG_NAME = 'max_link_distance_metres'
+MAX_LEAD_TIME_ARG_NAME = 'max_lead_time_sec'
 OUTPUT_DIR_ARG_NAME = 'output_tracking_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -26,9 +28,16 @@ SPC_DATE_HELP_STRING = (
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
 MAX_LINK_DISTANCE_HELP_STRING = (
-    'Max linkage distance that you plan to use for storm hazards.  Will get rid'
-    ' of storms that pass within this distance of the CONUS boundary.'
-)
+    'Max linkage distance that you plan to use for storm hazards.  See doc for '
+    '`{0:s}` for more details.'
+).format(MAX_LEAD_TIME_ARG_NAME)
+
+MAX_LEAD_TIME_HELP_STRING = (
+    'Max lead time that you plan to use for storm hazards.  Will get rid of all'
+    ' storm objects with a successor in the next `{0:d}` seconds that passes '
+    'within `{1:d}` of the CONUS boundary.'
+).format(MAX_LEAD_TIME_ARG_NAME, MAX_LINK_DISTANCE_ARG_NAME)
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Files with filtered storms will be '
     'written by `storm_tracking_io.write_file` to exact locations determined by'
@@ -53,13 +62,18 @@ INPUT_ARG_PARSER.add_argument(
     default=30000, help=MAX_LINK_DISTANCE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_LEAD_TIME_ARG_NAME, type=int, required=False,
+    default=3600, help=MAX_LEAD_TIME_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
 def _handle_one_storm_cell(
-        storm_object_table, conus_latitudes_deg, conus_longitudes_deg):
+        storm_object_table, primary_id_string, conus_latitudes_deg,
+        conus_longitudes_deg, max_lead_time_sec):
     """Handles (either keeps or removes) one storm cell.
 
     In this case, a "storm cell" is a group of storm objects with the same
@@ -69,57 +83,63 @@ def _handle_one_storm_cell(
 
     :param storm_object_table: pandas DataFrame with columns listed in doc for
         `storm_tracking_io.write_file`.
+    :param primary_id_string: Primary ID of storm cell.
     :param conus_latitudes_deg: length-V numpy array of latitudes (deg N) in
         boundary.
     :param conus_longitudes_deg: length-V numpy array of longitudes (deg E) in
         boundary.
-    :return: keep_storm_cell: Boolean flag.
+    :param max_lead_time_sec: See documentation at top of file.
+    :return: bad_object_indices: 1-D numpy array with indices of bad storm
+        objects (those with successor outside CONUS).  These are row indices for
+        `storm_object_table`.
     """
 
-    list_of_polygon_objects = storm_object_table[
-        tracking_utils.LATLNG_POLYGON_COLUMN
-    ].values.tolist()
+    object_in_cell_indices = numpy.where(
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values ==
+        primary_id_string
+    )[0]
 
     query_latitudes_deg = []
     query_longitudes_deg = []
+    query_object_indices = []
+    num_storm_objects = len(object_in_cell_indices)
 
-    for p in list_of_polygon_objects:
-        these_latitudes_deg = numpy.array(p.exterior.xy[1])
-        these_longitudes_deg = numpy.array(p.exterior.xy[0])
+    for i in range(num_storm_objects):
+        j = object_in_cell_indices[i]
+
+        this_polygon_object = (
+            storm_object_table[tracking_utils.LATLNG_POLYGON_COLUMN].values[j]
+        )
+        these_latitudes_deg = numpy.array(this_polygon_object.exterior.xy[1])
+        these_longitudes_deg = numpy.array(this_polygon_object.exterior.xy[0])
 
         # Find northeasternmost point in storm boundary.
         this_index = numpy.argmax(these_latitudes_deg + these_longitudes_deg)
         query_latitudes_deg.append(these_latitudes_deg[this_index])
         query_longitudes_deg.append(these_longitudes_deg[this_index])
+        query_object_indices.append(j)
 
         # Find southwesternmost point in storm boundary.
         this_index = numpy.argmin(these_latitudes_deg + these_longitudes_deg)
         query_latitudes_deg.append(these_latitudes_deg[this_index])
         query_longitudes_deg.append(these_longitudes_deg[this_index])
+        query_object_indices.append(j)
 
         # Find northwesternmost point in storm boundary.
         this_index = numpy.argmax(these_latitudes_deg - these_longitudes_deg)
         query_latitudes_deg.append(these_latitudes_deg[this_index])
         query_longitudes_deg.append(these_longitudes_deg[this_index])
+        query_object_indices.append(j)
 
         # Find northeasternmost point in storm boundary.
         this_index = numpy.argmax(these_longitudes_deg - these_latitudes_deg)
         query_latitudes_deg.append(these_latitudes_deg[this_index])
         query_longitudes_deg.append(these_longitudes_deg[this_index])
+        query_object_indices.append(j)
 
     query_latitudes_deg = numpy.array(query_latitudes_deg)
     query_longitudes_deg = numpy.array(query_longitudes_deg)
-
-    # Commented out because too slow.
-
-    # latitude_array_list_deg = [
-    #     numpy.array(p.exterior.xy[1]) for p in list_of_polygon_objects
-    # ]
-    # longitude_array_list_deg = [
-    #     numpy.array(p.exterior.xy[0]) for p in list_of_polygon_objects
-    # ]
-    # query_latitudes_deg = numpy.concatenate(tuple(latitude_array_list_deg))
-    # query_longitudes_deg = numpy.concatenate(tuple(longitude_array_list_deg))
+    query_object_indices = numpy.array(query_object_indices, dtype=int)
 
     in_conus_flags = conus_boundary.find_points_in_conus(
         conus_latitudes_deg=conus_latitudes_deg,
@@ -130,7 +150,7 @@ def _handle_one_storm_cell(
     )
 
     if numpy.all(in_conus_flags):
-        return True
+        return numpy.array([], dtype=int)
 
     first_bad_index = numpy.where(numpy.invert(in_conus_flags))[0][0]
     first_bad_longitude_deg = -1 * lng_conversion.convert_lng_negative_in_west(
@@ -140,12 +160,27 @@ def _handle_one_storm_cell(
         query_latitudes_deg[first_bad_index], first_bad_longitude_deg
     ))
 
-    return False
+    object_not_in_conus_indices = numpy.unique(
+        query_object_indices[in_conus_flags == False]
+    )
+    bad_object_indices = numpy.array([], dtype=int)
+
+    for i in object_not_in_conus_indices:
+        these_indices = temporal_tracking.find_predecessors(
+            storm_object_table=storm_object_table, target_row=i,
+            num_seconds_back=max_lead_time_sec, max_num_sec_id_changes=1,
+            return_all_on_path=True)
+
+        bad_object_indices = numpy.concatenate((
+            bad_object_indices, these_indices
+        ))
+
+    return numpy.unique(bad_object_indices)
 
 
 def _filter_storms_one_day(
         storm_object_table_by_date, spc_date_strings, target_date_index,
-        conus_latitudes_deg, conus_longitudes_deg):
+        conus_latitudes_deg, conus_longitudes_deg, max_lead_time_sec):
     """Filters storms for one day.
 
     D = number of days
@@ -157,6 +192,7 @@ def _filter_storms_one_day(
         date, where i = `target_date_index`.
     :param conus_latitudes_deg: See doc for `_handle_one_storm_cell`.
     :param conus_longitudes_deg: Same.
+    :param max_lead_time_sec: See documentation at top of file.
     :return: storm_object_table_by_date: Same as input but possibly with fewer
         storms.
     """
@@ -185,51 +221,38 @@ def _filter_storms_one_day(
     )
 
     num_storm_cells = len(primary_id_strings)
-    num_bad_cells = 0
-    bad_rows = numpy.array([], dtype=int)
+    bad_object_indices = numpy.array([], dtype=int)
 
     for j in range(num_storm_cells):
         if numpy.mod(j, 10) == 0:
             print((
-                'Have tried {0:d} of {1:d} storm cells, and removed {2:d} of '
-                '{0:d}, for SPC date "{3:s}"...'
+                'Have tried {0:d} of {1:d} storm cells for SPC date "{2:s}"...'
             ).format(
-                j, num_storm_cells, num_bad_cells,
-                spc_date_strings[target_date_index]
+                j, num_storm_cells, spc_date_strings[target_date_index]
             ))
 
-        these_rows = numpy.where(
-            concat_storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values
-            == primary_id_strings[j]
-        )[0]
-
-        this_keep_flag = _handle_one_storm_cell(
-            storm_object_table=concat_storm_object_table.iloc[these_rows],
+        these_indices = _handle_one_storm_cell(
+            storm_object_table=concat_storm_object_table,
+            primary_id_string=primary_id_strings[j],
             conus_latitudes_deg=conus_latitudes_deg,
-            conus_longitudes_deg=conus_longitudes_deg
+            conus_longitudes_deg=conus_longitudes_deg,
+            max_lead_time_sec=max_lead_time_sec
         )
 
-        if this_keep_flag:
-            continue
-
-        num_bad_cells += 1
-        bad_rows = numpy.concatenate((bad_rows, these_rows))
+        bad_object_indices = numpy.concatenate((
+            bad_object_indices, these_indices
+        ))
 
     concat_storm_object_table.drop(
-        concat_storm_object_table.index[bad_rows], axis=0, inplace=True
+        concat_storm_object_table.index[bad_object_indices],
+        axis=0, inplace=True
     )
-
-    print((
-        'Removed {0:d} of {1:d} storm cells for SPC date "{2:s}".'
-    ).format(
-        num_bad_cells, num_storm_cells, spc_date_strings[target_date_index]
-    ))
 
     for k in indices_to_concat:
         storm_object_table_by_date[k] = concat_storm_object_table.loc[
             concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
             spc_date_strings[k]
-        ]
+            ]
 
     num_storm_objects = len(
         storm_object_table_by_date[target_date_index].index
@@ -246,7 +269,7 @@ def _filter_storms_one_day(
 
 
 def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
-         max_link_distance_metres, top_output_dir_name):
+         max_link_distance_metres, max_lead_time_sec, top_output_dir_name):
     """Removes storms that pass outside continental United States (CONUS).
 
     This is effectively the main method.
@@ -255,6 +278,7 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
     :param max_link_distance_metres: Same.
+    :param max_lead_time_sec: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -293,7 +317,8 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
             storm_object_table_by_date=storm_object_table_by_date,
             spc_date_strings=spc_date_strings, target_date_index=i,
             conus_latitudes_deg=conus_latitudes_deg,
-            conus_longitudes_deg=conus_longitudes_deg
+            conus_longitudes_deg=conus_longitudes_deg,
+            max_lead_time_sec=max_lead_time_sec
         )
         print(SEPARATOR_STRING)
 
@@ -308,5 +333,6 @@ if __name__ == '__main__':
         max_link_distance_metres=getattr(
             INPUT_ARG_OBJECT, MAX_LINK_DISTANCE_ARG_NAME
         ),
+        max_lead_time_sec=getattr(INPUT_ARG_OBJECT, MAX_LEAD_TIME_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
