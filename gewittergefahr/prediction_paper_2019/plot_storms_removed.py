@@ -159,10 +159,13 @@ def _run(top_orig_tracking_dir_name, top_new_tracking_dir_name,
 
     orig_kept_flags[these_indices] = True
     orig_removed_indices = numpy.where(numpy.invert(orig_kept_flags))[0]
+    print('{0:d} of {1:d} storm objects were outside CONUS.'.format(
+        len(orig_removed_indices), num_orig_storm_objects
+    ))
+
     removed_storm_object_table = orig_storm_object_table.iloc[
         orig_removed_indices
     ]
-
     removed_latitudes_deg = removed_storm_object_table[
         tracking_utils.CENTROID_LATITUDE_COLUMN
     ].values
