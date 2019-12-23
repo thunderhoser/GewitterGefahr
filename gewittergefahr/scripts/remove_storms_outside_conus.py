@@ -34,8 +34,8 @@ MAX_LINK_DISTANCE_HELP_STRING = (
 
 MAX_LEAD_TIME_HELP_STRING = (
     'Max lead time that you plan to use for storm hazards.  Will get rid of all'
-    ' storm objects with a successor in the next `{0:d}` seconds that passes '
-    'within `{1:d}` of the CONUS boundary.'
+    ' storm objects with a successor in the next `{0:s}` seconds that passes '
+    'within `{1:s}` of the CONUS boundary.'
 ).format(MAX_LEAD_TIME_ARG_NAME, MAX_LINK_DISTANCE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
