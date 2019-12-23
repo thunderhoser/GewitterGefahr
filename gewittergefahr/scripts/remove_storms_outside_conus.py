@@ -107,6 +107,9 @@ def _handle_one_storm_cell(
         query_latitudes_deg.append(these_latitudes_deg[this_index])
         query_longitudes_deg.append(these_longitudes_deg[this_index])
 
+    query_latitudes_deg = numpy.array(query_latitudes_deg)
+    query_longitudes_deg = numpy.array(query_longitudes_deg)
+
     # Commented out because too slow.
 
     # latitude_array_list_deg = [
@@ -131,10 +134,10 @@ def _handle_one_storm_cell(
 
     first_bad_index = numpy.where(numpy.invert(in_conus_flags))[0][0]
     first_bad_longitude_deg = -1 * lng_conversion.convert_lng_negative_in_west(
-        longitudes_deg[first_bad_index]
+        query_longitudes_deg[first_bad_index]
     )
     print('Point ({0:.1f} deg N, {1:.1f} deg W) is not in CONUS!'.format(
-        latitudes_deg[first_bad_index], first_bad_longitude_deg
+        query_latitudes_deg[first_bad_index], first_bad_longitude_deg
     ))
 
     return False
