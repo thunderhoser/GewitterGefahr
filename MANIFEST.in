@@ -2,4 +2,4 @@ include gewittergefahr/gg_utils/*.data
 include gewittergefahr/gg_utils/*.p
 include gewittergefahr/feature_selection_example/*.csv
 include gewittergefahr/feature_selection_example/*.pdf
-include gewittergefahr/conus_polygon.nc
+include gewittergefahr/conus_polygon*.nc
