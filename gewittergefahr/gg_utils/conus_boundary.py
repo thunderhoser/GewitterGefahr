@@ -218,7 +218,7 @@ def erode_boundary(latitudes_deg, longitudes_deg, erosion_distance_metres):
     longitudes_deg = _check_boundary(
         latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg
     )
-    # error_checking.assert_is_greater(erosion_distance_metres, 0.)
+    error_checking.assert_is_greater(erosion_distance_metres, 0.)
 
     polygon_object_latlng = polygons.vertex_arrays_to_polygon_object(
         exterior_x_coords=longitudes_deg, exterior_y_coords=latitudes_deg
@@ -252,7 +252,7 @@ def erode_boundary(latitudes_deg, longitudes_deg, erosion_distance_metres):
 
 def find_points_in_conus(
         conus_latitudes_deg, conus_longitudes_deg, query_latitudes_deg,
-        query_longitudes_deg, use_shortcuts=True):
+        query_longitudes_deg, use_shortcuts=True, verbose=False):
     """Finds points in CONUS.
 
     Q = number of query points
@@ -271,6 +271,8 @@ def find_points_in_conus(
         points.
     :param use_shortcuts: Boolean flag.  If True, will use shortcuts to speed up
         calculation.
+    :param verbose: Boolean flag.  If True, will print progress messages to
+        command window.
     :return: in_conus_flags: length-Q numpy array of Boolean flags.
     """
 
@@ -281,6 +283,7 @@ def find_points_in_conus(
         latitudes_deg=query_latitudes_deg, longitudes_deg=query_longitudes_deg
     )
     error_checking.assert_is_boolean(use_shortcuts)
+    error_checking.assert_is_boolean(verbose)
 
     num_query_points = len(query_latitudes_deg)
     in_conus_flags = numpy.full(num_query_points, -1, dtype=int)
@@ -347,7 +350,7 @@ def find_points_in_conus(
         exterior_y_coords=conus_latitudes_deg)
 
     for i in range(num_query_points):
-        if numpy.mod(i, 1000) == 0:
+        if numpy.mod(i, 1000) == 0 and verbose:
             print((
                 'Have done point-in-CONUS test for {0:d} of {1:d} points...'
             ).format(
@@ -363,8 +366,9 @@ def find_points_in_conus(
             query_y_coordinate=query_latitudes_deg[i]
         )
 
-    print('Have done point-in-CONUS test for all {0:d} points!'.format(
-        num_query_points
-    ))
+    if verbose:
+        print('Have done point-in-CONUS test for all {0:d} points!'.format(
+            num_query_points
+        ))
 
     return in_conus_flags.astype(bool)
