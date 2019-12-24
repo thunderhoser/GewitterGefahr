@@ -93,7 +93,7 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
     )
     orig_primary_id_strings = temporal_tracking.full_to_partial_ids(
         orig_full_id_strings
-    )
+    )[0]
 
     # Find relevant tracking files.
     spc_date_strings = [
