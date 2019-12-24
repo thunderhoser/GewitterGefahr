@@ -175,16 +175,28 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
     good_object_rows = numpy.array([], dtype=int)
 
     for i in range(num_orig_storm_objects):
-        # Dealing with different types of successors would be too complicated
-        # here, because there are different rules for linking a tornado to
-        # different objects along a track (see steps 3 and 5 of attribution
-        # schema).
+        # Non-merging successors only!
 
-        these_rows = temporal_tracking.find_successors(
+        first_rows = temporal_tracking.find_successors(
             storm_object_table=storm_object_table,
             target_row=orig_object_rows[i],
             num_seconds_forward=lead_time_seconds,
+            max_num_sec_id_changes=1,
+            change_type_string=temporal_tracking.SPLIT_STRING,
             return_all_on_path=True)
+
+        second_rows = temporal_tracking.find_successors(
+            storm_object_table=storm_object_table,
+            target_row=orig_object_rows[i],
+            num_seconds_forward=lead_time_seconds,
+            max_num_sec_id_changes=0,
+            change_type_string=temporal_tracking.MERGER_STRING,
+            return_all_on_path=True)
+
+        first_rows = first_rows.tolist()
+        second_rows = second_rows.tolist()
+        these_rows = set(first_rows) & set(second_rows)
+        these_rows = numpy.array(list(these_rows), dtype=int)
 
         good_object_rows = numpy.concatenate((good_object_rows, these_rows))
 
