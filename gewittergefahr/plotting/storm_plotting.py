@@ -15,6 +15,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
 TOLERANCE = 1e-6
+MIN_TRACK_LENGTH_DEG = numpy.sqrt(2) * 0.05
 
 COLOUR_BAR_FONT_SIZE = 25
 # COLOUR_BAR_TIME_FORMAT = '%H%M %-d %b'
@@ -37,6 +38,194 @@ DEFAULT_FONT_SIZE = 12
 DEFAULT_FONT_COLOUR = numpy.full(3, 0.)
 DEFAULT_CENTROID_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 DEFAULT_POLYGON_COLOUR = matplotlib.colors.to_rgba(DEFAULT_CENTROID_COLOUR, 0.5)
+
+
+def _lengthen_segment(latitudes_deg, longitudes_deg, basemap_object):
+    """Lengthens line segment if necessary.
+
+    If segment does not need to be lengthened, this method returns None for both
+    output variables.
+
+    :param latitudes_deg: length-2 numpy array of latitudes (deg N).
+    :param longitudes_deg: length-2 numpy array of longitudes (deg E).
+    :param basemap_object: See doc for `plot_storm_outlines`.
+    :return: x_coords: length-2 numpy array of x-coordinates under basemap
+        projection.
+    :return: y_coords: Same but y-coordinates.
+    """
+
+    latitude_diff_deg = numpy.absolute(numpy.diff(latitudes_deg))[0]
+    longitude_diff_deg = numpy.absolute(numpy.diff(longitudes_deg))[0]
+    same_points = (
+        latitude_diff_deg < TOLERANCE and longitude_diff_deg < TOLERANCE
+    )
+
+    if same_points:
+        latitudes_deg[1] = (
+            latitudes_deg[0] + numpy.sqrt(0.5) * MIN_TRACK_LENGTH_DEG
+        )
+        longitudes_deg[1] = (
+            longitudes_deg[0] + numpy.sqrt(0.5) * MIN_TRACK_LENGTH_DEG
+        )
+
+        return basemap_object(longitudes_deg, latitudes_deg)
+
+    arc_length_deg = numpy.sum(numpy.sqrt(
+        latitude_diff_deg ** 2 + longitude_diff_deg ** 2
+    ))
+    similar_points = arc_length_deg < MIN_TRACK_LENGTH_DEG
+
+    if similar_points:
+        bearing_radians = numpy.arctan2(longitude_diff_deg, latitude_diff_deg)
+
+        latitudes_deg[1] = latitudes_deg[0] + (
+            MIN_TRACK_LENGTH_DEG * numpy.cos(bearing_radians)
+        )
+        longitudes_deg[1] = longitudes_deg[0] + (
+            MIN_TRACK_LENGTH_DEG * numpy.sin(bearing_radians)
+        )
+
+        return basemap_object(longitudes_deg, latitudes_deg)
+
+    return None, None
+
+
+def _plot_one_track_segment(
+        storm_object_table_one_segment, axes_object, basemap_object, line_width,
+        line_colour=None, colour_map_object=None, colour_norm_object=None):
+    """Plots one track segment.
+
+    :param storm_object_table_one_segment: Same as input for `plot_storm_tracks`,
+        except that this table contains only two objects.
+    :param axes_object: See doc for `plot_storm_outlines`.
+    :param basemap_object: Same.
+    :param line_width: Track width.
+    :param line_colour: Track colour.  This may be None.
+    :param colour_map_object: [used only if `line_colour is None`]:
+        Colour scheme (instance of `matplotlib.pyplot.cm` or similar).
+    :param colour_norm_object: Normalizer for colour scheme.
+    """
+
+    latitudes_deg = 0. + storm_object_table_one_segment[
+        tracking_utils.CENTROID_LATITUDE_COLUMN
+    ].values
+
+    longitudes_deg = 0. + storm_object_table_one_segment[
+        tracking_utils.CENTROID_LONGITUDE_COLUMN
+    ].values
+
+    x_coords, y_coords = _lengthen_segment(
+        latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
+        basemap_object=basemap_object
+    )
+
+    if x_coords is None:
+        x_coords = storm_object_table_one_segment[
+            tracking_utils.CENTROID_X_COLUMN
+        ].values
+
+        y_coords = storm_object_table_one_segment[
+            tracking_utils.CENTROID_Y_COLUMN
+        ].values
+
+    if line_colour is None:
+        point_matrix = numpy.array(
+            [x_coords, y_coords]
+        ).T.reshape(-1, 1, 2)
+
+        segment_matrix = numpy.concatenate(
+            [point_matrix[:-1], point_matrix[1:]], axis=1
+        )
+
+        mean_time_unix_sec = numpy.mean(
+            storm_object_table_one_segment[
+                tracking_utils.VALID_TIME_COLUMN
+            ].values
+        )
+
+        this_line_collection_object = LineCollection(
+            segment_matrix, cmap=colour_map_object, norm=colour_norm_object
+        )
+        this_line_collection_object.set_array(numpy.array([mean_time_unix_sec]))
+
+        this_line_collection_object.set_linewidth(line_width)
+        axes_object.add_collection(this_line_collection_object)
+    else:
+        axes_object.plot(
+            x_coords, y_coords,
+            color=line_colour, linestyle='solid', linewidth=line_width
+        )
+
+
+def _plot_one_track(
+        storm_object_table_one_track, axes_object, basemap_object, line_width,
+        line_colour=None, colour_map_object=None, colour_norm_object=None):
+    """Plots one storm track.
+
+    :param storm_object_table_one_track: Same as input for `plot_storm_tracks`,
+        except that this table contains only one track (primary storm ID).
+    :param axes_object: See doc for `plot_storm_outlines`.
+    :param basemap_object: Same.
+    :param line_width: Track width.
+    :param line_colour: Track colour.  This may be None.
+    :param colour_map_object: [used only if `line_colour is None`]:
+        Colour scheme (instance of `matplotlib.pyplot.cm` or similar).
+    :param colour_norm_object: Normalizer for colour scheme.
+    """
+
+    num_storm_objects = len(storm_object_table_one_track.index)
+
+    if num_storm_objects == 1:
+        this_storm_object_table = storm_object_table_one_track.iloc[[0, 0]]
+
+        _plot_one_track_segment(
+            storm_object_table_one_segment=this_storm_object_table,
+            axes_object=axes_object, basemap_object=basemap_object,
+            line_width=line_width, line_colour=line_colour,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object)
+
+        return
+
+    latitudes_deg = 0. + storm_object_table_one_track[
+        tracking_utils.CENTROID_LATITUDE_COLUMN
+    ].values[[0, -1]]
+
+    longitudes_deg = 0. + storm_object_table_one_track[
+        tracking_utils.CENTROID_LONGITUDE_COLUMN
+    ].values[[0, -1]]
+
+    x_coords, y_coords = _lengthen_segment(
+        latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
+        basemap_object=basemap_object
+    )
+
+    if x_coords is not None:
+        this_storm_object_table = storm_object_table_one_track.iloc[[0, -1]]
+
+        _plot_one_track_segment(
+            storm_object_table_one_segment=this_storm_object_table,
+            axes_object=axes_object, basemap_object=basemap_object,
+            line_width=line_width, line_colour=line_colour,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object)
+
+        return
+
+    for i in range(num_storm_objects):
+        successor_rows = temporal_tracking.find_immediate_successors(
+            storm_object_table=storm_object_table_one_track, target_row=i
+        )
+
+        for j in successor_rows:
+            this_storm_object_table = storm_object_table_one_track.iloc[[i, j]]
+
+            _plot_one_track_segment(
+                storm_object_table_one_segment=this_storm_object_table,
+                axes_object=axes_object, basemap_object=basemap_object,
+                line_width=line_width, line_colour=line_colour,
+                colour_map_object=colour_map_object,
+                colour_norm_object=colour_norm_object)
 
 
 def get_storm_track_colours():
@@ -283,163 +472,6 @@ def plot_storm_ids(
             text_x_coords_metres[i], text_y_coords_metres[i], this_label_string,
             fontsize=font_size, fontweight='bold', color=font_colour_tuple,
             horizontalalignment='left', verticalalignment='top')
-
-
-def _plot_one_track_segment(
-        storm_object_table_one_segment, axes_object, basemap_object, line_width,
-        line_colour=None, colour_map_object=None, colour_norm_object=None):
-    """Plots one track segment.
-
-    :param storm_object_table_one_segment: Same as input for `plot_storm_tracks`,
-        except that this table contains only two objects.
-    :param axes_object: See doc for `plot_storm_outlines`.
-    :param basemap_object: Same.
-    :param line_width: Track width.
-    :param line_colour: Track colour.  This may be None.
-    :param colour_map_object: [used only if `line_colour is None`]:
-        Colour scheme (instance of `matplotlib.pyplot.cm` or similar).
-    :param colour_norm_object: Normalizer for colour scheme.
-    """
-
-    x_coords = 0. + (
-        storm_object_table_one_segment[tracking_utils.CENTROID_X_COLUMN].values
-    )
-    y_coords = 0. + (
-        storm_object_table_one_segment[tracking_utils.CENTROID_Y_COLUMN].values
-    )
-
-    latitudes_deg = 0. + storm_object_table_one_segment[
-        tracking_utils.CENTROID_LATITUDE_COLUMN
-    ].values
-
-    longitudes_deg = 0. + storm_object_table_one_segment[
-        tracking_utils.CENTROID_LONGITUDE_COLUMN
-    ].values
-
-    same_points = (
-        numpy.absolute(numpy.diff(x_coords))[0] < TOLERANCE and
-        numpy.absolute(numpy.diff(y_coords))[0] < TOLERANCE
-    )
-
-    if same_points:
-        latitudes_deg[1] = latitudes_deg[0] + 0.05
-        longitudes_deg[1] = longitudes_deg[0] + 0.05
-        x_coords, y_coords = basemap_object(longitudes_deg, latitudes_deg)
-
-    latitude_diff_deg = latitudes_deg[1] - latitudes_deg[0]
-    longitude_diff_deg = longitudes_deg[1] - longitudes_deg[0]
-    arc_length_deg = numpy.sum(numpy.sqrt(
-        latitude_diff_deg ** 2 + longitude_diff_deg ** 2
-    ))
-
-    similar_points = arc_length_deg < 0.05
-
-    if similar_points:
-        bearing_radians = numpy.arctan2(longitude_diff_deg, latitude_diff_deg)
-        longitude_diff_deg = numpy.sqrt(2) * 0.05 * numpy.cos(bearing_radians)
-        latitude_diff_deg = numpy.sqrt(2) * 0.05 * numpy.sin(bearing_radians)
-
-        latitudes_deg[1] = latitudes_deg[0] + latitude_diff_deg
-        longitudes_deg[1] = longitudes_deg[0] + longitude_diff_deg
-        x_coords, y_coords = basemap_object(longitudes_deg, latitudes_deg)
-
-    if line_colour is None:
-        point_matrix = numpy.array(
-            [x_coords, y_coords]
-        ).T.reshape(-1, 1, 2)
-
-        segment_matrix = numpy.concatenate(
-            [point_matrix[:-1], point_matrix[1:]], axis=1
-        )
-
-        mean_time_unix_sec = numpy.mean(
-            storm_object_table_one_segment[
-                tracking_utils.VALID_TIME_COLUMN
-            ].values
-        )
-
-        this_line_collection_object = LineCollection(
-            segment_matrix, cmap=colour_map_object, norm=colour_norm_object
-        )
-        this_line_collection_object.set_array(numpy.array([mean_time_unix_sec]))
-
-        this_line_collection_object.set_linewidth(line_width)
-        axes_object.add_collection(this_line_collection_object)
-    else:
-        axes_object.plot(
-            x_coords, y_coords,
-            color=line_colour, linestyle='solid', linewidth=line_width
-        )
-
-
-def _plot_one_track(
-        storm_object_table_one_track, axes_object, basemap_object, line_width,
-        line_colour=None, colour_map_object=None, colour_norm_object=None):
-    """Plots one storm track.
-
-    :param storm_object_table_one_track: Same as input for `plot_storm_tracks`,
-        except that this table contains only one track (primary storm ID).
-    :param axes_object: See doc for `plot_storm_outlines`.
-    :param basemap_object: Same.
-    :param line_width: Track width.
-    :param line_colour: Track colour.  This may be None.
-    :param colour_map_object: [used only if `line_colour is None`]:
-        Colour scheme (instance of `matplotlib.pyplot.cm` or similar).
-    :param colour_norm_object: Normalizer for colour scheme.
-    """
-
-    num_storm_objects = len(storm_object_table_one_track.index)
-
-    if num_storm_objects == 1:
-        this_storm_object_table = storm_object_table_one_track.iloc[[0, 0]]
-
-        _plot_one_track_segment(
-            storm_object_table_one_segment=this_storm_object_table,
-            axes_object=axes_object, basemap_object=basemap_object,
-            line_width=line_width, line_colour=line_colour,
-            colour_map_object=colour_map_object,
-            colour_norm_object=colour_norm_object)
-
-        return
-
-    latitudes_deg = storm_object_table_one_track[
-        tracking_utils.CENTROID_LATITUDE_COLUMN
-    ].values
-
-    longitudes_deg = storm_object_table_one_track[
-        tracking_utils.CENTROID_LONGITUDE_COLUMN
-    ].values
-
-    arc_length_deg = numpy.sum(numpy.sqrt(
-        numpy.diff(latitudes_deg) ** 2 + numpy.diff(longitudes_deg) ** 2
-    ))
-
-    if arc_length_deg < 0.05:
-        this_storm_object_table = storm_object_table_one_track.iloc[[0, -1]]
-
-        _plot_one_track_segment(
-            storm_object_table_one_segment=this_storm_object_table,
-            axes_object=axes_object, basemap_object=basemap_object,
-            line_width=line_width, line_colour=line_colour,
-            colour_map_object=colour_map_object,
-            colour_norm_object=colour_norm_object)
-
-        return
-
-    for i in range(num_storm_objects):
-        successor_rows = temporal_tracking.find_immediate_successors(
-            storm_object_table=storm_object_table_one_track, target_row=i
-        )
-
-        for j in successor_rows:
-            this_storm_object_table = storm_object_table_one_track.iloc[[i, j]]
-
-            _plot_one_track_segment(
-                storm_object_table_one_segment=this_storm_object_table,
-                axes_object=axes_object, basemap_object=basemap_object,
-                line_width=line_width, line_colour=line_colour,
-                colour_map_object=colour_map_object,
-                colour_norm_object=colour_norm_object)
 
 
 def plot_storm_tracks(
