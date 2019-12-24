@@ -10,7 +10,6 @@ from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
-from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
@@ -53,6 +52,8 @@ def _lengthen_segment(latitudes_deg, longitudes_deg, basemap_object):
         projection.
     :return: y_coords: Same but y-coordinates.
     """
+
+    # TODO(thunderhoser): Needs unit test.
 
     latitude_diff_deg = numpy.absolute(numpy.diff(latitudes_deg))[0]
     longitude_diff_deg = numpy.absolute(numpy.diff(longitudes_deg))[0]
@@ -195,10 +196,10 @@ def _plot_one_track(
         tracking_utils.CENTROID_LONGITUDE_COLUMN
     ].values[[0, -1]]
 
-    x_coords, y_coords = _lengthen_segment(
+    x_coords = _lengthen_segment(
         latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
         basemap_object=basemap_object
-    )
+    )[0]
 
     if x_coords is not None:
         this_storm_object_table = storm_object_table_one_track.iloc[[0, -1]]
@@ -228,6 +229,67 @@ def _plot_one_track(
                 colour_norm_object=colour_norm_object)
 
 
+def _plot_start_or_end_markers(
+        storm_object_table_one_track, axes_object, plot_at_start, marker_type,
+        marker_size, track_colour=None, colour_map_object=None,
+        colour_norm_object=None):
+    """Plots marker at beginning or end of each storm track.
+
+    :param storm_object_table_one_track: Same as input for `plot_storm_tracks`,
+        except that this table contains only one track (primary storm ID).
+    :param axes_object: See doc for `plot_storm_outlines`.
+    :param plot_at_start: Boolean flag.  If True, will plot at beginning of each
+        track.  If False, at end of each track.
+    :param marker_type: Marker type.
+    :param marker_size: Marker size.
+    :param track_colour: Track colour.  This may be None.
+    :param colour_map_object: [used only if `track_colour is None`]:
+        Colour scheme (instance of `matplotlib.pyplot.cm` or similar).
+    :param colour_norm_object: Normalizer for colour scheme.
+    """
+
+    num_storm_objects = len(storm_object_table_one_track.index)
+
+    for i in range(num_storm_objects):
+        if plot_at_start:
+            these_indices = temporal_tracking.find_immediate_predecessors(
+                storm_object_table=storm_object_table_one_track, target_row=i
+            )
+        else:
+            these_indices = temporal_tracking.find_immediate_successors(
+                storm_object_table=storm_object_table_one_track, target_row=i
+            )
+
+        if len(these_indices) > 0:
+            continue
+
+        if colour_map_object is None:
+            this_colour = track_colour
+        else:
+            this_time_unix_sec = storm_object_table_one_track[
+                tracking_utils.VALID_TIME_COLUMN
+            ].values[i]
+
+            this_colour = colour_map_object(colour_norm_object(
+                this_time_unix_sec
+            ))
+
+        this_x_coord = storm_object_table_one_track[
+            tracking_utils.CENTROID_X_COLUMN
+        ].values[i]
+
+        this_y_coord = storm_object_table_one_track[
+            tracking_utils.CENTROID_Y_COLUMN
+        ].values[i]
+
+        axes_object.plot(
+            this_x_coord, this_y_coord, linestyle='None',
+            marker=marker_type, markersize=marker_size,
+            markerfacecolor=this_colour, markeredgecolor=this_colour,
+            markeredgewidth=2 if marker_type == 'x' else 1
+        )
+
+
 def get_storm_track_colours():
     """Returns list of colours to use in plotting storm tracks.
 
@@ -249,86 +311,6 @@ def get_storm_track_colours():
         [164, 10, 107],
         [153, 0, 25]
     ], dtype=float) / 255
-
-
-def plot_storm_track(
-        basemap_object, axes_object, centroid_latitudes_deg,
-        centroid_longitudes_deg, line_colour=DEFAULT_TRACK_COLOUR,
-        line_width=DEFAULT_TRACK_WIDTH, line_style=DEFAULT_TRACK_STYLE,
-        start_marker=DEFAULT_START_MARKER_TYPE,
-        end_marker=DEFAULT_END_MARKER_TYPE,
-        start_marker_size=DEFAULT_START_MARKER_SIZE,
-        end_marker_size=DEFAULT_END_MARKER_SIZE):
-    """Plots storm track (path of centroid).
-
-    P = number of points in track
-
-    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
-    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param centroid_latitudes_deg: length-P numpy array with latitudes (deg N)
-        of storm centroid.
-    :param centroid_longitudes_deg: length-P numpy array with longitudes (deg E)
-        of storm centroid.
-    :param line_colour: Colour (in any format accepted by `matplotlib.colors`).
-    :param line_width: Line width (real positive number).
-    :param line_style: Line style (in any format accepted by
-        `matplotlib.lines`).
-    :param start_marker: Marker type for beginning of track (in any format
-        accepted by `matplotlib.lines`).  This may also be None.
-    :param end_marker: Marker type for end of track (in any format accepted by
-        `matplotlib.lines`).  This may also be None.
-    :param start_marker_size: Size of marker at beginning of track.
-    :param end_marker_size: Size of marker at end of track.
-    """
-
-    # TODO(thunderhoser): Get rid of this method (or clean it up a lot).
-
-    error_checking.assert_is_valid_lat_numpy_array(centroid_latitudes_deg)
-    error_checking.assert_is_numpy_array(
-        centroid_latitudes_deg, num_dimensions=1)
-
-    centroid_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
-        centroid_longitudes_deg)
-
-    num_points = len(centroid_latitudes_deg)
-    these_expected_dim = numpy.array([num_points], dtype=int)
-    error_checking.assert_is_numpy_array(
-        centroid_longitudes_deg, exact_dimensions=these_expected_dim)
-
-    centroid_x_coords_metres, centroid_y_coords_metres = basemap_object(
-        centroid_longitudes_deg, centroid_latitudes_deg)
-
-    line_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(line_colour)
-
-    axes_object.plot(
-        centroid_x_coords_metres, centroid_y_coords_metres,
-        color=line_colour_tuple, linestyle=line_style, linewidth=line_width)
-
-    if start_marker is not None:
-        if start_marker == 'x':
-            this_edge_width = 2
-        else:
-            this_edge_width = 1
-
-        axes_object.plot(
-            centroid_x_coords_metres[0], centroid_y_coords_metres[0],
-            linestyle='None', marker=start_marker,
-            markerfacecolor=line_colour_tuple,
-            markeredgecolor=line_colour_tuple,
-            markersize=start_marker_size, markeredgewidth=this_edge_width)
-
-    if end_marker is not None:
-        if end_marker == 'x':
-            this_edge_width = 2
-        else:
-            this_edge_width = 1
-
-        axes_object.plot(
-            centroid_x_coords_metres[-1], centroid_y_coords_metres[-1],
-            linestyle='None', marker=end_marker,
-            markerfacecolor=line_colour_tuple,
-            markeredgecolor=line_colour_tuple,
-            markersize=end_marker_size, markeredgewidth=this_edge_width)
 
 
 def plot_storm_outlines(
@@ -363,7 +345,8 @@ def plot_storm_outlines(
 
         axes_object.plot(
             these_x_coords_metres, these_y_coords_metres,
-            color=line_colour_tuple, linestyle=line_style, linewidth=line_width)
+            color=line_colour_tuple, linestyle=line_style, linewidth=line_width
+        )
 
 
 def plot_storm_centroids(
@@ -392,9 +375,9 @@ def plot_storm_centroids(
 
     axes_object.plot(
         x_coords_metres, y_coords_metres, linestyle='None', marker=marker_type,
-        markerfacecolor=marker_colour_tuple,
-        markeredgecolor=marker_colour_tuple, markersize=marker_size,
-        markeredgewidth=0)
+        markersize=marker_size, markeredgewidth=0,
+        markerfacecolor=marker_colour_tuple, markeredgecolor=marker_colour_tuple
+    )
 
 
 def plot_storm_ids(
@@ -477,8 +460,12 @@ def plot_storm_ids(
 def plot_storm_tracks(
         storm_object_table, axes_object, basemap_object,
         colour_map_object='random',
-        min_colour_time_unix_sec=None, max_colour_time_unix_sec=None,
-        line_colour=DEFAULT_TRACK_COLOUR, line_width=DEFAULT_TRACK_WIDTH):
+        colour_min_unix_sec=None, colour_max_unix_sec=None,
+        line_colour=DEFAULT_TRACK_COLOUR, line_width=DEFAULT_TRACK_WIDTH,
+        start_marker_type=DEFAULT_START_MARKER_TYPE,
+        end_marker_type=DEFAULT_END_MARKER_TYPE,
+        start_marker_size=DEFAULT_START_MARKER_SIZE,
+        end_marker_size=DEFAULT_END_MARKER_SIZE):
     """Plots storm tracks.
 
     If colour_map_object is None, all tracks will be the same colour, specified
@@ -493,15 +480,18 @@ def plot_storm_tracks(
     :param axes_object: Same.
     :param basemap_object: Same.
     :param colour_map_object: See general discussion above.
-    :param min_colour_time_unix_sec:
-        [used only if `colour_map_object is not None`]
+    :param colour_min_unix_sec: [used only if `colour_map_object is not None`]
         First time in colour scheme.
-    :param max_colour_time_unix_sec:
-        [used only if `colour_map_object is not None`]
+    :param colour_max_unix_sec: [used only if `colour_map_object is not None`]
         Last time in colour scheme.
     :param line_colour: [used only if `colour_map_object is None`]
         Track colour as length-3 numpy array.
     :param line_width: Track width.
+    :param start_marker_type: Marker for beginning of each track.  If None,
+        markers will not be plotted for beginning of track.
+    :param end_marker_type: Same but for end of track.
+    :param start_marker_size: Size of start-point marker.
+    :param end_marker_size: Size of end-point marker.
     :return: colour_bar_object: Handle for colour bar.  If
         `colour_map_object is None`, this will also be None.
     """
@@ -536,16 +526,16 @@ def plot_storm_tracks(
         colour_map_object = None
 
     else:
-        if min_colour_time_unix_sec is None or max_colour_time_unix_sec is None:
-            min_colour_time_unix_sec = numpy.min(
+        if colour_min_unix_sec is None or colour_max_unix_sec is None:
+            colour_min_unix_sec = numpy.min(
                 storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
             )
-            max_colour_time_unix_sec = numpy.max(
+            colour_max_unix_sec = numpy.max(
                 storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
             )
 
         colour_norm_object = pyplot.Normalize(
-            min_colour_time_unix_sec, max_colour_time_unix_sec
+            colour_min_unix_sec, colour_max_unix_sec
         )
 
     track_primary_id_strings, object_to_track_indices = numpy.unique(
@@ -575,6 +565,24 @@ def plot_storm_tracks(
             line_width=line_width, line_colour=this_line_colour,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object)
+
+        if start_marker_type is not None:
+            _plot_start_or_end_markers(
+                storm_object_table_one_track=storm_object_table_one_track,
+                axes_object=axes_object, plot_at_start=True,
+                marker_type=start_marker_type, marker_size=start_marker_size,
+                track_colour=this_line_colour,
+                colour_map_object=colour_map_object,
+                colour_norm_object=colour_norm_object)
+
+        if end_marker_type is not None:
+            _plot_start_or_end_markers(
+                storm_object_table_one_track=storm_object_table_one_track,
+                axes_object=axes_object, plot_at_start=True,
+                marker_type=end_marker_type, marker_size=end_marker_size,
+                track_colour=this_line_colour,
+                colour_map_object=colour_map_object,
+                colour_norm_object=colour_norm_object)
 
     if colour_map_object is None:
         return
@@ -611,255 +619,3 @@ def plot_storm_tracks(
     colour_bar_object.set_ticks(tick_times_unix_sec)
     colour_bar_object.set_ticklabels(tick_time_strings)
     return colour_bar_object
-
-
-def plot_storm_tracks_old(
-        storm_object_table, axes_object, basemap_object,
-        colour_map_object='random', line_colour=DEFAULT_TRACK_COLOUR,
-        line_width=DEFAULT_TRACK_WIDTH,
-        start_marker_type=DEFAULT_START_MARKER_TYPE,
-        end_marker_type=DEFAULT_END_MARKER_TYPE,
-        start_marker_size=DEFAULT_START_MARKER_SIZE,
-        end_marker_size=DEFAULT_END_MARKER_SIZE):
-    """Plots one or more storm tracks on the same map.
-
-    :param storm_object_table: See doc for `plot_storm_outlines`.
-    :param axes_object: Same.
-    :param basemap_object: Same.
-    :param colour_map_object: There are 3 cases.
-
-    If "random", each track will be plotted in a random colour from
-    `get_storm_track_colours`.
-
-    If None, each track will be plotted in `line_colour` (the next input arg).
-
-    If real colour map (instance of `matplotlib.pyplot.cm`), track segments will
-    be coloured by time, according to this colour map.
-
-    :param line_colour: [used only if `colour_map_object is None`]
-        length-3 numpy array with (R, G, B).  Will be used for all tracks.
-    :param line_width: Width of each storm track.
-    :param start_marker_type: Marker type for beginning of track (in any format
-        accepted by `matplotlib.lines`).  If `start_marker_type is None`,
-        markers will not be used to show beginning of each track.
-    :param end_marker_type: Same but for end of track.
-    :param start_marker_size: Size of each start-point marker.
-    :param end_marker_size: Size of each end-point marker.
-    """
-
-    plot_start_markers = start_marker_type is not None
-    plot_end_markers = end_marker_type is not None
-
-    if start_marker_type is None:
-        start_marker_type = DEFAULT_START_MARKER_TYPE
-        start_marker_size = DEFAULT_START_MARKER_SIZE
-
-    if end_marker_type is None:
-        end_marker_type = DEFAULT_END_MARKER_TYPE
-        end_marker_size = DEFAULT_END_MARKER_SIZE
-
-    x_coords_metres, y_coords_metres = basemap_object(
-        storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
-        storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
-    )
-
-    storm_object_table = storm_object_table.assign(**{
-        tracking_utils.CENTROID_X_COLUMN: x_coords_metres,
-        tracking_utils.CENTROID_Y_COLUMN: y_coords_metres
-    })
-
-    rgb_matrix = None
-    num_colours = None
-    colour_norm_object = None
-
-    if colour_map_object is None:
-        error_checking.assert_is_numpy_array(
-            line_colour, exact_dimensions=numpy.array([3], dtype=int)
-        )
-
-        rgb_matrix = numpy.reshape(line_colour, (1, 3))
-        num_colours = rgb_matrix.shape[0]
-
-    elif colour_map_object == 'random':
-        rgb_matrix = get_storm_track_colours()
-        num_colours = rgb_matrix.shape[0]
-
-        colour_map_object = None
-
-    else:
-        first_time_unix_sec = numpy.min(
-            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
-        )
-        last_time_unix_sec = numpy.max(
-            storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
-        )
-
-        colour_norm_object = pyplot.Normalize(
-            first_time_unix_sec, last_time_unix_sec)
-
-    track_primary_id_strings, object_to_track_indices = numpy.unique(
-        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
-        return_inverse=True)
-
-    num_tracks = len(track_primary_id_strings)
-
-    for k in range(num_tracks):
-        if colour_map_object is None:
-            this_line_colour = rgb_matrix[numpy.mod(k, num_colours), :]
-            this_line_colour = plotting_utils.colour_from_numpy_to_tuple(
-                this_line_colour
-            )
-        else:
-            this_line_colour = None
-
-        these_object_indices = numpy.where(object_to_track_indices == k)[0]
-
-        for i in these_object_indices:
-            these_next_indices = temporal_tracking.find_immediate_successors(
-                storm_object_table=storm_object_table, target_row=i)
-
-            for j in these_next_indices:
-                these_x_coords_metres = storm_object_table[
-                    tracking_utils.CENTROID_X_COLUMN
-                ].values[[i, j]]
-
-                these_y_coords_metres = storm_object_table[
-                    tracking_utils.CENTROID_Y_COLUMN
-                ].values[[i, j]]
-
-                if colour_map_object is None:
-                    axes_object.plot(
-                        these_x_coords_metres, these_y_coords_metres,
-                        color=this_line_colour, linestyle='solid',
-                        linewidth=line_width)
-                else:
-                    this_point_matrix = numpy.array(
-                        [these_x_coords_metres, these_y_coords_metres]
-                    ).T.reshape(-1, 1, 2)
-
-                    this_segment_matrix = numpy.concatenate(
-                        [this_point_matrix[:-1], this_point_matrix[1:]],
-                        axis=1
-                    )
-
-                    this_time_unix_sec = numpy.mean(
-                        storm_object_table[
-                            tracking_utils.VALID_TIME_COLUMN].values[[i, j]]
-                    )
-
-                    this_line_collection_object = LineCollection(
-                        this_segment_matrix, cmap=colour_map_object,
-                        norm=colour_norm_object)
-
-                    this_line_collection_object.set_array(
-                        numpy.array([this_time_unix_sec])
-                    )
-                    this_line_collection_object.set_linewidth(line_width)
-                    axes_object.add_collection(this_line_collection_object)
-
-            these_prev_indices = temporal_tracking.find_immediate_predecessors(
-                storm_object_table=storm_object_table, target_row=i)
-
-            if colour_map_object is not None:
-                this_time_unix_sec = storm_object_table[
-                    tracking_utils.VALID_TIME_COLUMN
-                ].values[i]
-
-                this_marker_colour = colour_map_object(colour_norm_object(
-                    this_time_unix_sec
-                ))
-
-            this_marker_x_coord = storm_object_table[
-                tracking_utils.CENTROID_X_COLUMN
-            ].values[i]
-
-            this_marker_y_coord = storm_object_table[
-                tracking_utils.CENTROID_Y_COLUMN
-            ].values[i]
-
-            if plot_start_markers and len(these_prev_indices) == 0:
-                if start_marker_type == 'x':
-                    this_edge_width = 2
-                else:
-                    this_edge_width = 1
-
-                axes_object.plot(
-                    this_marker_x_coord, this_marker_y_coord, linestyle='None',
-                    marker=start_marker_type, markersize=start_marker_size,
-                    markerfacecolor=this_marker_colour,
-                    markeredgecolor=this_marker_colour,
-                    markeredgewidth=this_edge_width
-                )
-
-            if plot_end_markers and len(these_next_indices) == 0:
-                if end_marker_type == 'x':
-                    this_edge_width = 2
-                else:
-                    this_edge_width = 1
-
-                axes_object.plot(
-                    this_marker_x_coord, this_marker_y_coord, linestyle='None',
-                    marker=end_marker_type, markersize=end_marker_size,
-                    markerfacecolor=this_marker_colour,
-                    markeredgecolor=this_marker_colour,
-                    markeredgewidth=this_edge_width
-                )
-
-    if colour_map_object is None:
-        return
-
-    min_plot_latitude_deg = basemap_object.llcrnrlat
-    max_plot_latitude_deg = basemap_object.urcrnrlat
-    min_plot_longitude_deg = basemap_object.llcrnrlon
-    max_plot_longitude_deg = basemap_object.urcrnrlon
-
-    latitude_range_deg = max_plot_latitude_deg - min_plot_latitude_deg
-    longitude_range_deg = max_plot_longitude_deg - min_plot_longitude_deg
-
-    if latitude_range_deg > longitude_range_deg:
-        orientation_string = 'vertical'
-        padding = None
-    else:
-        orientation_string = 'horizontal'
-        padding = 0.05
-
-    colour_bar_object = plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object,
-        data_matrix=storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
-        colour_map_object=colour_map_object, min_value=colour_norm_object.vmin,
-        max_value=colour_norm_object.vmax,
-        orientation_string=orientation_string,
-        extend_min=False, extend_max=False, padding=padding,
-        fraction_of_axis_length=0.9, font_size=COLOUR_BAR_FONT_SIZE
-    )
-
-    if orientation_string == 'horizontal':
-        tick_values = colour_bar_object.ax.get_xticks()
-    else:
-        tick_values = colour_bar_object.ax.get_yticks()
-
-    tick_times_unix_sec = numpy.round(
-        colour_norm_object.inverse(tick_values)
-    ).astype(int)
-
-    slope_sec_per_sec = (
-        float(last_time_unix_sec - first_time_unix_sec) /
-        (tick_times_unix_sec[-1] - tick_times_unix_sec[0])
-    )
-
-    tick_times_unix_sec = numpy.round(
-        first_time_unix_sec +
-        slope_sec_per_sec * (tick_times_unix_sec - tick_times_unix_sec[0])
-    ).astype(int)
-
-    tick_time_strings = [
-        time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
-        for t in tick_times_unix_sec
-    ]
-
-    if orientation_string == 'horizontal':
-        colour_bar_object.ax.set_xticks(tick_values)
-        colour_bar_object.ax.set_xticklabels(tick_time_strings)
-    else:
-        colour_bar_object.ax.set_yticks(tick_values)
-        colour_bar_object.ax.set_yticklabels(tick_time_strings)

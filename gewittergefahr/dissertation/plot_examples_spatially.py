@@ -265,8 +265,7 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
     colour_bar_object = storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=COLOUR_MAP_OBJECT,
-        min_colour_time_unix_sec=0,
-        max_colour_time_unix_sec=NUM_SECONDS_IN_DAY - 1,
+        colour_min_unix_sec=0, colour_max_unix_sec=NUM_SECONDS_IN_DAY - 1,
         line_width=TRACK_LINE_WIDTH
     )
 
