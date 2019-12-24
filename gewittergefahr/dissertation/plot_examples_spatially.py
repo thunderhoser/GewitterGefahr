@@ -28,9 +28,11 @@ NUM_MERIDIANS = 8
 LATLNG_BUFFER_DEG = 0.25
 BORDER_COLOUR = numpy.full(3, 0.)
 
+TRACK_LINE_WIDTH = 4
+
 BACKGROUND_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
-# COLOUR_MAP_OBJECT = pyplot.get_cmap(name='twilight_shifted', lut=20)
-COLOUR_MAP_OBJECT = pyplot.get_cmap(name='YlOrRd', lut=24)
+COLOUR_MAP_OBJECT = pyplot.get_cmap(name='twilight_shifted', lut=24)
+# COLOUR_MAP_OBJECT = pyplot.get_cmap(name='YlOrRd', lut=24)
 
 FIGURE_RESOLUTION_DPI = 300
 
@@ -235,10 +237,10 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
             resolution_string='i')
     )
 
-    basemap_object.drawmapboundary(fill_color=BACKGROUND_COLOUR, zorder=1e-20)
-    basemap_object.fillcontinents(
-        color=BACKGROUND_COLOUR, lake_color=BACKGROUND_COLOUR, zorder=1e-20
-    )
+    # basemap_object.drawmapboundary(fill_color=BACKGROUND_COLOUR, zorder=1e-20)
+    # basemap_object.fillcontinents(
+    #     color=BACKGROUND_COLOUR, lake_color=BACKGROUND_COLOUR, zorder=1e-20
+    # )
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -264,7 +266,10 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=COLOUR_MAP_OBJECT,
-        start_marker_type=None, end_marker_type=None)
+        min_colour_time_unix_sec=0,
+        max_colour_time_unix_sec=NUM_SECONDS_IN_DAY - 1,
+        line_width=TRACK_LINE_WIDTH
+    )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(

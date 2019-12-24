@@ -283,7 +283,222 @@ def plot_storm_ids(
             horizontalalignment='left', verticalalignment='top')
 
 
+def _plot_one_track_segment(
+        storm_object_table, start_row, axes_object, line_width,
+        line_colour=None, colour_map_object=None, colour_norm_object=None):
+    """Plots one track segment.
+
+    :param storm_object_table: See doc for `plot_storm_outlines`.
+    :param start_row: Will plot [k]th object in table and its predecessors,
+        where k = `start_row`.
+    :param axes_object: See doc for `plot_storm_outlines`.
+    :param line_width: Track width.
+    :param line_colour: Track colour.  This may be None.
+    :param colour_map_object: [used only if `line_colour is None`]:
+        Colour scheme (instance of `matplotlib.pyplot.cm` or similar).
+    :param colour_norm_object: Normalizer for colour scheme.
+    """
+
+    i = start_row
+
+    successor_rows = temporal_tracking.find_immediate_successors(
+        storm_object_table=storm_object_table, target_row=i
+    )
+
+    for j in successor_rows:
+        these_x_coords_metres = storm_object_table[
+            tracking_utils.CENTROID_X_COLUMN
+        ].values[[i, j]]
+
+        these_y_coords_metres = storm_object_table[
+            tracking_utils.CENTROID_Y_COLUMN
+        ].values[[i, j]]
+
+        if line_colour is None:
+            this_point_matrix = numpy.array(
+                [these_x_coords_metres, these_y_coords_metres]
+            ).T.reshape(-1, 1, 2)
+
+            this_segment_matrix = numpy.concatenate(
+                [this_point_matrix[:-1], this_point_matrix[1:]],
+                axis=1
+            )
+
+            this_time_unix_sec = numpy.mean(
+                storm_object_table[
+                    tracking_utils.VALID_TIME_COLUMN].values[[i, j]]
+            )
+
+            this_line_collection_object = LineCollection(
+                this_segment_matrix, cmap=colour_map_object,
+                norm=colour_norm_object
+            )
+            this_line_collection_object.set_array(
+                numpy.array([this_time_unix_sec])
+            )
+            this_line_collection_object.set_linewidth(line_width)
+            axes_object.add_collection(this_line_collection_object)
+
+        else:
+            axes_object.plot(
+                these_x_coords_metres, these_y_coords_metres,
+                color=line_colour, linestyle='solid', linewidth=line_width
+            )
+
+
 def plot_storm_tracks(
+        storm_object_table, axes_object, basemap_object,
+        colour_map_object='random',
+        min_colour_time_unix_sec=None, max_colour_time_unix_sec=None,
+        line_colour=DEFAULT_TRACK_COLOUR, line_width=DEFAULT_TRACK_WIDTH):
+    """Plots storm tracks.
+
+    If colour_map_object is None, all tracks will be the same colour, specified
+    by line_colour.
+
+    If colour_map_object == "random", tracks will be coloured randomly.
+
+    If colour_map_object is an actual colour map, tracks will be coloured by
+    time.
+
+    :param storm_object_table: See doc for `plot_storm_outlines`.
+    :param axes_object: Same.
+    :param basemap_object: Same.
+    :param colour_map_object: See general discussion above.
+    :param min_colour_time_unix_sec:
+        [used only if `colour_map_object is not None`]
+        First time in colour scheme.
+    :param max_colour_time_unix_sec:
+        [used only if `colour_map_object is not None`]
+        Last time in colour scheme.
+    :param line_colour: [used only if `colour_map_object is None`]
+        Track colour as length-3 numpy array.
+    :param line_width: Track width.
+    :return: colour_bar_object: Handle for colour bar.  If
+        `colour_map_object is None`, this will also be None.
+    """
+
+    x_coords_metres, y_coords_metres = basemap_object(
+        storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
+        storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
+    )
+
+    storm_object_table = storm_object_table.assign(**{
+        tracking_utils.CENTROID_X_COLUMN: x_coords_metres,
+        tracking_utils.CENTROID_Y_COLUMN: y_coords_metres
+    })
+
+    rgb_matrix = None
+    num_colours = None
+    colour_norm_object = None
+
+    if colour_map_object is None:
+        expected_dim = numpy.array([3], dtype=int)
+        error_checking.assert_is_numpy_array(
+            line_colour, exact_dimensions=expected_dim
+        )
+
+        rgb_matrix = numpy.reshape(line_colour, (1, 3))
+        num_colours = rgb_matrix.shape[0]
+
+    elif colour_map_object == 'random':
+        rgb_matrix = get_storm_track_colours()
+        num_colours = rgb_matrix.shape[0]
+
+        colour_map_object = None
+
+    else:
+        if min_colour_time_unix_sec is None or max_colour_time_unix_sec is None:
+            min_colour_time_unix_sec = numpy.min(
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+            )
+            max_colour_time_unix_sec = numpy.max(
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+            )
+
+        colour_norm_object = pyplot.Normalize(
+            min_colour_time_unix_sec, max_colour_time_unix_sec
+        )
+
+    track_primary_id_strings, object_to_track_indices = numpy.unique(
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
+        return_inverse=True
+    )
+
+    num_tracks = len(track_primary_id_strings)
+
+    for k in range(num_tracks):
+        if colour_map_object is None:
+            this_line_colour = rgb_matrix[numpy.mod(k, num_colours), :]
+            this_line_colour = plotting_utils.colour_from_numpy_to_tuple(
+                this_line_colour
+            )
+        else:
+            this_line_colour = None
+
+        these_object_indices = numpy.where(object_to_track_indices == k)[0]
+
+        for i in these_object_indices:
+            _plot_one_track_segment(
+                storm_object_table=storm_object_table, start_row=i,
+                axes_object=axes_object,
+                line_width=line_width, line_colour=this_line_colour,
+                colour_map_object=colour_map_object,
+                colour_norm_object=colour_norm_object
+            )
+
+    if colour_map_object is None:
+        return
+
+    latitude_range_deg = basemap_object.urcrnrlat - basemap_object.llcrnrlat
+    longitude_range_deg = basemap_object.urcrnrlon - basemap_object.llcrnrlon
+
+    if latitude_range_deg > longitude_range_deg:
+        orientation_string = 'vertical'
+        padding = None
+    else:
+        orientation_string = 'horizontal'
+        padding = 0.05
+
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object,
+        data_matrix=storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
+        colour_map_object=colour_map_object,
+        min_value=colour_norm_object.vmin, max_value=colour_norm_object.vmax,
+        orientation_string=orientation_string, padding=padding,
+        extend_min=False, extend_max=False, fraction_of_axis_length=0.9,
+        font_size=COLOUR_BAR_FONT_SIZE
+    )
+
+    tick_times_unix_sec = colour_bar_object.get_ticks()
+    print(tick_times_unix_sec)
+
+    tick_times_unix_sec = numpy.round(
+        colour_norm_object.inverse(tick_times_unix_sec)
+    ).astype(int)
+    print(tick_times_unix_sec)
+
+    # slope_sec_per_sec = (
+    #     float(last_time_unix_sec - first_time_unix_sec) /
+    #     (tick_times_unix_sec[-1] - tick_times_unix_sec[0])
+    # )
+    # 
+    # tick_times_unix_sec = numpy.round(
+    #     first_time_unix_sec +
+    #     slope_sec_per_sec * (tick_times_unix_sec - tick_times_unix_sec[0])
+    # ).astype(int)
+
+    tick_time_strings = [
+        time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
+        for t in tick_times_unix_sec
+    ]
+
+    colour_bar_object.set_ticks(tick_times_unix_sec)
+    colour_bar_object.set_ticklabels(tick_time_strings)
+    return colour_bar_object
+
+
+def plot_storm_tracks_old(
         storm_object_table, axes_object, basemap_object,
         colour_map_object='random', line_colour=DEFAULT_TRACK_COLOUR,
         line_width=DEFAULT_TRACK_WIDTH,
