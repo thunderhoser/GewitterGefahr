@@ -45,33 +45,33 @@ for k in range(NUM_LAYER_OPERATIONS):
     }
 
 PANEL_NAMES_WITH_OPS_SANS_UNITS = [
-    'Reflectivity\nMIN from 1000-3000 m AGL',
-    'Reflectivity\nMEAN from 1000-3000 m AGL',
-    'Reflectivity\nMAX from 1000-3000 m AGL',
-    'Spectrum width\nMIN from 1000-3000 m AGL',
-    'Spectrum width\nMEAN from 1000-3000 m AGL',
-    'Spectrum width\nMAX from 1000-3000 m AGL',
-    'Vorticity\nMIN from 2000-4000 m AGL',
-    'Vorticity\nMEAN from 2000-4000 m AGL',
-    'Vorticity\nMAX from 2000-4000 m AGL',
-    'Vorticity\nMIN from 5000-8000 m AGL',
-    'Vorticity\nMEAN from 5000-8000 m AGL',
-    'Vorticity\nMAX from 5000-8000 m AGL'
+    'Reflectivity\nMIN from 1-3 km AGL',
+    'Reflectivity\nMEAN from 1-3 km AGL',
+    'Reflectivity\nMAX from 1-3 km AGL',
+    'Spectrum width\nMIN from 1-3 km AGL',
+    'Spectrum width\nMEAN from 1-3 km AGL',
+    'Spectrum width\nMAX from 1-3 km AGL',
+    'Vorticity\nMIN from 2-4 km AGL',
+    'Vorticity\nMEAN from 2-4 km AGL',
+    'Vorticity\nMAX from 2-4 km AGL',
+    'Vorticity\nMIN from 5-8 km AGL',
+    'Vorticity\nMEAN from 5-8 km AGL',
+    'Vorticity\nMAX from 5-8 km AGL'
 ]
 
 PANEL_NAMES_WITH_OPS_WITH_UNITS = [
-    'Reflectivity (dBZ)\nMIN from 1000-3000 m AGL',
-    'Reflectivity (dBZ)\nMEAN from 1000-3000 m AGL',
-    'Reflectivity (dBZ)\nMAX from 1000-3000 m AGL',
-    'Spectrum width (m s$^{-1}$)\nMIN from 1000-3000 m AGL',
-    'Spectrum width (m s$^{-1}$)\nMEAN from 1000-3000 m AGL',
-    'Spectrum width (m s$^{-1}$)\nMAX from 1000-3000 m AGL',
-    'Vorticity (ks$^{-1}$)\nMIN from 2000-4000 m AGL',
-    'Vorticity (ks$^{-1}$)\nMEAN from 2000-4000 m AGL',
-    'Vorticity (ks$^{-1}$)\nMAX from 2000-4000 m AGL',
-    'Vorticity (ks$^{-1}$)\nMIN from 5000-8000 m AGL',
-    'Vorticity (ks$^{-1}$)\nMEAN from 5000-8000 m AGL',
-    'Vorticity (ks$^{-1}$)\nMAX from 5000-8000 m AGL'
+    'Reflectivity (dBZ)\nMIN from 1-3 km AGL',
+    'Reflectivity (dBZ)\nMEAN from 1-3 km AGL',
+    'Reflectivity (dBZ)\nMAX from 1-3 km AGL',
+    'Spectrum width (m s$^{-1}$)\nMIN from 1-3 km AGL',
+    'Spectrum width (m s$^{-1}$)\nMEAN from 1-3 km AGL',
+    'Spectrum width (m s$^{-1}$)\nMAX from 1-3 km AGL',
+    'Vorticity (ks$^{-1}$)\nMIN from 2-4 km AGL',
+    'Vorticity (ks$^{-1}$)\nMEAN from 2-4 km AGL',
+    'Vorticity (ks$^{-1}$)\nMAX from 2-4 km AGL',
+    'Vorticity (ks$^{-1}$)\nMIN from 5-8 km AGL',
+    'Vorticity (ks$^{-1}$)\nMEAN from 5-8 km AGL',
+    'Vorticity (ks$^{-1}$)\nMAX from 5-8 km AGL'
 ]
 
 # The following constants are used to test
@@ -83,17 +83,17 @@ FIELD_NAME_BY_PAIR = [
 HEIGHT_BY_PAIR_M_AGL = numpy.array([1000, 3000, 2000, 10000])
 
 PANEL_NAMES_SANS_OPS_WITH_UNITS = [
-    'Reflectivity (dBZ)\nat 1000 m AGL',
-    'Spectrum width (m s$^{-1}$)\nat 3000 m AGL',
-    'Vorticity (ks$^{-1}$)\nat 2000 m AGL',
-    'Reflectivity (dBZ)\nat 10000 m AGL'
+    'Reflectivity (dBZ)\nat 1 km AGL',
+    'Spectrum width (m s$^{-1}$)\nat 3 km AGL',
+    'Vorticity (ks$^{-1}$)\nat 2 km AGL',
+    'Reflectivity (dBZ)\nat 10 km AGL'
 ]
 
 PANEL_NAMES_SANS_OPS_SANS_UNITS = [
-    'Reflectivity\nat 1000 m AGL',
-    'Spectrum width\nat 3000 m AGL',
-    'Vorticity\nat 2000 m AGL',
-    'Reflectivity\nat 10000 m AGL'
+    'Reflectivity\nat 1 km AGL',
+    'Spectrum width\nat 3 km AGL',
+    'Vorticity\nat 2 km AGL',
+    'Reflectivity\nat 10 km AGL'
 ]
 
 

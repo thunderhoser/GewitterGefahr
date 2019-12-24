@@ -97,6 +97,7 @@ RELATIVE_EVENT_TIMES_COLUMN = 'relative_event_times_sec'
 EVENT_LATITUDES_COLUMN = 'event_latitudes_deg'
 EVENT_LONGITUDES_COLUMN = 'event_longitudes_deg'
 MAIN_OBJECT_FLAGS_COLUMN = 'main_object_flags'
+MERGING_PRED_FLAG_COLUMN = 'merging_predecessor_flag'
 
 FUJITA_RATINGS_COLUMN = 'f_or_ef_scale_ratings'
 TORNADO_IDS_COLUMN = 'tornado_id_strings'
@@ -106,7 +107,8 @@ V_WINDS_COLUMN = 'v_winds_m_s01'
 
 THESE_COLUMNS = [
     LINKAGE_DISTANCES_COLUMN, RELATIVE_EVENT_TIMES_COLUMN,
-    EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN, MAIN_OBJECT_FLAGS_COLUMN
+    EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN, MAIN_OBJECT_FLAGS_COLUMN,
+    MERGING_PRED_FLAG_COLUMN
 ]
 
 WIND_LINKAGE_COLUMNS = THESE_COLUMNS + [
@@ -1300,6 +1302,63 @@ def _find_nearest_storms(
     return event_table
 
 
+def _find_predecessors(storm_to_events_table, target_row):
+    """Finds simple and merging predecessors of a storm object.
+
+    A "simple predecessor" of storm object S is connected to S by no more than
+    one split and zero mergers.
+
+    A "merging predecessor" of storm object S is connected to S by exactly one
+    merger and zero splits.
+
+    :param storm_to_events_table: pandas DataFrame created by
+        `_reverse_wind_linkages` or `_reverse_tornado_linkages`.
+    :param target_row: Same.
+    :return: simple_predecessor_rows: 1-D numpy array with row indices of simple
+        predecessors.
+    :return: merging_predecessor_rows: 1-D numpy array with row indices of
+        merging predecessors.
+    """
+
+    predecessor_rows_one_change = temporal_tracking.find_predecessors(
+        storm_object_table=storm_to_events_table, target_row=target_row,
+        num_seconds_back=LARGE_INTEGER, max_num_sec_id_changes=1,
+        change_type_string=temporal_tracking.ANY_CHANGE_STRING,
+        return_all_on_path=True)
+
+    predecessor_rows_zero_mergers = temporal_tracking.find_predecessors(
+        storm_object_table=storm_to_events_table, target_row=target_row,
+        num_seconds_back=LARGE_INTEGER, max_num_sec_id_changes=0,
+        change_type_string=temporal_tracking.MERGER_STRING,
+        return_all_on_path=True)
+
+    predecessor_rows_one_change = predecessor_rows_one_change.tolist()
+    predecessor_rows_zero_mergers = predecessor_rows_zero_mergers.tolist()
+    simple_predecessor_rows = (
+        set(predecessor_rows_one_change) & set(predecessor_rows_zero_mergers)
+    )
+
+    predecessor_rows_one_merger = temporal_tracking.find_predecessors(
+        storm_object_table=storm_to_events_table, target_row=target_row,
+        num_seconds_back=LARGE_INTEGER, max_num_sec_id_changes=1,
+        change_type_string=temporal_tracking.MERGER_STRING,
+        return_all_on_path=True)
+
+    predecessor_rows_one_merger = predecessor_rows_one_merger.tolist()
+    merging_predecessor_rows = (
+        set(predecessor_rows_one_merger) & set(predecessor_rows_one_change)
+    ) - simple_predecessor_rows
+
+    simple_predecessor_rows = numpy.array(
+        list(simple_predecessor_rows), dtype=int
+    )
+    merging_predecessor_rows = numpy.array(
+        list(merging_predecessor_rows), dtype=int
+    )
+
+    return simple_predecessor_rows, merging_predecessor_rows
+
+
 def _reverse_wind_linkages(storm_object_table, wind_to_storm_table):
     """Reverses wind linkages.
 
@@ -1343,7 +1402,10 @@ def _reverse_wind_linkages(storm_object_table, wind_to_storm_table):
         tracking_utils.SECONDARY_ID_COLUMN, tracking_utils.SECONDARY_ID_COLUMN
     ]].values.tolist()
 
+    num_storm_objects = len(storm_object_table.index)
+    these_flags = numpy.full(num_storm_objects, False, dtype=bool)
     storm_to_winds_table = copy.deepcopy(storm_object_table)
+
     storm_to_winds_table = storm_to_winds_table.assign(**{
         WIND_STATION_IDS_COLUMN: nested_array,
         EVENT_LATITUDES_COLUMN: nested_array,
@@ -1352,10 +1414,9 @@ def _reverse_wind_linkages(storm_object_table, wind_to_storm_table):
         V_WINDS_COLUMN: nested_array,
         LINKAGE_DISTANCES_COLUMN: nested_array,
         RELATIVE_EVENT_TIMES_COLUMN: nested_array,
-        MAIN_OBJECT_FLAGS_COLUMN: nested_array
+        MAIN_OBJECT_FLAGS_COLUMN: nested_array,
+        MERGING_PRED_FLAG_COLUMN: these_flags
     })
-
-    num_storm_objects = len(storm_to_winds_table.index)
 
     for i in range(num_storm_objects):
         storm_to_winds_table[WIND_STATION_IDS_COLUMN].values[i] = []
@@ -1397,25 +1458,15 @@ def _reverse_wind_linkages(storm_object_table, wind_to_storm_table):
             numpy.argmin(numpy.absolute(these_time_diffs_sec))
         ]
 
-        these_first_rows = temporal_tracking.find_predecessors(
-            storm_object_table=storm_to_winds_table,
-            target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
-            max_num_sec_id_changes=1,
-            change_type_string=temporal_tracking.SPLIT_STRING,
-            return_all_on_path=True)
+        these_simple_pred_rows, these_merging_pred_rows = _find_predecessors(
+            storm_to_events_table=storm_to_winds_table,
+            target_row=this_main_object_row)
 
-        these_second_rows = temporal_tracking.find_predecessors(
-            storm_object_table=storm_to_winds_table,
-            target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
-            max_num_sec_id_changes=0,
-            change_type_string=temporal_tracking.MERGER_STRING,
-            return_all_on_path=True)
+        storm_to_winds_table[MERGING_PRED_FLAG_COLUMN].values[
+            these_merging_pred_rows
+        ] = True
 
-        these_predecessor_rows = numpy.array(list(
-            set(these_first_rows.tolist()) & set(these_second_rows.tolist())
-        ), dtype=int)
-
-        for j in these_predecessor_rows:
+        for j in these_simple_pred_rows:
             this_flag = (
                 storm_to_winds_table[tracking_utils.VALID_TIME_COLUMN].values[j]
                 > wind_to_storm_table[EVENT_TIME_COLUMN].values[k]
@@ -1532,7 +1583,10 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
         tracking_utils.SECONDARY_ID_COLUMN, tracking_utils.SECONDARY_ID_COLUMN
     ]].values.tolist()
 
+    num_storm_objects = len(storm_object_table.index)
+    these_flags = numpy.full(num_storm_objects, False, dtype=bool)
     storm_to_tornadoes_table = copy.deepcopy(storm_object_table)
+
     storm_to_tornadoes_table = storm_to_tornadoes_table.assign(**{
         EVENT_LATITUDES_COLUMN: nested_array,
         EVENT_LONGITUDES_COLUMN: nested_array,
@@ -1540,10 +1594,9 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
         TORNADO_IDS_COLUMN: nested_array,
         LINKAGE_DISTANCES_COLUMN: nested_array,
         RELATIVE_EVENT_TIMES_COLUMN: nested_array,
-        MAIN_OBJECT_FLAGS_COLUMN: nested_array
+        MAIN_OBJECT_FLAGS_COLUMN: nested_array,
+        MERGING_PRED_FLAG_COLUMN: these_flags
     })
-
-    num_storm_objects = len(storm_to_tornadoes_table.index)
 
     for i in range(num_storm_objects):
         storm_to_tornadoes_table[EVENT_LATITUDES_COLUMN].values[i] = []
@@ -1584,25 +1637,15 @@ def _reverse_tornado_linkages(storm_object_table, tornado_to_storm_table):
             numpy.argmin(numpy.absolute(these_time_diffs_sec))
         ]
 
-        these_first_rows = temporal_tracking.find_predecessors(
-            storm_object_table=storm_to_tornadoes_table,
-            target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
-            max_num_sec_id_changes=1,
-            change_type_string=temporal_tracking.SPLIT_STRING,
-            return_all_on_path=True)
+        these_simple_pred_rows, these_merging_pred_rows = _find_predecessors(
+            storm_to_events_table=storm_to_tornadoes_table,
+            target_row=this_main_object_row)
 
-        these_second_rows = temporal_tracking.find_predecessors(
-            storm_object_table=storm_to_tornadoes_table,
-            target_row=this_main_object_row, num_seconds_back=LARGE_INTEGER,
-            max_num_sec_id_changes=0,
-            change_type_string=temporal_tracking.MERGER_STRING,
-            return_all_on_path=True)
+        storm_to_tornadoes_table[MERGING_PRED_FLAG_COLUMN].values[
+            these_merging_pred_rows
+        ] = True
 
-        these_predecessor_rows = numpy.array(list(
-            set(these_first_rows.tolist()) & set(these_second_rows.tolist())
-        ), dtype=int)
-
-        for j in these_predecessor_rows:
+        for j in these_simple_pred_rows:
             this_flag = (
                 storm_to_tornadoes_table[
                     tracking_utils.VALID_TIME_COLUMN].values[j]
@@ -2225,6 +2268,8 @@ def _share_linkages_with_predecessors(early_storm_to_events_table,
     else:
         columns_to_change = WIND_LINKAGE_COLUMNS
 
+    columns_to_change.remove(MERGING_PRED_FLAG_COLUMN)
+
     num_early_storm_objects = len(early_storm_to_events_table.index)
     num_late_storm_objects = len(late_storm_to_events_table.index)
     num_storm_objects = num_early_storm_objects + num_late_storm_objects
@@ -2237,10 +2282,22 @@ def _share_linkages_with_predecessors(early_storm_to_events_table,
         if len(these_event_indices) == 0:
             continue
 
-        these_predecessor_rows = temporal_tracking.find_predecessors(
+        these_rows = temporal_tracking.find_predecessors(
             storm_object_table=storm_to_events_table, target_row=i,
-            num_seconds_back=LARGE_INTEGER, max_num_sec_id_changes=1,
+            num_seconds_back=LARGE_INTEGER, max_num_sec_id_changes=0,
             return_all_on_path=True)
+
+        storm_to_events_table[MERGING_PRED_FLAG_COLUMN].values[these_rows] = (
+            numpy.logical_or(
+                storm_to_events_table[MERGING_PRED_FLAG_COLUMN].values[
+                    these_rows],
+                storm_to_events_table[MERGING_PRED_FLAG_COLUMN].values[i]
+            )
+        )
+
+        these_simple_pred_rows = _find_predecessors(
+            storm_to_events_table=storm_to_events_table, target_row=i
+        )[0]
 
         these_event_times_unix_sec = (
             storm_to_events_table[tracking_utils.VALID_TIME_COLUMN].values[i] +
@@ -2248,7 +2305,7 @@ def _share_linkages_with_predecessors(early_storm_to_events_table,
                 these_event_indices]
         )
 
-        for j in these_predecessor_rows:
+        for j in these_simple_pred_rows:
             if j == i:
                 continue
 
@@ -2776,11 +2833,6 @@ def write_linkage_file(pickle_file_name, storm_to_events_table, metadata_dict,
         `share_linkages_across_spc_dates`).
     """
 
-    # :param storm_object_table: pandas DataFrame with storm-tracking data (see
-    # doc for `storm_tracking_io.write_file`).  This may be used in the future
-    # to share linkages across SPC dates (see method
-    # `share_linkages_across_spc_dates`).
-
     try:
         error_checking.assert_columns_in_dataframe(
             storm_to_events_table, REQUIRED_WIND_LINKAGE_COLUMNS)
@@ -2808,6 +2860,14 @@ def read_linkage_file(pickle_file_name):
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     storm_to_events_table = pickle.load(pickle_file_handle)
+
+    if MERGING_PRED_FLAG_COLUMN not in list(storm_to_events_table):
+        num_storm_objects = len(storm_to_events_table.index)
+
+        storm_to_events_table = storm_to_events_table.assign(**{
+            MERGING_PRED_FLAG_COLUMN:
+                numpy.full(num_storm_objects, False, dtype=bool)
+        })
 
     try:
         metadata_dict = pickle.load(pickle_file_handle)

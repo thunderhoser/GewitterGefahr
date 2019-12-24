@@ -309,19 +309,19 @@ WIND_MEAN_LEAD_TIME_SEC = 2700
 
 NEAR_TORNADO_TARGET_NAME = target_val_utils.target_params_to_name(
     min_lead_time_sec=0, max_lead_time_sec=3600, min_link_distance_metres=0,
-    max_link_distance_metres=10000, genesis_only=False)
+    max_link_distance_metres=10000, tornadogenesis_only=False)
 
 MEDIUM_TORNADO_TARGET_NAME = target_val_utils.target_params_to_name(
     min_lead_time_sec=450, max_lead_time_sec=3150, min_link_distance_metres=0,
-    max_link_distance_metres=20000, genesis_only=False)
+    max_link_distance_metres=20000, tornadogenesis_only=False)
 
 FAR_TORNADO_TARGET_NAME = target_val_utils.target_params_to_name(
     min_lead_time_sec=900, max_lead_time_sec=2700, min_link_distance_metres=0,
-    max_link_distance_metres=30000, genesis_only=False)
+    max_link_distance_metres=30000, tornadogenesis_only=False)
 
 BAD_TORNADO_TARGET_NAME = target_val_utils.target_params_to_name(
     min_lead_time_sec=1800, max_lead_time_sec=3600, min_link_distance_metres=0,
-    max_link_distance_metres=10000, genesis_only=False)
+    max_link_distance_metres=10000, tornadogenesis_only=False)
 
 WIND_TARGET_NAME = target_val_utils.target_params_to_name(
     min_lead_time_sec=1800, max_lead_time_sec=3600, min_link_distance_metres=0,

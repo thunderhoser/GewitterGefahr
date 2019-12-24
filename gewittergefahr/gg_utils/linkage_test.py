@@ -424,25 +424,30 @@ THESE_COLUMNS = [
 ]
 
 NUM_STORM_OBJECTS = len(STORM_TO_WINDS_TABLE.index)
+THESE_FLAGS = numpy.full(NUM_STORM_OBJECTS, False, dtype=bool)
+THESE_FLAGS[[1, 2, 4]] = True
 
-for this_column in THESE_COLUMNS:
-    STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(
-        **{this_column: THIS_NESTED_ARRAY}
-    )
+STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(**{
+    linkage.MERGING_PRED_FLAG_COLUMN: THESE_FLAGS
+})
+
+for col in THESE_COLUMNS:
+    STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(**{
+        col: THIS_NESTED_ARRAY
+    })
 
     for k in range(NUM_STORM_OBJECTS):
-        if this_column == linkage.WIND_STATION_IDS_COLUMN:
-            STORM_TO_WINDS_TABLE[this_column].values[k] = []
-        elif this_column == linkage.RELATIVE_EVENT_TIMES_COLUMN:
-            STORM_TO_WINDS_TABLE[this_column].values[k] = numpy.array(
-                [], dtype=int
-            )
-        elif this_column == linkage.MAIN_OBJECT_FLAGS_COLUMN:
-            STORM_TO_WINDS_TABLE[this_column].values[k] = numpy.array(
-                [], dtype=bool
-            )
+        if col == linkage.WIND_STATION_IDS_COLUMN:
+            STORM_TO_WINDS_TABLE[col].values[k] = []
+
+        elif col == linkage.RELATIVE_EVENT_TIMES_COLUMN:
+            STORM_TO_WINDS_TABLE[col].values[k] = numpy.array([], dtype=int)
+
+        elif col == linkage.MAIN_OBJECT_FLAGS_COLUMN:
+            STORM_TO_WINDS_TABLE[col].values[k] = numpy.array([], dtype=bool)
+
         else:
-            STORM_TO_WINDS_TABLE[this_column].values[k] = numpy.array([])
+            STORM_TO_WINDS_TABLE[col].values[k] = numpy.array([])
 
 STORM_ROW_TO_STATION_ID_STRINGS = {
     0: ['ii', 'iv', 'vi', 'viii'],
@@ -507,16 +512,15 @@ for this_storm_row in STORM_ROW_TO_STATION_ID_STRINGS:
     ] = WIND_TO_STORM_TABLE[linkage.LINKAGE_DISTANCE_COLUMN].values[
         these_wind_rows]
 
-    these_relative_times_sec = (
-        WIND_TO_STORM_TABLE[linkage.EVENT_TIME_COLUMN].values[
-            these_wind_rows] -
+    these_times_sec = (
+        WIND_TO_STORM_TABLE[linkage.EVENT_TIME_COLUMN].values[these_wind_rows] -
         STORM_TO_WINDS_TABLE[tracking_utils.VALID_TIME_COLUMN].values[
             this_storm_row]
     )
 
     STORM_TO_WINDS_TABLE[linkage.RELATIVE_EVENT_TIMES_COLUMN].values[
         this_storm_row
-    ] = these_relative_times_sec
+    ] = these_times_sec
 
     STORM_TO_WINDS_TABLE[linkage.MAIN_OBJECT_FLAGS_COLUMN].values[
         this_storm_row
@@ -555,36 +559,34 @@ for this_storm_row in ROW_TO_EARLY_KEEP_FLAGS:
         ROW_TO_EARLY_KEEP_FLAGS[this_storm_row], dtype=bool
     ))[0]
 
-    for this_column in THESE_COLUMNS:
-        this_array = EARLY_STORM_TO_WINDS_TABLE_PRELIM[this_column].values[
-            this_storm_row]
+    for col in THESE_COLUMNS:
+        vals = EARLY_STORM_TO_WINDS_TABLE_PRELIM[col].values[this_storm_row]
 
-        if isinstance(this_array, numpy.ndarray):
-            EARLY_STORM_TO_WINDS_TABLE_PRELIM[this_column].values[
-                this_storm_row
-            ] = this_array[these_indices]
-        else:
-            EARLY_STORM_TO_WINDS_TABLE_PRELIM[this_column].values[
-                this_storm_row
-            ] = [this_array[k] for k in these_indices]
+        if isinstance(vals, numpy.ndarray):
+            EARLY_STORM_TO_WINDS_TABLE_PRELIM[col].values[this_storm_row] = (
+                vals[these_indices]
+            )
+        if isinstance(vals, list):
+            EARLY_STORM_TO_WINDS_TABLE_PRELIM[col].values[this_storm_row] = [
+                vals[k] for k in these_indices
+            ]
 
 for this_storm_row in ROW_TO_LATE_KEEP_FLAGS:
     these_indices = numpy.where(numpy.array(
         ROW_TO_LATE_KEEP_FLAGS[this_storm_row], dtype=bool
     ))[0]
 
-    for this_column in THESE_COLUMNS:
-        this_array = LATE_STORM_TO_WINDS_TABLE_PRELIM[this_column].values[
-            this_storm_row]
+    for col in THESE_COLUMNS:
+        vals = LATE_STORM_TO_WINDS_TABLE_PRELIM[col].values[this_storm_row]
 
-        if isinstance(this_array, numpy.ndarray):
-            LATE_STORM_TO_WINDS_TABLE_PRELIM[this_column].values[
-                this_storm_row
-            ] = this_array[these_indices]
-        else:
-            LATE_STORM_TO_WINDS_TABLE_PRELIM[this_column].values[
-                this_storm_row
-            ] = [this_array[k] for k in these_indices]
+        if isinstance(vals, numpy.ndarray):
+            LATE_STORM_TO_WINDS_TABLE_PRELIM[col].values[this_storm_row] = (
+                vals[these_indices]
+            )
+        if isinstance(vals, list):
+            LATE_STORM_TO_WINDS_TABLE_PRELIM[col].values[this_storm_row] = [
+                vals[k] for k in these_indices
+            ]
 
 EARLY_STORM_TO_WINDS_TABLE_PRELIM = EARLY_STORM_TO_WINDS_TABLE_PRELIM.loc[
     EARLY_STORM_TO_WINDS_TABLE_PRELIM[tracking_utils.VALID_TIME_COLUMN] <= 5
@@ -790,9 +792,9 @@ def compare_storm_to_events_tables(first_table, second_table):
     if len(first_table.index) != len(second_table.index):
         return False
 
-    string_columns = [
+    scalar_columns = [
         tracking_utils.PRIMARY_ID_COLUMN, tracking_utils.SECONDARY_ID_COLUMN,
-        tracking_utils.FULL_ID_COLUMN
+        tracking_utils.FULL_ID_COLUMN, linkage.MERGING_PRED_FLAG_COLUMN
     ]
     exact_array_columns = [
         linkage.RELATIVE_EVENT_TIMES_COLUMN, linkage.MAIN_OBJECT_FLAGS_COLUMN,
@@ -812,7 +814,7 @@ def compare_storm_to_events_tables(first_table, second_table):
             if this_column == linkage.LINKAGE_DISTANCES_COLUMN:
                 continue
 
-            if this_column in string_columns:
+            if this_column in scalar_columns:
                 if (first_table[this_column].values[i] !=
                         second_table[this_column].values[i]):
                     return False

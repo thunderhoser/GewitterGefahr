@@ -100,8 +100,8 @@ SECOND_METADATA_DICT = FIRST_METADATA_DICT
 SECOND_PREDICTOR_MATRICES = FIRST_PREDICTOR_MATRICES
 SECOND_SEPARATE_HEIGHTS_FLAG = True
 SECOND_NICE_PREDICTOR_NAMES = [
-    'Reflectivity at 2000 m AGL', 'Reflectivity at 6000 m AGL',
-    'Reflectivity at 10000 m AGL', 'Low-level shear', 'Mid-level shear',
+    'Reflectivity at 2 km AGL', 'Reflectivity at 6 km AGL',
+    'Reflectivity at 10 km AGL', 'Low-level shear', 'Mid-level shear',
     'Temperature', 'Relative humidity'
 ]
 
@@ -130,8 +130,8 @@ FOURTH_METADATA_DICT = THIRD_METADATA_DICT
 FOURTH_PREDICTOR_MATRICES = THIRD_PREDICTOR_MATRICES
 FOURTH_SEPARATE_HEIGHTS_FLAG = True
 FOURTH_NICE_PREDICTOR_NAMES = [
-    'Reflectivity at 2000 m AGL', 'Reflectivity at 6000 m AGL',
-    'Reflectivity at 10000 m AGL', 'Low-level shear', 'Mid-level shear'
+    'Reflectivity at 2 km AGL', 'Reflectivity at 6 km AGL',
+    'Reflectivity at 10 km AGL', 'Low-level shear', 'Mid-level shear'
 ]
 
 THIS_TRAINING_OPTION_DICT = {
@@ -152,8 +152,8 @@ FIFTH_PREDICTOR_MATRICES = [
 ]
 FIFTH_SEPARATE_HEIGHTS_FLAG = False
 FIFTH_NICE_PREDICTOR_NAMES = [
-    'Reflectivity at 2000 m AGL', 'Reflectivity at 6000 m AGL',
-    'Reflectivity at 10000 m AGL', 'Low-level shear', 'Mid-level shear'
+    'Reflectivity at 2 km AGL', 'Reflectivity at 6 km AGL',
+    'Reflectivity at 10 km AGL', 'Low-level shear', 'Mid-level shear'
 ]
 
 SIXTH_METADATA_DICT = FIFTH_METADATA_DICT
@@ -182,9 +182,9 @@ EIGHTH_METADATA_DICT = SEVENTH_METADATA_DICT
 EIGHTH_PREDICTOR_MATRICES = SEVENTH_PREDICTOR_MATRICES
 EIGHTH_SEPARATE_HEIGHTS_FLAG = True
 EIGHTH_NICE_PREDICTOR_NAMES = [
-    'Reflectivity at 2000 m AGL', 'Reflectivity at 6000 m AGL',
-    'Reflectivity at 10000 m AGL', 'Vorticity at 2000 m AGL',
-    'Vorticity at 6000 m AGL', 'Vorticity at 10000 m AGL',
+    'Reflectivity at 2 km AGL', 'Reflectivity at 6 km AGL',
+    'Reflectivity at 10 km AGL', 'Vorticity at 2 km AGL',
+    'Vorticity at 6 km AGL', 'Vorticity at 10 km AGL',
     'Temperature', 'Relative humidity'
 ]
 
@@ -228,8 +228,8 @@ NINTH_METADATA_DICT = {
 }
 NINTH_PREDICTOR_MATRICES = [RADAR_MATRIX_2D, SOUNDING_MATRIX]
 NINTH_NICE_PREDICTOR_NAMES = [
-    'Vorticity; MIN from 6000-10000 m AGL',
-    'Reflectivity; MAX from 2000-6000 m AGL',
+    'Vorticity; MIN from 6-10 km AGL',
+    'Reflectivity; MAX from 2-6 km AGL',
     'Temperature', 'Relative humidity'
 ]
 

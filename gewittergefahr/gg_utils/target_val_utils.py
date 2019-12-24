@@ -4,6 +4,7 @@ import os.path
 import numpy
 import netCDF4
 from gewittergefahr.gg_io import netcdf_io
+from gewittergefahr.gg_io import tornado_io
 from gewittergefahr.gg_utils import linkage
 from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import time_conversion
@@ -18,9 +19,9 @@ KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 INVALID_STORM_INTEGER = -1
 DEAD_STORM_INTEGER = -2
 
-LINKAGE_DISTANCE_PRECISION_METRES = 1.
+DISTANCE_PRECISION_METRES = 1.
 PERCENTILE_LEVEL_PRECISION = 0.1
-WIND_SPEED_CUTOFF_PRECISION_KT = 1.
+WIND_SPEED_PRECISION_KT = 1.
 
 DEFAULT_MIN_LEAD_TIME_SEC = 0
 DEFAULT_MAX_LEAD_TIME_SEC = 86400
@@ -33,6 +34,7 @@ MIN_LEAD_TIME_KEY = 'min_lead_time_sec'
 MAX_LEAD_TIME_KEY = 'max_lead_time_sec'
 MIN_LINKAGE_DISTANCE_KEY = 'min_link_distance_metres'
 MAX_LINKAGE_DISTANCE_KEY = 'max_link_distance_metres'
+MIN_FUJITA_RATING_KEY = 'min_fujita_rating'
 PERCENTILE_LEVEL_KEY = 'wind_speed_percentile_level'
 WIND_SPEED_CUTOFFS_KEY = 'wind_speed_cutoffs_kt'
 EVENT_TYPE_KEY = 'event_type'
@@ -75,7 +77,7 @@ def _check_learning_goal(goal_string):
 
 def _check_target_params(
         min_lead_time_sec, max_lead_time_sec, min_link_distance_metres,
-        max_link_distance_metres, genesis_only=None,
+        max_link_distance_metres, tornadogenesis_only=None, min_fujita_rating=0,
         wind_speed_percentile_level=None, wind_speed_cutoffs_kt=None):
     """Error-checks parameters for target variable.
 
@@ -89,20 +91,25 @@ def _check_target_params(
         outside the storm cell.  If `min_link_distance_metres` = 0, events
         inside the storm cell will also be permitted.
     :param max_link_distance_metres: See above.
-    :param genesis_only: Boolean flag.  If True, labels are for tornadogenesis
-        only.  If False, labels are for tornado occurrence.
-    :param wind_speed_percentile_level: Percentile level for wind speed.  For
-        each storm object s, the target value will be based on the [q]th
-        percentile, where q = `wind_speed_percentile_level`, of all wind speeds
-        linked to s.
-    :param wind_speed_cutoffs_kt: 1-D numpy array of cutoffs (knots) for wind-
-        speed classification.  The lower bound of the first bin will always be
-        0 kt, and the upper bound of the last bin will always be infinity, so
-        these values do not need to be included.
+    :param tornadogenesis_only: Boolean flag.  If True, labels are for
+        tornadogenesis.  If False, labels are for occurrence (pre-existing
+        tornado or genesis).  If None, labels are for wind speed.
+    :param min_fujita_rating: [used if `tornadogenesis_only == True`]
+        Minimum Fujita rating (integer).
+    :param wind_speed_percentile_level: [used if `tornadogenesis_only == False`]
+        Percentile level for wind speed.  For each storm object s, the target
+        value will be based on the [q]th percentile, where
+        q = `wind_speed_percentile_level`, of all wind speeds linked to s.
+    :param wind_speed_cutoffs_kt: [used if `tornadogenesis_only == False`]
+        1-D numpy array of cutoffs (knots) for wind-speed classification.  The
+        lower bound of the first bin will always be 0 kt, and the upper bound of
+        the last bin will always be infinity, so these values do not need to be
+        included.
 
     :return: target_param_dict: Dictionary with the following keys.
     target_param_dict['min_link_distance_metres']: Rounded version of input.
     target_param_dict['min_link_distance_metres']: Rounded version of input.
+    target_param_dict['min_fujita_rating']: See input.
     target_param_dict['wind_speed_percentile_level']: Rounded version of input.
     target_param_dict['wind_speed_cutoffs_kt']: Same as input, but including
         0 kt for lower bound of first bin and infinity for upper bound of last
@@ -115,34 +122,41 @@ def _check_target_params(
     error_checking.assert_is_geq(max_lead_time_sec, min_lead_time_sec)
 
     min_link_distance_metres = number_rounding.round_to_nearest(
-        min_link_distance_metres, LINKAGE_DISTANCE_PRECISION_METRES)
+        min_link_distance_metres, DISTANCE_PRECISION_METRES
+    )
     max_link_distance_metres = number_rounding.round_to_nearest(
-        max_link_distance_metres, LINKAGE_DISTANCE_PRECISION_METRES)
+        max_link_distance_metres, DISTANCE_PRECISION_METRES
+    )
 
     error_checking.assert_is_geq(min_link_distance_metres, 0.)
     error_checking.assert_is_geq(
-        max_link_distance_metres, min_link_distance_metres)
+        max_link_distance_metres, min_link_distance_metres
+    )
 
-    if genesis_only is not None:
-        error_checking.assert_is_boolean(genesis_only)
+    if tornadogenesis_only is not None:
+        error_checking.assert_is_boolean(tornadogenesis_only)
+        error_checking.assert_is_integer(min_fujita_rating)
+        error_checking.assert_is_geq(min_fujita_rating, 0)
+        error_checking.assert_is_leq(min_fujita_rating, 5)
 
         return {
             MIN_LINKAGE_DISTANCE_KEY: min_link_distance_metres,
             MAX_LINKAGE_DISTANCE_KEY: max_link_distance_metres,
+            MIN_FUJITA_RATING_KEY: min_fujita_rating,
             PERCENTILE_LEVEL_KEY: None,
             WIND_SPEED_CUTOFFS_KEY: None
         }
 
     wind_speed_percentile_level = number_rounding.round_to_nearest(
-        wind_speed_percentile_level, PERCENTILE_LEVEL_PRECISION)
-
+        wind_speed_percentile_level, PERCENTILE_LEVEL_PRECISION
+    )
     error_checking.assert_is_geq(wind_speed_percentile_level, 0.)
     error_checking.assert_is_leq(wind_speed_percentile_level, 100.)
 
     if wind_speed_cutoffs_kt is not None:
         wind_speed_cutoffs_kt = number_rounding.round_to_nearest(
-            wind_speed_cutoffs_kt, WIND_SPEED_CUTOFF_PRECISION_KT)
-
+            wind_speed_cutoffs_kt, WIND_SPEED_PRECISION_KT
+        )
         wind_speed_cutoffs_kt = classifn_utils.classification_cutoffs_to_ranges(
             wind_speed_cutoffs_kt, non_negative_only=True
         )[0]
@@ -198,7 +212,7 @@ def _find_dead_storms(storm_to_events_table, min_lead_time_sec):
 
 def target_params_to_name(
         min_lead_time_sec, max_lead_time_sec, min_link_distance_metres,
-        max_link_distance_metres, genesis_only=None,
+        max_link_distance_metres, tornadogenesis_only=None, min_fujita_rating=0,
         wind_speed_percentile_level=None, wind_speed_cutoffs_kt=None):
     """Creates name for target variable.
 
@@ -206,7 +220,8 @@ def target_params_to_name(
     :param max_lead_time_sec: Same.
     :param min_link_distance_metres: Same.
     :param max_link_distance_metres: Same.
-    :param genesis_only: Same.
+    :param tornadogenesis_only: Same.
+    :param min_fujita_rating: Same.
     :param wind_speed_percentile_level: Same.
     :param wind_speed_cutoffs_kt: Same.
     :return: target_name: Name of target variable.
@@ -217,7 +232,8 @@ def target_params_to_name(
         max_lead_time_sec=max_lead_time_sec,
         min_link_distance_metres=min_link_distance_metres,
         max_link_distance_metres=max_link_distance_metres,
-        genesis_only=genesis_only,
+        tornadogenesis_only=tornadogenesis_only,
+        min_fujita_rating=min_fujita_rating,
         wind_speed_percentile_level=wind_speed_percentile_level,
         wind_speed_cutoffs_kt=wind_speed_cutoffs_kt)
 
@@ -226,24 +242,29 @@ def target_params_to_name(
     wind_speed_percentile_level = target_param_dict[PERCENTILE_LEVEL_KEY]
     wind_speed_cutoffs_kt = target_param_dict[WIND_SPEED_CUTOFFS_KEY]
 
-    if genesis_only is None:
+    if tornadogenesis_only is None:
         target_name = (
-            WIND_SPEED_REGRESSION_PREFIX
-            if wind_speed_cutoffs_kt is None
+            WIND_SPEED_REGRESSION_PREFIX if wind_speed_cutoffs_kt is None
             else WIND_SPEED_CLASSIFN_PREFIX
         )
 
         target_name += '_percentile={0:05.1f}'.format(
-            wind_speed_percentile_level)
+            wind_speed_percentile_level
+        )
     else:
-        target_name = TORNADOGENESIS_PREFIX if genesis_only else TORNADO_PREFIX
+        target_name = (
+            TORNADOGENESIS_PREFIX if tornadogenesis_only else TORNADO_PREFIX
+        )
 
     target_name += (
         '_lead-time={0:04d}-{1:04d}sec_distance={2:05d}-{3:05d}m'
     ).format(
-        min_lead_time_sec, max_lead_time_sec, int(min_link_distance_metres),
-        int(max_link_distance_metres)
+        min_lead_time_sec, max_lead_time_sec,
+        int(min_link_distance_metres), int(max_link_distance_metres)
     )
+
+    if tornadogenesis_only is not None:
+        target_name += '_min-fujita={0:d}'.format(min_fujita_rating)
 
     if wind_speed_cutoffs_kt is not None:
         cutoff_string = '-'.join(
@@ -264,90 +285,101 @@ def target_name_to_params(target_name):
     target_param_dict['max_lead_time_sec']: Same.
     target_param_dict['min_link_distance_metres']: Same.
     target_param_dict['max_link_distance_metres']: Same.
+    target_param_dict['min_fujita_rating']: Same.
     target_param_dict['wind_speed_percentile_level']: Same.
     target_param_dict['wind_speed_cutoffs_kt']: Same.
     target_param_dict['event_type_string']: Event type (one of the strings
         accepted by `linkage.check_event_type`).
     """
 
-    target_name_parts = target_name.split('_')
+    words = target_name.split('_')
 
     # Determine event type and learning goal (regression or classification).
-    if target_name_parts[0] == WIND_SPEED_REGRESSION_PREFIX:
+    if words[0] == WIND_SPEED_REGRESSION_PREFIX:
         goal_string = REGRESSION_STRING
         event_type_string = linkage.WIND_EVENT_STRING
-        if len(target_name_parts) != 4:
+
+        if len(words) != 4:
             return None
 
-    elif target_name_parts[0] == WIND_SPEED_CLASSIFN_PREFIX:
+    elif words[0] == WIND_SPEED_CLASSIFN_PREFIX:
         goal_string = CLASSIFICATION_STRING
         event_type_string = linkage.WIND_EVENT_STRING
-        if len(target_name_parts) != 5:
+
+        if len(words) != 5:
             return None
 
-    elif target_name_parts[0] == TORNADO_PREFIX:
+    elif words[0] == TORNADO_PREFIX:
         goal_string = CLASSIFICATION_STRING
         event_type_string = linkage.TORNADO_EVENT_STRING
-        if len(target_name_parts) != 3:
-            return None
-
-    elif target_name_parts[0] == TORNADOGENESIS_PREFIX:
+    elif words[0] == TORNADOGENESIS_PREFIX:
         goal_string = CLASSIFICATION_STRING
         event_type_string = linkage.TORNADOGENESIS_EVENT_STRING
-        if len(target_name_parts) != 3:
+    else:
+        return None
+
+    tornado = event_type_string in [
+        linkage.TORNADO_EVENT_STRING, linkage.TORNADOGENESIS_EVENT_STRING
+    ]
+    min_fujita_rating = 0
+
+    if tornado and len(words) == 4:
+        these_subwords = words[-1].split('=')
+        if these_subwords[0] != 'min-fujita':
             return None
 
-    else:
+        try:
+            min_fujita_rating = int(these_subwords[1])
+        except ValueError:
+            return None
+
+        words = words[:-1]
+
+    if tornado and len(words) != 3:
         return None
 
     # Determine percentile level for wind speed.
     wind_speed_percentile_level = None
 
     if event_type_string == linkage.WIND_EVENT_STRING:
-        if not target_name_parts[1].startswith('percentile='):
+        these_subwords = words[1].split('=')
+        if these_subwords[0] != 'percentile':
             return None
 
         try:
-            wind_speed_percentile_level = float(
-                target_name_parts[1].replace('percentile=', ''))
+            wind_speed_percentile_level = float(these_subwords[1])
         except ValueError:
             return None
 
-        target_name_parts.remove(target_name_parts[1])
+        words.remove(words[1])
 
-    # Determine min/max lead times.
-    if not target_name_parts[1].startswith('lead-time='):
+    # Determine lead-time window.
+    these_subwords = words[1].split('=')
+    if these_subwords[0] != 'lead-time':
+        return None
+    if not these_subwords[1].endswith('sec'):
         return None
 
-    if not target_name_parts[1].endswith('sec'):
-        return None
-
-    lead_time_parts = target_name_parts[1].replace(
-        'lead-time=', '').replace('sec', '').split('-')
-    if len(lead_time_parts) != 2:
-        return None
+    lead_time_words = these_subwords[1].replace('sec', '').split('-')
 
     try:
-        min_lead_time_sec = int(lead_time_parts[0])
-        max_lead_time_sec = int(lead_time_parts[1])
+        min_lead_time_sec = int(lead_time_words[0])
+        max_lead_time_sec = int(lead_time_words[1])
     except ValueError:
         return None
 
-    # Determine min/max linkage distances.
-    if not target_name_parts[2].startswith('distance='):
+    # Determine min/max linkage distance.
+    these_subwords = words[2].split('=')
+    if these_subwords[0] != 'distance':
+        return None
+    if not these_subwords[1].endswith('m'):
         return None
 
-    if not target_name_parts[2].endswith('m'):
-        return None
-
-    distance_parts = target_name_parts[2].replace(
-        'distance=', '').replace('m', '').split('-')
-    if len(distance_parts) != 2:
-        return None
+    distance_words = these_subwords[1].replace('m', '').split('-')
 
     try:
-        min_link_distance_metres = float(int(distance_parts[0]))
-        max_link_distance_metres = float(int(distance_parts[1]))
+        min_link_distance_metres = float(int(distance_words[0]))
+        max_link_distance_metres = float(int(distance_words[1]))
     except ValueError:
         return None
 
@@ -356,28 +388,32 @@ def target_name_to_params(target_name):
         MAX_LEAD_TIME_KEY: max_lead_time_sec,
         MIN_LINKAGE_DISTANCE_KEY: min_link_distance_metres,
         MAX_LINKAGE_DISTANCE_KEY: max_link_distance_metres,
+        MIN_FUJITA_RATING_KEY: min_fujita_rating,
         PERCENTILE_LEVEL_KEY: wind_speed_percentile_level,
         WIND_SPEED_CUTOFFS_KEY: None,
         EVENT_TYPE_KEY: event_type_string
     }
 
-    if not (event_type_string == linkage.WIND_EVENT_STRING and
-            goal_string == CLASSIFICATION_STRING):
+    wind_classifn = (
+        event_type_string == linkage.WIND_EVENT_STRING and
+        goal_string == CLASSIFICATION_STRING
+    )
+
+    if not wind_classifn:
         return target_param_dict
 
-    if not target_name_parts[3].startswith('cutoffs='):
+    these_subwords = words[3].split('=')
+    if these_subwords[0] != 'cutoffs':
+        return None
+    if not these_subwords[1].endswith('kt'):
         return None
 
-    if not target_name_parts[3].endswith('kt'):
-        return None
-
-    cutoff_parts = target_name_parts[3].replace(
-        'cutoffs=', '').replace('kt', '').split('-')
+    cutoff_words = these_subwords[1].replace('kt', '').split('-')
 
     try:
-        target_param_dict[WIND_SPEED_CUTOFFS_KEY] = numpy.array(
-            [int(c) for c in cutoff_parts]
-        ).astype(float)
+        target_param_dict[WIND_SPEED_CUTOFFS_KEY] = numpy.array([
+            int(c) for c in cutoff_words
+        ], dtype=float)
     except ValueError:
         return None
 
@@ -417,7 +453,7 @@ def create_wind_regression_targets(
         max_lead_time_sec=DEFAULT_MAX_LEAD_TIME_SEC,
         min_link_distance_metres=DEFAULT_MIN_LINK_DISTANCE_METRES,
         max_link_distance_metres=DEFAULT_MAX_LINK_DISTANCE_METRES,
-        percentile_level=DEFAULT_WIND_SPEED_PERCENTILE_LEVEL):
+        percentile_level=DEFAULT_WIND_SPEED_PERCENTILE_LEVEL, test_mode=False):
     """For each storm object, creates regression target based on wind speed.
 
     :param storm_to_winds_table: See doc for `linkage.read_linkage_file`.
@@ -426,10 +462,16 @@ def create_wind_regression_targets(
     :param min_link_distance_metres: Same.
     :param max_link_distance_metres: Same.
     :param percentile_level: Same.
+    :param test_mode: Just leave this alone.
     :return: storm_to_winds_table: Same as input, but with additional column
         containing target values.  The name of this column is determined by
         `target_params_to_name`.
     """
+
+    error_checking.assert_is_boolean(test_mode)
+    if not test_mode:
+        error_string = 'This method does not yet handle merging predecessors!'
+        raise ValueError(error_string)
 
     target_param_dict = _check_target_params(
         min_lead_time_sec=min_lead_time_sec,
@@ -512,7 +554,7 @@ def create_wind_classification_targets(
         min_link_distance_metres=DEFAULT_MIN_LINK_DISTANCE_METRES,
         max_link_distance_metres=DEFAULT_MAX_LINK_DISTANCE_METRES,
         percentile_level=DEFAULT_WIND_SPEED_PERCENTILE_LEVEL,
-        class_cutoffs_kt=DEFAULT_WIND_SPEED_CUTOFFS_KT):
+        class_cutoffs_kt=DEFAULT_WIND_SPEED_CUTOFFS_KT, test_mode=False):
     """For each storm object, creates classification target based on wind speed.
 
     :param storm_to_winds_table: See doc for `linkage.read_linkage_file`.
@@ -522,6 +564,7 @@ def create_wind_classification_targets(
     :param max_link_distance_metres: Same.
     :param percentile_level: Same.
     :param class_cutoffs_kt: Same.
+    :param test_mode: Just leave this alone.
     :return: storm_to_winds_table: Same as input, but with additional column
         containing target values.  The name of this column is determined by
         `target_params_to_name`.
@@ -544,7 +587,7 @@ def create_wind_classification_targets(
         max_lead_time_sec=max_lead_time_sec,
         min_link_distance_metres=min_link_distance_metres,
         max_link_distance_metres=max_link_distance_metres,
-        percentile_level=percentile_level)
+        percentile_level=percentile_level, test_mode=test_mode)
 
     target_name = target_params_to_name(
         min_lead_time_sec=min_lead_time_sec,
@@ -589,7 +632,7 @@ def create_tornado_targets(
         max_lead_time_sec=DEFAULT_MAX_LEAD_TIME_SEC,
         min_link_distance_metres=DEFAULT_MIN_LINK_DISTANCE_METRES,
         max_link_distance_metres=DEFAULT_MAX_LINK_DISTANCE_METRES,
-        genesis_only=True):
+        genesis_only=True, min_fujita_rating=0):
     """For each storm object, creates target based on tornado occurrence.
 
     :param storm_to_tornadoes_table: See doc for `linkage.read_linkage_file`.
@@ -598,17 +641,21 @@ def create_tornado_targets(
     :param min_link_distance_metres: Same.
     :param max_link_distance_metres: Same.
     :param genesis_only: Same.
+    :param min_fujita_rating: Same.
     :return: storm_to_tornadoes_table: Same as input, but with additional column
         containing target values.  The name of this column is determined by
         `target_params_to_name`.
     """
+
+    num_storm_objects = len(storm_to_tornadoes_table.index)
 
     target_param_dict = _check_target_params(
         min_lead_time_sec=min_lead_time_sec,
         max_lead_time_sec=max_lead_time_sec,
         min_link_distance_metres=min_link_distance_metres,
         max_link_distance_metres=max_link_distance_metres,
-        genesis_only=genesis_only)
+        tornadogenesis_only=genesis_only,
+        min_fujita_rating=min_fujita_rating)
 
     min_link_distance_metres = target_param_dict[MIN_LINKAGE_DISTANCE_KEY]
     max_link_distance_metres = target_param_dict[MAX_LINKAGE_DISTANCE_KEY]
@@ -621,32 +668,56 @@ def create_tornado_targets(
         '{0:d} of {1:d} storm objects occur within {2:d} seconds of end '
         'of tracking period.'
     ).format(
-        len(end_of_period_indices), len(storm_to_tornadoes_table.index),
-        max_lead_time_sec
+        len(end_of_period_indices), num_storm_objects, max_lead_time_sec
     ))
 
-    num_storm_objects = len(storm_to_tornadoes_table.index)
+    merging_predecessor_indices = numpy.where(
+        storm_to_tornadoes_table[linkage.MERGING_PRED_FLAG_COLUMN].values
+    )[0]
+
+    print((
+        '{0:d} of {1:d} storm objects are merging predecessors.'
+    ).format(
+        len(merging_predecessor_indices), num_storm_objects
+    ))
+
+    invalid_null_indices = numpy.concatenate((
+        end_of_period_indices, merging_predecessor_indices
+    ))
     tornado_classes = numpy.full(num_storm_objects, -1, dtype=int)
 
     for i in range(num_storm_objects):
         these_relative_times_sec = storm_to_tornadoes_table[
-            linkage.RELATIVE_EVENT_TIMES_COLUMN].values[i]
+            linkage.RELATIVE_EVENT_TIMES_COLUMN
+        ].values[i]
+
         these_link_distances_metres = storm_to_tornadoes_table[
-            linkage.LINKAGE_DISTANCES_COLUMN].values[i]
+            linkage.LINKAGE_DISTANCES_COLUMN
+        ].values[i]
+
+        these_fujita_ratings = numpy.array([
+            tornado_io.fujita_string_to_int(f) for f in
+            storm_to_tornadoes_table[linkage.FUJITA_RATINGS_COLUMN].values[i]
+        ], dtype=int)
 
         these_good_time_flags = numpy.logical_and(
             these_relative_times_sec >= min_lead_time_sec,
-            these_relative_times_sec <= max_lead_time_sec)
-
+            these_relative_times_sec <= max_lead_time_sec
+        )
         these_good_distance_flags = numpy.logical_and(
             these_link_distances_metres >= min_link_distance_metres,
-            these_link_distances_metres <= max_link_distance_metres)
+            these_link_distances_metres <= max_link_distance_metres
+        )
+        these_good_spacetime_flags = numpy.logical_and(
+            these_good_time_flags, these_good_distance_flags
+        )
 
         tornado_classes[i] = numpy.any(numpy.logical_and(
-            these_good_time_flags, these_good_distance_flags
+            these_good_spacetime_flags,
+            these_fujita_ratings >= min_fujita_rating
         ))
 
-        if i in end_of_period_indices and tornado_classes[i] == 0:
+        if i in invalid_null_indices and tornado_classes[i] == 0:
             tornado_classes[i] = INVALID_STORM_INTEGER
 
     target_name = target_params_to_name(
@@ -654,7 +725,8 @@ def create_tornado_targets(
         max_lead_time_sec=max_lead_time_sec,
         min_link_distance_metres=min_link_distance_metres,
         max_link_distance_metres=max_link_distance_metres,
-        genesis_only=genesis_only)
+        tornadogenesis_only=genesis_only,
+        min_fujita_rating=min_fujita_rating)
 
     print((
         'Number of storm objects = {0:d} ... number with positive "{1:s}" label'

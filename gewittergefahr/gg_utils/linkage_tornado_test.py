@@ -19,13 +19,8 @@ INTERP_TIME_INTERVAL_SEC = 1
 STORM_OBJECT_TABLE = linkage_test.create_storm_objects()
 
 THESE_START_TIMES_UNIX_SEC = numpy.array([1, 5, 5, 5, 60], dtype=int)
-# THESE_END_TIMES_UNIX_SEC = numpy.array([11, 10, 12, 14, 60], dtype=int)
-
 THESE_START_LATITUDES_DEG = numpy.array([59.5, 61, 51, 49, 89])
-# THESE_END_LATITUDES_DEG = numpy.array([59.5, 66, 58, 58, 89])
-
 THESE_START_LONGITUDES_DEG = numpy.array([271, 275, 242.5, 242.5, 300])
-# THESE_END_LONGITUDES_DEG = numpy.array([281, 275, 242.5, 242.5, 300])
 
 THESE_FUJITA_STRINGS = ['EF1', 'EF2', 'EF3', 'EF4', 'EF5']
 
@@ -116,6 +111,14 @@ TORNADO_TO_STORM_TABLE = TORNADO_TABLE.assign(**{
 # The following constants are used to test _reverse_tornado_linkages.
 STORM_TO_TORNADOES_TABLE = copy.deepcopy(STORM_OBJECT_TABLE)
 
+NUM_STORM_OBJECTS = len(STORM_TO_TORNADOES_TABLE.index)
+THESE_FLAGS = numpy.full(NUM_STORM_OBJECTS, False, dtype=bool)
+THESE_FLAGS[[1, 2, 4, 9, 10, 13, 16, 17]] = True
+
+STORM_TO_TORNADOES_TABLE = STORM_TO_TORNADOES_TABLE.assign(**{
+    linkage.MERGING_PRED_FLAG_COLUMN: THESE_FLAGS
+})
+
 THIS_NESTED_ARRAY = STORM_TO_TORNADOES_TABLE[[
     tracking_utils.VALID_TIME_COLUMN, tracking_utils.VALID_TIME_COLUMN
 ]].values.tolist()
@@ -126,8 +129,6 @@ THESE_COLUMNS = [
     linkage.LINKAGE_DISTANCES_COLUMN, linkage.RELATIVE_EVENT_TIMES_COLUMN,
     linkage.MAIN_OBJECT_FLAGS_COLUMN
 ]
-
-NUM_STORM_OBJECTS = len(STORM_TO_TORNADOES_TABLE.index)
 
 for this_column in THESE_COLUMNS:
     STORM_TO_TORNADOES_TABLE = STORM_TO_TORNADOES_TABLE.assign(
@@ -342,6 +343,8 @@ class LinkageTests(unittest.TestCase):
         this_storm_to_tornadoes_table = linkage._reverse_tornado_linkages(
             storm_object_table=STORM_OBJECT_TABLE,
             tornado_to_storm_table=TORNADO_TO_STORM_TABLE)
+
+        print(this_storm_to_tornadoes_table[linkage.MERGING_PRED_FLAG_COLUMN])
 
         self.assertTrue(linkage_test.compare_storm_to_events_tables(
             this_storm_to_tornadoes_table, STORM_TO_TORNADOES_TABLE

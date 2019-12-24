@@ -64,6 +64,17 @@ def _is_valid_fujita_rating(fujita_rating_string):
     return False
 
 
+def fujita_string_to_int(fujita_rating_string):
+    """Converts Fujita rating from string to integer.
+
+    :param fujita_rating_string: See doc for `_is_valid_fujita_rating`.
+    :return: fujita_rating_int: Corresponding integer.
+    """
+
+    _is_valid_fujita_rating(fujita_rating_string)
+    return int(fujita_rating_string[-1])
+
+
 def create_tornado_id(start_time_unix_sec, start_latitude_deg,
                       start_longitude_deg):
     """Creates tornado ID.

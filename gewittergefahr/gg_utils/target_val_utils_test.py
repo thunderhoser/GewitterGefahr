@@ -43,6 +43,9 @@ DEAD_STORM_INDICES = numpy.array([2, 3, 7], dtype=int)
 MIN_LEAD_TIME_SEC = 900
 MIN_LINK_DISTANCE_METRES = 1.
 MAX_LINK_DISTANCE_METRES = 5000.
+MIN_FUJITA_FOR_OCCURRENCE = 0
+MIN_FUJITA_FOR_GENESIS = 2
+
 WIND_SPEED_PERCENTILE_LEVEL = 97.5
 WIND_SPEED_CUTOFFS_KT = numpy.array([10, 20, 30, 40, 50], dtype=float)
 
@@ -54,11 +57,14 @@ WIND_CLASSIFICATION_NAME = (
     'wind-speed_percentile=097.5_lead-time=0900-3600sec_distance=00001-05000m'
     '_cutoffs=10-20-30-40-50kt'
 )
-TORNADO_TARGET_NAME = (
+TORNADO_TARGET_NAME_OLD = (
     'tornado_lead-time=0900-3600sec_distance=00001-05000m'
 )
+TORNADO_TARGET_NAME = (
+    'tornado_lead-time=0900-3600sec_distance=00001-05000m_min-fujita=0'
+)
 TORNADOGENESIS_TARGET_NAME = (
-    'tornadogenesis_lead-time=0900-3600sec_distance=00001-05000m'
+    'tornadogenesis_lead-time=0900-3600sec_distance=00001-05000m_min-fujita=2'
 )
 WIND_CLASSIFICATION_NAME_0LEAD = (
     'wind-speed_percentile=097.5_lead-time=0000-3600sec_distance=00001-05000m'
@@ -71,6 +77,7 @@ WIND_REGRESSION_PARAM_DICT = {
     target_val_utils.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
     target_val_utils.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
     target_val_utils.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    target_val_utils.MIN_FUJITA_RATING_KEY: 0,
     target_val_utils.PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
     target_val_utils.WIND_SPEED_CUTOFFS_KEY: None,
     target_val_utils.EVENT_TYPE_KEY: linkage.WIND_EVENT_STRING
@@ -81,6 +88,7 @@ WIND_CLASSIFICATION_PARAM_DICT = {
     target_val_utils.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
     target_val_utils.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
     target_val_utils.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    target_val_utils.MIN_FUJITA_RATING_KEY: 0,
     target_val_utils.PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
     target_val_utils.WIND_SPEED_CUTOFFS_KEY: WIND_SPEED_CUTOFFS_KT,
     target_val_utils.EVENT_TYPE_KEY: linkage.WIND_EVENT_STRING
@@ -91,6 +99,7 @@ TORNADO_PARAM_DICT = {
     target_val_utils.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
     target_val_utils.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
     target_val_utils.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    target_val_utils.MIN_FUJITA_RATING_KEY: MIN_FUJITA_FOR_OCCURRENCE,
     target_val_utils.PERCENTILE_LEVEL_KEY: None,
     target_val_utils.WIND_SPEED_CUTOFFS_KEY: None,
     target_val_utils.EVENT_TYPE_KEY: linkage.TORNADO_EVENT_STRING
@@ -101,6 +110,7 @@ TORNADOGENESIS_PARAM_DICT = {
     target_val_utils.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
     target_val_utils.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
     target_val_utils.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    target_val_utils.MIN_FUJITA_RATING_KEY: MIN_FUJITA_FOR_GENESIS,
     target_val_utils.PERCENTILE_LEVEL_KEY: None,
     target_val_utils.WIND_SPEED_CUTOFFS_KEY: None,
     target_val_utils.EVENT_TYPE_KEY: linkage.TORNADOGENESIS_EVENT_STRING
@@ -111,6 +121,7 @@ WIND_CLASSIFICATION_PARAM_DICT_0LEAD = {
     target_val_utils.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
     target_val_utils.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
     target_val_utils.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    target_val_utils.MIN_FUJITA_RATING_KEY: 0,
     target_val_utils.PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
     target_val_utils.WIND_SPEED_CUTOFFS_KEY: WIND_SPEED_CUTOFFS_KT,
     target_val_utils.EVENT_TYPE_KEY: linkage.WIND_EVENT_STRING
@@ -118,14 +129,17 @@ WIND_CLASSIFICATION_PARAM_DICT_0LEAD = {
 
 # The following constants are used to test create_tornado_targets.
 THESE_FULL_ID_STRINGS = ['a', 'c', 'a', 'b', 'c']
-THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 1, 1, 1], dtype=int)
+THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 1, 1], dtype=int)
 THESE_END_TIMES_UNIX_SEC = numpy.array(
     [3600, 3600, 3600, 3600, 3600], dtype=int
 )
+THESE_MERGING_FLAGS = numpy.array([0, 0, 1, 0, 0], dtype=bool)
 
 THESE_EVENT_LATITUDES_DEG = [numpy.full(2, 53.5)] * len(THESE_FULL_ID_STRINGS)
 THESE_EVENT_LONGITUDES_DEG = [numpy.full(2, 246.5)] * len(THESE_FULL_ID_STRINGS)
-THESE_FUJITA_RATINGS = [['F5', 'EF5']] * len(THESE_FULL_ID_STRINGS)
+THESE_FUJITA_RATINGS = [
+    ['F1', 'EF1'], ['F2', 'EF2'], ['F3', 'EF3'], ['F4', 'EF4'], ['F5', 'EF5']
+]
 
 THESE_LINK_DIST_METRES = [
     numpy.array([1000, 2000]), numpy.array([0, 0]),
@@ -138,13 +152,15 @@ THESE_RELATIVE_TIMES_UNIX_SEC = [
 
 for k in range(len(THESE_FULL_ID_STRINGS)):
     THESE_LINK_DIST_METRES[k] = THESE_LINK_DIST_METRES[k].astype(float)
-    THESE_RELATIVE_TIMES_UNIX_SEC[k] = THESE_RELATIVE_TIMES_UNIX_SEC[k].astype(
-        int)
+    THESE_RELATIVE_TIMES_UNIX_SEC[k] = numpy.round(
+        THESE_RELATIVE_TIMES_UNIX_SEC[k]
+    ).astype(int)
 
 THIS_DICT = {
     tracking_utils.FULL_ID_COLUMN: THESE_FULL_ID_STRINGS,
     tracking_utils.VALID_TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     tracking_utils.TRACKING_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
+    linkage.MERGING_PRED_FLAG_COLUMN: THESE_MERGING_FLAGS,
     linkage.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
     linkage.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
     linkage.LINKAGE_DISTANCES_COLUMN: THESE_LINK_DIST_METRES,
@@ -157,7 +173,9 @@ STORM_TO_TORNADOES_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 MAIN_TORNADO_TARGET_NAME = target_val_utils.target_params_to_name(
     min_lead_time_sec=MIN_LEAD_TIME_SEC, max_lead_time_sec=MAX_LEAD_TIME_SEC,
     min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
-    max_link_distance_metres=MAX_LINK_DISTANCE_METRES, genesis_only=False)
+    max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+    min_fujita_rating=MIN_FUJITA_FOR_OCCURRENCE, tornadogenesis_only=False
+)
 
 INVALID_STORM_INTEGER = target_val_utils.INVALID_STORM_INTEGER
 MAIN_TORNADO_TARGET_VALUES = numpy.array(
@@ -167,10 +185,12 @@ MAIN_TORNADO_TARGET_VALUES = numpy.array(
 MAIN_TORNADOGENESIS_TARGET_NAME = target_val_utils.target_params_to_name(
     min_lead_time_sec=MIN_LEAD_TIME_SEC, max_lead_time_sec=MAX_LEAD_TIME_SEC,
     min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
-    max_link_distance_metres=MAX_LINK_DISTANCE_METRES, genesis_only=True)
+    max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
+    min_fujita_rating=MIN_FUJITA_FOR_GENESIS, tornadogenesis_only=True
+)
 
 MAIN_TORNADOGENESIS_TARGET_VALUES = numpy.array(
-    [1, 0, INVALID_STORM_INTEGER, 1, INVALID_STORM_INTEGER], dtype=int
+    [0, 0, INVALID_STORM_INTEGER, 1, INVALID_STORM_INTEGER], dtype=int
 )
 
 # The following constants are used to test find_target_file.
@@ -240,18 +260,22 @@ class TargetValUtilsTests(unittest.TestCase):
 
         these_indices = target_val_utils._find_storms_near_end_of_period(
             storm_to_events_table=STORM_TO_EVENTS_TABLE_END_OF_PERIOD,
-            max_lead_time_sec=MAX_LEAD_TIME_SEC)
-
-        self.assertTrue(numpy.array_equal(these_indices, END_OF_PERIOD_INDICES))
+            max_lead_time_sec=MAX_LEAD_TIME_SEC
+        )
+        self.assertTrue(numpy.array_equal(
+            these_indices, END_OF_PERIOD_INDICES
+        ))
 
     def test_find_dead_storms(self):
         """Ensures correct output from _find_dead_storms."""
 
         these_indices = target_val_utils._find_dead_storms(
             storm_to_events_table=STORM_TO_EVENTS_TABLE_WITH_DEAD,
-            min_lead_time_sec=MIN_LEAD_TIME_FOR_DEAD_SEC)
-
-        self.assertTrue(numpy.array_equal(these_indices, DEAD_STORM_INDICES))
+            min_lead_time_sec=MIN_LEAD_TIME_FOR_DEAD_SEC
+        )
+        self.assertTrue(numpy.array_equal(
+            these_indices, DEAD_STORM_INDICES
+        ))
 
     def test_target_params_to_name_wind_regression(self):
         """Ensures correct output from target_params_to_name.
@@ -295,7 +319,8 @@ class TargetValUtilsTests(unittest.TestCase):
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
             max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
-            genesis_only=False)
+            tornadogenesis_only=False,
+            min_fujita_rating=MIN_FUJITA_FOR_OCCURRENCE)
 
         self.assertTrue(this_target_name == TORNADO_TARGET_NAME)
 
@@ -310,7 +335,7 @@ class TargetValUtilsTests(unittest.TestCase):
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
             max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
-            genesis_only=True)
+            tornadogenesis_only=True, min_fujita_rating=MIN_FUJITA_FOR_GENESIS)
 
         self.assertTrue(this_target_name == TORNADOGENESIS_TARGET_NAME)
 
@@ -368,6 +393,21 @@ class TargetValUtilsTests(unittest.TestCase):
             this_dict, TORNADO_PARAM_DICT
         ))
 
+    def test_target_name_to_params_tornado_old(self):
+        """Ensures correct output from target_name_to_params.
+
+        In this case, using old name for target variable based on tornado
+        occurrence.
+        """
+
+        this_dict = target_val_utils.target_name_to_params(
+            TORNADO_TARGET_NAME_OLD
+        )
+
+        self.assertTrue(_compare_target_param_dicts(
+            this_dict, TORNADO_PARAM_DICT
+        ))
+
     def test_target_name_to_params_tornadogenesis(self):
         """Ensures correct output from target_name_to_params.
 
@@ -408,7 +448,8 @@ class TargetValUtilsTests(unittest.TestCase):
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
             max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
-            genesis_only=False)
+            genesis_only=False, min_fujita_rating=MIN_FUJITA_FOR_OCCURRENCE
+        )
 
         self.assertTrue(numpy.array_equal(
             this_storm_to_tornadoes_table[MAIN_TORNADO_TARGET_NAME].values,
@@ -428,7 +469,8 @@ class TargetValUtilsTests(unittest.TestCase):
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
             max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
-            genesis_only=True)
+            genesis_only=True, min_fujita_rating=MIN_FUJITA_FOR_GENESIS
+        )
 
         self.assertTrue(numpy.array_equal(
             this_storm_to_tornadoes_table[
