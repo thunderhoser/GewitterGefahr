@@ -286,13 +286,14 @@ def plot_storm_ids(
 
 
 def _plot_one_track_segment(
-        storm_object_table_one_segment, axes_object, line_width,
+        storm_object_table_one_segment, axes_object, basemap_object, line_width,
         line_colour=None, colour_map_object=None, colour_norm_object=None):
     """Plots one track segment.
 
     :param storm_object_table_one_segment: Same as input for `plot_storm_tracks`,
         except that this table contains only two objects.
     :param axes_object: See doc for `plot_storm_outlines`.
+    :param basemap_object: Same.
     :param line_width: Track width.
     :param line_colour: Track colour.  This may be None.
     :param colour_map_object: [used only if `line_colour is None`]:
@@ -300,25 +301,34 @@ def _plot_one_track_segment(
     :param colour_norm_object: Normalizer for colour scheme.
     """
 
-    x_coords_metres = (
+    x_coords = (
         storm_object_table_one_segment[tracking_utils.CENTROID_X_COLUMN].values
     )
-    y_coords_metres = (
+    y_coords = (
         storm_object_table_one_segment[tracking_utils.CENTROID_Y_COLUMN].values
     )
 
     same_points = (
-        numpy.absolute(numpy.diff(x_coords_metres))[0] < TOLERANCE and
-        numpy.absolute(numpy.diff(y_coords_metres))[0] < TOLERANCE
+        numpy.absolute(numpy.diff(x_coords))[0] < TOLERANCE and
+        numpy.absolute(numpy.diff(y_coords))[0] < TOLERANCE
     )
 
     if same_points:
-        x_coords_metres[1] = x_coords_metres[0] + 1.
-        y_coords_metres[1] = y_coords_metres[0] + 1.
+        start_latitude_deg = storm_object_table_one_segment[
+            tracking_utils.CENTROID_LATITUDE_COLUMN
+        ].values[0]
+
+        start_longitude_deg = storm_object_table_one_segment[
+            tracking_utils.CENTROID_LONGITUDE_COLUMN
+        ].values[0]
+
+        latitudes_deg = start_latitude_deg + numpy.array([0, 0.02])
+        longitudes_deg = start_longitude_deg + numpy.array([0, 0.02])
+        x_coords, y_coords = basemap_object(longitudes_deg, latitudes_deg)
 
     if line_colour is None:
         point_matrix = numpy.array(
-            [x_coords_metres, y_coords_metres]
+            [x_coords, y_coords]
         ).T.reshape(-1, 1, 2)
 
         segment_matrix = numpy.concatenate(
@@ -340,19 +350,20 @@ def _plot_one_track_segment(
         axes_object.add_collection(this_line_collection_object)
     else:
         axes_object.plot(
-            x_coords_metres, y_coords_metres,
+            x_coords, y_coords,
             color=line_colour, linestyle='solid', linewidth=line_width
         )
 
 
 def _plot_one_track(
-        storm_object_table_one_track, axes_object, line_width,
+        storm_object_table_one_track, axes_object, basemap_object, line_width,
         line_colour=None, colour_map_object=None, colour_norm_object=None):
     """Plots one storm track.
 
     :param storm_object_table_one_track: Same as input for `plot_storm_tracks`,
         except that this table contains only one track (primary storm ID).
     :param axes_object: See doc for `plot_storm_outlines`.
+    :param basemap_object: Same.
     :param line_width: Track width.
     :param line_colour: Track colour.  This may be None.
     :param colour_map_object: [used only if `line_colour is None`]:
@@ -367,8 +378,9 @@ def _plot_one_track(
 
         _plot_one_track_segment(
             storm_object_table_one_segment=this_storm_object_table,
-            axes_object=axes_object, line_width=line_width,
-            line_colour=line_colour, colour_map_object=colour_map_object,
+            axes_object=axes_object, basemap_object=basemap_object,
+            line_width=line_width, line_colour=line_colour,
+            colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object)
 
         return
@@ -383,8 +395,9 @@ def _plot_one_track(
 
             _plot_one_track_segment(
                 storm_object_table_one_segment=this_storm_object_table,
-                axes_object=axes_object, line_width=line_width,
-                line_colour=line_colour, colour_map_object=colour_map_object,
+                axes_object=axes_object, basemap_object=basemap_object,
+                line_width=line_width, line_colour=line_colour,
+                colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object)
 
 
@@ -485,8 +498,9 @@ def plot_storm_tracks(
 
         _plot_one_track(
             storm_object_table_one_track=storm_object_table_one_track,
-            axes_object=axes_object, line_width=line_width,
-            line_colour=this_line_colour, colour_map_object=colour_map_object,
+            axes_object=axes_object, basemap_object=basemap_object,
+            line_width=line_width, line_colour=this_line_colour,
+            colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object)
 
     if colour_map_object is None:
