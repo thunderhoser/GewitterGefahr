@@ -146,7 +146,7 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
 
         storm_object_tables[i] = this_table.loc[
             this_table[tracking_utils.PRIMARY_ID_COLUMN].isin(
-                orig_primary_id_strings
+                numpy.array(orig_primary_id_strings)
             )
         ]
 
