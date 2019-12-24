@@ -21,17 +21,20 @@ from gewittergefahr.plotting import storm_plotting
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 DUMMY_TRACKING_SCALE_METRES2 = echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2
 
+NUM_HOURS_IN_DAY = 24
 NUM_SECONDS_IN_DAY = 86400
+COLOUR_BAR_TIME_FORMAT = '%H%M UTC'
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
 LATLNG_BUFFER_DEG = 0.25
+BORDER_WIDTH = 0.5
 BORDER_COLOUR = numpy.full(3, 0.)
 
 TRACK_LINE_WIDTH = 4
 
 BACKGROUND_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
-COLOUR_MAP_OBJECT = pyplot.get_cmap(name='hsv', lut=24)
+COLOUR_MAP_OBJECT = pyplot.get_cmap(name='hsv', lut=NUM_HOURS_IN_DAY)
 # COLOUR_MAP_OBJECT = pyplot.get_cmap(name='twilight_shifted', lut=24)
 # COLOUR_MAP_OBJECT = pyplot.get_cmap(name='YlOrRd', lut=24)
 
@@ -238,39 +241,46 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
             resolution_string='i')
     )
 
-    # basemap_object.drawmapboundary(fill_color=BACKGROUND_COLOUR, zorder=1e-20)
-    # basemap_object.fillcontinents(
-    #     color=BACKGROUND_COLOUR, lake_color=BACKGROUND_COLOUR, zorder=1e-20
-    # )
-
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR
+        line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH * 2
     )
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR
+        line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH
     )
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR
+        line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH
     )
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS
+        num_parallels=NUM_PARALLELS, line_width=BORDER_WIDTH
     )
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS
+        num_meridians=NUM_MERIDIANS, line_width=BORDER_WIDTH
     )
 
-    storm_plotting.plot_storm_tracks(
+    colour_bar_object = storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=COLOUR_MAP_OBJECT,
         min_colour_time_unix_sec=0,
         max_colour_time_unix_sec=NUM_SECONDS_IN_DAY - 1,
         line_width=TRACK_LINE_WIDTH
     )
+
+    tick_times_unix_sec = numpy.linspace(
+        0, NUM_SECONDS_IN_DAY, num=NUM_HOURS_IN_DAY + 1, dtype=int
+    )[:-1]
+
+    tick_time_strings = [
+        time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
+        for t in tick_times_unix_sec
+    ]
+
+    colour_bar_object.set_ticks(tick_times_unix_sec)
+    colour_bar_object.set_ticklabels(tick_time_strings)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(

@@ -14,6 +14,8 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
+TOLERANCE = 1e-6
+
 COLOUR_BAR_FONT_SIZE = 25
 # COLOUR_BAR_TIME_FORMAT = '%H%M %-d %b'
 COLOUR_BAR_TIME_FORMAT = '%H%M UTC'
@@ -284,13 +286,12 @@ def plot_storm_ids(
 
 
 def _plot_one_track_segment(
-        storm_object_table, start_row, axes_object, line_width,
+        storm_object_table_one_segment, axes_object, line_width,
         line_colour=None, colour_map_object=None, colour_norm_object=None):
     """Plots one track segment.
 
-    :param storm_object_table: See doc for `plot_storm_outlines`.
-    :param start_row: Will plot [k]th object in table and its predecessors,
-        where k = `start_row`.
+    :param storm_object_table_one_segment: Same as input for `plot_storm_tracks`,
+        except that this table contains only two objects.
     :param axes_object: See doc for `plot_storm_outlines`.
     :param line_width: Track width.
     :param line_colour: Track colour.  This may be None.
@@ -299,51 +300,92 @@ def _plot_one_track_segment(
     :param colour_norm_object: Normalizer for colour scheme.
     """
 
-    i = start_row
-
-    successor_rows = temporal_tracking.find_immediate_successors(
-        storm_object_table=storm_object_table, target_row=i
+    x_coords_metres = (
+        storm_object_table_one_segment[tracking_utils.CENTROID_X_COLUMN].values
+    )
+    y_coords_metres = (
+        storm_object_table_one_segment[tracking_utils.CENTROID_Y_COLUMN].values
     )
 
-    for j in successor_rows:
-        these_x_coords_metres = storm_object_table[
-            tracking_utils.CENTROID_X_COLUMN
-        ].values[[i, j]]
+    same_points = (
+        numpy.absolute(numpy.diff(x_coords_metres))[0] < TOLERANCE and
+        numpy.absolute(numpy.diff(y_coords_metres))[0] < TOLERANCE
+    )
 
-        these_y_coords_metres = storm_object_table[
-            tracking_utils.CENTROID_Y_COLUMN
-        ].values[[i, j]]
+    if same_points:
+        x_coords_metres[1] = x_coords_metres[0] + 5000.
+        y_coords_metres[1] = y_coords_metres[0] + 5000.
 
-        if line_colour is None:
-            this_point_matrix = numpy.array(
-                [these_x_coords_metres, these_y_coords_metres]
-            ).T.reshape(-1, 1, 2)
+    if line_colour is None:
+        point_matrix = numpy.array(
+            [x_coords_metres, y_coords_metres]
+        ).T.reshape(-1, 1, 2)
 
-            this_segment_matrix = numpy.concatenate(
-                [this_point_matrix[:-1], this_point_matrix[1:]],
-                axis=1
-            )
+        segment_matrix = numpy.concatenate(
+            [point_matrix[:-1], point_matrix[1:]], axis=1
+        )
 
-            this_time_unix_sec = numpy.mean(
-                storm_object_table[
-                    tracking_utils.VALID_TIME_COLUMN].values[[i, j]]
-            )
+        mean_time_unix_sec = numpy.mean(
+            storm_object_table_one_segment[
+                tracking_utils.VALID_TIME_COLUMN
+            ].values
+        )
 
-            this_line_collection_object = LineCollection(
-                this_segment_matrix, cmap=colour_map_object,
-                norm=colour_norm_object
-            )
-            this_line_collection_object.set_array(
-                numpy.array([this_time_unix_sec])
-            )
-            this_line_collection_object.set_linewidth(line_width)
-            axes_object.add_collection(this_line_collection_object)
+        this_line_collection_object = LineCollection(
+            segment_matrix, cmap=colour_map_object, norm=colour_norm_object
+        )
+        this_line_collection_object.set_array(numpy.array([mean_time_unix_sec]))
 
-        else:
-            axes_object.plot(
-                these_x_coords_metres, these_y_coords_metres,
-                color=line_colour, linestyle='solid', linewidth=line_width
-            )
+        this_line_collection_object.set_linewidth(line_width)
+        axes_object.add_collection(this_line_collection_object)
+    else:
+        axes_object.plot(
+            x_coords_metres, y_coords_metres,
+            color=line_colour, linestyle='solid', linewidth=line_width
+        )
+
+
+def _plot_one_track(
+        storm_object_table_one_track, axes_object, line_width,
+        line_colour=None, colour_map_object=None, colour_norm_object=None):
+    """Plots one storm track.
+
+    :param storm_object_table_one_track: Same as input for `plot_storm_tracks`,
+        except that this table contains only one track (primary storm ID).
+    :param axes_object: See doc for `plot_storm_outlines`.
+    :param line_width: Track width.
+    :param line_colour: Track colour.  This may be None.
+    :param colour_map_object: [used only if `line_colour is None`]:
+        Colour scheme (instance of `matplotlib.pyplot.cm` or similar).
+    :param colour_norm_object: Normalizer for colour scheme.
+    """
+
+    num_storm_objects = len(storm_object_table_one_track.index)
+
+    if num_storm_objects == 1:
+        this_storm_object_table = storm_object_table_one_track.iloc[[0, 0]]
+
+        _plot_one_track_segment(
+            storm_object_table_one_segment=this_storm_object_table,
+            axes_object=axes_object, line_width=line_width,
+            line_colour=line_colour, colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object)
+
+        return
+
+    for i in range(num_storm_objects):
+        successor_rows = temporal_tracking.find_immediate_successors(
+            storm_object_table=storm_object_table_one_track, target_row=i
+        )
+
+        for j in successor_rows:
+            this_storm_object_table = storm_object_table_one_track.iloc[[i, j]]
+
+            _plot_one_track_segment(
+                storm_object_table_one_segment=this_storm_object_table,
+                axes_object=axes_object, line_width=line_width,
+                line_colour=line_colour, colour_map_object=colour_map_object,
+                colour_norm_object=colour_norm_object)
 
 
 def plot_storm_tracks(
@@ -437,15 +479,15 @@ def plot_storm_tracks(
             this_line_colour = None
 
         these_object_indices = numpy.where(object_to_track_indices == k)[0]
+        storm_object_table_one_track = (
+            storm_object_table.iloc[these_object_indices]
+        )
 
-        for i in these_object_indices:
-            _plot_one_track_segment(
-                storm_object_table=storm_object_table, start_row=i,
-                axes_object=axes_object,
-                line_width=line_width, line_colour=this_line_colour,
-                colour_map_object=colour_map_object,
-                colour_norm_object=colour_norm_object
-            )
+        _plot_one_track(
+            storm_object_table_one_track=storm_object_table_one_track,
+            axes_object=axes_object, line_width=line_width,
+            line_colour=this_line_colour, colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object)
 
     if colour_map_object is None:
         return
@@ -473,22 +515,6 @@ def plot_storm_tracks(
     tick_times_unix_sec = numpy.round(
         colour_bar_object.get_ticks()
     ).astype(int)
-    print(tick_times_unix_sec)
-
-    # tick_times_unix_sec = numpy.round(
-    #     colour_norm_object.inverse(tick_times_unix_sec)
-    # ).astype(int)
-    # print(tick_times_unix_sec)
-
-    # slope_sec_per_sec = (
-    #     float(last_time_unix_sec - first_time_unix_sec) /
-    #     (tick_times_unix_sec[-1] - tick_times_unix_sec[0])
-    # )
-    # 
-    # tick_times_unix_sec = numpy.round(
-    #     first_time_unix_sec +
-    #     slope_sec_per_sec * (tick_times_unix_sec - tick_times_unix_sec[0])
-    # ).astype(int)
 
     tick_time_strings = [
         time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
