@@ -202,10 +202,14 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
 
     good_object_rows = numpy.unique(good_object_rows)
     storm_object_table = storm_object_table.iloc[good_object_rows]
-    storm_object_table[tracking_utils.VALID_TIME_COLUMN].values = numpy.mod(
+
+    times_of_day_sec = numpy.mod(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
         NUM_SECONDS_IN_DAY
     )
+    storm_object_table = storm_object_table.assign(**{
+        tracking_utils.VALID_TIME_COLUMN: times_of_day_sec
+    })
 
     min_plot_latitude_deg = -LATLNG_BUFFER_DEG + numpy.min(
         storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
