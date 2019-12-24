@@ -266,7 +266,8 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=COLOUR_MAP_OBJECT,
         colour_min_unix_sec=0, colour_max_unix_sec=NUM_SECONDS_IN_DAY - 1,
-        line_width=TRACK_LINE_WIDTH
+        line_width=TRACK_LINE_WIDTH,
+        start_marker_type=None, end_marker_type=None
     )
 
     tick_times_unix_sec = numpy.linspace(

@@ -578,7 +578,7 @@ def plot_storm_tracks(
         if end_marker_type is not None:
             _plot_start_or_end_markers(
                 storm_object_table_one_track=storm_object_table_one_track,
-                axes_object=axes_object, plot_at_start=True,
+                axes_object=axes_object, plot_at_start=False,
                 marker_type=end_marker_type, marker_size=end_marker_size,
                 track_colour=this_line_colour,
                 colour_map_object=colour_map_object,
