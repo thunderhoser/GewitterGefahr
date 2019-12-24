@@ -301,12 +301,20 @@ def _plot_one_track_segment(
     :param colour_norm_object: Normalizer for colour scheme.
     """
 
-    x_coords = (
+    x_coords = 0. + (
         storm_object_table_one_segment[tracking_utils.CENTROID_X_COLUMN].values
     )
-    y_coords = (
+    y_coords = 0. + (
         storm_object_table_one_segment[tracking_utils.CENTROID_Y_COLUMN].values
     )
+
+    latitudes_deg = 0. + storm_object_table_one_segment[
+        tracking_utils.CENTROID_LATITUDE_COLUMN
+    ].values
+
+    longitudes_deg = 0. + storm_object_table_one_segment[
+        tracking_utils.CENTROID_LONGITUDE_COLUMN
+    ].values
 
     same_points = (
         numpy.absolute(numpy.diff(x_coords))[0] < TOLERANCE and
@@ -314,16 +322,25 @@ def _plot_one_track_segment(
     )
 
     if same_points:
-        start_latitude_deg = storm_object_table_one_segment[
-            tracking_utils.CENTROID_LATITUDE_COLUMN
-        ].values[0]
+        latitudes_deg[1] = latitudes_deg[0] + 0.05
+        longitudes_deg[1] = longitudes_deg[0] + 0.05
+        x_coords, y_coords = basemap_object(longitudes_deg, latitudes_deg)
 
-        start_longitude_deg = storm_object_table_one_segment[
-            tracking_utils.CENTROID_LONGITUDE_COLUMN
-        ].values[0]
+    latitude_diff_deg = latitudes_deg[1] - latitudes_deg[0]
+    longitude_diff_deg = longitudes_deg[1] - longitudes_deg[0]
+    arc_length_deg = numpy.sum(numpy.sqrt(
+        latitude_diff_deg ** 2 + longitude_diff_deg ** 2
+    ))
 
-        latitudes_deg = start_latitude_deg + numpy.array([0, 0.02])
-        longitudes_deg = start_longitude_deg + numpy.array([0, 0.02])
+    similar_points = arc_length_deg < 0.05
+
+    if similar_points:
+        bearing_radians = numpy.arctan2(longitude_diff_deg, latitude_diff_deg)
+        longitude_diff_deg = numpy.sqrt(2) * 0.05 * numpy.cos(bearing_radians)
+        latitude_diff_deg = numpy.sqrt(2) * 0.05 * numpy.sin(bearing_radians)
+
+        latitudes_deg[1] = latitudes_deg[0] + latitude_diff_deg
+        longitudes_deg[1] = longitudes_deg[0] + longitude_diff_deg
         x_coords, y_coords = basemap_object(longitudes_deg, latitudes_deg)
 
     if line_colour is None:
@@ -375,6 +392,30 @@ def _plot_one_track(
 
     if num_storm_objects == 1:
         this_storm_object_table = storm_object_table_one_track.iloc[[0, 0]]
+
+        _plot_one_track_segment(
+            storm_object_table_one_segment=this_storm_object_table,
+            axes_object=axes_object, basemap_object=basemap_object,
+            line_width=line_width, line_colour=line_colour,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object)
+
+        return
+
+    latitudes_deg = storm_object_table_one_track[
+        tracking_utils.CENTROID_LATITUDE_COLUMN
+    ].values
+
+    longitudes_deg = storm_object_table_one_track[
+        tracking_utils.CENTROID_LONGITUDE_COLUMN
+    ].values
+
+    arc_length_deg = numpy.sum(numpy.sqrt(
+        numpy.diff(latitudes_deg) ** 2 + numpy.diff(longitudes_deg) ** 2
+    ))
+
+    if arc_length_deg < 0.05:
+        this_storm_object_table = storm_object_table_one_track.iloc[[0, -1]]
 
         _plot_one_track_segment(
             storm_object_table_one_segment=this_storm_object_table,
