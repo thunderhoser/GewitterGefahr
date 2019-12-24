@@ -470,7 +470,9 @@ def plot_storm_tracks(
         font_size=COLOUR_BAR_FONT_SIZE
     )
 
-    tick_times_unix_sec = colour_bar_object.get_ticks()
+    tick_times_unix_sec = numpy.round(
+        colour_bar_object.get_ticks()
+    ).astype(int)
     print(tick_times_unix_sec)
 
     # tick_times_unix_sec = numpy.round(
