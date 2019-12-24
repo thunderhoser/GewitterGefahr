@@ -272,7 +272,9 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
 
     tick_times_unix_sec = numpy.linspace(
         0, NUM_SECONDS_IN_DAY, num=NUM_HOURS_IN_DAY + 1, dtype=int
-    )[:-1]
+    )
+    tick_times_unix_sec = tick_times_unix_sec[:-1]
+    tick_times_unix_sec = tick_times_unix_sec[::2]
 
     tick_time_strings = [
         time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
