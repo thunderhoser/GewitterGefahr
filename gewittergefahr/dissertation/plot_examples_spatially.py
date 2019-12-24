@@ -28,7 +28,7 @@ NUM_MERIDIANS = 8
 LATLNG_BUFFER_DEG = 0.25
 BORDER_COLOUR = numpy.full(3, 0.)
 
-COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
+COLOUR_MAP_OBJECT = pyplot.get_cmap(name='twilight_shifted', lut=20)
 
 FIGURE_RESOLUTION_DPI = 300
 
