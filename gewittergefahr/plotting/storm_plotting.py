@@ -375,26 +375,18 @@ def plot_storm_tracks(
 
     for k in range(num_tracks):
         if colour_map_object is None:
-            this_colour = rgb_matrix[numpy.mod(k, num_colours), :]
-            this_colour = plotting_utils.colour_from_numpy_to_tuple(this_colour)
+            this_line_colour = rgb_matrix[numpy.mod(k, num_colours), :]
+            this_line_colour = plotting_utils.colour_from_numpy_to_tuple(
+                this_line_colour
+            )
         else:
-            this_colour = None
+            this_line_colour = None
 
         these_object_indices = numpy.where(object_to_track_indices == k)[0]
 
         for i in these_object_indices:
             these_next_indices = temporal_tracking.find_immediate_successors(
                 storm_object_table=storm_object_table, target_row=i)
-
-            # if len(these_next_indices) > 1:
-            #     axes_object.text(
-            #         storm_object_table[
-            #             tracking_utils.CENTROID_X_COLUMN].values[i],
-            #         storm_object_table[
-            #             tracking_utils.CENTROID_Y_COLUMN].values[i],
-            #         '{0:d}-WAY SPLIT'.format(len(these_next_indices)),
-            #         fontsize=12, color='k',
-            #         horizontalalignment='left', verticalalignment='top')
 
             for j in these_next_indices:
                 these_x_coords_metres = storm_object_table[
@@ -408,7 +400,7 @@ def plot_storm_tracks(
                 if colour_map_object is None:
                     axes_object.plot(
                         these_x_coords_metres, these_y_coords_metres,
-                        color=this_colour, linestyle='solid',
+                        color=this_line_colour, linestyle='solid',
                         linewidth=line_width)
                 else:
                     this_point_matrix = numpy.array(
@@ -438,69 +430,48 @@ def plot_storm_tracks(
             these_prev_indices = temporal_tracking.find_immediate_predecessors(
                 storm_object_table=storm_object_table, target_row=i)
 
-            # if len(these_prev_indices) > 1:
-            #     axes_object.text(
-            #         storm_object_table[
-            #             tracking_utils.CENTROID_X_COLUMN].values[i],
-            #         storm_object_table[
-            #             tracking_utils.CENTROID_Y_COLUMN].values[i],
-            #         '{0:d}-WAY MERGER'.format(len(these_prev_indices)),
-            #         fontsize=12, color='k',
-            #         horizontalalignment='left', verticalalignment='top')
+            if colour_map_object is not None:
+                this_time_unix_sec = storm_object_table[
+                    tracking_utils.VALID_TIME_COLUMN
+                ].values[i]
 
-            plot_this_start_marker = (
-                (plot_start_markers and len(these_prev_indices) == 0)
-                or len(these_object_indices) == 1
-            )
+                this_marker_colour = colour_map_object(colour_norm_object(
+                    this_time_unix_sec
+                ))
 
-            if plot_this_start_marker:
-                if colour_map_object is not None:
-                    this_colour = colour_map_object(colour_norm_object(
-                        storm_object_table[
-                            tracking_utils.VALID_TIME_COLUMN].values[i]
-                    ))
+            this_marker_x_coord = storm_object_table[
+                tracking_utils.CENTROID_X_COLUMN
+            ].values[i]
 
+            this_marker_y_coord = storm_object_table[
+                tracking_utils.CENTROID_Y_COLUMN
+            ].values[i]
+
+            if plot_start_markers and len(these_prev_indices) == 0:
                 if start_marker_type == 'x':
                     this_edge_width = 2
                 else:
                     this_edge_width = 1
 
                 axes_object.plot(
-                    storm_object_table[
-                        tracking_utils.CENTROID_X_COLUMN].values[i],
-                    storm_object_table[
-                        tracking_utils.CENTROID_Y_COLUMN].values[i],
-                    linestyle='None', marker=start_marker_type,
-                    markerfacecolor=this_colour, markeredgecolor=this_colour,
-                    markersize=start_marker_size,
+                    this_marker_x_coord, this_marker_y_coord, linestyle='None',
+                    marker=start_marker_type, markersize=start_marker_size,
+                    markerfacecolor=this_marker_colour,
+                    markeredgecolor=this_marker_colour,
                     markeredgewidth=this_edge_width
                 )
 
-            plot_this_end_marker = (
-                (plot_end_markers and len(these_next_indices) == 0)
-                or len(these_object_indices) == 1
-            )
-
-            if plot_this_end_marker:
-                if colour_map_object is not None:
-                    this_colour = colour_map_object(colour_norm_object(
-                        storm_object_table[
-                            tracking_utils.VALID_TIME_COLUMN].values[i]
-                    ))
-
+            if plot_end_markers and len(these_next_indices) == 0:
                 if end_marker_type == 'x':
                     this_edge_width = 2
                 else:
                     this_edge_width = 1
 
                 axes_object.plot(
-                    storm_object_table[
-                        tracking_utils.CENTROID_X_COLUMN].values[i],
-                    storm_object_table[
-                        tracking_utils.CENTROID_Y_COLUMN].values[i],
-                    linestyle='None', marker=end_marker_type,
-                    markerfacecolor=this_colour, markeredgecolor=this_colour,
-                    markersize=end_marker_size,
+                    this_marker_x_coord, this_marker_y_coord, linestyle='None',
+                    marker=end_marker_type, markersize=end_marker_size,
+                    markerfacecolor=this_marker_colour,
+                    markeredgecolor=this_marker_colour,
                     markeredgewidth=this_edge_width
                 )
 
