@@ -235,6 +235,11 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
             resolution_string='i')
     )
 
+    basemap_object.drawmapboundary(fill_color=BACKGROUND_COLOUR, zorder=1e-20)
+    basemap_object.fillcontinents(
+        color=BACKGROUND_COLOUR, lake_color=BACKGROUND_COLOUR, zorder=1e-20
+    )
+
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR
@@ -254,11 +259,6 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
         num_meridians=NUM_MERIDIANS
-    )
-
-    basemap_object.drawmapboundary(fill_color=BACKGROUND_COLOUR)
-    basemap_object.fillcontinents(
-        color=BACKGROUND_COLOUR, lake_color=BACKGROUND_COLOUR
     )
 
     storm_plotting.plot_storm_tracks(
