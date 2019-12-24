@@ -313,8 +313,8 @@ def _plot_one_track_segment(
     )
 
     if same_points:
-        x_coords_metres[1] = x_coords_metres[0] + 5000.
-        y_coords_metres[1] = y_coords_metres[0] + 5000.
+        x_coords_metres[1] = x_coords_metres[0] + 1.
+        y_coords_metres[1] = y_coords_metres[0] + 1.
 
     if line_colour is None:
         point_matrix = numpy.array(
