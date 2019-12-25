@@ -262,12 +262,19 @@ def _run(storm_metafile_name, top_tracking_dir_name, lead_time_seconds,
         num_meridians=NUM_MERIDIANS, line_width=BORDER_WIDTH
     )
 
-    colour_bar_object = storm_plotting.plot_storm_tracks(
-        storm_object_table=storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, colour_map_object=COLOUR_MAP_OBJECT,
-        colour_min_unix_sec=0, colour_max_unix_sec=NUM_SECONDS_IN_DAY - 1,
-        line_width=TRACK_LINE_WIDTH,
-        start_marker_type=None, end_marker_type=None
+    # colour_bar_object = storm_plotting.plot_storm_tracks(
+    #     storm_object_table=storm_object_table, axes_object=axes_object,
+    #     basemap_object=basemap_object, colour_map_object=COLOUR_MAP_OBJECT,
+    #     colour_min_unix_sec=0, colour_max_unix_sec=NUM_SECONDS_IN_DAY - 1,
+    #     line_width=TRACK_LINE_WIDTH,
+    #     start_marker_type=None, end_marker_type=None
+    # )
+
+    colour_bar_object = storm_plotting.plot_storm_centroids(
+        storm_object_table=storm_object_table,
+        axes_object=axes_object, basemap_object=basemap_object,
+        colour_map_object=COLOUR_MAP_OBJECT,
+        colour_min_unix_sec=0, colour_max_unix_sec=NUM_SECONDS_IN_DAY - 1
     )
 
     tick_times_unix_sec = numpy.linspace(

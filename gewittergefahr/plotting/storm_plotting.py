@@ -290,6 +290,115 @@ def _plot_start_or_end_markers(
         )
 
 
+def _process_colour_args(
+        colour_map_object, colour_min_unix_sec, colour_max_unix_sec,
+        constant_colour, storm_object_table):
+    """Processes colour arguments.
+
+    If colour_map_object is None, all points will be the same colour, specified
+    by constant_colour.
+
+    If colour_map_object == "random", points will be coloured randomly.
+
+    If colour_map_object is an actual colour map, points will be coloured by
+    time.
+
+    :param colour_map_object: See general discussion above.
+    :param colour_min_unix_sec: [used only if `colour_map_object is not None`]
+        First time in colour scheme.
+    :param colour_max_unix_sec: [used only if `colour_map_object is not None`]
+        Last time in colour scheme.
+    :param constant_colour: [used only if `colour_map_object is None`]
+        Constant colour (length-3 numpy array).
+    :param storm_object_table: pandas DataFrame with columns documented in
+        `storm_tracking_io.write_file`.  Used only if
+        `colour_map_object is not None` but either `colour_min_unix_sec is None`
+        or `colour_max_unix_sec is None`, to determine min and max times in
+        colour scheme.
+    :return: rgb_matrix: C-by-3 numpy array of RGB values, where each row is one
+        colour.  If colour_map_object != "random", this is None.
+    :return: colour_map_object: Colour scheme.  If colours are random or
+        constant, this is None.  Otherwise, this is an instance of
+        `matplotlib.pyplot.cm`.
+    :return: colour_norm_object: If `colour_map_object is None`, this is None.
+        Otherwise, this is an instance of `matplotlib.colors.Normalize`.
+    """
+
+    rgb_matrix = None
+    colour_norm_object = None
+
+    if colour_map_object is None:
+        expected_dim = numpy.array([3], dtype=int)
+        error_checking.assert_is_numpy_array(
+            constant_colour, exact_dimensions=expected_dim
+        )
+
+        rgb_matrix = numpy.reshape(constant_colour, (1, 3))
+    elif colour_map_object == 'random':
+        rgb_matrix = get_storm_track_colours()
+        colour_map_object = None
+    else:
+        if colour_min_unix_sec is None or colour_max_unix_sec is None:
+            colour_min_unix_sec = numpy.min(
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+            )
+            colour_max_unix_sec = numpy.max(
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+            )
+
+        colour_norm_object = pyplot.Normalize(
+            colour_min_unix_sec, colour_max_unix_sec
+        )
+
+    return rgb_matrix, colour_map_object, colour_norm_object
+
+
+def _add_colour_bar(axes_object, basemap_object, colour_map_object,
+                    colour_norm_object):
+    """Adds colour bar to figure.
+
+    :param axes_object: See input doc for `plot_storm_tracks`.
+    :param basemap_object: Same.
+    :param colour_map_object: See output doc for `_process_colour_args`.
+    :param colour_norm_object: Same.
+    :return: colour_bar_object: Handle for colour bar.
+    """
+
+    latitude_range_deg = basemap_object.urcrnrlat - basemap_object.llcrnrlat
+    longitude_range_deg = basemap_object.urcrnrlon - basemap_object.llcrnrlon
+
+    if latitude_range_deg > longitude_range_deg:
+        orientation_string = 'vertical'
+        padding = None
+    else:
+        orientation_string = 'horizontal'
+        padding = 0.05
+
+    dummy_values = numpy.array([0, 1e12], dtype=int)
+
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=dummy_values,
+        colour_map_object=colour_map_object,
+        min_value=colour_norm_object.vmin, max_value=colour_norm_object.vmax,
+        orientation_string=orientation_string, padding=padding,
+        extend_min=False, extend_max=False, fraction_of_axis_length=0.9,
+        font_size=COLOUR_BAR_FONT_SIZE
+    )
+
+    tick_times_unix_sec = numpy.round(
+        colour_bar_object.get_ticks()
+    ).astype(int)
+
+    tick_time_strings = [
+        time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
+        for t in tick_times_unix_sec
+    ]
+
+    colour_bar_object.set_ticks(tick_times_unix_sec)
+    colour_bar_object.set_ticklabels(tick_time_strings)
+    return colour_bar_object
+
+
 def get_storm_track_colours():
     """Returns list of colours to use in plotting storm tracks.
 
@@ -351,33 +460,90 @@ def plot_storm_outlines(
 
 def plot_storm_centroids(
         storm_object_table, axes_object, basemap_object,
+        colour_map_object='random',
+        colour_min_unix_sec=None, colour_max_unix_sec=None,
+        constant_colour=DEFAULT_CENTROID_COLOUR,
         marker_type=DEFAULT_CENTROID_MARKER_TYPE,
-        marker_colour=DEFAULT_CENTROID_COLOUR,
         marker_size=DEFAULT_CENTROID_MARKER_SIZE):
-    """Plots all storm centroids in the table (as markers).
+    """Plots storm centroids.
 
-    :param storm_object_table: See doc for `plot_storm_outlines`.
+    :param storm_object_table: See doc for `plot_storm_tracks`.
     :param axes_object: Same.
     :param basemap_object: Same.
-    :param marker_type: Marker type for storm centroids (in any format accepted
-        by `matplotlib.lines`).
-    :param marker_colour: Colour for storm centroids.
-    :param marker_size: Marker size for storm centroids.
+    :param colour_map_object: See doc for `_process_colour_args`.
+    :param colour_min_unix_sec: Same.
+    :param colour_max_unix_sec: Same.
+    :param constant_colour: Same.
+    :param marker_type: Marker type.
+    :param marker_size: Marker size.
+    :return: colour_bar_object: Handle for colour bar.  If
+        `colour_map_object is None`, this will also be None.
     """
-
-    marker_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
-        marker_colour)
 
     x_coords_metres, y_coords_metres = basemap_object(
         storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values,
         storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values
     )
 
-    axes_object.plot(
-        x_coords_metres, y_coords_metres, linestyle='None', marker=marker_type,
-        markersize=marker_size, markeredgewidth=0,
-        markerfacecolor=marker_colour_tuple, markeredgecolor=marker_colour_tuple
+    storm_object_table = storm_object_table.assign(**{
+        tracking_utils.CENTROID_X_COLUMN: x_coords_metres,
+        tracking_utils.CENTROID_Y_COLUMN: y_coords_metres
+    })
+
+    rgb_matrix, colour_map_object, colour_norm_object = _process_colour_args(
+        colour_map_object=colour_map_object,
+        colour_min_unix_sec=colour_min_unix_sec,
+        colour_max_unix_sec=colour_max_unix_sec,
+        constant_colour=constant_colour,
+        storm_object_table=storm_object_table
     )
+
+    num_colours = None if rgb_matrix is None else rgb_matrix.shape[0]
+
+    track_primary_id_strings, object_to_track_indices = numpy.unique(
+        storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
+        return_inverse=True
+    )
+
+    num_tracks = len(track_primary_id_strings)
+
+    for j in range(num_tracks):
+        these_object_indices = numpy.where(object_to_track_indices == j)[0]
+
+        if colour_map_object is None:
+            this_colour = rgb_matrix[numpy.mod(j, num_colours), :]
+            this_colour = plotting_utils.colour_from_numpy_to_tuple(this_colour)
+
+            axes_object.plot(
+                x_coords_metres[these_object_indices],
+                y_coords_metres[these_object_indices],
+                linestyle='None', marker=marker_type,
+                markersize=marker_size, markeredgewidth=0,
+                markerfacecolor=this_colour, markeredgecolor=this_colour
+            )
+
+            continue
+
+        for i in these_object_indices:
+            this_colour = colour_map_object(colour_norm_object(
+                storm_object_table[tracking_utils.VALID_TIME_COLUMN].values[i]
+            ))
+            this_colour = plotting_utils.colour_from_numpy_to_tuple(this_colour)
+
+            axes_object.plot(
+                x_coords_metres[i], y_coords_metres[i], linestyle='None',
+                marker=marker_type, markersize=marker_size, markeredgewidth=0,
+                markerfacecolor=this_colour, markeredgecolor=this_colour
+            )
+
+    if colour_map_object is None:
+        return None
+
+    return _add_colour_bar(
+        axes_object=axes_object,
+        basemap_object=basemap_object,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object)
 
 
 def plot_storm_ids(
@@ -461,31 +627,20 @@ def plot_storm_tracks(
         storm_object_table, axes_object, basemap_object,
         colour_map_object='random',
         colour_min_unix_sec=None, colour_max_unix_sec=None,
-        line_colour=DEFAULT_TRACK_COLOUR, line_width=DEFAULT_TRACK_WIDTH,
+        constant_colour=DEFAULT_TRACK_COLOUR, line_width=DEFAULT_TRACK_WIDTH,
         start_marker_type=DEFAULT_START_MARKER_TYPE,
         end_marker_type=DEFAULT_END_MARKER_TYPE,
         start_marker_size=DEFAULT_START_MARKER_SIZE,
         end_marker_size=DEFAULT_END_MARKER_SIZE):
     """Plots storm tracks.
 
-    If colour_map_object is None, all tracks will be the same colour, specified
-    by line_colour.
-
-    If colour_map_object == "random", tracks will be coloured randomly.
-
-    If colour_map_object is an actual colour map, tracks will be coloured by
-    time.
-
     :param storm_object_table: See doc for `plot_storm_outlines`.
     :param axes_object: Same.
     :param basemap_object: Same.
-    :param colour_map_object: See general discussion above.
-    :param colour_min_unix_sec: [used only if `colour_map_object is not None`]
-        First time in colour scheme.
-    :param colour_max_unix_sec: [used only if `colour_map_object is not None`]
-        Last time in colour scheme.
-    :param line_colour: [used only if `colour_map_object is None`]
-        Track colour as length-3 numpy array.
+    :param colour_map_object: See doc for `_process_colour_args`.
+    :param colour_min_unix_sec: Same.
+    :param colour_max_unix_sec: Same.
+    :param constant_colour: Same.
     :param line_width: Track width.
     :param start_marker_type: Marker for beginning of each track.  If None,
         markers will not be plotted for beginning of track.
@@ -506,37 +661,15 @@ def plot_storm_tracks(
         tracking_utils.CENTROID_Y_COLUMN: y_coords_metres
     })
 
-    rgb_matrix = None
-    num_colours = None
-    colour_norm_object = None
+    rgb_matrix, colour_map_object, colour_norm_object = _process_colour_args(
+        colour_map_object=colour_map_object,
+        colour_min_unix_sec=colour_min_unix_sec,
+        colour_max_unix_sec=colour_max_unix_sec,
+        constant_colour=constant_colour,
+        storm_object_table=storm_object_table
+    )
 
-    if colour_map_object is None:
-        expected_dim = numpy.array([3], dtype=int)
-        error_checking.assert_is_numpy_array(
-            line_colour, exact_dimensions=expected_dim
-        )
-
-        rgb_matrix = numpy.reshape(line_colour, (1, 3))
-        num_colours = rgb_matrix.shape[0]
-
-    elif colour_map_object == 'random':
-        rgb_matrix = get_storm_track_colours()
-        num_colours = rgb_matrix.shape[0]
-
-        colour_map_object = None
-
-    else:
-        if colour_min_unix_sec is None or colour_max_unix_sec is None:
-            colour_min_unix_sec = numpy.min(
-                storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
-            )
-            colour_max_unix_sec = numpy.max(
-                storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
-            )
-
-        colour_norm_object = pyplot.Normalize(
-            colour_min_unix_sec, colour_max_unix_sec
-        )
+    num_colours = None if rgb_matrix is None else rgb_matrix.shape[0]
 
     track_primary_id_strings, object_to_track_indices = numpy.unique(
         storm_object_table[tracking_utils.PRIMARY_ID_COLUMN].values,
@@ -545,16 +678,14 @@ def plot_storm_tracks(
 
     num_tracks = len(track_primary_id_strings)
 
-    for k in range(num_tracks):
+    for j in range(num_tracks):
         if colour_map_object is None:
-            this_line_colour = rgb_matrix[numpy.mod(k, num_colours), :]
-            this_line_colour = plotting_utils.colour_from_numpy_to_tuple(
-                this_line_colour
-            )
+            this_colour = rgb_matrix[numpy.mod(j, num_colours), :]
+            this_colour = plotting_utils.colour_from_numpy_to_tuple(this_colour)
         else:
-            this_line_colour = None
+            this_colour = None
 
-        these_object_indices = numpy.where(object_to_track_indices == k)[0]
+        these_object_indices = numpy.where(object_to_track_indices == j)[0]
         storm_object_table_one_track = (
             storm_object_table.iloc[these_object_indices]
         )
@@ -562,7 +693,7 @@ def plot_storm_tracks(
         _plot_one_track(
             storm_object_table_one_track=storm_object_table_one_track,
             axes_object=axes_object, basemap_object=basemap_object,
-            line_width=line_width, line_colour=this_line_colour,
+            line_width=line_width, line_colour=this_colour,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object)
 
@@ -571,7 +702,7 @@ def plot_storm_tracks(
                 storm_object_table_one_track=storm_object_table_one_track,
                 axes_object=axes_object, plot_at_start=True,
                 marker_type=start_marker_type, marker_size=start_marker_size,
-                track_colour=this_line_colour,
+                track_colour=this_colour,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object)
 
@@ -580,42 +711,15 @@ def plot_storm_tracks(
                 storm_object_table_one_track=storm_object_table_one_track,
                 axes_object=axes_object, plot_at_start=False,
                 marker_type=end_marker_type, marker_size=end_marker_size,
-                track_colour=this_line_colour,
+                track_colour=this_colour,
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object)
 
     if colour_map_object is None:
-        return
+        return None
 
-    latitude_range_deg = basemap_object.urcrnrlat - basemap_object.llcrnrlat
-    longitude_range_deg = basemap_object.urcrnrlon - basemap_object.llcrnrlon
-
-    if latitude_range_deg > longitude_range_deg:
-        orientation_string = 'vertical'
-        padding = None
-    else:
-        orientation_string = 'horizontal'
-        padding = 0.05
-
-    colour_bar_object = plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object,
-        data_matrix=storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
+    return _add_colour_bar(
+        axes_object=axes_object,
+        basemap_object=basemap_object,
         colour_map_object=colour_map_object,
-        min_value=colour_norm_object.vmin, max_value=colour_norm_object.vmax,
-        orientation_string=orientation_string, padding=padding,
-        extend_min=False, extend_max=False, fraction_of_axis_length=0.9,
-        font_size=COLOUR_BAR_FONT_SIZE
-    )
-
-    tick_times_unix_sec = numpy.round(
-        colour_bar_object.get_ticks()
-    ).astype(int)
-
-    tick_time_strings = [
-        time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
-        for t in tick_times_unix_sec
-    ]
-
-    colour_bar_object.set_ticks(tick_times_unix_sec)
-    colour_bar_object.set_ticklabels(tick_time_strings)
-    return colour_bar_object
+        colour_norm_object=colour_norm_object)
