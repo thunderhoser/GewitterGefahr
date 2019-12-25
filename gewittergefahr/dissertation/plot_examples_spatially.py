@@ -32,11 +32,14 @@ BORDER_WIDTH = 0.5
 BORDER_COLOUR = numpy.full(3, 0.)
 
 TRACK_LINE_WIDTH = 4
-
 BACKGROUND_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
-COLOUR_MAP_OBJECT = pyplot.get_cmap(name='hsv', lut=NUM_HOURS_IN_DAY)
-# COLOUR_MAP_OBJECT = pyplot.get_cmap(name='twilight_shifted', lut=24)
-# COLOUR_MAP_OBJECT = pyplot.get_cmap(name='YlOrRd', lut=24)
+
+try:
+    COLOUR_MAP_OBJECT = pyplot.get_cmap(
+        name='twilight_shifted', lut=NUM_HOURS_IN_DAY
+    )
+except:
+    COLOUR_MAP_OBJECT = pyplot.get_cmap(name='hsv', lut=NUM_HOURS_IN_DAY)
 
 FIGURE_RESOLUTION_DPI = 300
 
