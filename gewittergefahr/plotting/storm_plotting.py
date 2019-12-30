@@ -119,6 +119,7 @@ def _plot_one_track_segment(
         latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
         basemap_object=basemap_object
     )
+    x_coords = None
 
     if x_coords is None:
         x_coords = storm_object_table_one_segment[
@@ -200,6 +201,7 @@ def _plot_one_track(
         latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
         basemap_object=basemap_object
     )[0]
+    x_coords = None
 
     if x_coords is not None:
         this_storm_object_table = storm_object_table_one_track.iloc[[0, -1]]
