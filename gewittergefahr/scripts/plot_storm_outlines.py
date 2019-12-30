@@ -459,7 +459,11 @@ def _plot_storm_outlines_one_time(
             extend_max=True, fraction_of_axis_length=1.)
 
         radar_field_name_verbose = radar_utils.field_name_to_verbose(
-            field_name=radar_field_name, include_units=True)
+            field_name=radar_field_name, include_units=True
+        )
+        radar_field_name_verbose = radar_field_name_verbose.replace(
+            'm ASL', 'kft ASL'
+        )
         colour_bar_object.set_label(radar_field_name_verbose)
 
         if custom_colour_map:

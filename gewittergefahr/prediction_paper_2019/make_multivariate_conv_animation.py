@@ -119,7 +119,7 @@ FIGURE_CAPTION = (
     'value in g is the sum of elementwise products of highlighted values in '
     'a-f.  When\n'
     'the filter runs off the edge of the 2-D grid, the missing input values are'
-    'assumed\n'
+    ' assumed\n'
     'to be zero.'
 )
 
