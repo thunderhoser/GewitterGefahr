@@ -1061,6 +1061,10 @@ def read_normalization_params_from_file(pickle_file_name):
 
     if not os.path.isfile(pickle_file_name):
         pickle_file_name = pickle_file_name.replace(
+            '/condo/swatwork/ralager', '/condo/swatcommon/common')
+
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
             '/condo/swatwork/ralager', '/scratch/ralager')
 
     # TODO(thunderhoser): Move this to normalization.py or something.
