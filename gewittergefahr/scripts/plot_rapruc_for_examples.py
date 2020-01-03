@@ -52,7 +52,7 @@ WIND_COLOUR_MAP_OBJECT.set_over(WIND_COLOUR)
 
 WIND_BARB_LENGTH = 8
 EMPTY_WIND_BARB_RADIUS = 0.1
-PLOT_EVERY_KTH_WIND_BARB = 8
+PLOT_EVERY_KTH_WIND_BARB = 4
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -240,7 +240,7 @@ def _plot_rapruc_one_example(
     print('Reading field "{0:s}" from: "{1:s}"...'.format(
         field_name_grib1, grib_file_name
     ))
-    field_matrix = nwp_model_io.read_field_from_grib_file(
+    main_field_matrix = nwp_model_io.read_field_from_grib_file(
         grib_file_name=grib_file_name, field_name_grib1=field_name_grib1,
         model_name=model_name, grid_id=grid_name,
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name
@@ -307,7 +307,7 @@ def _plot_rapruc_one_example(
         model_name=model_name, grid_id=grid_name
     )
 
-    field_matrix = field_matrix[
+    main_field_matrix = main_field_matrix[
         row_limits[0]:(row_limits[1] + 1),
         column_limits[0]:(column_limits[1] + 1)
     ]
@@ -350,12 +350,15 @@ def _plot_rapruc_one_example(
     )
 
     min_colour_value = numpy.nanpercentile(
-        field_matrix, 100. - MAX_COLOUR_PERCENTILE
+        main_field_matrix, 100. - MAX_COLOUR_PERCENTILE
     )
-    max_colour_value = numpy.nanpercentile(field_matrix, MAX_COLOUR_PERCENTILE)
+    max_colour_value = numpy.nanpercentile(
+        main_field_matrix, MAX_COLOUR_PERCENTILE
+    )
 
     nwp_plotting.plot_subgrid(
-        field_matrix=field_matrix, model_name=model_name, grid_id=grid_name,
+        field_matrix=main_field_matrix,
+        model_name=model_name, grid_id=grid_name,
         axes_object=axes_object, basemap_object=basemap_object,
         colour_map_object=COLOUR_MAP_OBJECT, min_colour_value=min_colour_value,
         max_colour_value=max_colour_value,
@@ -373,7 +376,7 @@ def _plot_rapruc_one_example(
         plot_every_k_rows=PLOT_EVERY_KTH_WIND_BARB,
         plot_every_k_columns=PLOT_EVERY_KTH_WIND_BARB,
         barb_length=WIND_BARB_LENGTH, empty_barb_radius=EMPTY_WIND_BARB_RADIUS,
-        fill_empty_barb=False, colour_map=WIND_COLOUR_MAP_OBJECT,
+        fill_empty_barb=True, colour_map=WIND_COLOUR_MAP_OBJECT,
         colour_minimum_kt=MIN_WIND_SPEED_KT, colour_maximum_kt=MAX_WIND_SPEED_KT
     )
 
@@ -395,6 +398,13 @@ def _plot_rapruc_one_example(
         marker=EXTRAP_MARKER_TYPE, markersize=EXTRAP_MARKER_SIZE,
         markeredgewidth=EXTRAP_MARKER_EDGE_WIDTH,
         markerfacecolor=MARKER_COLOUR, markeredgecolor=MARKER_COLOUR
+    )
+
+    plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=main_field_matrix,
+        colour_map_object=COLOUR_MAP_OBJECT,
+        min_value=min_colour_value, max_value=max_colour_value,
+        orientation_string='vertical'
     )
 
     output_file_name = '{0:s}/{1:s}_{2:s}.jpg'.format(
