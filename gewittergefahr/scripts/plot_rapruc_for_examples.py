@@ -391,7 +391,7 @@ def _run(storm_metafile_name, top_tracking_dir_name, latitude_buffer_deg,
 
             continue
 
-        ruc_file_names[i] = nwp_model_io.find_rap_file_any_grid(
+        ruc_file_names[i] = nwp_model_io.find_ruc_file_any_grid(
             top_directory_name=ruc_directory_name,
             init_time_unix_sec=init_times_unix_sec[i],
             lead_time_hours=0, raise_error_if_missing=True
