@@ -230,12 +230,9 @@ def _plot_rapruc_one_example(
     if 'casper' in host_name:
         wgrib_exe_name = '/glade/work/ryanlage/wgrib/wgrib'
         wgrib2_exe_name = '/glade/work/ryanlage/wgrib2/wgrib2/wgrib2'
-    elif 'schooner' in host_name:
+    else:
         wgrib_exe_name = '/condo/swatwork/ralager/wgrib/wgrib'
         wgrib2_exe_name = '/condo/swatwork/ralager/grib2/wgrib2/wgrib2'
-    else:
-        wgrib_exe_name = '/usr/bin/wgrib'
-        wgrib2_exe_name = '/usr/bin/wgrib2'
 
     print('Reading field "{0:s}" from: "{1:s}"...'.format(
         field_name_grib1, grib_file_name
