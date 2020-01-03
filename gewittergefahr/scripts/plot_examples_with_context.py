@@ -718,7 +718,7 @@ def _plot_one_example(
         storm_times_unix_sec=numpy.array([storm_time_unix_sec], dtype=int),
         max_time_before_storm_start_sec=-1 * min_lead_time_seconds,
         max_time_after_storm_end_sec=max_lead_time_seconds,
-        genesis_only=False
+        genesis_only=False, interp_time_interval_sec=60
     )
 
     tornado_id_strings = tornado_table[tornado_io.TORNADO_ID_COLUMN].values
