@@ -3,6 +3,8 @@
 The 2-D images contain azimuthal shear, and the 3-D images contain reflectivity.
 """
 
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import pickle
 import argparse
 import numpy
@@ -18,7 +20,8 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import deep_learning_helper as dl_helper
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-    intra_op_parallelism_threads=7, inter_op_parallelism_threads=7
+    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
+    allow_soft_placement=False
 )))
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
