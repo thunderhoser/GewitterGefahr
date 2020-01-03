@@ -52,10 +52,10 @@ FONT_SIZE = 20
 FONT_COLOUR = numpy.full(3, 0.)
 
 TORNADO_TIME_FORMAT = '%H%MZ'
-TORNADO_MARKER_TYPE = '*'
-TORNADO_MARKER_SIZE = 48
-TORNADO_MARKER_EDGE_WIDTH = 4
-TORNADO_MARKER_COLOUR = numpy.full(3, 1.)
+TORNADO_MARKER_TYPE = 'D'
+TORNADO_MARKER_SIZE = 16
+TORNADO_MARKER_EDGE_WIDTH = 1
+TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -128,11 +128,6 @@ LONGITUDE_BUFFER_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
 
-DEFAULT_TORNADO_DIR_NAME = (
-    '/condo/swatwork/ralager/tornado_observations/processed')
-DEFAULT_MYRORSS_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format')
-
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + MAIN_ACTIVATION_FILE_ARG_NAME, type=str, required=True,
@@ -151,16 +146,16 @@ INPUT_ARG_PARSER.add_argument(
     help=AUX_ACTIVATION_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TORNADO_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TORNADO_DIR_NAME, help=TORNADO_DIR_HELP_STRING)
+    '--' + TORNADO_DIR_ARG_NAME, type=str, required=True,
+    help=TORNADO_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_DIR_ARG_NAME, type=str, required=True,
     help=TRACKING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MYRORSS_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_MYRORSS_DIR_NAME, help=MYRORSS_DIR_HELP_STRING)
+    '--' + MYRORSS_DIR_ARG_NAME, type=str, required=True,
+    help=MYRORSS_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_FIELD_ARG_NAME, type=str, required=False,
@@ -323,7 +318,8 @@ def _plot_one_example_one_time(
         storm_plotting.plot_storm_outlines(
             storm_object_table=this_storm_object_table, axes_object=axes_object,
             basemap_object=basemap_object, line_width=2, line_colour='k',
-            line_style='solid')
+            line_style='solid'
+        )
 
         for j in range(len(this_storm_object_table)):
             axes_object.text(
@@ -332,7 +328,8 @@ def _plot_one_example_one_time(
                 this_storm_object_table[
                     tracking_utils.CENTROID_LATITUDE_COLUMN].values[j],
                 'P', fontsize=FONT_SIZE, color=FONT_COLOUR, fontweight='bold',
-                horizontalalignment='center', verticalalignment='center')
+                horizontalalignment='center', verticalalignment='center'
+            )
 
     # Plot outline of storm of interest (same secondary ID).
     this_storm_object_table = storm_object_table.loc[
@@ -342,7 +339,7 @@ def _plot_one_example_one_time(
 
     storm_plotting.plot_storm_outlines(
         storm_object_table=this_storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, line_width=6, line_colour='k',
+        basemap_object=basemap_object, line_width=4, line_colour='k',
         line_style='solid')
 
     this_num_storm_objects = len(this_storm_object_table.index)
@@ -353,49 +350,20 @@ def _plot_one_example_one_time(
     )
 
     if plot_forecast:
-        this_polygon_object_latlng = this_storm_object_table[
-            tracking_utils.LATLNG_POLYGON_COLUMN].values[0]
-
-        this_latitude_deg = numpy.mean(
-            numpy.array(this_polygon_object_latlng.exterior.xy[1])
-        )
-        this_longitude_deg = numpy.mean(
-            numpy.array(this_polygon_object_latlng.exterior.xy[0])
-        )
-
         label_string = 'Prob = {0:.3f}\nat {1:s}'.format(
             this_storm_object_table[FORECAST_PROBABILITY_COLUMN].values[0],
             time_conversion.unix_sec_to_string(
                 valid_time_unix_sec, TORNADO_TIME_FORMAT)
         )
 
-        # axes_object.text(
-        #     this_longitude_deg, this_latitude_deg, label_string,
-        #     fontsize=FONT_SIZE, color=FONT_COLOUR, bbox=TEXT_BOUNDING_BOX_DICT,
-        #     horizontalalignment='center', verticalalignment='top', zorder=1e10)
-
         axes_object.set_title(
             label_string.replace('\n', ' '), fontsize=FONT_SIZE
         )
 
     tornado_latitudes_deg = tornado_table[linkage.EVENT_LATITUDE_COLUMN].values
-    tornado_longitudes_deg = tornado_table[
-        linkage.EVENT_LONGITUDE_COLUMN].values
-
-    these_distances_deg2 = (
-        (
-            this_storm_object_table[
-                tracking_utils.CENTROID_LATITUDE_COLUMN].values[0] -
-            tornado_latitudes_deg
-        ) ** 2 +
-        (
-            this_storm_object_table[
-                tracking_utils.CENTROID_LONGITUDE_COLUMN].values[0] -
-            tornado_longitudes_deg
-        ) ** 2
+    tornado_longitudes_deg = (
+        tornado_table[linkage.EVENT_LONGITUDE_COLUMN].values
     )
-
-    this_index = numpy.argmin(these_distances_deg2)
 
     tornado_times_unix_sec = tornado_table[linkage.EVENT_TIME_COLUMN].values
     tornado_time_strings = [
@@ -404,12 +372,13 @@ def _plot_one_example_one_time(
     ]
 
     axes_object.plot(
-        tornado_longitudes_deg[this_index], tornado_latitudes_deg[this_index], linestyle='None',
+        tornado_longitudes_deg, tornado_latitudes_deg, linestyle='None',
         marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
         markeredgewidth=TORNADO_MARKER_EDGE_WIDTH,
         markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
             TORNADO_MARKER_COLOUR),
-        markeredgecolor='k'
+        markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
+            TORNADO_MARKER_COLOUR)
     )
 
     num_tornadoes = len(tornado_latitudes_deg)
@@ -425,7 +394,6 @@ def _plot_one_example_one_time(
 def _find_tracking_files_one_example(
         top_tracking_dir_name, valid_time_unix_sec, target_name):
     """Finds tracking files needed to make plots for one example.
-
     :param top_tracking_dir_name: See documentation at top of file.
     :param valid_time_unix_sec: Valid time for example.
     :param target_name: Name of target variable.
@@ -435,20 +403,25 @@ def _find_tracking_files_one_example(
 
     target_param_dict = target_val_utils.target_name_to_params(target_name)
     min_lead_time_seconds = target_param_dict[
-        target_val_utils.MIN_LEAD_TIME_KEY]
+        target_val_utils.MIN_LEAD_TIME_KEY
+    ]
     max_lead_time_seconds = target_param_dict[
-        target_val_utils.MAX_LEAD_TIME_KEY]
+        target_val_utils.MAX_LEAD_TIME_KEY
+    ]
 
     first_time_unix_sec = valid_time_unix_sec + min_lead_time_seconds
     last_time_unix_sec = valid_time_unix_sec + max_lead_time_seconds
 
     first_spc_date_string = time_conversion.time_to_spc_date_string(
-        first_time_unix_sec - TIME_INTERVAL_SECONDS)
+        first_time_unix_sec - TIME_INTERVAL_SECONDS
+    )
     last_spc_date_string = time_conversion.time_to_spc_date_string(
-        last_time_unix_sec + TIME_INTERVAL_SECONDS)
+        last_time_unix_sec + TIME_INTERVAL_SECONDS
+    )
     spc_date_strings = time_conversion.get_spc_dates_in_range(
         first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string)
+        last_spc_date_string=last_spc_date_string
+    )
 
     tracking_file_names = []
 
@@ -583,9 +556,11 @@ def _plot_one_example(
 
     # Create output directory for this example.
     output_dir_name = '{0:s}/{1:s}_{2:s}'.format(
-        top_output_dir_name, full_id_string, storm_time_string)
+        top_output_dir_name, full_id_string, storm_time_string
+    )
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=output_dir_name
+    )
 
     # Find tracking files.
     tracking_file_names = _find_tracking_files_one_example(
@@ -692,16 +667,19 @@ def _plot_one_example(
     # Read tornado reports.
     target_param_dict = target_val_utils.target_name_to_params(target_name)
     min_lead_time_seconds = target_param_dict[
-        target_val_utils.MIN_LEAD_TIME_KEY]
+        target_val_utils.MIN_LEAD_TIME_KEY
+    ]
     max_lead_time_seconds = target_param_dict[
-        target_val_utils.MAX_LEAD_TIME_KEY]
+        target_val_utils.MAX_LEAD_TIME_KEY
+    ]
 
     tornado_table = linkage._read_input_tornado_reports(
         input_directory_name=tornado_dir_name,
         storm_times_unix_sec=numpy.array([storm_time_unix_sec], dtype=int),
         max_time_before_storm_start_sec=-1 * min_lead_time_seconds,
         max_time_after_storm_end_sec=max_lead_time_seconds,
-        genesis_only=True)
+        genesis_only=True
+    )
 
     tornado_table = tornado_table.loc[
         (tornado_table[linkage.EVENT_LATITUDE_COLUMN] >= latitude_limits_deg[0])
@@ -732,7 +710,8 @@ def _plot_one_example(
             radar_field_name=radar_field_name,
             radar_height_m_asl=radar_height_m_asl,
             latitude_limits_deg=latitude_limits_deg,
-            longitude_limits_deg=longitude_limits_deg)
+            longitude_limits_deg=longitude_limits_deg
+        )
 
         if aux_activation_dict is None:
             this_title_string = (
@@ -749,8 +728,10 @@ def _plot_one_example(
         )
 
         print('Saving figure to file: "{0:s}"...\n'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-                       bbox_inches='tight')
+        pyplot.savefig(
+            this_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
         pyplot.close()
 
 
@@ -788,7 +769,8 @@ def _run(main_activation_file_name, first_example_index, last_example_index,
 
     print('Reading data from: "{0:s}"...'.format(main_activation_file_name))
     activation_matrix, activation_dict = model_activation.read_file(
-        main_activation_file_name)
+        main_activation_file_name
+    )
 
     component_type_string = activation_dict[model_activation.COMPONENT_TYPE_KEY]
 
@@ -810,9 +792,11 @@ def _run(main_activation_file_name, first_example_index, last_example_index,
 
     if first_example_index is not None:
         error_checking.assert_is_geq(last_example_index, first_example_index)
+
         example_indices = numpy.linspace(
             first_example_index, last_example_index,
-            num=last_example_index - first_example_index + 1, dtype=int)
+            num=last_example_index - first_example_index + 1, dtype=int
+        )
 
         forecast_probabilities = forecast_probabilities[example_indices]
         full_storm_id_strings = [
@@ -849,7 +833,8 @@ def _run(main_activation_file_name, first_example_index, last_example_index,
     else:
         print('Reading data from: "{0:s}"...'.format(aux_activation_file_name))
         this_matrix, aux_activation_dict = model_activation.read_file(
-            aux_activation_file_name)
+            aux_activation_file_name
+        )
 
         aux_forecast_probabilities = numpy.squeeze(this_matrix)
 
@@ -870,7 +855,8 @@ def _run(main_activation_file_name, first_example_index, last_example_index,
             longitude_buffer_deg=longitude_buffer_deg,
             top_output_dir_name=top_output_dir_name,
             aux_forecast_probabilities=aux_forecast_probabilities,
-            aux_activation_dict=aux_activation_dict)
+            aux_activation_dict=aux_activation_dict
+        )
 
         if i != num_storm_objects - 1:
             print(SEPARATOR_STRING)
@@ -881,11 +867,13 @@ if __name__ == '__main__':
 
     _run(
         main_activation_file_name=getattr(
-            INPUT_ARG_OBJECT, MAIN_ACTIVATION_FILE_ARG_NAME),
+            INPUT_ARG_OBJECT, MAIN_ACTIVATION_FILE_ARG_NAME
+        ),
         first_example_index=getattr(INPUT_ARG_OBJECT, FIRST_INDEX_ARG_NAME),
         last_example_index=getattr(INPUT_ARG_OBJECT, LAST_INDEX_ARG_NAME),
         aux_activation_file_name=getattr(
-            INPUT_ARG_OBJECT, AUX_ACTIVATION_FILE_ARG_NAME),
+            INPUT_ARG_OBJECT, AUX_ACTIVATION_FILE_ARG_NAME
+        ),
         tornado_dir_name=getattr(INPUT_ARG_OBJECT, TORNADO_DIR_ARG_NAME),
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
         top_myrorss_dir_name=getattr(INPUT_ARG_OBJECT, MYRORSS_DIR_ARG_NAME),
@@ -893,6 +881,7 @@ if __name__ == '__main__':
         radar_height_m_asl=getattr(INPUT_ARG_OBJECT, RADAR_HEIGHT_ARG_NAME),
         latitude_buffer_deg=getattr(INPUT_ARG_OBJECT, LATITUDE_BUFFER_ARG_NAME),
         longitude_buffer_deg=getattr(
-            INPUT_ARG_OBJECT, LONGITUDE_BUFFER_ARG_NAME),
+            INPUT_ARG_OBJECT, LONGITUDE_BUFFER_ARG_NAME
+        ),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
