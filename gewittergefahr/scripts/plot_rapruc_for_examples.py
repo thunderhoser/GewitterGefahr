@@ -1,5 +1,6 @@
 """Plots RAP/RUC field centered on each example (storm object)."""
 
+import socket
 import os.path
 import argparse
 import numpy
@@ -211,10 +212,23 @@ def _plot_rapruc_one_example(
     pathless_grib_file_name = os.path.split(grib_file_name)[-1]
     grid_name = pathless_grib_file_name.split('_')[1]
 
+    host_name = socket.gethostname()
+
+    if 'casper' in host_name:
+        wgrib_exe_name = '/glade/work/ryanlage/wgrib/wgrib'
+        wgrib2_exe_name = '/glade/work/ryanlage/wgrib2/wgrib2/wgrib2'
+    elif 'schooner' in host_name:
+        wgrib_exe_name = '/condo/swatwork/ralager/wgrib/wgrib'
+        wgrib2_exe_name = '/condo/swatwork/ralager/grib2/wgrib2/wgrib2'
+    else:
+        wgrib_exe_name = '/usr/bin/wgrib'
+        wgrib2_exe_name = '/usr/bin/wgrib2'
+
     print('Reading data from: "{0:s}"...'.format(grib_file_name))
     field_matrix = nwp_model_io.read_field_from_grib_file(
         grib_file_name=grib_file_name, field_name_grib1=field_name_grib1,
-        model_name=model_name, grid_id=grid_name
+        model_name=model_name, grid_id=grid_name,
+        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name
     )
 
     min_plot_latitude_deg = (
