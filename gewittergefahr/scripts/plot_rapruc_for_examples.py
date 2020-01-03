@@ -6,6 +6,7 @@ import argparse
 import numpy
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.colors
 from matplotlib import pyplot
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_io import nwp_model_io
@@ -32,14 +33,26 @@ DUMMY_TRACKING_SCALE_METRES2 = echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2
 
 MARKER_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
 ORIGIN_MARKER_TYPE = 'o'
-ORIGIN_MARKER_SIZE = 36
+ORIGIN_MARKER_SIZE = 18
 ORIGIN_MARKER_EDGE_WIDTH = 0
 EXTRAP_MARKER_TYPE = 'x'
-EXTRAP_MARKER_SIZE = 36
+EXTRAP_MARKER_SIZE = 18
 EXTRAP_MARKER_EDGE_WIDTH = 4
 
 COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
 MAX_COLOUR_PERCENTILE = 99.
+
+WIND_COLOUR = numpy.full(3, 152. / 255)
+MIN_WIND_SPEED_KT = -1.
+MAX_WIND_SPEED_KT = 0.
+
+WIND_COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap([WIND_COLOUR])
+WIND_COLOUR_MAP_OBJECT.set_under(WIND_COLOUR)
+WIND_COLOUR_MAP_OBJECT.set_over(WIND_COLOUR)
+
+WIND_BARB_LENGTH = 8
+EMPTY_WIND_BARB_RADIUS = 0.1
+PLOT_EVERY_KTH_WIND_BARB = 8
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -224,9 +237,35 @@ def _plot_rapruc_one_example(
         wgrib_exe_name = '/usr/bin/wgrib'
         wgrib2_exe_name = '/usr/bin/wgrib2'
 
-    print('Reading data from: "{0:s}"...'.format(grib_file_name))
+    print('Reading field "{0:s}" from: "{1:s}"...'.format(
+        field_name_grib1, grib_file_name
+    ))
     field_matrix = nwp_model_io.read_field_from_grib_file(
         grib_file_name=grib_file_name, field_name_grib1=field_name_grib1,
+        model_name=model_name, grid_id=grid_name,
+        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name
+    )
+
+    u_wind_name_grib1 = 'UGRD:{0:s}'.format(
+        field_name_grib1.split(':')[-1]
+    )
+    print('Reading field "{0:s}" from: "{1:s}"...'.format(
+        u_wind_name_grib1, grib_file_name
+    ))
+    u_wind_matrix_m_s01 = nwp_model_io.read_field_from_grib_file(
+        grib_file_name=grib_file_name, field_name_grib1=u_wind_name_grib1,
+        model_name=model_name, grid_id=grid_name,
+        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name
+    )
+
+    v_wind_name_grib1 = 'VGRD:{0:s}'.format(
+        field_name_grib1.split(':')[-1]
+    )
+    print('Reading field "{0:s}" from: "{1:s}"...'.format(
+        v_wind_name_grib1, grib_file_name
+    ))
+    v_wind_matrix_m_s01 = nwp_model_io.read_field_from_grib_file(
+        grib_file_name=grib_file_name, field_name_grib1=v_wind_name_grib1,
         model_name=model_name, grid_id=grid_name,
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name
     )
@@ -253,6 +292,14 @@ def _plot_rapruc_one_example(
     )
 
     field_matrix = field_matrix[
+        row_limits[0]:(row_limits[1] + 1),
+        column_limits[0]:(column_limits[1] + 1)
+    ]
+    u_wind_matrix_m_s01 = u_wind_matrix_m_s01[
+        row_limits[0]:(row_limits[1] + 1),
+        column_limits[0]:(column_limits[1] + 1)
+    ]
+    v_wind_matrix_m_s01 = v_wind_matrix_m_s01[
         row_limits[0]:(row_limits[1] + 1),
         column_limits[0]:(column_limits[1] + 1)
     ]
@@ -298,6 +345,20 @@ def _plot_rapruc_one_example(
         max_colour_value=max_colour_value,
         first_row_in_full_grid=row_limits[0],
         first_column_in_full_grid=column_limits[0]
+    )
+
+    nwp_plotting.plot_wind_barbs_on_subgrid(
+        u_wind_matrix_m_s01=u_wind_matrix_m_s01,
+        v_wind_matrix_m_s01=v_wind_matrix_m_s01,
+        model_name=model_name, grid_id=grid_name,
+        axes_object=axes_object, basemap_object=basemap_object,
+        first_row_in_full_grid=row_limits[0],
+        first_column_in_full_grid=column_limits[0],
+        plot_every_k_rows=PLOT_EVERY_KTH_WIND_BARB,
+        plot_every_k_columns=PLOT_EVERY_KTH_WIND_BARB,
+        barb_length=WIND_BARB_LENGTH, empty_barb_radius=EMPTY_WIND_BARB_RADIUS,
+        fill_empty_barb=False, colour_map=WIND_COLOUR_MAP_OBJECT,
+        colour_minimum_kt=MIN_WIND_SPEED_KT, colour_maximum_kt=MAX_WIND_SPEED_KT
     )
 
     orig_x_metres, orig_y_metres = basemap_object(
