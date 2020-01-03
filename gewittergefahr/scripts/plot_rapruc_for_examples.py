@@ -246,6 +246,7 @@ def _plot_rapruc_one_example(
     u_wind_name_grib1 = 'UGRD:{0:s}'.format(
         field_name_grib1.split(':')[-1]
     )
+    u_wind_name_grib1 = u_wind_name_grib1.replace('2 m', '10 m')
     print('Reading field "{0:s}" from: "{1:s}"...'.format(
         u_wind_name_grib1, grib_file_name
     ))
@@ -256,7 +257,7 @@ def _plot_rapruc_one_example(
     )
 
     v_wind_name_grib1 = 'VGRD:{0:s}'.format(
-        field_name_grib1.split(':')[-1]
+        u_wind_name_grib1.split(':')[-1]
     )
     print('Reading field "{0:s}" from: "{1:s}"...'.format(
         v_wind_name_grib1, grib_file_name
