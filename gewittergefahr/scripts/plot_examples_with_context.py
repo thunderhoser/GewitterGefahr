@@ -264,9 +264,6 @@ def _plot_one_example_one_time(
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object)
 
-    # plotting_utils.plot_counties(
-    #     basemap_object=basemap_object, axes_object=axes_object)
-
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
         num_parallels=NUM_PARALLELS, line_width=0)
@@ -307,10 +304,10 @@ def _plot_one_example_one_time(
         primary_id_string
     ]
 
-    # storm_plotting.plot_storm_outlines(
-    #     storm_object_table=this_storm_object_table, axes_object=axes_object,
-    #     basemap_object=basemap_object, line_width=2, line_colour='k',
-    #     line_style='dashed')
+    storm_plotting.plot_storm_outlines(
+        storm_object_table=this_storm_object_table, axes_object=axes_object,
+        basemap_object=basemap_object, line_width=2, line_colour='k',
+        line_style='dashed')
 
     # Plot outlines of related storms (with the same primary ID).
     this_storm_object_table = storm_object_table.loc[
@@ -417,12 +414,12 @@ def _plot_one_example_one_time(
 
     num_tornadoes = len(tornado_latitudes_deg)
 
-    # for j in range(num_tornadoes):
-    #     axes_object.text(
-    #         tornado_longitudes_deg[j] + 0.02, tornado_latitudes_deg[j] - 0.02,
-    #         tornado_time_strings[j], fontsize=FONT_SIZE,
-    #         color=FONT_COLOUR, rotation=-90,
-    #         horizontalalignment='left', verticalalignment='top', zorder=1e10)
+    for j in range(num_tornadoes):
+        axes_object.text(
+            tornado_longitudes_deg[j] + 0.02, tornado_latitudes_deg[j] - 0.02,
+            tornado_time_strings[j], fontsize=FONT_SIZE,
+            color=FONT_COLOUR, rotation=-90,
+            horizontalalignment='left', verticalalignment='top', zorder=1e10)
 
 
 def _find_tracking_files_one_example(
