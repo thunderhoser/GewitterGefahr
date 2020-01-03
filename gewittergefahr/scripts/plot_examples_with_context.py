@@ -32,9 +32,6 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import storm_plotting
 
-# TODO(thunderhoser): Deal with both tornado occurrence and genesis as target
-# variables.
-
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TIME_INTERVAL_SECONDS = 300
@@ -50,18 +47,25 @@ TEXT_BOUNDING_BOX_DICT = {
 }
 
 MAIN_STORM_WIDTH = 3.
+AUXILIARY_STORM_WIDTH = 2.
 MAIN_FONT_SIZE = 12
+TITLE_FONT_SIZE = 16
 FONT_COLOUR = numpy.full(3, 0.)
 
 TORNADO_TIME_FORMAT = '%H%M'
-TORNADO_MARKER_TYPE = 'D'
-TORNADO_MARKER_SIZE = 8
-TORNADO_MARKER_EDGE_WIDTH = 0
+TORNADO_TRACK_WIDTH = 2
+TORNADO_TRACK_COLOUR = numpy.full(3, 152. / 255)
 TORNADO_MARKER_COLOUR = numpy.full(3, 0.)
+
+TORNADO_START_MARKER_TYPE = 'o'
+TORNADO_START_MARKER_SIZE = 8
+TORNADO_START_MARKER_EDGE_WIDTH = 0
+TORNADO_END_MARKER_TYPE = 'x'
+TORNADO_END_MARKER_SIZE = 12
+TORNADO_END_MARKER_EDGE_WIDTH = 2
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
-TITLE_FONT_SIZE = 16
 BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
@@ -178,6 +182,65 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
+
+
+def _plot_one_tornado(tornado_table, axes_object):
+    """Plots tornadoes.
+
+    :param tornado_table: pandas DataFrame with points on one tornado track.
+        See `linkage._read_input_tornado_reports` for expected columns.
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    """
+
+    latitudes_deg = (
+        tornado_table[linkage.EVENT_LATITUDE_COLUMN].values[[0, -1]]
+    )
+    longitudes_deg = (
+        tornado_table[linkage.EVENT_LONGITUDE_COLUMN].values[[0, -1]]
+    )
+    valid_times_unix_sec = (
+        tornado_table[linkage.EVENT_TIME_COLUMN].values[[0, -1]]
+    )
+    valid_time_strings = [
+        time_conversion.unix_sec_to_string(t, TORNADO_TIME_FORMAT)
+        for t in valid_times_unix_sec
+    ]
+
+    axes_object.plot(
+        longitudes_deg[0], latitudes_deg[0], linestyle='None',
+        marker=TORNADO_START_MARKER_TYPE, markersize=TORNADO_START_MARKER_SIZE,
+        markeredgewidth=TORNADO_START_MARKER_EDGE_WIDTH,
+        markerfacecolor=TORNADO_MARKER_COLOUR,
+        markeredgecolor=TORNADO_MARKER_COLOUR
+    )
+
+    axes_object.plot(
+        longitudes_deg[-1], latitudes_deg[-1], linestyle='None',
+        marker=TORNADO_END_MARKER_TYPE, markersize=TORNADO_END_MARKER_SIZE,
+        markeredgewidth=TORNADO_END_MARKER_EDGE_WIDTH,
+        markerfacecolor=TORNADO_MARKER_COLOUR,
+        markeredgecolor=TORNADO_MARKER_COLOUR
+    )
+
+    axes_object.plot(
+        longitudes_deg, latitudes_deg, linestyle=':',
+        linewidth=TORNADO_TRACK_WIDTH, color=TORNADO_TRACK_COLOUR
+    )
+
+    axes_object.text(
+        longitudes_deg[0], latitudes_deg[0] - 0.05, valid_time_strings[0],
+        fontsize=MAIN_FONT_SIZE, color=FONT_COLOUR,
+        rotation=-90, bbox=TEXT_BOUNDING_BOX_DICT,
+        horizontalalignment='center', verticalalignment='top', zorder=1e10
+    )
+
+    axes_object.text(
+        longitudes_deg[-1], latitudes_deg[-1] - 0.05, valid_time_strings[-1],
+        fontsize=MAIN_FONT_SIZE, color=FONT_COLOUR,
+        rotation=-90, bbox=TEXT_BOUNDING_BOX_DICT,
+        horizontalalignment='center', verticalalignment='top', zorder=1e10
+    )
 
 
 def _plot_one_example_one_time(
@@ -303,7 +366,7 @@ def _plot_one_example_one_time(
 
     storm_plotting.plot_storm_outlines(
         storm_object_table=this_storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, line_width=MAIN_STORM_WIDTH / 1.5,
+        basemap_object=basemap_object, line_width=AUXILIARY_STORM_WIDTH,
         line_colour='k', line_style='dashed')
 
     # Plot outlines of related storms (with the same primary ID).
@@ -319,7 +382,7 @@ def _plot_one_example_one_time(
     if this_num_storm_objects > 0:
         storm_plotting.plot_storm_outlines(
             storm_object_table=this_storm_object_table, axes_object=axes_object,
-            basemap_object=basemap_object, line_width=MAIN_STORM_WIDTH / 1.5,
+            basemap_object=basemap_object, line_width=AUXILIARY_STORM_WIDTH,
             line_colour='k', line_style='solid'
         )
 
@@ -375,58 +438,8 @@ def _plot_one_example_one_time(
         this_tornado_table = tornado_table.iloc[these_rows].sort_values(
             linkage.EVENT_TIME_COLUMN, axis=0, ascending=True, inplace=False
         )
-
-        these_latitudes_deg = (
-            this_tornado_table[linkage.EVENT_LATITUDE_COLUMN].values[[0, -1]]
-        )
-        these_longitudes_deg = (
-            this_tornado_table[linkage.EVENT_LONGITUDE_COLUMN].values[[0, -1]]
-        )
-        these_times_unix_sec = (
-            this_tornado_table[linkage.EVENT_TIME_COLUMN].values[[0, -1]]
-        )
-        these_time_strings = [
-            time_conversion.unix_sec_to_string(t, TORNADO_TIME_FORMAT)
-            for t in these_times_unix_sec
-        ]
-
-        axes_object.plot(
-            these_longitudes_deg[0], these_latitudes_deg[0], linestyle='None',
-            marker='o', markersize=8, markeredgewidth=0,
-            markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
-                TORNADO_MARKER_COLOUR),
-            markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
-                TORNADO_MARKER_COLOUR)
-        )
-
-        axes_object.plot(
-            these_longitudes_deg[-1], these_latitudes_deg[-1], linestyle='None',
-            marker='x', markersize=12, markeredgewidth=2,
-            markerfacecolor=plotting_utils.colour_from_numpy_to_tuple(
-                TORNADO_MARKER_COLOUR),
-            markeredgecolor=plotting_utils.colour_from_numpy_to_tuple(
-                TORNADO_MARKER_COLOUR)
-        )
-
-        axes_object.plot(
-            these_longitudes_deg, these_latitudes_deg, linestyle=':',
-            linewidth=2, color=numpy.full(3, 152. / 255)
-        )
-
-        axes_object.text(
-            these_longitudes_deg[0], these_latitudes_deg[0] - 0.05,
-            these_time_strings[0],
-            fontsize=MAIN_FONT_SIZE, color=FONT_COLOUR,
-            rotation=-90, bbox=TEXT_BOUNDING_BOX_DICT,
-            horizontalalignment='center', verticalalignment='top', zorder=1e10
-        )
-
-        axes_object.text(
-            these_longitudes_deg[-1], these_latitudes_deg[-1] - 0.05,
-            these_time_strings[-1],
-            fontsize=MAIN_FONT_SIZE, color=FONT_COLOUR,
-            rotation=-90, bbox=TEXT_BOUNDING_BOX_DICT,
-            horizontalalignment='center', verticalalignment='top', zorder=1e10
+        _plot_one_tornado(
+            tornado_table=this_tornado_table, axes_object=axes_object
         )
 
 
@@ -560,6 +573,58 @@ def _get_plotting_limits(storm_object_table, latitude_buffer_deg,
         numpy.array([min_plot_latitude_deg, max_plot_latitude_deg]),
         numpy.array([min_plot_longitude_deg, max_plot_longitude_deg])
     )
+
+
+def _remove_tornadoes_outside_domain(tornado_table, latitude_limits_deg,
+                                     longitude_limits_deg):
+    """Removes tornadoes that never pass through plotting domain.
+
+    :param tornado_table: pandas DataFrame created by
+        `linkage._read_input_tornado_reports`.
+    :param latitude_limits_deg: length-2 numpy array with min and max latitudes
+        (deg N) in domain.
+    :param longitude_limits_deg: length-2 numpy array with min and max
+        longitudes (deg E) in domain.
+    """
+
+    tornado_id_strings = tornado_table[tornado_io.TORNADO_ID_COLUMN].values
+    bad_rows = numpy.array([], dtype=int)
+
+    for this_tornado_id_string in numpy.unique(tornado_id_strings):
+        these_rows = numpy.where(
+            tornado_id_strings == this_tornado_id_string
+        )[0]
+        this_tornado_table = copy.deepcopy(tornado_table.iloc[these_rows])
+
+        this_tornado_table = this_tornado_table.loc[
+            (
+                this_tornado_table[linkage.EVENT_LATITUDE_COLUMN] >=
+                latitude_limits_deg[0]
+            ) &
+            (
+                this_tornado_table[linkage.EVENT_LATITUDE_COLUMN] <=
+                latitude_limits_deg[1]
+            )
+            ]
+
+        this_tornado_table = this_tornado_table.loc[
+            (
+                this_tornado_table[linkage.EVENT_LONGITUDE_COLUMN] >=
+                longitude_limits_deg[0]
+            ) &
+            (
+                this_tornado_table[linkage.EVENT_LONGITUDE_COLUMN] <=
+                longitude_limits_deg[1]
+            )
+            ]
+
+        if len(this_tornado_table.index) > 0:
+            continue
+
+        bad_rows = numpy.concatenate((bad_rows, these_rows))
+
+    tornado_table.drop(tornado_table.index[bad_rows], axis=0, inplace=True)
+    return tornado_table
 
 
 def _plot_one_example(
@@ -720,44 +785,10 @@ def _plot_one_example(
         max_time_after_storm_end_sec=max_lead_time_seconds,
         genesis_only=False, interp_time_interval_sec=60
     )
-
-    tornado_id_strings = tornado_table[tornado_io.TORNADO_ID_COLUMN].values
-    bad_rows = numpy.array([], dtype=int)
-
-    for this_tornado_id_string in numpy.unique(tornado_id_strings):
-        these_rows = numpy.where(
-            tornado_id_strings == this_tornado_id_string
-        )[0]
-        this_tornado_table = copy.deepcopy(tornado_table.iloc[these_rows])
-
-        this_tornado_table = this_tornado_table.loc[
-            (
-                this_tornado_table[linkage.EVENT_LATITUDE_COLUMN] >=
-                latitude_limits_deg[0]
-            ) &
-            (
-                this_tornado_table[linkage.EVENT_LATITUDE_COLUMN] <=
-                latitude_limits_deg[1]
-            )
-        ]
-
-        this_tornado_table = this_tornado_table.loc[
-            (
-                this_tornado_table[linkage.EVENT_LONGITUDE_COLUMN] >=
-                longitude_limits_deg[0]
-            ) &
-            (
-                this_tornado_table[linkage.EVENT_LONGITUDE_COLUMN] <=
-                longitude_limits_deg[1]
-            )
-        ]
-
-        if len(this_tornado_table.index) > 0:
-            continue
-
-        bad_rows = numpy.concatenate((bad_rows, these_rows))
-
-    tornado_table.drop(tornado_table.index[bad_rows], axis=0, inplace=True)
+    tornado_table = _remove_tornadoes_outside_domain(
+        tornado_table=tornado_table, latitude_limits_deg=latitude_limits_deg,
+        longitude_limits_deg=longitude_limits_deg
+    )
 
     for i in range(len(tracking_file_names)):
         this_storm_object_table = storm_object_table.loc[
