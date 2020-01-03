@@ -50,10 +50,6 @@ def plot_wind_barbs(
         map.
     """
 
-    print('\n\n\n\n************\n\n\n\n\n')
-    print(barb_length)
-    print('\n\n\n\n************\n\n\n\n\n')
-
     error_checking.assert_is_valid_lat_numpy_array(latitudes_deg)
     error_checking.assert_is_numpy_array(latitudes_deg, num_dimensions=1)
     num_points = len(latitudes_deg)
