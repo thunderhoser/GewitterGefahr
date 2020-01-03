@@ -270,6 +270,22 @@ def _plot_rapruc_one_example(
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name
     )
 
+    latitude_matrix_deg, longitude_matrix_deg = (
+        nwp_model_utils.get_latlng_grid_point_matrices(
+            model_name=model_name, grid_name=grid_name)
+    )
+    cosine_matrix, sine_matrix = nwp_model_utils.get_wind_rotation_angles(
+        latitudes_deg=latitude_matrix_deg, longitudes_deg=longitude_matrix_deg,
+        model_name=model_name
+    )
+    u_wind_matrix_m_s01, v_wind_matrix_m_s01 = (
+        nwp_model_utils.rotate_winds_to_earth_relative(
+            u_winds_grid_relative_m_s01=u_wind_matrix_m_s01,
+            v_winds_grid_relative_m_s01=v_wind_matrix_m_s01,
+            rotation_angle_cosines=cosine_matrix,
+            rotation_angle_sines=sine_matrix)
+    )
+
     min_plot_latitude_deg = (
         min([orig_latitude_deg, extrap_latitude_deg]) - latitude_buffer_deg
     )
