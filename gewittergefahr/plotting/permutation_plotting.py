@@ -64,6 +64,10 @@ def _label_bars(axes_object, y_tick_coords, y_tick_strings):
     this_colour = plotting_utils.colour_from_numpy_to_tuple(BAR_TEXT_COLOUR)
 
     for j in range(len(y_tick_coords)):
+        y_tick_strings[j] = y_tick_strings[j].replace(
+            'Surface geopotential height', 'Orographic height'
+        )
+
         axes_object.text(
             x_coord_for_text, y_tick_coords[j], '   ' + y_tick_strings[j],
             color=this_colour, horizontalalignment='left',
