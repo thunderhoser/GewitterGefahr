@@ -33,7 +33,7 @@ ERROR_BAR_CAP_SIZE = 8
 ERROR_BAR_DICT = {'alpha': 0.5, 'linewidth': 4, 'capthick': 4}
 
 BAR_TEXT_COLOUR = numpy.full(3, 0.)
-BAR_FONT_SIZE = 20
+BAR_FONT_SIZE = 30
 DEFAULT_FONT_SIZE = 30
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -157,7 +157,7 @@ def _plot_bars(
     if numpy.any(cost_matrix < 0):
         cost_matrix *= -1
         mean_clean_cost *= -1
-        x_axis_label_string = 'AUC'
+        x_axis_label_string = 'Area under ROC curve'
 
         if plot_percent_increase:
             cost_matrix = 200 * (cost_matrix - 0.5)
