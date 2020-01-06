@@ -40,41 +40,52 @@ FIGURE_RESOLUTION_DPI = 300
 INPUT_FILES_ARG_NAME = 'input_eval_file_names'
 MODEL_NAMES_ARG_NAME = 'model_names'
 CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
+PLOT_BEST_THRESHOLDS_ARG_NAME = 'plot_best_thresholds'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILES_HELP_STRING = (
     'List of paths to input files (one for each model).  Will be read by '
-    '`model_evaluation.read_evaluation`.')
-
+    '`model_evaluation.read_evaluation`.'
+)
 MODEL_NAMES_HELP_STRING = (
     'List of model names (will be used in legend for each figure).  List should'
     ' be space-separated.  Underscores within each item will be turned into '
-    'spaces.')
-
+    'spaces.'
+)
 CONFIDENCE_LEVEL_HELP_STRING = (
     'Level for confidence interval.  If input does not contain bootstrapped '
     'scores, no confidence interval will be plotted, so this will be '
-    'irrelevant.')
-
+    'irrelevant.'
+)
+PLOT_BEST_THRESHOLDS_HELP_STRING = (
+    'Boolean flag.  If 1, will plot best probability threshold for each model, '
+    'using a star.'
+)
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory (figures will be saved here).')
+    'Name of output directory (figures will be saved here).'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILES_ARG_NAME, type=str, nargs='+', required=True,
-    help=INPUT_FILES_HELP_STRING)
-
+    help=INPUT_FILES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MODEL_NAMES_ARG_NAME, type=str, nargs='+', required=True,
-    help=MODEL_NAMES_HELP_STRING)
-
+    help=MODEL_NAMES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
-    help=CONFIDENCE_LEVEL_HELP_STRING)
-
+    help=CONFIDENCE_LEVEL_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_BEST_THRESHOLDS_ARG_NAME, type=int, required=False, default=1,
+    help=PLOT_BEST_THRESHOLDS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _get_ci_one_model(evaluation_table, for_roc_curve, confidence_level):
@@ -176,8 +187,9 @@ def _get_ci_one_model(evaluation_table, for_roc_curve, confidence_level):
     return ci_bottom_dict, ci_mean_dict, ci_top_dict
 
 
-def _plot_roc_curves(evaluation_tables, model_names, best_threshold_indices,
-                     output_file_name, confidence_level=None):
+def _plot_roc_curves(
+        evaluation_tables, model_names, best_threshold_indices,
+        output_file_name, plot_best_thresholds, confidence_level=None):
     """Plots ROC curves (one for each model).
 
     M = number of models
@@ -190,6 +202,7 @@ def _plot_roc_curves(evaluation_tables, model_names, best_threshold_indices,
     :param best_threshold_indices: length-M numpy array with index of best
         probability threshold for each model.
     :param output_file_name: Path to output file (figure will be saved here).
+    :param plot_best_thresholds: See documentation at top of file.
     :param confidence_level: Confidence level for bootstrapping.
     """
 
@@ -280,10 +293,12 @@ def _plot_roc_curves(evaluation_tables, model_names, best_threshold_indices,
             this_y, this_x
         ))
 
-        axes_object.plot(
-            this_x, this_y, linestyle='None', marker=MARKER_TYPE,
-            markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
-            markerfacecolor=this_colour, markeredgecolor=this_colour)
+        if plot_best_thresholds:
+            axes_object.plot(
+                this_x, this_y, linestyle='None', marker=MARKER_TYPE,
+                markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+                markerfacecolor=this_colour, markeredgecolor=this_colour
+            )
 
     axes_object.legend(
         legend_handles, legend_strings, loc='lower center',
@@ -304,14 +319,16 @@ def _plot_roc_curves(evaluation_tables, model_names, best_threshold_indices,
     pyplot.close()
 
 
-def _plot_perf_diagrams(evaluation_tables, model_names, best_threshold_indices,
-                        output_file_name, confidence_level=None):
+def _plot_perf_diagrams(
+        evaluation_tables, model_names, best_threshold_indices,
+        output_file_name, plot_best_thresholds, confidence_level=None):
     """Plots performance diagrams (one for each model).
 
     :param evaluation_tables: See doc for `_plot_roc_curves`.
     :param model_names: Same.
     :param best_threshold_indices: Same.
     :param output_file_name: Same.
+    :param plot_best_thresholds: Same.
     :param confidence_level: Same.
     """
 
@@ -413,10 +430,12 @@ def _plot_perf_diagrams(evaluation_tables, model_names, best_threshold_indices,
             this_y, this_x, this_csi
         ))
 
-        axes_object.plot(
-            this_x, this_y, linestyle='None', marker=MARKER_TYPE,
-            markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
-            markerfacecolor=this_colour, markeredgecolor=this_colour)
+        if plot_best_thresholds:
+            axes_object.plot(
+                this_x, this_y, linestyle='None', marker=MARKER_TYPE,
+                markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+                markerfacecolor=this_colour, markeredgecolor=this_colour
+            )
 
     axes_object.legend(
         legend_handles, legend_strings, loc='upper center',
@@ -437,7 +456,8 @@ def _plot_perf_diagrams(evaluation_tables, model_names, best_threshold_indices,
     pyplot.close()
 
 
-def _run(evaluation_file_names, model_names, confidence_level, output_dir_name):
+def _run(evaluation_file_names, model_names, confidence_level,
+         plot_best_thresholds, output_dir_name):
     """Plots evaluation for many models on the same axes.
 
     This is effectively the main method.
@@ -445,11 +465,13 @@ def _run(evaluation_file_names, model_names, confidence_level, output_dir_name):
     :param evaluation_file_names: See documentation at top of file.
     :param model_names: Same.
     :param confidence_level: Same.
+    :param plot_best_thresholds: Same.
     :param output_dir_name: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=output_dir_name
+    )
 
     model_names = [n.replace('_', ' ') for n in model_names]
 
@@ -482,15 +504,18 @@ def _run(evaluation_file_names, model_names, confidence_level, output_dir_name):
         evaluation_tables=evaluation_tables, model_names=model_names,
         best_threshold_indices=best_threshold_indices,
         output_file_name='{0:s}/roc_curves.jpg'.format(output_dir_name),
-        confidence_level=confidence_level
+        confidence_level=confidence_level,
+        plot_best_thresholds=plot_best_thresholds
     )
 
     _plot_perf_diagrams(
         evaluation_tables=evaluation_tables, model_names=model_names,
         best_threshold_indices=best_threshold_indices,
         output_file_name='{0:s}/performance_diagrams.jpg'.format(
-            output_dir_name),
-        confidence_level=confidence_level
+            output_dir_name
+        ),
+        confidence_level=confidence_level,
+        plot_best_thresholds=plot_best_thresholds
     )
 
 
@@ -501,5 +526,8 @@ if __name__ == '__main__':
         evaluation_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
         model_names=getattr(INPUT_ARG_OBJECT, MODEL_NAMES_ARG_NAME),
         confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
+        plot_best_thresholds=bool(
+            getattr(INPUT_ARG_OBJECT, PLOT_BEST_THRESHOLDS_ARG_NAME)
+        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
