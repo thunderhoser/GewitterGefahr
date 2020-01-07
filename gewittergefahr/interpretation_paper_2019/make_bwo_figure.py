@@ -42,10 +42,11 @@ INPUT_FILE_ARG_NAME = 'input_bwo_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file (will be read by `backwards_optimization.read_file`).')
-
+    'Path to input file (will be read by `backwards_optimization.read_file`).'
+)
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory (figures will be saved here).')
+    'Name of output directory (figures will be saved here).'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
