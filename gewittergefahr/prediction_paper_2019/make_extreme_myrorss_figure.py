@@ -197,7 +197,7 @@ def _read_composite(pickle_file_name, read_saliency):
 
     mean_saliency_matrices[0] = mean_saliency_matrices[0][..., good_indices, :]
     mean_saliency_matrices = _smooth_maps(
-        saliency_matrices=mean_saliency_matrices, smoothing_radius_grid_cells=1
+        saliency_matrices=mean_saliency_matrices, smoothing_radius_grid_cells=2
     )
 
     return (
