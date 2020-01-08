@@ -14,6 +14,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
+from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -84,6 +85,41 @@ INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
+
+
+def _smooth_maps(saliency_matrices, smoothing_radius_grid_cells):
+    """Smooths saliency maps via Gaussian filter.
+
+    T = number of input tensors to the model
+
+    :param saliency_matrices: length-T list of numpy arrays.
+    :param smoothing_radius_grid_cells: e-folding radius (number of grid cells).
+    :return: saliency_matrices: Smoothed version of input.
+    """
+
+    print((
+        'Smoothing saliency maps with Gaussian filter (e-folding radius of '
+        '{0:.1f} grid cells)...'
+    ).format(
+        smoothing_radius_grid_cells
+    ))
+
+    num_matrices = len(saliency_matrices)
+    num_examples = saliency_matrices[0].shape[0]
+
+    for j in range(num_matrices):
+        this_num_channels = saliency_matrices[j].shape[-1]
+
+        for i in range(num_examples):
+            for k in range(this_num_channels):
+                saliency_matrices[j][i, ..., k] = (
+                    general_utils.apply_gaussian_filter(
+                        input_matrix=saliency_matrices[j][i, ..., k],
+                        e_folding_radius_grid_cells=smoothing_radius_grid_cells
+                    )
+                )
+
+    return saliency_matrices
 
 
 def _read_composite(pickle_file_name, read_saliency):
@@ -160,6 +196,9 @@ def _read_composite(pickle_file_name, read_saliency):
         )
 
     mean_saliency_matrices[0] = mean_saliency_matrices[0][..., good_indices, :]
+    mean_saliency_matrices = _smooth_maps(
+        saliency_matrices=mean_saliency_matrices, smoothing_radius_grid_cells=1
+    )
 
     return (
         mean_predictor_matrices, model_metadata_dict,
