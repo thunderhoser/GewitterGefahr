@@ -17,8 +17,10 @@ from matplotlib import pyplot
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.scripts import plot_input_examples as plot_examples
 
@@ -37,11 +39,14 @@ CONVERT_EXE_NAME = '/usr/bin/convert'
 TITLE_FONT_SIZE = 150
 TITLE_FONT_TYPE = 'DejaVu-Sans-Bold'
 
+SALIENCY_COLOUR_MAP_OBJECT = pyplot.get_cmap('binary')
+
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_FILES_ARG_NAME = 'input_composite_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
+PLOT_SALIENCY_ARG_NAME = 'plot_saliency'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILES_HELP_STRING = (
@@ -53,38 +58,50 @@ INPUT_FILES_HELP_STRING = (
 COMPOSITE_NAMES_HELP_STRING = (
     'List of PMM-composite names (one per input file).  The list should be '
     'space-separated.  In each list item, underscores will be replaced with '
-    'spaces.')
-
+    'spaces.'
+)
+PLOT_SALIENCY_HELP_STRING = (
+    'Boolean flag.  If 1, will plot saliency on top of radar fields.'
+)
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory (figures will be saved here).')
+    'Name of output directory (figures will be saved here).'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILES_ARG_NAME, type=str, nargs='+', required=True,
-    help=INPUT_FILES_HELP_STRING)
-
+    help=INPUT_FILES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + COMPOSITE_NAMES_ARG_NAME, type=str, nargs='+', required=True,
-    help=COMPOSITE_NAMES_HELP_STRING)
-
+    help=COMPOSITE_NAMES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_SALIENCY_ARG_NAME, type=int, required=False, default=0,
+    help=PLOT_SALIENCY_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
-def _read_composite(pickle_file_name):
+def _read_composite(pickle_file_name, read_saliency):
     """Reads PMM composite of examples (storm objects) from Pickle file.
 
     T = number of input tensors to model
     H_s = number of sounding heights
 
     :param pickle_file_name: Path to input file.
+    :param read_saliency: Boolean flag.
     :return: mean_predictor_matrices: length-T of numpy arrays, where the [i]th
         item has dimensions of the [i]th input tensor to the model.
     :return: model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     :return: mean_sounding_pressures_pa: numpy array (length H_s) of
         sounding pressures.
+    :return: mean_saliency_matrices: Same as `mean_predictor_matrices` but with
+        saliency values.
     """
 
     print('Reading data from: "{0:s}"...'.format(pickle_file_name))
@@ -112,22 +129,42 @@ def _read_composite(pickle_file_name):
     ] = False
 
     all_refl_heights_m_agl = model_metadata_dict[
-        cnn.TRAINING_OPTION_DICT_KEY][trainval_io.RADAR_HEIGHTS_KEY]
+        cnn.TRAINING_OPTION_DICT_KEY
+    ][trainval_io.RADAR_HEIGHTS_KEY]
 
     good_flags = numpy.array(
         [h in REFL_HEIGHTS_M_AGL for h in all_refl_heights_m_agl], dtype=bool
     )
     good_indices = numpy.where(good_flags)[0]
 
-    mean_predictor_matrices[0] = mean_predictor_matrices[0][
-        ..., good_indices, :]
-
+    mean_predictor_matrices[0] = (
+        mean_predictor_matrices[0][..., good_indices, :]
+    )
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY][
         trainval_io.RADAR_HEIGHTS_KEY
     ] = REFL_HEIGHTS_M_AGL
 
-    return (mean_predictor_matrices, model_metadata_dict,
-            mean_sounding_pressures_pa)
+    if not read_saliency:
+        return (
+            mean_predictor_matrices, model_metadata_dict,
+            mean_sounding_pressures_pa, None
+        )
+
+    mean_saliency_matrices = composite_dict[
+        saliency_maps.MEAN_SALIENCY_MATRICES_KEY
+    ]
+
+    for i in range(len(mean_saliency_matrices)):
+        mean_saliency_matrices[i] = numpy.expand_dims(
+            mean_saliency_matrices[i], axis=0
+        )
+
+    mean_saliency_matrices[0] = mean_saliency_matrices[0][..., good_indices, :]
+
+    return (
+        mean_predictor_matrices, model_metadata_dict,
+        mean_sounding_pressures_pa, mean_saliency_matrices
+    )
 
 
 def _overlay_text(
@@ -160,7 +197,7 @@ def _overlay_text(
 
 def _plot_composite(
         composite_file_name, composite_name_abbrev, composite_name_verbose,
-        output_dir_name):
+        plot_saliency, output_dir_name):
     """Plots one composite.
 
     :param composite_file_name: Path to input file.  Will be read by
@@ -169,6 +206,7 @@ def _plot_composite(
         in names of output files.
     :param composite_name_verbose: Verbose name for composite.  Will be used as
         figure title.
+    :param plot_saliency: See documentation at top of file.
     :param output_dir_name: Path to output directory.  Figures will be saved
         here.
     :return: radar_figure_file_name: Path to file with radar figure for this
@@ -177,12 +215,16 @@ def _plot_composite(
         this composite.
     """
 
-    mean_predictor_matrices, model_metadata_dict, mean_sounding_pressures_pa = (
-        _read_composite(composite_file_name)
+    (
+        mean_predictor_matrices, model_metadata_dict,
+        mean_sounding_pressures_pa, mean_saliency_matrices
+    ) = _read_composite(
+        pickle_file_name=composite_file_name, read_saliency=plot_saliency
     )
 
     refl_heights_m_agl = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY][
-        trainval_io.RADAR_HEIGHTS_KEY]
+        trainval_io.RADAR_HEIGHTS_KEY
+    ]
     num_refl_heights = len(refl_heights_m_agl)
 
     handle_dict = plot_examples.plot_one_example(
@@ -197,58 +239,101 @@ def _plot_composite(
         colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
         sounding_font_size=SOUNDING_FONT_SIZE, num_panel_rows=num_refl_heights)
 
+    if plot_saliency:
+        axes_object_matrices = handle_dict[plot_examples.RADAR_AXES_KEY]
+
+        all_saliency_values = numpy.concatenate((
+            numpy.ravel(mean_saliency_matrices[0]),
+            numpy.ravel(mean_saliency_matrices[1])
+        ))
+        max_contour_value = numpy.percentile(
+            numpy.absolute(all_saliency_values), 99
+        )
+
+        this_matrix = numpy.flip(
+            mean_saliency_matrices[0][0, ..., 0], axis=0
+        )
+        saliency_plotting.plot_many_2d_grids_with_contours(
+            saliency_matrix_3d=this_matrix,
+            axes_object_matrix=axes_object_matrices[0],
+            colour_map_object=SALIENCY_COLOUR_MAP_OBJECT,
+            max_absolute_contour_level=max_contour_value,
+            contour_interval=max_contour_value / 10,
+            row_major=True
+        )
+
+        this_matrix = numpy.flip(
+            mean_saliency_matrices[1][0, ...], axis=0
+        )
+        saliency_plotting.plot_many_2d_grids_with_contours(
+            saliency_matrix_3d=this_matrix,
+            axes_object_matrix=axes_object_matrices[1],
+            colour_map_object=SALIENCY_COLOUR_MAP_OBJECT,
+            max_absolute_contour_level=max_contour_value,
+            contour_interval=max_contour_value / 10,
+            row_major=False
+        )
+
     sounding_figure_object = handle_dict[plot_examples.SOUNDING_FIGURE_KEY]
     sounding_figure_file_name = '{0:s}/{1:s}_sounding.jpg'.format(
-        output_dir_name, composite_name_abbrev)
+        output_dir_name, composite_name_abbrev
+    )
 
     print('Saving figure to: "{0:s}"...'.format(sounding_figure_file_name))
     sounding_figure_object.savefig(
         sounding_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight')
+        pad_inches=0, bbox_inches='tight'
+    )
     pyplot.close(sounding_figure_object)
 
     imagemagick_utils.resize_image(
         input_file_name=sounding_figure_file_name,
         output_file_name=sounding_figure_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
-
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
     imagemagick_utils.trim_whitespace(
         input_file_name=sounding_figure_file_name,
         output_file_name=sounding_figure_file_name,
-        border_width_pixels=TITLE_FONT_SIZE + 25)
-
+        border_width_pixels=TITLE_FONT_SIZE + 25
+    )
     _overlay_text(
         image_file_name=sounding_figure_file_name,
         x_offset_from_center_px=0, y_offset_from_top_px=0,
-        text_string=composite_name_verbose)
-
+        text_string=composite_name_verbose
+    )
     imagemagick_utils.trim_whitespace(
         input_file_name=sounding_figure_file_name,
         output_file_name=sounding_figure_file_name,
-        border_width_pixels=10)
+        border_width_pixels=10
+    )
 
     refl_figure_object = handle_dict[plot_examples.RADAR_FIGURES_KEY][0]
     refl_figure_file_name = '{0:s}/{1:s}_reflectivity.jpg'.format(
-        output_dir_name, composite_name_abbrev)
+        output_dir_name, composite_name_abbrev
+    )
 
     print('Saving figure to: "{0:s}"...'.format(refl_figure_file_name))
     refl_figure_object.savefig(
         refl_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight')
+        pad_inches=0, bbox_inches='tight'
+    )
     pyplot.close(refl_figure_object)
 
     shear_figure_object = handle_dict[plot_examples.RADAR_FIGURES_KEY][1]
     shear_figure_file_name = '{0:s}/{1:s}_shear.jpg'.format(
-        output_dir_name, composite_name_abbrev)
+        output_dir_name, composite_name_abbrev
+    )
 
     print('Saving figure to: "{0:s}"...'.format(shear_figure_file_name))
     shear_figure_object.savefig(
         shear_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
-        pad_inches=0, bbox_inches='tight')
+        pad_inches=0, bbox_inches='tight'
+    )
     pyplot.close(shear_figure_object)
 
     radar_figure_file_name = '{0:s}/{1:s}_radar.jpg'.format(
-        output_dir_name, composite_name_abbrev)
+        output_dir_name, composite_name_abbrev
+    )
 
     print('Concatenating panels to: "{0:s}"...'.format(radar_figure_file_name))
 
@@ -256,43 +341,46 @@ def _plot_composite(
         input_file_names=[refl_figure_file_name, shear_figure_file_name],
         output_file_name=radar_figure_file_name,
         num_panel_rows=1, num_panel_columns=2, border_width_pixels=50,
-        extra_args_string='-gravity south')
-
+        extra_args_string='-gravity south'
+    )
     imagemagick_utils.resize_image(
         input_file_name=radar_figure_file_name,
         output_file_name=radar_figure_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
-
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
     imagemagick_utils.trim_whitespace(
         input_file_name=radar_figure_file_name,
         output_file_name=radar_figure_file_name,
-        border_width_pixels=TITLE_FONT_SIZE + 25)
-
+        border_width_pixels=TITLE_FONT_SIZE + 25
+    )
     _overlay_text(
         image_file_name=radar_figure_file_name,
         x_offset_from_center_px=0, y_offset_from_top_px=0,
-        text_string=composite_name_verbose)
-
+        text_string=composite_name_verbose
+    )
     imagemagick_utils.trim_whitespace(
         input_file_name=radar_figure_file_name,
         output_file_name=radar_figure_file_name,
-        border_width_pixels=10)
+        border_width_pixels=10
+    )
 
     return radar_figure_file_name, sounding_figure_file_name
 
 
-def _run(composite_file_names, composite_names, output_dir_name):
+def _run(composite_file_names, composite_names, plot_saliency, output_dir_name):
     """Makes figure with extreme examples for MYRORSS model.
 
     This is effectively the main method.
 
     :param composite_file_names: See documentation at top of file.
     :param composite_names: Same.
+    :param plot_saliency: Same.
     :param output_dir_name: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=output_dir_name
+    )
 
     num_composites = len(composite_file_names)
     expected_dim = numpy.array([num_composites], dtype=int)
@@ -314,7 +402,8 @@ def _run(composite_file_names, composite_names, output_dir_name):
                 composite_file_name=composite_file_names[i],
                 composite_name_abbrev=composite_names_abbrev[i],
                 composite_name_verbose=composite_names_verbose[i],
-                output_dir_name=output_dir_name)
+                plot_saliency=plot_saliency, output_dir_name=output_dir_name
+            )
         )
 
         print('\n')
@@ -332,19 +421,21 @@ def _run(composite_file_names, composite_names, output_dir_name):
     imagemagick_utils.concatenate_images(
         input_file_names=radar_panel_file_names,
         output_file_name=radar_figure_file_name,
-        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns)
-
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
     imagemagick_utils.trim_whitespace(
         input_file_name=radar_figure_file_name,
-        output_file_name=radar_figure_file_name)
-
+        output_file_name=radar_figure_file_name
+    )
     imagemagick_utils.resize_image(
         input_file_name=radar_figure_file_name,
         output_file_name=radar_figure_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
 
     sounding_figure_file_name = '{0:s}/sounding_concat.jpg'.format(
-        output_dir_name)
+        output_dir_name
+    )
     print('Concatenating panels to: "{0:s}"...'.format(
         sounding_figure_file_name
     ))
@@ -352,16 +443,17 @@ def _run(composite_file_names, composite_names, output_dir_name):
     imagemagick_utils.concatenate_images(
         input_file_names=sounding_panel_file_names,
         output_file_name=sounding_figure_file_name,
-        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns)
-
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
     imagemagick_utils.trim_whitespace(
         input_file_name=sounding_figure_file_name,
-        output_file_name=sounding_figure_file_name)
-
+        output_file_name=sounding_figure_file_name
+    )
     imagemagick_utils.resize_image(
         input_file_name=sounding_figure_file_name,
         output_file_name=sounding_figure_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
 
 
 if __name__ == '__main__':
@@ -370,5 +462,6 @@ if __name__ == '__main__':
     _run(
         composite_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
         composite_names=getattr(INPUT_ARG_OBJECT, COMPOSITE_NAMES_ARG_NAME),
+        plot_saliency=bool(getattr(INPUT_ARG_OBJECT, PLOT_SALIENCY_ARG_NAME)),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
