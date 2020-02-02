@@ -26,6 +26,8 @@ from gewittergefahr.scripts import plot_input_examples as plot_examples
 # TODO(thunderhoser): A lot of this code is hacky and redundant with
 # make_saliency_figure.py.
 
+NONE_STRINGS = ['None', 'none']
+
 RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
 RADAR_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
@@ -56,77 +58,80 @@ LOG_SCALE_ARG_NAME = 'log_scale'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 SALIENCY_FILES_HELP_STRING = (
-    'List of saliency files (each will be read by `saliency.read_file`).')
-
+    'List of saliency files (each will be read by `saliency.read_file`).'
+)
 MC_FILES_HELP_STRING = (
     'List of files with Monte Carlo significance tests (one per saliency file).'
-    '  Each will be read by `_read_monte_carlo_test`.')
-
+    '  Each will be read by `_read_monte_carlo_test`.  To skip plotting '
+    'significance for one composite, use "None".'
+)
 COMPOSITE_NAMES_HELP_STRING = (
     'List of composite names (one for each saliency file).  This list must be '
     'space-separated, but after reading the list, underscores within each item '
-    'will be replaced by spaces.')
-
+    'will be replaced by spaces.'
+)
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map.  Saliency for each predictor will be plotted with the '
     'same colour map.  For example, if name is "Greys", the colour map used '
     'will be `pyplot.cm.Greys`.  This argument supports only pyplot colour '
-    'maps.')
-
+    'maps.'
+)
 MAX_COLOUR_VALUE_HELP_STRING = (
     'Max saliency value in colour scheme.  Keep in mind that the colour scheme '
     'encodes *absolute* value, with positive values in solid contours and '
-    'negative values in dashed contours.')
-
+    'negative values in dashed contours.'
+)
 HALF_NUM_CONTOURS_HELP_STRING = (
-    'Number of contours on each side of zero (positive and negative).')
-
+    'Number of contours on each side of zero (positive and negative).'
+)
 SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
-    'want to smooth saliency maps, make this non-positive.')
-
+    'want to smooth saliency maps, make this non-positive.'
+)
 LOG_SCALE_HELP_STRING = (
-    'Boolean flag.  If 1, will plot saliency in logarithmic scale.')
-
+    'Boolean flag.  If 1, will plot saliency in logarithmic scale.'
+)
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory (figures will be saved here).')
+    'Name of output directory (figures will be saved here).'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + SALIENCY_FILES_ARG_NAME, type=str, nargs='+', required=True,
-    help=SALIENCY_FILES_HELP_STRING)
-
+    help=SALIENCY_FILES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MC_FILES_ARG_NAME, type=str, nargs='+', required=True,
-    help=MC_FILES_HELP_STRING)
-
+    help=MC_FILES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + COMPOSITE_NAMES_ARG_NAME, type=str, nargs='+', required=True,
-    help=COMPOSITE_NAMES_HELP_STRING)
-
+    help=COMPOSITE_NAMES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='binary',
-    help=COLOUR_MAP_HELP_STRING)
-
+    help=COLOUR_MAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_COLOUR_VALUE_ARG_NAME, type=float, required=False,
-    default=0.05, help=MAX_COLOUR_VALUE_HELP_STRING)
-
+    default=0.05, help=MAX_COLOUR_VALUE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + HALF_NUM_CONTOURS_ARG_NAME, type=int, required=False,
-    default=10, help=HALF_NUM_CONTOURS_HELP_STRING)
-
+    default=10, help=HALF_NUM_CONTOURS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
-    default=1., help=SMOOTHING_RADIUS_HELP_STRING)
-
+    default=1., help=SMOOTHING_RADIUS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + LOG_SCALE_ARG_NAME, type=int, required=False,
-    default=0, help=LOG_SCALE_HELP_STRING)
-
+    default=0, help=LOG_SCALE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
@@ -168,21 +173,26 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
     model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
     model_metafile_name = cnn.find_metafile(model_file_name)
 
-    print('Reading Monte Carlo test from: "{0:s}"...'.format(
-        monte_carlo_file_name
-    ))
+    if monte_carlo_file_name is None:
+        significance_matrix = numpy.full(
+            mean_radar_matrix.shape, False, dtype=bool
+        )
+    else:
+        print('Reading Monte Carlo test from: "{0:s}"...'.format(
+            monte_carlo_file_name
+        ))
 
-    this_file_handle = open(monte_carlo_file_name, 'rb')
-    monte_carlo_dict = pickle.load(this_file_handle)
-    this_file_handle.close()
+        this_file_handle = open(monte_carlo_file_name, 'rb')
+        monte_carlo_dict = pickle.load(this_file_handle)
+        this_file_handle.close()
 
-    significance_matrix = numpy.logical_or(
-        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
-        monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
-        monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
-        monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
-    )
-    significance_matrix = numpy.expand_dims(significance_matrix, axis=0)
+        significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+        )
+        significance_matrix = numpy.expand_dims(significance_matrix, axis=0)
 
     print('Reading CNN metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
@@ -373,22 +383,22 @@ def _plot_one_composite(
                 max_absolute_contour_level=max_colour_value,
                 contour_interval=max_colour_value / half_num_contours)
 
-        if k != 0:
-            continue
-
-        this_sig_matrix = significance_matrix[0, ..., 0, k]
-
-        significance_plotting.plot_2d_grid_without_coords(
-            significance_matrix=numpy.flip(this_sig_matrix, axis=0),
-            axes_object=axes_object_matrices[k][0, 0]
-        )
-
-        # this_sig_matrix = significance_matrix[0, ..., k]
+        # if k != 0:
+        #     continue
         #
-        # significance_plotting.plot_many_2d_grids_without_coords(
+        # this_sig_matrix = significance_matrix[0, ..., 0, k]
+        #
+        # significance_plotting.plot_2d_grid_without_coords(
         #     significance_matrix=numpy.flip(this_sig_matrix, axis=0),
-        #     axes_object_matrix=axes_object_matrices[k]
+        #     axes_object=axes_object_matrices[k][0, 0]
         # )
+
+        this_sig_matrix = significance_matrix[0, ..., k]
+
+        significance_plotting.plot_many_2d_grids_without_coords(
+            significance_matrix=numpy.flip(this_sig_matrix, axis=0),
+            axes_object_matrix=axes_object_matrices[k]
+        )
 
     panel_file_names = [None] * num_fields
 
@@ -457,24 +467,28 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
     :param output_dir_name: Same.
     """
 
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name
+    )
+
     if smoothing_radius_grid_cells <= 0:
         smoothing_radius_grid_cells = None
-
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
 
     colour_map_object = pyplot.cm.get_cmap(colour_map_name)
     error_checking.assert_is_geq(half_num_contours, 5)
 
     num_composites = len(saliency_file_names)
     expected_dim = numpy.array([num_composites], dtype=int)
-
     error_checking.assert_is_numpy_array(
         numpy.array(composite_names), exact_dimensions=expected_dim
     )
     error_checking.assert_is_numpy_array(
         numpy.array(monte_carlo_file_names), exact_dimensions=expected_dim
     )
+
+    monte_carlo_file_names = [
+        None if f in NONE_STRINGS else f for f in monte_carlo_file_names
+    ]
 
     composite_names_abbrev = [
         n.replace('_', '-').lower() for n in composite_names
