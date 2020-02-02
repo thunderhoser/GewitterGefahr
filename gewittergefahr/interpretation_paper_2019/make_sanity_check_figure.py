@@ -194,6 +194,10 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
         )
         significance_matrix = numpy.expand_dims(significance_matrix, axis=0)
 
+    print('Fraction of significant differences: {0:.4f}'.format(
+        numpy.mean(significance_matrix.astype(float))
+    ))
+
     print('Reading CNN metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
