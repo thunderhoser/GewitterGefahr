@@ -18,34 +18,37 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 FORWARD_FILE_HELP_STRING = (
     'Path to file with results of forward (both single- and multi-pass) '
-    'permutation tests.  Will be read by `permutation_utils.read_results`.')
+    'permutation tests.  Will be read by `permutation_utils.read_results`.'
+)
 
 BACKWARDS_FILE_HELP_STRING = (
     'Same as `{0:s}` but for backwards tests.'
 ).format(FORWARD_FILE_ARG_NAME)
 
 CONFIDENCE_LEVEL_HELP_STRING = (
-    'Confidence level for error bars (in range 0...1).')
-
+    'Confidence level for error bars (in range 0...1).'
+)
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file (figure will be saved here).')
+    'Path to output file (figure will be saved here).'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + FORWARD_FILE_ARG_NAME, type=str, required=True,
-    help=FORWARD_FILE_HELP_STRING)
-
+    help=FORWARD_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + BACKWARDS_FILE_ARG_NAME, type=str, required=True,
-    help=BACKWARDS_FILE_HELP_STRING)
-
+    help=BACKWARDS_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
-    help=CONFIDENCE_LEVEL_HELP_STRING)
-
+    help=CONFIDENCE_LEVEL_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
-    help=OUTPUT_FILE_HELP_STRING)
+    help=OUTPUT_FILE_HELP_STRING
+)
 
 
 def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
@@ -67,16 +70,19 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
 
     print('Reading data from: "{0:s}"...'.format(backwards_test_file_name))
     backwards_test_dict = permutation_utils.read_results(
-        backwards_test_file_name)
+        backwards_test_file_name
+    )
 
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=2, num_columns=2, shared_x_axis=False, shared_y_axis=True,
-        keep_aspect_ratio=False, horizontal_spacing=0.1, vertical_spacing=0.05)
+        keep_aspect_ratio=False, horizontal_spacing=0.1, vertical_spacing=0.05
+    )
 
     permutation_plotting.plot_single_pass_test(
         permutation_dict=forward_test_dict,
         axes_object=axes_object_matrix[0, 0],
-        plot_percent_increase=False, confidence_level=confidence_level)
+        plot_percent_increase=False, confidence_level=confidence_level
+    )
 
     axes_object_matrix[0, 0].set_title('Forward single-pass test')
     axes_object_matrix[0, 0].set_xticks([])
@@ -89,7 +95,8 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     permutation_plotting.plot_multipass_test(
         permutation_dict=forward_test_dict,
         axes_object=axes_object_matrix[0, 1],
-        plot_percent_increase=False, confidence_level=confidence_level)
+        plot_percent_increase=False, confidence_level=confidence_level
+    )
 
     axes_object_matrix[0, 1].set_title('Forward multi-pass test')
     axes_object_matrix[0, 1].set_xticks([])
@@ -103,9 +110,10 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     permutation_plotting.plot_single_pass_test(
         permutation_dict=backwards_test_dict,
         axes_object=axes_object_matrix[1, 0],
-        plot_percent_increase=False, confidence_level=confidence_level)
+        plot_percent_increase=False, confidence_level=confidence_level
+    )
 
-    axes_object_matrix[1, 0].set_title('Backwards single-pass test')
+    axes_object_matrix[1, 0].set_title('Backward single-pass test')
     axes_object_matrix[1, 0].set_xlabel('Area under ROC curve')
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[1, 0], label_string='(c)',
@@ -115,9 +123,10 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     permutation_plotting.plot_multipass_test(
         permutation_dict=backwards_test_dict,
         axes_object=axes_object_matrix[1, 1],
-        plot_percent_increase=False, confidence_level=confidence_level)
+        plot_percent_increase=False, confidence_level=confidence_level
+    )
 
-    axes_object_matrix[1, 1].set_title('Backwards multi-pass test')
+    axes_object_matrix[1, 1].set_title('Backward multi-pass test')
     axes_object_matrix[1, 1].set_xlabel('Area under ROC curve')
     axes_object_matrix[1, 1].set_ylabel('')
     plotting_utils.label_axes(
@@ -127,8 +136,9 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
-        output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-        bbox_inches='tight')
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
     pyplot.close(figure_object)
 
 

@@ -33,7 +33,7 @@ ERROR_BAR_CAP_SIZE = 8
 ERROR_BAR_DICT = {'alpha': 0.5, 'linewidth': 4, 'capthick': 4}
 
 BAR_TEXT_COLOUR = numpy.full(3, 0.)
-BAR_FONT_SIZE = 30
+BAR_FONT_SIZE = 28
 DEFAULT_FONT_SIZE = 30
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -238,7 +238,7 @@ def _plot_bars(
     axes_object.set_xlabel(x_axis_label_string)
 
     if backwards_flag:
-        axes_object.set_ylabel('Variable unpermuted')
+        axes_object.set_ylabel('Variable cleaned')
     else:
         axes_object.set_ylabel('Variable permuted')
 
