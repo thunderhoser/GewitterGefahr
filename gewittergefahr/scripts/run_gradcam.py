@@ -1,6 +1,5 @@
 """Runs Grad-CAM (gradient-weighted class-activation maps)."""
 
-import copy
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
@@ -138,26 +137,32 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     print(SEPARATOR_STRING)
 
     predictor_matrices = example_dict[testing_io.INPUT_MATRICES_KEY]
-    sounding_pressure_matrix_pa = example_dict[
-        testing_io.SOUNDING_PRESSURES_KEY]
+    sounding_pressure_matrix_pa = (
+        example_dict[testing_io.SOUNDING_PRESSURES_KEY]
+    )
 
-    cam_matrices = None
-    guided_cam_matrices = None
-    new_model_object = None
+    num_matrices = len(predictor_matrices)
     num_examples = len(full_storm_id_strings)
+
+    cam_matrices = [None] * num_matrices
+    guided_cam_matrices = [None] * num_matrices
+    new_model_object = None
 
     for i in range(num_examples):
         print('Running Grad-CAM for example {0:d} of {1:d}...'.format(
-            i + 1, num_examples))
+            i + 1, num_examples
+        ))
 
         these_predictor_matrices = [a[[i], ...] for a in predictor_matrices]
         these_cam_matrices = gradcam.run_gradcam(
             model_object=model_object,
             list_of_input_matrices=these_predictor_matrices,
-            target_class=target_class, target_layer_name=target_layer_name)
+            target_class=target_class, target_layer_name=target_layer_name
+        )
 
         print('Running guided Grad-CAM for example {0:d} of {1:d}...'.format(
-            i + 1, num_examples))
+            i + 1, num_examples
+        ))
 
         these_guided_cam_matrices, new_model_object = (
             gradcam.run_guided_gradcam(
@@ -168,22 +173,30 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
                 new_model_object=new_model_object)
         )
 
-        if cam_matrices is None:
-            cam_matrices = copy.deepcopy(these_cam_matrices)
-            guided_cam_matrices = copy.deepcopy(these_guided_cam_matrices)
-        else:
-            for j in range(len(these_cam_matrices)):
-                if cam_matrices[j] is None:
+        if all([a is None for a in cam_matrices]):
+            for k in range(num_matrices):
+                if these_cam_matrices[k] is None:
                     continue
 
-                cam_matrices[j] = numpy.concatenate(
-                    (cam_matrices[j], these_cam_matrices[j]), axis=0
+                these_dim = numpy.array(
+                    (num_examples,) + these_cam_matrices[k].shape[1:], dtype=int
                 )
+                cam_matrices[k] = numpy.full(these_dim, numpy.nan)
 
-                guided_cam_matrices[j] = numpy.concatenate(
-                    (guided_cam_matrices[j], these_guided_cam_matrices[j]),
-                    axis=0
+                these_dim = numpy.array(
+                    (num_examples,) + these_guided_cam_matrices[k].shape[1:],
+                    dtype=int
                 )
+                guided_cam_matrices[k] = numpy.full(these_dim, numpy.nan)
+
+        for k in range(num_matrices):
+            if these_cam_matrices[k] is None:
+                continue
+
+            cam_matrices[k][i, ...] = these_cam_matrices[k][0, ...]
+            guided_cam_matrices[k][i, ...] = (
+                these_guided_cam_matrices[k][0, ...]
+            )
 
     print(SEPARATOR_STRING)
     upsample_refl = training_option_dict[trainval_io.UPSAMPLE_REFLECTIVITY_KEY]
@@ -198,27 +211,30 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
 
         cam_matrices = trainval_io.separate_shear_and_reflectivity(
             list_of_input_matrices=cam_matrices,
-            training_option_dict=training_option_dict)
+            training_option_dict=training_option_dict
+        )
 
         cam_matrices[0] = cam_matrices[0][..., 0]
         cam_matrices[1] = cam_matrices[1][..., 0]
 
     guided_cam_matrices = trainval_io.separate_shear_and_reflectivity(
         list_of_input_matrices=guided_cam_matrices,
-        training_option_dict=training_option_dict)
+        training_option_dict=training_option_dict
+    )
 
     print('Denormalizing predictors...')
     predictor_matrices = trainval_io.separate_shear_and_reflectivity(
         list_of_input_matrices=predictor_matrices,
-        training_option_dict=training_option_dict)
-
+        training_option_dict=training_option_dict
+    )
     predictor_matrices = model_interpretation.denormalize_data(
         list_of_input_matrices=predictor_matrices,
-        model_metadata_dict=model_metadata_dict)
+        model_metadata_dict=model_metadata_dict
+    )
 
     print('Writing class-activation maps to file: "{0:s}"...'.format(
-        output_file_name))
-
+        output_file_name
+    ))
     gradcam.write_standard_file(
         pickle_file_name=output_file_name,
         denorm_predictor_matrices=predictor_matrices,
@@ -228,7 +244,8 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
         storm_times_unix_sec=storm_times_unix_sec,
         model_file_name=model_file_name, target_class=target_class,
         target_layer_name=target_layer_name,
-        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
+        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa
+    )
 
 
 if __name__ == '__main__':
