@@ -17,7 +17,6 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
-from gewittergefahr.plotting import cam_plotting
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import significance_plotting
 from gewittergefahr.plotting import imagemagick_utils
@@ -51,19 +50,18 @@ SALIENCY_FILES_ARG_NAME = 'input_saliency_file_names'
 MC_FILES_ARG_NAME = 'input_monte_carlo_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
-MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
+MAX_VALUES_ARG_NAME = 'max_colour_values'
 HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
-LOG_SCALE_ARG_NAME = 'log_scale'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 SALIENCY_FILES_HELP_STRING = (
     'List of saliency files (each will be read by `saliency.read_file`).'
 )
 MC_FILES_HELP_STRING = (
-    'List of files with Monte Carlo significance tests (one per saliency file).'
-    '  Each will be read by `_read_monte_carlo_test`.  To skip plotting '
-    'significance for one composite, use "None".'
+    'List of files with Monte Carlo significance (one per saliency file).  Each'
+    ' will be read by `_read_monte_carlo_test`.  If you do not want to plot '
+    'significance for the [i]th composite, make the [i]th list element "None".'
 )
 COMPOSITE_NAMES_HELP_STRING = (
     'List of composite names (one for each saliency file).  This list must be '
@@ -71,25 +69,19 @@ COMPOSITE_NAMES_HELP_STRING = (
     'will be replaced by spaces.'
 )
 COLOUR_MAP_HELP_STRING = (
-    'Name of colour map.  Saliency for each predictor will be plotted with the '
-    'same colour map.  For example, if name is "Greys", the colour map used '
-    'will be `pyplot.cm.Greys`.  This argument supports only pyplot colour '
-    'maps.'
+    'Colour scheme for saliency.  Must be accepted by '
+    '`matplotlib.pyplot.get_cmap`.'
 )
-MAX_COLOUR_VALUE_HELP_STRING = (
-    'Max saliency value in colour scheme.  Keep in mind that the colour scheme '
-    'encodes *absolute* value, with positive values in solid contours and '
-    'negative values in dashed contours.'
+MAX_VALUES_HELP_STRING = (
+    'Max absolute saliency in each colour scheme (one per file).'
 )
 HALF_NUM_CONTOURS_HELP_STRING = (
-    'Number of contours on each side of zero (positive and negative).'
+    'Number of saliency contours on either side of zero (positive and '
+    'negative).'
 )
 SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
-    'want to smooth saliency maps, make this non-positive.'
-)
-LOG_SCALE_HELP_STRING = (
-    'Boolean flag.  If 1, will plot saliency in logarithmic scale.'
+    'want to smooth saliency maps, make this negative.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).'
@@ -113,8 +105,8 @@ INPUT_ARG_PARSER.add_argument(
     help=COLOUR_MAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_COLOUR_VALUE_ARG_NAME, type=float, required=False,
-    default=0.05, help=MAX_COLOUR_VALUE_HELP_STRING
+    '--' + MAX_VALUES_ARG_NAME, type=float, nargs='+', required=True,
+    help=MAX_VALUES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + HALF_NUM_CONTOURS_ARG_NAME, type=int, required=False,
@@ -123,10 +115,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
     default=1., help=SMOOTHING_RADIUS_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + LOG_SCALE_ARG_NAME, type=int, required=False,
-    default=0, help=LOG_SCALE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -287,8 +275,7 @@ def _overlay_text(
 def _plot_one_composite(
         saliency_file_name, monte_carlo_file_name, composite_name_abbrev,
         composite_name_verbose, colour_map_object, max_colour_value,
-        half_num_contours, smoothing_radius_grid_cells, log_scale,
-        output_dir_name):
+        half_num_contours, smoothing_radius_grid_cells, output_dir_name):
     """Plots saliency map for one composite.
 
     :param saliency_file_name: Path to saliency file (will be read by
@@ -303,7 +290,6 @@ def _plot_one_composite(
     :param max_colour_value: Same.
     :param half_num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
-    :param log_scale: Same.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :return: main_figure_file_name: Path to main image file created by this
@@ -316,16 +302,6 @@ def _plot_one_composite(
         saliency_file_name=saliency_file_name,
         smoothing_radius_grid_cells=smoothing_radius_grid_cells,
         monte_carlo_file_name=monte_carlo_file_name)
-
-    max_colour_value_log10 = None
-    contour_interval_log10 = None
-
-    if log_scale:
-        max_colour_value_log10 = numpy.log10(max_colour_value)
-        contour_interval_log10 = (
-            (max_colour_value_log10 - MIN_COLOUR_VALUE_LOG10) /
-            half_num_contours
-        )
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
@@ -349,53 +325,13 @@ def _plot_one_composite(
     for k in range(num_fields):
         this_saliency_matrix = mean_saliency_matrix[0, ..., k]
 
-        if log_scale:
-            this_positive_matrix_log10 = numpy.log10(
-                numpy.maximum(this_saliency_matrix, 0.)
-            )
-
-            cam_plotting.plot_many_2d_grids(
-                class_activation_matrix_3d=numpy.flip(
-                    this_positive_matrix_log10, axis=0
-                ),
-                axes_object_matrix=axes_object_matrices[k],
-                colour_map_object=colour_map_object,
-                min_contour_level=MIN_COLOUR_VALUE_LOG10,
-                max_contour_level=max_colour_value_log10,
-                contour_interval=contour_interval_log10, line_style='solid'
-            )
-
-            this_negative_matrix_log10 = numpy.log10(
-                -1 * numpy.minimum(this_saliency_matrix, 0.)
-            )
-
-            cam_plotting.plot_many_2d_grids(
-                class_activation_matrix_3d=numpy.flip(
-                    this_negative_matrix_log10, axis=0
-                ),
-                axes_object_matrix=axes_object_matrices[k],
-                colour_map_object=colour_map_object,
-                min_contour_level=MIN_COLOUR_VALUE_LOG10,
-                max_contour_level=max_colour_value_log10,
-                contour_interval=contour_interval_log10, line_style='dashed'
-            )
-        else:
-            saliency_plotting.plot_many_2d_grids_with_contours(
-                saliency_matrix_3d=numpy.flip(this_saliency_matrix, axis=0),
-                axes_object_matrix=axes_object_matrices[k],
-                colour_map_object=colour_map_object,
-                max_absolute_contour_level=max_colour_value,
-                contour_interval=max_colour_value / half_num_contours)
-
-        # if k != 0:
-        #     continue
-        #
-        # this_sig_matrix = significance_matrix[0, ..., 0, k]
-        #
-        # significance_plotting.plot_2d_grid_without_coords(
-        #     significance_matrix=numpy.flip(this_sig_matrix, axis=0),
-        #     axes_object=axes_object_matrices[k][0, 0]
-        # )
+        saliency_plotting.plot_many_2d_grids_with_contours(
+            saliency_matrix_3d=numpy.flip(this_saliency_matrix, axis=0),
+            axes_object_matrix=axes_object_matrices[k],
+            colour_map_object=colour_map_object,
+            max_absolute_contour_level=max_colour_value,
+            contour_interval=max_colour_value / half_num_contours
+        )
 
         this_sig_matrix = significance_matrix[0, ..., k]
 
@@ -453,10 +389,82 @@ def _plot_one_composite(
     return main_figure_file_name
 
 
+def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
+                    temporary_dir_name):
+    """Adds colour bar to saved image file.
+
+    :param figure_file_name: Path to saved image file.  Colour bar will be added
+        to this image.
+    :param colour_map_object: Colour scheme (instance of `matplotlib.pyplot.cm`
+        or similar).
+    :param max_colour_value: Max value in colour scheme.
+    :param temporary_dir_name: Name of temporary output directory.
+    """
+
+    this_image_matrix = Image.open(figure_file_name)
+    figure_width_px, figure_height_px = this_image_matrix.size
+    figure_width_inches = float(figure_width_px) / FIGURE_RESOLUTION_DPI
+    figure_height_inches = float(figure_height_px) / FIGURE_RESOLUTION_DPI
+
+    extra_figure_object, extra_axes_object = pyplot.subplots(
+        1, 1, figsize=(figure_width_inches, figure_height_inches)
+    )
+    extra_axes_object.axis('off')
+
+    dummy_values = numpy.array([0., max_colour_value])
+
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
+        colour_map_object=colour_map_object,
+        min_value=0., max_value=max_colour_value,
+        orientation_string='vertical', fraction_of_axis_length=1.25,
+        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE
+    )
+
+    colour_bar_object.set_label(
+        'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE
+    )
+
+    tick_values = colour_bar_object.get_ticks()
+
+    if max_colour_value <= 0.005:
+        tick_strings = ['{0:.4f}'.format(v) for v in tick_values]
+    elif max_colour_value <= 0.05:
+        tick_strings = ['{0:.3f}'.format(v) for v in tick_values]
+    else:
+        tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
+
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
+
+    extra_file_name = '{0:s}/saliency_colour-bar.jpg'.format(temporary_dir_name)
+    print('Saving colour bar to: "{0:s}"...'.format(extra_file_name))
+
+    extra_figure_object.savefig(
+        extra_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(extra_figure_object)
+
+    print('Concatenating colour bar to: "{0:s}"...'.format(figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=[figure_file_name, extra_file_name],
+        output_file_name=figure_file_name,
+        num_panel_rows=1, num_panel_columns=2,
+        extra_args_string='-gravity Center'
+    )
+
+    os.remove(extra_file_name)
+    imagemagick_utils.trim_whitespace(
+        input_file_name=figure_file_name, output_file_name=figure_file_name
+    )
+
+
 def _run(saliency_file_names, monte_carlo_file_names, composite_names,
-         colour_map_name, max_colour_value, half_num_contours,
-         smoothing_radius_grid_cells, log_scale, output_dir_name):
-    """Makes figure with saliency maps.
+         colour_map_name, max_colour_values, half_num_contours,
+         smoothing_radius_grid_cells, output_dir_name):
+    """Makes figure with sanity checks for saliency maps.
 
     This is effectively the main method.
 
@@ -464,13 +472,13 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
     :param monte_carlo_file_names: Same.
     :param composite_names: Same.
     :param colour_map_name: Same.
-    :param max_colour_value: Same.
+    :param max_colour_values: Same.
     :param half_num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
-    :param log_scale: Same.
     :param output_dir_name: Same.
     """
 
+    # Process input args.
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name
     )
@@ -494,6 +502,11 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
         None if f in NONE_STRINGS else f for f in monte_carlo_file_names
     ]
 
+    error_checking.assert_is_greater_numpy_array(max_colour_values, 0.)
+    error_checking.assert_is_numpy_array(
+        max_colour_values, exact_dimensions=expected_dim
+    )
+
     composite_names_abbrev = [
         n.replace('_', '-').lower() for n in composite_names
     ]
@@ -513,10 +526,18 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
             colour_map_object=colour_map_object,
-            max_colour_value=max_colour_value,
+            max_colour_value=max_colour_values[i],
             half_num_contours=half_num_contours,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells,
-            log_scale=log_scale, output_dir_name=output_dir_name)
+            output_dir_name=output_dir_name
+        )
+
+        _add_colour_bar(
+            figure_file_name=panel_file_names[i],
+            colour_map_object=colour_map_object,
+            max_colour_value=max_colour_values[i],
+            temporary_dir_name=output_dir_name
+        )
 
         print('\n')
 
@@ -533,72 +554,12 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
         output_file_name=figure_file_name, border_width_pixels=100,
-        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns)
-
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
     imagemagick_utils.trim_whitespace(
         input_file_name=figure_file_name, output_file_name=figure_file_name,
-        border_width_pixels=10)
-
-    this_image_matrix = Image.open(figure_file_name)
-    figure_width_px, figure_height_px = this_image_matrix.size
-    figure_width_inches = float(figure_width_px) / FIGURE_RESOLUTION_DPI
-    figure_height_inches = float(figure_height_px) / FIGURE_RESOLUTION_DPI
-
-    extra_figure_object, extra_axes_object = pyplot.subplots(
-        1, 1, figsize=(figure_width_inches, figure_height_inches)
+        border_width_pixels=10
     )
-    extra_axes_object.axis('off')
-
-    dummy_values = numpy.array([0., max_colour_value])
-
-    if log_scale:
-        this_min_value = MIN_COLOUR_VALUE_LOG10
-        this_max_value = numpy.log10(max_colour_value)
-    else:
-        this_min_value = 0.
-        this_max_value = max_colour_value + 0.
-
-    colour_bar_object = plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
-        colour_map_object=colour_map_object,
-        min_value=this_min_value, max_value=this_max_value,
-        orientation_string='vertical', fraction_of_axis_length=1.25,
-        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
-
-    colour_bar_object.set_label('Absolute saliency',
-                                fontsize=COLOUR_BAR_FONT_SIZE)
-
-    tick_values = colour_bar_object.get_ticks()
-
-    if log_scale:
-        tick_strings = [
-            '{0:.3f}'.format(10 ** v)[:5] for v in tick_values
-        ]
-    else:
-        tick_strings = ['{0:.3f}'.format(v) for v in tick_values]
-
-    colour_bar_object.set_ticks(tick_values)
-    colour_bar_object.set_ticklabels(tick_strings)
-
-    extra_file_name = '{0:s}/saliency_colour-bar.jpg'.format(output_dir_name)
-    print('Saving colour bar to: "{0:s}"...'.format(extra_file_name))
-
-    extra_figure_object.savefig(extra_file_name, dpi=FIGURE_RESOLUTION_DPI,
-                                pad_inches=0, bbox_inches='tight')
-    pyplot.close(extra_figure_object)
-
-    print('Concatenating colour bar to: "{0:s}"...'.format(figure_file_name))
-
-    imagemagick_utils.concatenate_images(
-        input_file_names=[figure_file_name, extra_file_name],
-        output_file_name=figure_file_name,
-        num_panel_rows=1, num_panel_columns=2,
-        extra_args_string='-gravity Center')
-
-    os.remove(extra_file_name)
-
-    imagemagick_utils.trim_whitespace(input_file_name=figure_file_name,
-                                      output_file_name=figure_file_name)
 
 
 if __name__ == '__main__':
@@ -609,11 +570,12 @@ if __name__ == '__main__':
         monte_carlo_file_names=getattr(INPUT_ARG_OBJECT, MC_FILES_ARG_NAME),
         composite_names=getattr(INPUT_ARG_OBJECT, COMPOSITE_NAMES_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
-        max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_COLOUR_VALUE_ARG_NAME),
+        max_colour_values=numpy.array(
+            getattr(INPUT_ARG_OBJECT, MAX_VALUES_ARG_NAME), dtype=float
+        ),
         half_num_contours=getattr(INPUT_ARG_OBJECT, HALF_NUM_CONTOURS_ARG_NAME),
         smoothing_radius_grid_cells=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
         ),
-        log_scale=bool(getattr(INPUT_ARG_OBJECT, LOG_SCALE_ARG_NAME)),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
