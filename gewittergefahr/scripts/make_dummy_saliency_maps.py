@@ -6,6 +6,7 @@ produced by an edge-detector with no learned weights.
 
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+import copy
 import argparse
 import numpy
 from keras import backend as K
@@ -26,12 +27,6 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 )))
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-
-# EDGE_DETECTOR_MATRIX_2D = numpy.array([
-#     [-1, -1, -1],
-#     [-1, 8, -1],
-#     [-1, -1, -1]
-# ], dtype=float)
 
 EDGE_DETECTOR_MATRIX_2D = numpy.array([
     [0.25, 0.5, 0.25],
@@ -63,17 +58,17 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
     'Path to input file, containing a CNN.  Only the metadata will be read, by '
-    '`cnn.read_model_metadata`.')
-
+    '`cnn.read_model_metadata`.'
+)
 EXAMPLE_DIR_HELP_STRING = (
     'Name of top-level directory with input examples.  Files therein will be '
     'found by `input_examples.find_example_file` and read by '
-    '`input_examples.read_example_file`.')
-
+    '`input_examples.read_example_file`.'
+)
 STORM_METAFILE_HELP_STRING = (
     'Path to Pickle file with storm IDs and times.  Will be read by '
-    '`storm_tracking_io.read_ids_and_times`.')
-
+    '`storm_tracking_io.read_ids_and_times`.'
+)
 NUM_EXAMPLES_HELP_STRING = (
     'Number of examples (storm objects) to read from `{0:s}`.  If you want to '
     'read all examples, make this non-positive.'
@@ -81,28 +76,30 @@ NUM_EXAMPLES_HELP_STRING = (
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by '
-    '`saliency_maps.write_standard_file`).')
+    '`saliency_maps.write_standard_file`).'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + MODEL_FILE_ARG_NAME, type=str, required=True,
-    help=MODEL_FILE_HELP_STRING)
-
+    help=MODEL_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=True,
-    help=EXAMPLE_DIR_HELP_STRING)
-
+    help=EXAMPLE_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + STORM_METAFILE_ARG_NAME, type=str, required=True,
-    help=STORM_METAFILE_HELP_STRING)
-
+    help=STORM_METAFILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
-    help=NUM_EXAMPLES_HELP_STRING)
-
+    help=NUM_EXAMPLES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
-    help=OUTPUT_FILE_HELP_STRING)
+    help=OUTPUT_FILE_HELP_STRING
+)
 
 
 def _run(model_file_name, top_example_dir_name, storm_metafile_name,
@@ -150,8 +147,9 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
     print(SEPARATOR_STRING)
 
     predictor_matrices = example_dict[testing_io.INPUT_MATRICES_KEY]
-    sounding_pressure_matrix_pa = example_dict[
-        testing_io.SOUNDING_PRESSURES_KEY]
+    sounding_pressure_matrix_pa = (
+        example_dict[testing_io.SOUNDING_PRESSURES_KEY]
+    )
 
     radar_matrix = predictor_matrices[0]
     num_examples = radar_matrix.shape[0]
@@ -189,25 +187,32 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
     ]
 
     print('Denormalizing model inputs...')
-    predictor_matrices = model_interpretation.denormalize_data(
-        list_of_input_matrices=predictor_matrices,
-        model_metadata_dict=model_metadata_dict)
+    denorm_predictor_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=copy.deepcopy(predictor_matrices),
+        training_option_dict=training_option_dict
+    )
+    denorm_predictor_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=denorm_predictor_matrices,
+        model_metadata_dict=model_metadata_dict
+    )
 
     print('Writing saliency maps to file: "{0:s}"...'.format(output_file_name))
 
     saliency_metadata_dict = saliency_maps.check_metadata(
         component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
-        target_class=1)
+        target_class=1
+    )
 
     saliency_maps.write_standard_file(
         pickle_file_name=output_file_name,
-        denorm_predictor_matrices=predictor_matrices,
+        denorm_predictor_matrices=denorm_predictor_matrices,
         saliency_matrices=saliency_matrices,
         full_storm_id_strings=full_storm_id_strings,
         storm_times_unix_sec=storm_times_unix_sec,
         model_file_name=model_file_name,
         metadata_dict=saliency_metadata_dict,
-        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa)
+        sounding_pressure_matrix_pa=sounding_pressure_matrix_pa
+    )
 
 
 if __name__ == '__main__':
