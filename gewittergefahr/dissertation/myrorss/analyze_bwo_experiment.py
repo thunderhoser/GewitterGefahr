@@ -4,7 +4,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
-from generalexam.machine_learning import evaluation_utils
+from gewittergefahr.gg_utils import model_evaluation
 from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.plotting import plotting_utils
 
@@ -60,12 +60,14 @@ def _run():
     x_tick_labels = ['{0:.1f}'.format(r) for r in numpy.log10(MINMAX_WEIGHTS)]
     y_tick_labels = ['{0:.1f}'.format(w) for w in numpy.log10(L2_WEIGHTS)]
 
-    axes_object = evaluation_utils.plot_scores_2d(
+    axes_object = model_evaluation.plot_hyperparam_grid(
         score_matrix=mean_final_activation_matrix,
-        x_tick_label_strings=x_tick_labels, y_tick_label_strings=y_tick_labels,
         colour_map_object=COLOUR_MAP_OBJECT,
         min_colour_value=0., max_colour_value=1.
     )
+
+    axes_object.set_xticklabels(x_tick_labels, rotation=90.)
+    axes_object.set_yticklabels(y_tick_labels)
 
     axes_object.set_xlabel(r'Min-max weight (log$_{10}$)')
     axes_object.set_ylabel(r'L$_2$ weight (log$_{10}$)')
