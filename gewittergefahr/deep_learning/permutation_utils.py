@@ -14,7 +14,7 @@ Lakshmanan, V., C. Karstens, J. Krause, K. Elmore, A. Ryzhkov, and S. Berkseth,
     1209-1223.
 """
 
-import copy
+import time
 import pickle
 import numpy
 import keras.utils
@@ -222,11 +222,18 @@ def permute_one_predictor(
         original_shape = None
 
     if permuted_values is None:
-        predictor_matrices[i][..., j] = numpy.take(
-            predictor_matrices[i][..., j],
-            indices=numpy.random.permutation(predictor_matrices[i].shape[0]),
-            axis=0
+        random_indices = numpy.random.permutation(
+            predictor_matrices[i].shape[0]
         )
+        predictor_matrices[i][..., j] = (
+            predictor_matrices[i][random_indices, ..., j]
+        )
+
+        # predictor_matrices[i][..., j] = numpy.take(
+        #     predictor_matrices[i][..., j],
+        #     indices=numpy.random.permutation(predictor_matrices[i].shape[0]),
+        #     axis=0
+        # )
     else:
         predictor_matrices[i][..., j] = permuted_values
 
@@ -322,13 +329,17 @@ def run_forward_test_one_step(
             print('Permuting predictor "{0:s}" at step {1:d}...'.format(
                 predictor_names_by_matrix[i][j], step_num
             ))
+            exec_start_time_unix_sec = time.time()
 
             these_predictor_matrices, these_permuted_values = (
                 permute_one_predictor(
-                    predictor_matrices=copy.deepcopy(predictor_matrices),
+                    predictor_matrices=[a + 0. for a in predictor_matrices],
                     separate_heights=separate_heights,
                     matrix_index=i, predictor_index=j)
             )
+
+            elapsed_time_sec = time.time() - exec_start_time_unix_sec
+            print('Time elapsed = {0:.2f} seconds'.format(elapsed_time_sec))
 
             this_probability_matrix = prediction_function(
                 model_object, these_predictor_matrices)
@@ -365,14 +376,22 @@ def run_forward_test_one_step(
     best_predictor_name = predictor_names_by_matrix[i][j]
     permuted_flags_by_matrix[i][j] = True
 
+    exec_start_time_unix_sec = time.time()
     predictor_matrices = permute_one_predictor(
         predictor_matrices=predictor_matrices,
         separate_heights=separate_heights,
         matrix_index=i, predictor_index=j, permuted_values=best_permuted_values
     )[0]
+    elapsed_time_sec = time.time() - exec_start_time_unix_sec
 
     print('Best predictor = "{0:s}" ... cost = {1:.4f}'.format(
         best_predictor_name, numpy.mean(best_cost_array)
+    ))
+
+    print((
+        'Time elapsed in permanently permuting best predictor = {0:.2f} seconds'
+    ).format(
+        elapsed_time_sec
     ))
 
     return {
@@ -442,12 +461,17 @@ def run_backwards_test_one_step(
             print('Unpermuting predictor "{0:s}" at step {1:d}...'.format(
                 predictor_names_by_matrix[i][j], step_num
             ))
+            exec_start_time_unix_sec = time.time()
 
             these_predictor_matrices = _unpermute_one_predictor(
-                predictor_matrices=copy.deepcopy(predictor_matrices),
+                predictor_matrices=[a + 0. for a in predictor_matrices],
                 clean_predictor_matrices=clean_predictor_matrices,
                 separate_heights=separate_heights,
-                matrix_index=i, predictor_index=j)
+                matrix_index=i, predictor_index=j
+            )
+
+            elapsed_time_sec = time.time() - exec_start_time_unix_sec
+            print('Time elapsed = {0:.2f} seconds'.format(elapsed_time_sec))
 
             this_probability_matrix = prediction_function(
                 model_object, these_predictor_matrices)
@@ -482,14 +506,24 @@ def run_backwards_test_one_step(
     best_predictor_name = predictor_names_by_matrix[i][j]
     permuted_flags_by_matrix[i][j] = False
 
+    exec_start_time_unix_sec = time.time()
     predictor_matrices = _unpermute_one_predictor(
         predictor_matrices=predictor_matrices,
         clean_predictor_matrices=clean_predictor_matrices,
         separate_heights=separate_heights,
-        matrix_index=i, predictor_index=j)
+        matrix_index=i, predictor_index=j
+    )
+    elapsed_time_sec = time.time() - exec_start_time_unix_sec
 
     print('Best predictor = "{0:s}" ... cost = {1:.4f}'.format(
         best_predictor_name, numpy.mean(best_cost_array)
+    ))
+
+    print((
+        'Time elapsed in permanently unpermuting best predictor = {0:.2f} '
+        'seconds'
+    ).format(
+        elapsed_time_sec
     ))
 
     return {
