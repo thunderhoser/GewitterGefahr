@@ -40,7 +40,7 @@ CONCAT_FIGURE_SIZE_PX = int(1e7)
 INPUT_FILES_ARG_NAME = 'input_gradcam_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
-MAX_VALUES_ARG_NAME = 'max_colour_values'
+MAX_VALUE_ARG_NAME = 'max_colour_value'
 NUM_CONTOURS_ARG_NAME = 'num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -57,9 +57,8 @@ COLOUR_MAP_HELP_STRING = (
     'Colour scheme for class activation.  Must be accepted by '
     '`matplotlib.pyplot.get_cmap`.'
 )
-MAX_VALUES_HELP_STRING = (
-    'Max class activation in each colour scheme (one per file).'
-)
+
+MAX_VALUE_HELP_STRING = 'Max class activation in colour scheme.'
 NUM_CONTOURS_HELP_STRING = 'Number of class-activation contours.'
 
 SMOOTHING_RADIUS_HELP_STRING = (
@@ -84,8 +83,8 @@ INPUT_ARG_PARSER.add_argument(
     help=COLOUR_MAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_VALUES_ARG_NAME, type=float, nargs='+', required=True,
-    help=MAX_VALUES_HELP_STRING
+    '--' + MAX_VALUE_ARG_NAME, type=float, required=False, default=10 ** 1.5,
+    help=MAX_VALUE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_CONTOURS_ARG_NAME, type=int, required=False,
@@ -441,7 +440,7 @@ def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
 
 
 def _run(gradcam_file_names, composite_names, colour_map_name,
-         max_colour_values, num_contours, smoothing_radius_grid_cells,
+         max_colour_value, num_contours, smoothing_radius_grid_cells,
          output_dir_name):
     """Makes figure with class-activation maps for MYRORSS model.
 
@@ -450,7 +449,7 @@ def _run(gradcam_file_names, composite_names, colour_map_name,
     :param gradcam_file_names: See documentation at top of file.
     :param composite_names: Same.
     :param colour_map_name: Same.
-    :param max_colour_values: Same.
+    :param max_colour_value: Same.
     :param num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
     :param output_dir_name: Same.
@@ -466,18 +465,14 @@ def _run(gradcam_file_names, composite_names, colour_map_name,
 
     colour_map_object = pyplot.cm.get_cmap(colour_map_name)
     error_checking.assert_is_geq(num_contours, 10)
+    error_checking.assert_is_greater(
+        max_colour_value, 10 ** MIN_COLOUR_VALUE_LOG10
+    )
 
     num_composites = len(gradcam_file_names)
     expected_dim = numpy.array([num_composites], dtype=int)
     error_checking.assert_is_numpy_array(
         numpy.array(composite_names), exact_dimensions=expected_dim
-    )
-
-    error_checking.assert_is_greater_numpy_array(
-        max_colour_values, 10 ** MIN_COLOUR_VALUE_LOG10
-    )
-    error_checking.assert_is_numpy_array(
-        max_colour_values, exact_dimensions=expected_dim
     )
 
     composite_names_abbrev = [
@@ -498,16 +493,9 @@ def _run(gradcam_file_names, composite_names, colour_map_name,
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
             colour_map_object=colour_map_object,
-            max_colour_value=max_colour_values[i], num_contours=num_contours,
+            max_colour_value=max_colour_value, num_contours=num_contours,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells,
             output_dir_name=output_dir_name
-        )
-
-        _add_colour_bar(
-            figure_file_name=panel_file_names[i],
-            colour_map_object=colour_map_object,
-            max_colour_value=max_colour_values[i],
-            temporary_dir_name=output_dir_name
         )
 
         print('\n')
@@ -532,6 +520,11 @@ def _run(gradcam_file_names, composite_names, colour_map_name,
         border_width_pixels=10
     )
 
+    _add_colour_bar(
+        figure_file_name=figure_file_name, colour_map_object=colour_map_object,
+        max_colour_value=max_colour_value, temporary_dir_name=output_dir_name
+    )
+
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
@@ -540,9 +533,7 @@ if __name__ == '__main__':
         gradcam_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
         composite_names=getattr(INPUT_ARG_OBJECT, COMPOSITE_NAMES_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
-        max_colour_values=numpy.array(
-            getattr(INPUT_ARG_OBJECT, MAX_VALUES_ARG_NAME), dtype=float
-        ),
+        max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_VALUE_ARG_NAME),
         num_contours=getattr(INPUT_ARG_OBJECT, NUM_CONTOURS_ARG_NAME),
         smoothing_radius_grid_cells=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
