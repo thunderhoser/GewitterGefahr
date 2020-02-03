@@ -366,7 +366,7 @@ def _plot_one_composite(
     significance_plotting.plot_many_2d_grids_without_coords(
         significance_matrix=this_sig_matrix,
         axes_object_matrix=axes_object_matrices[0],
-        marker_size=3, row_major=True
+        marker_size=2, row_major=True
     )
 
     this_saliency_matrix = numpy.flip(
@@ -387,7 +387,7 @@ def _plot_one_composite(
     significance_plotting.plot_many_2d_grids_without_coords(
         significance_matrix=this_sig_matrix,
         axes_object_matrix=axes_object_matrices[1],
-        marker_size=3, row_major=False
+        marker_size=2, row_major=False
     )
 
     refl_figure_object = handle_dict[plot_examples.RADAR_FIGURES_KEY][0]
