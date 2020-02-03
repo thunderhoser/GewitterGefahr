@@ -32,7 +32,7 @@ COLOUR_BAR_FONT_SIZE = 25
 
 CONVERT_EXE_NAME = '/usr/bin/convert'
 TITLE_FONT_SIZE = 150
-TITLE_FONT_TYPE = 'DejaVu-Sans-Bold'
+TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
@@ -218,7 +218,7 @@ def _overlay_text(
         '"{0:s}" "{1:s}" -gravity north -pointsize {2:d} -font "{3:s}" '
         '-fill "rgb(0, 0, 0)" -annotate {4:+d}{5:+d} "{6:s}" "{1:s}"'
     ).format(
-        CONVERT_EXE_NAME, image_file_name, TITLE_FONT_SIZE, TITLE_FONT_TYPE,
+        CONVERT_EXE_NAME, image_file_name, TITLE_FONT_SIZE, TITLE_FONT_NAME,
         x_offset_from_center_px, y_offset_from_top_px, text_string
     )
 
