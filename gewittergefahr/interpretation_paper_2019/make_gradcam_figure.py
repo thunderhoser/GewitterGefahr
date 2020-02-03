@@ -423,8 +423,15 @@ def _run(gradcam_file_names, composite_names, colour_map_name, max_colour_value,
 
     tick_values = colour_bar_object.get_ticks()
     tick_strings = [
-        '{0:.2f}'.format(10 ** v)[:4] for v in tick_values
+        '{0:.2f}'.format(10 ** v) for v in tick_values
     ]
+
+    for i in range(len(tick_strings)):
+        if '.' in tick_strings[i][:3]:
+            tick_strings[i] = tick_strings[i][:4]
+        else:
+            tick_strings[i] = tick_strings[i].split('.')[0]
+
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
