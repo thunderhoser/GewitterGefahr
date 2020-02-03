@@ -185,12 +185,16 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
         radar_saliency_matrix if k == 0 else predictor_matrices[k]
         for k in range(len(predictor_matrices))
     ]
-
-    print('Denormalizing model inputs...')
+    saliency_matrices = trainval_io.separate_shear_and_reflectivity(
+        list_of_input_matrices=saliency_matrices,
+        training_option_dict=training_option_dict
+    )
     denorm_predictor_matrices = trainval_io.separate_shear_and_reflectivity(
         list_of_input_matrices=copy.deepcopy(predictor_matrices),
         training_option_dict=training_option_dict
     )
+
+    print('Denormalizing model inputs...')
     denorm_predictor_matrices = model_interpretation.denormalize_data(
         list_of_input_matrices=denorm_predictor_matrices,
         model_metadata_dict=model_metadata_dict
