@@ -220,10 +220,10 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
 
         for i in range(num_matrices):
             significance_matrices[i] = numpy.logical_or(
-                monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
-                monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
-                monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
-                monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+                monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] <
+                monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][i],
+                monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] >
+                monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][i]
             )
 
             significance_matrices[i] = numpy.expand_dims(
@@ -491,10 +491,8 @@ def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
         tick_strings = ['{0:.4f}'.format(v) for v in tick_values]
     elif max_colour_value <= 0.05:
         tick_strings = ['{0:.3f}'.format(v) for v in tick_values]
-    elif max_colour_value <= 0.5:
-        tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
     else:
-        tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+        tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
 
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
