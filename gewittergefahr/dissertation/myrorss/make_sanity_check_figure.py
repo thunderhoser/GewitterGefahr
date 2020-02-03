@@ -253,6 +253,10 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
         significance_matrices[0][..., good_indices, :]
     )
 
+    print(len(mean_radar_matrices))
+    print(mean_radar_matrices[0].shape)
+    print(mean_radar_matrices[1].shape)
+
     training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] = REFL_HEIGHTS_M_AGL
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
 
