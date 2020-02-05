@@ -13,6 +13,7 @@ FIGURE_RESOLUTION_DPI = 300
 
 FORWARD_FILE_ARG_NAME = 'forward_test_file_name'
 BACKWARDS_FILE_ARG_NAME = 'backwards_test_file_name'
+NUM_PREDICTORS_ARG_NAME = 'num_predictors'
 CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
@@ -24,6 +25,11 @@ FORWARD_FILE_HELP_STRING = (
 BACKWARDS_FILE_HELP_STRING = (
     'Same as `{0:s}` but for backwards tests.'
 ).format(FORWARD_FILE_ARG_NAME)
+
+NUM_PREDICTORS_HELP_STRING = (
+    'Will plot the K most important predictors for each test, where K = '
+    '`{0:s}`.  If you want to plot all predictors, leave this argument alone.'
+).format(NUM_PREDICTORS_ARG_NAME)
 
 CONFIDENCE_LEVEL_HELP_STRING = (
     'Confidence level for error bars (in range 0...1).'
@@ -42,6 +48,10 @@ INPUT_ARG_PARSER.add_argument(
     help=BACKWARDS_FILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_PREDICTORS_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_PREDICTORS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
     help=CONFIDENCE_LEVEL_HELP_STRING
 )
@@ -51,17 +61,21 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
-         output_file_name):
+def _run(forward_test_file_name, backwards_test_file_name, num_predictors,
+         confidence_level, output_file_name):
     """Makes figure with results of all 4 permutation tests.
 
     This is effectively the main method.
 
     :param forward_test_file_name: See documentation at top of file.
     :param backwards_test_file_name: Same.
+    :param num_predictors: Same.
     :param confidence_level: Same.
     :param output_file_name: Same.
     """
+
+    if num_predictors <= 0:
+        num_predictors = None
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
@@ -81,7 +95,8 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     permutation_plotting.plot_single_pass_test(
         permutation_dict=forward_test_dict,
         axes_object=axes_object_matrix[0, 0],
-        plot_percent_increase=False, confidence_level=confidence_level
+        plot_percent_increase=False, confidence_level=confidence_level,
+        num_predictors_to_plot=num_predictors
     )
 
     axes_object_matrix[0, 0].set_title('Forward single-pass test')
@@ -95,7 +110,8 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     permutation_plotting.plot_multipass_test(
         permutation_dict=forward_test_dict,
         axes_object=axes_object_matrix[0, 1],
-        plot_percent_increase=False, confidence_level=confidence_level
+        plot_percent_increase=False, confidence_level=confidence_level,
+        num_predictors_to_plot=num_predictors
     )
 
     axes_object_matrix[0, 1].set_title('Forward multi-pass test')
@@ -110,7 +126,8 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     permutation_plotting.plot_single_pass_test(
         permutation_dict=backwards_test_dict,
         axes_object=axes_object_matrix[1, 0],
-        plot_percent_increase=False, confidence_level=confidence_level
+        plot_percent_increase=False, confidence_level=confidence_level,
+        num_predictors_to_plot=num_predictors
     )
 
     axes_object_matrix[1, 0].set_title('Backward single-pass test')
@@ -123,7 +140,8 @@ def _run(forward_test_file_name, backwards_test_file_name, confidence_level,
     permutation_plotting.plot_multipass_test(
         permutation_dict=backwards_test_dict,
         axes_object=axes_object_matrix[1, 1],
-        plot_percent_increase=False, confidence_level=confidence_level
+        plot_percent_increase=False, confidence_level=confidence_level,
+        num_predictors_to_plot=num_predictors
     )
 
     axes_object_matrix[1, 1].set_title('Backward multi-pass test')
@@ -150,6 +168,7 @@ if __name__ == '__main__':
         backwards_test_file_name=getattr(
             INPUT_ARG_OBJECT, BACKWARDS_FILE_ARG_NAME
         ),
+        num_predictors=getattr(INPUT_ARG_OBJECT, NUM_PREDICTORS_ARG_NAME),
         confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
