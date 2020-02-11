@@ -8,6 +8,7 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
 DEFAULT_BARB_LENGTH = 6
+DEFAULT_BARB_WIDTH = 2.
 DEFAULT_EMPTY_BARB_RADIUS = 0.1
 FILL_EMPTY_BARB_DEFAULT = True
 DEFAULT_COLOUR_MAP = pyplot.cm.rainbow
@@ -19,7 +20,8 @@ METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
 def plot_wind_barbs(
         basemap_object, axes_object, latitudes_deg, longitudes_deg,
-        u_winds_m_s01, v_winds_m_s01, barb_length=DEFAULT_BARB_LENGTH,
+        u_winds_m_s01, v_winds_m_s01,
+        barb_length=DEFAULT_BARB_LENGTH, barb_width=DEFAULT_BARB_WIDTH,
         empty_barb_radius=DEFAULT_EMPTY_BARB_RADIUS,
         fill_empty_barb=FILL_EMPTY_BARB_DEFAULT, colour_map=DEFAULT_COLOUR_MAP,
         colour_minimum_kt=DEFAULT_COLOUR_MINIMUM_KT,
@@ -38,7 +40,8 @@ def plot_wind_barbs(
         ("u-winds") at observation points (metres per second).
     :param v_winds_m_s01: length-N numpy array with meridional wind components
         ("v-winds") at observation points (metres per second).
-    :param barb_length: Length for each wind barb.
+    :param barb_length: Length of wind barb.
+    :param barb_width: Width of wind barb.
     :param empty_barb_radius: Radius of "empty" wind barb (which is actually a
         circle, denoting 0 metres per second).
     :param fill_empty_barb: Boolean flag.  If True, "empty" wind barbs (circles)
@@ -82,4 +85,5 @@ def plot_wind_barbs(
         v_winds_m_s01 * METRES_PER_SECOND_TO_KT,
         wind_speeds_m_s01 * METRES_PER_SECOND_TO_KT, length=barb_length,
         sizes=size_dict, fill_empty=fill_empty_barb, rounding=False,
-        cmap=colour_map, clim=colour_limits_kt, linewidth=2)
+        cmap=colour_map, clim=colour_limits_kt, linewidth=barb_width
+    )
