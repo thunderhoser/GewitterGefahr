@@ -332,7 +332,7 @@ def _run(main_bwo_file_name, unconstrained_bwo_file_name, output_dir_name):
     _write_sounding_figure(
         figure_object=handle_dict[plot_examples.SOUNDING_FIGURE_KEY],
         title_string='(e) Sounding after constrained BWO',
-        output_file_name=panel_file_names[3]
+        output_file_name=panel_file_names[4]
     )
 
     panel_file_names[1] = _write_radar_figures(
@@ -376,7 +376,7 @@ def _run(main_bwo_file_name, unconstrained_bwo_file_name, output_dir_name):
     _write_sounding_figure(
         figure_object=handle_dict[plot_examples.SOUNDING_FIGURE_KEY],
         title_string='(f) Sounding after unconstrained BWO',
-        output_file_name=panel_file_names[3]
+        output_file_name=panel_file_names[5]
     )
 
     panel_file_names[2] = _write_radar_figures(
