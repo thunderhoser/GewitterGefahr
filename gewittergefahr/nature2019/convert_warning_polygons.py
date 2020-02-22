@@ -41,7 +41,8 @@ OUTPUT_FILE_ARG_NAME = 'output_pickle_file_name'
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  This should be a shapefile with warning polygons, one'
     ' of the "pre-generated zip files" here: '
-    'https://mesonet.agron.iastate.edu/request/gis/watchwarn.phtml')
+    'https://mesonet.agron.iastate.edu/request/gis/watchwarn.phtml'
+)
 
 TIME_HELP_STRING = (
     'Time (format "yyyy-mm-dd-HHMM").  This script will extract tornado '
@@ -50,26 +51,29 @@ TIME_HELP_STRING = (
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file.  Warning polygons will be saved here in a pandas '
-    'DataFrame.')
+    'DataFrame.'
+)
 
-DEFAULT_INPUT_FILE_NAME = (
-    '/localdata/ryan.lagerquist/nature_ml_paper/warning_polygons/raw/'
-    'wwa_201801010000_201812312359.shp')
+# DEFAULT_INPUT_FILE_NAME = (
+#     '/localdata/ryan.lagerquist/nature_ml_paper/warning_polygons/raw/'
+#     'wwa_201801010000_201812312359.shp'
+# )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + INPUT_FILE_ARG_NAME, type=str, required=False,
-    default=DEFAULT_INPUT_FILE_NAME, help=INPUT_FILE_HELP_STRING)
-
+    '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
+    help=INPUT_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
-
+    '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
-
+    '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
-    help=OUTPUT_FILE_HELP_STRING)
+    help=OUTPUT_FILE_HELP_STRING
+)
 
 
 def _run(input_shapefile_name, first_time_string, last_time_string,
@@ -85,9 +89,11 @@ def _run(input_shapefile_name, first_time_string, last_time_string,
     """
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
-        first_time_string, INPUT_TIME_FORMAT)
+        first_time_string, INPUT_TIME_FORMAT
+    )
     last_time_unix_sec = time_conversion.string_to_unix_sec(
-        last_time_string, INPUT_TIME_FORMAT)
+        last_time_string, INPUT_TIME_FORMAT
+    )
 
     print('Reading data from: "{0:s}"...'.format(input_shapefile_name))
     shapefile_handle = shapefile.Reader(input_shapefile_name)
@@ -100,8 +106,10 @@ def _run(input_shapefile_name, first_time_string, last_time_string,
         if this_record_object.record[EVENT_TYPE_INDEX] != TORNADO_TYPE_STRING:
             continue
 
-        if this_record_object.record[
-                COUNTY_OR_WARNING_INDEX] != WARNING_TYPE_STRING:
+        if (
+                this_record_object.record[COUNTY_OR_WARNING_INDEX] !=
+                WARNING_TYPE_STRING
+        ):
             continue
 
         this_start_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -148,9 +156,9 @@ def _run(input_shapefile_name, first_time_string, last_time_string,
             these_longitudes_deg = numpy.array(
                 [this_latlng_tuple[k][0] for k in range(this_num_vertices)]
             )
-
             these_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
-                longitudes_deg=these_longitudes_deg, allow_nan=False)
+                longitudes_deg=these_longitudes_deg, allow_nan=False
+            )
 
             this_polygon_object_latlng = (
                 polygons.vertex_arrays_to_polygon_object(
@@ -172,10 +180,11 @@ def _run(input_shapefile_name, first_time_string, last_time_string,
     # print warning_table
 
     print('Writing warnings to file: "{0:s}"...'.format(
-        output_pickle_file_name))
-
+        output_pickle_file_name
+    ))
     file_system_utils.mkdir_recursive_if_necessary(
-        file_name=output_pickle_file_name)
+        file_name=output_pickle_file_name
+    )
 
     pickle_file_handle = open(output_pickle_file_name, 'wb')
     pickle.dump(warning_table, pickle_file_handle)
