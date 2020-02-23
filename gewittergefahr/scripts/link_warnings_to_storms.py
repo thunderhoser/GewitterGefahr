@@ -20,6 +20,7 @@ from gewittergefahr.nature2019 import convert_warning_polygons
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M'
 
+LARGE_NUMBER = 1e12
 NUM_SECONDS_PER_DAY = 86400
 DUMMY_TRACKING_SCALE_METRES2 = echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2
 
@@ -159,7 +160,7 @@ def _find_one_distance(storm_x_vertices_metres, storm_y_vertices_metres,
     """
 
     num_vertices = len(storm_x_vertices_metres)
-    distance_metres = numpy.inf
+    distance_metres = LARGE_NUMBER
 
     for k in range(num_vertices):
         this_flag = polygons.point_in_or_on_polygon(
@@ -268,11 +269,17 @@ def _link_one_warning(warning_table, storm_object_table, max_distance_metres,
             if len(these_indices) == 0:
                 continue
 
+            these_x_metres = this_interp_vertex_table[
+                linkage.STORM_VERTEX_X_COLUMN
+            ].values[these_indices]
+
+            these_y_metres = this_interp_vertex_table[
+                linkage.STORM_VERTEX_Y_COLUMN
+            ].values[these_indices]
+
             distance_matrix_metres[i, j] = _find_one_distance(
-                storm_x_vertices_metres=
-                this_interp_vertex_table[linkage.STORM_VERTEX_X_COLUMN].values,
-                storm_y_vertices_metres=
-                this_interp_vertex_table[linkage.STORM_VERTEX_Y_COLUMN].values,
+                storm_x_vertices_metres=these_x_metres,
+                storm_y_vertices_metres=these_y_metres,
                 warning_polygon_object_xy=warning_polygon_object_xy
             )
 
@@ -280,7 +287,7 @@ def _link_one_warning(warning_table, storm_object_table, max_distance_metres,
         1. - numpy.mean(numpy.isnan(distance_matrix_metres), axis=1)
     )
     bad_indices = numpy.where(lifetime_fractions < min_lifetime_fraction)[0]
-    distance_matrix_metres[bad_indices, ...] = numpy.inf
+    distance_matrix_metres[bad_indices, ...] = LARGE_NUMBER
 
     mean_distances_metres = numpy.nanmean(distance_matrix_metres, axis=1)
     good_indices = numpy.where(mean_distances_metres <= max_distance_metres)[0]
