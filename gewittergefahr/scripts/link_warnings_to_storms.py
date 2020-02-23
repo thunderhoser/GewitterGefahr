@@ -186,8 +186,11 @@ def _find_one_distance(storm_x_vertices_metres, storm_y_vertices_metres,
         )
         print(this_point_object)
         print(warning_polygon_object_xy.exterior)
-        this_distance_metres = warning_polygon_object_xy.exterior.distance(
-            this_point_object
+        # this_distance_metres = warning_polygon_object_xy.exterior.distance(
+        #     this_point_object
+        # )
+        this_distance_metres = this_point_object.distance(
+            warning_polygon_object_xy
         )
         print(this_distance_metres)
         print('\n\n')
