@@ -184,6 +184,11 @@ def _find_one_distance(storm_x_vertices_metres, storm_y_vertices_metres,
         this_point_object = shapely.geometry.Point(
             storm_x_vertices_metres[k], storm_y_vertices_metres[k]
         )
+        this_distance_metres = warning_polygon_object_xy.exterior.distance(
+            this_point_object
+        )
+
+        print(this_distance_metres)
 
         distance_metres = numpy.minimum(
             distance_metres,
@@ -291,7 +296,6 @@ def _link_one_warning(warning_table, storm_object_table, max_distance_metres,
                 storm_y_vertices_metres=these_y_metres,
                 warning_polygon_object_xy=warning_polygon_object_xy
             )
-            print(distance_matrix_metres[i, j])
 
     lifetime_fractions = (
         1. - numpy.mean(numpy.isnan(distance_matrix_metres), axis=1)
