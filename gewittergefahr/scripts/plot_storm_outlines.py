@@ -496,12 +496,8 @@ def _plot_storm_outlines_one_time(
         colour_bar_object.set_label(radar_field_name_verbose)
 
         if custom_colour_map:
-            if orientation_string == 'horizontal':
-                tick_values = colour_bar_object.ax.get_xticks()
-            else:
-                tick_values = colour_bar_object.ax.get_yticks()
-
-            tick_label_strings = ['{0:.1f}'.format(x) for x in tick_values]
+            tick_values = colour_bar_object.get_ticks()
+            tick_label_strings = ['{0:.1f}'.format(v) for v in tick_values]
             colour_bar_object.set_ticks(tick_values)
             colour_bar_object.set_ticklabels(tick_label_strings)
 
@@ -528,8 +524,8 @@ def _plot_storm_outlines_one_time(
 
     if warning_table is not None:
         warning_indices = numpy.where(numpy.logical_and(
-            warning_table[WARNING_START_TIME_KEY].values >= valid_time_unix_sec,
-            warning_table[WARNING_END_TIME_KEY].values <= valid_time_unix_sec
+            warning_table[WARNING_START_TIME_KEY].values <= valid_time_unix_sec,
+            warning_table[WARNING_END_TIME_KEY].values >= valid_time_unix_sec
         ))[0]
 
         for k in warning_indices:
