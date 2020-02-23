@@ -4,7 +4,6 @@ import os
 import argparse
 import numpy
 import matplotlib
-
 matplotlib.use('agg')
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import file_system_utils

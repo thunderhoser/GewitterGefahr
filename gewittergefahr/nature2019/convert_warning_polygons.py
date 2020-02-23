@@ -11,6 +11,8 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import file_system_utils
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M'
 SHAPEFILE_TIME_FORMAT = '%Y%m%d%H%M'
 
@@ -170,6 +172,8 @@ def _run(input_shapefile_name, first_time_string, last_time_string,
             end_times_unix_sec.append(this_end_time_unix_sec)
             list_of_polygon_objects_latlng.append(this_polygon_object_latlng)
 
+    print(SEPARATOR_STRING)
+
     warning_dict = {
         START_TIME_COLUMN: start_times_unix_sec,
         END_TIME_COLUMN: end_times_unix_sec,
@@ -177,7 +181,9 @@ def _run(input_shapefile_name, first_time_string, last_time_string,
     }
 
     warning_table = pandas.DataFrame.from_dict(warning_dict)
-    # print warning_table
+    print('Number of tornado warnings = {0:d}'.format(
+        len(warning_table.index)
+    ))
 
     print('Writing warnings to file: "{0:s}"...'.format(
         output_pickle_file_name
