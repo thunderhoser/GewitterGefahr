@@ -18,6 +18,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.nature2019 import convert_warning_polygons
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M'
 
 NUM_SECONDS_PER_DAY = 86400
 DUMMY_TRACKING_SCALE_METRES2 = echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2
@@ -384,6 +385,20 @@ def _run(warning_file_name, top_tracking_dir_name, spc_date_string,
     })
 
     for k in range(num_warnings):
+        this_start_time_string = time_conversion.unix_sec_to_string(
+            warning_table[WARNING_START_TIME_KEY].values[k],
+            LOG_MESSAGE_TIME_FORMAT
+        )
+
+        this_end_time_string = time_conversion.unix_sec_to_string(
+            warning_table[WARNING_END_TIME_KEY].values[k],
+            LOG_MESSAGE_TIME_FORMAT
+        )
+
+        print('Attempting to link warning from {0:s} to {1:s}...'.format(
+            this_start_time_string, this_end_time_string
+        ))
+
         these_sec_id_strings = _link_one_warning(
             warning_table=warning_table.iloc[[k]],
             storm_object_table=copy.deepcopy(storm_object_table),
