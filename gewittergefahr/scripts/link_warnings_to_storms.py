@@ -162,6 +162,9 @@ def _find_one_distance(storm_x_vertices_metres, storm_y_vertices_metres,
     num_vertices = len(storm_x_vertices_metres)
     distance_metres = LARGE_NUMBER
 
+    print('x-vertices:\n{0:s}\n'.format(str(storm_x_vertices_metres)))
+    print('y-vertices:\n{0:s}\n'.format(str(storm_y_vertices_metres)))
+
     for k in range(num_vertices):
         this_flag = polygons.point_in_or_on_polygon(
             polygon_object=warning_polygon_object_xy,
