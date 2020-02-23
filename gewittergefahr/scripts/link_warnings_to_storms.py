@@ -350,7 +350,7 @@ def _run(input_warning_file_name, top_tracking_dir_name, spc_date_string,
     warning_table = warning_table.loc[
         (warning_table[WARNING_START_TIME_KEY] >= date_start_time_unix_sec) &
         (warning_table[WARNING_START_TIME_KEY] <= date_end_time_unix_sec)
-        ]
+    ]
     num_warnings = len(warning_table.index)
 
     print('Number of warnings beginning on SPC date "{0:s}" = {1:d}'.format(

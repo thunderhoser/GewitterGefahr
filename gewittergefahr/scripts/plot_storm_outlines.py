@@ -1,5 +1,6 @@
 """Plots storm outlines (along with IDs) at each time step."""
 
+import pickle
 import argparse
 import numpy
 import matplotlib
@@ -13,12 +14,19 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import colours
+from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import storm_plotting
 from gewittergefahr.plotting import radar_plotting
+from gewittergefahr.scripts import link_warnings_to_storms as link_warnings
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+WARNING_START_TIME_KEY = link_warnings.WARNING_START_TIME_KEY
+WARNING_END_TIME_KEY = link_warnings.WARNING_END_TIME_KEY
+WARNING_LATLNG_POLYGON_KEY = link_warnings.WARNING_LATLNG_POLYGON_KEY
+LINKED_SECONDARY_IDS_KEY = link_warnings.LINKED_SECONDARY_IDS_KEY
 
 DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))
 DUMMY_SOURCE_NAME = tracking_utils.SEGMOTION_NAME
@@ -37,6 +45,7 @@ FIGURE_RESOLUTION_DPI = 300
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
+WARNING_FILE_ARG_NAME = 'input_warning_file_name'
 OUTLINE_COLOUR_ARG_NAME = 'storm_outline_colour'
 OUTLINE_OPACITY_ARG_NAME = 'storm_outline_opacity'
 INCLUDE_SECONDARY_ARG_NAME = 'include_secondary_ids'
@@ -53,22 +62,27 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with storm tracks.  Files therein will be '
     'found by `storm_tracking_io.find_processed_files_one_spc_date` and read by'
-    ' `storm_tracking_io.read_many_processed_files`.')
+    ' `storm_tracking_io.read_many_processed_files`.'
+)
 
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  Storm outlines will be plotted for all SPC '
     'dates in the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
+WARNING_FILE_HELP_STRING = (
+    'Path to warning file created by link_warnings_to_storms.py.  If you do not'
+    ' want to plot warnings, leave this argument alone.'
+)
 OUTLINE_COLOUR_HELP_STRING = (
     'Colour of storm outlines (length-3 list of elements [R, G, B], each in '
-    'range 0...255).')
-
+    'range 0...255).'
+)
 OUTLINE_OPACITY_HELP_STRING = 'Opacity of storm outlines (in range 0...1).'
-
 INCLUDE_SECONDARY_HELP_STRING = (
     'Boolean flag.  If 1, primary_secondary ID will be plotted next to each '
-    'storm object.  If 0, only primary ID will be plotted.')
+    'storm object.  If 0, only primary ID will be plotted.'
+)
 
 LATITUDE_HELP_STRING = (
     'Latitude (deg N, in range -90...90).  Plotting area will be '
@@ -86,7 +100,8 @@ MYRORSS_DIR_HELP_STRING = (
     'Name of top-level directory with MYRORSS data.  If you do not want to '
     'underlay radar data with storm outlines, leave this alone.  Files therein '
     'will be found by `myrorss_and_mrms_io.find_many_raw_files` and read by '
-    '`myrorss_and_mrms_io.read_data_from_sparse_grid_file`.')
+    '`myrorss_and_mrms_io.read_data_from_sparse_grid_file`.'
+)
 
 RADAR_FIELD_HELP_STRING = (
     '[used only if `{0:s}` is not empty] Name of radar field to underlay with '
@@ -102,10 +117,11 @@ RADAR_CMAP_HELP_STRING = (
     'Name of colour map for radar field.  For example, if name is "Greys", the '
     'colour map used will be `pyplot.cm.Greys`.  This argument supports only '
     'pyplot colour maps.  To use the default colour map, make this argument '
-    'empty.')
-
+    'empty.'
+)
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory (figures will be saved here).')
+    'Name of output directory (figures will be saved here).'
+)
 
 DEFAULT_OUTLINE_COLOUR = numpy.full(3, 0.)
 DEFAULT_OUTLINE_OPACITY = 1.
@@ -113,63 +129,68 @@ DEFAULT_OUTLINE_OPACITY = 1.
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_DIR_ARG_NAME, type=str, required=True,
-    help=TRACKING_DIR_HELP_STRING)
-
+    help=TRACKING_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
+    help=SPC_DATE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
+    help=SPC_DATE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + WARNING_FILE_ARG_NAME, type=str, required=False, default='',
+    help=WARNING_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTLINE_COLOUR_ARG_NAME, type=int, nargs=3, required=False,
-    default=DEFAULT_OUTLINE_COLOUR, help=OUTLINE_COLOUR_HELP_STRING)
-
+    default=DEFAULT_OUTLINE_COLOUR, help=OUTLINE_COLOUR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTLINE_OPACITY_ARG_NAME, type=float, required=False,
-    default=DEFAULT_OUTLINE_OPACITY, help=OUTLINE_OPACITY_HELP_STRING)
-
+    default=DEFAULT_OUTLINE_OPACITY, help=OUTLINE_OPACITY_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + INCLUDE_SECONDARY_ARG_NAME, type=int, required=False,
-    default=0, help=INCLUDE_SECONDARY_HELP_STRING)
-
+    default=0, help=INCLUDE_SECONDARY_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_LATITUDE_ARG_NAME, type=float, required=False,
-    default=SENTINEL_VALUE, help=LATITUDE_HELP_STRING)
-
+    default=SENTINEL_VALUE, help=LATITUDE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_LATITUDE_ARG_NAME, type=float, required=False,
-    default=SENTINEL_VALUE, help=LATITUDE_HELP_STRING)
-
+    default=SENTINEL_VALUE, help=LATITUDE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_LONGITUDE_ARG_NAME, type=float, required=False,
-    default=SENTINEL_VALUE, help=LONGITUDE_HELP_STRING)
-
+    default=SENTINEL_VALUE, help=LONGITUDE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_LONGITUDE_ARG_NAME, type=float, required=False,
-    default=SENTINEL_VALUE, help=LONGITUDE_HELP_STRING)
-
+    default=SENTINEL_VALUE, help=LONGITUDE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MYRORSS_DIR_ARG_NAME, type=str, required=False, default='',
-    help=MYRORSS_DIR_HELP_STRING)
-
+    help=MYRORSS_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_FIELD_ARG_NAME, type=str, required=False,
-    default=radar_utils.ECHO_TOP_40DBZ_NAME, help=RADAR_FIELD_HELP_STRING)
-
+    default=radar_utils.ECHO_TOP_40DBZ_NAME, help=RADAR_FIELD_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_HEIGHT_ARG_NAME, type=int, required=False, default=-1,
-    help=RADAR_HEIGHT_HELP_STRING)
-
+    help=RADAR_HEIGHT_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_CMAP_ARG_NAME, type=str, required=False, default='YlOrRd',
-    help=RADAR_CMAP_HELP_STRING)
-
+    help=RADAR_CMAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _get_plotting_limits(
@@ -324,10 +345,10 @@ def _assign_colours_to_storms(storm_object_table, radar_colour_map_object):
 
 
 def _plot_storm_outlines_one_time(
-        storm_object_table, valid_time_unix_sec, axes_object, basemap_object,
-        storm_outline_colour, storm_outline_opacity, include_secondary_ids,
-        output_dir_name, primary_id_to_track_colour=None, radar_matrix=None,
-        radar_field_name=None, radar_latitudes_deg=None,
+        storm_object_table, valid_time_unix_sec, warning_table, axes_object,
+        basemap_object, storm_outline_colour, storm_outline_opacity,
+        include_secondary_ids, output_dir_name, primary_id_to_track_colour=None,
+        radar_matrix=None, radar_field_name=None, radar_latitudes_deg=None,
         radar_longitudes_deg=None, radar_colour_map_object=None):
     """Plots storm outlines (and may underlay radar data) at one time step.
 
@@ -341,6 +362,13 @@ def _plot_storm_outlines_one_time(
     :param storm_object_table: See doc for `storm_plotting.plot_storm_outlines`.
     :param valid_time_unix_sec: Will plot storm outlines only at this time.
         Will plot tracks up to and including this time.
+    :param warning_table: None or a pandas table with the following columns.
+    warning_table.start_time_unix_sec: Start time.
+    warning_table.end_time_unix_sec: End time.
+    warning_table.polygon_object_latlng: Polygon (instance of
+        `shapely.geometry.Polygon`) with lat-long coordinates of warning
+        boundary.
+
     :param axes_object: See doc for `storm_plotting.plot_storm_outlines`.
     :param basemap_object: Same.
     :param storm_outline_colour: Same.
@@ -373,23 +401,24 @@ def _plot_storm_outlines_one_time(
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-
+        line_colour=BORDER_COLOUR
+    )
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-
+        line_colour=BORDER_COLOUR
+    )
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-
+        line_colour=BORDER_COLOUR
+    )
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS)
-
+        num_parallels=NUM_PARALLELS
+    )
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS)
+        num_meridians=NUM_MERIDIANS
+    )
 
     if radar_matrix is not None:
         custom_colour_map = radar_colour_map_object is not None
@@ -497,6 +526,88 @@ def _plot_storm_outlines_one_time(
             include_secondary_ids=include_secondary_ids,
             font_colour=storm_plotting.DEFAULT_FONT_COLOUR)
 
+    if warning_table is not None:
+        warning_indices = numpy.where(numpy.logical_and(
+            warning_table[WARNING_START_TIME_KEY].values >= valid_time_unix_sec,
+            warning_table[WARNING_END_TIME_KEY].values <= valid_time_unix_sec
+        ))[0]
+
+        for k in warning_indices:
+            this_vertex_dict = polygons.polygon_object_to_vertex_arrays(
+                warning_table[WARNING_LATLNG_POLYGON_KEY].values[k]
+            )
+            these_latitudes_deg = this_vertex_dict[polygons.EXTERIOR_Y_COLUMN]
+            these_longitudes_deg = this_vertex_dict[polygons.EXTERIOR_X_COLUMN]
+
+            these_latitude_flags = numpy.logical_and(
+                these_latitudes_deg >= min_plot_latitude_deg,
+                these_latitudes_deg <= max_plot_latitude_deg
+            )
+            these_longitude_flags = numpy.logical_and(
+                these_longitudes_deg >= min_plot_longitude_deg,
+                these_longitudes_deg <= max_plot_longitude_deg
+            )
+            these_coord_flags = numpy.logical_and(
+                these_latitude_flags, these_longitude_flags
+            )
+
+            if not numpy.any(these_coord_flags):
+                continue
+
+            these_x_metres, these_y_metres = basemap_object(
+                these_longitudes_deg, these_latitudes_deg
+            )
+            axes_object.plot(
+                these_x_metres, these_y_metres,
+                color=this_colour, linestyle='dashed',
+                linewidth=storm_plotting.DEFAULT_POLYGON_WIDTH
+            )
+
+            axes_object.text(
+                numpy.mean(these_x_metres), numpy.mean(these_y_metres),
+                'W{0:d}'.format(k), fontsize=storm_plotting.DEFAULT_FONT_SIZE,
+                fontweight='bold', color=this_colour,
+                horizontalalignment='center', verticalalignment='center'
+            )
+
+            these_sec_id_strings = (
+                warning_table[LINKED_SECONDARY_IDS_KEY].values[k]
+            )
+            if len(these_sec_id_strings) == 0:
+                continue
+
+            these_object_indices = numpy.array([], dtype=int)
+
+            for this_sec_id_string in these_sec_id_strings:
+                these_subindices = numpy.where(
+                    storm_object_table[
+                        tracking_utils.SECONDARY_ID_COLUMN
+                    ].values[valid_time_rows] == this_sec_id_string
+                )[0]
+
+                these_object_indices = numpy.concatenate((
+                    these_object_indices, valid_time_rows[these_subindices]
+                ))
+
+            for i in these_object_indices:
+                this_vertex_dict = polygons.polygon_object_to_vertex_arrays(
+                    storm_object_table[
+                        tracking_utils.LATLNG_POLYGON_COLUMN].values[i]
+                )
+
+                these_x_metres, these_y_metres = basemap_object(
+                    this_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                    this_vertex_dict[polygons.EXTERIOR_Y_COLUMN]
+                )
+
+                axes_object.text(
+                    numpy.mean(these_x_metres), numpy.mean(these_y_metres),
+                    'W{0:d}'.format(k),
+                    fontsize=storm_plotting.DEFAULT_FONT_SIZE,
+                    fontweight='bold', color=this_colour,
+                    horizontalalignment='center', verticalalignment='center'
+                )
+
     if primary_id_to_track_colour is None:
         storm_plotting.plot_storm_tracks(
             storm_object_table=storm_object_table, axes_object=axes_object,
@@ -537,10 +648,11 @@ def _plot_storm_outlines_one_time(
 
 
 def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
-         storm_outline_colour, storm_outline_opacity, include_secondary_ids,
-         min_plot_latitude_deg, max_plot_latitude_deg, min_plot_longitude_deg,
-         max_plot_longitude_deg, top_myrorss_dir_name, radar_field_name,
-         radar_height_m_asl, radar_colour_map_name, output_dir_name):
+         warning_file_name, storm_outline_colour, storm_outline_opacity,
+         include_secondary_ids, min_plot_latitude_deg, max_plot_latitude_deg,
+         min_plot_longitude_deg, max_plot_longitude_deg, top_myrorss_dir_name,
+         radar_field_name, radar_height_m_asl, radar_colour_map_name,
+         output_dir_name):
     """Plots storm outlines (along with IDs) at each time step.
 
     This is effectively the main method.
@@ -548,6 +660,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     :param top_tracking_dir_name: See documentation at top of file.
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
+    :param warning_file_name: Same.
     :param storm_outline_colour: Same.
     :param storm_outline_opacity: Same.
     :param include_secondary_ids: Same.
@@ -562,9 +675,10 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
     :param output_dir_name: Same.
     """
 
+    if warning_file_name in ['', 'None']:
+        warning_file_name = None
     if top_myrorss_dir_name in ['', 'None']:
         top_myrorss_dir_name = None
-
     if radar_field_name != radar_utils.REFL_NAME:
         radar_height_m_asl = None
 
@@ -574,12 +688,21 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         radar_colour_map_object = pyplot.get_cmap(radar_colour_map_name)
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=output_dir_name
+    )
+
+    if warning_file_name is None:
+        warning_table = None
+    else:
+        print('Reading warnings from: "{0:s}"...'.format(warning_file_name))
+        this_file_handle = open(warning_file_name, 'rb')
+        warning_table = pickle.load(this_file_handle)
+        this_file_handle.close()
 
     spc_date_strings = time_conversion.get_spc_dates_in_range(
         first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string)
-
+        last_spc_date_string=last_spc_date_string
+    )
     tracking_file_names = []
 
     for this_spc_date_string in spc_date_strings:
@@ -704,6 +827,7 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         _plot_storm_outlines_one_time(
             storm_object_table=this_storm_object_table.iloc[these_latlng_rows],
             valid_time_unix_sec=valid_times_unix_sec[i],
+            warning_table=warning_table,
             axes_object=this_axes_object, basemap_object=this_basemap_object,
             storm_outline_colour=storm_outline_colour,
             storm_outline_opacity=storm_outline_opacity,
@@ -723,19 +847,24 @@ if __name__ == '__main__':
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
         first_spc_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
+        warning_file_name=getattr(INPUT_ARG_OBJECT, WARNING_FILE_ARG_NAME),
         storm_outline_colour=numpy.array(
             getattr(INPUT_ARG_OBJECT, OUTLINE_COLOUR_ARG_NAME), dtype=float
         ) / 255,
         storm_outline_opacity=getattr(
-            INPUT_ARG_OBJECT, OUTLINE_OPACITY_ARG_NAME),
+            INPUT_ARG_OBJECT, OUTLINE_OPACITY_ARG_NAME
+        ),
         include_secondary_ids=bool(getattr(
-            INPUT_ARG_OBJECT, INCLUDE_SECONDARY_ARG_NAME)),
+            INPUT_ARG_OBJECT, INCLUDE_SECONDARY_ARG_NAME
+        )),
         min_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MIN_LATITUDE_ARG_NAME),
         max_plot_latitude_deg=getattr(INPUT_ARG_OBJECT, MAX_LATITUDE_ARG_NAME),
         min_plot_longitude_deg=getattr(
-            INPUT_ARG_OBJECT, MIN_LONGITUDE_ARG_NAME),
+            INPUT_ARG_OBJECT, MIN_LONGITUDE_ARG_NAME
+        ),
         max_plot_longitude_deg=getattr(
-            INPUT_ARG_OBJECT, MAX_LONGITUDE_ARG_NAME),
+            INPUT_ARG_OBJECT, MAX_LONGITUDE_ARG_NAME
+        ),
         top_myrorss_dir_name=getattr(INPUT_ARG_OBJECT, MYRORSS_DIR_ARG_NAME),
         radar_field_name=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_ARG_NAME),
         radar_height_m_asl=getattr(INPUT_ARG_OBJECT, RADAR_HEIGHT_ARG_NAME),
