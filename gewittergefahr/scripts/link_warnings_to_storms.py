@@ -164,6 +164,12 @@ def _find_one_distance(storm_x_vertices_metres, storm_y_vertices_metres,
 
     print('x-vertices:\n{0:s}\n'.format(str(storm_x_vertices_metres)))
     print('y-vertices:\n{0:s}\n'.format(str(storm_y_vertices_metres)))
+    print('x-vertices in warning polygon:\n{0:s}\n'.format(
+        str(numpy.array(warning_polygon_object_xy.exterior.xy[0]))
+    ))
+    print('y-vertices in warning polygon:\n{0:s}\n'.format(
+        str(numpy.array(warning_polygon_object_xy.exterior.xy[1]))
+    ))
 
     for k in range(num_vertices):
         this_flag = polygons.point_in_or_on_polygon(
