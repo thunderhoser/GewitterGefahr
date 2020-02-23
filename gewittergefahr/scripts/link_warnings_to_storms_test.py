@@ -11,7 +11,7 @@ from gewittergefahr.scripts import link_warnings_to_storms as link_warnings
 TOLERANCE = 1e-6
 STORM_OBJECT_TABLE = linkage_test.create_storm_objects()
 
-# The following constants are used to test _find_one_distance.
+# The following constants are used to test _find_one_polygon_distance.
 RELATIVE_X_VERTICES_METRES = numpy.array([-0.5, 0, 0.5, 0, -0.5])
 RELATIVE_Y_VERTICES_METRES = numpy.array([0, 0.5, 0, -0.5, 0])
 
@@ -94,13 +94,13 @@ WARNING_TO_SEC_ID_STRINGS = {
 class LinkWarningsToStormsTests(unittest.TestCase):
     """Each method is a unit test for link_warnings_to_storms.py."""
 
-    def test_find_one_distance(self):
-        """Ensures correct output from _find_one_distance."""
+    def test_find_one_polygon_distance(self):
+        """Ensures correct output from _find_one_polygon_distance."""
 
         num_storms = len(STORM_TO_X_VERTICES_METRES)
 
         for i in range(num_storms):
-            this_distance_metres = link_warnings._find_one_distance(
+            this_distance_metres = link_warnings._find_one_polygon_distance(
                 storm_x_vertices_metres=STORM_TO_X_VERTICES_METRES[i],
                 storm_y_vertices_metres=STORM_TO_Y_VERTICES_METRES[i],
                 warning_polygon_object_xy=WARNING_POLYGON_OBJECT_XY

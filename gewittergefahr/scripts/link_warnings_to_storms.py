@@ -154,8 +154,9 @@ def _remove_far_away_storms(warning_polygon_object_latlng, storm_object_table):
     ]
 
 
-def _find_one_distance(storm_x_vertices_metres, storm_y_vertices_metres,
-                       warning_polygon_object_xy):
+def _find_one_polygon_distance(
+        storm_x_vertices_metres, storm_y_vertices_metres,
+        warning_polygon_object_xy):
     """Finds distance between one storm object and one warning.
 
     V = number of vertices in storm outline
@@ -190,6 +191,37 @@ def _find_one_distance(storm_x_vertices_metres, storm_y_vertices_metres,
         distance_metres = numpy.minimum(distance_metres, this_distance_metres)
 
     return distance_metres
+
+
+def _find_one_centroid_distance(
+        storm_x_vertices_metres, storm_y_vertices_metres,
+        warning_polygon_object_xy):
+    """Finds distance between one storm object and one warning.
+
+    V = number of vertices in storm outline
+
+    :param storm_x_vertices_metres: length-V numpy array of x-coordinates.
+    :param storm_y_vertices_metres: length-V numpy array of y-coordinates.
+    :param warning_polygon_object_xy: Polygon (instance of
+        `shapely.geometry.Polygon`) with x-y coordinates of warning boundary.
+    :return: distance_metres: Distance between storm object and warning (minimum
+        distance to polygon interior over all storm vertices).
+    """
+
+    centroid_x_metres = numpy.mean(storm_x_vertices_metres)
+    centroid_y_metres = numpy.mean(storm_y_vertices_metres)
+
+    pip_flag = polygons.point_in_or_on_polygon(
+        polygon_object=warning_polygon_object_xy,
+        query_x_coordinate=centroid_x_metres,
+        query_y_coordinate=centroid_y_metres
+    )
+
+    if pip_flag:
+        return 0.
+
+    point_object = shapely.geometry.Point(centroid_x_metres, centroid_y_metres)
+    return point_object.distance(warning_polygon_object_xy)
 
 
 def _link_one_warning(warning_table, storm_object_table, max_distance_metres,
@@ -289,7 +321,7 @@ def _link_one_warning(warning_table, storm_object_table, max_distance_metres,
                 linkage.STORM_VERTEX_Y_COLUMN
             ].values[these_indices]
 
-            distance_matrix_metres[i, j] = _find_one_distance(
+            distance_matrix_metres[i, j] = _find_one_centroid_distance(
                 storm_x_vertices_metres=these_x_metres,
                 storm_y_vertices_metres=these_y_metres,
                 warning_polygon_object_xy=warning_polygon_object_xy
