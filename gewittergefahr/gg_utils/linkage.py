@@ -606,9 +606,10 @@ def _interp_storms_in_time(storm_object_table, target_time_unix_sec,
          min_end_time_unix_sec - 1800)
     ]
 
-    sorted_storm_object_table.sort_values(
+    sorted_storm_object_table = sorted_storm_object_table.sort_values(
         tracking_utils.VALID_TIME_COLUMN, axis=0, ascending=True,
-        inplace=True)
+        inplace=False
+    )
 
     unique_secondary_id_strings = numpy.unique(numpy.array(
         sorted_storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values
