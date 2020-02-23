@@ -310,10 +310,10 @@ def _link_one_warning(warning_table, storm_object_table, max_distance_metres,
     good_indices = numpy.where(mean_distances_metres <= max_distance_metres)[0]
 
     print((
-        'Linked warning to {0:d} storms (distances in metres printed below):'
+        'Linked warning to {0:d} storms.  All distances (metres) printed below:'
         '\n{1:s}'
     ).format(
-        len(good_indices), str(mean_distances_metres[good_indices])
+        len(good_indices), str(mean_distances_metres)
     ))
 
     return [unique_sec_id_strings[k] for k in good_indices]
