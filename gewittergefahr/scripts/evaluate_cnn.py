@@ -115,10 +115,10 @@ def _read_new_target_values(
         flipped the value from 1 to 0.
     """
 
-    storm_spc_date_strings = [
+    storm_spc_date_strings = numpy.array([
         time_conversion.time_to_spc_date_string(t) for t in storm_times_unix_sec
-    ]
-    unique_spc_date_strings = numpy.unique(numpy.array(storm_spc_date_strings))
+    ])
+    unique_spc_date_strings = numpy.unique(storm_spc_date_strings)
 
     event_type_string = target_val_utils.target_name_to_params(new_target_name)[
         target_val_utils.EVENT_TYPE_KEY
