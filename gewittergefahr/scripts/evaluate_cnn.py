@@ -162,6 +162,7 @@ def _read_new_target_values(
             target_val_utils.TARGET_MATRIX_KEY
         ][these_target_indices, 0]
 
+    print(numpy.sum(numpy.isnan(new_target_values)))
     assert not numpy.any(numpy.isnan(new_target_values))
     new_target_values = numpy.round(new_target_values).astype(int)
 
