@@ -11,7 +11,6 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import polygons
-from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import linkage
 from gewittergefahr.gg_utils import file_system_utils
@@ -24,6 +23,10 @@ LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H%M'
 LARGE_NUMBER = 1e12
 NUM_SECONDS_PER_DAY = 86400
 DUMMY_TRACKING_SCALE_METRES2 = echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2
+
+PROJECTION_OBJECT = projections.init_azimuthal_equidistant_projection(
+    central_latitude_deg=35., central_longitude_deg=265.
+)
 
 WARNING_START_TIME_KEY = convert_warning_polygons.START_TIME_COLUMN
 WARNING_END_TIME_KEY = convert_warning_polygons.END_TIME_COLUMN
@@ -346,6 +349,31 @@ def _link_one_warning(warning_table, storm_object_table, max_distance_metres,
     return [unique_sec_id_strings[k] for k in good_indices]
 
 
+def _write_linked_warnings(warning_table, output_file_name):
+    """Writes linked warnings to Pickle file.
+
+    :param warning_table: pandas DataFrame with the following columns.  Each row
+        is one warning.
+    warning_table.start_time_unix_sec: Start time.
+    warning_table.end_time_unix_sec: End time.
+    warning_table.polygon_object_latlng: Polygon (instance of
+        `shapely.geometry.Polygon`) with lat-long coordinates of warning
+        boundary.
+    warning_table.linked_sec_id_strings: 1-D list of secondary ID strings for
+        storms to which warning is linked.
+
+    :param output_file_name: Path to output file.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+    warning_table.drop(WARNING_XY_POLYGON_KEY, axis=1, inplace=True)
+
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
+    pickle_file_handle = open(output_file_name, 'wb')
+    pickle.dump(warning_table, pickle_file_handle)
+    pickle_file_handle.close()
+
+
 def _run(input_warning_file_name, top_tracking_dir_name, spc_date_string,
          max_distance_metres, min_lifetime_fraction, output_warning_file_name):
     """Links each NWS tornado warning to nearest storm.
@@ -359,10 +387,6 @@ def _run(input_warning_file_name, top_tracking_dir_name, spc_date_string,
     :param min_lifetime_fraction: Same.
     :param output_warning_file_name: Same.
     """
-
-    file_system_utils.mkdir_recursive_if_necessary(
-        file_name=output_warning_file_name
-    )
 
     error_checking.assert_is_greater(max_distance_metres, 0.)
     error_checking.assert_is_greater(min_lifetime_fraction, 0.)
@@ -389,53 +413,7 @@ def _run(input_warning_file_name, top_tracking_dir_name, spc_date_string,
         spc_date_string, num_warnings
     ))
 
-    tracking_file_names = []
-
-    for i in [-1, 0, 1]:
-        this_spc_date_string = time_conversion.time_to_spc_date_string(
-            date_start_time_unix_sec + i * NUM_SECONDS_PER_DAY
-        )
-
-        tracking_file_names += tracking_io.find_files_one_spc_date(
-            top_tracking_dir_name=top_tracking_dir_name,
-            tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
-            source_name=tracking_utils.SEGMOTION_NAME,
-            spc_date_string=this_spc_date_string,
-            raise_error_if_missing=i == 0
-        )[0]
-
-    print(SEPARATOR_STRING)
-    storm_object_table = tracking_io.read_many_files(tracking_file_names)
-    print(SEPARATOR_STRING)
-
-    global_centroid_lat_deg, global_centroid_lng_deg = (
-        geodetic_utils.get_latlng_centroid(
-            latitudes_deg=
-            storm_object_table[tracking_utils.CENTROID_LATITUDE_COLUMN].values,
-            longitudes_deg=
-            storm_object_table[tracking_utils.CENTROID_LONGITUDE_COLUMN].values
-        )
-    )
-
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=global_centroid_lat_deg,
-        central_longitude_deg=global_centroid_lng_deg
-    )
-
-    storm_object_table = linkage._project_storms_latlng_to_xy(
-        storm_object_table=storm_object_table,
-        projection_object=projection_object
-    )
-
     warning_polygon_objects_xy = [None] * num_warnings
-
-    for k in range(num_warnings):
-        warning_polygon_objects_xy[k] = polygons.project_latlng_to_xy(
-            polygon_object_latlng=
-            warning_table[WARNING_LATLNG_POLYGON_KEY].values[k],
-            projection_object=projection_object
-        )[0]
-
     nested_array = warning_table[[
         WARNING_START_TIME_KEY, WARNING_START_TIME_KEY
     ]].values.tolist()
@@ -444,6 +422,57 @@ def _run(input_warning_file_name, top_tracking_dir_name, spc_date_string,
         WARNING_XY_POLYGON_KEY: warning_polygon_objects_xy,
         LINKED_SECONDARY_IDS_KEY: nested_array
     })
+
+    for k in range(num_warnings):
+        warning_table[LINKED_SECONDARY_IDS_KEY].values[k] = []
+
+        this_object_latlng = warning_table[WARNING_LATLNG_POLYGON_KEY].values[k]
+
+        warning_table[WARNING_XY_POLYGON_KEY].values[k], _ = (
+            polygons.project_latlng_to_xy(
+                polygon_object_latlng=this_object_latlng,
+                projection_object=PROJECTION_OBJECT)
+        )
+
+    tracking_file_names = []
+
+    for i in [-1, 0, 1]:
+        this_spc_date_string = time_conversion.time_to_spc_date_string(
+            date_start_time_unix_sec + i * NUM_SECONDS_PER_DAY
+        )
+
+        # tracking_file_names += tracking_io.find_files_one_spc_date(
+        #     top_tracking_dir_name=top_tracking_dir_name,
+        #     tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
+        #     source_name=tracking_utils.SEGMOTION_NAME,
+        #     spc_date_string=this_spc_date_string,
+        #     raise_error_if_missing=i == 0
+        # )[0]
+
+        tracking_file_names += tracking_io.find_files_one_spc_date(
+            top_tracking_dir_name=top_tracking_dir_name,
+            tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
+            source_name=tracking_utils.SEGMOTION_NAME,
+            spc_date_string=this_spc_date_string,
+            raise_error_if_missing=False
+        )[0]
+
+    if len(tracking_file_names) == 0:
+        _write_linked_warnings(
+            warning_table=warning_table,
+            output_file_name=output_warning_file_name
+        )
+
+        return
+
+    print(SEPARATOR_STRING)
+    storm_object_table = tracking_io.read_many_files(tracking_file_names)
+    print(SEPARATOR_STRING)
+
+    storm_object_table = linkage._project_storms_latlng_to_xy(
+        storm_object_table=storm_object_table,
+        projection_object=PROJECTION_OBJECT
+    )
 
     for k in range(num_warnings):
         this_start_time_string = time_conversion.unix_sec_to_string(
@@ -469,12 +498,10 @@ def _run(input_warning_file_name, top_tracking_dir_name, spc_date_string,
 
         print('\n')
 
-    warning_table.drop(WARNING_XY_POLYGON_KEY, axis=1, inplace=True)
-
-    print('Writing results to: "{0:s}"...'.format(output_warning_file_name))
-    pickle_file_handle = open(output_warning_file_name, 'wb')
-    pickle.dump(warning_table, pickle_file_handle)
-    pickle_file_handle.close()
+    _write_linked_warnings(
+        warning_table=warning_table,
+        output_file_name=output_warning_file_name
+    )
 
 
 if __name__ == '__main__':
