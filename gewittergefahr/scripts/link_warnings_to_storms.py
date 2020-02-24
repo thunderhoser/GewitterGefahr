@@ -469,6 +469,14 @@ def _run(input_warning_file_name, top_tracking_dir_name, spc_date_string,
     storm_object_table = tracking_io.read_many_files(tracking_file_names)
     print(SEPARATOR_STRING)
 
+    if len(storm_object_table.index) == 0:
+        _write_linked_warnings(
+            warning_table=warning_table,
+            output_file_name=output_warning_file_name
+        )
+
+        return
+
     storm_object_table = linkage._project_storms_latlng_to_xy(
         storm_object_table=storm_object_table,
         projection_object=PROJECTION_OBJECT
