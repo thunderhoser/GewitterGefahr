@@ -173,8 +173,8 @@ def _run(top_gridrad_dir_name, first_spc_date_string, last_spc_date_string):
 
     for i in range(len(nice_date_strings)):
         if i != 0:
-            if numpy.mod(i, 4) == 0:
-                table_string += ' \\\\\n'
+            if numpy.mod(i, 2) == 0:
+                table_string += ' \\\\\n\t\t'
             else:
                 table_string += ' & '
 
