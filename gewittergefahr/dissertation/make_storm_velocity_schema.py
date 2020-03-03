@@ -120,8 +120,9 @@ def _plot_schema(storm_object_table, output_file_name):
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=None,
-        line_colour=TRACK_COLOUR, line_width=TRACK_WIDTH,
-        start_marker_type=None, end_marker_type=None)
+        constant_colour=TRACK_COLOUR, line_width=TRACK_WIDTH,
+        start_marker_type=None, end_marker_type=None
+    )
 
     num_storm_objects = len(storm_object_table.index)
 
@@ -129,8 +130,16 @@ def _plot_schema(storm_object_table, output_file_name):
         storm_object_table=storm_object_table, target_row=num_storm_objects - 1,
         num_seconds_back=100, return_all_on_path=False)
 
-    legend_handles = [None] * 2
-    legend_strings = [None] * 2
+    legend_handles = [None] * 3
+    legend_strings = [None] * 3
+
+    this_handle = axes_object.plot(
+        centroid_x_coords[[0, 0]], centroid_y_coords[[0, 0]],
+        color=TRACK_COLOUR, linestyle='solid', linewidth=TRACK_WIDTH
+    )[0]
+
+    legend_handles[-1] = this_handle
+    legend_strings[-1] = 'Storm track'
 
     for i in range(num_storm_objects):
         if i in predecessor_rows or i == num_storm_objects - 1:
@@ -174,7 +183,7 @@ def _plot_schema(storm_object_table, output_file_name):
     axes_object.set_xlabel('Time (minutes)')
 
     axes_object.legend(
-        legend_handles, legend_strings, fontsize=FONT_SIZE, loc=(0.02, 0.6)
+        legend_handles, legend_strings, fontsize=FONT_SIZE, loc=(0.02, 0.55)
     )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))

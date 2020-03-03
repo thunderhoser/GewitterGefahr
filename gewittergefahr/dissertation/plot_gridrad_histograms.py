@@ -42,11 +42,12 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 TORNADO_DIR_HELP_STRING = (
     'Name of directory with tornado reports.  Files therein will be found by '
     '`tornado_io.find_processed_file` and read by '
-    '`tornado_io.read_processed_file`.')
-
+    '`tornado_io.read_processed_file`.'
+)
 GRIDRAD_DIR_HELP_STRING = (
     'Name of top-level GridRad directory, used to determine which convective '
-    'days are covered.  Files therein will be found by `gridrad_io.find_file`.')
+    'days are covered.  Files therein will be found by `gridrad_io.find_file`.'
+)
 
 SPC_DATE_HELP_STRING = (
     'SPC date or convective day (format "yyyymmdd").  This script will look for'
@@ -54,28 +55,30 @@ SPC_DATE_HELP_STRING = (
 ).format(FIRST_DATE_ARG_NAME, LAST_DATE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Figures will be saved here.')
+    'Name of output directory.  Figures will be saved here.'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + TORNADO_DIR_ARG_NAME, type=str, required=True,
-    help=TORNADO_DIR_HELP_STRING)
-
+    help=TORNADO_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + GRIDRAD_DIR_ARG_NAME, type=str, required=True,
-    help=GRIDRAD_DIR_HELP_STRING)
-
+    help=GRIDRAD_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
+    help=SPC_DATE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
+    help=SPC_DATE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _find_gridrad_file_for_date(top_gridrad_dir_name, spc_date_string):
