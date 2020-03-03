@@ -181,9 +181,9 @@ def _run(top_gridrad_dir_name, first_spc_date_string, last_spc_date_string):
         table_string += '{0:s}, {1:s}'.format(
             nice_date_strings[i], latitude_strings[i]
         )
-        table_string += ' $^{\\circ}$N'
+        # table_string += ' $^{\\circ}$N'
         table_string += ', {0:s}'.format(longitude_strings[i])
-        table_string += ' $^{\\circ}$W'
+        # table_string += ' $^{\\circ}$W'
 
     print(table_string)
 
