@@ -189,6 +189,8 @@ def _run(top_gridrad_dir_name, first_spc_date_string, last_spc_date_string):
         table_string += ', {0:s}'.format(longitude_strings[i])
         table_string += ' $^{\\circ}$W'
 
+    print(table_string)
+
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
