@@ -12,7 +12,7 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TIME_INTERVAL_SEC = 300
-NICE_TIME_FORMAT = '%d %b %Y'
+NICE_TIME_FORMAT = '%-d %b %Y'
 
 GRIDRAD_DIR_ARG_NAME = 'input_gridrad_dir_name'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
@@ -178,16 +178,12 @@ def _run(top_gridrad_dir_name, first_spc_date_string, last_spc_date_string):
             else:
                 table_string += ' & '
 
-        # table_string += '{0:s}, {1:s} $^{\\circ}$N, {2:s} $^{\\circ}$W'.format(
-        #     nice_date_strings[i], latitude_strings[i], longitude_strings[i]
-        # )
-
         table_string += '{0:s}, {1:s}'.format(
             nice_date_strings[i], latitude_strings[i]
         )
-        table_string += ' $^{\\circ}$N'
+        # table_string += ' $^{\\circ}$N'
         table_string += ', {0:s}'.format(longitude_strings[i])
-        table_string += ' $^{\\circ}$W'
+        # table_string += ' $^{\\circ}$W'
 
     print(table_string)
 
