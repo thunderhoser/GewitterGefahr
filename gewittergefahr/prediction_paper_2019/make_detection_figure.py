@@ -48,54 +48,55 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 RADAR_DIR_HELP_STRING = (
     'Name of top-level radar directory.  Files therein will be found by '
-    '`echo_top_tracking._find_input_radar_files`.')
-
+    '`echo_top_tracking._find_input_radar_files`.'
+)
 ECHO_CLASSIFN_DIR_HELP_STRING = (
     'Name of top-level directory with echo-classification files.  Files therein'
     ' will be found by `echo_classification.find_classification_file` and read '
-    'by `echo_classification.read_classifications`.')
-
+    'by `echo_classification.read_classifications`.'
+)
 VALID_TIME_HELP_STRING = 'Valid time (format "yyyy-mm-dd-HHMMSS").'
 MIN_LATITUDE_HELP_STRING = 'Minimum latitude (deg N) for plotting.'
 MAX_LATITUDE_HELP_STRING = 'Max latitude (deg N) for plotting.'
 MIN_LONGITUDE_HELP_STRING = 'Minimum longitude (deg E) for plotting.'
 MAX_LONGITUDE_HELP_STRING = 'Max longitude (deg E) for plotting.'
-
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Figures will be saved here.')
+    'Name of output directory.  Figures will be saved here.'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_DIR_ARG_NAME, type=str, required=True,
-    help=RADAR_DIR_HELP_STRING)
-
+    help=RADAR_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + ECHO_CLASSIFN_DIR_ARG_NAME, type=str, required=True,
-    help=ECHO_CLASSIFN_DIR_HELP_STRING)
-
+    help=ECHO_CLASSIFN_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + VALID_TIME_ARG_NAME, type=str, required=False,
-    default='2011-04-27-043010', help=VALID_TIME_HELP_STRING)
-
+    default='2011-04-27-043010', help=VALID_TIME_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_LATITUDE_ARG_NAME, type=float, required=False, default=32.,
-    help=MIN_LATITUDE_HELP_STRING)
-
+    help=MIN_LATITUDE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_LATITUDE_ARG_NAME, type=float, required=False, default=34.,
-    help=MAX_LATITUDE_HELP_STRING)
-
+    help=MAX_LATITUDE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_LONGITUDE_ARG_NAME, type=float, required=False, default=266.,
-    help=MIN_LONGITUDE_HELP_STRING)
-
+    help=MIN_LONGITUDE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_LONGITUDE_ARG_NAME, type=float, required=False, default=269.,
-    help=MAX_LONGITUDE_HELP_STRING)
-
+    help=MAX_LONGITUDE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _plot_echo_tops(echo_top_matrix_km_asl, latitudes_deg, longitudes_deg,
@@ -132,23 +133,24 @@ def _plot_echo_tops(echo_top_matrix_km_asl, latitudes_deg, longitudes_deg,
         )
     )
 
-    plotting_utils.plot_coastlines(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=plotting_utils.DEFAULT_COUNTRY_COLOUR)
-
+    # plotting_utils.plot_coastlines(
+    #     basemap_object=basemap_object, axes_object=axes_object,
+    #     line_colour=plotting_utils.DEFAULT_COUNTRY_COLOUR
+    # )
     plotting_utils.plot_countries(
-        basemap_object=basemap_object, axes_object=axes_object)
-
+        basemap_object=basemap_object, axes_object=axes_object
+    )
     plotting_utils.plot_states_and_provinces(
-        basemap_object=basemap_object, axes_object=axes_object)
-
+        basemap_object=basemap_object, axes_object=axes_object
+    )
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS, line_width=0)
-
+        num_parallels=NUM_PARALLELS, line_width=0
+    )
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS, line_width=0)
+        num_meridians=NUM_MERIDIANS, line_width=0
+    )
 
     matrix_to_plot = echo_top_matrix_km_asl + 0.
     if convective_flag_matrix is not None:
@@ -175,7 +177,8 @@ def _plot_echo_tops(echo_top_matrix_km_asl, latitudes_deg, longitudes_deg,
         axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object, orientation_string='horizontal',
-        extend_min=False, extend_max=True, fraction_of_axis_length=1.)
+        extend_min=False, extend_max=True, fraction_of_axis_length=1.
+    )
 
     colour_bar_object.set_label('40-dBZ echo top (kft ASL)')
 
@@ -200,12 +203,15 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=output_dir_name
+    )
 
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
-        valid_time_string, TIME_FORMAT)
+        valid_time_string, TIME_FORMAT
+    )
     spc_date_string = time_conversion.time_to_spc_date_string(
-        valid_time_unix_sec)
+        valid_time_unix_sec
+    )
 
     num_trials = len(MIN_POLYGON_SIZES_PX)
     tracking_dir_names = [None] * num_trials
@@ -235,13 +241,15 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
         top_directory_name=top_radar_dir_name,
         unix_time_sec=valid_time_unix_sec, spc_date_string=spc_date_string,
         field_name=radar_utils.ECHO_TOP_40DBZ_NAME,
-        data_source=radar_utils.MYRORSS_SOURCE_ID, raise_error_if_missing=True)
+        data_source=radar_utils.MYRORSS_SOURCE_ID, raise_error_if_missing=True
+    )
 
     print('Reading data from: "{0:s}"...'.format(echo_top_file_name))
 
     metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
         netcdf_file_name=echo_top_file_name,
-        data_source=radar_utils.MYRORSS_SOURCE_ID)
+        data_source=radar_utils.MYRORSS_SOURCE_ID
+    )
 
     sparse_grid_table = myrorss_and_mrms_io.read_data_from_sparse_grid_file(
         netcdf_file_name=echo_top_file_name,
@@ -263,7 +271,8 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
         top_directory_name=top_echo_classifn_dir_name,
         valid_time_unix_sec=valid_time_unix_sec,
         desire_zipped=True, allow_zipped_or_unzipped=True,
-        raise_error_if_missing=True)
+        raise_error_if_missing=True
+    )
 
     print('Reading data from: "{0:s}"...'.format(echo_classifn_file_name))
     convective_flag_matrix = echo_classifn.read_classifications(
@@ -338,7 +347,8 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
             source_name=tracking_utils.SEGMOTION_NAME,
             valid_time_unix_sec=valid_time_unix_sec,
             spc_date_string=spc_date_string,
-            raise_error_if_missing=True)
+            raise_error_if_missing=True
+        )
 
         print('Reading data from: "{0:s}"...'.format(this_tracking_file_name))
         this_storm_object_table = tracking_io.read_file(this_tracking_file_name)
@@ -354,7 +364,8 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
         storm_plotting.plot_storm_outlines(
             storm_object_table=this_storm_object_table,
             axes_object=this_axes_object, basemap_object=this_basemap_object,
-            line_width=POLYGON_WIDTH, line_colour=POLYGON_COLOUR)
+            line_width=POLYGON_WIDTH, line_colour=POLYGON_COLOUR
+        )
 
         these_x_metres, these_y_metres = this_basemap_object(
             this_storm_object_table[
@@ -367,7 +378,8 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
             these_x_metres, these_y_metres, linestyle='None',
             marker=MARKER_TYPE, markersize=MARKER_SIZE,
             markerfacecolor=MARKER_COLOUR, markeredgecolor=MARKER_COLOUR,
-            markeredgewidth=MARKER_EDGE_WIDTH)
+            markeredgewidth=MARKER_EDGE_WIDTH
+        )
 
         this_title_string = (
             'Minimum size = {0:d} GP, {1:s} storm centers'
@@ -400,7 +412,8 @@ def _run(top_radar_dir_name, top_echo_classifn_dir_name, valid_time_string,
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,
-        num_panel_rows=3, num_panel_columns=2)
+        num_panel_rows=3, num_panel_columns=2
+    )
 
 
 if __name__ == '__main__':

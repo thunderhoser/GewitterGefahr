@@ -70,6 +70,8 @@ def _run():
                 MIN_Y_COORD, MAX_Y_COORD, num=NUM_NEURONS_BY_LAYER[k]
             )
 
+        y_coords_by_layer[k] = y_coords_by_layer[k][::-1]
+
         axes_object.plot(
             these_x_coords, y_coords_by_layer[k], linestyle='None',
             marker=NEURON_MARKER_TYPE, markersize=NEURON_MARKER_SIZE,
