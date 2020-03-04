@@ -62,7 +62,7 @@ POLYGON_OPACITY = 0.5
 DEFAULT_MARKER_TYPE = 'o'
 DEFAULT_MARKER_SIZE = 24
 DEFAULT_MARKER_EDGE_WIDTH = 4
-TORNADIC_STORM_MARKER_TYPE = '*'
+TORNADIC_STORM_MARKER_TYPE = 'v'
 TORNADIC_STORM_MARKER_SIZE = 48
 TORNADIC_STORM_MARKER_EDGE_WIDTH = 0
 TORNADO_MARKER_TYPE = 'v'
@@ -157,7 +157,7 @@ def _get_data_for_interp_with_split():
     tornado_table = pandas.DataFrame.from_dict({
         TORNADO_TIME_COLUMN: numpy.array([18], dtype=int),
         TORNADO_X_COLUMN: numpy.array([15.]),
-        TORNADO_Y_COLUMN: numpy.array([3.])
+        TORNADO_Y_COLUMN: numpy.array([3.2])
     })
 
     return storm_object_table, tornado_table
@@ -221,7 +221,7 @@ def _get_data_for_interp_with_merger():
     tornado_table = pandas.DataFrame.from_dict({
         TORNADO_TIME_COLUMN: numpy.array([12], dtype=int),
         TORNADO_X_COLUMN: numpy.array([9.]),
-        TORNADO_Y_COLUMN: numpy.array([3.])
+        TORNADO_Y_COLUMN: numpy.array([3.2])
     })
 
     return storm_object_table, tornado_table
@@ -440,12 +440,18 @@ def _plot_interp_two_times(storm_object_table, tornado_table, legend_font_size,
         `matplotlib.axes._subplots.AxesSubplot`).
     """
 
-    centroid_x_coords = storm_object_table[
-        tracking_utils.CENTROID_X_COLUMN].values
-    centroid_y_coords = storm_object_table[
-        tracking_utils.CENTROID_Y_COLUMN].values
-    secondary_id_strings = storm_object_table[
-        tracking_utils.SECONDARY_ID_COLUMN].values
+    centroid_x_coords = (
+        storm_object_table[tracking_utils.CENTROID_X_COLUMN].values
+    )
+    centroid_y_coords = (
+        storm_object_table[tracking_utils.CENTROID_Y_COLUMN].values
+    )
+    storm_times_minutes = (
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+    ).astype(float)
+    secondary_id_strings = (
+        storm_object_table[tracking_utils.SECONDARY_ID_COLUMN].values
+    )
 
     storm_object_table = storm_object_table.assign(**{
         tracking_utils.CENTROID_LONGITUDE_COLUMN: centroid_x_coords,
@@ -464,7 +470,7 @@ def _plot_interp_two_times(storm_object_table, tornado_table, legend_font_size,
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=None,
-        line_colour=TRACK_COLOUR, line_width=TRACK_WIDTH,
+        constant_colour=TRACK_COLOUR, line_width=TRACK_WIDTH,
         start_marker_type=None, end_marker_type=None)
 
     num_storm_objects = len(storm_object_table.index)
@@ -498,10 +504,7 @@ def _plot_interp_two_times(storm_object_table, tornado_table, legend_font_size,
             fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
             horizontalalignment='center', verticalalignment='top')
 
-    storm_times_minutes = storm_object_table[
-        tracking_utils.VALID_TIME_COLUMN].values
     tornado_time_minutes = tornado_table[TORNADO_TIME_COLUMN].values[0]
-
     previous_time_minutes = numpy.max(
         storm_times_minutes[storm_times_minutes < tornado_time_minutes]
     )
@@ -524,36 +527,44 @@ def _plot_interp_two_times(storm_object_table, tornado_table, legend_font_size,
     if len(next_object_indices) == 1:
         midpoint_x_coord = previous_x_coord
         midpoint_y_coord = previous_y_coord
-        midpoint_label_string = (
-            'Midpoint of {0:s} and {1:s}\n(at {2:d} minutes)'
-        ).format(
+        midpoint_label_string = 'Midpoint of {0:s} and {1:s}'.format(
             secondary_id_strings[previous_object_indices[0]],
-            secondary_id_strings[previous_object_indices[1]],
-            storm_times_minutes[previous_object_indices[0]]
+            secondary_id_strings[previous_object_indices[1]]
         )
+
+        line_x_coords = numpy.array([midpoint_x_coord, next_x_coord])
+        line_y_coords = numpy.array([midpoint_y_coord, next_y_coord])
     else:
         midpoint_x_coord = next_x_coord
         midpoint_y_coord = next_y_coord
-        midpoint_label_string = (
-            'Midpoint of {0:s} and {1:s}\n(at {2:d} minutes)'
-        ).format(
+        midpoint_label_string = 'Midpoint of {0:s} and {1:s}'.format(
             secondary_id_strings[next_object_indices[0]],
-            secondary_id_strings[next_object_indices[1]],
-            storm_times_minutes[next_object_indices[0]]
+            secondary_id_strings[next_object_indices[1]]
         )
+
+        line_x_coords = numpy.array([previous_x_coord, midpoint_x_coord])
+        line_y_coords = numpy.array([previous_y_coord, midpoint_y_coord])
 
     this_handle = axes_object.plot(
         midpoint_x_coord, midpoint_y_coord, linestyle='None',
         marker=DEFAULT_MARKER_TYPE, markersize=DEFAULT_MARKER_SIZE,
-        markerfacecolor='white', markeredgecolor=MIDPOINT_COLOUR,
+        markerfacecolor=MIDPOINT_COLOUR, markeredgecolor=MIDPOINT_COLOUR,
         markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
     )[0]
 
     legend_handles.append(this_handle)
     legend_strings.append(midpoint_label_string)
 
-    interp_x_coord = 0.5 * (previous_x_coord + next_x_coord)
-    interp_y_coord = 0.5 * (previous_y_coord + next_y_coord)
+    this_ratio = (
+        (tornado_time_minutes - previous_time_minutes) /
+        (next_time_minutes - previous_time_minutes)
+    )
+    interp_x_coord = previous_x_coord + (
+        this_ratio * (next_x_coord - previous_x_coord)
+    )
+    interp_y_coord = previous_y_coord + (
+        this_ratio * (next_y_coord - previous_y_coord)
+    )
 
     if len(next_object_indices) == 1:
         x_offset = interp_x_coord - next_x_coord
@@ -593,6 +604,14 @@ def _plot_interp_two_times(storm_object_table, tornado_table, legend_font_size,
     legend_strings.append('Interpolated storm')
 
     this_handle = axes_object.plot(
+        line_x_coords, line_y_coords,
+        linestyle='dashed', color=MIDPOINT_COLOUR, linewidth=4
+    )[0]
+
+    legend_handles.insert(-1, this_handle)
+    legend_strings.insert(-1, 'Interpolation line')
+
+    this_handle = axes_object.plot(
         tornado_table[TORNADO_X_COLUMN].values[0],
         tornado_table[TORNADO_Y_COLUMN].values[0], linestyle='None',
         marker=TORNADO_MARKER_TYPE, markersize=TORNADO_MARKER_SIZE,
@@ -600,15 +619,17 @@ def _plot_interp_two_times(storm_object_table, tornado_table, legend_font_size,
         markeredgewidth=TORNADO_MARKER_EDGE_WIDTH
     )[0]
 
-    legend_handles.append(this_handle)
-    legend_strings.append(
-        'Tornado\n(at {0:d} minutes)'.format(tornado_time_minutes)
+    legend_handles.insert(1, this_handle)
+    this_string = 'Tornado (at {0:d} min)'.format(
+        int(numpy.round(tornado_time_minutes))
     )
+    legend_strings.insert(1, this_string)
 
     x_tick_values, unique_indices = numpy.unique(
         centroid_x_coords, return_index=True)
     x_tick_labels = [
-        '{0:d}'.format(storm_times_minutes[i]) for i in unique_indices
+        '{0:d}'.format(int(numpy.round(storm_times_minutes[i])))
+        for i in unique_indices
     ]
 
     axes_object.set_xticks(x_tick_values)
@@ -664,7 +685,7 @@ def _plot_attribution_one_track(storm_object_table, plot_legend, plot_x_ticks,
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=None,
-        line_colour=TRACK_COLOUR, line_width=TRACK_WIDTH,
+        constant_colour=TRACK_COLOUR, line_width=TRACK_WIDTH,
         start_marker_type=None, end_marker_type=None)
 
     tornadic_flags = storm_object_table[TORNADIC_FLAG_COLUMN].values
@@ -729,7 +750,8 @@ def _plot_attribution_one_track(storm_object_table, plot_legend, plot_x_ticks,
         x_tick_values, unique_indices = numpy.unique(
             centroid_x_coords, return_index=True)
         x_tick_labels = [
-            '{0:d}'.format(storm_times_minutes[i]) for i in unique_indices
+            '{0:d}'.format(int(numpy.round(storm_times_minutes[i])))
+            for i in unique_indices
         ]
 
         axes_object.set_xticks(x_tick_values)
@@ -740,6 +762,9 @@ def _plot_attribution_one_track(storm_object_table, plot_legend, plot_x_ticks,
         axes_object.set_xlabel(r'Time $\longrightarrow$')
 
     axes_object.set_yticks([], [])
+
+    y_min, y_max = axes_object.get_ylim()
+    axes_object.set_ylim([y_min - 0.25, y_max])
 
     if plot_legend:
         axes_object.legend(
