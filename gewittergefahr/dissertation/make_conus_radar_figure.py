@@ -96,13 +96,16 @@ def _read_file(radar_file_name):
     return reflectivity_matrix_dbz, latitudes_deg, longitudes_deg
 
 
-def _plot_one_field(reflectivity_matrix_dbz, latitudes_deg, longitudes_deg,
-                    output_file_name):
+def _plot_one_field(
+        reflectivity_matrix_dbz, latitudes_deg, longitudes_deg, add_colour_bar,
+        panel_letter, output_file_name):
     """Plots reflectivity field from one dataset.
 
     :param reflectivity_matrix_dbz: See doc for `_read_file`.
     :param latitudes_deg: Same.
     :param longitudes_deg: Same.
+    :param add_colour_bar: Boolean flag.
+    :param panel_letter: Panel letter (will be printed at top left of figure).
     :param output_file_name: Path to output file (figure will be saved here).
     """
 
@@ -145,23 +148,23 @@ def _plot_one_field(reflectivity_matrix_dbz, latitudes_deg, longitudes_deg,
         longitude_spacing_deg=longitudes_deg[1] - longitudes_deg[0]
     )
 
-    colour_map_object, colour_norm_object = (
-        radar_plotting.get_default_colour_scheme(RADAR_FIELD_NAME)
-    )
+    if add_colour_bar:
+        colour_map_object, colour_norm_object = (
+            radar_plotting.get_default_colour_scheme(RADAR_FIELD_NAME)
+        )
 
-    colour_bar_object = plotting_utils.plot_colour_bar(
-        axes_object_or_matrix=axes_object,
-        data_matrix=reflectivity_matrix_dbz,
-        colour_map_object=colour_map_object,
-        colour_norm_object=colour_norm_object,
-        orientation_string='horizontal', padding=0.05,
-        extend_min=False, extend_max=True, fraction_of_axis_length=1.
-    )
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=axes_object,
+            data_matrix=reflectivity_matrix_dbz,
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object,
+            orientation_string='vertical',
+            extend_min=False, extend_max=True, fraction_of_axis_length=0.75
+        )
 
-    field_name_verbose = radar_utils.field_name_to_verbose(
-        field_name=RADAR_FIELD_NAME, include_units=True
+    plotting_utils.label_axes(
+        axes_object=axes_object, label_string='({0:s})'.format(panel_letter)
     )
-    colour_bar_object.set_label(field_name_verbose)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
@@ -222,6 +225,7 @@ def _run(top_myrorss_dir_name, top_gridrad_dir_name, valid_time_string,
     _plot_one_field(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
+        panel_letter='a', add_colour_bar=False,
         output_file_name=panel_file_names[0]
     )
 
@@ -233,6 +237,7 @@ def _run(top_myrorss_dir_name, top_gridrad_dir_name, valid_time_string,
     _plot_one_field(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         latitudes_deg=latitudes_deg, longitudes_deg=longitudes_deg,
+        panel_letter='b', add_colour_bar=True,
         output_file_name=panel_file_names[1]
     )
 
