@@ -9,6 +9,7 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
@@ -24,6 +25,7 @@ NUM_MERIDIANS = 6
 LATLNG_BUFFER_DEG = -0.25
 BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
+COLOUR_BAR_TIME_FORMAT = storm_plotting.COLOUR_BAR_TIME_FORMAT
 
 REQUIRED_COLUMNS = [
     tracking_utils.VALID_TIME_COLUMN, tracking_utils.PRIMARY_ID_COLUMN,
@@ -215,10 +217,10 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
             max_longitude_deg=max_plot_longitude_deg, resolution_string='i')
     )
 
-    plotting_utils.plot_coastlines(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR
-    )
+    # plotting_utils.plot_coastlines(
+    #     basemap_object=basemap_object, axes_object=axes_object,
+    #     line_colour=BORDER_COLOUR
+    # )
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR
@@ -236,10 +238,27 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         num_meridians=NUM_MERIDIANS, line_colour=numpy.full(3, 1.)
     )
 
-    storm_plotting.plot_storm_tracks(
+    colour_bar_object = storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
         basemap_object=basemap_object, colour_map_object=colour_map_object
     )
+
+    valid_times_unix_sec = (
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
+    )
+
+    tick_times_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=numpy.min(valid_times_unix_sec),
+        end_time_unix_sec=numpy.max(valid_times_unix_sec),
+        time_interval_sec=7200, include_endpoint=True
+    )
+    tick_time_strings = [
+        time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
+        for t in tick_times_unix_sec
+    ]
+
+    colour_bar_object.set_ticks(tick_times_unix_sec)
+    colour_bar_object.set_ticklabels(tick_time_strings)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(
