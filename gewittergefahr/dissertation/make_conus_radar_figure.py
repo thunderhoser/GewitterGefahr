@@ -158,12 +158,13 @@ def _plot_one_field(
             data_matrix=reflectivity_matrix_dbz,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
-            orientation_string='vertical',
+            orientation_string='horizontal', padding=0.05,
             extend_min=False, extend_max=True, fraction_of_axis_length=0.75
         )
 
     plotting_utils.label_axes(
-        axes_object=axes_object, label_string='({0:s})'.format(panel_letter)
+        axes_object=axes_object, label_string='({0:s})'.format(panel_letter),
+        y_coord_normalized=1.03
     )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -249,7 +250,7 @@ def _run(top_myrorss_dir_name, top_gridrad_dir_name, valid_time_string,
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
         output_file_name=figure_file_name,
-        num_panel_rows=1, num_panel_columns=2
+        num_panel_rows=2, num_panel_columns=1
     )
     imagemagick_utils.trim_whitespace(
         input_file_name=figure_file_name, output_file_name=figure_file_name,
