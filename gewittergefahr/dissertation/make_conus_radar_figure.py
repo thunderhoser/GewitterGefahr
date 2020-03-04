@@ -159,7 +159,7 @@ def _plot_one_field(
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', padding=0.05,
-            extend_min=False, extend_max=True, fraction_of_axis_length=0.75
+            extend_min=False, extend_max=True, fraction_of_axis_length=1.
         )
 
     plotting_utils.label_axes(
