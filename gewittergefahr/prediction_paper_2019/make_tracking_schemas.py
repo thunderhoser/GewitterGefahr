@@ -91,23 +91,23 @@ def _get_data_for_linkage_schema(extrapolate):
     })
 
     early_track_table[tracking_utils.TRACK_X_COORDS_COLUMN].values[0] = (
-        numpy.array([1, 8, 13, 18, 22, 25], dtype=float)
+        numpy.array([8, 13, 18, 22, 25], dtype=float)
     )
     early_track_table[tracking_utils.TRACK_X_COORDS_COLUMN].values[1] = (
-        numpy.linspace(0, 25, num=4, dtype=float)
+        numpy.linspace(0, 25, num=3, dtype=float)
     )
     early_track_table[tracking_utils.TRACK_X_COORDS_COLUMN].values[2] = (
-        numpy.linspace(0, 25, num=4, dtype=float)
+        numpy.linspace(0, 25, num=3, dtype=float)
     )
 
     early_track_table[tracking_utils.TRACK_Y_COORDS_COLUMN].values[0] = (
-        numpy.array([25, 30, 26, 24, 24.5, 23])
+        numpy.array([30, 26, 24, 24.5, 23])
     )
     early_track_table[tracking_utils.TRACK_Y_COORDS_COLUMN].values[1] = (
-        numpy.full(4, 15.)
+        numpy.full(3, 15.)
     )
     early_track_table[tracking_utils.TRACK_Y_COORDS_COLUMN].values[2] = (
-        numpy.array([1, 4, 5.5, 7.5])
+        numpy.array([4, 5.5, 7.5])
     )
 
     early_track_table[TRACK_COLOUR_COLUMN].values[0] = FIRST_TRACK_COLOUR
@@ -309,11 +309,22 @@ def _make_linkage_schema(extrapolate):
         this_full_id_string = early_track_table[
             tracking_utils.FULL_ID_COLUMN].values[i]
 
-        axes_object.text(
-            these_extrap_x_coords[0], these_extrap_y_coords[0] - TEXT_OFFSET_KM,
-            this_full_id_string, color=this_colour_tuple,
-            fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
-            horizontalalignment='center', verticalalignment='top')
+        if this_full_id_string == 'C' and not extrapolate:
+            axes_object.text(
+                these_extrap_x_coords[0],
+                these_extrap_y_coords[0] + TEXT_OFFSET_KM,
+                this_full_id_string + r' at $t_1$', color=this_colour_tuple,
+                fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
+                horizontalalignment='right', verticalalignment='bottom'
+            )
+        else:
+            axes_object.text(
+                these_extrap_x_coords[0],
+                these_extrap_y_coords[0] - TEXT_OFFSET_KM,
+                this_full_id_string + r' at $t_1$', color=this_colour_tuple,
+                fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
+                horizontalalignment='right', verticalalignment='top'
+            )
 
         if extrapolate:
             if i == 2:
@@ -339,9 +350,10 @@ def _make_linkage_schema(extrapolate):
             axes_object.text(
                 these_extrap_x_coords[1],
                 these_extrap_y_coords[1] - TEXT_OFFSET_KM,
-                this_full_id_string, color=this_colour_tuple,
+                this_full_id_string + r' at $t_2$', color=this_colour_tuple,
                 fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
-                horizontalalignment='center', verticalalignment='top')
+                horizontalalignment='left', verticalalignment='top'
+            )
 
         if i == 1:
             this_handle = axes_object.plot(
@@ -351,8 +363,8 @@ def _make_linkage_schema(extrapolate):
                 markeredgewidth=END_MARKER_EDGE_WIDTH
             )[0]
 
-            legend_handles.insert(1, this_handle)
-            legend_strings.insert(1, r'Storm at $t_1$')
+            # legend_handles.insert(1, this_handle)
+            # legend_strings.insert(1, r'Storm at $t_1$')
 
         axes_object.plot(
             these_x_coords[-1], these_y_coords[-1], linestyle='None',
@@ -378,7 +390,7 @@ def _make_linkage_schema(extrapolate):
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append('New linkage')
+    legend_strings.append('New link')
 
     if extrapolate:
         this_early_x_coord = early_track_table[
@@ -403,9 +415,10 @@ def _make_linkage_schema(extrapolate):
     legend_strings.insert(-1, r'Storm at $t_2$')
 
     axes_object.text(
-        this_late_x_coord + TEXT_OFFSET_KM, this_late_y_coord, 'D',
+        this_late_x_coord + TEXT_OFFSET_KM, this_late_y_coord, r'D at $t_2$',
         color=MAIN_TRACK_COLOUR, fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
-        horizontalalignment='left', verticalalignment='center')
+        horizontalalignment='left', verticalalignment='center'
+    )
 
     axes_object.grid(
         b=True, which='major', axis='both', linestyle='-', linewidth=0.5)
@@ -415,12 +428,14 @@ def _make_linkage_schema(extrapolate):
 
     if extrapolate:
         legend_font_size = SMALL_LEGEND_FONT_SIZE
+        legend_position_tuple = (0.01, 0.7)
     else:
         legend_font_size = DEFAULT_FONT_SIZE
+        legend_position_tuple = (0.01, 0.75)
 
     axes_object.legend(
-        legend_handles, legend_strings, loc='lower left',
-        bbox_to_anchor=(0.02, 0.15), fancybox=True, shadow=False,
+        legend_handles, legend_strings, loc='upper left',
+        bbox_to_anchor=legend_position_tuple, fancybox=True, shadow=False,
         framealpha=0.75, ncol=1, fontsize=legend_font_size
     )
 
@@ -473,18 +488,19 @@ def _make_3way_split_schema():
             markeredgewidth=END_MARKER_EDGE_WIDTH
         )[0]
 
-        if i == 0:
-            legend_handles.append(this_handle)
-            legend_strings.append('Storm at $t_1$')
+        # if i == 0:
+        #     legend_handles.append(this_handle)
+        #     legend_strings.append('Storm at $t_1$')
 
         this_full_id_string = early_track_table[
             tracking_utils.FULL_ID_COLUMN].values[i]
 
         axes_object.text(
             these_x_coords[-1], these_y_coords[-1] - TEXT_OFFSET_KM / 3,
-            this_full_id_string, color=this_colour_tuple,
+            this_full_id_string + r' at $t_1$', color=this_colour_tuple,
             fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
-            horizontalalignment='center', verticalalignment='top')
+            horizontalalignment='right', verticalalignment='top'
+        )
 
     num_late_tracks = len(late_track_table.index)
 
@@ -522,8 +538,8 @@ def _make_3way_split_schema():
                 markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
             )[0]
 
-            legend_handles.insert(-1, this_handle)
-            legend_strings.insert(-1, 'Storm at $t_2$')
+            # legend_handles.insert(-1, this_handle)
+            # legend_strings.insert(-1, 'Storm at $t_2$')
 
         axes_object.plot(
             these_x_coords[0], these_y_coords[0], linestyle='None',
@@ -537,9 +553,10 @@ def _make_3way_split_schema():
 
         axes_object.text(
             these_x_coords[0], these_y_coords[0] - TEXT_OFFSET_KM / 3,
-            this_full_id_string, color=this_colour_tuple,
+            this_full_id_string + r' at $t_2$', color=this_colour_tuple,
             fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
-            horizontalalignment='center', verticalalignment='top')
+            horizontalalignment='left', verticalalignment='top'
+        )
 
     axes_object.set_xticks([], [])
     axes_object.set_yticks([], [])
@@ -607,8 +624,8 @@ def _make_splitmerge_schema():
                 markeredgewidth=END_MARKER_EDGE_WIDTH
             )[0]
 
-            legend_handles.append(this_handle)
-            legend_strings.append(r'Storm at $t_1$')
+            # legend_handles.append(this_handle)
+            # legend_strings.append(r'Storm at $t_1$')
 
         axes_object.plot(
             these_x_coords[-1], these_y_coords[-1], linestyle='None',
@@ -622,9 +639,10 @@ def _make_splitmerge_schema():
 
         axes_object.text(
             these_x_coords[-1], these_y_coords[-1] - TEXT_OFFSET_KM,
-            this_full_id_string, color=this_colour_tuple,
+            this_full_id_string + r' at $t_1$', color=this_colour_tuple,
             fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
-            horizontalalignment='center', verticalalignment='top')
+            horizontalalignment='right', verticalalignment='top'
+        )
 
     num_late_objects = len(late_storm_object_table.index)
 
@@ -642,17 +660,19 @@ def _make_splitmerge_schema():
             markeredgewidth=DEFAULT_MARKER_EDGE_WIDTH
         )[0]
 
-        if j == 0:
-            legend_handles.append(this_handle)
-            legend_strings.append(r'Storm at $t_2$')
+        # if j == 0:
+        #     legend_handles.append(this_handle)
+        #     legend_strings.append(r'Storm at $t_2$')
 
         this_full_id_string = late_storm_object_table[
             tracking_utils.FULL_ID_COLUMN].values[j]
 
         axes_object.text(
-            this_x_coord, this_y_coord - TEXT_OFFSET_KM, this_full_id_string,
-            color=MAIN_TRACK_COLOUR, fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
-            horizontalalignment='center', verticalalignment='top')
+            this_x_coord, this_y_coord - TEXT_OFFSET_KM,
+            this_full_id_string + r' at $t_2$', color=MAIN_TRACK_COLOUR,
+            fontsize=DEFAULT_FONT_SIZE, fontweight='bold',
+            horizontalalignment='left', verticalalignment='top'
+        )
 
         if j == 0:
             this_last_x_coord = early_track_table[
@@ -696,8 +716,8 @@ def _make_splitmerge_schema():
     axes_object.set_yticks([], [])
 
     axes_object.legend(
-        legend_handles, legend_strings, loc='lower left',
-        bbox_to_anchor=(0.02, 0.15), fancybox=True, shadow=False,
+        legend_handles, legend_strings, loc='upper left',
+        bbox_to_anchor=(0.01, 0.99), fancybox=True, shadow=False,
         framealpha=0.75, ncol=1
     )
 

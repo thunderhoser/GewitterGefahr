@@ -217,31 +217,35 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-
+        line_colour=BORDER_COLOUR
+    )
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-
+        line_colour=BORDER_COLOUR
+    )
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-
+        line_colour=BORDER_COLOUR
+    )
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS)
-
+        num_parallels=NUM_PARALLELS, line_colour=numpy.full(3, 1.)
+    )
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS)
+        num_meridians=NUM_MERIDIANS, line_colour=numpy.full(3, 1.)
+    )
 
     storm_plotting.plot_storm_tracks(
         storm_object_table=storm_object_table, axes_object=axes_object,
-        basemap_object=basemap_object, colour_map_object=colour_map_object)
+        basemap_object=basemap_object, colour_map_object=colour_map_object
+    )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-                   pad_inches=0, bbox_inches='tight')
+    pyplot.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
     pyplot.close()
 
 
