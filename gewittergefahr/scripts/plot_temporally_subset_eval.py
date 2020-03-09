@@ -223,10 +223,18 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append(r'Number of examples (log$_{10}$)')
-    histogram_axes_object.set_ylabel(r'Number of examples (log$_{10}$)')
+    legend_strings.append(r'Number of examples')
+    histogram_axes_object.set_ylabel(r'Number of examples')
 
-    print('Number of examples by chunk: {0:s}'.format(str(num_examples_by_chunk)))
+    tick_values = histogram_axes_object.get_yticks()
+    tick_strings = [
+        '{0:d}'.format(int(numpy.round(10 ** v))) for v in tick_values
+    ]
+    histogram_axes_object.set_yticklabels(tick_strings)
+
+    print('Number of examples by chunk: {0:s}'.format(
+        str(num_examples_by_chunk)
+    ))
 
     if plot_legend:
         main_axes_object.legend(
@@ -456,6 +464,7 @@ def _plot_by_month(evaluation_dir_name, num_months_per_chunk,
 
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
 
     auc_csi_file_name = '{0:s}/monthly_auc_and_csi.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(auc_csi_file_name))
@@ -473,6 +482,7 @@ def _plot_by_month(evaluation_dir_name, num_months_per_chunk,
 
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
 
     pod_far_file_name = '{0:s}/monthly_pod_and_far.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(pod_far_file_name))
@@ -594,6 +604,7 @@ def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
     axes_object.set_xlabel('Hour (UTC)')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
 
     auc_csi_file_name = '{0:s}/hourly_auc_and_csi.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(auc_csi_file_name))
@@ -612,6 +623,7 @@ def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
     axes_object.set_xticks(x_tick_values)
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
     axes_object.set_xlabel('Hour (UTC)')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(d)')
 
     pod_far_file_name = '{0:s}/hourly_pod_and_far.jpg'.format(output_dir_name)
     print('Saving figure to: "{0:s}"...'.format(pod_far_file_name))
