@@ -383,6 +383,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         plot_cbar_min_arrow=False, plot_cbar_max_arrow=True, log_scale=True)
 
     axes_object.set_title(r'Number of examples')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(a)')
+
     panel_file_names.append('{0:s}/num_examples.jpg'.format(output_dir_name))
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
@@ -407,6 +409,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         plot_cbar_min_arrow=True, plot_cbar_max_arrow=True)
 
     axes_object.set_title('Number of tornadic examples')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(b)')
+
     panel_file_names.append(
         '{0:s}/num_positive_examples.jpg'.format(output_dir_name)
     )
@@ -431,6 +435,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         plot_cbar_min_arrow=True, plot_cbar_max_arrow=max_colour_value < 1.)
 
     axes_object.set_title('AUC (area under ROC curve)')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(c)')
+
     panel_file_names.append('{0:s}/auc.jpg'.format(output_dir_name))
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
@@ -452,6 +458,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         plot_cbar_max_arrow=max_colour_value < 1.)
 
     axes_object.set_title('CSI (critical success index)')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(d)')
+
     panel_file_names.append('{0:s}/csi.jpg'.format(output_dir_name))
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
@@ -473,6 +481,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         plot_cbar_max_arrow=max_colour_value < 1.)
 
     axes_object.set_title('POD (probability of detection)')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(e)')
+
     panel_file_names.append('{0:s}/pod.jpg'.format(output_dir_name))
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
@@ -494,6 +504,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         plot_cbar_max_arrow=max_colour_value < 1.)
 
     axes_object.set_title('FAR (false-alarm ratio)')
+    plotting_utils.label_axes(axes_object=axes_object, label_string='(f)')
+
     panel_file_names.append('{0:s}/far.jpg'.format(output_dir_name))
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
