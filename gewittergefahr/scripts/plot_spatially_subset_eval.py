@@ -42,14 +42,15 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Evaluation files therein will be found by '
     '`model_evaluation.find_file` and read by '
-    '`model_evaluation.read_evaluation`.')
-
+    '`model_evaluation.read_evaluation`.'
+)
 SCORE_CMAP_HELP_STRING = (
-    'Name of colour map for scores (must be accepted by `pyplot.get_cmap`).')
-
+    'Name of colour map for scores (must be accepted by `pyplot.get_cmap`).'
+)
 NUM_EXAMPLES_CMAP_HELP_STRING = (
     'Name of colour map for number of examples (must be accepted by '
-    '`pyplot.get_cmap`).')
+    '`pyplot.get_cmap`).'
+)
 
 MAX_PERCENTILE_HELP_STRING = (
     'Used to determine min and max values in each colour map.  Max value will '
@@ -58,28 +59,30 @@ MAX_PERCENTILE_HELP_STRING = (
 ).format(MAX_PERCENTILE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Figures will be saved here.')
+    'Name of output directory.  Figures will be saved here.'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
-    help=INPUT_DIR_HELP_STRING)
-
+    help=INPUT_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + SCORE_CMAP_ARG_NAME, type=str, required=False, default='plasma',
-    help=SCORE_CMAP_HELP_STRING)
-
+    help=SCORE_CMAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_EXAMPLES_CMAP_ARG_NAME, type=str, required=False,
-    default='viridis', help=NUM_EXAMPLES_CMAP_HELP_STRING)
-
+    default='viridis', help=NUM_EXAMPLES_CMAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False, default=99.,
-    help=MAX_PERCENTILE_HELP_STRING)
-
+    help=MAX_PERCENTILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _get_lcc_params(projection_object):
@@ -164,7 +167,8 @@ def _get_basemap(grid_metadata_dict):
 
 def _plot_one_value(
         data_matrix, grid_metadata_dict, colour_map_object, min_colour_value,
-        max_colour_value, plot_cbar_min_arrow, plot_cbar_max_arrow):
+        max_colour_value, plot_cbar_min_arrow, plot_cbar_max_arrow,
+        log_scale=False):
     """Plots one value (score, num examples, or num positive examples).
 
     M = number of rows in grid
@@ -180,6 +184,8 @@ def _plot_one_value(
         bottom of colour bar (to signify that lower values are possible).
     :param plot_cbar_max_arrow: Boolean flag.  If True, will plot arrow at top
         of colour bar (to signify that higher values are possible).
+    :param log_scale: Boolean flag (True if `data_matrix` contains data in log
+        scale).
     :return: figure_object: Figure handle (instance of
         `matplotlib.figure.Figure`).
     :return: axes_object: Axes handle (instance of
@@ -255,7 +261,11 @@ def _plot_one_value(
 
     tick_values = colour_bar_object.get_ticks()
 
-    if numpy.nanmax(data_matrix) >= 6:
+    if log_scale:
+        tick_strings = [
+            '{0:d}'.format(int(numpy.round(10 ** v))) for v in tick_values
+        ]
+    elif numpy.nanmax(data_matrix) >= 6:
         tick_strings = [
             '{0:d}'.format(int(numpy.round(v))) for v in tick_values
         ]
@@ -370,9 +380,9 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
         data_matrix=this_data_matrix, grid_metadata_dict=grid_metadata_dict,
         colour_map_object=num_ex_colour_map_object,
         min_colour_value=0., max_colour_value=max_colour_value,
-        plot_cbar_min_arrow=False, plot_cbar_max_arrow=True)
+        plot_cbar_min_arrow=False, plot_cbar_max_arrow=True, log_scale=True)
 
-    axes_object.set_title(r'Number of examples (log$_{10}$)')
+    axes_object.set_title(r'Number of examples')
     panel_file_names.append('{0:s}/num_examples.jpg'.format(output_dir_name))
     print('Saving figure to: "{0:s}"...'.format(panel_file_names[-1]))
 
