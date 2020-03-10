@@ -488,7 +488,7 @@ def _plot_by_month(evaluation_dir_name, num_months_per_chunk,
     axes_object.set_xticklabels(x_tick_labels, rotation=90.)
 
     plotting_utils.label_axes(
-        axes_object=axes_object, label_string='(b)',
+        axes_object=axes_object, label_string='(c)',
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
 
@@ -614,7 +614,7 @@ def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
     axes_object.set_xlabel('Hour (UTC)')
 
     plotting_utils.label_axes(
-        axes_object=axes_object, label_string='(c)',
+        axes_object=axes_object, label_string='(b)',
         x_coord_normalized=-0.075, y_coord_normalized=1.02
     )
 
