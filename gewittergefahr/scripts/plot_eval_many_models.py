@@ -248,7 +248,7 @@ def _plot_roc_curves(
 
         print(legend_strings[i])
 
-    _, axes_object = pyplot.subplots(
+    figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
 
@@ -315,11 +315,14 @@ def _plot_roc_curves(
     # axes_object.set_xlabel('')
 
     axes_object.set_aspect('equal')
+    figure_object.set_size_inches(15, 15)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-                   bbox_inches='tight')
-    pyplot.close()
+    pyplot.savefig(
+        figure_object, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
 
 def _plot_perf_diagrams(
@@ -379,7 +382,7 @@ def _plot_perf_diagrams(
 
         print(legend_strings[i])
 
-    _, axes_object = pyplot.subplots(
+    figure_object, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
 
@@ -455,11 +458,14 @@ def _plot_perf_diagrams(
     # axes_object.set_xlabel('')
 
     axes_object.set_aspect('equal')
+    figure_object.set_size_inches(15, 15)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-                   bbox_inches='tight')
-    pyplot.close()
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
 
 def _run(evaluation_file_names, model_names, confidence_level,
