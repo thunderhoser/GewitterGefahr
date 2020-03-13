@@ -342,10 +342,17 @@ def _run(top_example_dir_name, first_spc_date_string, last_spc_date_string,
     last_time_unix_sec = time_conversion.get_end_of_spc_date(
         last_spc_date_string)
 
+    # example_file_names = input_examples.find_many_example_files(
+    #     top_directory_name=top_example_dir_name, shuffled=True,
+    #     first_batch_number=0, last_batch_number=LARGE_INTEGER,
+    #     raise_error_if_any_missing=False)
+
     example_file_names = input_examples.find_many_example_files(
-        top_directory_name=top_example_dir_name, shuffled=True,
-        first_batch_number=0, last_batch_number=LARGE_INTEGER,
-        raise_error_if_any_missing=False)
+        top_directory_name=top_example_dir_name, shuffled=False,
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string,
+        raise_error_if_any_missing=False
+    )
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], read_all_target_vars=True
