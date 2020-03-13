@@ -22,6 +22,7 @@ from gewittergefahr.plotting import model_eval_plotting
 MARKER_TYPE = '*'
 MARKER_SIZE = 50
 MARKER_EDGE_WIDTH = 0
+SPECIAL_PROB_THRESHOLDS = numpy.linspace(0, 1, num=11, dtype=float)
 
 # COLOUR_MATRIX = numpy.array([
 #     [27, 158, 119],
