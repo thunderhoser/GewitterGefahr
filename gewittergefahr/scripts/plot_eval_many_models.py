@@ -551,7 +551,7 @@ def _run(evaluation_file_names, model_names, confidence_level,
     _plot_roc_curves(
         evaluation_tables=evaluation_tables, model_names=model_names,
         best_threshold_indices=best_threshold_indices,
-        marker_indices_by_model=marker_indices_by_model,
+        # marker_indices_by_model=marker_indices_by_model,
         output_file_name='{0:s}/roc_curves.jpg'.format(output_dir_name),
         confidence_level=confidence_level,
         plot_best_thresholds=plot_best_thresholds
