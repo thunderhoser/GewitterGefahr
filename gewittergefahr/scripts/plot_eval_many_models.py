@@ -427,6 +427,7 @@ def _plot_perf_diagrams(
             ]
 
             these_x = this_ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY][::100]
+            print(len(this_ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY]))
             these_y = this_ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][::100]
 
         this_csi = model_eval.csi_from_sr_and_pod(
