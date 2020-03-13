@@ -326,12 +326,14 @@ def _plot_roc_curves(
 
 def _plot_perf_diagrams(
         evaluation_tables, model_names, best_threshold_indices,
-        output_file_name, plot_best_thresholds, confidence_level=None):
+        marker_indices_by_model, output_file_name, plot_best_thresholds,
+        confidence_level=None):
     """Plots performance diagrams (one for each model).
 
     :param evaluation_tables: See doc for `_plot_roc_curves`.
     :param model_names: Same.
     :param best_threshold_indices: Same.
+    :param marker_indices_by_model: Same.
     :param output_file_name: Same.
     :param plot_best_thresholds: Same.
     :param confidence_level: Same.
@@ -402,8 +404,8 @@ def _plot_perf_diagrams(
             this_x = success_ratio_matrices[i][0, best_threshold_indices[i]]
             this_y = pod_matrices[i][0, best_threshold_indices[i]]
 
-            these_x = success_ratio_matrices[i][0, ::100]
-            these_y = pod_matrices[i][0, ::100]
+            these_x = success_ratio_matrices[i][0, marker_indices_by_model[i]]
+            these_y = pod_matrices[i][0, marker_indices_by_model[i]]
         else:
             this_ci_bottom_dict, this_ci_mean_dict, this_ci_top_dict = (
                 _get_ci_one_model(
@@ -426,9 +428,12 @@ def _plot_perf_diagrams(
                 best_threshold_indices[i]
             ]
 
-            these_x = this_ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY][::100]
-            print(len(this_ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY]))
-            these_y = this_ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][::100]
+            these_x = this_ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY][
+                marker_indices_by_model[i]
+            ]
+            these_y = this_ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][
+                marker_indices_by_model[i]
+            ]
 
         this_csi = model_eval.csi_from_sr_and_pod(
             success_ratio_array=numpy.array([this_x]),
@@ -451,7 +456,7 @@ def _plot_perf_diagrams(
 
         axes_object.plot(
             these_x, these_y, linestyle='None', marker='o',
-            markersize=MARKER_SIZE / 2, markeredgewidth=MARKER_EDGE_WIDTH,
+            markersize=12, markeredgewidth=MARKER_EDGE_WIDTH,
             markerfacecolor=this_colour, markeredgecolor=this_colour
         )
 
@@ -505,6 +510,7 @@ def _run(evaluation_file_names, model_names, confidence_level,
     )
 
     evaluation_tables = [None] * num_models
+    marker_indices_by_model = [None] * num_models
     best_threshold_indices = numpy.full(num_models, -1, dtype=int)
 
     for i in range(num_models):
@@ -513,8 +519,17 @@ def _run(evaluation_file_names, model_names, confidence_level,
             evaluation_file_names[i]
         )
 
-        evaluation_tables[i] = this_evaluation_dict[
-            model_eval.EVALUATION_TABLE_KEY]
+        these_prob_thresholds = (
+            this_evaluation_dict[model_eval.ALL_THRESHOLDS_KEY]
+        )
+        marker_indices_by_model[i] = numpy.array([
+            numpy.argmin(numpy.absolute(these_prob_thresholds - p))
+            for p in SPECIAL_PROB_THRESHOLDS
+        ], dtype=int)
+
+        evaluation_tables[i] = (
+            this_evaluation_dict[model_eval.EVALUATION_TABLE_KEY]
+        )
 
         print((
             'Contingency table: a = {0:d}, b = {1:d}, c = {2:d}, d = {3:d}'
@@ -535,6 +550,7 @@ def _run(evaluation_file_names, model_names, confidence_level,
     _plot_roc_curves(
         evaluation_tables=evaluation_tables, model_names=model_names,
         best_threshold_indices=best_threshold_indices,
+        marker_indices_by_model=marker_indices_by_model,
         output_file_name='{0:s}/roc_curves.jpg'.format(output_dir_name),
         confidence_level=confidence_level,
         plot_best_thresholds=plot_best_thresholds
@@ -543,6 +559,7 @@ def _run(evaluation_file_names, model_names, confidence_level,
     _plot_perf_diagrams(
         evaluation_tables=evaluation_tables, model_names=model_names,
         best_threshold_indices=best_threshold_indices,
+        marker_indices_by_model=marker_indices_by_model,
         output_file_name='{0:s}/performance_diagrams.jpg'.format(
             output_dir_name
         ),
