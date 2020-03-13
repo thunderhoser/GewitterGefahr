@@ -190,7 +190,8 @@ def _get_ci_one_model(evaluation_table, for_roc_curve, confidence_level):
 
 def _plot_roc_curves(
         evaluation_tables, model_names, best_threshold_indices,
-        output_file_name, plot_best_thresholds, confidence_level=None):
+        marker_indices_by_model, output_file_name, plot_best_thresholds,
+        confidence_level=None):
     """Plots ROC curves (one for each model).
 
     M = number of models
@@ -202,6 +203,7 @@ def _plot_roc_curves(
     :param model_names: length-M list of model names (will be used in legend).
     :param best_threshold_indices: length-M numpy array with index of best
         probability threshold for each model.
+    :param marker_indices_by_model: Blah.
     :param output_file_name: Path to output file (figure will be saved here).
     :param plot_best_thresholds: See documentation at top of file.
     :param confidence_level: Confidence level for bootstrapping.
@@ -269,6 +271,9 @@ def _plot_roc_curves(
 
             this_x = pofd_matrices[i][0, best_threshold_indices[i]]
             this_y = pod_matrices[i][0, best_threshold_indices[i]]
+
+            these_x = pofd_matrices[i][0, marker_indices_by_model[i]]
+            these_y = pod_matrices[i][0, marker_indices_by_model[i]]
         else:
             this_ci_bottom_dict, this_ci_mean_dict, this_ci_top_dict = (
                 _get_ci_one_model(
@@ -288,6 +293,13 @@ def _plot_roc_curves(
                 best_threshold_indices[i]
             ]
 
+            these_x = this_ci_mean_dict[model_eval.POFD_BY_THRESHOLD_KEY][
+                marker_indices_by_model[i]
+            ]
+            these_y = this_ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][
+                marker_indices_by_model[i]
+            ]
+
         print((
             'POD and POFD at best probability threshold = {0:.3f}, {1:.3f}'
         ).format(
@@ -300,6 +312,12 @@ def _plot_roc_curves(
                 markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
                 markerfacecolor=this_colour, markeredgecolor=this_colour
             )
+
+        axes_object.plot(
+            these_x, these_y, linestyle='None', marker='o',
+            markersize=12, markeredgewidth=MARKER_EDGE_WIDTH,
+            markerfacecolor=this_colour, markeredgecolor=this_colour
+        )
 
     axes_object.legend(
         legend_handles, legend_strings, loc='lower center',
@@ -551,7 +569,7 @@ def _run(evaluation_file_names, model_names, confidence_level,
     _plot_roc_curves(
         evaluation_tables=evaluation_tables, model_names=model_names,
         best_threshold_indices=best_threshold_indices,
-        # marker_indices_by_model=marker_indices_by_model,
+        marker_indices_by_model=marker_indices_by_model,
         output_file_name='{0:s}/roc_curves.jpg'.format(output_dir_name),
         confidence_level=confidence_level,
         plot_best_thresholds=plot_best_thresholds
