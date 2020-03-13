@@ -315,7 +315,6 @@ def _plot_roc_curves(
     # axes_object.set_xlabel('')
 
     axes_object.set_aspect('equal')
-    figure_object.set_size_inches(15, 15)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
@@ -458,7 +457,6 @@ def _plot_perf_diagrams(
     # axes_object.set_xlabel('')
 
     axes_object.set_aspect('equal')
-    figure_object.set_size_inches(15, 15)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
