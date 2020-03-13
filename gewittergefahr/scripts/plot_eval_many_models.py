@@ -401,6 +401,9 @@ def _plot_perf_diagrams(
 
             this_x = success_ratio_matrices[i][0, best_threshold_indices[i]]
             this_y = pod_matrices[i][0, best_threshold_indices[i]]
+
+            these_x = success_ratio_matrices[i][0, ::100]
+            these_y = pod_matrices[i][0, ::100]
         else:
             this_ci_bottom_dict, this_ci_mean_dict, this_ci_top_dict = (
                 _get_ci_one_model(
@@ -423,6 +426,9 @@ def _plot_perf_diagrams(
                 best_threshold_indices[i]
             ]
 
+            these_x = this_ci_mean_dict[model_eval.SR_BY_THRESHOLD_KEY][::100]
+            these_y = this_ci_mean_dict[model_eval.POD_BY_THRESHOLD_KEY][::100]
+
         this_csi = model_eval.csi_from_sr_and_pod(
             success_ratio_array=numpy.array([this_x]),
             pod_array=numpy.array([this_y])
@@ -441,6 +447,12 @@ def _plot_perf_diagrams(
                 markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
                 markerfacecolor=this_colour, markeredgecolor=this_colour
             )
+
+        axes_object.plot(
+            these_x, these_y, linestyle='None', marker='o',
+            markersize=MARKER_SIZE / 2, markeredgewidth=MARKER_EDGE_WIDTH,
+            markerfacecolor=this_colour, markeredgecolor=this_colour
+        )
 
     axes_object.legend(
         legend_handles, legend_strings, loc='upper center',
