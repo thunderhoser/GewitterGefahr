@@ -378,14 +378,14 @@ def plot_roc_curve(axes_object, pod_by_threshold, pofd_by_threshold,
             cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
             vmax=1., axes=axes_object)
 
-        colour_bar_object = plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=axes_object, data_matrix=peirce_score_matrix,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=False,
-            fraction_of_axis_length=0.8)
-
-        colour_bar_object.set_label('Peirce score (POD minus POFD)')
+        # colour_bar_object = plotting_utils.plot_colour_bar(
+        #     axes_object_or_matrix=axes_object, data_matrix=peirce_score_matrix,
+        #     colour_map_object=this_colour_map_object,
+        #     colour_norm_object=this_colour_norm_object,
+        #     orientation_string='vertical', extend_min=False, extend_max=False,
+        #     fraction_of_axis_length=0.8)
+        #
+        # colour_bar_object.set_label('Peirce score (POD minus POFD)')
 
         random_x_coords, random_y_coords = model_eval.get_random_roc_curve()
         axes_object.plot(
@@ -526,14 +526,14 @@ def plot_performance_diagram(
             cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
             vmax=1., axes=axes_object)
 
-        colour_bar_object = plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=axes_object, data_matrix=csi_matrix,
-            colour_map_object=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            orientation_string='vertical', extend_min=False, extend_max=False,
-            fraction_of_axis_length=0.8)
-
-        colour_bar_object.set_label('CSI (critical success index)')
+        # colour_bar_object = plotting_utils.plot_colour_bar(
+        #     axes_object_or_matrix=axes_object, data_matrix=csi_matrix,
+        #     colour_map_object=this_colour_map_object,
+        #     colour_norm_object=this_colour_norm_object,
+        #     orientation_string='vertical', extend_min=False, extend_max=False,
+        #     fraction_of_axis_length=0.8)
+        #
+        # colour_bar_object.set_label('CSI (critical success index)')
 
         bias_colour_tuple = plotting_utils.colour_from_numpy_to_tuple(
             FREQ_BIAS_COLOUR)
