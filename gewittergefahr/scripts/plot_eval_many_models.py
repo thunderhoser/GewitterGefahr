@@ -306,10 +306,13 @@ def _plot_roc_curves(
         framealpha=0.5, ncol=1
     )
 
-    axes_object.set_title('ROC curve')
+    axes_object.set_title('ROC curve, all tornadoes')
     plotting_utils.label_axes(
         axes_object=axes_object, label_string='(a)', y_coord_normalized=1.025
     )
+
+    axes_object.set_xticks([], [])
+    axes_object.set_xlabel('')
 
     axes_object.set_aspect('equal')
 
@@ -443,10 +446,13 @@ def _plot_perf_diagrams(
         framealpha=0.5, ncol=1
     )
 
-    axes_object.set_title('Performance diagram')
+    axes_object.set_title('Performance diagram, all tornadoes')
     plotting_utils.label_axes(
         axes_object=axes_object, label_string='(b)', y_coord_normalized=1.025
     )
+
+    axes_object.set_xticks([], [])
+    axes_object.set_xlabel('')
 
     axes_object.set_aspect('equal')
 
