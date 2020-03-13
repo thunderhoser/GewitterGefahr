@@ -318,8 +318,8 @@ def _plot_roc_curves(
     figure_object.set_size_inches(15, 15)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(
-        figure_object, dpi=FIGURE_RESOLUTION_DPI,
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
         pad_inches=0, bbox_inches='tight'
     )
     pyplot.close(figure_object)
