@@ -449,7 +449,7 @@ def _plot_perf_diagrams(
         framealpha=0.5, ncol=1
     )
 
-    axes_object.set_title('Performance diagram, strong tornadoes only')
+    axes_object.set_title('Performance diagram, strong tornadoes only', fontsize=27.5)
     plotting_utils.label_axes(
         axes_object=axes_object, label_string='(d)', y_coord_normalized=1.025
     )
