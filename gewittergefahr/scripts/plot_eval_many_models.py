@@ -499,6 +499,15 @@ def _run(evaluation_file_names, model_names, confidence_level,
         evaluation_tables[i] = this_evaluation_dict[
             model_eval.EVALUATION_TABLE_KEY]
 
+        print((
+            'Contingency table: a = {0:d}, b = {1:d}, c = {2:d}, d = {3:d}'
+        ).format(
+            evaluation_tables[i][model_eval.NUM_TRUE_POSITIVES_KEY],
+            evaluation_tables[i][model_eval.NUM_FALSE_POSITIVES_KEY],
+            evaluation_tables[i][model_eval.NUM_FALSE_NEGATIVES_KEY],
+            evaluation_tables[i][model_eval.NUM_TRUE_NEGATIVES_KEY]
+        ))
+
         best_threshold_indices[i] = numpy.argmin(numpy.absolute(
             this_evaluation_dict[model_eval.BEST_THRESHOLD_KEY] -
             this_evaluation_dict[model_eval.ALL_THRESHOLDS_KEY]
