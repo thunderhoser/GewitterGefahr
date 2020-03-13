@@ -19,6 +19,7 @@ import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import target_val_utils
+from gewittergefahr.gg_utils import temporal_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -415,10 +416,91 @@ def _run(
 
     hit_indices = ct_extreme_dict[model_activation.HIT_INDICES_KEY]
     miss_indices = ct_extreme_dict[model_activation.MISS_INDICES_KEY]
-    false_alarm_indices = ct_extreme_dict[
-        model_activation.FALSE_ALARM_INDICES_KEY]
-    correct_null_indices = ct_extreme_dict[
-        model_activation.CORRECT_NULL_INDICES_KEY]
+    false_alarm_indices = (
+        ct_extreme_dict[model_activation.FALSE_ALARM_INDICES_KEY]
+    )
+    correct_null_indices = (
+        ct_extreme_dict[model_activation.CORRECT_NULL_INDICES_KEY]
+    )
+
+    hit_id_strings = [full_id_strings[k] for k in hit_indices]
+    miss_id_strings = [full_id_strings[k] for k in miss_indices]
+    false_alarm_id_strings = [full_id_strings[k] for k in false_alarm_indices]
+    correct_null_id_strings = [full_id_strings[k] for k in correct_null_indices]
+
+    hit_primary_id_strings = (
+        temporal_tracking.full_to_partial_ids(hit_id_strings)[0]
+    )
+    miss_primary_id_strings = (
+        temporal_tracking.full_to_partial_ids(miss_id_strings)[0]
+    )
+    fa_primary_id_strings = (
+        temporal_tracking.full_to_partial_ids(false_alarm_id_strings)[0]
+    )
+    cn_primary_id_strings = (
+        temporal_tracking.full_to_partial_ids(correct_null_id_strings)[0]
+    )
+
+    these_flags = numpy.array(
+        [i in miss_primary_id_strings for i in hit_primary_id_strings],
+        dtype=bool
+    )
+    print((
+        'Number of primary IDs in best hits AND worst misses = {0:d}'
+    ).format(
+        numpy.sum(these_flags)
+    ))
+
+    these_flags = numpy.array(
+        [i in fa_primary_id_strings for i in hit_primary_id_strings],
+        dtype=bool
+    )
+    print((
+        'Number of primary IDs in best hits AND worst false alarms = {0:d}'
+    ).format(
+        numpy.sum(these_flags)
+    ))
+
+    these_flags = numpy.array(
+        [i in cn_primary_id_strings for i in hit_primary_id_strings],
+        dtype=bool
+    )
+    print((
+        'Number of primary IDs in best hits AND best correct nulls = {0:d}'
+    ).format(
+        numpy.sum(these_flags)
+    ))
+
+    these_flags = numpy.array(
+        [i in fa_primary_id_strings for i in miss_primary_id_strings],
+        dtype=bool
+    )
+    print((
+        'Number of primary IDs in worst misses AND worst false alarms = {0:d}'
+    ).format(
+        numpy.sum(these_flags)
+    ))
+
+    these_flags = numpy.array(
+        [i in cn_primary_id_strings for i in miss_primary_id_strings],
+        dtype=bool
+    )
+    print((
+        'Number of primary IDs in worst misses AND best correct nulls = {0:d}'
+    ).format(
+        numpy.sum(these_flags)
+    ))
+
+    these_flags = numpy.array(
+        [i in cn_primary_id_strings for i in fa_primary_id_strings],
+        dtype=bool
+    )
+    print((
+        'Number of primary IDs in worst false alarms AND best correct nulls = '
+        '{0:d}'
+    ).format(
+        numpy.sum(these_flags)
+    ))
 
     # Write best hits to file.
     if len(hit_indices) > 0:
