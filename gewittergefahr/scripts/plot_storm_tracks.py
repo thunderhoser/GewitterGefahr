@@ -187,7 +187,17 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
 
     print(SEPARATOR_STRING)
     storm_object_table = pandas.concat(
-        list_of_storm_object_tables, axis=0, ignore_index=True)
+        list_of_storm_object_tables, axis=0, ignore_index=True
+    )
+
+    # TODO(thunderhoser): HACK
+    first_time_unix_sec = time_conversion.string_to_unix_sec(
+        '2011-04-27-20', '%Y-%m-%d-%H'
+    )
+    storm_object_table = storm_object_table.loc[
+        storm_object_table[tracking_utils.VALID_TIME_COLUMN] >=
+        first_time_unix_sec
+    ]
 
     if min_plot_latitude_deg is None:
         min_plot_latitude_deg = numpy.min(
@@ -247,10 +257,11 @@ def _run(top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values
     )
 
+    # TODO(thunderhoser): HACK
     tick_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=numpy.min(valid_times_unix_sec),
         end_time_unix_sec=numpy.max(valid_times_unix_sec),
-        time_interval_sec=1600, include_endpoint=True
+        time_interval_sec=1800, include_endpoint=True
     )
     tick_time_strings = [
         time_conversion.unix_sec_to_string(t, COLOUR_BAR_TIME_FORMAT)
