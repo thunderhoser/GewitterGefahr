@@ -313,11 +313,11 @@ def _plot_roc_curves(
                 markerfacecolor=this_colour, markeredgecolor=this_colour
             )
 
-        axes_object.plot(
-            these_x, these_y, linestyle='None', marker='o',
-            markersize=12, markeredgewidth=MARKER_EDGE_WIDTH,
-            markerfacecolor=this_colour, markeredgecolor=this_colour
-        )
+        # axes_object.plot(
+        #     these_x, these_y, linestyle='None', marker='o',
+        #     markersize=12, markeredgewidth=MARKER_EDGE_WIDTH,
+        #     markerfacecolor=this_colour, markeredgecolor=this_colour
+        # )
 
     axes_object.legend(
         legend_handles, legend_strings, loc='lower center',
@@ -325,13 +325,10 @@ def _plot_roc_curves(
         framealpha=0.5, ncol=1
     )
 
-    axes_object.set_title('ROC curve, strong tornadoes only')
+    axes_object.set_title('ROC curve')
     plotting_utils.label_axes(
-        axes_object=axes_object, label_string='(c)', y_coord_normalized=1.025
+        axes_object=axes_object, label_string='(a)', y_coord_normalized=1.025
     )
-
-    # axes_object.set_xticks([], [])
-    # axes_object.set_xlabel('')
 
     axes_object.set_aspect('equal')
 
@@ -473,11 +470,11 @@ def _plot_perf_diagrams(
                 markerfacecolor=this_colour, markeredgecolor=this_colour
             )
 
-        axes_object.plot(
-            these_x, these_y, linestyle='None', marker='o',
-            markersize=12, markeredgewidth=MARKER_EDGE_WIDTH,
-            markerfacecolor=this_colour, markeredgecolor=this_colour
-        )
+        # axes_object.plot(
+        #     these_x, these_y, linestyle='None', marker='o',
+        #     markersize=12, markeredgewidth=MARKER_EDGE_WIDTH,
+        #     markerfacecolor=this_colour, markeredgecolor=this_colour
+        # )
 
     axes_object.legend(
         legend_handles, legend_strings, loc='upper center',
@@ -485,13 +482,10 @@ def _plot_perf_diagrams(
         framealpha=0.5, ncol=1
     )
 
-    axes_object.set_title('Performance diagram, strong tornadoes only', fontsize=27.5)
+    axes_object.set_title('Performance diagram')
     plotting_utils.label_axes(
-        axes_object=axes_object, label_string='(d)', y_coord_normalized=1.025
+        axes_object=axes_object, label_string='(b)', y_coord_normalized=1.025
     )
-
-    # axes_object.set_xticks([], [])
-    # axes_object.set_xlabel('')
 
     axes_object.set_aspect('equal')
 

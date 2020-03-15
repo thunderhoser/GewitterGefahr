@@ -26,12 +26,12 @@ from gewittergefahr.plotting import plotting_utils
 # TODO(thunderhoser): Variable and method names are way too verbose.
 
 ROC_CURVE_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
-ROC_CURVE_WIDTH = 3.
+ROC_CURVE_WIDTH = 4.5
 RANDOM_ROC_COLOUR = numpy.full(3, 152. / 255)
 RANDOM_ROC_WIDTH = 2.
 
 PERF_DIAGRAM_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
-PERF_DIAGRAM_WIDTH = 3.
+PERF_DIAGRAM_WIDTH = 4.5
 
 FREQ_BIAS_COLOUR = numpy.full(3, 152. / 255)
 FREQ_BIAS_WIDTH = 2.
