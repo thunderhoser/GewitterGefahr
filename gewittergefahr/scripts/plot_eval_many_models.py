@@ -319,11 +319,14 @@ def _plot_roc_curves(
         #     markerfacecolor=this_colour, markeredgecolor=this_colour
         # )
 
-    axes_object.legend(
+    main_legend_handle = axes_object.legend(
         legend_handles, legend_strings, loc='lower center',
         bbox_to_anchor=(0.5, 0), fancybox=True, shadow=False,
         framealpha=0.5, ncol=1
     )
+
+    for this_object in main_legend_handle.legendHandles:
+        this_object.set_linewidth(5.)
 
     axes_object.set_title('ROC curve')
     plotting_utils.label_axes(
@@ -476,11 +479,14 @@ def _plot_perf_diagrams(
         #     markerfacecolor=this_colour, markeredgecolor=this_colour
         # )
 
-    axes_object.legend(
+    main_legend_handle = axes_object.legend(
         legend_handles, legend_strings, loc='upper center',
         bbox_to_anchor=(0.5, 1), fancybox=True, shadow=False,
         framealpha=0.5, ncol=1
     )
+
+    for this_object in main_legend_handle.legendHandles:
+        this_object.set_linewidth(5.)
 
     axes_object.set_title('Performance diagram')
     plotting_utils.label_axes(
