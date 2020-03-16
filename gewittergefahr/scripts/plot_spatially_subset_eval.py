@@ -392,20 +392,18 @@ def _run(evaluation_dir_name, smoothing_radius_grid_cells,
         ))
 
         num_examples_matrix = general_utils.apply_gaussian_filter(
-            input_matrix=num_examples_matrix,
+            input_matrix=num_examples_matrix.astype(float),
             e_folding_radius_grid_cells=smoothing_radius_grid_cells
         )
-        num_examples_matrix = numpy.round(num_examples_matrix)
-        num_examples_matrix[num_examples_matrix <= 0] = numpy.nan
+        num_examples_matrix = numpy.round(num_examples_matrix).astype(int)
 
         num_positive_examples_matrix = general_utils.apply_gaussian_filter(
-            input_matrix=num_positive_examples_matrix,
+            input_matrix=num_positive_examples_matrix.astype(float),
             e_folding_radius_grid_cells=smoothing_radius_grid_cells
         )
-        num_positive_examples_matrix = numpy.round(num_positive_examples_matrix)
-        num_positive_examples_matrix[
-            num_positive_examples_matrix <= 0
-        ] = numpy.nan
+        num_positive_examples_matrix = (
+            numpy.round(num_positive_examples_matrix).astype(int)
+        )
 
         auc_matrix = general_utils.apply_gaussian_filter(
             input_matrix=ge_utils.fill_nans(auc_matrix),
