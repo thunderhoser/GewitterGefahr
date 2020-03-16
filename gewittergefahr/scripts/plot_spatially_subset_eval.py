@@ -8,6 +8,8 @@ import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
 from mpl_toolkits.basemap import Basemap
+from generalexam.ge_utils import utils as ge_utils
+from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import model_evaluation as model_eval
@@ -34,6 +36,7 @@ NUM_PANEL_COLUMNS = 2
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 SCORE_CMAP_ARG_NAME = 'score_colour_map_name'
 NUM_EXAMPLES_CMAP_ARG_NAME = 'num_ex_colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
@@ -43,6 +46,10 @@ INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Evaluation files therein will be found by '
     '`model_evaluation.find_file` and read by '
     '`model_evaluation.read_evaluation`.'
+)
+SMOOTHING_RADIUS_HELP_STRING = (
+    'e-folding radius for Gaussian smoother.  If you do not want to smooth, '
+    'leave this alone.'
 )
 SCORE_CMAP_HELP_STRING = (
     'Name of colour map for scores (must be accepted by `pyplot.get_cmap`).'
@@ -66,6 +73,10 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
     help=INPUT_DIR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False, default=-1,
+    help=SMOOTHING_RADIUS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + SCORE_CMAP_ARG_NAME, type=str, required=False, default='plasma',
@@ -278,18 +289,23 @@ def _plot_one_value(
     return figure_object, axes_object
 
 
-def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
-         max_colour_percentile, output_dir_name):
+def _run(evaluation_dir_name, smoothing_radius_grid_cells,
+         score_colour_map_name, num_ex_colour_map_name, max_colour_percentile,
+         output_dir_name):
     """Plots spatially subset model evaluation.
 
     This is effectively the main method.
 
     :param evaluation_dir_name: See documentation at top of file.
+    :param smoothing_radius_grid_cells: Same.
     :param score_colour_map_name: Same.
     :param num_ex_colour_map_name: Same.
     :param max_colour_percentile: Same.
     :param output_dir_name: Same.
     """
+
+    if smoothing_radius_grid_cells <= 0:
+        smoothing_radius_grid_cells = None
 
     score_colour_map_object = pyplot.get_cmap(score_colour_map_name)
     num_ex_colour_map_object = pyplot.get_cmap(num_ex_colour_map_name)
@@ -297,7 +313,8 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
     error_checking.assert_is_leq(max_colour_percentile, 100.)
 
     grid_metafile_name = grids.find_equidistant_metafile(
-        directory_name=evaluation_dir_name, raise_error_if_missing=True)
+        directory_name=evaluation_dir_name, raise_error_if_missing=True
+    )
 
     print('Reading grid metadata from: "{0:s}"...'.format(grid_metafile_name))
     grid_metadata_dict = grids.read_equidistant_metafile(grid_metafile_name)
@@ -365,6 +382,52 @@ def _run(evaluation_dir_name, score_colour_map_name, num_ex_colour_map_name,
     csi_matrix[num_positive_examples_matrix == 0] = numpy.nan
     pod_matrix[num_positive_examples_matrix == 0] = numpy.nan
     far_matrix[num_positive_examples_matrix == 0] = numpy.nan
+
+    if smoothing_radius_grid_cells is not None:
+        print((
+            'Applying Gaussian smoother with e-folding radius of {0:.1f} grid '
+            'cells...'
+        ).format(
+            smoothing_radius_grid_cells
+        ))
+
+        num_examples_matrix = general_utils.apply_gaussian_filter(
+            input_matrix=num_examples_matrix,
+            e_folding_radius_grid_cells=smoothing_radius_grid_cells
+        )
+        num_examples_matrix = numpy.round(num_examples_matrix)
+        num_examples_matrix[num_examples_matrix <= 0] = numpy.nan
+
+        num_positive_examples_matrix = general_utils.apply_gaussian_filter(
+            input_matrix=num_positive_examples_matrix,
+            e_folding_radius_grid_cells=smoothing_radius_grid_cells
+        )
+        num_positive_examples_matrix = numpy.round(num_positive_examples_matrix)
+        num_positive_examples_matrix[
+            num_positive_examples_matrix <= 0
+        ] = numpy.nan
+
+        auc_matrix = general_utils.apply_gaussian_filter(
+            input_matrix=ge_utils.fill_nans(auc_matrix),
+            e_folding_radius_grid_cells=smoothing_radius_grid_cells
+        )
+        csi_matrix = general_utils.apply_gaussian_filter(
+            input_matrix=ge_utils.fill_nans(csi_matrix),
+            e_folding_radius_grid_cells=smoothing_radius_grid_cells
+        )
+        pod_matrix = general_utils.apply_gaussian_filter(
+            input_matrix=ge_utils.fill_nans(pod_matrix),
+            e_folding_radius_grid_cells=smoothing_radius_grid_cells
+        )
+        far_matrix = general_utils.apply_gaussian_filter(
+            input_matrix=ge_utils.fill_nans(far_matrix),
+            e_folding_radius_grid_cells=smoothing_radius_grid_cells
+        )
+
+        auc_matrix[num_positive_examples_matrix == 0] = numpy.nan
+        csi_matrix[num_positive_examples_matrix == 0] = numpy.nan
+        pod_matrix[num_positive_examples_matrix == 0] = numpy.nan
+        far_matrix[num_positive_examples_matrix == 0] = numpy.nan
 
     panel_file_names = []
     file_system_utils.mkdir_recursive_if_necessary(
@@ -533,10 +596,15 @@ if __name__ == '__main__':
 
     _run(
         evaluation_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        smoothing_radius_grid_cells=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
+        ),
         score_colour_map_name=getattr(INPUT_ARG_OBJECT, SCORE_CMAP_ARG_NAME),
         num_ex_colour_map_name=getattr(
-            INPUT_ARG_OBJECT, NUM_EXAMPLES_CMAP_ARG_NAME),
+            INPUT_ARG_OBJECT, NUM_EXAMPLES_CMAP_ARG_NAME
+        ),
         max_colour_percentile=getattr(
-            INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
+            INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME
+        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
