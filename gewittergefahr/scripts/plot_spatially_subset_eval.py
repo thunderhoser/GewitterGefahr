@@ -281,7 +281,7 @@ def _plot_one_value(
             '{0:d}'.format(int(numpy.round(v))) for v in tick_values
         ]
     else:
-        tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+        tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
 
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
