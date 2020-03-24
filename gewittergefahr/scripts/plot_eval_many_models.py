@@ -236,12 +236,19 @@ def _plot_roc_curves(
         # assert num_bootstrap_reps == this_num_bootstrap_reps
 
         if num_bootstrap_reps > 1:
-            this_min_auc, this_max_auc = bootstrapping.get_confidence_interval(
-                stat_values=evaluation_tables[i][model_eval.AUC_KEY].values,
-                confidence_level=confidence_level)
+            # this_min_auc, this_max_auc = bootstrapping.get_confidence_interval(
+            #     stat_values=evaluation_tables[i][model_eval.AUC_KEY].values,
+            #     confidence_level=confidence_level)
+            #
+            # legend_strings[i] = '{0:s}: AUC = [{1:.3f}, {2:.3f}]'.format(
+            #     model_names[i], this_min_auc, this_max_auc
+            # )
 
-            legend_strings[i] = '{0:s}: AUC = [{1:.3f}, {2:.3f}]'.format(
-                model_names[i], this_min_auc, this_max_auc
+            this_auc = numpy.mean(
+                evaluation_tables[i][model_eval.AUC_KEY].values
+            )
+            legend_strings[i] = '{0:s}: AUC = {1:.3f}'.format(
+                model_names[i], this_auc
             )
         else:
             this_auc = evaluation_tables[i][model_eval.AUC_KEY].values[0]
@@ -383,16 +390,23 @@ def _plot_perf_diagrams(
         # assert num_bootstrap_reps == this_num_bootstrap_reps
 
         if num_bootstrap_reps > 1:
-            this_min_aupd, this_max_aupd = (
-                bootstrapping.get_confidence_interval(
-                    stat_values=
-                    evaluation_tables[i][model_eval.AUPD_KEY].values,
-                    confidence_level=confidence_level
-                )
-            )
+            # this_min_aupd, this_max_aupd = (
+            #     bootstrapping.get_confidence_interval(
+            #         stat_values=
+            #         evaluation_tables[i][model_eval.AUPD_KEY].values,
+            #         confidence_level=confidence_level
+            #     )
+            # )
+            #
+            # legend_strings[i] = '{0:s}: AUPD = [{1:.3f}, {2:.3f}]'.format(
+            #     model_names[i], this_min_aupd, this_max_aupd
+            # )
 
-            legend_strings[i] = '{0:s}: AUPD = [{1:.3f}, {2:.3f}]'.format(
-                model_names[i], this_min_aupd, this_max_aupd
+            this_aupd = numpy.mean(
+                evaluation_tables[i][model_eval.AUPD_KEY].values
+            )
+            legend_strings[i] = '{0:s}: AUPD = {1:.3f}'.format(
+                model_names[i], this_aupd
             )
         else:
             this_aupd = evaluation_tables[i][model_eval.AUPD_KEY].values[0]
