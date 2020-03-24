@@ -215,7 +215,8 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     ])
 
     # Plot histogram of example counts.
-    y_values = numpy.maximum(numpy.log10(num_examples_by_chunk), 0.)
+    # y_values = numpy.maximum(numpy.log10(num_examples_by_chunk), 0.)
+    y_values = num_examples_by_chunk + 0.
 
     this_handle = histogram_axes_object.bar(
         x=x_values, height=y_values, width=1., color=HISTOGRAM_FACE_COLOUR,
@@ -223,12 +224,15 @@ def _plot_auc_and_csi(auc_matrix, csi_matrix, num_examples_by_chunk,
     )[0]
 
     legend_handles.append(this_handle)
-    legend_strings.append(r'Number of examples')
-    histogram_axes_object.set_ylabel(r'Number of examples')
+    legend_strings.append(r'Number of tornadic examples')
+    histogram_axes_object.set_ylabel(r'Number of tornadic examples')
 
     tick_values = histogram_axes_object.get_yticks()
+    # tick_strings = [
+    #     '{0:d}'.format(int(numpy.round(10 ** v))) for v in tick_values
+    # ]
     tick_strings = [
-        '{0:d}'.format(int(numpy.round(10 ** v))) for v in tick_values
+        '{0:d}'.format(int(numpy.round(v))) for v in tick_values
     ]
     histogram_axes_object.set_yticklabels(tick_strings)
 
@@ -459,7 +463,7 @@ def _plot_by_month(evaluation_dir_name, num_months_per_chunk,
 
     figure_object, axes_object = _plot_auc_and_csi(
         auc_matrix=auc_matrix, csi_matrix=csi_matrix,
-        num_examples_by_chunk=num_examples_by_chunk,
+        num_examples_by_chunk=num_positive_ex_by_chunk,
         num_bootstrap_reps=num_bootstrap_reps, plot_legend=True)
 
     axes_object.set_xticks(x_tick_values)
@@ -606,7 +610,7 @@ def _plot_by_hour(evaluation_dir_name, num_hours_per_chunk,
 
     figure_object, axes_object = _plot_auc_and_csi(
         auc_matrix=auc_matrix, csi_matrix=csi_matrix,
-        num_examples_by_chunk=num_examples_by_chunk,
+        num_examples_by_chunk=num_positive_ex_by_chunk,
         num_bootstrap_reps=num_bootstrap_reps, plot_legend=False)
 
     axes_object.set_xticks(x_tick_values)
