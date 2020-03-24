@@ -327,8 +327,8 @@ def _plot_roc_curves(
         # )
 
     main_legend_handle = axes_object.legend(
-        legend_handles, legend_strings, loc='lower center',
-        bbox_to_anchor=(0.5, 0), fancybox=True, shadow=False,
+        legend_handles, legend_strings, loc='lower right',
+        bbox_to_anchor=(1, 0), fancybox=True, shadow=False,
         framealpha=0.5, ncol=1
     )
 
@@ -494,8 +494,8 @@ def _plot_perf_diagrams(
         # )
 
     main_legend_handle = axes_object.legend(
-        legend_handles, legend_strings, loc='upper center',
-        bbox_to_anchor=(0.5, 1), fancybox=True, shadow=False,
+        legend_handles, legend_strings, loc='upper right',
+        bbox_to_anchor=(1, 1), fancybox=True, shadow=False,
         framealpha=0.5, ncol=1
     )
 
