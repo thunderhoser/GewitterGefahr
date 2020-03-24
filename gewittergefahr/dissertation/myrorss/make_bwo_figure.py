@@ -290,6 +290,15 @@ def _run(bwo_file_name, output_dir_name):
         title_string='(c) Original sounding',
         output_file_name=panel_file_names[2]
     )
+
+    panel_file_names[0] = _write_radar_figures(
+        refl_figure_object=handle_dict[plot_examples.RADAR_FIGURES_KEY][0],
+        shear_figure_object=handle_dict[plot_examples.RADAR_FIGURES_KEY][1],
+        composite_name='before',
+        concat_title_string='(a) Original radar image',
+        output_dir_name=output_dir_name
+    )
+
     print(SEPARATOR_STRING)
 
     # Plot radar and sounding after optimization.
@@ -314,42 +323,42 @@ def _run(bwo_file_name, output_dir_name):
         output_file_name=panel_file_names[3]
     )
 
-    panel_file_names[0] = _write_radar_figures(
-        refl_figure_object=handle_dict[plot_examples.RADAR_FIGURES_KEY][0],
-        shear_figure_object=handle_dict[plot_examples.RADAR_FIGURES_KEY][1],
-        composite_name='after',
-        concat_title_string='(a) Synthetic radar image',
-        output_dir_name=output_dir_name
-    )
-
-    print(SEPARATOR_STRING)
-
-    mean_difference_matrices = [
-        a - b for a, b in zip(mean_after_matrices, mean_before_matrices)
-    ]
-
-    handle_dict = plot_examples.plot_one_example(
-        list_of_predictor_matrices=mean_difference_matrices,
-        model_metadata_dict=model_metadata_dict,
-        pmm_flag=True, plot_sounding=False,
-        allow_whitespace=True, plot_panel_names=True,
-        panel_name_font_size=PANEL_NAME_FONT_SIZE, add_titles=False,
-        label_colour_bars=True, colour_bar_length=COLOUR_BAR_LENGTH,
-        colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
-        num_panel_rows=num_radar_heights, plot_radar_diffs=True,
-        diff_colour_map_object=DIFF_COLOUR_MAP_OBJECT,
-        max_diff_percentile=MAX_DIFF_PERCENTILE
-    )
-
     panel_file_names[1] = _write_radar_figures(
         refl_figure_object=handle_dict[plot_examples.RADAR_FIGURES_KEY][0],
         shear_figure_object=handle_dict[plot_examples.RADAR_FIGURES_KEY][1],
-        composite_name='difference',
-        concat_title_string='(b) Radar difference',
+        composite_name='after',
+        concat_title_string='(b) Synthetic radar image',
         output_dir_name=output_dir_name
     )
 
     print(SEPARATOR_STRING)
+
+    # mean_difference_matrices = [
+    #     a - b for a, b in zip(mean_after_matrices, mean_before_matrices)
+    # ]
+    #
+    # handle_dict = plot_examples.plot_one_example(
+    #     list_of_predictor_matrices=mean_difference_matrices,
+    #     model_metadata_dict=model_metadata_dict,
+    #     pmm_flag=True, plot_sounding=False,
+    #     allow_whitespace=True, plot_panel_names=True,
+    #     panel_name_font_size=PANEL_NAME_FONT_SIZE, add_titles=False,
+    #     label_colour_bars=True, colour_bar_length=COLOUR_BAR_LENGTH,
+    #     colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
+    #     num_panel_rows=num_radar_heights, plot_radar_diffs=True,
+    #     diff_colour_map_object=DIFF_COLOUR_MAP_OBJECT,
+    #     max_diff_percentile=MAX_DIFF_PERCENTILE
+    # )
+    #
+    # panel_file_names[1] = _write_radar_figures(
+    #     refl_figure_object=handle_dict[plot_examples.RADAR_FIGURES_KEY][0],
+    #     shear_figure_object=handle_dict[plot_examples.RADAR_FIGURES_KEY][1],
+    #     composite_name='difference',
+    #     concat_title_string='(b) Radar difference',
+    #     output_dir_name=output_dir_name
+    # )
+    #
+    # print(SEPARATOR_STRING)
 
     figure_file_name = '{0:s}/bwo_concat.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(figure_file_name))
