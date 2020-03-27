@@ -382,11 +382,11 @@ def _run(gradcam_file_names, composite_names, colour_map_name, max_colour_value,
     figure_file_name = '{0:s}/gradcam_concat.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(figure_file_name))
 
-    num_panel_rows = int(numpy.floor(
+    num_panel_columns = int(numpy.floor(
         numpy.sqrt(num_composites)
     ))
-    num_panel_columns = int(numpy.ceil(
-        float(num_composites) / num_panel_rows
+    num_panel_rows = int(numpy.ceil(
+        float(num_composites) / num_panel_columns
     ))
 
     imagemagick_utils.concatenate_images(
