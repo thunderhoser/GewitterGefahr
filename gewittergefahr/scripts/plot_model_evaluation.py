@@ -91,6 +91,9 @@ def _plot_roc_curve(evaluation_table, best_threshold_index, output_file_name,
 
         annotation_string = 'AUC = [{0:.3f}, {1:.3f}]'.format(
             min_auc, max_auc)
+
+        mean_auc = numpy.nanmean(evaluation_table[model_eval.AUC_KEY].values)
+        annotation_string = 'AUC = {0:.3f}'.format(mean_auc)
     else:
         mean_auc = numpy.nanmean(evaluation_table[model_eval.AUC_KEY].values)
         annotation_string = 'AUC = {0:.3f}'.format(mean_auc)
@@ -157,10 +160,10 @@ def _plot_roc_curve(evaluation_table, best_threshold_index, output_file_name,
     ))
 
     marker_colour = model_eval_plotting.ROC_CURVE_COLOUR
-    axes_object.plot(
-        best_x, best_y, linestyle='None', marker=MARKER_TYPE,
-        markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
-        markerfacecolor=marker_colour, markeredgecolor=marker_colour)
+    # axes_object.plot(
+    #     best_x, best_y, linestyle='None', marker=MARKER_TYPE,
+    #     markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+    #     markerfacecolor=marker_colour, markeredgecolor=marker_colour)
 
     axes_object.text(
         0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
@@ -211,6 +214,9 @@ def _plot_performance_diagram(
 
         annotation_string = 'AUPD = [{0:.3f}, {1:.3f}]'.format(
             min_aupd, max_aupd)
+
+        mean_aupd = numpy.nanmean(evaluation_table[model_eval.AUPD_KEY].values)
+        annotation_string = 'AUPD = {0:.3f}'.format(mean_aupd)
 
     print(annotation_string)
 
@@ -275,10 +281,10 @@ def _plot_performance_diagram(
     ))
 
     marker_colour = model_eval_plotting.PERF_DIAGRAM_COLOUR
-    axes_object.plot(
-        best_x, best_y, linestyle='None', marker=MARKER_TYPE,
-        markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
-        markerfacecolor=marker_colour, markeredgecolor=marker_colour)
+    # axes_object.plot(
+    #     best_x, best_y, linestyle='None', marker=MARKER_TYPE,
+    #     markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+    #     markerfacecolor=marker_colour, markeredgecolor=marker_colour)
 
     axes_object.text(
         0.98, 0.98, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
