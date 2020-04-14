@@ -48,7 +48,7 @@ pyplot.rc('legend', fontsize=DEFAULT_FONT_SIZE)
 pyplot.rc('figure', titlesize=DEFAULT_FONT_SIZE)
 
 
-def _label_bars(axes_object, y_tick_coords, y_tick_strings):
+def _label_bars(axes_object, y_tick_coords, y_tick_strings, significant_flags):
     """Labels bars in graph.
 
     J = number of bars
@@ -57,6 +57,9 @@ def _label_bars(axes_object, y_tick_coords, y_tick_strings):
         `matplotlib.axes._subplots.AxesSubplot`).
     :param y_tick_coords: length-J numpy array with y-coordinates of bars.
     :param y_tick_strings: length-J list of labels.
+    :param significant_flags: length-J numpy array of Boolean flags.  If
+        significant_flags[i] = True, the [i]th step has a significantly
+        different cost than the [i + 1]th step.
     """
 
     x_min, x_max = pyplot.xlim()
@@ -72,7 +75,10 @@ def _label_bars(axes_object, y_tick_coords, y_tick_strings):
         axes_object.text(
             x_coord_for_text, y_tick_coords[j], '   ' + y_tick_strings[j],
             color=this_colour, horizontalalignment='left',
-            verticalalignment='center', fontsize=BAR_FONT_SIZE)
+            verticalalignment='center',
+            fontweight='bold' if significant_flags[j] else 'normal',
+            fontsize=BAR_FONT_SIZE
+        )
 
 
 def _predictor_name_to_face_colour(predictor_name):
@@ -88,7 +94,7 @@ def _predictor_name_to_face_colour(predictor_name):
     return plotting_utils.colour_from_numpy_to_tuple(DEFAULT_FACE_COLOUR)
 
 
-def _get_error_matrix(cost_matrix, confidence_level):
+def _get_error_matrix(cost_matrix, confidence_level, backwards_flag):
     """Creates error matrix (used to plot error bars).
 
     S = number of steps in permutation test
@@ -96,24 +102,35 @@ def _get_error_matrix(cost_matrix, confidence_level):
 
     :param cost_matrix: S-by-B numpy array of costs.
     :param confidence_level: Confidence level (in range 0...1).
+    :param backwards_flag: Boolean flag, indicating whether the test is forward
+        or backwards.
     :return: error_matrix: 2-by-S numpy array, where the first row contains
         negative errors and second row contains positive errors.
+    :return: significant_flags: length-S numpy array of Boolean flags.  If
+        significant_flags[i] = True, the [i]th step has a significantly
+        different cost than the [i + 1]th step.
     """
 
     num_steps = cost_matrix.shape[0]
+    significant_flags = numpy.full(num_steps, False, dtype=bool)
 
     for i in range(num_steps - 1):
-        these_diffs = cost_matrix[i + 1, :] - cost_matrix[i, :]
+        if backwards_flag:
+            these_diffs = cost_matrix[i + 1, :] - cost_matrix[i, :]
+        else:
+            these_diffs = cost_matrix[i, :] - cost_matrix[i + 1, :]
+
         this_percentile = percentileofscore(
             a=these_diffs, score=0., kind='mean'
         )
+        significant_flags[i] = this_percentile <= 0.05
 
         print((
             'Percentile of 0 in (cost at step {0:d}) - (cost at step {1:d}) = '
             '{2:.4f}'
         ).format(
-            i + 1, i, this_percentile)
-        )
+            i + 1, i, this_percentile
+        ))
 
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
@@ -217,11 +234,14 @@ def _plot_bars(
         )
 
     mean_costs = numpy.mean(cost_matrix, axis=-1)
+    num_steps = cost_matrix.shape[0]
     num_bootstrap_reps = cost_matrix.shape[1]
 
     if num_bootstrap_reps > 1:
-        error_matrix = _get_error_matrix(
-            cost_matrix=cost_matrix, confidence_level=confidence_level)
+        error_matrix, significant_flags = _get_error_matrix(
+            cost_matrix=cost_matrix, confidence_level=confidence_level,
+            backwards_flag=backwards_flag
+        )
 
         axes_object.barh(
             y_tick_coords, mean_costs, color=face_colour_arg,
@@ -232,6 +252,8 @@ def _plot_bars(
             capsize=ERROR_BAR_CAP_SIZE, error_kw=ERROR_BAR_DICT
         )
     else:
+        significant_flags = numpy.full(num_steps, False, dtype=bool)
+
         axes_object.barh(
             y_tick_coords, mean_costs, color=face_colour_arg,
             edgecolor=plotting_utils.colour_from_numpy_to_tuple(
@@ -258,8 +280,10 @@ def _plot_bars(
     else:
         axes_object.set_ylabel('Variable permuted')
 
-    _label_bars(axes_object=axes_object, y_tick_coords=y_tick_coords,
-                y_tick_strings=y_tick_strings)
+    _label_bars(
+        axes_object=axes_object, y_tick_coords=y_tick_coords,
+        y_tick_strings=y_tick_strings, significant_flags=significant_flags
+    )
 
     axes_object.set_ylim(
         numpy.min(y_tick_coords) - 0.75, numpy.max(y_tick_coords) + 0.75
