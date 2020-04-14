@@ -94,7 +94,8 @@ def _predictor_name_to_face_colour(predictor_name):
     return plotting_utils.colour_from_numpy_to_tuple(DEFAULT_FACE_COLOUR)
 
 
-def _get_error_matrix(cost_matrix, confidence_level, backwards_flag):
+def _get_error_matrix(cost_matrix, confidence_level, backwards_flag,
+                      multipass_flag):
     """Creates error matrix (used to plot error bars).
 
     S = number of steps in permutation test
@@ -104,6 +105,8 @@ def _get_error_matrix(cost_matrix, confidence_level, backwards_flag):
     :param confidence_level: Confidence level (in range 0...1).
     :param backwards_flag: Boolean flag, indicating whether the test is forward
         or backwards.
+    :param multipass_flag: Boolean flag, indicating whether the test is
+        single-pass or multi-pass.
     :return: error_matrix: 2-by-S numpy array, where the first row contains
         negative errors and second row contains positive errors.
     :return: significant_flags: length-S numpy array of Boolean flags.  If
@@ -123,7 +126,11 @@ def _get_error_matrix(cost_matrix, confidence_level, backwards_flag):
         this_percentile = percentileofscore(
             a=these_diffs, score=0., kind='mean'
         )
-        significant_flags[i] = this_percentile <= 5.
+
+        if multipass_flag:
+            significant_flags[i] = this_percentile <= 5.
+        else:
+            significant_flags[i + 1] = this_percentile <= 5.
 
         print((
             'Percentile of 0 in (cost at step {0:d}) - (cost at step {1:d}) = '
@@ -151,7 +158,7 @@ def _get_error_matrix(cost_matrix, confidence_level, backwards_flag):
     negative_errors = numpy.reshape(negative_errors, (1, negative_errors.size))
     positive_errors = numpy.reshape(positive_errors, (1, positive_errors.size))
     error_matrix = numpy.vstack((negative_errors, positive_errors))
-    
+
     return error_matrix, significant_flags
 
 
