@@ -251,7 +251,7 @@ def _plot_bars(
     if num_bootstrap_reps > 1:
         error_matrix, significant_flags = _get_error_matrix(
             cost_matrix=cost_matrix, confidence_level=confidence_level,
-            backwards_flag=backwards_flag
+            backwards_flag=backwards_flag, multipass_flag=multipass_flag
         )
 
         axes_object.barh(
