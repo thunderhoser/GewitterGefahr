@@ -4,6 +4,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
+from scipy.stats import percentileofscore
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import permutation_utils
 from gewittergefahr.plotting import plotting_utils
@@ -98,6 +99,21 @@ def _get_error_matrix(cost_matrix, confidence_level):
     :return: error_matrix: 2-by-S numpy array, where the first row contains
         negative errors and second row contains positive errors.
     """
+
+    num_steps = cost_matrix.shape[0]
+
+    for i in range(num_steps - 1):
+        these_diffs = cost_matrix[i + 1, :] - cost_matrix[i, :]
+        this_percentile = percentileofscore(
+            a=these_diffs, score=0., kind='mean'
+        )
+
+        print((
+            'Percentile of 0 in (cost at step {0:d}) - (cost at step {1:d}) = '
+            '{2:.4f}'
+        ).format(
+            i + 1, i, this_percentile)
+        )
 
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
