@@ -150,7 +150,9 @@ def _get_error_matrix(cost_matrix, confidence_level, backwards_flag):
 
     negative_errors = numpy.reshape(negative_errors, (1, negative_errors.size))
     positive_errors = numpy.reshape(positive_errors, (1, positive_errors.size))
-    return numpy.vstack((negative_errors, positive_errors))
+    error_matrix = numpy.vstack((negative_errors, positive_errors))
+    
+    return error_matrix, significant_flags
 
 
 def _plot_bars(
