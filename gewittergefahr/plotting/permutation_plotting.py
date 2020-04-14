@@ -123,7 +123,7 @@ def _get_error_matrix(cost_matrix, confidence_level, backwards_flag):
         this_percentile = percentileofscore(
             a=these_diffs, score=0., kind='mean'
         )
-        significant_flags[i] = this_percentile <= 0.05
+        significant_flags[i] = this_percentile <= 5.
 
         print((
             'Percentile of 0 in (cost at step {0:d}) - (cost at step {1:d}) = '
@@ -131,6 +131,8 @@ def _get_error_matrix(cost_matrix, confidence_level, backwards_flag):
         ).format(
             i + 1, i, this_percentile
         ))
+
+    print(significant_flags)
 
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
