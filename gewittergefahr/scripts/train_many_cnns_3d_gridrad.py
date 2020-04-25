@@ -67,7 +67,7 @@ def _write_metadata_one_cnn(model_object, argument_dict):
     max_normalized_value = argument_dict[dl_helper.MAX_NORM_VALUE_ARG_NAME]
 
     target_name = argument_dict[dl_helper.TARGET_NAME_ARG_NAME]
-    shuffle_target = argument_dict[dl_helper.SHUFFLE_TARGET_ARG_NAME]
+    shuffle_target = bool(argument_dict[dl_helper.SHUFFLE_TARGET_ARG_NAME])
     downsampling_classes = numpy.array(
         argument_dict[dl_helper.DOWNSAMPLING_CLASSES_ARG_NAME],
         dtype=int
