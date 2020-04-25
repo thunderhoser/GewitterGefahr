@@ -27,12 +27,14 @@ ARGUMENT_FILES_ARG_NAME = 'argument_file_names'
 ARGUMENT_FILES_HELP_STRING = (
     '1-D list of paths to input files, each containing a dictionary of '
     'arguments for the single-CNN script train_cnn_3d_gridrad.py.  Each file '
-    'should be a Pickle file, containing only said dictionary.')
+    'should be a Pickle file, containing only said dictionary.'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + ARGUMENT_FILES_ARG_NAME, type=str, nargs='+', required=True,
-    help=ARGUMENT_FILES_HELP_STRING)
+    help=ARGUMENT_FILES_HELP_STRING
+)
 
 
 def _write_metadata_one_cnn(model_object, argument_dict):
@@ -55,14 +57,17 @@ def _write_metadata_one_cnn(model_object, argument_dict):
     radar_field_names = argument_dict[RADAR_FIELDS_KEY]
     sounding_field_names = argument_dict[dl_helper.SOUNDING_FIELDS_ARG_NAME]
 
-    normalization_type_string = argument_dict[
-        dl_helper.NORMALIZATION_TYPE_ARG_NAME]
-    normalization_file_name = argument_dict[
-        dl_helper.NORMALIZATION_FILE_ARG_NAME]
+    normalization_type_string = (
+        argument_dict[dl_helper.NORMALIZATION_TYPE_ARG_NAME]
+    )
+    normalization_file_name = (
+        argument_dict[dl_helper.NORMALIZATION_FILE_ARG_NAME]
+    )
     min_normalized_value = argument_dict[dl_helper.MIN_NORM_VALUE_ARG_NAME]
     max_normalized_value = argument_dict[dl_helper.MAX_NORM_VALUE_ARG_NAME]
 
     target_name = argument_dict[dl_helper.TARGET_NAME_ARG_NAME]
+    shuffle_target = argument_dict[dl_helper.SHUFFLE_TARGET_ARG_NAME]
     downsampling_classes = numpy.array(
         argument_dict[dl_helper.DOWNSAMPLING_CLASSES_ARG_NAME],
         dtype=int
@@ -91,39 +96,49 @@ def _write_metadata_one_cnn(model_object, argument_dict):
     flip_in_y = bool(argument_dict[dl_helper.FLIP_Y_ARG_NAME])
 
     top_training_dir_name = argument_dict[dl_helper.TRAINING_DIR_ARG_NAME]
-    first_training_time_string = argument_dict[
-        dl_helper.FIRST_TRAINING_TIME_ARG_NAME]
-    last_training_time_string = argument_dict[
-        dl_helper.LAST_TRAINING_TIME_ARG_NAME]
-    num_examples_per_train_batch = argument_dict[
-        dl_helper.NUM_EX_PER_TRAIN_ARG_NAME]
+    first_training_time_string = (
+        argument_dict[dl_helper.FIRST_TRAINING_TIME_ARG_NAME]
+    )
+    last_training_time_string = (
+        argument_dict[dl_helper.LAST_TRAINING_TIME_ARG_NAME]
+    )
+    num_examples_per_train_batch = (
+        argument_dict[dl_helper.NUM_EX_PER_TRAIN_ARG_NAME]
+    )
 
-    top_validation_dir_name = argument_dict[
-        dl_helper.VALIDATION_DIR_ARG_NAME]
-    first_validation_time_string = argument_dict[
-        dl_helper.FIRST_VALIDATION_TIME_ARG_NAME]
-    last_validation_time_string = argument_dict[
-        dl_helper.LAST_VALIDATION_TIME_ARG_NAME]
-    num_examples_per_validn_batch = argument_dict[
-        dl_helper.NUM_EX_PER_VALIDN_ARG_NAME]
+    top_validation_dir_name = argument_dict[dl_helper.VALIDATION_DIR_ARG_NAME]
+    first_validation_time_string = (
+        argument_dict[dl_helper.FIRST_VALIDATION_TIME_ARG_NAME]
+    )
+    last_validation_time_string = (
+        argument_dict[dl_helper.LAST_VALIDATION_TIME_ARG_NAME]
+    )
+    num_examples_per_validn_batch = (
+        argument_dict[dl_helper.NUM_EX_PER_VALIDN_ARG_NAME]
+    )
 
     num_epochs = argument_dict[dl_helper.NUM_EPOCHS_ARG_NAME]
-    num_training_batches_per_epoch = argument_dict[
-        dl_helper.NUM_TRAINING_BATCHES_ARG_NAME]
-    num_validation_batches_per_epoch = argument_dict[
-        dl_helper.NUM_VALIDATION_BATCHES_ARG_NAME]
+    num_training_batches_per_epoch = (
+        argument_dict[dl_helper.NUM_TRAINING_BATCHES_ARG_NAME]
+    )
+    num_validation_batches_per_epoch = (
+        argument_dict[dl_helper.NUM_VALIDATION_BATCHES_ARG_NAME]
+    )
     output_dir_name = argument_dict[dl_helper.OUTPUT_DIR_ARG_NAME]
 
     # Process input args.
     first_training_time_unix_sec = time_conversion.string_to_unix_sec(
-        first_training_time_string, TIME_FORMAT)
+        first_training_time_string, TIME_FORMAT
+    )
     last_training_time_unix_sec = time_conversion.string_to_unix_sec(
-        last_training_time_string, TIME_FORMAT)
-
+        last_training_time_string, TIME_FORMAT
+    )
     first_validation_time_unix_sec = time_conversion.string_to_unix_sec(
-        first_validation_time_string, TIME_FORMAT)
+        first_validation_time_string, TIME_FORMAT
+    )
     last_validation_time_unix_sec = time_conversion.string_to_unix_sec(
-        last_validation_time_string, TIME_FORMAT)
+        last_validation_time_string, TIME_FORMAT
+    )
 
     if sounding_field_names[0] in ['', 'None']:
         sounding_field_names = None
@@ -159,13 +174,14 @@ def _write_metadata_one_cnn(model_object, argument_dict):
         top_directory_name=top_training_dir_name, shuffled=True,
         first_batch_number=FIRST_BATCH_NUMBER,
         last_batch_number=LAST_BATCH_NUMBER,
-        raise_error_if_any_missing=False)
-
+        raise_error_if_any_missing=False
+    )
     validation_file_names = input_examples.find_many_example_files(
         top_directory_name=top_validation_dir_name, shuffled=True,
         first_batch_number=FIRST_BATCH_NUMBER,
         last_batch_number=LAST_BATCH_NUMBER,
-        raise_error_if_any_missing=False)
+        raise_error_if_any_missing=False
+    )
 
     # Write metadata.
     metadata_dict = {
@@ -191,6 +207,7 @@ def _write_metadata_one_cnn(model_object, argument_dict):
     training_option_dict = {
         trainval_io.EXAMPLE_FILES_KEY: training_file_names,
         trainval_io.TARGET_NAME_KEY: target_name,
+        trainval_io.SHUFFLE_TARGET_KEY: shuffle_target,
         trainval_io.FIRST_STORM_TIME_KEY: first_training_time_unix_sec,
         trainval_io.LAST_STORM_TIME_KEY: last_training_time_unix_sec,
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_train_batch,
@@ -218,13 +235,15 @@ def _write_metadata_one_cnn(model_object, argument_dict):
     }
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=output_dir_name
+    )
     metafile_name = '{0:s}/model_metadata.p'.format(output_dir_name)
 
     print('Writing metadata to: "{0:s}"...'.format(metafile_name))
     cnn.write_model_metadata(
         pickle_file_name=metafile_name, metadata_dict=metadata_dict,
-        training_option_dict=training_option_dict)
+        training_option_dict=training_option_dict
+    )
 
     return metadata_dict, training_option_dict
 
@@ -262,8 +281,9 @@ def _train_one_cnn(gpu_queue, argument_dict):
         K.set_session(session_object)
 
         # Read untrained model.
-        untrained_model_file_name = argument_dict[
-            dl_helper.INPUT_MODEL_FILE_ARG_NAME]
+        untrained_model_file_name = (
+            argument_dict[dl_helper.INPUT_MODEL_FILE_ARG_NAME]
+        )
 
         with tensorflow.device('/gpu:0'):
             print('Reading untrained model from: "{0:s}"...'.format(
@@ -274,7 +294,8 @@ def _train_one_cnn(gpu_queue, argument_dict):
         model_object.compile(
             loss=keras.losses.binary_crossentropy,
             optimizer=keras.optimizers.Adam(),
-            metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST)
+            metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST
+        )
 
         print(SEPARATOR_STRING)
         model_object.summary()
@@ -282,7 +303,8 @@ def _train_one_cnn(gpu_queue, argument_dict):
 
         # Write metadata.
         metadata_dict, training_option_dict = _write_metadata_one_cnn(
-            model_object=model_object, argument_dict=argument_dict)
+            model_object=model_object, argument_dict=argument_dict
+        )
 
         print('Training CNN on GPU {0:d}...'.format(gpu_index))
         print(SEPARATOR_STRING)
@@ -298,18 +320,18 @@ def _train_one_cnn(gpu_queue, argument_dict):
             history_file_name=history_file_name,
             tensorboard_dir_name=tensorboard_dir_name,
             num_epochs=metadata_dict[cnn.NUM_EPOCHS_KEY],
-            num_training_batches_per_epoch=metadata_dict[
-                cnn.NUM_TRAINING_BATCHES_KEY],
+            num_training_batches_per_epoch=
+            metadata_dict[cnn.NUM_TRAINING_BATCHES_KEY],
             training_option_dict=training_option_dict,
             monitor_string=metadata_dict[cnn.MONITOR_STRING_KEY],
             weight_loss_function=metadata_dict[cnn.WEIGHT_LOSS_FUNCTION_KEY],
-            num_validation_batches_per_epoch=metadata_dict[
-                cnn.NUM_VALIDATION_BATCHES_KEY],
+            num_validation_batches_per_epoch=
+            metadata_dict[cnn.NUM_VALIDATION_BATCHES_KEY],
             validation_file_names=metadata_dict[cnn.VALIDATION_FILES_KEY],
             first_validn_time_unix_sec=metadata_dict[cnn.FIRST_VALIDN_TIME_KEY],
             last_validn_time_unix_sec=metadata_dict[cnn.LAST_VALIDN_TIME_KEY],
-            num_examples_per_validn_batch=metadata_dict[
-                cnn.NUM_EX_PER_VALIDN_BATCH_KEY]
+            num_examples_per_validn_batch=
+            metadata_dict[cnn.NUM_EX_PER_VALIDN_BATCH_KEY]
         )
 
         session_object.close()
