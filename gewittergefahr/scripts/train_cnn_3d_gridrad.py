@@ -2,7 +2,6 @@
 
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-import pickle
 import argparse
 import numpy
 import keras
@@ -116,14 +115,14 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
         directory_name=output_dir_name
     )
 
-    argument_file_name = '{0:s}/input_args.p'.format(output_dir_name)
-    print('Writing input args to: "{0:s}"...'.format(argument_file_name))
-
-    argument_file_handle = open(argument_file_name, 'wb')
-    pickle.dump(INPUT_ARG_OBJECT.__dict__, argument_file_handle)
-    argument_file_handle.close()
-
-    return
+    # argument_file_name = '{0:s}/input_args.p'.format(output_dir_name)
+    # print('Writing input args to: "{0:s}"...'.format(argument_file_name))
+    #
+    # argument_file_handle = open(argument_file_name, 'wb')
+    # pickle.dump(INPUT_ARG_OBJECT.__dict__, argument_file_handle)
+    # argument_file_handle.close()
+    #
+    # return
 
     if refl_masking_threshold_dbz <= 0:
         refl_masking_threshold_dbz = None
