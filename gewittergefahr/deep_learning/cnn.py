@@ -450,7 +450,7 @@ def train_cnn_2d_or_3d(
 
     checkpoint_object = _get_checkpoint_object(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
-        use_validation=num_validation_batches_per_epoch is not None)
+        use_validation=num_validation_batches_per_epoch > 0)
 
     list_of_callback_objects = [history_object, checkpoint_object]
 
@@ -537,7 +537,7 @@ def train_cnn_with_soundings(
 
     checkpoint_object = _get_checkpoint_object(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
-        use_validation=num_validation_batches_per_epoch is not None)
+        use_validation=num_validation_batches_per_epoch > 0)
 
     list_of_callback_objects = [history_object, checkpoint_object]
 
@@ -620,7 +620,7 @@ def train_cnn_2d3d_myrorss(
 
     checkpoint_object = _get_checkpoint_object(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
-        use_validation=num_validation_batches_per_epoch is not None)
+        use_validation=num_validation_batches_per_epoch > 0)
 
     list_of_callback_objects = [history_object, checkpoint_object]
 
@@ -712,7 +712,7 @@ def train_cnn_gridrad_2d_reduced(
 
     checkpoint_object = _get_checkpoint_object(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
-        use_validation=num_validation_batches_per_epoch is not None)
+        use_validation=num_validation_batches_per_epoch > 0)
 
     list_of_callback_objects = [history_object, checkpoint_object]
 

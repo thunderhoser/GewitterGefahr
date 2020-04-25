@@ -51,18 +51,19 @@ INPUT_ARG_PARSER = dl_helper.add_input_args(argument_parser=INPUT_ARG_PARSER)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_FIELDS_ARG_NAME, type=str, nargs='+', required=True,
-    help=RADAR_FIELDS_HELP_STRING)
-
+    help=RADAR_FIELDS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + REFLECTIVITY_MASK_ARG_NAME, type=float, required=False,
-    default=DEFAULT_REFL_MASK_THRESHOLD_DBZ, help=REFLECTIVITY_MASK_HELP_STRING)
+    default=DEFAULT_REFL_MASK_THRESHOLD_DBZ, help=REFLECTIVITY_MASK_HELP_STRING
+)
 
 
 def _run(input_model_file_name, radar_field_names, sounding_field_names,
          normalization_type_string, normalization_param_file_name,
          min_normalized_value, max_normalized_value, target_name,
-         downsampling_classes, downsampling_fractions, monitor_string,
-         weight_loss_function, refl_masking_threshold_dbz,
+         shuffle_target, downsampling_classes, downsampling_fractions,
+         monitor_string, weight_loss_function, refl_masking_threshold_dbz,
          x_translations_pixels, y_translations_pixels, ccw_rotation_angles_deg,
          noise_standard_deviation, num_noisings, flip_in_x, flip_in_y,
          top_training_dir_name, first_training_time_string,
@@ -83,6 +84,7 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     :param min_normalized_value: Same.
     :param max_normalized_value: Same.
     :param target_name: Same.
+    :param shuffle_target: Same.
     :param downsampling_classes: Same.
     :param downsampling_fractions: Same.
     :param monitor_string: Same.
@@ -110,30 +112,34 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=output_dir_name
+    )
 
-    # argument_file_name = '{0:s}/input_args.p'.format(output_dir_name)
-    # print('Writing input args to: "{0:s}"...'.format(argument_file_name))
-    #
-    # argument_file_handle = open(argument_file_name, 'wb')
-    # pickle.dump(INPUT_ARG_OBJECT.__dict__, argument_file_handle)
-    # argument_file_handle.close()
-    #
-    # return
+    argument_file_name = '{0:s}/input_args.p'.format(output_dir_name)
+    print('Writing input args to: "{0:s}"...'.format(argument_file_name))
+
+    argument_file_handle = open(argument_file_name, 'wb')
+    pickle.dump(INPUT_ARG_OBJECT.__dict__, argument_file_handle)
+    argument_file_handle.close()
+
+    return
 
     if refl_masking_threshold_dbz <= 0:
         refl_masking_threshold_dbz = None
 
     # Process input args.
     first_training_time_unix_sec = time_conversion.string_to_unix_sec(
-        first_training_time_string, TIME_FORMAT)
+        first_training_time_string, TIME_FORMAT
+    )
     last_training_time_unix_sec = time_conversion.string_to_unix_sec(
-        last_training_time_string, TIME_FORMAT)
-
+        last_training_time_string, TIME_FORMAT
+    )
     first_validation_time_unix_sec = time_conversion.string_to_unix_sec(
-        first_validation_time_string, TIME_FORMAT)
+        first_validation_time_string, TIME_FORMAT
+    )
     last_validation_time_unix_sec = time_conversion.string_to_unix_sec(
-        last_validation_time_string, TIME_FORMAT)
+        last_validation_time_string, TIME_FORMAT
+    )
 
     if sounding_field_names[0] in ['', 'None']:
         sounding_field_names = None
@@ -171,12 +177,13 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     training_file_names = input_examples.find_many_example_files(
         top_directory_name=top_training_dir_name, shuffled=True,
         first_batch_number=FIRST_BATCH_NUMBER,
-        last_batch_number=LAST_BATCH_NUMBER, raise_error_if_any_missing=False)
-
+        last_batch_number=LAST_BATCH_NUMBER, raise_error_if_any_missing=False
+    )
     validation_file_names = input_examples.find_many_example_files(
         top_directory_name=top_validation_dir_name, shuffled=True,
         first_batch_number=FIRST_BATCH_NUMBER,
-        last_batch_number=LAST_BATCH_NUMBER, raise_error_if_any_missing=False)
+        last_batch_number=LAST_BATCH_NUMBER, raise_error_if_any_missing=False
+    )
 
     # Read architecture.
     print('Reading architecture from: "{0:s}"...'.format(input_model_file_name))
@@ -187,7 +194,8 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     model_object.compile(
         loss=keras.losses.binary_crossentropy,
         optimizer=keras.optimizers.Adam(),
-        metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST)
+        metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST
+    )
 
     print(SEPARATOR_STRING)
     model_object.summary()
@@ -217,6 +225,7 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     training_option_dict = {
         trainval_io.EXAMPLE_FILES_KEY: training_file_names,
         trainval_io.TARGET_NAME_KEY: target_name,
+        trainval_io.SHUFFLE_TARGET_KEY: shuffle_target,
         trainval_io.FIRST_STORM_TIME_KEY: first_training_time_unix_sec,
         trainval_io.LAST_STORM_TIME_KEY: last_training_time_unix_sec,
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_train_batch,
@@ -246,7 +255,8 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     print('Writing metadata to: "{0:s}"...'.format(model_metafile_name))
     cnn.write_model_metadata(
         pickle_file_name=model_metafile_name, metadata_dict=metadata_dict,
-        training_option_dict=training_option_dict)
+        training_option_dict=training_option_dict
+    )
 
     cnn.train_cnn_2d_or_3d(
         model_object=model_object, model_file_name=output_model_file_name,
@@ -260,7 +270,8 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
         validation_file_names=validation_file_names,
         first_validn_time_unix_sec=first_validation_time_unix_sec,
         last_validn_time_unix_sec=last_validation_time_unix_sec,
-        num_examples_per_validn_batch=num_examples_per_validn_batch)
+        num_examples_per_validn_batch=num_examples_per_validn_batch
+    )
 
 
 if __name__ == '__main__':
@@ -268,19 +279,28 @@ if __name__ == '__main__':
 
     _run(
         input_model_file_name=getattr(
-            INPUT_ARG_OBJECT, dl_helper.INPUT_MODEL_FILE_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.INPUT_MODEL_FILE_ARG_NAME
+        ),
         radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELDS_ARG_NAME),
         sounding_field_names=getattr(
-            INPUT_ARG_OBJECT, dl_helper.SOUNDING_FIELDS_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.SOUNDING_FIELDS_ARG_NAME
+        ),
         normalization_type_string=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NORMALIZATION_TYPE_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NORMALIZATION_TYPE_ARG_NAME
+        ),
         normalization_param_file_name=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NORMALIZATION_FILE_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NORMALIZATION_FILE_ARG_NAME
+        ),
         min_normalized_value=getattr(
-            INPUT_ARG_OBJECT, dl_helper.MIN_NORM_VALUE_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.MIN_NORM_VALUE_ARG_NAME
+        ),
         max_normalized_value=getattr(
-            INPUT_ARG_OBJECT, dl_helper.MAX_NORM_VALUE_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.MAX_NORM_VALUE_ARG_NAME)
+        ,
         target_name=getattr(INPUT_ARG_OBJECT, dl_helper.TARGET_NAME_ARG_NAME),
+        shuffle_target=bool(getattr(
+            INPUT_ARG_OBJECT, dl_helper.SHUFFLE_TARGET_ARG_NAME
+        )),
         downsampling_classes=numpy.array(
             getattr(INPUT_ARG_OBJECT, dl_helper.DOWNSAMPLING_CLASSES_ARG_NAME),
             dtype=int
@@ -295,41 +315,56 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.WEIGHT_LOSS_ARG_NAME
         )),
         refl_masking_threshold_dbz=getattr(
-            INPUT_ARG_OBJECT, REFLECTIVITY_MASK_ARG_NAME),
+            INPUT_ARG_OBJECT, REFLECTIVITY_MASK_ARG_NAME
+        ),
         x_translations_pixels=numpy.array(
             getattr(INPUT_ARG_OBJECT, dl_helper.X_TRANSLATIONS_ARG_NAME),
-            dtype=int),
+            dtype=int
+        ),
         y_translations_pixels=numpy.array(
             getattr(INPUT_ARG_OBJECT, dl_helper.Y_TRANSLATIONS_ARG_NAME),
-            dtype=int),
+            dtype=int
+        ),
         ccw_rotation_angles_deg=numpy.array(
             getattr(INPUT_ARG_OBJECT, dl_helper.ROTATION_ANGLES_ARG_NAME),
-            dtype=float),
+            dtype=float
+        ),
         noise_standard_deviation=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NOISE_STDEV_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NOISE_STDEV_ARG_NAME
+        ),
         num_noisings=getattr(INPUT_ARG_OBJECT, dl_helper.NUM_NOISINGS_ARG_NAME),
         flip_in_x=bool(getattr(INPUT_ARG_OBJECT, dl_helper.FLIP_X_ARG_NAME)),
         flip_in_y=bool(getattr(INPUT_ARG_OBJECT, dl_helper.FLIP_Y_ARG_NAME)),
         top_training_dir_name=getattr(
-            INPUT_ARG_OBJECT, dl_helper.TRAINING_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.TRAINING_DIR_ARG_NAME
+        ),
         first_training_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_helper.FIRST_TRAINING_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.FIRST_TRAINING_TIME_ARG_NAME
+        ),
         last_training_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_helper.LAST_TRAINING_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.LAST_TRAINING_TIME_ARG_NAME
+        ),
         num_examples_per_train_batch=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NUM_EX_PER_TRAIN_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NUM_EX_PER_TRAIN_ARG_NAME
+        ),
         top_validation_dir_name=getattr(
-            INPUT_ARG_OBJECT, dl_helper.VALIDATION_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.VALIDATION_DIR_ARG_NAME
+        ),
         first_validation_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_helper.FIRST_VALIDATION_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.FIRST_VALIDATION_TIME_ARG_NAME
+        ),
         last_validation_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_helper.LAST_VALIDATION_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.LAST_VALIDATION_TIME_ARG_NAME
+        ),
         num_examples_per_validn_batch=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NUM_EX_PER_VALIDN_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NUM_EX_PER_VALIDN_ARG_NAME
+        ),
         num_epochs=getattr(INPUT_ARG_OBJECT, dl_helper.NUM_EPOCHS_ARG_NAME),
         num_training_batches_per_epoch=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NUM_TRAINING_BATCHES_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NUM_TRAINING_BATCHES_ARG_NAME
+        ),
         num_validation_batches_per_epoch=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NUM_VALIDATION_BATCHES_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NUM_VALIDATION_BATCHES_ARG_NAME
+        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, dl_helper.OUTPUT_DIR_ARG_NAME)
     )
