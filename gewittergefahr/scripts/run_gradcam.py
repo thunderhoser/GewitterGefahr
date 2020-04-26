@@ -373,7 +373,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
             this_model_object = model_object
             this_output_file_name = output_file_name
 
-        print(K.eval(this_model_object.get_layer(name='dense_3').weights[0]))
+        print(K.eval(this_model_object.get_layer(name='dense_53').weights[0]))
 
         these_cam_matrices, these_guided_cam_matrices = (
             _run_gradcam_one_weight_set(
