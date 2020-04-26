@@ -373,7 +373,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
             this_model_object = model_object
             this_output_file_name = output_file_name
 
-        print(K.eval(this_model_object.get_layer(name='dense_53').weights[0]))
+        # print(K.eval(this_model_object.get_layer(name='dense_53').weights[0]))
 
         these_cam_matrices, these_guided_cam_matrices = (
             _run_gradcam_one_weight_set(
@@ -383,7 +383,9 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
                 training_option_dict=training_option_dict)
         )
 
-        print('Writing results to file: "{0:s}"...'.format(output_file_name))
+        print('Writing results to file: "{0:s}"...'.format(
+            this_output_file_name
+        ))
         gradcam.write_standard_file(
             pickle_file_name=this_output_file_name,
             denorm_predictor_matrices=denorm_predictor_matrices,
