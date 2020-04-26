@@ -1,6 +1,7 @@
 """Makes figure with gradient-weighted class-activation maps (Grad-CAM)."""
 
 import os
+import pickle
 import argparse
 import numpy
 import matplotlib
@@ -9,6 +10,7 @@ from matplotlib import pyplot
 from PIL import Image
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -16,8 +18,11 @@ from gewittergefahr.deep_learning import gradcam
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import cam_plotting
+from gewittergefahr.plotting import significance_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.scripts import plot_input_examples as plot_examples
+
+NONE_STRINGS = ['None', 'none']
 
 RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
 RADAR_FIELD_NAMES = [
@@ -38,7 +43,8 @@ TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-INPUT_FILES_ARG_NAME = 'input_gradcam_file_names'
+GRADCAM_FILES_ARG_NAME = 'input_gradcam_file_names'
+MC_FILES_ARG_NAME = 'input_monte_carlo_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
@@ -46,63 +52,74 @@ NUM_CONTOURS_ARG_NAME = 'num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-INPUT_FILES_HELP_STRING = (
-    'List of Grad-CAM files (each will be read by `gradcam.read_file`).')
-
+GRADCAM_FILES_HELP_STRING = (
+    'List of Grad-CAM files (each will be read by `gradcam.read_file`).'
+)
+MC_FILES_HELP_STRING = (
+    'List of files with Monte Carlo significance (one per saliency file).  Each'
+    ' will be read by `_read_monte_carlo_test`.  If you do not want to plot '
+    'significance for the [i]th composite, make the [i]th list element "None".'
+)
 COMPOSITE_NAMES_HELP_STRING = (
     'List of composite names (one for each Grad-CAM file).  This list must be '
     'space-separated, but after reading the list, underscores within each item '
-    'will be replaced by spaces.')
-
+    'will be replaced by spaces.'
+)
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map.  Class activation for each predictor will be plotted '
     'with the same colour map.  For example, if name is "Greys", the colour map'
     ' used will be `pyplot.cm.Greys`.  This argument supports only pyplot '
-    'colour maps.')
-
+    'colour maps.'
+)
 MAX_COLOUR_VALUE_HELP_STRING = (
-    'Max class activation in colour scheme.  The minimum will be 0.')
-
+    'Max class activation in colour scheme.  The minimum will be 0.'
+)
 NUM_CONTOURS_HELP_STRING = 'Number of contours for class activation.'
-
 SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
-    'want to smooth CAMs, make this non-positive.')
-
+    'want to smooth CAMs, make this non-positive.'
+)
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory (figures will be saved here).')
+    'Name of output directory (figures will be saved here).'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + INPUT_FILES_ARG_NAME, type=str, nargs='+', required=True,
-    help=INPUT_FILES_HELP_STRING)
-
+    '--' + GRADCAM_FILES_ARG_NAME, type=str, nargs='+', required=True,
+    help=GRADCAM_FILES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MC_FILES_ARG_NAME, type=str, nargs='+', required=True,
+    help=MC_FILES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + COMPOSITE_NAMES_ARG_NAME, type=str, nargs='+', required=True,
-    help=COMPOSITE_NAMES_HELP_STRING)
-
+    help=COMPOSITE_NAMES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='binary',
-    help=COLOUR_MAP_HELP_STRING)
-
+    help=COLOUR_MAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_COLOUR_VALUE_ARG_NAME, type=float, required=False,
-    default=10 ** 1.5, help=MAX_COLOUR_VALUE_HELP_STRING)
-
+    default=10 ** 1.5, help=MAX_COLOUR_VALUE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_CONTOURS_ARG_NAME, type=int, required=False,
-    default=15, help=NUM_CONTOURS_HELP_STRING)
-
+    default=15, help=NUM_CONTOURS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
-    default=1., help=SMOOTHING_RADIUS_HELP_STRING)
-
+    default=1., help=SMOOTHING_RADIUS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
-def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells):
+def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells,
+                        monte_carlo_file_name):
     """Reads class-activation map for one composite.
 
     E = number of examples
@@ -113,17 +130,21 @@ def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells):
 
     :param gradcam_file_name: Path to input file (will be read by
         `gradcam.read_file`).
+    :param monte_carlo_file_name: Path to Monte Carlo file (will be read by
+        `_read_monte_carlo_file`).
     :param smoothing_radius_grid_cells: Radius for Gaussian smoother, used only
         for class-activation map.
     :return: mean_radar_matrix: E-by-M-by-N-by-H-by-F numpy array with mean
         radar fields.
     :return: mean_class_activn_matrix: E-by-M-by-N-by-H numpy array with mean
         class-activation fields.
+    :return: significance_matrix: E-by-M-by-N-by-H numpy array of Boolean
+        flags.
     :return: model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     """
 
-    print('Reading data from: "{0:s}"...'.format(gradcam_file_name))
+    print('Reading CAMs from: "{0:s}"...'.format(gradcam_file_name))
     gradcam_dict = gradcam.read_file(gradcam_file_name)[0]
 
     mean_radar_matrix = numpy.expand_dims(
@@ -135,6 +156,31 @@ def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells):
 
     model_file_name = gradcam_dict[gradcam.MODEL_FILE_KEY]
     model_metafile_name = cnn.find_metafile(model_file_name)
+
+    if monte_carlo_file_name is None:
+        significance_matrix = numpy.full(
+            mean_class_activn_matrix.shape, False, dtype=bool
+        )
+    else:
+        print('Reading Monte Carlo test from: "{0:s}"...'.format(
+            monte_carlo_file_name
+        ))
+
+        this_file_handle = open(monte_carlo_file_name, 'rb')
+        monte_carlo_dict = pickle.load(this_file_handle)
+        this_file_handle.close()
+
+        significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+        )
+        significance_matrix = numpy.expand_dims(significance_matrix, axis=0)
+
+    print('Fraction of significant differences: {0:.4f}'.format(
+        numpy.mean(significance_matrix.astype(float))
+    ))
 
     print('Reading CNN metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
@@ -149,6 +195,7 @@ def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells):
 
     mean_radar_matrix = mean_radar_matrix[..., good_indices, :]
     mean_class_activn_matrix = mean_class_activn_matrix[..., good_indices]
+    significance_matrix = significance_matrix[..., good_indices]
 
     good_indices = numpy.array([
         training_option_dict[trainval_io.RADAR_FIELDS_KEY].index(f)
@@ -163,7 +210,10 @@ def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells):
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
 
     if smoothing_radius_grid_cells is None:
-        return mean_radar_matrix, mean_class_activn_matrix, model_metadata_dict
+        return (
+            mean_radar_matrix, mean_class_activn_matrix, significance_matrix,
+            model_metadata_dict
+        )
 
     print((
         'Smoothing class-activation maps with Gaussian filter (e-folding radius'
@@ -177,7 +227,10 @@ def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells):
         e_folding_radius_grid_cells=smoothing_radius_grid_cells
     )
 
-    return mean_radar_matrix, mean_class_activn_matrix, model_metadata_dict
+    return (
+        mean_radar_matrix, mean_class_activn_matrix, significance_matrix,
+        model_metadata_dict
+    )
 
 
 def _overlay_text(
@@ -211,13 +264,15 @@ def _overlay_text(
 
 
 def _plot_one_composite(
-        gradcam_file_name, composite_name_abbrev, composite_name_verbose,
-        colour_map_object, max_colour_value, num_contours,
-        smoothing_radius_grid_cells, output_dir_name):
+        gradcam_file_name, monte_carlo_file_name, composite_name_abbrev,
+        composite_name_verbose, colour_map_object, max_colour_value,
+        num_contours, smoothing_radius_grid_cells, output_dir_name):
     """Plots class-activation map for one composite.
 
     :param gradcam_file_name: Path to input file (will be read by
         `gradcam.read_file`).
+    :param monte_carlo_file_name: Path to Monte Carlo file (will be read by
+        `_read_monte_carlo_file`).
     :param composite_name_abbrev: Abbrev composite name (will be used in file
         names).
     :param composite_name_verbose: Verbose composite name (will be used in
@@ -232,10 +287,13 @@ def _plot_one_composite(
         method.
     """
 
-    mean_radar_matrix, mean_class_activn_matrix, model_metadata_dict = (
-        _read_one_composite(
-            gradcam_file_name=gradcam_file_name,
-            smoothing_radius_grid_cells=smoothing_radius_grid_cells)
+    (
+        mean_radar_matrix, mean_class_activn_matrix, significance_matrix,
+        model_metadata_dict
+    ) = _read_one_composite(
+        gradcam_file_name=gradcam_file_name,
+        smoothing_radius_grid_cells=smoothing_radius_grid_cells,
+        monte_carlo_file_name=monte_carlo_file_name
     )
 
     max_colour_value_log10 = numpy.log10(max_colour_value)
@@ -274,6 +332,13 @@ def _plot_one_composite(
             min_contour_level=MIN_COLOUR_VALUE_LOG10,
             max_contour_level=max_colour_value_log10,
             contour_interval=contour_interval_log10
+        )
+
+        significance_plotting.plot_many_2d_grids_without_coords(
+            significance_matrix=numpy.flip(
+                significance_matrix[0, ...], axis=0
+            ),
+            axes_object_matrix=axes_object_matrices[k]
         )
 
     panel_file_names = [None] * num_fields
@@ -325,13 +390,15 @@ def _plot_one_composite(
     return main_figure_file_name
 
 
-def _run(gradcam_file_names, composite_names, colour_map_name, max_colour_value,
-         num_contours, smoothing_radius_grid_cells, output_dir_name):
+def _run(gradcam_file_names, monte_carlo_file_names, composite_names,
+         colour_map_name, max_colour_value, num_contours,
+         smoothing_radius_grid_cells, output_dir_name):
     """Makes figure with gradient-weighted class-activation maps (Grad-CAM).
 
     This is effectively the main method.
 
     :param gradcam_file_names: See documentation at top of file.
+    :param monte_carlo_file_names: Same.
     :param composite_names: Same.
     :param colour_map_name: Same.
     :param max_colour_value: Same.
@@ -354,6 +421,13 @@ def _run(gradcam_file_names, composite_names, colour_map_name, max_colour_value,
     error_checking.assert_is_numpy_array(
         numpy.array(composite_names), exact_dimensions=expected_dim
     )
+    error_checking.assert_is_numpy_array(
+        numpy.array(monte_carlo_file_names), exact_dimensions=expected_dim
+    )
+
+    monte_carlo_file_names = [
+        None if f in NONE_STRINGS else f for f in monte_carlo_file_names
+    ]
 
     composite_names_abbrev = [
         n.replace('_', '-').lower() for n in composite_names
@@ -370,6 +444,7 @@ def _run(gradcam_file_names, composite_names, colour_map_name, max_colour_value,
     for i in range(num_composites):
         panel_file_names[i] = _plot_one_composite(
             gradcam_file_name=gradcam_file_names[i],
+            monte_carlo_file_name=monte_carlo_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
             colour_map_object=colour_map_object,
@@ -460,7 +535,8 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        gradcam_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
+        gradcam_file_names=getattr(INPUT_ARG_OBJECT, GRADCAM_FILES_ARG_NAME),
+        monte_carlo_file_names=getattr(INPUT_ARG_OBJECT, MC_FILES_ARG_NAME),
         composite_names=getattr(INPUT_ARG_OBJECT, COMPOSITE_NAMES_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_COLOUR_VALUE_ARG_NAME),
