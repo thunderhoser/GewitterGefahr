@@ -824,6 +824,7 @@ def generator_2d_or_3d(option_dict):
                 this_example_dict[input_examples.TARGET_VALUES_KEY]
             )
             if shuffle_target:
+                print('Shuffling target values...')
                 numpy.random.seed(RANDOM_SEED)
                 numpy.random.shuffle(these_target_values)
 
@@ -1098,6 +1099,7 @@ def myrorss_generator_2d3d(option_dict):
                 this_example_dict[input_examples.TARGET_VALUES_KEY]
             )
             if shuffle_target:
+                print('Shuffling target values...')
                 numpy.random.seed(RANDOM_SEED)
                 numpy.random.shuffle(these_target_values)
 
@@ -1604,6 +1606,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                 this_example_dict[input_examples.TARGET_VALUES_KEY]
             )
             if shuffle_target:
+                print('Shuffling target values...')
                 numpy.random.seed(RANDOM_SEED)
                 numpy.random.shuffle(these_target_values)
 
