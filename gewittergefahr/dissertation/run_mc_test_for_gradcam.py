@@ -255,10 +255,12 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
 
     # Do Monte Carlo test.
     actual_cam_matrices = [
-        numpy.expand_dims(a, axis=-1) for a in actual_cam_matrices
+        None if a is None else numpy.expand_dims(a, axis=-1)
+        for a in actual_cam_matrices
     ]
     dummy_cam_matrices = [
-        numpy.expand_dims(a, axis=-1) for a in dummy_cam_matrices
+        None if a is None else numpy.expand_dims(a, axis=-1)
+        for a in dummy_cam_matrices
     ]
 
     monte_carlo_dict_unguided = monte_carlo.run_monte_carlo_test(
