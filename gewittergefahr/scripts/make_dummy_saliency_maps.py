@@ -168,6 +168,13 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
     radar_saliency_matrix = numpy.full(radar_matrix.shape, numpy.nan)
 
     for i in range(num_examples):
+        if numpy.mod(i, 10) == 0:
+            print((
+                'Have created dummy saliency map for {0:d} of {1:d} examples...'
+            ).format(
+                i, num_examples
+            ))
+
         if num_spatial_dim == 2:
             this_saliency_matrix = standalone_utils.do_2d_convolution(
                 feature_matrix=radar_matrix[i, ...],
@@ -180,6 +187,11 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
             )
 
         radar_saliency_matrix[i, ...] = this_saliency_matrix[0, ...]
+
+    print('Have created dummy saliency map for all {0:d} examples!'.format(
+        num_examples
+    ))
+    print(SEPARATOR_STRING)
 
     saliency_matrices = [
         radar_saliency_matrix if k == 0 else predictor_matrices[k]

@@ -1,7 +1,8 @@
 """Runs Monte Carlo test for saliency maps.
 
-This test ensures that actual saliency maps are significantly different from
-those produced by two "sanity checks," the edge-detector test and
+This test ensures that actual and dummy saliency maps are significantly
+different.  The dummy maps may be produced by one of three "sanity checks":
+the edge-detector test, data-randomization test, or
 model-parameter-randomization test.
 """
 

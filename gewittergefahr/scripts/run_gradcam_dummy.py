@@ -123,6 +123,13 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
     radar_guided_cam_matrix = numpy.full(radar_matrix.shape, numpy.nan)
 
     for i in range(num_examples):
+        if numpy.mod(i, 10) == 0:
+            print((
+                'Have created dummy CAM for {0:d} of {1:d} examples...'
+            ).format(
+                i, num_examples
+            ))
+
         if num_spatial_dim == 2:
             this_cam_matrix = standalone_utils.do_2d_convolution(
                 feature_matrix=radar_matrix[i, ...],
@@ -150,6 +157,11 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
 
         radar_cam_matrix[i, ...] = this_cam_matrix[0, ..., 0]
         radar_guided_cam_matrix[i, ...] = this_guided_cam_matrix[0, ...]
+
+    print('Have created dummy CAM for all {0:d} examples!'.format(
+        num_examples
+    ))
+    print(SEPARATOR_STRING)
 
     radar_cam_matrix = numpy.absolute(radar_cam_matrix)
 
