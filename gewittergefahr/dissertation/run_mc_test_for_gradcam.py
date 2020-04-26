@@ -270,15 +270,18 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
         num_iterations=num_iterations, confidence_level=confidence_level
     )
 
-    monte_carlo_dict_unguided[monte_carlo.TRIAL_PMM_MATRICES_KEY] = (
-        monte_carlo_dict_unguided[monte_carlo.TRIAL_PMM_MATRICES_KEY][..., 0]
-    )
-    monte_carlo_dict_unguided[monte_carlo.MIN_MATRICES_KEY] = (
-        monte_carlo_dict_unguided[monte_carlo.MIN_MATRICES_KEY][..., 0]
-    )
-    monte_carlo_dict_unguided[monte_carlo.MAX_MATRICES_KEY] = (
-        monte_carlo_dict_unguided[monte_carlo.MAX_MATRICES_KEY][..., 0]
-    )
+    monte_carlo_dict_unguided[monte_carlo.TRIAL_PMM_MATRICES_KEY] = [
+        a[..., 0] for a in
+        monte_carlo_dict_unguided[monte_carlo.TRIAL_PMM_MATRICES_KEY]
+    ]
+    monte_carlo_dict_unguided[monte_carlo.MIN_MATRICES_KEY] = [
+        a[..., 0] for a in
+        monte_carlo_dict_unguided[monte_carlo.MIN_MATRICES_KEY]
+    ]
+    monte_carlo_dict_unguided[monte_carlo.MAX_MATRICES_KEY] = [
+        a[..., 0] for a in
+        monte_carlo_dict_unguided[monte_carlo.MAX_MATRICES_KEY]
+    ]
 
     monte_carlo_dict_guided = monte_carlo.run_monte_carlo_test(
         list_of_baseline_matrices=dummy_guided_cam_matrices,
