@@ -24,6 +24,7 @@ from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
 
+RANDOM_SEED = 6695
 KM_TO_METRES = 1000
 
 EXAMPLE_FILES_KEY = 'example_file_names'
@@ -817,6 +818,15 @@ def generator_2d_or_3d(option_dict):
             if this_example_dict is None:
                 continue
 
+            # TODO(thunderhoser): I may want to shuffle after downsampling, but
+            # we'll see how this works.
+            these_target_values = (
+                this_example_dict[input_examples.TARGET_VALUES_KEY]
+            )
+            if shuffle_target:
+                numpy.random.seed(RANDOM_SEED)
+                numpy.random.shuffle(these_target_values)
+
             this_radar_matrix = this_example_dict[
                 input_examples.RADAR_IMAGE_MATRIX_KEY]
             num_radar_dimensions = len(this_radar_matrix.shape) - 2
@@ -827,9 +837,7 @@ def generator_2d_or_3d(option_dict):
 
             if target_values is None:
                 radar_image_matrix = this_radar_matrix + 0.
-                target_values = (
-                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0
-                )
+                target_values = these_target_values + 0
 
                 if include_soundings:
                     sounding_matrix = (
@@ -841,16 +849,14 @@ def generator_2d_or_3d(option_dict):
                     (radar_image_matrix, this_radar_matrix), axis=0
                 )
                 target_values = numpy.concatenate((
-                    target_values,
-                    this_example_dict[input_examples.TARGET_VALUES_KEY]
+                    target_values, these_target_values
                 ))
 
                 if include_soundings:
-                    sounding_matrix = numpy.concatenate(
-                        (sounding_matrix,
-                         this_example_dict[input_examples.SOUNDING_MATRIX_KEY]),
-                        axis=0
-                    )
+                    sounding_matrix = numpy.concatenate((
+                        sounding_matrix,
+                        this_example_dict[input_examples.SOUNDING_MATRIX_KEY]
+                    ), axis=0)
 
             stop_generator = _check_stopping_criterion(
                 num_examples_per_batch=num_examples_per_batch,
@@ -892,9 +898,6 @@ def generator_2d_or_3d(option_dict):
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value).astype('float32')
-
-        if shuffle_target:
-            numpy.random.shuffle(target_values)
 
         list_of_predictor_matrices = [radar_image_matrix]
         if include_soundings:
@@ -1091,6 +1094,13 @@ def myrorss_generator_2d3d(option_dict):
             if this_example_dict is None:
                 continue
 
+            these_target_values = (
+                this_example_dict[input_examples.TARGET_VALUES_KEY]
+            )
+            if shuffle_target:
+                numpy.random.seed(RANDOM_SEED)
+                numpy.random.shuffle(these_target_values)
+
             include_soundings = (
                 input_examples.SOUNDING_MATRIX_KEY in this_example_dict
             )
@@ -1112,9 +1122,7 @@ def myrorss_generator_2d3d(option_dict):
                     input_examples.REFL_IMAGE_MATRIX_KEY]
 
             if target_values is None:
-                target_values = (
-                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0
-                )
+                target_values = these_target_values + 0
 
                 if upsample_refl:
                     radar_image_matrix = this_radar_matrix + 0.
@@ -1129,8 +1137,7 @@ def myrorss_generator_2d3d(option_dict):
                     )
             else:
                 target_values = numpy.concatenate((
-                    target_values,
-                    this_example_dict[input_examples.TARGET_VALUES_KEY]
+                    target_values, these_target_values
                 ))
 
                 if upsample_refl:
@@ -1148,11 +1155,10 @@ def myrorss_generator_2d3d(option_dict):
                     )
 
                 if include_soundings:
-                    sounding_matrix = numpy.concatenate(
-                        (sounding_matrix,
-                         this_example_dict[input_examples.SOUNDING_MATRIX_KEY]),
-                        axis=0
-                    )
+                    sounding_matrix = numpy.concatenate((
+                        sounding_matrix,
+                        this_example_dict[input_examples.SOUNDING_MATRIX_KEY]
+                    ), axis=0)
 
             stop_generator = _check_stopping_criterion(
                 num_examples_per_batch=num_examples_per_batch,
@@ -1216,9 +1222,6 @@ def myrorss_generator_2d3d(option_dict):
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value
                 ).astype('float32')
-
-        if shuffle_target:
-            numpy.random.shuffle(target_values)
 
         if upsample_refl:
             list_of_predictor_matrices = [radar_image_matrix]
@@ -1597,6 +1600,13 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
             if this_example_dict is None:
                 continue
 
+            these_target_values = (
+                this_example_dict[input_examples.TARGET_VALUES_KEY]
+            )
+            if shuffle_target:
+                numpy.random.seed(RANDOM_SEED)
+                numpy.random.shuffle(these_target_values)
+
             this_example_dict = input_examples.reduce_examples_3d_to_2d(
                 example_dict=this_example_dict,
                 list_of_operation_dicts=list_of_operation_dicts)
@@ -1612,9 +1622,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                     this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]
                     + 0.
                 )
-                target_values = (
-                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0
-                )
+                target_values = these_target_values + 0
 
                 if include_soundings:
                     sounding_matrix = (
@@ -1622,22 +1630,20 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                         + 0.
                     )
             else:
-                radar_image_matrix = numpy.concatenate(
-                    (radar_image_matrix,
-                     this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]),
-                    axis=0
-                )
+                radar_image_matrix = numpy.concatenate((
+                    radar_image_matrix,
+                    this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]
+                ), axis=0)
+
                 target_values = numpy.concatenate((
-                    target_values,
-                    this_example_dict[input_examples.TARGET_VALUES_KEY]
+                    target_values, these_target_values
                 ))
 
                 if include_soundings:
-                    sounding_matrix = numpy.concatenate(
-                        (sounding_matrix,
-                         this_example_dict[input_examples.SOUNDING_MATRIX_KEY]),
-                        axis=0
-                    )
+                    sounding_matrix = numpy.concatenate((
+                        sounding_matrix,
+                        this_example_dict[input_examples.SOUNDING_MATRIX_KEY]
+                    ), axis=0)
 
             stop_generator = _check_stopping_criterion(
                 num_examples_per_batch=num_examples_per_batch,
@@ -1673,9 +1679,6 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value).astype('float32')
-
-        if shuffle_target:
-            numpy.random.shuffle(target_values)
 
         list_of_predictor_matrices = [radar_image_matrix]
         if include_soundings:
