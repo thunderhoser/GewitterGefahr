@@ -166,11 +166,11 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
     radar_cam_matrix = numpy.absolute(radar_cam_matrix)
 
     cam_matrices = [
-        radar_cam_matrix if k == 0 else predictor_matrices[k]
+        radar_cam_matrix if k == 0 else None
         for k in range(len(predictor_matrices))
     ]
     guided_cam_matrices = [
-        radar_guided_cam_matrix if k == 0 else predictor_matrices[k]
+        radar_guided_cam_matrix if k == 0 else None
         for k in range(len(predictor_matrices))
     ]
     guided_cam_matrices = trainval_io.separate_shear_and_reflectivity(
