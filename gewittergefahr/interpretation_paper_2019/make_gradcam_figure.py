@@ -47,7 +47,7 @@ GRADCAM_FILES_ARG_NAME = 'input_gradcam_file_names'
 MC_FILES_ARG_NAME = 'input_monte_carlo_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
-MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
+MAX_VALUES_ARG_NAME = 'max_colour_values'
 NUM_CONTOURS_ARG_NAME = 'num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -71,8 +71,8 @@ COLOUR_MAP_HELP_STRING = (
     ' used will be `pyplot.cm.Greys`.  This argument supports only pyplot '
     'colour maps.'
 )
-MAX_COLOUR_VALUE_HELP_STRING = (
-    'Max class activation in colour scheme.  The minimum will be 0.'
+MAX_VALUES_HELP_STRING = (
+    'Max class activation in each colour scheme (one per file).'
 )
 NUM_CONTOURS_HELP_STRING = 'Number of contours for class activation.'
 SMOOTHING_RADIUS_HELP_STRING = (
@@ -101,8 +101,8 @@ INPUT_ARG_PARSER.add_argument(
     help=COLOUR_MAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_COLOUR_VALUE_ARG_NAME, type=float, required=False,
-    default=10 ** 1.5, help=MAX_COLOUR_VALUE_HELP_STRING
+    '--' + MAX_VALUES_ARG_NAME, type=float, nargs='+', required=False,
+    default=[-1], help=MAX_VALUES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_CONTOURS_ARG_NAME, type=int, required=False,
@@ -390,88 +390,17 @@ def _plot_one_composite(
     return main_figure_file_name
 
 
-def _run(gradcam_file_names, monte_carlo_file_names, composite_names,
-         colour_map_name, max_colour_value, num_contours,
-         smoothing_radius_grid_cells, output_dir_name):
-    """Makes figure with gradient-weighted class-activation maps (Grad-CAM).
+def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
+                    temporary_dir_name):
+    """Adds colour bar to saved image file.
 
-    This is effectively the main method.
-
-    :param gradcam_file_names: See documentation at top of file.
-    :param monte_carlo_file_names: Same.
-    :param composite_names: Same.
-    :param colour_map_name: Same.
-    :param max_colour_value: Same.
-    :param num_contours: Same.
-    :param smoothing_radius_grid_cells: Same.
-    :param output_dir_name: Same.
+    :param figure_file_name: Path to saved image file.  Colour bar will be added
+        to this image.
+    :param colour_map_object: Colour scheme (instance of `matplotlib.pyplot.cm`
+        or similar).
+    :param max_colour_value: Max value in colour scheme.
+    :param temporary_dir_name: Name of temporary output directory.
     """
-
-    if smoothing_radius_grid_cells <= 0:
-        smoothing_radius_grid_cells = None
-
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
-
-    colour_map_object = pyplot.cm.get_cmap(colour_map_name)
-    error_checking.assert_is_geq(num_contours, 10)
-
-    num_composites = len(gradcam_file_names)
-    expected_dim = numpy.array([num_composites], dtype=int)
-    error_checking.assert_is_numpy_array(
-        numpy.array(composite_names), exact_dimensions=expected_dim
-    )
-    error_checking.assert_is_numpy_array(
-        numpy.array(monte_carlo_file_names), exact_dimensions=expected_dim
-    )
-
-    monte_carlo_file_names = [
-        None if f in NONE_STRINGS else f for f in monte_carlo_file_names
-    ]
-
-    composite_names_abbrev = [
-        n.replace('_', '-').lower() for n in composite_names
-    ]
-    composite_names_verbose = [
-        '({0:s}) {1:s}'.format(
-            chr(ord('a') + i), composite_names[i].replace('_', ' ')
-        )
-        for i in range(num_composites)
-    ]
-
-    panel_file_names = [None] * num_composites
-
-    for i in range(num_composites):
-        panel_file_names[i] = _plot_one_composite(
-            gradcam_file_name=gradcam_file_names[i],
-            monte_carlo_file_name=monte_carlo_file_names[i],
-            composite_name_abbrev=composite_names_abbrev[i],
-            composite_name_verbose=composite_names_verbose[i],
-            colour_map_object=colour_map_object,
-            max_colour_value=max_colour_value, num_contours=num_contours,
-            smoothing_radius_grid_cells=smoothing_radius_grid_cells,
-            output_dir_name=output_dir_name)
-
-        print('\n')
-
-    figure_file_name = '{0:s}/gradcam_concat.jpg'.format(output_dir_name)
-    print('Concatenating panels to: "{0:s}"...'.format(figure_file_name))
-
-    num_panel_rows = int(numpy.floor(
-        numpy.sqrt(num_composites)
-    ))
-    num_panel_columns = int(numpy.ceil(
-        float(num_composites) / num_panel_rows
-    ))
-
-    imagemagick_utils.concatenate_images(
-        input_file_names=panel_file_names,
-        output_file_name=figure_file_name, border_width_pixels=100,
-        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns)
-
-    imagemagick_utils.trim_whitespace(
-        input_file_name=figure_file_name, output_file_name=figure_file_name,
-        border_width_pixels=10)
 
     this_image_matrix = Image.open(figure_file_name)
     figure_width_px, figure_height_px = this_image_matrix.size
@@ -493,8 +422,9 @@ def _run(gradcam_file_names, monte_carlo_file_names, composite_names,
         orientation_string='vertical', fraction_of_axis_length=1.25,
         extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
 
-    colour_bar_object.set_label('Class activation',
-                                fontsize=COLOUR_BAR_FONT_SIZE)
+    colour_bar_object.set_label(
+        'Class activation', fontsize=COLOUR_BAR_FONT_SIZE
+    )
 
     tick_values = colour_bar_object.get_ticks()
     tick_strings = [
@@ -510,25 +440,129 @@ def _run(gradcam_file_names, monte_carlo_file_names, composite_names,
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
-    extra_file_name = '{0:s}/gradcam_colour-bar.jpg'.format(output_dir_name)
+    extra_file_name = '{0:s}/gradcam_colour-bar.jpg'.format(temporary_dir_name)
     print('Saving colour bar to: "{0:s}"...'.format(extra_file_name))
 
-    extra_figure_object.savefig(extra_file_name, dpi=FIGURE_RESOLUTION_DPI,
-                                pad_inches=0, bbox_inches='tight')
+    extra_figure_object.savefig(
+        extra_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
     pyplot.close(extra_figure_object)
 
     print('Concatenating colour bar to: "{0:s}"...'.format(figure_file_name))
-
     imagemagick_utils.concatenate_images(
         input_file_names=[figure_file_name, extra_file_name],
         output_file_name=figure_file_name,
         num_panel_rows=1, num_panel_columns=2,
-        extra_args_string='-gravity Center')
-
+        extra_args_string='-gravity Center'
+    )
     os.remove(extra_file_name)
 
-    imagemagick_utils.trim_whitespace(input_file_name=figure_file_name,
-                                      output_file_name=figure_file_name)
+    imagemagick_utils.trim_whitespace(
+        input_file_name=figure_file_name, output_file_name=figure_file_name
+    )
+
+
+def _run(gradcam_file_names, monte_carlo_file_names, composite_names,
+         colour_map_name, max_colour_values, num_contours,
+         smoothing_radius_grid_cells, output_dir_name):
+    """Makes figure with gradient-weighted class-activation maps (Grad-CAM).
+
+    This is effectively the main method.
+
+    :param gradcam_file_names: See documentation at top of file.
+    :param monte_carlo_file_names: Same.
+    :param composite_names: Same.
+    :param colour_map_name: Same.
+    :param max_colour_values: Same.
+    :param num_contours: Same.
+    :param smoothing_radius_grid_cells: Same.
+    :param output_dir_name: Same.
+    """
+
+    if smoothing_radius_grid_cells <= 0:
+        smoothing_radius_grid_cells = None
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name
+    )
+
+    colour_map_object = pyplot.cm.get_cmap(colour_map_name)
+    error_checking.assert_is_geq(num_contours, 10)
+
+    num_composites = len(gradcam_file_names)
+    expected_dim = numpy.array([num_composites], dtype=int)
+    error_checking.assert_is_numpy_array(
+        numpy.array(composite_names), exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_numpy_array(
+        numpy.array(monte_carlo_file_names), exact_dimensions=expected_dim
+    )
+
+    monte_carlo_file_names = [
+        None if f in NONE_STRINGS else f for f in monte_carlo_file_names
+    ]
+
+    if max_colour_values[0] < 0:
+        max_colour_values = numpy.full(num_composites, 10 ** 1.5)
+
+    error_checking.assert_is_greater_numpy_array(max_colour_values, 0.)
+    error_checking.assert_is_numpy_array(
+        max_colour_values, exact_dimensions=expected_dim
+    )
+
+    composite_names_abbrev = [
+        n.replace('_', '-').lower() for n in composite_names
+    ]
+    composite_names_verbose = [
+        '({0:s}) {1:s}'.format(
+            chr(ord('a') + i), composite_names[i].replace('_', ' ')
+        )
+        for i in range(num_composites)
+    ]
+
+    panel_file_names = [None] * num_composites
+
+    for i in range(num_composites):
+        panel_file_names[i] = _plot_one_composite(
+            gradcam_file_name=gradcam_file_names[i],
+            monte_carlo_file_name=monte_carlo_file_names[i],
+            composite_name_abbrev=composite_names_abbrev[i],
+            composite_name_verbose=composite_names_verbose[i],
+            colour_map_object=colour_map_object,
+            max_colour_value=max_colour_values[i], num_contours=num_contours,
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells,
+            output_dir_name=output_dir_name
+        )
+
+        _add_colour_bar(
+            figure_file_name=panel_file_names[i],
+            colour_map_object=colour_map_object,
+            max_colour_value=max_colour_values[i],
+            temporary_dir_name=output_dir_name
+        )
+
+        print('\n')
+
+    figure_file_name = '{0:s}/gradcam_concat.jpg'.format(output_dir_name)
+    print('Concatenating panels to: "{0:s}"...'.format(figure_file_name))
+
+    num_panel_rows = int(numpy.floor(
+        numpy.sqrt(num_composites)
+    ))
+    num_panel_columns = int(numpy.ceil(
+        float(num_composites) / num_panel_rows
+    ))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names,
+        output_file_name=figure_file_name, border_width_pixels=100,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=figure_file_name, output_file_name=figure_file_name,
+        border_width_pixels=10
+    )
 
 
 if __name__ == '__main__':
@@ -539,7 +573,9 @@ if __name__ == '__main__':
         monte_carlo_file_names=getattr(INPUT_ARG_OBJECT, MC_FILES_ARG_NAME),
         composite_names=getattr(INPUT_ARG_OBJECT, COMPOSITE_NAMES_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
-        max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_COLOUR_VALUE_ARG_NAME),
+        max_colour_values=numpy.array(
+            getattr(INPUT_ARG_OBJECT, MAX_VALUES_ARG_NAME), dtype=float
+        ),
         num_contours=getattr(INPUT_ARG_OBJECT, NUM_CONTOURS_ARG_NAME),
         smoothing_radius_grid_cells=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
