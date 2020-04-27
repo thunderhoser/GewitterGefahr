@@ -17,19 +17,15 @@ from gewittergefahr.plotting import cam_plotting
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.scripts import plot_input_examples as plot_examples
 
-# TODO(thunderhoser): Think about logarithmic colour scale for guided CAMs as
-# well.
-
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-
-MIN_UNGUIDED_VALUE_LOG10 = -2.
 
 COLOUR_BAR_FONT_SIZE = plot_examples.DEFAULT_CBAR_FONT_SIZE
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
+MIN_UNGUIDED_VALUE_ARG_NAME = 'min_unguided_value'
 MAX_UNGUIDED_VALUE_ARG_NAME = 'max_unguided_value'
 NUM_UNGUIDED_CONTOURS_ARG_NAME = 'num_unguided_contours'
 MAX_GUIDED_VALUE_ARG_NAME = 'max_guided_value'
@@ -43,33 +39,37 @@ LABEL_CBARS_ARG_NAME = plot_examples.LABEL_CBARS_ARG_NAME
 CBAR_LENGTH_ARG_NAME = plot_examples.CBAR_LENGTH_ARG_NAME
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file.  Will be read by `gradcam.read_file`.')
-
+    'Path to input file.  Will be read by `gradcam.read_file`.'
+)
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map for class activations.  The same colour map will be '
     'used for all predictors and examples.  This argument supports only pyplot '
-    'colour maps (those accepted by `pyplot.get_cmap`).')
-
+    'colour maps (those accepted by `pyplot.get_cmap`).'
+)
+MIN_UNGUIDED_VALUE_HELP_STRING = (
+    'Minimum value in colour scheme for unguided CAMs.  Keep in mind that '
+    'unguided class activation >= 0 always.'
+)
 MAX_UNGUIDED_VALUE_HELP_STRING = (
     'Max value in colour scheme for unguided CAMs.  Keep in mind that unguided '
-    'class activation >= 0 always.')
-
+    'class activation >= 0 always.'
+)
 NUM_UNGUIDED_CONTOURS_HELP_STRING = 'Number of contours for unguided CAMs.'
-
 MAX_GUIDED_VALUE_HELP_STRING = (
     'Max value in colour scheme for guided CAMs.  Keep in mind that the colour '
     'scheme encodes *absolute* value, with positive values in solid contours '
-    'and negative values in dashed contours.')
-
+    'and negative values in dashed contours.'
+)
 HALF_NUM_GUIDED_CONTOURS_HELP_STRING = (
-    'Number of contours on each side of zero for guided CAMs.')
-
+    'Number of contours on each side of zero for guided CAMs.'
+)
 SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
-    'want to smooth class-activation maps, make this non-positive.')
-
+    'want to smooth class-activation maps, make this non-positive.'
+)
 OUTPUT_DIR_HELP_STRING = (
-    'Path to output directory.  Figures will be saved here.')
+    'Path to output directory.  Figures will be saved here.'
+)
 
 ALLOW_WHITESPACE_HELP_STRING = plot_examples.ALLOW_WHITESPACE_HELP_STRING
 PLOT_PANEL_NAMES_HELP_STRING = plot_examples.PLOT_PANEL_NAMES_HELP_STRING
@@ -80,63 +80,68 @@ CBAR_LENGTH_HELP_STRING = plot_examples.CBAR_LENGTH_HELP_STRING
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
-    help=INPUT_FILE_HELP_STRING)
-
+    help=INPUT_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='gist_yarg',
-    help=COLOUR_MAP_HELP_STRING)
-
+    help=COLOUR_MAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_UNGUIDED_VALUE_ARG_NAME, type=float, required=False,
-    default=10 ** 1.5, help=MAX_UNGUIDED_VALUE_HELP_STRING)
-
+    default=10 ** 1.5, help=MAX_UNGUIDED_VALUE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_UNGUIDED_VALUE_ARG_NAME, type=float, required=False,
+    default=0.01, help=MIN_UNGUIDED_VALUE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_UNGUIDED_CONTOURS_ARG_NAME, type=int, required=False,
-    default=15, help=NUM_UNGUIDED_CONTOURS_HELP_STRING)
-
+    default=15, help=NUM_UNGUIDED_CONTOURS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_GUIDED_VALUE_ARG_NAME, type=float, required=False,
-    default=0.5, help=MAX_GUIDED_VALUE_HELP_STRING)
-
+    default=0.5, help=MAX_GUIDED_VALUE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + HALF_NUM_GUIDED_CONTOURS_ARG_NAME, type=int, required=False,
-    default=10, help=HALF_NUM_GUIDED_CONTOURS_HELP_STRING)
-
+    default=10, help=HALF_NUM_GUIDED_CONTOURS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
-    default=2., help=SMOOTHING_RADIUS_HELP_STRING)
-
+    default=2., help=SMOOTHING_RADIUS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
-
+    help=OUTPUT_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + ALLOW_WHITESPACE_ARG_NAME, type=int, required=False, default=1,
-    help=ALLOW_WHITESPACE_HELP_STRING)
-
+    help=ALLOW_WHITESPACE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_PANEL_NAMES_ARG_NAME, type=int, required=False, default=1,
-    help=PLOT_PANEL_NAMES_HELP_STRING)
-
+    help=PLOT_PANEL_NAMES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + ADD_TITLES_ARG_NAME, type=int, required=False, default=1,
-    help=ADD_TITLES_HELP_STRING)
-
+    help=ADD_TITLES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + LABEL_CBARS_ARG_NAME, type=int, required=False, default=0,
-    help=LABEL_CBARS_HELP_STRING)
-
+    help=LABEL_CBARS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CBAR_LENGTH_ARG_NAME, type=float, required=False, default=0.8,
-    help=CBAR_LENGTH_HELP_STRING)
+    help=CBAR_LENGTH_HELP_STRING
+)
 
 
 def _plot_3d_radar_cam(
-        colour_map_object, max_unguided_value, num_unguided_contours,
-        max_guided_value, half_num_guided_contours, label_colour_bars,
-        colour_bar_length, figure_objects, axes_object_matrices,
-        model_metadata_dict, output_dir_name, cam_matrix=None,
-        guided_cam_matrix=None, full_storm_id_string=None,
+        colour_map_object, min_unguided_value, max_unguided_value,
+        num_unguided_contours, max_guided_value, half_num_guided_contours,
+        label_colour_bars, colour_bar_length, figure_objects,
+        axes_object_matrices, model_metadata_dict, output_dir_name,
+        cam_matrix=None, guided_cam_matrix=None, full_storm_id_string=None,
         storm_time_unix_sec=None):
     """Plots class-activation map for 3-D radar data.
 
@@ -149,6 +154,7 @@ def _plot_3d_radar_cam(
     object), `full_storm_id_string` and `storm_time_unix_sec` can be None.
 
     :param colour_map_object: See documentation at top of file.
+    :param min_unguided_value: Same.
     :param max_unguided_value: Same.
     :param num_unguided_contours: Same.
     :param max_guided_value: Same.
@@ -180,9 +186,10 @@ def _plot_3d_radar_cam(
         training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
         radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
 
+    min_unguided_value_log10 = numpy.log10(min_unguided_value)
     max_unguided_value_log10 = numpy.log10(max_unguided_value)
     contour_interval_log10 = (
-        (max_unguided_value_log10 - MIN_UNGUIDED_VALUE_LOG10) /
+        (max_unguided_value_log10 - min_unguided_value_log10) /
         (num_unguided_contours - 1)
     )
 
@@ -195,7 +202,8 @@ def _plot_3d_radar_cam(
                 axes_object_matrix=axes_object_matrices[j],
                 colour_map_object=colour_map_object,
                 max_absolute_contour_level=max_guided_value,
-                contour_interval=max_guided_value / half_num_guided_contours)
+                contour_interval=max_guided_value / half_num_guided_contours
+            )
 
             this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
                 axes_object_or_matrix=axes_object_matrices[j],
@@ -204,34 +212,37 @@ def _plot_3d_radar_cam(
                 max_value=max_guided_value, orientation_string='horizontal',
                 fraction_of_axis_length=colour_bar_length,
                 extend_min=False, extend_max=True,
-                font_size=COLOUR_BAR_FONT_SIZE)
+                font_size=COLOUR_BAR_FONT_SIZE
+            )
 
             if label_colour_bars:
                 this_colour_bar_object.set_label(
                     'Absolute guided class activation',
-                    fontsize=COLOUR_BAR_FONT_SIZE)
+                    fontsize=COLOUR_BAR_FONT_SIZE
+                )
         else:
-            print(numpy.percentile(cam_matrix, 99.))
             cam_matrix_log10 = numpy.log10(cam_matrix)
 
             cam_plotting.plot_many_2d_grids(
                 class_activation_matrix_3d=numpy.flip(cam_matrix_log10, axis=0),
                 axes_object_matrix=axes_object_matrices[j],
                 colour_map_object=colour_map_object,
-                min_contour_level=MIN_UNGUIDED_VALUE_LOG10,
+                min_contour_level=min_unguided_value_log10,
                 max_contour_level=max_unguided_value_log10,
-                contour_interval=contour_interval_log10)
+                contour_interval=contour_interval_log10
+            )
 
             this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
                 axes_object_or_matrix=axes_object_matrices[j],
                 data_matrix=cam_matrix_log10,
                 colour_map_object=colour_map_object,
-                min_value=MIN_UNGUIDED_VALUE_LOG10,
+                min_value=min_unguided_value_log10,
                 max_value=max_unguided_value_log10,
                 orientation_string='horizontal',
                 fraction_of_axis_length=colour_bar_length,
                 extend_min=True, extend_max=True,
-                font_size=COLOUR_BAR_FONT_SIZE)
+                font_size=COLOUR_BAR_FONT_SIZE
+            )
 
             these_tick_values = this_colour_bar_object.get_ticks()
             these_tick_strings = [
@@ -261,11 +272,11 @@ def _plot_3d_radar_cam(
 
 
 def _plot_2d_radar_cam(
-        colour_map_object, max_unguided_value, num_unguided_contours,
-        max_guided_value, half_num_guided_contours, label_colour_bars,
-        colour_bar_length, figure_objects, axes_object_matrices,
-        model_metadata_dict, output_dir_name, cam_matrix=None,
-        guided_cam_matrix=None, full_storm_id_string=None,
+        colour_map_object, min_unguided_value, max_unguided_value,
+        num_unguided_contours, max_guided_value, half_num_guided_contours,
+        label_colour_bars, colour_bar_length, figure_objects,
+        axes_object_matrices, model_metadata_dict, output_dir_name,
+        cam_matrix=None, guided_cam_matrix=None, full_storm_id_string=None,
         storm_time_unix_sec=None):
     """Plots class-activation map for 2-D radar data.
 
@@ -277,6 +288,7 @@ def _plot_2d_radar_cam(
     object), `full_storm_id_string` and `storm_time_unix_sec` can be None.
 
     :param colour_map_object: See doc for `_plot_3d_radar_cam`.
+    :param min_unguided_value: Same.
     :param max_unguided_value: Same.
     :param num_unguided_contours: Same.
     :param max_guided_value: Same.
@@ -315,9 +327,10 @@ def _plot_2d_radar_cam(
     else:
         num_channels = len(list_of_layer_operation_dicts)
 
+    min_unguided_value_log10 = numpy.log10(min_unguided_value)
     max_unguided_value_log10 = numpy.log10(max_unguided_value)
     contour_interval_log10 = (
-        (max_unguided_value_log10 - MIN_UNGUIDED_VALUE_LOG10) /
+        (max_unguided_value_log10 - min_unguided_value_log10) /
         (num_unguided_contours - 1)
     )
 
@@ -328,7 +341,8 @@ def _plot_2d_radar_cam(
             colour_map_object=colour_map_object,
             max_absolute_contour_level=max_guided_value,
             contour_interval=max_guided_value / half_num_guided_contours,
-            row_major=False)
+            row_major=False
+        )
 
         this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
             axes_object_or_matrix=axes_object_matrices[figure_index],
@@ -337,18 +351,21 @@ def _plot_2d_radar_cam(
             max_value=max_guided_value, orientation_string='horizontal',
             fraction_of_axis_length=colour_bar_length / (1 + int(conv_2d3d)),
             extend_min=False, extend_max=True,
-            font_size=COLOUR_BAR_FONT_SIZE)
+            font_size=COLOUR_BAR_FONT_SIZE
+        )
 
         if label_colour_bars:
             this_colour_bar_object.set_label(
                 'Absolute guided class activation',
-                fontsize=COLOUR_BAR_FONT_SIZE)
+                fontsize=COLOUR_BAR_FONT_SIZE
+            )
     else:
         this_cam_matrix_log10 = numpy.log10(
             numpy.expand_dims(cam_matrix, axis=-1)
         )
         this_cam_matrix_log10 = numpy.repeat(
-            this_cam_matrix_log10, repeats=num_channels, axis=-1)
+            this_cam_matrix_log10, repeats=num_channels, axis=-1
+        )
 
         cam_plotting.plot_many_2d_grids(
             class_activation_matrix_3d=numpy.flip(
@@ -356,20 +373,22 @@ def _plot_2d_radar_cam(
             ),
             axes_object_matrix=axes_object_matrices[figure_index],
             colour_map_object=colour_map_object,
-            min_contour_level=MIN_UNGUIDED_VALUE_LOG10,
+            min_contour_level=min_unguided_value_log10,
             max_contour_level=max_unguided_value_log10,
-            contour_interval=contour_interval_log10, row_major=False)
+            contour_interval=contour_interval_log10, row_major=False
+        )
 
         this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
             axes_object_or_matrix=axes_object_matrices[figure_index],
             data_matrix=this_cam_matrix_log10,
             colour_map_object=colour_map_object,
-            min_value=MIN_UNGUIDED_VALUE_LOG10,
+            min_value=min_unguided_value_log10,
             max_value=max_unguided_value_log10,
             orientation_string='horizontal',
             fraction_of_axis_length=colour_bar_length / (1 + int(conv_2d3d)),
             extend_min=True, extend_max=True,
-            font_size=COLOUR_BAR_FONT_SIZE)
+            font_size=COLOUR_BAR_FONT_SIZE
+        )
 
         these_tick_values = this_colour_bar_object.get_ticks()
         these_tick_strings = [
@@ -387,7 +406,8 @@ def _plot_2d_radar_cam(
         output_dir_name=output_dir_name, is_sounding=False, pmm_flag=pmm_flag,
         full_storm_id_string=full_storm_id_string,
         storm_time_unix_sec=storm_time_unix_sec,
-        radar_field_name=radar_field_name)
+        radar_field_name=radar_field_name
+    )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_objects[figure_index].savefig(
@@ -444,16 +464,18 @@ def _smooth_maps(cam_matrices, guided_cam_matrices,
     return cam_matrices, guided_cam_matrices
 
 
-def _run(input_file_name, colour_map_name, max_unguided_value, max_guided_value,
-         num_unguided_contours, half_num_guided_contours,
-         smoothing_radius_grid_cells, allow_whitespace, plot_panel_names,
-         add_titles, label_colour_bars, colour_bar_length, top_output_dir_name):
+def _run(input_file_name, colour_map_name, min_unguided_value,
+         max_unguided_value, max_guided_value, num_unguided_contours,
+         half_num_guided_contours, smoothing_radius_grid_cells,
+         allow_whitespace, plot_panel_names, add_titles, label_colour_bars,
+         colour_bar_length, top_output_dir_name):
     """Plots Grad-CAM output (guided and unguided class-activation maps).
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
     :param colour_map_name: Same.
+    :param min_unguided_value: Same.
     :param max_unguided_value: Same.
     :param max_guided_value: Same.
     :param num_unguided_contours: Same.
@@ -474,13 +496,16 @@ def _run(input_file_name, colour_map_name, max_unguided_value, max_guided_value,
     guided_cam_dir_name = '{0:s}/guided_gradcam'.format(top_output_dir_name)
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=unguided_cam_dir_name)
+        directory_name=unguided_cam_dir_name
+    )
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=guided_cam_dir_name)
+        directory_name=guided_cam_dir_name
+    )
 
     # Check input args.
     colour_map_object = pyplot.get_cmap(colour_map_name)
-    error_checking.assert_is_greater(max_unguided_value, 0.)
+    error_checking.assert_is_greater(min_unguided_value, 0.)
+    error_checking.assert_is_greater(max_unguided_value, min_unguided_value)
     error_checking.assert_is_greater(max_guided_value, 0.)
     error_checking.assert_is_geq(num_unguided_contours, 10)
     error_checking.assert_is_geq(half_num_guided_contours, 5)
@@ -490,10 +515,12 @@ def _run(input_file_name, colour_map_name, max_unguided_value, max_guided_value,
 
     if pmm_flag:
         predictor_matrices = gradcam_dict.pop(
-            gradcam.MEAN_PREDICTOR_MATRICES_KEY)
+            gradcam.MEAN_PREDICTOR_MATRICES_KEY
+        )
         cam_matrices = gradcam_dict.pop(gradcam.MEAN_CAM_MATRICES_KEY)
         guided_cam_matrices = gradcam_dict.pop(
-            gradcam.MEAN_GUIDED_CAM_MATRICES_KEY)
+            gradcam.MEAN_GUIDED_CAM_MATRICES_KEY
+        )
 
         full_storm_id_strings = [None]
         storm_times_unix_sec = [None]
@@ -523,7 +550,8 @@ def _run(input_file_name, colour_map_name, max_unguided_value, max_guided_value,
     if smoothing_radius_grid_cells is not None:
         cam_matrices, guided_cam_matrices = _smooth_maps(
             cam_matrices=cam_matrices, guided_cam_matrices=guided_cam_matrices,
-            smoothing_radius_grid_cells=smoothing_radius_grid_cells)
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells
+        )
 
     # Read metadata for CNN.
     model_file_name = gradcam_dict[gradcam.MODEL_FILE_KEY]
@@ -546,35 +574,38 @@ def _run(input_file_name, colour_map_name, max_unguided_value, max_guided_value,
             allow_whitespace=allow_whitespace,
             plot_panel_names=plot_panel_names, add_titles=add_titles,
             label_colour_bars=label_colour_bars,
-            colour_bar_length=colour_bar_length)
+            colour_bar_length=colour_bar_length
+        )
 
         these_figure_objects = this_handle_dict[plot_examples.RADAR_FIGURES_KEY]
-        these_axes_object_matrices = this_handle_dict[
-            plot_examples.RADAR_AXES_KEY]
+        these_axes_object_matrices = (
+            this_handle_dict[plot_examples.RADAR_AXES_KEY]
+        )
 
         for j in range(num_matrices):
             if cam_matrices[j] is None:
                 continue
 
-            print(numpy.percentile(cam_matrices[j][i, ...], 0.))
-            print(numpy.percentile(cam_matrices[j][i, ...], 1.))
-            print(numpy.percentile(cam_matrices[j][i, ...], 99.))
-            print(numpy.percentile(cam_matrices[j][i, ...], 100.))
-
-            print('\n\n')
-
-            print(numpy.percentile(guided_cam_matrices[j][i, ...], 0.))
-            print(numpy.percentile(guided_cam_matrices[j][i, ...], 1.))
-            print(numpy.percentile(guided_cam_matrices[j][i, ...], 99.))
-            print(numpy.percentile(guided_cam_matrices[j][i, ...], 100.))
-
-            print('\n\n------------------------------\n\n')
+            # print(numpy.percentile(cam_matrices[j][i, ...], 0.))
+            # print(numpy.percentile(cam_matrices[j][i, ...], 1.))
+            # print(numpy.percentile(cam_matrices[j][i, ...], 99.))
+            # print(numpy.percentile(cam_matrices[j][i, ...], 100.))
+            #
+            # print('\n\n')
+            #
+            # print(numpy.percentile(guided_cam_matrices[j][i, ...], 0.))
+            # print(numpy.percentile(guided_cam_matrices[j][i, ...], 1.))
+            # print(numpy.percentile(guided_cam_matrices[j][i, ...], 99.))
+            # print(numpy.percentile(guided_cam_matrices[j][i, ...], 100.))
+            #
+            # print('\n\n------------------------------\n\n')
 
             this_num_spatial_dim = len(predictor_matrices[j].shape) - 2
 
             if this_num_spatial_dim == 3:
                 _plot_3d_radar_cam(
                     colour_map_object=colour_map_object,
+                    min_unguided_value=min_unguided_value,
                     max_unguided_value=max_unguided_value,
                     num_unguided_contours=num_unguided_contours,
                     max_guided_value=max_guided_value,
@@ -592,6 +623,7 @@ def _run(input_file_name, colour_map_name, max_unguided_value, max_guided_value,
             else:
                 _plot_2d_radar_cam(
                     colour_map_object=colour_map_object,
+                    min_unguided_value=min_unguided_value,
                     max_unguided_value=max_unguided_value,
                     num_unguided_contours=num_unguided_contours,
                     max_guided_value=max_guided_value,
@@ -614,11 +646,13 @@ def _run(input_file_name, colour_map_name, max_unguided_value, max_guided_value,
             allow_whitespace=allow_whitespace,
             plot_panel_names=plot_panel_names, add_titles=add_titles,
             label_colour_bars=label_colour_bars,
-            colour_bar_length=colour_bar_length)
+            colour_bar_length=colour_bar_length
+        )
 
         these_figure_objects = this_handle_dict[plot_examples.RADAR_FIGURES_KEY]
-        these_axes_object_matrices = this_handle_dict[
-            plot_examples.RADAR_AXES_KEY]
+        these_axes_object_matrices = (
+            this_handle_dict[plot_examples.RADAR_AXES_KEY]
+        )
 
         for j in range(num_matrices):
             if guided_cam_matrices[j] is None:
@@ -629,6 +663,7 @@ def _run(input_file_name, colour_map_name, max_unguided_value, max_guided_value,
             if this_num_spatial_dim == 3:
                 _plot_3d_radar_cam(
                     colour_map_object=colour_map_object,
+                    min_unguided_value=min_unguided_value,
                     max_unguided_value=max_unguided_value,
                     num_unguided_contours=num_unguided_contours,
                     max_guided_value=max_guided_value,
@@ -646,6 +681,7 @@ def _run(input_file_name, colour_map_name, max_unguided_value, max_guided_value,
             else:
                 _plot_2d_radar_cam(
                     colour_map_object=colour_map_object,
+                    min_unguided_value=min_unguided_value,
                     max_unguided_value=max_unguided_value,
                     num_unguided_contours=num_unguided_contours,
                     max_guided_value=max_guided_value,
@@ -668,15 +704,22 @@ if __name__ == '__main__':
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
+        min_unguided_value=getattr(
+            INPUT_ARG_OBJECT, MIN_UNGUIDED_VALUE_ARG_NAME
+        ),
         max_unguided_value=getattr(
-            INPUT_ARG_OBJECT, MAX_UNGUIDED_VALUE_ARG_NAME),
+            INPUT_ARG_OBJECT, MAX_UNGUIDED_VALUE_ARG_NAME
+        ),
         num_unguided_contours=getattr(
-            INPUT_ARG_OBJECT, NUM_UNGUIDED_CONTOURS_ARG_NAME),
+            INPUT_ARG_OBJECT, NUM_UNGUIDED_CONTOURS_ARG_NAME
+        ),
         max_guided_value=getattr(INPUT_ARG_OBJECT, MAX_GUIDED_VALUE_ARG_NAME),
         half_num_guided_contours=getattr(
-            INPUT_ARG_OBJECT, HALF_NUM_GUIDED_CONTOURS_ARG_NAME),
+            INPUT_ARG_OBJECT, HALF_NUM_GUIDED_CONTOURS_ARG_NAME
+        ),
         smoothing_radius_grid_cells=getattr(
-            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME),
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
+        ),
         allow_whitespace=bool(getattr(
             INPUT_ARG_OBJECT, ALLOW_WHITESPACE_ARG_NAME
         )),
