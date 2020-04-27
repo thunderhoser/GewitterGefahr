@@ -556,6 +556,20 @@ def _run(input_file_name, colour_map_name, max_unguided_value, max_guided_value,
             if cam_matrices[j] is None:
                 continue
 
+            print(numpy.percentile(cam_matrices[j][i, ...], 0.))
+            print(numpy.percentile(cam_matrices[j][i, ...], 1.))
+            print(numpy.percentile(cam_matrices[j][i, ...], 99.))
+            print(numpy.percentile(cam_matrices[j][i, ...], 100.))
+
+            print('\n\n')
+
+            print(numpy.percentile(guided_cam_matrices[j][i, ...], 0.))
+            print(numpy.percentile(guided_cam_matrices[j][i, ...], 1.))
+            print(numpy.percentile(guided_cam_matrices[j][i, ...], 99.))
+            print(numpy.percentile(guided_cam_matrices[j][i, ...], 100.))
+
+            print('\n\n------------------------------\n\n')
+
             this_num_spatial_dim = len(predictor_matrices[j].shape) - 2
 
             if this_num_spatial_dim == 3:
