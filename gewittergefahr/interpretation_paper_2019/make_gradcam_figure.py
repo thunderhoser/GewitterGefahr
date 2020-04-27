@@ -296,6 +296,11 @@ def _plot_one_composite(
         monte_carlo_file_name=monte_carlo_file_name
     )
 
+    print(numpy.percentile(mean_class_activn_matrix, 0.))
+    print(numpy.percentile(mean_class_activn_matrix, 1.))
+    print(numpy.percentile(mean_class_activn_matrix, 99.))
+    print(numpy.percentile(mean_class_activn_matrix, 100.))
+
     max_colour_value_log10 = numpy.log10(max_colour_value)
     contour_interval_log10 = (
         (max_colour_value_log10 - MIN_COLOUR_VALUE_LOG10) /
