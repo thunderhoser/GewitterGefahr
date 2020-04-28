@@ -322,6 +322,9 @@ def _plot_one_composite(
         )
 
         min_colour_value_log10 = max([min_colour_value_log10, -2.])
+        max_colour_value_log10 = max([max_colour_value_log10, -1.])
+
+        min_colour_value_log10 = min([min_colour_value_log10, 1.])
         max_colour_value_log10 = min([max_colour_value_log10, 2.])
 
         min_colour_value = 10 ** min_colour_value_log10
