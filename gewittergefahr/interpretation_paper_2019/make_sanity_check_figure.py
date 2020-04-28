@@ -327,6 +327,7 @@ def _plot_one_composite(
         else:
             this_index = these_indices[0]
 
+        this_index -= 1
         max_colour_value = POSSIBLE_MAX_COLOUR_VALUES[this_index]
 
     handle_dict = plot_examples.plot_one_example(
