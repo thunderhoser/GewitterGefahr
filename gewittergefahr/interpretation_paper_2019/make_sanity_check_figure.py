@@ -298,6 +298,7 @@ def _plot_one_composite(
         here).
     :return: main_figure_file_name: Path to main image file created by this
         method.
+    :return: max_colour_value: Same as input but cannot be None.
     """
 
     (mean_radar_matrix, mean_saliency_matrix, significance_matrix,
@@ -405,7 +406,7 @@ def _plot_one_composite(
         output_file_name=main_figure_file_name,
         border_width_pixels=10)
 
-    return main_figure_file_name
+    return main_figure_file_name, max_colour_value
 
 
 def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
