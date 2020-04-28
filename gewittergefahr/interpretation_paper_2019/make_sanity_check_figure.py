@@ -525,7 +525,7 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
         max_colour_values = numpy.full(num_composites, numpy.nan)
 
     error_checking.assert_is_greater_numpy_array(
-        max_colour_values, 0., allow_nan=False
+        max_colour_values, 0., allow_nan=True
     )
     error_checking.assert_is_numpy_array(
         max_colour_values, exact_dimensions=expected_dim
