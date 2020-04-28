@@ -321,6 +321,9 @@ def _plot_one_composite(
             numpy.log10(numpy.percentile(mean_class_activn_matrix, 99.)), 0.1
         )
 
+        min_colour_value_log10 = max([min_colour_value_log10, -2.])
+        max_colour_value_log10 = min([max_colour_value_log10, 2.])
+
         min_colour_value = 10 ** min_colour_value_log10
         max_colour_value = 10 ** max_colour_value_log10
     else:
