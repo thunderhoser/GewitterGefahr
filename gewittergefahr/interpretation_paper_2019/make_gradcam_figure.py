@@ -289,7 +289,7 @@ def _plot_one_composite(
     :param colour_map_object: See documentation at top of file.
     :param min_colour_value: Minimum value in colour bar (may be NaN).
     :param max_colour_value: Max value in colour bar (may be NaN).
-    :param num_contours: Same.
+    :param num_contours: See documentation at top of file.
     :param smoothing_radius_grid_cells: Same.
     :param output_dir_name: Name of output directory (figures will be saved
         here).

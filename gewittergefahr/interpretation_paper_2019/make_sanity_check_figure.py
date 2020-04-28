@@ -26,6 +26,9 @@ from gewittergefahr.scripts import plot_input_examples as plot_examples
 # make_saliency_figure.py.
 
 NONE_STRINGS = ['None', 'none']
+POSSIBLE_MAX_COLOUR_VALUES = numpy.array([
+    0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2
+])
 
 RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
 RADAR_FIELD_NAMES = [
@@ -73,7 +76,8 @@ COLOUR_MAP_HELP_STRING = (
     '`matplotlib.pyplot.get_cmap`.'
 )
 MAX_VALUES_HELP_STRING = (
-    'Max absolute saliency in each colour scheme (one per file).'
+    'Max absolute saliency in each colour scheme (one per file).  If you '
+    'want these values to be set automatically, leave this argument alone.'
 )
 HALF_NUM_CONTOURS_HELP_STRING = (
     'Number of saliency contours on either side of zero (positive and '
@@ -105,8 +109,8 @@ INPUT_ARG_PARSER.add_argument(
     help=COLOUR_MAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_VALUES_ARG_NAME, type=float, nargs='+', required=True,
-    help=MAX_VALUES_HELP_STRING
+    '--' + MAX_VALUES_ARG_NAME, type=float, nargs='+', required=False,
+    default=[-1], help=MAX_VALUES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + HALF_NUM_CONTOURS_ARG_NAME, type=int, required=False,
@@ -287,8 +291,8 @@ def _plot_one_composite(
     :param composite_name_verbose: Verbose composite name (will be used in
         figure title).
     :param colour_map_object: See documentation at top of file.
-    :param max_colour_value: Same.
-    :param half_num_contours: Same.
+    :param max_colour_value: Max value in colour bar (may be NaN).
+    :param half_num_contours: See documentation at top of file.
     :param smoothing_radius_grid_cells: Same.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
@@ -308,6 +312,21 @@ def _plot_one_composite(
 
     num_fields = mean_radar_matrix.shape[-1]
     num_heights = mean_radar_matrix.shape[-2]
+
+    if numpy.isnan(max_colour_value):
+        max_colour_value = numpy.percentile(
+            numpy.absolute(mean_saliency_matrix[0, ...]), 99.
+        )
+        these_indices = numpy.where(
+            max_colour_value <= POSSIBLE_MAX_COLOUR_VALUES
+        )[0]
+
+        if len(these_indices) == 0:
+            this_index = -1
+        else:
+            this_index = these_indices[0]
+
+        max_colour_value = POSSIBLE_MAX_COLOUR_VALUES[this_index]
 
     handle_dict = plot_examples.plot_one_example(
         list_of_predictor_matrices=[mean_radar_matrix],
@@ -502,7 +521,12 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
         None if f in NONE_STRINGS else f for f in monte_carlo_file_names
     ]
 
-    error_checking.assert_is_greater_numpy_array(max_colour_values, 0.)
+    if max_colour_values[0] < 0:
+        max_colour_values = numpy.full(num_composites, numpy.nan)
+
+    error_checking.assert_is_greater_numpy_array(
+        max_colour_values, 0., allow_nan=False
+    )
     error_checking.assert_is_numpy_array(
         max_colour_values, exact_dimensions=expected_dim
     )
@@ -520,7 +544,7 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
     panel_file_names = [None] * num_composites
 
     for i in range(num_composites):
-        panel_file_names[i] = _plot_one_composite(
+        panel_file_names[i], max_colour_values[i] = _plot_one_composite(
             saliency_file_name=saliency_file_names[i],
             monte_carlo_file_name=monte_carlo_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
