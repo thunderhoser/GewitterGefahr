@@ -11,6 +11,7 @@ from PIL import Image
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import monte_carlo
+from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -71,10 +72,11 @@ COLOUR_MAP_HELP_STRING = (
     'colour maps.'
 )
 MIN_VALUES_HELP_STRING = (
-    'Minimum class activation in each colour scheme (one per file).'
+    'Minimum class activation in each colour scheme (one per file).  If you '
+    'want these values to be set automatically, leave this argument alone.'
 )
-MAX_VALUES_HELP_STRING = (
-    'Max class activation in each colour scheme (one per file).'
+MAX_VALUES_HELP_STRING = 'Same as `{0:s}` but for max values.'.format(
+    MIN_VALUES_ARG_NAME
 )
 NUM_CONTOURS_HELP_STRING = 'Number of contours for class activation.'
 SMOOTHING_RADIUS_HELP_STRING = (
@@ -285,14 +287,16 @@ def _plot_one_composite(
     :param composite_name_verbose: Verbose composite name (will be used in
         figure title).
     :param colour_map_object: See documentation at top of file.
-    :param min_colour_value: Same.
-    :param max_colour_value: Same.
+    :param min_colour_value: Minimum value in colour bar (may be NaN).
+    :param max_colour_value: Max value in colour bar (may be NaN).
     :param num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :return: main_figure_file_name: Path to main image file created by this
         method.
+    :return: min_colour_value: Same as input but cannot be None.
+    :return: max_colour_value: Same as input but cannot be None.
     """
 
     (
@@ -309,8 +313,20 @@ def _plot_one_composite(
     print(numpy.percentile(mean_class_activn_matrix, 99.))
     print(numpy.percentile(mean_class_activn_matrix, 100.))
 
-    min_colour_value_log10 = numpy.log10(min_colour_value)
-    max_colour_value_log10 = numpy.log10(max_colour_value)
+    if numpy.isnan(min_colour_value) or numpy.isnan(max_colour_value):
+        min_colour_value_log10 = number_rounding.floor_to_nearest(
+            numpy.log10(numpy.percentile(mean_class_activn_matrix, 1.)), 0.1
+        )
+        max_colour_value_log10 = number_rounding.ceiling_to_nearest(
+            numpy.log10(numpy.percentile(mean_class_activn_matrix, 99.)), 0.1
+        )
+
+        min_colour_value = 10 ** min_colour_value_log10
+        max_colour_value = 10 ** max_colour_value_log10
+    else:
+        min_colour_value_log10 = numpy.log10(min_colour_value)
+        max_colour_value_log10 = numpy.log10(max_colour_value)
+
     contour_interval_log10 = (
         (max_colour_value_log10 - min_colour_value_log10) /
         (num_contours - 1)
@@ -403,7 +419,7 @@ def _plot_one_composite(
         border_width_pixels=10
     )
 
-    return main_figure_file_name
+    return main_figure_file_name, min_colour_value, max_colour_value
 
 
 def _add_colour_bar(figure_file_name, colour_map_object, min_colour_value,
@@ -522,8 +538,8 @@ def _run(gradcam_file_names, monte_carlo_file_names, composite_names,
     ]
 
     if max_colour_values[0] < 0 or min_colour_values[0] < 0:
-        min_colour_values = numpy.full(num_composites, 0.01)
-        max_colour_values = numpy.full(num_composites, 10 ** 1.5)
+        min_colour_values = numpy.full(num_composites, numpy.nan)
+        max_colour_values = numpy.full(num_composites, numpy.nan)
 
     error_checking.assert_is_numpy_array(
         min_colour_values, exact_dimensions=expected_dim
@@ -532,8 +548,10 @@ def _run(gradcam_file_names, monte_carlo_file_names, composite_names,
         max_colour_values, exact_dimensions=expected_dim
     )
 
-    error_checking.assert_is_greater_numpy_array(min_colour_values, 0.)
-    assert numpy.all(max_colour_values > min_colour_values)
+    error_checking.assert_is_greater_numpy_array(
+        min_colour_values, 0., allow_nan=True
+    )
+    assert not numpy.any(max_colour_values <= min_colour_values)
 
     composite_names_abbrev = [
         n.replace('_', '-').lower() for n in composite_names
@@ -548,7 +566,9 @@ def _run(gradcam_file_names, monte_carlo_file_names, composite_names,
     panel_file_names = [None] * num_composites
 
     for i in range(num_composites):
-        panel_file_names[i] = _plot_one_composite(
+        (
+            panel_file_names[i], min_colour_values[i], max_colour_values[i]
+        ) = _plot_one_composite(
             gradcam_file_name=gradcam_file_names[i],
             monte_carlo_file_name=monte_carlo_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
