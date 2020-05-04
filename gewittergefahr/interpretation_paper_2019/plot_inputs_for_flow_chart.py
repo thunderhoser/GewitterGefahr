@@ -69,51 +69,71 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_one_example(radar_matrix, full_storm_id_string, storm_time_unix_sec,
-                      model_metadata_dict, output_dir_name):
-    """Plots radar image for one example.
+def _plot_one_example(
+        radar_matrix, sounding_matrix, full_storm_id_string,
+        storm_time_unix_sec, model_metadata_dict, output_dir_name):
+    """Plots predictors for one example.
 
-    M = number of rows in grid
-    N = number of columns in grid
-    H = number of heights in grid
-    F = number of radar fields
+    M = number of rows in radar grid
+    N = number of columns in radar grid
+    H_r = number of heights in radar grid
+    F_r = number of radar fields
+    H_s = number of sounding heights
+    F_s = number of sounding fields
 
-    :param radar_matrix: 1-by-M-by-N-by-H-by-F numpy array of radar values.
+    :param radar_matrix: numpy array (1 x M x N x H_r x F_r) of radar values.
+    :param sounding_matrix: numpy array (1 x H_s x F_s) of sounding values.
     :param full_storm_id_string: Full storm ID.
     :param storm_time_unix_sec: Valid time.
     :param model_metadata_dict: Dictionary returned by
         `cnn.read_model_metadata`.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
-    :return: main_figure_file_name: Path to main image file created by this
+    :return: radar_figure_file_name: Path to radar figure created by this
         method.
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+    radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
 
-    num_fields = radar_matrix.shape[-1]
-    num_heights = radar_matrix.shape[-2]
+    num_radar_fields = radar_matrix.shape[-1]
+    num_radar_heights = radar_matrix.shape[-2]
 
     handle_dict = plot_examples.plot_one_example(
-        list_of_predictor_matrices=[radar_matrix],
+        list_of_predictor_matrices=[radar_matrix, sounding_matrix],
         model_metadata_dict=model_metadata_dict, pmm_flag=False,
-        example_index=0, plot_sounding=False, allow_whitespace=True,
+        example_index=0, plot_sounding=True, allow_whitespace=True,
         plot_panel_names=True, panel_name_font_size=PANEL_NAME_FONT_SIZE,
         add_titles=False, label_colour_bars=True,
         colour_bar_length=COLOUR_BAR_LENGTH,
         colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
-        num_panel_rows=num_heights)
+        num_panel_rows=num_radar_heights
+    )
+
+    sounding_file_name = plot_examples.metadata_to_file_name(
+        output_dir_name=output_dir_name, is_sounding=True, pmm_flag=False,
+        full_storm_id_string=full_storm_id_string,
+        storm_time_unix_sec=storm_time_unix_sec
+    )
+
+    print('Saving figure to: "{0:s}"...'.format(sounding_file_name))
+
+    sounding_figure_object = handle_dict[plot_examples.SOUNDING_FIGURE_KEY]
+    sounding_figure_object.savefig(
+        sounding_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(sounding_figure_object)
 
     figure_objects = handle_dict[plot_examples.RADAR_FIGURES_KEY]
-    panel_file_names = [None] * num_fields
+    panel_file_names = [None] * num_radar_fields
 
-    for k in range(num_fields):
+    for k in range(num_radar_fields):
         panel_file_names[k] = plot_examples.metadata_to_file_name(
             output_dir_name=output_dir_name, is_sounding=False, pmm_flag=False,
             full_storm_id_string=full_storm_id_string,
             storm_time_unix_sec=storm_time_unix_sec,
-            radar_field_name=field_names[k]
+            radar_field_name=radar_field_names[k]
         )
 
         print('Saving figure to: "{0:s}"...'.format(panel_file_names[k]))
@@ -124,29 +144,35 @@ def _plot_one_example(radar_matrix, full_storm_id_string, storm_time_unix_sec,
         )
         pyplot.close(figure_objects[k])
 
-    main_figure_file_name = plot_examples.metadata_to_file_name(
+    radar_figure_file_name = plot_examples.metadata_to_file_name(
         output_dir_name=output_dir_name, is_sounding=False, pmm_flag=False,
         full_storm_id_string=full_storm_id_string,
-        storm_time_unix_sec=storm_time_unix_sec)
+        storm_time_unix_sec=storm_time_unix_sec
+    )
 
-    print('Concatenating panels to: "{0:s}"...'.format(main_figure_file_name))
+    print('Concatenating panels to: "{0:s}"...'.format(radar_figure_file_name))
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
-        output_file_name=main_figure_file_name,
-        num_panel_rows=1, num_panel_columns=num_fields, border_width_pixels=50)
-
+        output_file_name=radar_figure_file_name,
+        num_panel_rows=1, num_panel_columns=num_radar_fields,
+        border_width_pixels=50
+    )
     imagemagick_utils.resize_image(
-        input_file_name=main_figure_file_name,
-        output_file_name=main_figure_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
-
+        input_file_name=radar_figure_file_name,
+        output_file_name=radar_figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
     imagemagick_utils.trim_whitespace(
-        input_file_name=main_figure_file_name,
-        output_file_name=main_figure_file_name,
-        border_width_pixels=10)
+        input_file_name=radar_figure_file_name,
+        output_file_name=radar_figure_file_name,
+        border_width_pixels=10
+    )
 
-    return main_figure_file_name
+    for this_file_name in panel_file_names:
+        os.remove(this_file_name)
+
+    return radar_figure_file_name
 
 
 def _run(activation_file_name, num_examples, top_example_dir_name,
@@ -164,7 +190,8 @@ def _run(activation_file_name, num_examples, top_example_dir_name,
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=output_dir_name
+    )
 
     print('Reading data from: "{0:s}"...'.format(activation_file_name))
     activation_matrix, activation_metadata_dict = (
@@ -180,13 +207,15 @@ def _run(activation_file_name, num_examples, top_example_dir_name,
 
         raise TypeError(error_string)
 
-    full_storm_id_strings = activation_metadata_dict[
-        model_activation.FULL_IDS_KEY]
-    storm_times_unix_sec = activation_metadata_dict[
-        model_activation.STORM_TIMES_KEY]
-
-    model_file_name = activation_metadata_dict[
-        model_activation.MODEL_FILE_NAME_KEY]
+    full_storm_id_strings = (
+        activation_metadata_dict[model_activation.FULL_IDS_KEY]
+    )
+    storm_times_unix_sec = (
+        activation_metadata_dict[model_activation.STORM_TIMES_KEY]
+    )
+    model_file_name = (
+        activation_metadata_dict[model_activation.MODEL_FILE_NAME_KEY]
+    )
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )
@@ -199,7 +228,6 @@ def _run(activation_file_name, num_examples, top_example_dir_name,
     training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
     training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] = RADAR_HEIGHTS_M_AGL
-    training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
 
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY][
@@ -221,16 +249,18 @@ def _run(activation_file_name, num_examples, top_example_dir_name,
     print(SEPARATOR_STRING)
 
     radar_matrix = example_dict[testing_io.INPUT_MATRICES_KEY][0]
+    sounding_matrix = example_dict[testing_io.INPUT_MATRICES_KEY][-1]
     num_examples = len(full_storm_id_strings)
 
     for i in range(num_examples):
         _plot_one_example(
             radar_matrix=radar_matrix[[i], ...],
+            sounding_matrix=sounding_matrix[[i], ...],
             full_storm_id_string=full_storm_id_strings[i],
             storm_time_unix_sec=storm_times_unix_sec[i],
             model_metadata_dict=model_metadata_dict,
-            output_dir_name=output_dir_name)
-
+            output_dir_name=output_dir_name
+        )
         print('\n')
 
 
@@ -239,7 +269,8 @@ if __name__ == '__main__':
 
     _run(
         activation_file_name=getattr(
-            INPUT_ARG_OBJECT, ACTIVATION_FILE_ARG_NAME),
+            INPUT_ARG_OBJECT, ACTIVATION_FILE_ARG_NAME
+        ),
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
