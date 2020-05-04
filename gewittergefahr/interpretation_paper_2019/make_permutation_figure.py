@@ -131,7 +131,7 @@ def _run(forward_test_file_name, backwards_test_file_name, num_predictors,
     )
 
     axes_object_matrix[1, 0].set_title('Backward single-pass test')
-    axes_object_matrix[1, 0].set_xlabel('Area under ROC curve')
+    axes_object_matrix[1, 0].set_xlabel('Area under ROC curve (AUC)')
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[1, 0], label_string='(c)',
         x_coord_normalized=-0.01, y_coord_normalized=0.925
@@ -145,7 +145,7 @@ def _run(forward_test_file_name, backwards_test_file_name, num_predictors,
     )
 
     axes_object_matrix[1, 1].set_title('Backward multi-pass test')
-    axes_object_matrix[1, 1].set_xlabel('Area under ROC curve')
+    axes_object_matrix[1, 1].set_xlabel('Area under ROC curve (AUC)')
     axes_object_matrix[1, 1].set_ylabel('')
     plotting_utils.label_axes(
         axes_object=axes_object_matrix[1, 1], label_string='(d)',
