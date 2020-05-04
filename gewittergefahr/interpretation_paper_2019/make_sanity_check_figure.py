@@ -31,9 +31,13 @@ POSSIBLE_MAX_COLOUR_VALUES = numpy.array([
 ])
 
 RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
+# RADAR_FIELD_NAMES = [
+#     radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
+#     radar_utils.SPECTRUM_WIDTH_NAME
+# ]
 RADAR_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
-    radar_utils.SPECTRUM_WIDTH_NAME
+    radar_utils.DIVERGENCE_NAME
 ]
 
 MIN_COLOUR_VALUE_LOG10 = -3.
@@ -585,6 +589,10 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
     imagemagick_utils.trim_whitespace(
         input_file_name=figure_file_name, output_file_name=figure_file_name,
         border_width_pixels=10
+    )
+    imagemagick_utils.resize_image(
+        input_file_name=figure_file_name, output_file_name=figure_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
     )
 
 
