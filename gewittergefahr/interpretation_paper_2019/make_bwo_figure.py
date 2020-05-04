@@ -17,9 +17,13 @@ from gewittergefahr.scripts import plot_input_examples as plot_examples
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
+# RADAR_FIELD_NAMES = [
+#     radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
+#     radar_utils.SPECTRUM_WIDTH_NAME
+# ]
 RADAR_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
-    radar_utils.SPECTRUM_WIDTH_NAME
+    radar_utils.DIVERGENCE_NAME
 ]
 
 DIFF_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
