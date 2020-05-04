@@ -272,8 +272,8 @@ def _plot_sounding(
         title_string=None)
 
     axes_object.set_xlabel(r'Temperature ($^{\circ}$C)')
-    # axes_object.set_ylabel('Pressure (hPa)')
-    axes_object.set_ylabel('Pressure (mb)')
+    axes_object.set_ylabel('Pressure (hPa)')
+    # axes_object.set_ylabel('Pressure (mb)')
     return figure_object, axes_object
 
 
