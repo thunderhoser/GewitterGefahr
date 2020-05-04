@@ -76,8 +76,8 @@ COLOUR_MAP_HELP_STRING = (
     'colour maps.'
 )
 MIN_VALUES_HELP_STRING = (
-    'Minimum class activation in each colour scheme (one per file).  If you '
-    'want these values to be set automatically, leave this argument alone.'
+    'Minimum class activation in each colour scheme (one per file).  Use '
+    'negative values to let these be determined automatically.'
 )
 MAX_VALUES_HELP_STRING = 'Same as `{0:s}` but for max values.'.format(
     MIN_VALUES_ARG_NAME
@@ -109,12 +109,12 @@ INPUT_ARG_PARSER.add_argument(
     help=COLOUR_MAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_VALUES_ARG_NAME, type=float, nargs='+', required=False,
-    default=[-1], help=MIN_VALUES_HELP_STRING
+    '--' + MIN_VALUES_ARG_NAME, type=float, nargs='+', required=True,
+    help=MIN_VALUES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_VALUES_ARG_NAME, type=float, nargs='+', required=False,
-    default=[-1], help=MAX_VALUES_HELP_STRING
+    '--' + MAX_VALUES_ARG_NAME, type=float, nargs='+', required=True,
+    help=MAX_VALUES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_CONTOURS_ARG_NAME, type=int, required=False,
@@ -547,19 +547,17 @@ def _run(gradcam_file_names, monte_carlo_file_names, composite_names,
         None if f in NONE_STRINGS else f for f in monte_carlo_file_names
     ]
 
-    if max_colour_values[0] < 0 or min_colour_values[0] < 0:
-        min_colour_values = numpy.full(num_composites, numpy.nan)
-        max_colour_values = numpy.full(num_composites, numpy.nan)
+    nan_indices = numpy.where(numpy.logical_or(
+        max_colour_values < 0, min_colour_values < 0
+    ))[0]
+    min_colour_values[nan_indices] = numpy.nan
+    max_colour_values[nan_indices] = numpy.nan
 
     error_checking.assert_is_numpy_array(
         min_colour_values, exact_dimensions=expected_dim
     )
     error_checking.assert_is_numpy_array(
         max_colour_values, exact_dimensions=expected_dim
-    )
-
-    error_checking.assert_is_greater_numpy_array(
-        min_colour_values, 0., allow_nan=True
     )
     assert not numpy.any(max_colour_values <= min_colour_values)
 

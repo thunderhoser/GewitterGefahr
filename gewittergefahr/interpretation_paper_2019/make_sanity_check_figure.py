@@ -80,8 +80,8 @@ COLOUR_MAP_HELP_STRING = (
     '`matplotlib.pyplot.get_cmap`.'
 )
 MAX_VALUES_HELP_STRING = (
-    'Max absolute saliency in each colour scheme (one per file).  If you '
-    'want these values to be set automatically, leave this argument alone.'
+    'Max absolute saliency in each colour scheme (one per file).  Use negative '
+    'values to let these be determined automatically.'
 )
 HALF_NUM_CONTOURS_HELP_STRING = (
     'Number of saliency contours on either side of zero (positive and '
@@ -113,8 +113,8 @@ INPUT_ARG_PARSER.add_argument(
     help=COLOUR_MAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_VALUES_ARG_NAME, type=float, nargs='+', required=False,
-    default=[-1], help=MAX_VALUES_HELP_STRING
+    '--' + MAX_VALUES_ARG_NAME, type=float, nargs='+', required=True,
+    help=MAX_VALUES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + HALF_NUM_CONTOURS_ARG_NAME, type=int, required=False,
@@ -527,12 +527,7 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
         None if f in NONE_STRINGS else f for f in monte_carlo_file_names
     ]
 
-    if max_colour_values[0] < 0:
-        max_colour_values = numpy.full(num_composites, numpy.nan)
-
-    error_checking.assert_is_greater_numpy_array(
-        max_colour_values, 0., allow_nan=True
-    )
+    max_colour_values[max_colour_values <= 0] = numpy.nan
     error_checking.assert_is_numpy_array(
         max_colour_values, exact_dimensions=expected_dim
     )
