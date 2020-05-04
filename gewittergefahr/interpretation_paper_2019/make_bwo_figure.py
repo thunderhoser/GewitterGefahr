@@ -289,21 +289,21 @@ def _run(bwo_file_name, output_dir_name):
         sounding_font_size=SOUNDING_FONT_SIZE, num_panel_rows=num_radar_heights,
         plot_radar_diffs=False)
 
-    panel_file_names = [None] * 5
-    panel_file_names[3] = '{0:s}/sounding_before.jpg'.format(output_dir_name)
+    panel_file_names = [None] * 4
+    panel_file_names[2] = '{0:s}/sounding_before.jpg'.format(output_dir_name)
 
     _write_sounding_figure(
         figure_object=handle_dict[plot_examples.SOUNDING_FIGURE_KEY],
-        title_string='(d) Original sounding',
-        output_file_name=panel_file_names[3]
+        title_string='(c) Original sounding',
+        output_file_name=panel_file_names[2]
     )
 
-    panel_file_names[0] = _write_radar_figures(
-        figure_objects=handle_dict[plot_examples.RADAR_FIGURES_KEY],
-        field_names=radar_field_names, composite_name='before',
-        concat_title_string='(a) Original radar image',
-        output_dir_name=output_dir_name
-    )
+    # panel_file_names[0] = _write_radar_figures(
+    #     figure_objects=handle_dict[plot_examples.RADAR_FIGURES_KEY],
+    #     field_names=radar_field_names, composite_name='before',
+    #     concat_title_string='(a) Original radar image',
+    #     output_dir_name=output_dir_name
+    # )
 
     print(SEPARATOR_STRING)
 
@@ -320,18 +320,18 @@ def _run(bwo_file_name, output_dir_name):
         sounding_font_size=SOUNDING_FONT_SIZE, num_panel_rows=num_radar_heights,
         plot_radar_diffs=False)
 
-    panel_file_names[4] = '{0:s}/sounding_after.jpg'.format(output_dir_name)
+    panel_file_names[3] = '{0:s}/sounding_after.jpg'.format(output_dir_name)
 
     _write_sounding_figure(
         figure_object=handle_dict[plot_examples.SOUNDING_FIGURE_KEY],
-        title_string='(e) Synthetic sounding',
-        output_file_name=panel_file_names[4]
+        title_string='(d) Synthetic sounding',
+        output_file_name=panel_file_names[3]
     )
 
-    panel_file_names[1] = _write_radar_figures(
+    panel_file_names[0] = _write_radar_figures(
         figure_objects=handle_dict[plot_examples.RADAR_FIGURES_KEY],
         field_names=radar_field_names, composite_name='after',
-        concat_title_string='(b) Synthetic radar image',
+        concat_title_string='(a) Synthetic radar image',
         output_dir_name=output_dir_name)
 
     print(SEPARATOR_STRING)
@@ -352,10 +352,10 @@ def _run(bwo_file_name, output_dir_name):
         diff_colour_map_object=DIFF_COLOUR_MAP_OBJECT,
         max_diff_percentile=MAX_DIFF_PERCENTILE)
 
-    panel_file_names[2] = _write_radar_figures(
+    panel_file_names[1] = _write_radar_figures(
         figure_objects=handle_dict[plot_examples.RADAR_FIGURES_KEY],
         field_names=radar_field_names, composite_name='difference',
-        concat_title_string='(c) Radar difference',
+        concat_title_string='(b) Radar difference',
         output_dir_name=output_dir_name)
 
     print(SEPARATOR_STRING)
@@ -366,7 +366,7 @@ def _run(bwo_file_name, output_dir_name):
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
         output_file_name=figure_file_name, border_width_pixels=100,
-        num_panel_rows=2, num_panel_columns=3,
+        num_panel_rows=2, num_panel_columns=2,
         extra_args_string='-gravity Center')
 
     imagemagick_utils.trim_whitespace(
