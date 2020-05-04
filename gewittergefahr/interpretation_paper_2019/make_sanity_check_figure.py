@@ -574,10 +574,10 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
     figure_file_name = '{0:s}/saliency_concat.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(figure_file_name))
 
-    num_panel_rows = int(numpy.floor(
+    num_panel_rows = int(numpy.ceil(
         numpy.sqrt(num_composites)
     ))
-    num_panel_columns = int(numpy.ceil(
+    num_panel_columns = int(numpy.floor(
         float(num_composites) / num_panel_rows
     ))
 
