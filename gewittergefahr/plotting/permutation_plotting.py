@@ -254,13 +254,20 @@ def _plot_bars(
             backwards_flag=backwards_flag, multipass_flag=multipass_flag
         )
 
+        # axes_object.barh(
+        #     y_tick_coords, mean_costs, color=face_colour_arg,
+        #     edgecolor=plotting_utils.colour_from_numpy_to_tuple(
+        #         BAR_EDGE_COLOUR),
+        #     linewidth=BAR_EDGE_WIDTH, xerr=error_matrix,
+        #     ecolor=plotting_utils.colour_from_numpy_to_tuple(ERROR_BAR_COLOUR),
+        #     capsize=ERROR_BAR_CAP_SIZE, error_kw=ERROR_BAR_DICT
+        # )
+
         axes_object.barh(
             y_tick_coords, mean_costs, color=face_colour_arg,
             edgecolor=plotting_utils.colour_from_numpy_to_tuple(
                 BAR_EDGE_COLOUR),
-            linewidth=BAR_EDGE_WIDTH, xerr=error_matrix,
-            ecolor=plotting_utils.colour_from_numpy_to_tuple(ERROR_BAR_COLOUR),
-            capsize=ERROR_BAR_CAP_SIZE, error_kw=ERROR_BAR_DICT
+            linewidth=BAR_EDGE_WIDTH
         )
     else:
         significant_flags = numpy.full(num_steps, False, dtype=bool)
