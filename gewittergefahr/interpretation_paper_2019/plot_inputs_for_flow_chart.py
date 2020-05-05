@@ -70,8 +70,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_one_example(
-        radar_matrix, sounding_matrix, full_storm_id_string,
-        storm_time_unix_sec, model_metadata_dict, output_dir_name):
+        radar_matrix, sounding_matrix, sounding_pressures_pascals,
+        full_storm_id_string, storm_time_unix_sec, model_metadata_dict,
+        output_dir_name):
     """Plots predictors for one example.
 
     M = number of rows in radar grid
@@ -83,6 +84,8 @@ def _plot_one_example(
 
     :param radar_matrix: numpy array (1 x M x N x H_r x F_r) of radar values.
     :param sounding_matrix: numpy array (1 x H_s x F_s) of sounding values.
+    :param sounding_pressures_pascals: numpy array (length H_s) of sounding
+        pressures.
     :param full_storm_id_string: Full storm ID.
     :param storm_time_unix_sec: Valid time.
     :param model_metadata_dict: Dictionary returned by
@@ -101,9 +104,11 @@ def _plot_one_example(
 
     handle_dict = plot_examples.plot_one_example(
         list_of_predictor_matrices=[radar_matrix, sounding_matrix],
-        model_metadata_dict=model_metadata_dict, pmm_flag=False,
-        example_index=0, plot_sounding=True, allow_whitespace=True,
-        plot_panel_names=True, panel_name_font_size=PANEL_NAME_FONT_SIZE,
+        model_metadata_dict=model_metadata_dict,
+        pmm_flag=False, example_index=0, plot_sounding=True,
+        sounding_pressures_pascals=sounding_pressures_pascals,
+        allow_whitespace=True, plot_panel_names=True,
+        panel_name_font_size=PANEL_NAME_FONT_SIZE,
         add_titles=False, label_colour_bars=True,
         colour_bar_length=COLOUR_BAR_LENGTH,
         colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
@@ -250,12 +255,16 @@ def _run(activation_file_name, num_examples, top_example_dir_name,
 
     radar_matrix = example_dict[testing_io.INPUT_MATRICES_KEY][0]
     sounding_matrix = example_dict[testing_io.INPUT_MATRICES_KEY][-1]
+    sounding_pressure_matrix_pa = (
+        example_dict[testing_io.SOUNDING_PRESSURES_KEY]
+    )
     num_examples = len(full_storm_id_strings)
 
     for i in range(num_examples):
         _plot_one_example(
             radar_matrix=radar_matrix[[i], ...],
             sounding_matrix=sounding_matrix[[i], ...],
+            sounding_pressures_pascals=sounding_pressure_matrix_pa[i, ...],
             full_storm_id_string=full_storm_id_strings[i],
             storm_time_unix_sec=storm_times_unix_sec[i],
             model_metadata_dict=model_metadata_dict,
