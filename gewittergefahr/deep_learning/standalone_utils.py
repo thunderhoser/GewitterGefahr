@@ -11,8 +11,8 @@ C = number of channels before operation
 """
 
 import numpy
-import keras.layers
-from keras import backend as K
+import tensorflow.keras.layers as layers
+import tensorflow.python.keras.backend as K
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
 
@@ -72,6 +72,7 @@ def do_2d_convolution(
 
     if len(feature_matrix.shape) == 3:
         feature_matrix = numpy.expand_dims(feature_matrix, axis=0)
+
     error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=4)
 
     if pad_edges:
@@ -82,9 +83,10 @@ def do_2d_convolution(
     feature_tensor = K.conv2d(
         x=K.variable(feature_matrix), kernel=K.variable(kernel_matrix),
         strides=(stride_length_px, stride_length_px), padding=padding_string,
-        data_format='channels_last')
+        data_format='channels_last'
+    )
 
-    return feature_tensor.eval(session=K.get_session())
+    return feature_tensor.numpy()
 
 
 def do_3d_convolution(
@@ -117,6 +119,7 @@ def do_3d_convolution(
 
     if len(feature_matrix.shape) == 4:
         feature_matrix = numpy.expand_dims(feature_matrix, axis=0)
+
     error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=5)
 
     if pad_edges:
@@ -127,9 +130,10 @@ def do_3d_convolution(
     feature_tensor = K.conv3d(
         x=K.variable(feature_matrix), kernel=K.variable(kernel_matrix),
         strides=(stride_length_px, stride_length_px, stride_length_px),
-        padding=padding_string, data_format='channels_last')
+        padding=padding_string, data_format='channels_last'
+    )
 
-    return feature_tensor.eval(session=K.get_session())
+    return feature_tensor.numpy()
 
 
 def do_activation(input_values, function_name, alpha=0.2):
@@ -144,24 +148,25 @@ def do_activation(input_values, function_name, alpha=0.2):
 
     architecture_utils.check_activation_function(
         activation_function_string=function_name, alpha_for_elu=alpha,
-        alpha_for_relu=alpha)
+        alpha_for_relu=alpha
+    )
 
     input_object = K.placeholder()
 
     if function_name == architecture_utils.ELU_FUNCTION_STRING:
         function_object = K.function(
             [input_object],
-            [keras.layers.ELU(alpha=alpha)(input_object)]
+            [layers.ELU(alpha=alpha)(input_object)]
         )
     elif function_name == architecture_utils.RELU_FUNCTION_STRING:
         function_object = K.function(
             [input_object],
-            [keras.layers.LeakyReLU(alpha=alpha)(input_object)]
+            [layers.LeakyReLU(alpha=alpha)(input_object)]
         )
     else:
         function_object = K.function(
             [input_object],
-            [keras.layers.Activation(function_name)(input_object)]
+            [layers.Activation(function_name)(input_object)]
         )
 
     return function_object([input_values])[0]
@@ -192,14 +197,17 @@ def do_2d_pooling(feature_matrix, stride_length_px=2,
 
     if len(feature_matrix.shape) == 3:
         feature_matrix = numpy.expand_dims(feature_matrix, axis=0)
+
     error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=4)
 
     feature_tensor = K.pool2d(
         x=K.variable(feature_matrix), pool_mode=pooling_type_string,
         pool_size=(stride_length_px, stride_length_px),
         strides=(stride_length_px, stride_length_px), padding='valid',
-        data_format='channels_last')
-    return feature_tensor.eval(session=K.get_session())
+        data_format='channels_last'
+    )
+
+    return feature_tensor.numpy()
 
 
 def do_3d_pooling(feature_matrix, stride_length_px=2,
@@ -208,7 +216,7 @@ def do_3d_pooling(feature_matrix, stride_length_px=2,
 
     :param feature_matrix: Input feature maps (numpy array).  Dimensions must be
         M x N x H x C or 1 x M x N x H x C.
-    :param stride_length_px: See doc for `do_2d_pooling`.
+    :param stride_length_px: See doc for `do_2d_pooling`.import tensorflow.python.keras.backend as K
     :param pooling_type_string: Pooling type (must be accepted by
         `_check_pooling_type`).
     :return: feature_matrix: Output feature maps (numpy array).  Dimensions will
@@ -222,14 +230,17 @@ def do_3d_pooling(feature_matrix, stride_length_px=2,
 
     if len(feature_matrix.shape) == 4:
         feature_matrix = numpy.expand_dims(feature_matrix, axis=0)
+
     error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=5)
 
     feature_tensor = K.pool3d(
         x=K.variable(feature_matrix), pool_mode=pooling_type_string,
         pool_size=(stride_length_px, stride_length_px, stride_length_px),
         strides=(stride_length_px, stride_length_px, stride_length_px),
-        padding='valid', data_format='channels_last')
-    return feature_tensor.eval(session=K.get_session())
+        padding='valid', data_format='channels_last'
+    )
+
+    return feature_tensor.numpy()
 
 
 def do_batch_normalization(
