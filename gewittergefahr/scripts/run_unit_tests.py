@@ -13,13 +13,10 @@ def _run():
     This is effectively the main method.
     """
 
-    script_dir_name = os.path.dirname(__file__)
-    print(script_dir_name)
+    script_dir_name = os.getcwd()
     top_gg_dir_name = '/'.join(script_dir_name.split('/')[:-1])
-    print(top_gg_dir_name)
 
     test_file_pattern = '{0:s}/*/*_test.py'.format(top_gg_dir_name)
-    print(test_file_pattern)
     test_file_names = glob.glob(test_file_pattern)
 
     for this_file_name in test_file_names:
