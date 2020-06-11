@@ -107,7 +107,7 @@ def replace_missing_values(feature_table, replacement_dict=None,
     """
 
     num_real_values_by_feature = numpy.sum(
-        numpy.invert(numpy.isnan(feature_table.as_matrix())), axis=0
+        numpy.invert(numpy.isnan(feature_table.to_numpy())), axis=0
     )
 
     if numpy.any(num_real_values_by_feature < 2):
@@ -129,14 +129,14 @@ def replace_missing_values(feature_table, replacement_dict=None,
             replacement_dict = {
                 FEATURE_NAMES_KEY: list(feature_table),
                 ORIGINAL_MEANS_KEY:
-                    numpy.nanmean(feature_table.as_matrix(), axis=0)
+                    numpy.nanmean(feature_table.to_numpy(), axis=0)
             }
 
         else:
             replacement_dict = {
                 FEATURE_NAMES_KEY: list(feature_table),
                 ORIGINAL_MEDIANS_KEY:
-                    numpy.nanmedian(feature_table.as_matrix(), axis=0)
+                    numpy.nanmedian(feature_table.to_numpy(), axis=0)
             }
 
     else:
@@ -202,7 +202,7 @@ def standardize_features(feature_table, standardization_dict=None):
     """
 
     num_real_values_by_feature = numpy.sum(
-        numpy.invert(numpy.isnan(feature_table.as_matrix())), axis=0
+        numpy.invert(numpy.isnan(feature_table.to_numpy())), axis=0
     )
 
     if numpy.any(num_real_values_by_feature < 2):
@@ -210,9 +210,9 @@ def standardize_features(feature_table, standardization_dict=None):
                          'values (not NaN).')
 
     if standardization_dict is None:
-        feature_means = numpy.nanmean(feature_table.as_matrix(), axis=0)
+        feature_means = numpy.nanmean(feature_table.to_numpy(), axis=0)
         feature_standard_deviations = numpy.nanstd(
-            feature_table.as_matrix(), axis=0, ddof=1
+            feature_table.to_numpy(), axis=0, ddof=1
         )
 
         standardization_dict = {
@@ -278,7 +278,7 @@ def perform_svd(feature_table):
     standardized_feature_table, standardization_dict = standardize_features(
         feature_table)
     principal_component_matrix, amplitude_vector, eof_matrix = numpy.linalg.svd(
-        standardized_feature_table.as_matrix()
+        standardized_feature_table.to_numpy()
     )
 
     svd_dictionary = {
@@ -356,5 +356,5 @@ def transform_features_via_svd(
         feature_table, standardization_dict=standardization_dict)
 
     return numpy.dot(
-        standardized_feature_table.as_matrix(), svd_dictionary[EOF_MATRIX_KEY]
+        standardized_feature_table.to_numpy(), svd_dictionary[EOF_MATRIX_KEY]
     )

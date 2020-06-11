@@ -108,8 +108,8 @@ class ProbabilityDistributionsTests(unittest.TestCase):
             NEW_FEATURE_TABLE, orig_feature_table=None)
 
         self.assertTrue(numpy.allclose(
-            this_feature_table.as_matrix(),
-            FEATURE_TABLE_UNIF_MARGINALS_NEW_TO_NEW.as_matrix(), atol=TOLERANCE,
+            this_feature_table.to_numpy(),
+            FEATURE_TABLE_UNIF_MARGINALS_NEW_TO_NEW.to_numpy(), atol=TOLERANCE,
             equal_nan=True))
 
     def test_transform_each_marginal_to_uniform_columns_in_same_order(self):
@@ -124,8 +124,8 @@ class ProbabilityDistributionsTests(unittest.TestCase):
             orig_feature_table=ORIG_FEATURE_TABLE)
 
         self.assertTrue(numpy.allclose(
-            this_feature_table.as_matrix(),
-            FEATURE_TABLE_UNIF_MARGINALS_NEW_TO_ORIG.as_matrix(),
+            this_feature_table.to_numpy(),
+            FEATURE_TABLE_UNIF_MARGINALS_NEW_TO_ORIG.to_numpy(),
             atol=TOLERANCE, equal_nan=True))
 
     def test_transform_each_marginal_to_uniform_columns_in_diff_order(self):
@@ -140,8 +140,8 @@ class ProbabilityDistributionsTests(unittest.TestCase):
             orig_feature_table=ORIG_FEATURE_TABLE[['b', 'c', 'a']])
 
         self.assertTrue(numpy.allclose(
-            this_feature_table.as_matrix(),
-            FEATURE_TABLE_UNIF_MARGINALS_NEW_TO_ORIG.as_matrix(),
+            this_feature_table.to_numpy(),
+            FEATURE_TABLE_UNIF_MARGINALS_NEW_TO_ORIG.to_numpy(),
             atol=TOLERANCE, equal_nan=True))
 
     def test_transform_each_marginal_to_uniform_extra_columns(self):
@@ -158,8 +158,8 @@ class ProbabilityDistributionsTests(unittest.TestCase):
             orig_feature_table=this_orig_feature_table)
 
         self.assertTrue(numpy.allclose(
-            this_feature_table.as_matrix(),
-            FEATURE_TABLE_UNIF_MARGINALS_NEW_TO_ORIG.as_matrix(),
+            this_feature_table.to_numpy(),
+            FEATURE_TABLE_UNIF_MARGINALS_NEW_TO_ORIG.to_numpy(),
             atol=TOLERANCE, equal_nan=True))
 
     def test_normalize_class_probabilities(self):

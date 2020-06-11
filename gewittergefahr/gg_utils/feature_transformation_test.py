@@ -177,7 +177,7 @@ class FeatureTransformationTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.allclose(
-            FEATURE_MATRIX_MISSING_TO_MEAN, this_feature_table.as_matrix(),
+            FEATURE_MATRIX_MISSING_TO_MEAN, this_feature_table.to_numpy(),
             atol=TOLERANCE
         ))
 
@@ -206,7 +206,7 @@ class FeatureTransformationTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.allclose(
-            FEATURE_MATRIX_MISSING_TO_MEDIAN, this_feature_table.as_matrix(),
+            FEATURE_MATRIX_MISSING_TO_MEDIAN, this_feature_table.to_numpy(),
             atol=TOLERANCE
         ))
 

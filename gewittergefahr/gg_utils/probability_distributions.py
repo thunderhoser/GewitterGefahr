@@ -48,13 +48,12 @@ def _transform_each_marginal_to_uniform(
     # `orig_feature_table` is specified.
 
     feature_names = list(new_feature_table)
-    new_feature_matrix = new_feature_table.as_matrix(columns=feature_names)
+    new_feature_matrix = new_feature_table[feature_names].to_numpy()
 
     if orig_feature_table is not None:
         error_checking.assert_columns_in_dataframe(
             orig_feature_table, feature_names)
-        orig_feature_matrix = orig_feature_table.as_matrix(
-            columns=feature_names)
+        orig_feature_matrix = orig_feature_table[feature_names].to_numpy()
 
     num_features = len(feature_names)
     num_new_examples = new_feature_matrix.shape[0]
@@ -241,13 +240,13 @@ def fit_multivariate_normal(feature_table, assume_diagonal_covar_matrix=False):
     error_checking.assert_is_boolean(assume_diagonal_covar_matrix)
 
     num_real_values_by_feature = numpy.sum(
-        numpy.invert(numpy.isnan(feature_table.as_matrix())), axis=0)
+        numpy.invert(numpy.isnan(feature_table.to_numpy())), axis=0)
     if numpy.any(num_real_values_by_feature < 2):
         raise ValueError('Each column of feature_table must have >= 2 real '
                          'values (not NaN).')
 
     covariance_matrix, feature_means = _get_covariance_matrix(
-        _transform_each_marginal_to_normal(feature_table).as_matrix(),
+        _transform_each_marginal_to_normal(feature_table).to_numpy(),
         assume_diagonal=assume_diagonal_covar_matrix)
 
     return {FEATURE_NAMES_KEY: list(feature_table),
@@ -371,7 +370,7 @@ def apply_mvn_for_each_class(feature_table, list_of_mvn_dictionaries):
         transformed_feature_table = _transform_each_marginal_to_normal(
             feature_table, orig_feature_table=
             list_of_mvn_dictionaries[k][ORIG_FEATURE_TABLE_KEY])
-        transformed_feature_matrix = transformed_feature_table.as_matrix()
+        transformed_feature_matrix = transformed_feature_table.to_numpy()
 
         for i in range(num_examples):
             this_deviation_vector = (
