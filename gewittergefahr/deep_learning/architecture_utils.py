@@ -217,10 +217,12 @@ def get_dense_layer_dimensions(num_input_units, num_classes, num_dense_layers):
     error_checking.assert_is_integer(num_dense_layers)
     error_checking.assert_is_greater(num_dense_layers, 0)
 
-    if num_classes == 2:
-        num_output_units = 1
-    else:
-        num_output_units = num_classes + 0
+    # if num_classes == 2:
+    #     num_output_units = 1
+    # else:
+    #     num_output_units = num_classes + 0
+
+    num_output_units = num_classes + 0
 
     e_folding_param = (
         float(-1 * num_dense_layers) /
@@ -260,7 +262,8 @@ def get_weight_regularizer(l1_weight=DEFAULT_L1_WEIGHT,
 
 def get_1d_conv_layer(
         num_kernel_rows, num_rows_per_stride, num_filters,
-        padding_type_string=NO_PADDING_STRING, weight_regularizer=None):
+        padding_type_string=NO_PADDING_STRING, weight_regularizer=None,
+        layer_name=None):
     """Creates layer for 1-D convolution.
 
     :param num_kernel_rows: See doc for `_check_convolution_options`.
@@ -270,6 +273,8 @@ def get_1d_conv_layer(
     :param weight_regularizer: Will be used to regularize weights in the new
         layer.  This may be instance of `keras.regularizers` or None (if you
         want no regularization).
+    :param layer_name: Layer name (string).  If None, will use default name in
+        Keras.
     :return: layer_object: Instance of `keras.layers.Conv1D`.
     """
 
@@ -286,7 +291,8 @@ def get_1d_conv_layer(
         kernel_initializer=KERNEL_INITIALIZER_NAME,
         bias_initializer=BIAS_INITIALIZER_NAME,
         kernel_regularizer=weight_regularizer,
-        bias_regularizer=weight_regularizer)
+        bias_regularizer=weight_regularizer, name=layer_name
+    )
 
 
 def get_1d_separable_conv_layer(
@@ -552,12 +558,14 @@ def get_3d_pooling_layer(
         padding=NO_PADDING_STRING)
 
 
-def get_dense_layer(num_output_units, weight_regularizer=None):
+def get_dense_layer(num_output_units, weight_regularizer=None, layer_name=None):
     """Creates dense (fully connected) layer.
 
     :param num_output_units: Number of output units (or "features" or
         "neurons").
     :param weight_regularizer: See doc for `get_1d_conv_layer`.
+    :param layer_name: Layer name (string).  If None, will use default name in
+        Keras.
     :return: layer_object: Instance of `keras.layers.Dense`.
     """
 
@@ -569,32 +577,36 @@ def get_dense_layer(num_output_units, weight_regularizer=None):
         kernel_initializer=KERNEL_INITIALIZER_NAME,
         bias_initializer=BIAS_INITIALIZER_NAME,
         kernel_regularizer=weight_regularizer,
-        bias_regularizer=weight_regularizer)
+        bias_regularizer=weight_regularizer, name=layer_name
+    )
 
 
 def get_activation_layer(
         activation_function_string, alpha_for_elu=DEFAULT_ALPHA_FOR_ELU,
-        alpha_for_relu=DEFAULT_ALPHA_FOR_RELU):
+        alpha_for_relu=DEFAULT_ALPHA_FOR_RELU, layer_name=None):
     """Creates activation layer.
 
     :param activation_function_string: See doc for `check_activation_function`.
     :param alpha_for_elu: Same.
     :param alpha_for_relu: Same.
+    :param layer_name: Layer name (string).  If None, will use default name in
+        Keras.
     :return: layer_object: Instance of `keras.layers.Activation`,
         `keras.layers.ELU`, or `keras.layers.LeakyReLU`.
     """
 
     check_activation_function(
         activation_function_string=activation_function_string,
-        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu)
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+    )
 
     if activation_function_string == ELU_FUNCTION_STRING:
-        return keras.layers.ELU(alpha=alpha_for_elu)
+        return keras.layers.ELU(alpha=alpha_for_elu, name=layer_name)
 
     if activation_function_string == RELU_FUNCTION_STRING:
-        return keras.layers.LeakyReLU(alpha=alpha_for_relu)
+        return keras.layers.LeakyReLU(alpha=alpha_for_relu, name=layer_name)
 
-    return keras.layers.Activation(activation_function_string)
+    return keras.layers.Activation(activation_function_string, name=layer_name)
 
 
 def get_dropout_layer(dropout_fraction):
