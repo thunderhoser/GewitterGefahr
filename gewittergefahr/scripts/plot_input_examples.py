@@ -912,7 +912,7 @@ def metadata_to_file_name(
         storm_time_string = time_conversion.unix_sec_to_string(
             storm_time_unix_sec, TIME_FORMAT)
 
-        output_file_name = '{0:s}/storm={1:s}_time={2:s}'.format(
+        output_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
             output_dir_name, full_storm_id_string.replace('_', '-'),
             storm_time_string
         )

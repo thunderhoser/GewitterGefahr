@@ -199,7 +199,8 @@ def check_activation_function(
         error_checking.assert_is_geq(alpha_for_relu, 0.)
 
 
-def get_dense_layer_dimensions(num_input_units, num_classes, num_dense_layers):
+def get_dense_layer_dimensions(num_input_units, num_classes, num_dense_layers,
+                               for_classification=True):
     """Returns number of input and output neurons for each dense layer.
 
     D = number of dense layers
@@ -207,6 +208,8 @@ def get_dense_layer_dimensions(num_input_units, num_classes, num_dense_layers):
     :param num_input_units: Number of inputs to first dense layer.
     :param num_classes: Number of classes for target variable.
     :param num_dense_layers: Number of dense layers.
+    :param for_classification: Boolean flag.  If True (False), dense layers will
+        be at the end of a classification (regression) model.
     :return: num_inputs_by_layer: length-D numpy array with number of input
         neurons for each layer.
     :return: num_outputs_by_layer: length-D numpy array with number of output
@@ -219,13 +222,12 @@ def get_dense_layer_dimensions(num_input_units, num_classes, num_dense_layers):
     error_checking.assert_is_greater(num_input_units, num_classes)
     error_checking.assert_is_integer(num_dense_layers)
     error_checking.assert_is_greater(num_dense_layers, 0)
+    error_checking.assert_is_boolean(for_classification)
 
-    # if num_classes == 2:
-    #     num_output_units = 1
-    # else:
-    #     num_output_units = num_classes + 0
-
-    num_output_units = num_classes + 0
+    if num_classes == 2 and for_classification:
+        num_output_units = 1
+    else:
+        num_output_units = num_classes + 0
 
     e_folding_param = (
         float(-1 * num_dense_layers) /
