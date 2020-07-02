@@ -102,7 +102,67 @@ def _check_in_and_out_matrices(
             )
 
 
-def _do_saliency_calculations(
+def check_metadata(
+        component_type_string, target_class=None, layer_name=None,
+        ideal_activation=None, neuron_indices=None, channel_index=None):
+    """Error-checks metadata for saliency calculations.
+
+    :param component_type_string: Component type (must be accepted by
+        `model_interpretation.check_component_type`).
+    :param target_class: See doc for `get_saliency_maps_for_class_activation`.
+    :param layer_name: See doc for `get_saliency_maps_for_neuron_activation` or
+        `get_saliency_maps_for_channel_activation`.
+    :param ideal_activation: Same.
+    :param neuron_indices: See doc for
+        `get_saliency_maps_for_neuron_activation`.
+    :param channel_index: See doc for `get_saliency_maps_for_class_activation`.
+
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict['component_type_string']: See input doc.
+    metadata_dict['target_class']: Same.
+    metadata_dict['layer_name']: Same.
+    metadata_dict['ideal_activation']: Same.
+    metadata_dict['neuron_indices']: Same.
+    metadata_dict['channel_index']: Same.
+    """
+
+    model_interpretation.check_component_type(component_type_string)
+
+    if (component_type_string ==
+            model_interpretation.CLASS_COMPONENT_TYPE_STRING):
+        error_checking.assert_is_integer(target_class)
+        error_checking.assert_is_geq(target_class, 0)
+
+    if component_type_string in [
+            model_interpretation.NEURON_COMPONENT_TYPE_STRING,
+            model_interpretation.CHANNEL_COMPONENT_TYPE_STRING
+    ]:
+        error_checking.assert_is_string(layer_name)
+        if ideal_activation is not None:
+            error_checking.assert_is_greater(ideal_activation, 0.)
+
+    if (component_type_string ==
+            model_interpretation.NEURON_COMPONENT_TYPE_STRING):
+        error_checking.assert_is_integer_numpy_array(neuron_indices)
+        error_checking.assert_is_geq_numpy_array(neuron_indices, 0)
+        error_checking.assert_is_numpy_array(neuron_indices, num_dimensions=1)
+
+    if (component_type_string ==
+            model_interpretation.CHANNEL_COMPONENT_TYPE_STRING):
+        error_checking.assert_is_integer(channel_index)
+        error_checking.assert_is_geq(channel_index, 0)
+
+    return {
+        COMPONENT_TYPE_KEY: component_type_string,
+        TARGET_CLASS_KEY: target_class,
+        LAYER_NAME_KEY: layer_name,
+        IDEAL_ACTIVATION_KEY: ideal_activation,
+        NEURON_INDICES_KEY: neuron_indices,
+        CHANNEL_INDEX_KEY: channel_index
+    }
+
+
+def do_saliency_calculations(
         model_object, loss_tensor, list_of_input_matrices):
     """Does saliency calculations.
 
@@ -164,66 +224,6 @@ def _do_saliency_calculations(
     return list_of_saliency_matrices
 
 
-def check_metadata(
-        component_type_string, target_class=None, layer_name=None,
-        ideal_activation=None, neuron_indices=None, channel_index=None):
-    """Error-checks metadata for saliency calculations.
-
-    :param component_type_string: Component type (must be accepted by
-        `model_interpretation.check_component_type`).
-    :param target_class: See doc for `get_saliency_maps_for_class_activation`.
-    :param layer_name: See doc for `get_saliency_maps_for_neuron_activation` or
-        `get_saliency_maps_for_channel_activation`.
-    :param ideal_activation: Same.
-    :param neuron_indices: See doc for
-        `get_saliency_maps_for_neuron_activation`.
-    :param channel_index: See doc for `get_saliency_maps_for_class_activation`.
-
-    :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['component_type_string']: See input doc.
-    metadata_dict['target_class']: Same.
-    metadata_dict['layer_name']: Same.
-    metadata_dict['ideal_activation']: Same.
-    metadata_dict['neuron_indices']: Same.
-    metadata_dict['channel_index']: Same.
-    """
-
-    model_interpretation.check_component_type(component_type_string)
-
-    if (component_type_string ==
-            model_interpretation.CLASS_COMPONENT_TYPE_STRING):
-        error_checking.assert_is_integer(target_class)
-        error_checking.assert_is_geq(target_class, 0)
-
-    if component_type_string in [
-            model_interpretation.NEURON_COMPONENT_TYPE_STRING,
-            model_interpretation.CHANNEL_COMPONENT_TYPE_STRING
-    ]:
-        error_checking.assert_is_string(layer_name)
-        if ideal_activation is not None:
-            error_checking.assert_is_greater(ideal_activation, 0.)
-
-    if (component_type_string ==
-            model_interpretation.NEURON_COMPONENT_TYPE_STRING):
-        error_checking.assert_is_integer_numpy_array(neuron_indices)
-        error_checking.assert_is_geq_numpy_array(neuron_indices, 0)
-        error_checking.assert_is_numpy_array(neuron_indices, num_dimensions=1)
-
-    if (component_type_string ==
-            model_interpretation.CHANNEL_COMPONENT_TYPE_STRING):
-        error_checking.assert_is_integer(channel_index)
-        error_checking.assert_is_geq(channel_index, 0)
-
-    return {
-        COMPONENT_TYPE_KEY: component_type_string,
-        TARGET_CLASS_KEY: target_class,
-        LAYER_NAME_KEY: layer_name,
-        IDEAL_ACTIVATION_KEY: ideal_activation,
-        NEURON_INDICES_KEY: neuron_indices,
-        CHANNEL_INDEX_KEY: channel_index
-    }
-
-
 def get_saliency_maps_for_class_activation(
         model_object, target_class, list_of_input_matrices):
     """For each input example, creates saliency map for prob of target class.
@@ -231,8 +231,8 @@ def get_saliency_maps_for_class_activation(
     :param model_object: Instance of `keras.models.Model`.
     :param target_class: Saliency maps will be created for this class.  Must be
         an integer in 0...(K - 1), where K = number of classes.
-    :param list_of_input_matrices: See doc for `_do_saliency_calculations`.
-    :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
+    :param list_of_input_matrices: See doc for `do_saliency_calculations`.
+    :return: list_of_saliency_matrices: See doc for `do_saliency_calculations`.
     """
 
     check_metadata(
@@ -256,7 +256,7 @@ def get_saliency_maps_for_class_activation(
             (model_object.layers[-1].output[..., target_class] - 1) ** 2
         )
 
-    return _do_saliency_calculations(
+    return do_saliency_calculations(
         model_object=model_object, loss_tensor=loss_tensor,
         list_of_input_matrices=list_of_input_matrices)
 
@@ -272,14 +272,14 @@ def get_saliency_maps_for_neuron_activation(
         Must have length K - 1, where K = number of dimensions in layer output.
         The first dimension of the layer output is the example dimension, for
         which the index in this case is always 0.
-    :param list_of_input_matrices: See doc for `_do_saliency_calculations`.
+    :param list_of_input_matrices: See doc for `do_saliency_calculations`.
     :param ideal_activation: The loss function will be
         (neuron_activation - ideal_activation)** 2.  If
         `ideal_activation is None`, the loss function will be
         -sign(neuron_activation) * neuron_activation**2, or the negative signed
         square of neuron_activation, so that loss always decreases as
         neuron_activation increases.
-    :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
+    :return: list_of_saliency_matrices: See doc for `do_saliency_calculations`.
     """
 
     check_metadata(
@@ -306,7 +306,7 @@ def get_saliency_maps_for_neuron_activation(
             - ideal_activation
         ) ** 2
 
-    return _do_saliency_calculations(
+    return do_saliency_calculations(
         model_object=model_object, loss_tensor=loss_tensor,
         list_of_input_matrices=list_of_input_matrices)
 
@@ -322,7 +322,7 @@ def get_saliency_maps_for_channel_activation(
     :param channel_index: Index of the relevant channel.  This method creates
         saliency maps for the [j]th output channel of `layer_name`, where
         j = `channel_index`.
-    :param list_of_input_matrices: See doc for `_do_saliency_calculations`.
+    :param list_of_input_matrices: See doc for `do_saliency_calculations`.
     :param stat_function_for_neuron_activations: Function used to process neuron
         activations.  In general, a channel contains many neurons, so there is
         an infinite number of ways to maximize the "channel activation," because
@@ -332,7 +332,7 @@ def get_saliency_maps_for_channel_activation(
         `keras.backend.mean`.
     :param ideal_activation: See doc for
         `get_saliency_maps_for_neuron_activation`.
-    :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
+    :return: list_of_saliency_matrices: See doc for `do_saliency_calculations`.
     """
 
     check_metadata(
@@ -358,7 +358,7 @@ def get_saliency_maps_for_channel_activation(
             - ideal_activation
         )
 
-    return _do_saliency_calculations(
+    return do_saliency_calculations(
         model_object=model_object, loss_tensor=loss_tensor,
         list_of_input_matrices=list_of_input_matrices)
 
