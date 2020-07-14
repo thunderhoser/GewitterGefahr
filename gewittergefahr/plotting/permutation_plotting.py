@@ -62,9 +62,6 @@ def _label_bars(axes_object, y_tick_coords, y_tick_strings, significant_flags):
         different cost than the [i + 1]th step.
     """
 
-    x_min, x_max = pyplot.xlim()
-    x_coord_for_text = x_min + 0.025 * (x_max - x_min)
-
     this_colour = plotting_utils.colour_from_numpy_to_tuple(BAR_TEXT_COLOUR)
 
     for j in range(len(y_tick_coords)):
@@ -73,7 +70,7 @@ def _label_bars(axes_object, y_tick_coords, y_tick_strings, significant_flags):
         )
 
         axes_object.text(
-            x_coord_for_text, y_tick_coords[j], '   ' + y_tick_strings[j],
+            0., y_tick_coords[j], '      ' + y_tick_strings[j],
             color=this_colour, horizontalalignment='left',
             verticalalignment='center',
             fontweight='bold' if significant_flags[j] else 'normal',
@@ -123,6 +120,8 @@ def _get_error_matrix(cost_matrix, confidence_level, backwards_flag,
         else:
             these_diffs = cost_matrix[i, :] - cost_matrix[i + 1, :]
 
+        print(numpy.mean(these_diffs))
+
         this_percentile = percentileofscore(
             a=these_diffs, score=0., kind='mean'
         )
@@ -140,6 +139,7 @@ def _get_error_matrix(cost_matrix, confidence_level, backwards_flag,
         ))
 
     print(significant_flags)
+    print('\n')
 
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
@@ -197,23 +197,25 @@ def _plot_bars(
     """
 
     mean_clean_cost = numpy.mean(clean_cost_array)
+    is_cost_auc = numpy.any(cost_matrix < 0)
 
-    if numpy.any(cost_matrix < 0):
+    if is_cost_auc:
         cost_matrix *= -1
         mean_clean_cost *= -1
-        x_axis_label_string = 'Area under ROC curve'
 
         if plot_percent_increase:
-            cost_matrix = 200 * (cost_matrix - 0.5)
-            mean_clean_cost = 200 * (mean_clean_cost - 0.5)
-            x_axis_label_string += '\n(% improvement above random)'
+            cost_matrix = 2 * (cost_matrix - 0.5)
+            mean_clean_cost = 2 * (mean_clean_cost - 0.5)
+            x_axis_label_string += 'AUC (fractional improvement over random)'
+        else:
+            x_axis_label_string = 'Area under ROC curve'
     else:
         x_axis_label_string = 'Cross-entropy'
 
         if plot_percent_increase:
-            cost_matrix = 100 * cost_matrix / mean_clean_cost
-            mean_clean_cost = 100.
-            x_axis_label_string += ' (% of original)'
+            cost_matrix = cost_matrix / mean_clean_cost
+            mean_clean_cost = 1.
+            x_axis_label_string += ' (fraction of original)'
 
     if backwards_flag:
         y_tick_strings = ['All permuted'] + predictor_names
@@ -249,10 +251,16 @@ def _plot_bars(
     num_bootstrap_reps = cost_matrix.shape[1]
 
     if num_bootstrap_reps > 1:
+
+        # TODO(thunderhoser): The "-1" thing here is a hack.
         error_matrix, significant_flags = _get_error_matrix(
-            cost_matrix=cost_matrix, confidence_level=confidence_level,
+            cost_matrix=cost_matrix * (1 if is_cost_auc else -1),
+            confidence_level=confidence_level,
             backwards_flag=backwards_flag, multipass_flag=multipass_flag
         )
+
+        x_min = numpy.min(mean_costs - error_matrix[0, :])
+        x_max = numpy.max(mean_costs + error_matrix[1, :])
 
         axes_object.barh(
             y_tick_coords, mean_costs, color=face_colour_arg,
@@ -264,6 +272,8 @@ def _plot_bars(
         )
     else:
         significant_flags = numpy.full(num_steps, False, dtype=bool)
+        x_min = numpy.min(mean_costs)
+        x_max = numpy.max(mean_costs)
 
         axes_object.barh(
             y_tick_coords, mean_costs, color=face_colour_arg,
@@ -290,6 +300,18 @@ def _plot_bars(
         axes_object.set_ylabel('Variable cleaned')
     else:
         axes_object.set_ylabel('Variable permuted')
+
+    axes_object.set_xlim(
+        numpy.min(y_tick_coords) - 0.75, numpy.max(y_tick_coords) + 0.75
+    )
+
+    x_max *= 1.01
+    if x_min <= 0:
+        x_min *= 1.01
+    else:
+        x_min = 0.
+
+    axes_object.set_xlim(x_min, x_max)
 
     _label_bars(
         axes_object=axes_object, y_tick_coords=y_tick_coords,

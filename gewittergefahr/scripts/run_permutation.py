@@ -117,7 +117,6 @@ INPUT_ARG_PARSER.add_argument(
     '--' + DOWNSAMPLING_VALUES_ARG_NAME, type=float, nargs='+',
     required=False, default=[0.], help=DOWNSAMPLING_VALUES_HELP_STRING
 )
-
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_BOOTSTRAP_ARG_NAME, type=int, required=False, default=1,
     help=NUM_BOOTSTRAP_HELP_STRING)
