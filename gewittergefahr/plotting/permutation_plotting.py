@@ -206,7 +206,7 @@ def _plot_bars(
         if plot_percent_increase:
             cost_matrix = 2 * (cost_matrix - 0.5)
             mean_clean_cost = 2 * (mean_clean_cost - 0.5)
-            x_axis_label_string += 'AUC (fractional improvement over random)'
+            x_axis_label_string = 'AUC (fractional improvement over random)'
         else:
             x_axis_label_string = 'Area under ROC curve'
     else:
@@ -251,11 +251,8 @@ def _plot_bars(
     num_bootstrap_reps = cost_matrix.shape[1]
 
     if num_bootstrap_reps > 1:
-
-        # TODO(thunderhoser): The "-1" thing here is a hack.
         error_matrix, significant_flags = _get_error_matrix(
-            cost_matrix=cost_matrix * (1 if is_cost_auc else -1),
-            confidence_level=confidence_level,
+            cost_matrix=cost_matrix, confidence_level=confidence_level,
             backwards_flag=backwards_flag, multipass_flag=multipass_flag
         )
 
