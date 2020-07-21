@@ -91,14 +91,16 @@ def _predictor_name_to_face_colour(predictor_name):
     return plotting_utils.colour_from_numpy_to_tuple(DEFAULT_FACE_COLOUR)
 
 
-def _get_error_matrix(cost_matrix, confidence_level, backwards_flag,
-                      multipass_flag):
+def _get_error_matrix(cost_matrix, is_cost_auc, confidence_level,
+                      backwards_flag, multipass_flag):
     """Creates error matrix (used to plot error bars).
 
     S = number of steps in permutation test
     B = number of bootstrap replicates
 
     :param cost_matrix: S-by-B numpy array of costs.
+    :param is_cost_auc: Boolean flag.  If True, cost function is AUC (area under
+        receiver-operating-characteristic curve).
     :param confidence_level: Confidence level (in range 0...1).
     :param backwards_flag: Boolean flag, indicating whether the test is forward
         or backwards.
@@ -119,6 +121,9 @@ def _get_error_matrix(cost_matrix, confidence_level, backwards_flag,
             these_diffs = cost_matrix[i + 1, :] - cost_matrix[i, :]
         else:
             these_diffs = cost_matrix[i, :] - cost_matrix[i + 1, :]
+
+        if not is_cost_auc:
+            these_diffs *= -1
 
         print(numpy.mean(these_diffs))
 
@@ -252,7 +257,8 @@ def _plot_bars(
 
     if num_bootstrap_reps > 1:
         error_matrix, significant_flags = _get_error_matrix(
-            cost_matrix=cost_matrix, confidence_level=confidence_level,
+            cost_matrix=cost_matrix, is_cost_auc=is_cost_auc,
+            confidence_level=confidence_level,
             backwards_flag=backwards_flag, multipass_flag=multipass_flag
         )
 
