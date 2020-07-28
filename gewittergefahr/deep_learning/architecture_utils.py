@@ -609,6 +609,9 @@ def get_activation_layer(
         return keras.layers.ELU(alpha=alpha_for_elu, name=layer_name)
 
     if activation_function_string == RELU_FUNCTION_STRING:
+        if alpha_for_relu == 0:
+            return keras.layers.ReLU(name=layer_name)
+
         return keras.layers.LeakyReLU(alpha=alpha_for_relu, name=layer_name)
 
     return keras.layers.Activation(activation_function_string, name=layer_name)

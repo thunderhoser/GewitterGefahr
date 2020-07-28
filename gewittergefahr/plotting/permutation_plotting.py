@@ -19,8 +19,11 @@ SOUNDING_PREDICTOR_NAMES = [
     'Virtual potential temperature'
 ]
 
-DEFAULT_FACE_COLOUR = numpy.array([252, 141, 98], dtype=float) / 255
-SOUNDING_COLOUR = numpy.array([141, 160, 203], dtype=float) / 255
+# DEFAULT_FACE_COLOUR = numpy.array([252, 141, 98], dtype=float) / 255
+# SOUNDING_COLOUR = numpy.array([141, 160, 203], dtype=float) / 255
+
+DEFAULT_FACE_COLOUR = numpy.array([27, 158, 119], dtype=float) / 255
+SOUNDING_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
 NO_PERMUTATION_COLOUR = numpy.full(3, 1.)
 
 BAR_EDGE_WIDTH = 2
@@ -29,7 +32,8 @@ BAR_EDGE_COLOUR = numpy.full(3, 0.)
 REFERENCE_LINE_WIDTH = 4
 REFERENCE_LINE_COLOUR = numpy.full(3, 152. / 255)
 
-ERROR_BAR_COLOUR = numpy.full(3, 0.)
+# ERROR_BAR_COLOUR = numpy.full(3, 0.)
+ERROR_BAR_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
 ERROR_BAR_CAP_SIZE = 8
 ERROR_BAR_DICT = {'alpha': 0.5, 'linewidth': 4, 'capthick': 4}
 
