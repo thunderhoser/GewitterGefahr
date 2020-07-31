@@ -312,13 +312,16 @@ PRESSURE_MATRIX_PASCALS = numpy.reshape(THESE_PRESSURES_PASCALS, (1, 5))
 
 THESE_DEWPOINTS_KELVINS = moisture_conversions.specific_humidity_to_dewpoint(
     specific_humidities_kg_kg01=THESE_SPEC_HUMIDITIES_KG_KG01,
-    total_pressures_pascals=THESE_PRESSURES_PASCALS)
+    temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
+    total_pressures_pascals=THESE_PRESSURES_PASCALS
+)
 DEWPOINT_MATRIX_KELVINS = numpy.reshape(THESE_DEWPOINTS_KELVINS, (1, 5))
 
 THESE_RELATIVE_HUMIDITIES = moisture_conversions.dewpoint_to_relative_humidity(
     dewpoints_kelvins=THESE_DEWPOINTS_KELVINS,
     temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
-    total_pressures_pascals=THESE_PRESSURES_PASCALS)
+    total_pressures_pascals=THESE_PRESSURES_PASCALS
+)
 THESE_RELATIVE_HUMIDITIES_PERCENT = 100 * THESE_RELATIVE_HUMIDITIES
 
 THESE_FIELD_NAMES = [
@@ -400,14 +403,18 @@ SOUNDING_DICT_P_COORDS_NO_THETA_V = {
 
 # The following constants are used to test _get_virtual_potential_temperatures.
 THESE_VAPOUR_PRESSURES_PASCALS = (
-    moisture_conversions.dewpoint_to_vapour_pressure(THESE_DEWPOINTS_KELVINS)
+    moisture_conversions.dewpoint_to_vapour_pressure(
+        dewpoints_kelvins=THESE_DEWPOINTS_KELVINS,
+        temperatures_kelvins=THESE_TEMPERATURES_KELVINS
+    )
 )
 
 THESE_VIRTUAL_TEMPS_KELVINS = (
     moisture_conversions.temperature_to_virtual_temperature(
         temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
         total_pressures_pascals=THESE_PRESSURES_PASCALS,
-        vapour_pressures_pascals=THESE_VAPOUR_PRESSURES_PASCALS)
+        vapour_pressures_pascals=THESE_VAPOUR_PRESSURES_PASCALS
+    )
 )
 
 THESE_THETA_V_KELVINS = (
@@ -542,26 +549,32 @@ THESE_SPEC_HUMIDITIES_KG_KG01 = numpy.array([
 THESE_DEWPOINTS_KELVINS = (
     moisture_conversions.specific_humidity_to_dewpoint(
         specific_humidities_kg_kg01=THESE_SPEC_HUMIDITIES_KG_KG01,
-        total_pressures_pascals=THESE_PRESSURES_PASCALS)
+        temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
+        total_pressures_pascals=THESE_PRESSURES_PASCALS
+    )
 )
 
 THESE_RELATIVE_HUMIDITIES = (
     moisture_conversions.dewpoint_to_relative_humidity(
         dewpoints_kelvins=THESE_DEWPOINTS_KELVINS,
         temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
-        total_pressures_pascals=THESE_PRESSURES_PASCALS)
+        total_pressures_pascals=THESE_PRESSURES_PASCALS
+    )
 )
 
 THESE_VAPOUR_PRESSURES_PASCALS = (
     moisture_conversions.dewpoint_to_vapour_pressure(
-        THESE_DEWPOINTS_KELVINS)
+        dewpoints_kelvins=THESE_DEWPOINTS_KELVINS,
+        temperatures_kelvins=THESE_TEMPERATURES_KELVINS
+    )
 )
 
 THESE_VIRTUAL_TEMPS_KELVINS = (
     moisture_conversions.temperature_to_virtual_temperature(
         temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
         total_pressures_pascals=THESE_PRESSURES_PASCALS,
-        vapour_pressures_pascals=THESE_VAPOUR_PRESSURES_PASCALS)
+        vapour_pressures_pascals=THESE_VAPOUR_PRESSURES_PASCALS
+    )
 )
 
 THESE_THETA_V_KELVINS = (

@@ -563,13 +563,16 @@ def _relative_to_specific_humidity(sounding_dict, pressure_matrix_pascals):
         moisture_conversions.relative_humidity_to_dewpoint(
             relative_humidities=sounding_matrix[..., relative_humidity_index],
             temperatures_kelvins=sounding_matrix[..., temperature_index],
-            total_pressures_pascals=pressure_matrix_pascals)
+            total_pressures_pascals=pressure_matrix_pascals
+        )
     )
 
     spec_humidity_matrix_kg_kg01 = (
         moisture_conversions.dewpoint_to_specific_humidity(
             dewpoints_kelvins=dewpoint_matrix_kelvins,
-            total_pressures_pascals=pressure_matrix_pascals)
+            temperatures_kelvins=sounding_matrix[..., temperature_index],
+            total_pressures_pascals=pressure_matrix_pascals
+        )
     )
 
     if SPECIFIC_HUMIDITY_NAME in field_names:
@@ -610,16 +613,19 @@ def _specific_to_relative_humidity(sounding_dict, pressure_matrix_pascals):
 
     dewpoint_matrix_kelvins = (
         moisture_conversions.specific_humidity_to_dewpoint(
-            specific_humidities_kg_kg01=sounding_matrix[
-                ..., specific_humidity_index],
-            total_pressures_pascals=pressure_matrix_pascals)
+            specific_humidities_kg_kg01=
+            sounding_matrix[..., specific_humidity_index],
+            temperatures_kelvins=sounding_matrix[..., temperature_index],
+            total_pressures_pascals=pressure_matrix_pascals
+        )
     )
 
     relative_humidity_matrix = (
         moisture_conversions.dewpoint_to_relative_humidity(
             dewpoints_kelvins=dewpoint_matrix_kelvins,
             temperatures_kelvins=sounding_matrix[..., temperature_index],
-            total_pressures_pascals=pressure_matrix_pascals)
+            total_pressures_pascals=pressure_matrix_pascals
+        )
     )
 
     if RELATIVE_HUMIDITY_NAME in field_names:
@@ -660,14 +666,17 @@ def _get_virtual_potential_temperatures(
 
     vapour_pressure_matrix_pascals = (
         moisture_conversions.dewpoint_to_vapour_pressure(
-            dewpoint_matrix_kelvins)
+            dewpoints_kelvins=dewpoint_matrix_kelvins,
+            temperatures_kelvins=sounding_matrix[..., temperature_index]
+        )
     )
 
     virtual_temperature_matrix_kelvins = (
         moisture_conversions.temperature_to_virtual_temperature(
             temperatures_kelvins=sounding_matrix[..., temperature_index],
             total_pressures_pascals=pressure_matrix_pascals,
-            vapour_pressures_pascals=vapour_pressure_matrix_pascals)
+            vapour_pressures_pascals=vapour_pressure_matrix_pascals
+        )
     )
 
     theta_v_matrix_kelvins = (
@@ -824,27 +833,33 @@ def _convert_fields_and_units(sounding_dict_pressure_coords):
     pressure_matrix_pascals = _get_pressures(sounding_dict_pressure_coords)
 
     if found_rh:
-        specific_humidity_index = sounding_dict_pressure_coords[
-            FIELD_NAMES_KEY
-        ].index(SPECIFIC_HUMIDITY_NAME)
+        field_names = sounding_dict_pressure_coords[FIELD_NAMES_KEY]
+        sounding_matrix = sounding_dict_pressure_coords[SOUNDING_MATRIX_KEY]
+
+        specific_humidity_index = field_names.index(SPECIFIC_HUMIDITY_NAME)
+        temperature_index = field_names.index(TEMPERATURE_NAME)
 
         dewpoint_matrix_kelvins = (
             moisture_conversions.specific_humidity_to_dewpoint(
-                specific_humidities_kg_kg01=sounding_dict_pressure_coords[
-                    SOUNDING_MATRIX_KEY][..., specific_humidity_index],
-                total_pressures_pascals=pressure_matrix_pascals)
+                specific_humidities_kg_kg01=
+                sounding_matrix[..., specific_humidity_index],
+                temperatures_kelvins=sounding_matrix[..., temperature_index],
+                total_pressures_pascals=pressure_matrix_pascals
+            )
         )
     else:
         sounding_dict_pressure_coords, dewpoint_matrix_kelvins = (
             _specific_to_relative_humidity(
                 sounding_dict=sounding_dict_pressure_coords,
-                pressure_matrix_pascals=pressure_matrix_pascals)
+                pressure_matrix_pascals=pressure_matrix_pascals
+            )
         )
 
     return _get_virtual_potential_temperatures(
         sounding_dict=sounding_dict_pressure_coords,
         pressure_matrix_pascals=pressure_matrix_pascals,
-        dewpoint_matrix_kelvins=dewpoint_matrix_kelvins)
+        dewpoint_matrix_kelvins=dewpoint_matrix_kelvins
+    )
 
 
 def _pressure_to_height_coords(

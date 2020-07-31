@@ -846,22 +846,29 @@ def soundings_to_metpy_dictionaries(
 
     try:
         relative_humidity_index = field_names.index(
-            soundings.RELATIVE_HUMIDITY_NAME)
+            soundings.RELATIVE_HUMIDITY_NAME
+        )
+
         dewpoint_matrix_kelvins = (
             moisture_conversions.relative_humidity_to_dewpoint(
-                relative_humidities=sounding_matrix[
-                    ..., relative_humidity_index],
+                relative_humidities=
+                sounding_matrix[..., relative_humidity_index],
                 temperatures_kelvins=temperature_matrix_kelvins,
-                total_pressures_pascals=pressure_matrix_pascals)
+                total_pressures_pascals=pressure_matrix_pascals
+            )
         )
     except ValueError:
         specific_humidity_index = field_names.index(
-            soundings.SPECIFIC_HUMIDITY_NAME)
+            soundings.SPECIFIC_HUMIDITY_NAME
+        )
+
         dewpoint_matrix_kelvins = (
             moisture_conversions.specific_humidity_to_dewpoint(
-                specific_humidities_kg_kg01=sounding_matrix[
-                    ..., specific_humidity_index],
-                total_pressures_pascals=pressure_matrix_pascals)
+                specific_humidities_kg_kg01=
+                sounding_matrix[..., specific_humidity_index],
+                temperatures_kelvins=temperature_matrix_kelvins,
+                total_pressures_pascals=pressure_matrix_pascals
+            )
         )
 
     temperature_matrix_celsius = temperature_conversions.kelvins_to_celsius(
