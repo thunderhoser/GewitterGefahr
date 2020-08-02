@@ -667,7 +667,8 @@ def _get_virtual_potential_temperatures(
     vapour_pressure_matrix_pascals = (
         moisture_conversions.dewpoint_to_vapour_pressure(
             dewpoints_kelvins=dewpoint_matrix_kelvins,
-            temperatures_kelvins=sounding_matrix[..., temperature_index]
+            temperatures_kelvins=sounding_matrix[..., temperature_index],
+            total_pressures_pascals=pressure_matrix_pascals
         )
     )
 

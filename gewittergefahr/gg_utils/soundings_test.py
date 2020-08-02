@@ -405,7 +405,8 @@ SOUNDING_DICT_P_COORDS_NO_THETA_V = {
 THESE_VAPOUR_PRESSURES_PASCALS = (
     moisture_conversions.dewpoint_to_vapour_pressure(
         dewpoints_kelvins=THESE_DEWPOINTS_KELVINS,
-        temperatures_kelvins=THESE_TEMPERATURES_KELVINS
+        temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
+        total_pressures_pascals=THESE_PRESSURES_PASCALS
     )
 )
 
@@ -565,7 +566,8 @@ THESE_RELATIVE_HUMIDITIES = (
 THESE_VAPOUR_PRESSURES_PASCALS = (
     moisture_conversions.dewpoint_to_vapour_pressure(
         dewpoints_kelvins=THESE_DEWPOINTS_KELVINS,
-        temperatures_kelvins=THESE_TEMPERATURES_KELVINS
+        temperatures_kelvins=THESE_TEMPERATURES_KELVINS,
+        total_pressures_pascals=THESE_PRESSURES_PASCALS
     )
 )
 
