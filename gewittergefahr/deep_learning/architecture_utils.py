@@ -617,17 +617,19 @@ def get_activation_layer(
     return keras.layers.Activation(activation_function_string, name=layer_name)
 
 
-def get_dropout_layer(dropout_fraction):
+def get_dropout_layer(dropout_fraction, layer_name=None):
     """Creates dropout layer.
 
     :param dropout_fraction: Fraction of weights to drop.
+    :param layer_name: Layer name (string).  If None, will use default name in
+        Keras.
     :return: layer_object: Instance of `keras.layers.Dropout`.
     """
 
     error_checking.assert_is_greater(dropout_fraction, 0.)
     error_checking.assert_is_less_than(dropout_fraction, 1.)
 
-    return keras.layers.Dropout(rate=dropout_fraction)
+    return keras.layers.Dropout(rate=dropout_fraction, name=layer_name)
 
 
 def get_batch_norm_layer():
