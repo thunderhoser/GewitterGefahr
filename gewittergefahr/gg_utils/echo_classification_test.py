@@ -320,7 +320,8 @@ class EchoClassificationTests(unittest.TestCase):
         this_flag_matrix = echo_classifn.find_convective_pixels(
             reflectivity_matrix_dbz=REFLECTIVITY_MATRIX_DBZ,
             grid_metadata_dict=GRID_METADATA_DICT,
-            valid_time_unix_sec=VALID_TIME_UNIX_SEC, option_dict=option_dict)
+            valid_time_unix_sec=VALID_TIME_UNIX_SEC, option_dict=option_dict
+        )[0]
 
         self.assertTrue(numpy.array_equal(
             this_flag_matrix, CRITERION5_FLAG_MATRIX))
