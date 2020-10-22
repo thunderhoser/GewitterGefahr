@@ -27,119 +27,131 @@ PEAKEDNESS_NEIGH_ARG_NAME = 'peakedness_neigh_metres'
 MAX_PEAKEDNESS_HEIGHT_ARG_NAME = 'max_peakedness_height_m_asl'
 MIN_ECHO_TOP_ARG_NAME = 'min_echo_top_m_asl'
 ECHO_TOP_LEVEL_ARG_NAME = 'echo_top_level_dbz'
+MIN_SIZE_ARG_NAME = 'min_size_pixels'
 MIN_COMPOSITE_REFL_CRITERION1_ARG_NAME = 'min_composite_refl_criterion1_dbz'
 MIN_COMPOSITE_REFL_CRITERION5_ARG_NAME = 'min_composite_refl_criterion5_dbz'
 MIN_COMPOSITE_REFL_AML_ARG_NAME = 'min_composite_refl_aml_dbz'
 
 RADAR_SOURCE_HELP_STRING = (
     'Source of radar data (must be accepted by '
-    '`radar_utils.check_data_source`).')
-
+    '`radar_utils.check_data_source`).'
+)
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  Echo classification will be done for all '
-    'time steps on this date.')
-
+    'time steps on this date.'
+)
 TARRED_RADAR_DIR_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Name of top-level directory with tarred '
     'MYRORSS files.  These files will be untarred before processing, to the '
     'directory `{2:s}`, and the untarred files will be deleted after '
     'processing.'
-).format(RADAR_SOURCE_ARG_NAME, radar_utils.MYRORSS_SOURCE_ID,
-         RADAR_DIR_ARG_NAME)
-
+).format(
+    RADAR_SOURCE_ARG_NAME, radar_utils.MYRORSS_SOURCE_ID, RADAR_DIR_ARG_NAME
+)
 RADAR_DIR_HELP_STRING = (
     'Name of top-level radar directory.  Files therein will be found by either '
-    '`myrorss_and_mrms_io.find_raw_file` or `gridrad_io.find_file`.')
-
+    '`myrorss_and_mrms_io.find_raw_file` or `gridrad_io.find_file`.'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Echo classifications will be written '
     'by `echo_classification.write_classifications`, to locations therein '
-    'determined by `echo_classification.find_classification_file`.')
-
+    'determined by `echo_classification.find_classification_file`.'
+)
 PEAKEDNESS_NEIGH_HELP_STRING = (
-    'Neighbourhood radius for peakedness calculations.')
-
+    'Neighbourhood radius for peakedness calculations.'
+)
 MAX_PEAKEDNESS_HEIGHT_HELP_STRING = (
-    'Max height (metres above sea level) for peakedness calculations.')
-
+    'Max height (metres above sea level) for peakedness calculations.'
+)
 MIN_ECHO_TOP_HELP_STRING = (
-    'Minimum echo top (metres above sea level), used for criterion 3.')
-
+    'Minimum echo top (metres above sea level), used for criterion 3.'
+)
 ECHO_TOP_LEVEL_HELP_STRING = (
-    'Critical reflectivity (used to compute echo top for criterion 3).')
-
+    'Critical reflectivity (used to compute echo top for criterion 3).'
+)
+MIN_SIZE_HELP_STRING = 'Minimum connected-region size.'
 MIN_COMPOSITE_REFL_CRITERION1_HELP_STRING = (
     'Minimum composite (column-max) reflectivity for criterion 1.  To exclude '
-    'this criterion, make the value negative.')
-
+    'this criterion, make the value negative.'
+)
 MIN_COMPOSITE_REFL_CRITERION5_HELP_STRING = (
-    'Minimum composite reflectivity for criterion 5.')
-
+    'Minimum composite reflectivity for criterion 5.'
+)
 MIN_COMPOSITE_REFL_AML_HELP_STRING = (
-    'Minimum composite reflectivity above melting level, used for criterion 2.')
+    'Minimum composite reflectivity above melting level, used for criterion 2.'
+)
 
 DEFAULT_TARRED_RADAR_DIR_NAME = '/condo/swatcommon/common/myrorss'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_SOURCE_ARG_NAME, type=str, required=True,
-    help=RADAR_SOURCE_HELP_STRING)
-
+    help=RADAR_SOURCE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + SPC_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
+    help=SPC_DATE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + TARRED_RADAR_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TARRED_RADAR_DIR_NAME, help=TARRED_RADAR_DIR_HELP_STRING)
-
+    default=DEFAULT_TARRED_RADAR_DIR_NAME, help=TARRED_RADAR_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_DIR_ARG_NAME, type=str, required=True,
-    help=RADAR_DIR_HELP_STRING)
-
+    help=RADAR_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
-
+    help=OUTPUT_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + PEAKEDNESS_NEIGH_ARG_NAME, type=float, required=False,
-    default=echo_classifn.DEFAULT_OPTION_DICT[
-        echo_classifn.PEAKEDNESS_NEIGH_KEY],
-    help=PEAKEDNESS_NEIGH_HELP_STRING)
-
+    default=
+    echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.PEAKEDNESS_NEIGH_KEY],
+    help=PEAKEDNESS_NEIGH_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PEAKEDNESS_HEIGHT_ARG_NAME, type=float, required=False,
-    default=echo_classifn.DEFAULT_OPTION_DICT[
-        echo_classifn.MAX_PEAKEDNESS_HEIGHT_KEY],
-    help=MAX_PEAKEDNESS_HEIGHT_HELP_STRING)
-
+    default=
+    echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.MAX_PEAKEDNESS_HEIGHT_KEY],
+    help=MAX_PEAKEDNESS_HEIGHT_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_ECHO_TOP_ARG_NAME, type=int, required=False,
     default=echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.MIN_ECHO_TOP_KEY],
-    help=MIN_ECHO_TOP_HELP_STRING)
-
+    help=MIN_ECHO_TOP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + ECHO_TOP_LEVEL_ARG_NAME, type=float, required=False,
     default=echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.ECHO_TOP_LEVEL_KEY],
-    help=ECHO_TOP_LEVEL_HELP_STRING)
-
+    help=ECHO_TOP_LEVEL_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_SIZE_ARG_NAME, type=int, required=False,
+    default=echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.MIN_SIZE_KEY],
+    help=MIN_SIZE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_COMPOSITE_REFL_CRITERION1_ARG_NAME, type=float, required=False,
     default=echo_classifn.DEFAULT_OPTION_DICT[
-        echo_classifn.MIN_COMPOSITE_REFL_CRITERION1_KEY],
-    help=MIN_COMPOSITE_REFL_CRITERION1_HELP_STRING)
-
+        echo_classifn.MIN_COMPOSITE_REFL_CRITERION1_KEY
+    ],
+    help=MIN_COMPOSITE_REFL_CRITERION1_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_COMPOSITE_REFL_CRITERION5_ARG_NAME, type=float, required=False,
     default=echo_classifn.DEFAULT_OPTION_DICT[
-        echo_classifn.MIN_COMPOSITE_REFL_CRITERION5_KEY],
-    help=MIN_COMPOSITE_REFL_CRITERION5_HELP_STRING)
-
+        echo_classifn.MIN_COMPOSITE_REFL_CRITERION5_KEY
+    ],
+    help=MIN_COMPOSITE_REFL_CRITERION5_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_COMPOSITE_REFL_AML_ARG_NAME, type=float, required=False,
     default=echo_classifn.DEFAULT_OPTION_DICT[
-        echo_classifn.MIN_COMPOSITE_REFL_AML_KEY],
-    help=MIN_COMPOSITE_REFL_AML_HELP_STRING)
+        echo_classifn.MIN_COMPOSITE_REFL_AML_KEY
+    ],
+    help=MIN_COMPOSITE_REFL_AML_HELP_STRING
+)
 
 
 def _run_for_gridrad(
@@ -211,7 +223,8 @@ def _run_for_gridrad(
             reflectivity_matrix_dbz=reflectivity_matrix_dbz,
             grid_metadata_dict=grid_metadata_dict,
             valid_time_unix_sec=valid_times_unix_sec[i],
-            option_dict=option_dict)
+            option_dict=option_dict
+        )[0]
 
         print('Number of convective pixels = {0:d}\n'.format(
             numpy.sum(convective_flag_matrix)
@@ -388,7 +401,8 @@ def _run_for_myrorss(
             reflectivity_matrix_dbz=reflectivity_matrix_dbz,
             grid_metadata_dict=coarse_grid_metadata_dict,
             valid_time_unix_sec=valid_times_unix_sec[i],
-            option_dict=option_dict)
+            option_dict=option_dict
+        )[0]
 
         print('Number of convective pixels = {0:d}\n'.format(
             numpy.sum(convective_flag_matrix)
@@ -434,8 +448,8 @@ def _run_for_myrorss(
 def _run(radar_source_name, spc_date_string, top_radar_dir_name_tarred,
          top_radar_dir_name, top_output_dir_name, peakedness_neigh_metres,
          max_peakedness_height_m_asl, min_echo_top_m_asl, echo_top_level_dbz,
-         min_composite_refl_criterion1_dbz, min_composite_refl_criterion5_dbz,
-         min_composite_refl_aml_dbz):
+         min_size_pixels, min_composite_refl_criterion1_dbz,
+         min_composite_refl_criterion5_dbz, min_composite_refl_aml_dbz):
     """Runs echo classification (convective vs. non-convective).
 
     This is effectively the main method.
@@ -449,6 +463,7 @@ def _run(radar_source_name, spc_date_string, top_radar_dir_name_tarred,
     :param max_peakedness_height_m_asl: Same.
     :param min_echo_top_m_asl: Same.
     :param echo_top_level_dbz: Same.
+    :param min_size_pixels: Same.
     :param min_composite_refl_criterion1_dbz: Same.
     :param min_composite_refl_criterion5_dbz: Same.
     :param min_composite_refl_aml_dbz: Same.
@@ -464,6 +479,7 @@ def _run(radar_source_name, spc_date_string, top_radar_dir_name_tarred,
         # radar_source_name != radar_utils.GRIDRAD_SOURCE_ID,
         echo_classifn.MIN_ECHO_TOP_KEY: min_echo_top_m_asl,
         echo_classifn.ECHO_TOP_LEVEL_KEY: echo_top_level_dbz,
+        echo_classifn.MIN_SIZE_KEY: min_size_pixels,
         echo_classifn.MIN_COMPOSITE_REFL_CRITERION1_KEY:
             min_composite_refl_criterion1_dbz,
         echo_classifn.MIN_COMPOSITE_REFL_CRITERION5_KEY:
@@ -491,19 +507,26 @@ if __name__ == '__main__':
         radar_source_name=getattr(INPUT_ARG_OBJECT, RADAR_SOURCE_ARG_NAME),
         spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
         top_radar_dir_name_tarred=getattr(
-            INPUT_ARG_OBJECT, TARRED_RADAR_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, TARRED_RADAR_DIR_ARG_NAME
+        ),
         top_radar_dir_name=getattr(INPUT_ARG_OBJECT, RADAR_DIR_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME),
         peakedness_neigh_metres=getattr(
-            INPUT_ARG_OBJECT, PEAKEDNESS_NEIGH_ARG_NAME),
+            INPUT_ARG_OBJECT, PEAKEDNESS_NEIGH_ARG_NAME
+        ),
         max_peakedness_height_m_asl=getattr(
-            INPUT_ARG_OBJECT, MAX_PEAKEDNESS_HEIGHT_ARG_NAME),
+            INPUT_ARG_OBJECT, MAX_PEAKEDNESS_HEIGHT_ARG_NAME
+        ),
         min_echo_top_m_asl=getattr(INPUT_ARG_OBJECT, MIN_ECHO_TOP_ARG_NAME),
         echo_top_level_dbz=getattr(INPUT_ARG_OBJECT, ECHO_TOP_LEVEL_ARG_NAME),
+        min_size_pixels=getattr(INPUT_ARG_OBJECT, MIN_SIZE_ARG_NAME),
         min_composite_refl_criterion1_dbz=getattr(
-            INPUT_ARG_OBJECT, MIN_COMPOSITE_REFL_CRITERION1_ARG_NAME),
+            INPUT_ARG_OBJECT, MIN_COMPOSITE_REFL_CRITERION1_ARG_NAME
+        ),
         min_composite_refl_criterion5_dbz=getattr(
-            INPUT_ARG_OBJECT, MIN_COMPOSITE_REFL_CRITERION5_ARG_NAME),
+            INPUT_ARG_OBJECT, MIN_COMPOSITE_REFL_CRITERION5_ARG_NAME
+        ),
         min_composite_refl_aml_dbz=getattr(
-            INPUT_ARG_OBJECT, MIN_COMPOSITE_REFL_AML_ARG_NAME)
+            INPUT_ARG_OBJECT, MIN_COMPOSITE_REFL_AML_ARG_NAME
+        )
     )

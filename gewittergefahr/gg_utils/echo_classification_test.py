@@ -273,10 +273,12 @@ class EchoClassificationTests(unittest.TestCase):
         """
 
         this_flag_matrix = echo_classifn._apply_convective_criterion4(
-            CRITERION3_FLAG_MATRIX)
+            convective_flag_matrix=CRITERION3_FLAG_MATRIX, min_size_pixels=2
+        )
 
         self.assertTrue(numpy.array_equal(
-            this_flag_matrix, CRITERION4_FLAG_MATRIX))
+            this_flag_matrix, CRITERION4_FLAG_MATRIX
+        ))
 
     def test_apply_convective_criterion4_dummy(self):
         """Ensures correct output from _apply_convective_criterion4.
@@ -286,10 +288,13 @@ class EchoClassificationTests(unittest.TestCase):
         """
 
         this_flag_matrix = echo_classifn._apply_convective_criterion4(
-            DUMMY_CRITERION3_FLAG_MATRIX)
+            convective_flag_matrix=DUMMY_CRITERION3_FLAG_MATRIX,
+            min_size_pixels=2
+        )
 
         self.assertTrue(numpy.array_equal(
-            this_flag_matrix, DUMMY_CRITERION4_FLAG_MATRIX))
+            this_flag_matrix, DUMMY_CRITERION4_FLAG_MATRIX
+        ))
 
     def test_apply_convective_criterion5(self):
         """Ensures correct output from _apply_convective_criterion5."""
