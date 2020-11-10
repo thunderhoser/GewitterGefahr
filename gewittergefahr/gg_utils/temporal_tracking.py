@@ -4,7 +4,7 @@ import copy
 from collections import OrderedDict
 import numpy
 import pandas
-from geopy.distance import vincenty
+from geopy.distance import geodesic
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import error_checking
@@ -2229,12 +2229,12 @@ def get_storm_velocities(
                     this_end_latitude_deg - this_start_latitude_deg
                 )
             else:
-                these_east_displacements_metres[j] = vincenty(
+                these_east_displacements_metres[j] = geodesic(
                     (this_start_latitude_deg, this_start_longitude_deg),
                     (this_start_latitude_deg, this_end_longitude_deg)
                 ).meters
 
-                these_north_displacements_metres[j] = vincenty(
+                these_north_displacements_metres[j] = geodesic(
                     (this_start_latitude_deg, this_start_longitude_deg),
                     (this_end_latitude_deg, this_start_longitude_deg)
                 ).meters

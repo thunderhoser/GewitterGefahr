@@ -25,3 +25,15 @@ Despite the lack of external documentation, there are three types of internal do
 * descartes
 * geopy
 * metpy
+* roipoly
+* opencv-python
+* srtm.py
+
+# Installation Instructions
+1. Install the Anaconda or [Miniconda Python distribution](https://docs.conda.io/en/latest/miniconda.html). 
+2. Go to the GewitterGefahr top level directory.
+3. Create a custom environment with all dependencies by running the following command:
+    `conda env create -f environment.yml`
+4. Install gewittergefahr with `pip install .`.
+5. Verify that GewitterGefahr is installed correctly by running pytest: `pytest`. All tests should pass, but you will see warnings.
+
