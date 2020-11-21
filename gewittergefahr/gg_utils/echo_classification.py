@@ -47,6 +47,7 @@ MELT_LEVEL_SLOPE_BY_MONTH_M_DEG01 = numpy.array(
 
 PEAKEDNESS_NEIGH_KEY = 'peakedness_neigh_metres'
 MAX_PEAKEDNESS_HEIGHT_KEY = 'max_peakedness_height_m_asl'
+MIN_HEIGHT_FRACTION_KEY = 'min_height_fraction_for_peakedness'
 HALVE_RESOLUTION_KEY = 'halve_resolution_for_peakedness'
 MIN_ECHO_TOP_KEY = 'min_echo_top_m_asl'
 ECHO_TOP_LEVEL_KEY = 'echo_top_level_dbz'
@@ -58,6 +59,7 @@ MIN_COMPOSITE_REFL_AML_KEY = 'min_composite_refl_aml_dbz'
 DEFAULT_OPTION_DICT = {
     PEAKEDNESS_NEIGH_KEY: 12000.,
     MAX_PEAKEDNESS_HEIGHT_KEY: 9000.,
+    MIN_HEIGHT_FRACTION_KEY: 0.5,
     HALVE_RESOLUTION_KEY: False,
     MIN_ECHO_TOP_KEY: 10000.,
     ECHO_TOP_LEVEL_KEY: 25.,
@@ -94,6 +96,9 @@ def _check_input_args(option_dict):
     option_dict[MAX_PEAKEDNESS_HEIGHT_KEY] = float(
         option_dict[MAX_PEAKEDNESS_HEIGHT_KEY]
     )
+    option_dict[MIN_HEIGHT_FRACTION_KEY] = float(
+        option_dict[MIN_HEIGHT_FRACTION_KEY]
+    )
     option_dict[MIN_ECHO_TOP_KEY] = int(numpy.round(
         option_dict[MIN_ECHO_TOP_KEY]
     ))
@@ -110,6 +115,8 @@ def _check_input_args(option_dict):
 
     error_checking.assert_is_greater(option_dict[PEAKEDNESS_NEIGH_KEY], 0.)
     error_checking.assert_is_greater(option_dict[MAX_PEAKEDNESS_HEIGHT_KEY], 0.)
+    error_checking.assert_is_greater(option_dict[MIN_HEIGHT_FRACTION_KEY], 0.)
+    error_checking.assert_is_less_than(option_dict[MIN_HEIGHT_FRACTION_KEY], 1.)
     error_checking.assert_is_boolean(option_dict[HALVE_RESOLUTION_KEY])
     error_checking.assert_is_greater(option_dict[MIN_ECHO_TOP_KEY], 0)
     error_checking.assert_is_greater(option_dict[ECHO_TOP_LEVEL_KEY], 0.)
@@ -316,8 +323,9 @@ def _double_class_resolution(
 
 def _apply_convective_criterion1(
         reflectivity_matrix_dbz, peakedness_neigh_metres,
-        max_peakedness_height_m_asl, halve_resolution_for_peakedness,
-        min_composite_refl_dbz, grid_metadata_dict):
+        max_peakedness_height_m_asl, min_height_fraction,
+        halve_resolution_for_peakedness, min_composite_refl_dbz,
+        grid_metadata_dict):
     """Applies criterion 1 for convective classification.
 
     Criterion 1 states: the pixel is convective if >= 50% of values in the
@@ -327,6 +335,7 @@ def _apply_convective_criterion1(
     :param reflectivity_matrix_dbz: See doc for `find_convective_pixels`.
     :param peakedness_neigh_metres: Same.
     :param max_peakedness_height_m_asl: Same.
+    :param min_height_fraction: Same.
     :param halve_resolution_for_peakedness: Same.
     :param min_composite_refl_dbz: Same.  Keep in mind that this may be None.
     :param grid_metadata_dict: Dictionary with keys listed in doc for
@@ -350,8 +359,10 @@ def _apply_convective_criterion1(
         max_height_index = aloft_indices[0]
 
     if halve_resolution_for_peakedness:
-        (coarse_reflectivity_matrix_dbz, coarse_grid_point_latitudes_deg,
-         coarse_grid_point_longitudes_deg
+        (
+            coarse_reflectivity_matrix_dbz,
+            coarse_grid_point_latitudes_deg,
+            coarse_grid_point_longitudes_deg
         ) = _halve_refl_resolution(
             fine_reflectivity_matrix_dbz=reflectivity_matrix_dbz,
             fine_grid_point_latitudes_deg=grid_metadata_dict[LATITUDES_KEY],
@@ -411,7 +422,7 @@ def _apply_convective_criterion1(
     fractional_exceedance_matrix = (
         numerator_matrix.astype(float) / denominator_matrix
     )
-    convective_flag_matrix = fractional_exceedance_matrix >= 0.5
+    convective_flag_matrix = fractional_exceedance_matrix >= min_height_fraction
 
     if halve_resolution_for_peakedness:
         convective_flag_matrix = _double_class_resolution(
@@ -592,6 +603,10 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
         calculations (metres), used for criterion 1.
     option_dict['max_peakedness_height_m_asl'] Max height (metres above sea
         level) for peakedness calculations, used in criterion 1.
+    option_dict['min_height_fraction_for_peakedness']: Minimum fraction of
+        heights that exceed peakedness threshold, used in criterion 1.  At each
+        horizontal location, at least this fraction of heights must exceed the
+        threshold.
     option_dict['halve_resolution_for_peakedness'] Boolean flag.  If True,
         horizontal grid resolution will be halved for peakedness calculations.
     option_dict['min_echo_top_m_asl'] Minimum echo top (metres above sea level),
@@ -622,6 +637,7 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
 
     peakedness_neigh_metres = option_dict[PEAKEDNESS_NEIGH_KEY]
     max_peakedness_height_m_asl = option_dict[MAX_PEAKEDNESS_HEIGHT_KEY]
+    min_height_fraction_for_peakedness = option_dict[MIN_HEIGHT_FRACTION_KEY]
     halve_resolution_for_peakedness = option_dict[HALVE_RESOLUTION_KEY]
     min_echo_top_m_asl = option_dict[MIN_ECHO_TOP_KEY]
     echo_top_level_dbz = option_dict[ECHO_TOP_LEVEL_KEY]
@@ -669,6 +685,7 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         peakedness_neigh_metres=peakedness_neigh_metres,
         max_peakedness_height_m_asl=max_peakedness_height_m_asl,
+        min_height_fraction=min_height_fraction_for_peakedness,
         halve_resolution_for_peakedness=halve_resolution_for_peakedness,
         min_composite_refl_dbz=min_composite_refl_criterion1_dbz,
         grid_metadata_dict=grid_metadata_dict
@@ -806,6 +823,7 @@ def write_classifications(convective_flag_matrix, grid_metadata_dict,
 
     peakedness_neigh_metres = option_dict[PEAKEDNESS_NEIGH_KEY]
     max_peakedness_height_m_asl = option_dict[MAX_PEAKEDNESS_HEIGHT_KEY]
+    min_height_fraction_for_peakedness = option_dict[MIN_HEIGHT_FRACTION_KEY]
     halve_resolution_for_peakedness = option_dict[HALVE_RESOLUTION_KEY]
     min_echo_top_m_asl = option_dict[MIN_ECHO_TOP_KEY]
     echo_top_level_dbz = option_dict[ECHO_TOP_LEVEL_KEY]
@@ -829,6 +847,9 @@ def write_classifications(convective_flag_matrix, grid_metadata_dict,
     netcdf_dataset.setncattr(PEAKEDNESS_NEIGH_KEY, peakedness_neigh_metres)
     netcdf_dataset.setncattr(
         MAX_PEAKEDNESS_HEIGHT_KEY, max_peakedness_height_m_asl
+    )
+    netcdf_dataset.setncattr(
+        MIN_HEIGHT_FRACTION_KEY, min_height_fraction_for_peakedness
     )
     netcdf_dataset.setncattr(
         HALVE_RESOLUTION_KEY, int(halve_resolution_for_peakedness)
@@ -922,6 +943,13 @@ def read_classifications(netcdf_file_name):
         option_dict[MIN_SIZE_KEY] = getattr(netcdf_dataset, MIN_SIZE_KEY)
     except:
         option_dict[MIN_SIZE_KEY] = 2
+
+    try:
+        option_dict[MIN_HEIGHT_FRACTION_KEY] = getattr(
+            netcdf_dataset, MIN_HEIGHT_FRACTION_KEY
+        )
+    except:
+        option_dict[MIN_HEIGHT_FRACTION_KEY] = 0.5
 
     if option_dict[MIN_COMPOSITE_REFL_CRITERION1_KEY] < 0:
         option_dict[MIN_COMPOSITE_REFL_CRITERION1_KEY] = None
