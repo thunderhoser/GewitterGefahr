@@ -1803,20 +1803,27 @@ def reanalyze_across_spc_dates(
                 ]
 
             if i == 0:
-                this_first_time_unix_sec = numpy.min(
-                    storm_object_table_by_date[i][
-                        tracking_utils.VALID_TIME_COLUMN].values
-                )
+                these_times_unix_sec = storm_object_table_by_date[i][
+                    tracking_utils.VALID_TIME_COLUMN
+                ].values
             else:
-                this_first_time_unix_sec = numpy.min(
-                    storm_object_table_by_date[i + 1][
-                        tracking_utils.VALID_TIME_COLUMN].values
-                )
+                these_times_unix_sec = storm_object_table_by_date[i + 1][
+                    tracking_utils.VALID_TIME_COLUMN
+                ].values
 
-            this_last_time_unix_sec = numpy.max(
-                storm_object_table_by_date[i + 1][
-                    tracking_utils.VALID_TIME_COLUMN].values
-            )
+            if len(these_times_unix_sec) > 0:
+                this_first_time_unix_sec = numpy.min(these_times_unix_sec)
+            else:
+                this_first_time_unix_sec = int(1e12)
+
+            these_times_unix_sec = storm_object_table_by_date[i + 1][
+                tracking_utils.VALID_TIME_COLUMN
+            ].values
+
+            if len(these_times_unix_sec) > 0:
+                this_last_time_unix_sec = numpy.max(these_times_unix_sec)
+            else:
+                this_last_time_unix_sec = 0
 
             indices_to_concat = numpy.array([i, i + 1, i + 2], dtype=int)
             indices_to_concat = indices_to_concat[
