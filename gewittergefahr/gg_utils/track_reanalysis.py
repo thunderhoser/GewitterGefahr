@@ -535,12 +535,21 @@ def join_collinear_tracks(
         unique_primary_id_strings, these_last_rows
     )))
 
-    first_late_time_index = numpy.where(
+    these_indices = numpy.where(
         unique_times_unix_sec >= first_late_time_unix_sec
-    )[0][0]
-    last_late_time_index = numpy.where(
+    )[0]
+
+    if len(these_indices) == 0:
+        return storm_object_table
+    first_late_time_index = these_indices[0]
+
+    these_indices = numpy.where(
         unique_times_unix_sec <= last_late_time_unix_sec
-    )[0][-1]
+    )[0]
+
+    if len(these_indices) == 0:
+        return storm_object_table
+    last_late_time_index = these_indices[-1]
 
     for j in range(first_late_time_index, last_late_time_index + 1):
 
