@@ -1862,9 +1862,16 @@ def reanalyze_across_spc_dates(
             int(min_track_duration_seconds)
         ))
 
+        num_storm_objects_orig = len(concat_storm_object_table.index)
         concat_storm_object_table = temporal_tracking.remove_short_lived_storms(
             storm_object_table=concat_storm_object_table,
-            min_duration_seconds=min_track_duration_seconds)
+            min_duration_seconds=min_track_duration_seconds
+        )
+        num_storm_objects = len(concat_storm_object_table.index)
+
+        print('Removed {0:d} of {1:d} storm objects!!'.format(
+            num_storm_objects_orig, num_storm_objects_orig - num_storm_objects
+        ))
 
         print('Recomputing storm ages...')
         concat_storm_object_table = temporal_tracking.get_storm_ages(
