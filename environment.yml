@@ -1,0 +1,31 @@
+name: gewitter
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - numpy=1.18.*
+  - scipy
+  - matplotlib
+  - xarray
+  - netcdf4
+  - pyyaml
+  - pandas
+  - scikit-learn
+  - pytest
+  - pyproj
+  - jupyter
+  - dask
+  - distributed
+  - cartopy
+  - pip
+  - descartes
+  - metpy
+  - scikit-image
+  - shapely
+  - basemap
+  - pip:
+    - tensorflow
+    - keras
+    - roipoly
+    - opencv-python
+    - git+https://github.com/tkrajina/srtm.py.git

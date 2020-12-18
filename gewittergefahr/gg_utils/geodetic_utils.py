@@ -4,7 +4,7 @@ import os
 import numpy
 import srtm
 import geopy
-from geopy.distance import VincentyDistance
+from geopy.distance import GeodesicDistance
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -308,7 +308,7 @@ def start_points_and_displacements_to_endpoints(
     for i in range(num_points):
         this_start_point_object = geopy.Point(
             start_latitudes_deg.flat[i], start_longitudes_deg.flat[i])
-        this_end_point_object = VincentyDistance(
+        this_end_point_object = GeodesicDistance(
             meters=scalar_displacements_metres.flat[i]).destination(
                 this_start_point_object, geodetic_bearings_deg.flat[i])
 

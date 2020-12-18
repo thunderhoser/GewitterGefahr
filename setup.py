@@ -40,6 +40,7 @@ CLASSIFIERS = [
 PACKAGE_REQUIREMENTS = [
     'numpy',
     'scipy',
+    'roipoly',
     'tensorflow',
     'keras',
     'scikit-learn',
@@ -52,7 +53,8 @@ PACKAGE_REQUIREMENTS = [
     'shapely',
     'descartes',
     'geopy',
-    'metpy'
+    'metpy',
+    'python-srtm'
 ]
 
 if __name__ == '__main__':
