@@ -307,6 +307,9 @@ def generator_2d_or_3d(
             desired_full_id_strings=desired_full_id_strings,
             desired_times_unix_sec=desired_times_unix_sec)
     )
+    print('\n\n\n\n\n')
+    print(full_storm_id_strings)
+    print('\n\n\n\n\n')
     print('\n')
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
