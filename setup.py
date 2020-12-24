@@ -54,7 +54,7 @@ PACKAGE_REQUIREMENTS = [
     'descartes',
     'geopy',
     'metpy',
-    # 'basemap',
+    'basemap',
     # 'python-srtm'
 ]
 
