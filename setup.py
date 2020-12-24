@@ -54,7 +54,8 @@ PACKAGE_REQUIREMENTS = [
     'descartes',
     'geopy',
     'metpy',
-    'python-srtm'
+    # 'basemap',
+    # 'python-srtm'
 ]
 
 if __name__ == '__main__':
