@@ -1,0 +1,37 @@
+#!/usr/bin/bash
+
+#SBATCH --job-name="extract_permutation_examples"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem=24G
+#SBATCH --partition="swat_plus"
+#SBATCH --time=12:00:00
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@ou.edu
+#SBATCH --output=extract_permutation_examples_%A.out
+
+host_name=`hostname`
+
+if [[ $host_name == *"casper"* ]]; then
+    TOP_EXAMPLE_DIR_NAME="/glade/scratch/ryanlage/gridrad_final/myrorss_format/tracks_with_better_polygons/reanalyzed/conus_only/tornado_occurrence/nondownsampled_2011_2015-2018/learning_examples"
+    MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    
+    PYTHON_EXE_NAME="/glade/work/ryanlage/anaconda3_gpu/bin/python3.6"
+    GG_DIRECTORY_NAME="/glade/work/ryanlage/gg_master"
+else
+    TOP_EXAMPLE_DIR_NAME="/condo/swatcommon/common/gridrad_final/myrorss_format/tracks_with_better_polygons/reanalyzed/conus_only/tornado_occurrence/nondownsampled_2011_2015-2018/learning_examples"
+    MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    
+    PYTHON_EXE_NAME="/home/ralager/anaconda3/bin/python3.6"
+    GG_DIRECTORY_NAME="/condo/swatwork/ralager/gg_master"
+fi
+
+storm_metafile_name="${MODEL_DIR_NAME}/testing/examples_for_permutation.p"
+output_file_name="${MODEL_DIR_NAME}/testing/permutation_examples_5000.nc"
+
+"${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/interpretation_paper_2019/extract_desired_examples.py" \
+--input_example_dir_name="${TOP_EXAMPLE_DIR_NAME}" \
+--num_examples_in_subset=5000 \
+--subset_randomly=1 \
+--input_storm_metafile_name="${storm_metafile_name}" \
+--output_example_file_name="${output_file_name}"
