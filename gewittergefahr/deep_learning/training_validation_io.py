@@ -234,7 +234,7 @@ def _select_batch(
             continue
 
         list_of_predictor_matrices[i] = list_of_predictor_matrices[
-            i][batch_indices, ...].astype('float32')
+            i][batch_indices, ...].astype(numpy.float32)
 
     target_values[target_values == target_val_utils.DEAD_STORM_INTEGER] = 0
 
@@ -889,7 +889,7 @@ def generator_2d_or_3d(option_dict):
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value).astype('float32')
+                max_normalized_value=max_normalized_value).astype(numpy.float32)
 
             if include_soundings:
                 sounding_matrix = dl_utils.normalize_soundings(
@@ -898,7 +898,7 @@ def generator_2d_or_3d(option_dict):
                     normalization_type_string=normalization_type_string,
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
-                    max_normalized_value=max_normalized_value).astype('float32')
+                    max_normalized_value=max_normalized_value).astype(numpy.float32)
 
         list_of_predictor_matrices = [radar_image_matrix]
         if include_soundings:
@@ -1195,7 +1195,7 @@ def myrorss_generator_2d3d(option_dict):
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value
-                ).astype('float32')
+                ).astype(numpy.float32)
             else:
                 reflectivity_image_matrix_dbz = dl_utils.normalize_radar_images(
                     radar_image_matrix=reflectivity_image_matrix_dbz,
@@ -1204,7 +1204,7 @@ def myrorss_generator_2d3d(option_dict):
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value
-                ).astype('float32')
+                ).astype(numpy.float32)
 
                 az_shear_image_matrix_s01 = dl_utils.normalize_radar_images(
                     radar_image_matrix=az_shear_image_matrix_s01,
@@ -1213,7 +1213,7 @@ def myrorss_generator_2d3d(option_dict):
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value
-                ).astype('float32')
+                ).astype(numpy.float32)
 
             if include_soundings:
                 sounding_matrix = dl_utils.normalize_soundings(
@@ -1223,7 +1223,7 @@ def myrorss_generator_2d3d(option_dict):
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value
-                ).astype('float32')
+                ).astype(numpy.float32)
 
         if upsample_refl:
             list_of_predictor_matrices = [radar_image_matrix]
@@ -1409,7 +1409,7 @@ def sounding_generator(option_dict):
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
                 max_normalized_value=max_normalized_value
-            ).astype('float32')
+            ).astype(numpy.float32)
 
         list_of_predictor_matrices, target_array = _select_batch(
             list_of_predictor_matrices=[sounding_matrix],
@@ -1672,7 +1672,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value).astype('float32')
+                max_normalized_value=max_normalized_value).astype(numpy.float32)
 
             if include_soundings:
                 sounding_matrix = dl_utils.normalize_soundings(
@@ -1681,7 +1681,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                     normalization_type_string=normalization_type_string,
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
-                    max_normalized_value=max_normalized_value).astype('float32')
+                    max_normalized_value=max_normalized_value).astype(numpy.float32)
 
         list_of_predictor_matrices = [radar_image_matrix]
         if include_soundings:
