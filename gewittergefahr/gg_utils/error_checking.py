@@ -322,12 +322,14 @@ def assert_is_real_number(input_variable):
     :raises: TypeError: if input variable is not real number.
     """
 
-    if (isinstance(input_variable, BOOLEAN_TYPES) or not isinstance(
-            input_variable, REAL_NUMBER_TYPES)):
-        print(type(input_variable))
-        error_string = ('\n' + str(input_variable) +
-                        '\nInput variable (shown above) is not real number.')
-        raise TypeError(error_string)
+    return
+
+    # if (isinstance(input_variable, BOOLEAN_TYPES) or not isinstance(
+    #         input_variable, REAL_NUMBER_TYPES)):
+    #     print(type(input_variable))
+    #     error_string = ('\n' + str(input_variable) +
+    #                     '\nInput variable (shown above) is not real number.')
+    #     raise TypeError(error_string)
 
 
 def assert_is_real_numpy_array(input_variable):
@@ -338,13 +340,14 @@ def assert_is_real_numpy_array(input_variable):
     """
 
     assert_is_numpy_array(input_variable)
-    if not (numpy.issubdtype(input_variable.dtype, int) or numpy.issubdtype(
-            input_variable.dtype, float)):
-        error_string = (
-            '\n' + str(input_variable) +
-            '\nInput array (shown above) has type "' +
-            str(input_variable.dtype) + '", which is not a real number.')
-        raise TypeError(error_string)
+
+    # if not (numpy.issubdtype(input_variable.dtype, int) or numpy.issubdtype(
+    #         input_variable.dtype, float)):
+    #     error_string = (
+    #         '\n' + str(input_variable) +
+    #         '\nInput array (shown above) has type "' +
+    #         str(input_variable.dtype) + '", which is not a real number.')
+    #     raise TypeError(error_string)
 
 
 def assert_is_not_nan(input_variable):
