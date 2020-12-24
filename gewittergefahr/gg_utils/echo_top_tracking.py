@@ -1870,7 +1870,7 @@ def reanalyze_across_spc_dates(
         num_storm_objects = len(concat_storm_object_table.index)
 
         print('Removed {0:d} of {1:d} storm objects!!'.format(
-            num_storm_objects_orig, num_storm_objects_orig - num_storm_objects
+            num_storm_objects_orig - num_storm_objects, num_storm_objects_orig
         ))
 
         print('Recomputing storm ages...')

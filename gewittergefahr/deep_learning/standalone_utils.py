@@ -172,6 +172,33 @@ def do_activation(input_values, function_name, alpha=0.2):
     return function_object([input_values])[0]
 
 
+def do_2d_upsampling(feature_matrix, upsampling_factor=2,
+                     use_linear_interp=True):
+    """Upsamples 2-D feature maps.
+
+    m = number of rows after upsampling
+    n = number of columns after upsampling
+
+    :param feature_matrix: Input feature maps (numpy array).  Dimensions must be
+        M x N x C or 1 x M x N x C.
+    :param upsampling_factor: Upsampling factor (integer > 1).
+    :param use_linear_interp: Boolean flag.  If True (False), will use linear
+        (nearest-neighbour) interpolation.
+    :return: feature_matrix: Output feature maps (numpy array).  Dimensions will
+        be 1 x m x n x C.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(feature_matrix)
+    error_checking.assert_is_integer(upsampling_factor)
+    error_checking.assert_is_geq(upsampling_factor, 2)
+    error_checking.assert_is_boolean(use_linear_interp)
+
+    if len(feature_matrix.shape) == 3:
+        feature_matrix = numpy.expand_dims(feature_matrix, axis=0)
+
+    error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=4)
+
+
 def do_2d_pooling(feature_matrix, stride_length_px=2,
                   pooling_type_string=MAX_POOLING_TYPE_STRING):
     """Pools 2-D feature maps.
@@ -216,7 +243,7 @@ def do_3d_pooling(feature_matrix, stride_length_px=2,
 
     :param feature_matrix: Input feature maps (numpy array).  Dimensions must be
         M x N x H x C or 1 x M x N x H x C.
-    :param stride_length_px: See doc for `do_2d_pooling`.import tensorflow.python.keras.backend as K
+    :param stride_length_px: See doc for `do_2d_pooling`.
     :param pooling_type_string: Pooling type (must be accepted by
         `_check_pooling_type`).
     :return: feature_matrix: Output feature maps (numpy array).  Dimensions will

@@ -267,8 +267,6 @@ def _plot_bars(
             backwards_flag=backwards_flag, multipass_flag=multipass_flag
         )
 
-        significant_flags = numpy.full(num_steps, False, dtype=bool)
-
         x_min = numpy.min(mean_costs - error_matrix[0, :])
         x_max = numpy.max(mean_costs + error_matrix[1, :])
 

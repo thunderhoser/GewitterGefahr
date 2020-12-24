@@ -153,9 +153,11 @@ def vapour_pressure_to_dewpoint(vapour_pressures_pascals, temperatures_kelvins):
     denominators = denominator_coeffs - logarithms
 
     dewpoints_deg_c = numerators / denominators
-    dewpoints_kelvins = temperature_conv.celsius_to_kelvins(dewpoints_deg_c)
+    dewpoints_deg_c[numpy.invert(numpy.isfinite(dewpoints_deg_c))] = (
+        -temperature_conv.CELSIUS_TO_KELVINS_ADDEND
+    )
 
-    dewpoints_kelvins[numpy.invert(numpy.isfinite(dewpoints_kelvins))] = 0.
+    dewpoints_kelvins = temperature_conv.celsius_to_kelvins(dewpoints_deg_c)
     dewpoints_kelvins[dewpoints_deg_c + numerator_coeffs < 0] = 0.
 
     return dewpoints_kelvins

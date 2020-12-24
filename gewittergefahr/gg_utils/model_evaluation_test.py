@@ -167,9 +167,10 @@ MEAN_OBSERVED_LABEL_BY_BIN = numpy.array([
 NUM_EXAMPLES_BY_BIN = numpy.array([3, 2, 2, 0, 0, 0, 0, 0, 1, 2], dtype=int)
 
 # The following constants are used to test get_brier_skill_score.
-CLIMATOLOGY_FOR_BSS = 0.2
-THIS_UNCERTAINTY = 0.16
-THIS_RESOLUTION = 0.34
+TRAINING_CLIMATOLOGY = 0.2
+TRAINING_UNCERTAINTY = 0.16
+THIS_UNCERTAINTY = 0.25
+THIS_RESOLUTION = 0.25
 
 THESE_INDICES = numpy.array([0, 1], dtype=int)
 THIS_RELIABILITY_LABEL0 = 0.1 * numpy.sum(
@@ -185,7 +186,7 @@ THIS_RELIABILITY_LABEL1 = 0.1 * numpy.sum(
 
 THIS_RELIABILITY = THIS_RELIABILITY_LABEL0 + THIS_RELIABILITY_LABEL1
 THIS_BRIER_SCORE = THIS_UNCERTAINTY + THIS_RELIABILITY - THIS_RESOLUTION
-THIS_BSS = (THIS_RESOLUTION - THIS_RELIABILITY) / THIS_UNCERTAINTY
+THIS_BSS = 1. - THIS_BRIER_SCORE / TRAINING_UNCERTAINTY
 
 BSS_DICTIONARY = {
     model_eval.BSS_KEY: THIS_BSS,
@@ -532,7 +533,8 @@ class ModelEvaluationTests(unittest.TestCase):
         """Ensures crctness of get_heidke_score; input values are non-zero."""
 
         this_heidke_score = model_eval.get_heidke_score(
-            CONTINGENCY_TABLE_THRESHOLD_HALF)
+            CONTINGENCY_TABLE_THRESHOLD_HALF
+        )
 
         self.assertTrue(numpy.isclose(
             this_heidke_score, HEIDKE_SCORE_THRESHOLD_HALF, atol=TOLERANCE
@@ -734,7 +736,7 @@ class ModelEvaluationTests(unittest.TestCase):
             mean_forecast_prob_by_bin=MEAN_FORECAST_PROB_BY_BIN,
             mean_observed_label_by_bin=MEAN_OBSERVED_LABEL_BY_BIN,
             num_examples_by_bin=NUM_EXAMPLES_BY_BIN,
-            climatology=CLIMATOLOGY_FOR_BSS)
+            climatology=TRAINING_CLIMATOLOGY)
 
         actual_keys = list(this_bss_dict.keys())
         expected_keys = list(BSS_DICTIONARY.keys())

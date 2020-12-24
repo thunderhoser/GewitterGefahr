@@ -6,7 +6,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 ERROR_STRING = (
-    '\nUnix command failed (log messages shown above should explain why).')
+    '\nUnix command failed (log messages shown above should explain why).'
+)
 
 DEFAULT_CONVERT_EXE_NAME = '/usr/bin/convert'
 DEFAULT_MONTAGE_EXE_NAME = '/usr/bin/montage'

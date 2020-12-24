@@ -144,7 +144,7 @@ def find_file(
     :param tracking_scale_metres2: Same.
     :param source_name: Same.
     :param valid_time_unix_sec: Valid time.
-    :param spc_date_string: [used only if data source is ProbSevere]
+    :param spc_date_string: [used only if data source is segmotion]
         SPC date (format "yyyymmdd").
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.

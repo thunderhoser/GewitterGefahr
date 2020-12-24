@@ -67,16 +67,16 @@ def _get_num_true_positives(target_tensor, forecast_probability_tensor):
     """
 
     num_dimensions = _get_num_tensor_dimensions(target_tensor)
-    if num_dimensions == 1:
-        return K.sum(K.clip(
-            target_tensor * forecast_probability_tensor, 0., 1.))
 
     if num_dimensions == 2:
         return K.sum(K.clip(
             target_tensor[..., -1] * forecast_probability_tensor[..., -1],
-            0., 1.))
+            0., 1.
+        ))
 
-    return None
+    return K.sum(K.clip(
+        target_tensor * forecast_probability_tensor, 0., 1.
+    ))
 
 
 def _get_num_false_positives(target_tensor, forecast_probability_tensor):
@@ -88,17 +88,17 @@ def _get_num_false_positives(target_tensor, forecast_probability_tensor):
     """
 
     num_dimensions = _get_num_tensor_dimensions(target_tensor)
-    if num_dimensions == 1:
-        return K.sum(K.clip(
-            (1. - target_tensor) * forecast_probability_tensor, 0., 1.))
 
     if num_dimensions == 2:
-        return K.sum(K.clip(
-            (1. - target_tensor[..., -1]) *
-            forecast_probability_tensor[..., -1],
-            0., 1.))
+        product_tensor = (
+            (1. - target_tensor[..., -1]) * forecast_probability_tensor[..., -1]
+        )
 
-    return None
+        return K.sum(K.clip(product_tensor, 0., 1.))
+
+    return K.sum(K.clip(
+        (1. - target_tensor) * forecast_probability_tensor, 0., 1.
+    ))
 
 
 def _get_num_false_negatives(target_tensor, forecast_probability_tensor):
@@ -110,17 +110,17 @@ def _get_num_false_negatives(target_tensor, forecast_probability_tensor):
     """
 
     num_dimensions = _get_num_tensor_dimensions(target_tensor)
-    if num_dimensions == 1:
-        return K.sum(K.clip(
-            target_tensor * (1. - forecast_probability_tensor), 0., 1.))
 
     if num_dimensions == 2:
-        return K.sum(K.clip(
-            target_tensor[..., -1] *
-            (1. - forecast_probability_tensor[..., -1]),
-            0., 1.))
+        product_tensor = (
+            target_tensor[..., -1] * (1. - forecast_probability_tensor[..., -1])
+        )
 
-    return None
+        return K.sum(K.clip(product_tensor, 0., 1.))
+
+    return K.sum(K.clip(
+        target_tensor * (1. - forecast_probability_tensor), 0., 1.
+    ))
 
 
 def _get_num_true_negatives(target_tensor, forecast_probability_tensor):
@@ -132,17 +132,18 @@ def _get_num_true_negatives(target_tensor, forecast_probability_tensor):
     """
 
     num_dimensions = _get_num_tensor_dimensions(target_tensor)
-    if num_dimensions == 1:
-        return K.sum(K.clip(
-            (1. - target_tensor) * (1. - forecast_probability_tensor), 0., 1.))
 
     if num_dimensions == 2:
-        return K.sum(K.clip(
+        product_tensor = (
             (1. - target_tensor[..., -1]) *
-            (1. - forecast_probability_tensor[..., -1]),
-            0., 1.))
+            (1. - forecast_probability_tensor[..., -1])
+        )
 
-    return None
+        return K.sum(K.clip(product_tensor,0., 1.))
+
+    return K.sum(K.clip(
+        (1. - target_tensor) * (1. - forecast_probability_tensor), 0., 1.
+    ))
 
 
 def accuracy(target_tensor, forecast_probability_tensor):
@@ -249,8 +250,10 @@ def binary_peirce_score(target_tensor, forecast_probability_tensor):
     :return: binary_peirce_score: Binary Peirce score.
     """
 
-    return binary_pod(target_tensor, forecast_probability_tensor) - binary_pofd(
-        target_tensor, forecast_probability_tensor)
+    return (
+        binary_pod(target_tensor, forecast_probability_tensor) -
+        binary_pofd(target_tensor, forecast_probability_tensor)
+    )
 
 
 def binary_npv(target_tensor, forecast_probability_tensor):
