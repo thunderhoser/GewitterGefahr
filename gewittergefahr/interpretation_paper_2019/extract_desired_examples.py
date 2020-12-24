@@ -74,15 +74,12 @@ def _run(input_example_dir_name, storm_metafile_name, num_examples_in_subset,
     :param output_example_file_name: Same.
     """
 
-    if num_examples_in_subset <= 0:
-        num_examples_in_subset = None
-
     print('Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name))
     example_id_strings, example_times_unix_sec = (
         tracking_io.read_ids_and_times(storm_metafile_name)
     )
 
-    if num_examples_in_subset >= len(example_id_strings):
+    if not 0 < num_examples_in_subset < len(example_id_strings):
         num_examples_in_subset = None
 
     if num_examples_in_subset is not None:
