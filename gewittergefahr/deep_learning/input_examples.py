@@ -983,9 +983,12 @@ def _subset_radar_data(
 
     if RADAR_IMAGE_MATRIX_KEY in netcdf_dataset_object.variables:
         radar_matrix = numpy.array(
-            netcdf_dataset_object.variables[
-                RADAR_IMAGE_MATRIX_KEY][example_indices_to_keep, ...]
+            netcdf_dataset_object.variables[RADAR_IMAGE_MATRIX_KEY][
+                example_indices_to_keep, ...
+            ],
+            dtype=float
         )
+
         num_radar_dimensions = len(radar_matrix.shape) - 2
 
         if num_radar_dimensions == 2:
@@ -1024,15 +1027,21 @@ def _subset_radar_data(
 
     else:
         reflectivity_matrix_dbz = numpy.array(
-            netcdf_dataset_object.variables[
-                REFL_IMAGE_MATRIX_KEY][example_indices_to_keep, ...]
+            netcdf_dataset_object.variables[REFL_IMAGE_MATRIX_KEY][
+                example_indices_to_keep, ...
+            ],
+            dtype=float
         )
+
         reflectivity_matrix_dbz = numpy.expand_dims(
-            reflectivity_matrix_dbz, axis=-1)
+            reflectivity_matrix_dbz, axis=-1
+        )
 
         azimuthal_shear_matrix_s01 = numpy.array(
-            netcdf_dataset_object.variables[
-                AZ_SHEAR_IMAGE_MATRIX_KEY][example_indices_to_keep, ...]
+            netcdf_dataset_object.variables[AZ_SHEAR_IMAGE_MATRIX_KEY][
+                example_indices_to_keep, ...
+            ],
+            dtype=float
         )
 
         these_height_indices = numpy.array([
@@ -1105,7 +1114,9 @@ def _subset_sounding_data(
 
     sounding_matrix = numpy.array(
         netcdf_dataset_object.variables[SOUNDING_MATRIX_KEY][
-            example_indices_to_keep, ...]
+            example_indices_to_keep, ...
+        ],
+        dtype=float
     )
 
     # TODO(thunderhoser): This is a HACK.
