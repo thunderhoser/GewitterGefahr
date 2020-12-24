@@ -14,8 +14,10 @@ import pandas
 # types.
 
 BOOLEAN_TYPES = (bool, numpy.bool_)
-REAL_NUMBER_TYPES = (float, numpy.float16, numpy.float32, numpy.float64,
-                     numbers.Integral)
+REAL_NUMBER_TYPES = (
+    float, numpy.float16, numpy.float32, numpy.float64,
+    'float16', 'float32', 'float64', numbers.Integral
+)
 TREE_TYPES = (tuple, list)
 ARRAY_TYPES = (tuple, list, numpy.ndarray)
 
