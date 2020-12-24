@@ -64,7 +64,7 @@ INPUT_ARG_PARSER.add_argument(
 def _run(input_example_dir_name, storm_metafile_name, num_examples_in_subset,
          subset_randomly, output_example_file_name):
     """Extracts desired examples and writes them to one file.
-    
+
     This is effectively the main method.
 
     :param input_example_dir_name: See documentation at top of file.
