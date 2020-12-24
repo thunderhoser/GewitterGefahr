@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-#SBATCH --job-name="extract_permutation_examples"
+#SBATCH --job-name="extract_permutation_examples_5000"
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --mem=24G
@@ -8,7 +8,7 @@
 #SBATCH --time=12:00:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=ryan.lagerquist@ou.edu
-#SBATCH --output=extract_permutation_examples_%A.out
+#SBATCH --output=extract_permutation_examples_5000_%A.out
 
 host_name=`hostname`
 
