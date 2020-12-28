@@ -12,7 +12,7 @@ C = number of channels before operation
 
 import numpy
 import tensorflow.keras.layers as layers
-import tensorflow.python.keras.backend as K
+from tensorflow.compat.v1.keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
 
