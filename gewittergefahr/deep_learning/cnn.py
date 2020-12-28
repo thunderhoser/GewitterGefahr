@@ -238,7 +238,10 @@ def get_connected_input_layers(model_object, target_layer_name):
             these_prev_layer_objects = []
 
             for n in these_prev_node_objects:
-                these_prev_layer_objects += n.inbound_layers
+                try:
+                    these_prev_layer_objects += n.inbound_layers
+                except:
+                    these_prev_layer_objects += [n.inbound_layers]
 
             if len(these_prev_layer_objects) == 0:
                 input_layer_objects.append(l)
