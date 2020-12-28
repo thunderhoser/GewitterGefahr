@@ -1,10 +1,8 @@
 """Methods for plotting storm outlines and storm tracks."""
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
+from matplotlib import pyplot
 import matplotlib.colors
-import matplotlib.pyplot as pyplot
 from matplotlib.collections import LineCollection
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion

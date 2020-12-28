@@ -1,8 +1,6 @@
 """Plotting methods for statistical significance (mainly on grids)."""
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
 from gewittergefahr.gg_utils import error_checking
 
 DEFAULT_MARKER_TYPE = '.'

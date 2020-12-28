@@ -1,9 +1,7 @@
 """Helper methods for plotting (mostly 2-D georeferenced maps)."""
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
+from matplotlib import pyplot
 import matplotlib.colors
 from mpl_toolkits.basemap import Basemap
 from gewittergefahr.gg_utils import nwp_model_utils

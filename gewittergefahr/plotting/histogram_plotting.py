@@ -1,9 +1,7 @@
 """Plotting of histograms."""
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
+from matplotlib import pyplot
 from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking

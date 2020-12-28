@@ -1,9 +1,7 @@
 """Plotting methods for wind."""
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
+from matplotlib import pyplot
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 

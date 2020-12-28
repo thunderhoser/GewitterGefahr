@@ -1,9 +1,7 @@
 """Plots saliency maps."""
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
+from matplotlib import pyplot
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import error_checking

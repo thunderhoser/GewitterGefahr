@@ -1,11 +1,8 @@
 """Plots class-activation maps (CAM)."""
 
 import numpy
-import matplotlib
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import error_checking
-
-matplotlib.use('agg')
 
 DEFAULT_CONTOUR_WIDTH = 2
 DEFAULT_CONTOUR_STYLE = 'solid'

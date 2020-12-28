@@ -2,9 +2,7 @@
 
 import copy
 import numpy
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
+from matplotlib import pyplot
 import matplotlib.colors
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import radar_utils

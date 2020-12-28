@@ -1,9 +1,7 @@
 """Plotting methods for CNN feature maps."""
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
+from matplotlib import pyplot
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 

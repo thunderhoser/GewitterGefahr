@@ -1,8 +1,6 @@
 """Plotting methods for probability."""
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
 import matplotlib.colors
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import error_checking

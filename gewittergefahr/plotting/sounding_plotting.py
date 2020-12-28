@@ -3,9 +3,7 @@
 import os
 import tempfile
 import numpy
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
+from matplotlib import pyplot
 import metpy.plots
 import metpy.units
 from gewittergefahr.gg_utils import soundings

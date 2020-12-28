@@ -1,8 +1,6 @@
 """Plots results of permutation test for predictor importance."""
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
 from matplotlib import pyplot
 from scipy.stats import percentileofscore
 from gewittergefahr.gg_utils import error_checking
