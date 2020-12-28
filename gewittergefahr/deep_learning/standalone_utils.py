@@ -133,7 +133,7 @@ def do_3d_convolution(
         padding=padding_string, data_format='channels_last'
     )
 
-    return feature_tensor.numpy()
+    return K.eval(feature_tensor)
 
 
 def do_activation(input_values, function_name, alpha=0.2):
