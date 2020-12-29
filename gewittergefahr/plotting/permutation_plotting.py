@@ -128,26 +128,15 @@ def _get_error_matrix(cost_matrix, is_cost_auc, confidence_level,
         if not is_cost_auc:
             these_diffs *= -1
 
-        print(numpy.mean(these_diffs))
-
         this_percentile = percentileofscore(
             a=these_diffs, score=0., kind='mean'
         )
+        this_flag = this_percentile <= 100 * (1. - confidence_level)
 
         if multipass_flag:
-            significant_flags[i] = this_percentile <= 5.
+            significant_flags[i] = this_flag
         else:
-            significant_flags[i + 1] = this_percentile <= 5.
-
-        print((
-            'Percentile of 0 in (cost at step {0:d}) - (cost at step {1:d}) = '
-            '{2:.4f}'
-        ).format(
-            i + 1, i, this_percentile
-        ))
-
-    print(significant_flags)
-    print('\n')
+            significant_flags[i + 1] = this_flag
 
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
