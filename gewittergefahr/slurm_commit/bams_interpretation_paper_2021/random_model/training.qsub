@@ -1,0 +1,69 @@
+#!/usr/bin/bash
+
+#SBATCH --job-name="training"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem=56G
+#SBATCH --partition="swat_plus"
+#SBATCH --time=48:00:00
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@ou.edu
+#SBATCH --output=training_%A.out
+
+host_name=`hostname`
+
+if [[ $host_name == *"casper"* ]]; then
+    TOP_EXAMPLE_DIR_NAME="/glade/scratch/ryanlage/gridrad_final/myrorss_format/tracks_with_better_polygons/reanalyzed/conus_only/tornado_occurrence/downsampled_2012-2018/learning_examples/shuffled/single_pol_2012-2018"
+    TOP_MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/shuffled_no_downsampling"
+    
+    PYTHON_EXE_NAME="/glade/work/ryanlage/anaconda3_gpu/bin/python3.6"
+    GG_DIRECTORY_NAME="/glade/work/ryanlage/gg_master"
+else
+    TOP_EXAMPLE_DIR_NAME="/scratch/ralager/gridrad_final/myrorss_format/tracks_with_better_polygons/reanalyzed/conus_only/tornado_occurrence/downsampled_2012-2018/learning_examples/shuffled/single_pol_2012-2018"
+    TOP_MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/shuffled_no_downsampling"
+    
+    PYTHON_EXE_NAME="/home/ralager/anaconda3/bin/python3.6"
+    GG_DIRECTORY_NAME="/condo/swatwork/ralager/gg_master"
+fi
+
+TARGET_NAME="tornado_lead-time=0000-3600sec_distance=00000-10000m_min-fujita=0"
+RADAR_FIELD_NAMES_STRING="reflectivity_dbz spectrum_width_m_s01 vorticity_s01 divergence_s01"
+
+FIRST_TRAINING_TIME_STRING="2012-01-01-000000"
+LAST_TRAINING_TIME_STRING="2014-12-25-000000"
+FIRST_VALIDATION_TIME_STRING="2015-01-01-000000"
+LAST_VALIDATION_TIME_STRING="2019-01-01-115959"
+
+dropout_rate_string="0.000"
+l2_weight_string="0.000000"
+num_dense_layers_string="2"
+data_aug_flag_string="0"
+
+this_template_file_name="${TOP_MODEL_DIR_NAME}/templates/dropout=${dropout_rate_string}_l2=${l2_weight_string}_num-dense-layers=${num_dense_layers_string}.h5"
+this_output_dir_name="${TOP_MODEL_DIR_NAME}/dropout=${dropout_rate_string}_l2=${l2_weight_string}_num-dense-layers=${num_dense_layers_string}_data-aug=${data_aug_flag_string}"
+echo "Array index = ${SLURM_ARRAY_TASK_ID} ... template = '${this_template_file_name}' ... output = '${this_output_dir_name}'"
+
+normalization_file_name="${TOP_EXAMPLE_DIR_NAME}/normalization_params_32x32.p"
+
+"${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/scripts/train_cnn_3d_gridrad.py" \
+--radar_field_names ${RADAR_FIELD_NAMES_STRING} \
+--refl_masking_threshold_dbz=-1 \
+--input_model_file_name="${this_template_file_name}" \
+--normalization_param_file_name="${normalization_file_name}" \
+--normalization_type_string="z_score" \
+--target_name="${TARGET_NAME}" \
+--shuffle_target=1 \
+--downsampling_classes 0 1 \
+--downsampling_fractions 0.972 0.028 \
+--input_training_dir_name="${TOP_EXAMPLE_DIR_NAME}" \
+--first_training_time_string="${FIRST_TRAINING_TIME_STRING}" \
+--last_training_time_string="${LAST_TRAINING_TIME_STRING}" \
+--input_validation_dir_name="${TOP_EXAMPLE_DIR_NAME}" \
+--first_validation_time_string="${FIRST_VALIDATION_TIME_STRING}" \
+--last_validation_time_string="${LAST_VALIDATION_TIME_STRING}" \
+--num_ex_per_train_batch=1152 \
+--num_ex_per_validn_batch=1152 \
+--num_epochs=100 \
+--num_training_batches_per_epoch=32 \
+--num_validation_batches_per_epoch=0 \
+--output_dir_name="${this_output_dir_name}"
