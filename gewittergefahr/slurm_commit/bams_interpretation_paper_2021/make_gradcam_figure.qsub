@@ -29,6 +29,9 @@ gradcam_files_string="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_ce
 
 "${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/interpretation_paper_2019/make_gradcam_figure.py" \
 --input_gradcam_file_names ${gradcam_files_string} \
+--input_monte_carlo_file_names None None None None \
 --composite_names ${COMPOSITE_NAMES_STRING} \
+--min_colour_values 0.01 0.01 0.01 0.01 \
+--max_colour_values 31.622776601683793 31.622776601683793 31.622776601683793 31.622776601683793 \
 --smoothing_radius_grid_cells=1 \
 --output_dir_name="${output_dir_name}"
