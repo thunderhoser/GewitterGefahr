@@ -31,8 +31,8 @@ this_subset_name=${SUBSET_NAMES[$SLURM_ARRAY_TASK_ID]}
 echo "Array index = ${SLURM_ARRAY_TASK_ID} ... subset = ${this_subset_name}"
 
 actual_gradcam_file_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/${this_subset_name}_gradcam_layer3.p"
-dummy_gradcam_file_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/shuffled_no_downsampling/${this_subset_name}_gradcam.p"
-output_file_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/shuffled_no_downsampling/${this_subset_name}_gradcam_mc-test-20000.p"
+dummy_gradcam_file_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/shuffled_no_downsampling/${this_subset_name}_gradcam_layer3.p"
+output_file_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/shuffled_no_downsampling/${this_subset_name}_gradcam_layer3_mc-test-20000.p"
 
 "${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/dissertation/run_mc_test_for_gradcam.py" \
 --actual_gradcam_file_name="${actual_gradcam_file_name}" \

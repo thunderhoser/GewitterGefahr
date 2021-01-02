@@ -11,7 +11,6 @@
 #SBATCH --mail-user=ryan.lagerquist@ou.edu
 #SBATCH --output=make_gradcam_figures_with_sig_%A_%a.out
 
-# COMPOSITE_NAMES_STRING="Actual Edge-detector_test Data-randomization_test Conv_layer_3_shuffled Dense_layer_1_shuffled"
 COMPOSITE_NAMES_STRING="Actual Edge-detector_test Data-randomization_test Dense_layer_1_shuffled"
 
 host_name=`hostname`
@@ -32,9 +31,6 @@ SUBSET_NAMES=("best_correct_nulls" "best_hits" "high_activation_examples" "low_a
 MIN_COLOUR_VALUE_STRINGS=("0.01 0.5011872336272722 0.7943282347242815 0.07943282347242814" "0.01 0.31622776601683794 0.7943282347242815 0.01" "0.01 0.31622776601683794 0.7943282347242815 0.01" "0.01 0.5011872336272722 0.7943282347242815 0.07943282347242814" "0.01 0.3981071705534972 0.7943282347242815 0.06309573444801933" "0.01 0.3981071705534972 0.6309573444801932 0.05011872336272722")
 MAX_COLOUR_VALUE_STRINGS=("31.622776601683793 6.309573444801933 1.5848931924611136 1.2589254117941673" "31.622776601683793 12.589254117941675 2.51188643150958 3.1622776601683795" "31.622776601683793 12.589254117941675 2.51188643150958 3.1622776601683795" "31.622776601683793 6.309573444801933 1.5848931924611136 1.2589254117941673" "31.622776601683793 15.848931924611133 2.51188643150958 3.1622776601683795" "31.622776601683793 6.309573444801933 1.9952623149688795 1.9952623149688795")
 
-# MIN_COLOUR_VALUE_STRINGS=("0.01 0.01 0.6 0.01 0.01" "0.01 0.01 0.6 0.01 0.01" "0.01 0.01 0.6 0.01 0.01" "0.01 0.01 0.6 0.01 0.01" "0.01 0.01 0.6 0.01 0.01" "0.01 0.01 0.6 0.01 0.01")
-# MAX_COLOUR_VALUE_STRINGS=("31.622776601683793 10 2.3 31.622776601683793 31.622776601683793" "31.622776601683793 10 2.3 31.622776601683793 31.622776601683793" "31.622776601683793 10 2.3 31.622776601683793 31.622776601683793" "31.622776601683793 10 2.3 31.622776601683793 31.622776601683793" "31.622776601683793 10 2.3 31.622776601683793 31.622776601683793" "31.622776601683793 10 2.3 31.622776601683793 31.622776601683793")
-
 this_subset_name=${SUBSET_NAMES[$SLURM_ARRAY_TASK_ID]}
 this_min_value_string=${MIN_COLOUR_VALUE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 this_max_value_string=${MAX_COLOUR_VALUE_STRINGS[$SLURM_ARRAY_TASK_ID]}
@@ -43,10 +39,7 @@ echo "Array index = ${SLURM_ARRAY_TASK_ID} ... subset = ${this_subset_name} ... 
 
 this_output_dir_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/figures_for_interpretation_paper/sanity_checks/${this_subset_name}"
 this_gradcam_files_string="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/${this_subset_name}_gradcam_layer3_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/edge_detector/${this_subset_name}_gradcam_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/overfit_no_downsampling/${this_subset_name}_gradcam_layer3_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/random/${this_subset_name}_gradcam_layer3_random_dense-53_pmm.p"
-this_monte_carlo_files_string="None ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/edge_detector/${this_subset_name}_gradcam_mc-test.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/overfit_no_downsampling/${this_subset_name}_gradcam_layer3_mc-test.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/random/${this_subset_name}_gradcam_layer3_random_dense-53_mc-test.p"
-
-# this_gradcam_files_string="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/${this_subset_name}_gradcam_layer3_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/edge_detector/${this_subset_name}_gradcam_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/overfit_no_downsampling/${this_subset_name}_gradcam_layer3_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/random/${this_subset_name}_gradcam_layer3_random_conv3d-66_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/random/${this_subset_name}_gradcam_layer3_random_dense-53_pmm.p"
-# this_monte_carlo_files_string="None ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/edge_detector/${this_subset_name}_gradcam_mc-test.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/overfit_no_downsampling/${this_subset_name}_gradcam_layer3_mc-test.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/random/${this_subset_name}_gradcam_layer3_random_conv3d-66_mc-test.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/random/${this_subset_name}_gradcam_layer3_random_dense-53_mc-test.p"
+this_monte_carlo_files_string="None ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/edge_detector/${this_subset_name}_gradcam_mc-test-20000.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/overfit_no_downsampling/${this_subset_name}_gradcam_layer3_mc-test-20000.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/random/${this_subset_name}_gradcam_layer3_random_dense-53_mc-test-20000.p"
 
 "${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/interpretation_paper_2019/make_gradcam_figure.py" \
 --input_gradcam_file_names ${this_gradcam_files_string} \
