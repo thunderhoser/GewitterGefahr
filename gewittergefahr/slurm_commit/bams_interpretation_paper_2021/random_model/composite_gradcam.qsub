@@ -26,13 +26,11 @@ else
 fi
 
 SUBSET_NAMES=("best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses" "best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses" "best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses")
-TARGET_LAYER_NAMES=("batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139")
 TARGET_LAYER_NAMES_SIMPLE=(1 1 1 1 1 1 2 2 2 2 2 2 3 3 3 3 3 3)
 
 this_subset_name=${SUBSET_NAMES[$SLURM_ARRAY_TASK_ID]}
-this_layer_name=${TARGET_LAYER_NAMES[$SLURM_ARRAY_TASK_ID]}
 this_layer_name_simple=${TARGET_LAYER_NAMES_SIMPLE[$SLURM_ARRAY_TASK_ID]}
-echo "Array index = ${SLURM_ARRAY_TASK_ID} ... subset = ${this_subset_name} ... target layer = ${this_layer_name} ... simple layer name = ${this_layer_name_simple}"
+echo "Array index = ${SLURM_ARRAY_TASK_ID} ... subset = ${this_subset_name} ... simple layer name = ${this_layer_name_simple}"
 
 this_input_file_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/shuffled_no_downsampling/${this_subset_name}_gradcam_layer${this_layer_name_simple}.p"
 this_pmm_file_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/shuffled_no_downsampling/${this_subset_name}_gradcam_layer${this_layer_name_simple}_pmm.p"

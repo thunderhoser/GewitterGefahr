@@ -30,7 +30,7 @@ else
 fi
 
 SUBSET_NAMES=("best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses" "best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses" "best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses")
-TARGET_LAYER_NAMES=("batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139")
+TARGET_LAYER_NAMES=("batch_normalization_1" "batch_normalization_1" "batch_normalization_1" "batch_normalization_1" "batch_normalization_1" "batch_normalization_1" "batch_normalization_2" "batch_normalization_2" "batch_normalization_2" "batch_normalization_2" "batch_normalization_2" "batch_normalization_2" "batch_normalization_3" "batch_normalization_3" "batch_normalization_3" "batch_normalization_3" "batch_normalization_3" "batch_normalization_3")
 TARGET_LAYER_NAMES_SIMPLE=(1 1 1 1 1 1 2 2 2 2 2 2 3 3 3 3 3 3)
 
 this_subset_name=${SUBSET_NAMES[$SLURM_ARRAY_TASK_ID]}
