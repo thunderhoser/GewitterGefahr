@@ -1,0 +1,34 @@
+#!/usr/bin/bash
+
+#SBATCH --job-name="make_gradcam_figure"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem=8G
+#SBATCH --partition="swat_plus"
+#SBATCH --time=01:00:00
+#SBATCH --output=make_gradcam_figure_%A.out
+
+host_name=`hostname`
+
+if [[ $host_name == *"casper"* ]]; then
+    MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    
+    PYTHON_EXE_NAME="/glade/work/ryanlage/anaconda3_gpu/bin/python3.6"
+    GG_DIRECTORY_NAME="/glade/work/ryanlage/gg_master"
+else
+    MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    
+    PYTHON_EXE_NAME="/home/ralager/anaconda3/bin/python3.6"
+    GG_DIRECTORY_NAME="/condo/swatwork/ralager/gg_master"
+fi
+
+COMPOSITE_NAMES_STRING="Best_hits Worst_false_alarms Worst_misses Best_correct_nulls"
+
+output_dir_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/figures_for_interpretation_paper"
+gradcam_files_string="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/best_hits_gradcam_layer3_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/worst_false_alarms_gradcam_layer3_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/worst_misses_gradcam_layer3_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/best_correct_nulls_gradcam_layer3_pmm.p"
+
+"${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/interpretation_paper_2019/make_gradcam_figure.py" \
+--input_gradcam_file_names ${gradcam_files_string} \
+--composite_names ${COMPOSITE_NAMES_STRING} \
+--smoothing_radius_grid_cells=1 \
+--output_dir_name="${output_dir_name}"
