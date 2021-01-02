@@ -1,0 +1,47 @@
+#!/usr/bin/bash
+
+#SBATCH --job-name="make_saliency_maps"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem=8G
+#SBATCH --partition="swat_plus"
+#SBATCH --time=01:00:00
+#SBATCH --array=0-5
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@ou.edu
+#SBATCH --output=make_saliency_maps_%A_%a.out
+
+host_name=`hostname`
+
+if [[ $host_name == *"casper"* ]]; then
+    TOP_EXAMPLE_DIR_NAME="/glade/scratch/ryanlage/gridrad_final/myrorss_format/tracks_with_better_polygons/reanalyzed/conus_only/tornado_occurrence/nondownsampled_2011_2015-2018/learning_examples"
+    MAIN_MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    RANDOM_MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/shuffled_no_downsampling/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    
+    PYTHON_EXE_NAME="/glade/work/ryanlage/anaconda3_gpu/bin/python3.6"
+    GG_DIRECTORY_NAME="/glade/work/ryanlage/gg_master"
+else
+    TOP_EXAMPLE_DIR_NAME="/condo/swatcommon/common/gridrad_final/myrorss_format/tracks_with_better_polygons/reanalyzed/conus_only/tornado_occurrence/nondownsampled_2011_2015-2018/learning_examples"
+    MAIN_MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    RANDOM_MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/shuffled_no_downsampling/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    
+    PYTHON_EXE_NAME="/home/ralager/anaconda3/bin/python3.6"
+    GG_DIRECTORY_NAME="/condo/swatwork/ralager/gg_master"
+fi
+
+SUBSET_NAMES=("best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses")
+
+this_subset_name=${SUBSET_NAMES[$SLURM_ARRAY_TASK_ID]}
+echo "Array index = ${SLURM_ARRAY_TASK_ID} ... subset = ${this_subset_name}"
+
+model_file_name="${RANDOM_MODEL_DIR_NAME}/model.h5"
+this_storm_metafile_name="${MAIN_MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/${this_subset_name}.p"
+this_output_file_name="${MAIN_MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/shuffled_no_downsampling/${this_subset_name}_saliency.p"
+
+"${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/scripts/make_saliency_maps.py" \
+--model_file_name="${model_file_name}" \
+--component_type_string="class" \
+--target_class=1 \
+--input_example_dir_name="${TOP_EXAMPLE_DIR_NAME}" \
+--input_storm_metafile_name="${this_storm_metafile_name}" \
+--output_file_name="${this_output_file_name}"

@@ -1,0 +1,48 @@
+#!/usr/bin/bash
+
+#SBATCH --job-name="composite_saliency_maps"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem=8G
+#SBATCH --partition="swat_plus"
+#SBATCH --time=01:00:00
+#SBATCH --array=0-5
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@ou.edu
+#SBATCH --output=composite_saliency_maps_%A_%a.out
+
+host_name=`hostname`
+
+if [[ $host_name == *"casper"* ]]; then
+    MAIN_MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    RANDOM_MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/shuffled_no_downsampling/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    
+    PYTHON_EXE_NAME="/glade/work/ryanlage/anaconda3_gpu/bin/python3.6"
+    GG_DIRECTORY_NAME="/glade/work/ryanlage/gg_master"
+else
+    MAIN_MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    RANDOM_MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/shuffled_no_downsampling/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    
+    PYTHON_EXE_NAME="/home/ralager/anaconda3/bin/python3.6"
+    GG_DIRECTORY_NAME="/condo/swatwork/ralager/gg_master"
+fi
+
+SUBSET_NAMES=("best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses")
+
+this_subset_name=${SUBSET_NAMES[$SLURM_ARRAY_TASK_ID]}
+echo "Array index = ${SLURM_ARRAY_TASK_ID} ... subset = ${this_subset_name}"
+
+this_input_file_name="${MAIN_MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/shuffled_no_downsampling/${this_subset_name}_saliency.p"
+this_pmm_file_name="${MAIN_MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/shuffled_no_downsampling/${this_subset_name}_saliency_pmm.p"
+this_figure_dir_name="${MAIN_MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/shuffled_no_downsampling/${this_subset_name}_saliency_pmm"
+
+"${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/scripts/run_prob_matched_means.py" \
+--input_saliency_file_name="${this_input_file_name}" \
+--max_percentile_level=99 \
+--output_file_name="${this_pmm_file_name}"
+
+"${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/scripts/plot_cnn_saliency_maps.py" \
+--input_file_name="${this_pmm_file_name}" \
+--plot_soundings=1 \
+--smoothing_radius_grid_cells=1 \
+--output_dir_name="${this_figure_dir_name}"

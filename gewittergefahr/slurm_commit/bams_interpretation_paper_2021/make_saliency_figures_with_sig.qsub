@@ -11,7 +11,6 @@
 #SBATCH --mail-user=ryan.lagerquist@ou.edu
 #SBATCH --output=make_saliency_figures_with_sig_%A_%a.out
 
-# COMPOSITE_NAMES_STRING="Actual Edge-detector_test Data-randomization_test Conv_layer_3_shuffled Dense_layer_1_shuffled"
 COMPOSITE_NAMES_STRING="Actual Edge-detector_test Data-randomization_test Conv_layer_3_shuffled"
 
 host_name=`hostname`
@@ -29,7 +28,6 @@ else
 fi
 
 SUBSET_NAMES=("best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses")
-# MAX_COLOUR_VALUE_STRINGS=("0.01 2 0.5 1 1" "0.1 2 1.25 1 1" "0.1 2 1.25 1 1" "0.01 2 0.5 1 1" "0.1 2 1.25 1 1" "0.5 2 0.5 1 1")
 MAX_COLOUR_VALUE_STRINGS=("0.01 1 0.5 0.01" "0.1 1 1 1" "0.1 1 1 1" "0.01 1 0.5 0.01" "0.1 1 1 1" "0.5 1 0.5 1")
 
 this_subset_name=${SUBSET_NAMES[$SLURM_ARRAY_TASK_ID]}
@@ -38,11 +36,8 @@ this_max_cvalue_string=${MAX_COLOUR_VALUE_STRINGS[$SLURM_ARRAY_TASK_ID]}
 echo "Array index = ${SLURM_ARRAY_TASK_ID} ... subset = ${this_subset_name} ... max colour values = ${this_max_cvalue_string}"
 
 this_output_dir_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/figures_for_interpretation_paper/sanity_checks/with_data_randomization_test/${this_subset_name}"
-this_saliency_files_string="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/${this_subset_name}_saliency_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/edge_detector/${this_subset_name}_saliency_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/overfit_no_downsampling/${this_subset_name}_saliency_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/random/${this_subset_name}_saliency_random_conv3d-66_pmm.p"
-this_monte_carlo_files_string="None ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/edge_detector/${this_subset_name}_saliency_mc-test.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/overfit_no_downsampling/${this_subset_name}_saliency_mc-test.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/random/${this_subset_name}_saliency_random_conv3d-66_mc-test.p"
-
-# this_saliency_files_string="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/${this_subset_name}_saliency_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/edge_detector/${this_subset_name}_saliency_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/overfit_no_downsampling/${this_subset_name}_saliency_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/random/${this_subset_name}_saliency_random_conv3d-66_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/random/${this_subset_name}_saliency_random_dense-53_pmm.p"
-# this_monte_carlo_files_string="None ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/edge_detector/${this_subset_name}_saliency_mc-test.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/overfit_no_downsampling/${this_subset_name}_saliency_mc-test.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/random/${this_subset_name}_saliency_random_conv3d-66_mc-test.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/random/${this_subset_name}_saliency_random_dense-53_mc-test.p"
+this_saliency_files_string="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/${this_subset_name}_saliency_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/edge_detector/${this_subset_name}_saliency_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/shuffled_no_downsampling/${this_subset_name}_saliency_pmm.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/random/${this_subset_name}_saliency_random_conv3d-66_pmm.p"
+this_monte_carlo_files_string="None ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/edge_detector/${this_subset_name}_saliency_mc-test-20000.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/shuffled_no_downsampling/${this_subset_name}_saliency_mc-test-20000.p ${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/random/${this_subset_name}_saliency_random_conv3d-66_mc-test-20000.p"
 
 "${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/interpretation_paper_2019/make_sanity_check_figure.py" \
 --input_saliency_file_names ${this_saliency_files_string} \
