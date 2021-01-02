@@ -201,6 +201,12 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
         mean_radar_matrices = mean_radar_matrices[:-1]
         mean_saliency_matrices = mean_saliency_matrices[:-1]
 
+    if smoothing_radius_grid_cells is not None:
+        mean_saliency_matrices = _smooth_maps(
+            saliency_matrices=mean_saliency_matrices,
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells
+        )
+
     num_matrices = len(mean_radar_matrices)
     significance_matrices = [None] * num_matrices
 
@@ -256,12 +262,6 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
     training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] = REFL_HEIGHTS_M_AGL
     training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
-
-    if smoothing_radius_grid_cells is not None:
-        mean_saliency_matrices = _smooth_maps(
-            saliency_matrices=mean_saliency_matrices,
-            smoothing_radius_grid_cells=smoothing_radius_grid_cells
-        )
 
     return (
         mean_radar_matrices, mean_saliency_matrices, significance_matrices,

@@ -166,6 +166,24 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
         saliency_dict[saliency_maps.MEAN_SALIENCY_MATRICES_KEY][0], axis=0
     )
 
+    if smoothing_radius_grid_cells is not None:
+        print((
+            'Smoothing saliency maps with Gaussian filter (e-folding radius of '
+            '{0:.1f} grid cells)...'
+        ).format(
+            smoothing_radius_grid_cells
+        ))
+
+        num_fields = mean_radar_matrix.shape[-1]
+
+        for k in range(num_fields):
+            mean_saliency_matrix[0, ..., k] = (
+                general_utils.apply_gaussian_filter(
+                    input_matrix=mean_saliency_matrix[0, ..., k],
+                    e_folding_radius_grid_cells=smoothing_radius_grid_cells
+                )
+            )
+
     model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
     model_metafile_name = cnn.find_metafile(model_file_name)
 
@@ -222,29 +240,6 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
     training_option_dict[trainval_io.RADAR_FIELDS_KEY] = RADAR_FIELD_NAMES
     training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
-
-    if smoothing_radius_grid_cells is None:
-        return (
-            mean_radar_matrix, mean_saliency_matrix, significance_matrix,
-            model_metadata_dict
-        )
-
-    print((
-        'Smoothing saliency maps with Gaussian filter (e-folding radius of '
-        '{0:.1f} grid cells)...'
-    ).format(
-        smoothing_radius_grid_cells
-    ))
-
-    num_fields = mean_radar_matrix.shape[-1]
-
-    for k in range(num_fields):
-        mean_saliency_matrix[0, ..., k] = (
-            general_utils.apply_gaussian_filter(
-                input_matrix=mean_saliency_matrix[0, ..., k],
-                e_folding_radius_grid_cells=smoothing_radius_grid_cells
-            )
-        )
 
     return (
         mean_radar_matrix, mean_saliency_matrix, significance_matrix,

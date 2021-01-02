@@ -166,6 +166,19 @@ def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells,
         gradcam_dict[gradcam.MEAN_CAM_MATRICES_KEY][0], axis=0
     )
 
+    if smoothing_radius_grid_cells is not None:
+        print((
+            'Smoothing class-activation maps with Gaussian filter (e-folding '
+            'radius of {0:.1f} grid cells)...'
+        ).format(
+            smoothing_radius_grid_cells
+        ))
+
+        mean_class_activn_matrix[0, ...] = general_utils.apply_gaussian_filter(
+            input_matrix=mean_class_activn_matrix[0, ...],
+            e_folding_radius_grid_cells=smoothing_radius_grid_cells
+        )
+
     model_file_name = gradcam_dict[gradcam.MODEL_FILE_KEY]
     model_metafile_name = cnn.find_metafile(model_file_name)
 
@@ -220,24 +233,6 @@ def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells,
     training_option_dict[trainval_io.RADAR_FIELDS_KEY] = RADAR_FIELD_NAMES
     training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
-
-    if smoothing_radius_grid_cells is None:
-        return (
-            mean_radar_matrix, mean_class_activn_matrix, significance_matrix,
-            model_metadata_dict
-        )
-
-    print((
-        'Smoothing class-activation maps with Gaussian filter (e-folding radius'
-        ' of {0:.1f} grid cells)...'
-    ).format(
-        smoothing_radius_grid_cells
-    ))
-
-    mean_class_activn_matrix[0, ...] = general_utils.apply_gaussian_filter(
-        input_matrix=mean_class_activn_matrix[0, ...],
-        e_folding_radius_grid_cells=smoothing_radius_grid_cells
-    )
 
     return (
         mean_radar_matrix, mean_class_activn_matrix, significance_matrix,

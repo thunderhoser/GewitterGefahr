@@ -170,6 +170,12 @@ def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells):
 
         mean_cam_matrices[i] = numpy.expand_dims(mean_cam_matrices[i], axis=0)
 
+    if smoothing_radius_grid_cells is not None:
+        mean_cam_matrices = _smooth_maps(
+            cam_matrices=mean_cam_matrices,
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells
+        )
+
     model_file_name = gradcam_dict[MODEL_FILE_KEY]
     model_metafile_name = cnn.find_metafile(model_file_name)
 
@@ -191,12 +197,6 @@ def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells):
 
     training_option_dict[trainval_io.RADAR_HEIGHTS_KEY] = REFL_HEIGHTS_M_AGL
     model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
-
-    if smoothing_radius_grid_cells is not None:
-        mean_cam_matrices = _smooth_maps(
-            cam_matrices=mean_cam_matrices,
-            smoothing_radius_grid_cells=smoothing_radius_grid_cells
-        )
 
     return mean_predictor_matrices, mean_cam_matrices, model_metadata_dict
 
