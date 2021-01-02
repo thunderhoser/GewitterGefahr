@@ -10,19 +10,10 @@
 #SBATCH --mail-user=ryan.lagerquist@ou.edu
 #SBATCH --output=make_saliency_figure_%A.out
 
-host_name=`hostname`
+PYTHON_EXE_NAME="/home/ralager/anaconda3/bin/python3.6"
+GG_DIRECTORY_NAME="/condo/swatwork/ralager/gg_master"
 
-if [[ $host_name == *"casper"* ]]; then
-    MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
-    
-    PYTHON_EXE_NAME="/glade/work/ryanlage/anaconda3_gpu/bin/python3.6"
-    GG_DIRECTORY_NAME="/glade/work/ryanlage/gg_master"
-else
-    MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
-    
-    PYTHON_EXE_NAME="/home/ralager/anaconda3/bin/python3.6"
-    GG_DIRECTORY_NAME="/condo/swatwork/ralager/gg_master"
-fi
+MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
 
 COMPOSITE_NAMES_STRING="Best_hits Worst_false_alarms Worst_misses Best_correct_nulls"
 
