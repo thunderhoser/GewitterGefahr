@@ -1,0 +1,46 @@
+#!/usr/bin/bash
+
+#SBATCH --job-name="test_saliency_maps_mpr_patch"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem=24G
+#SBATCH --partition="swat_plus"
+#SBATCH --time=48:00:00
+#SBATCH --array=3,4,6,7,22,26
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@ou.edu
+#SBATCH --output=test_saliency_maps_mpr_patch_%A_%a.out
+
+host_name=`hostname`
+
+if [[ $host_name == *"casper"* ]]; then
+    MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    
+    PYTHON_EXE_NAME="/glade/work/ryanlage/anaconda3_gpu/bin/python3.6"
+    GG_DIRECTORY_NAME="/glade/work/ryanlage/gg_master"
+else
+    MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    
+    PYTHON_EXE_NAME="/home/ralager/anaconda3/bin/python3.6"
+    GG_DIRECTORY_NAME="/condo/swatwork/ralager/gg_master"
+fi
+
+SUBSET_NAMES=("best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses" "best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses" "best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses" "best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses" "best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses")
+LAYER_NAMES=("conv3d-64" "conv3d-64" "conv3d-64" "conv3d-64" "conv3d-64" "conv3d-64" "conv3d-65" "conv3d-65" "conv3d-65" "conv3d-65" "conv3d-65" "conv3d-65" "conv3d-66" "conv3d-66" "conv3d-66" "conv3d-66" "conv3d-66" "conv3d-66" "dense-53" "dense-53" "dense-53" "dense-53" "dense-53" "dense-53" "dense-54" "dense-54" "dense-54" "dense-54" "dense-54" "dense-54")
+
+this_subset_name=${SUBSET_NAMES[$SLURM_ARRAY_TASK_ID]}
+this_layer_name=${LAYER_NAMES[$SLURM_ARRAY_TASK_ID]}
+echo "Array index = ${SLURM_ARRAY_TASK_ID} ... subset = ${this_subset_name} ... layer = ${this_layer_name}"
+
+this_actual_file_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/${this_subset_name}_saliency.p"
+this_dummy_file_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/random/${this_subset_name}_saliency_random_${this_layer_name}.p"
+this_output_file_name="${MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/saliency/random/${this_subset_name}_saliency_random_${this_layer_name}_mc-test-20000.p"
+
+"${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/dissertation/run_mc_test_for_saliency.py" \
+--actual_saliency_file_name="${this_actual_file_name}" \
+--dummy_saliency_file_name="${this_dummy_file_name}" \
+--smoothing_radius_grid_cells=-1 \
+--max_pmm_percentile_level=99 \
+--num_iterations=20000 \
+--confidence_level=0.95 \
+--output_file_name="${this_output_file_name}"
