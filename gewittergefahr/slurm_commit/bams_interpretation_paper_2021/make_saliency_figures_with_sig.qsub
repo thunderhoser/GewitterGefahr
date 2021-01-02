@@ -7,6 +7,8 @@
 #SBATCH --partition="swat_plus"
 #SBATCH --time=01:00:00
 #SBATCH --array=0-5
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@ou.edu
 #SBATCH --output=make_saliency_figures_with_sig_%A_%a.out
 
 # COMPOSITE_NAMES_STRING="Actual Edge-detector_test Data-randomization_test Conv_layer_3_shuffled Dense_layer_1_shuffled"

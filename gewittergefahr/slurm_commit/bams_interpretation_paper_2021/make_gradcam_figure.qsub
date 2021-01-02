@@ -6,6 +6,8 @@
 #SBATCH --mem=8G
 #SBATCH --partition="swat_plus"
 #SBATCH --time=01:00:00
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@ou.edu
 #SBATCH --output=make_gradcam_figure_%A.out
 
 host_name=`hostname`
