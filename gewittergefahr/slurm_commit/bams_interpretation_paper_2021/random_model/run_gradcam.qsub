@@ -1,0 +1,52 @@
+#!/usr/bin/bash
+
+#SBATCH --job-name="run_gradcam"
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --mem=8G
+#SBATCH --partition="swat_plus"
+#SBATCH --time=12:00:00
+#SBATCH --array=0-17
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=ryan.lagerquist@ou.edu
+#SBATCH --output=run_gradcam_%A_%a.out
+
+host_name=`hostname`
+
+if [[ $host_name == *"casper"* ]]; then
+    TOP_EXAMPLE_DIR_NAME="/glade/scratch/ryanlage/gridrad_final/myrorss_format/tracks_with_better_polygons/reanalyzed/conus_only/tornado_occurrence/nondownsampled_2011_2015-2018/learning_examples"
+    MAIN_MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    RANDOM_MODEL_DIR_NAME="/glade/work/ryanlage/prediction_paper_2019/gridrad_experiment/conus_only/shuffled_no_downsampling/dropout=0.000_l2=0.000000_num-dense-layers=2_data-aug=0"
+    
+    PYTHON_EXE_NAME="/glade/work/ryanlage/anaconda3_gpu/bin/python3.6"
+    GG_DIRECTORY_NAME="/glade/work/ryanlage/gg_master"
+else
+    TOP_EXAMPLE_DIR_NAME="/condo/swatcommon/common/gridrad_final/myrorss_format/tracks_with_better_polygons/reanalyzed/conus_only/tornado_occurrence/nondownsampled_2011_2015-2018/learning_examples"
+    MAIN_MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/dropout=0.500_l2=0.001000_num-dense-layers=2_data-aug=1"
+    RANDOM_MODEL_DIR_NAME="/condo/swatwork/ralager/prediction_paper_2019/gridrad_experiment/conus_only/shuffled_no_downsampling/dropout=0.000_l2=0.000000_num-dense-layers=2_data-aug=0"
+    
+    PYTHON_EXE_NAME="/home/ralager/anaconda3/bin/python3.6"
+    GG_DIRECTORY_NAME="/condo/swatwork/ralager/gg_master"
+fi
+
+SUBSET_NAMES=("best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses" "best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses" "best_correct_nulls" "best_hits" "high_activation_examples" "low_activation_examples" "worst_false_alarms" "worst_misses")
+TARGET_LAYER_NAMES=("batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_137" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_138" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139" "batch_normalization_139")
+TARGET_LAYER_NAMES_SIMPLE=(1 1 1 1 1 1 2 2 2 2 2 2 3 3 3 3 3 3)
+
+this_subset_name=${SUBSET_NAMES[$SLURM_ARRAY_TASK_ID]}
+this_layer_name=${TARGET_LAYER_NAMES[$SLURM_ARRAY_TASK_ID]}
+this_layer_name_simple=${TARGET_LAYER_NAMES_SIMPLE[$SLURM_ARRAY_TASK_ID]}
+echo "Array index = ${SLURM_ARRAY_TASK_ID} ... subset = ${this_subset_name} ... target layer = ${this_layer_name} ... simple layer name = ${this_layer_name_simple}"
+
+this_storm_metafile_name="${MAIN_MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/${this_subset_name}.p"
+this_output_file_name="${MAIN_MODEL_DIR_NAME}/testing/extreme_examples/unique_storm_cells/gradcam/shuffled_no_downsampling/${this_subset_name}_gradcam_layer${this_layer_name_simple}.p"
+
+model_file_name="${RANDOM_MODEL_DIR_NAME}/model.h5"
+
+"${PYTHON_EXE_NAME}" -u "${GG_DIRECTORY_NAME}/gewittergefahr/scripts/run_gradcam.py" \
+--model_file_name="${model_file_name}" \
+--target_class=1 \
+--target_layer_name="${this_layer_name}" \
+--input_example_dir_name="${TOP_EXAMPLE_DIR_NAME}" \
+--input_storm_metafile_name="${this_storm_metafile_name}" \
+--output_file_name="${this_output_file_name}"
