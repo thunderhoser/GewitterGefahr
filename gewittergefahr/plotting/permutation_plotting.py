@@ -128,10 +128,17 @@ def _get_error_matrix(cost_matrix, is_cost_auc, confidence_level,
         if not is_cost_auc:
             these_diffs *= -1
 
-        this_percentile = percentileofscore(
+        this_p_value = 0.01 * percentileofscore(
             a=these_diffs, score=0., kind='mean'
         )
-        this_flag = this_percentile <= 100 * (1. - confidence_level)
+        print('Original p-value = {0:.4f}'.format(this_p_value))
+
+        this_num_comparisons = num_steps - i + 1
+        print(this_num_comparisons)
+        this_p_value = 1. - ((1. - this_p_value) ** this_num_comparisons)
+        print('Corrected p-value = {0:.4f}\n\n'.format(this_p_value))
+
+        this_flag = this_p_value <= (1. - confidence_level)
 
         if multipass_flag:
             significant_flags[i] = this_flag
