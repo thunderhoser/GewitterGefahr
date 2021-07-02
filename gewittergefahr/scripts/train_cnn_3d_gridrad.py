@@ -5,6 +5,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 import keras
+import tensorflow
 from keras import backend as K
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
@@ -188,7 +189,19 @@ def _run(input_model_file_name, radar_field_names, sounding_field_names,
     # Read architecture.
     print('Reading architecture from: "{0:s}"...'.format(input_model_file_name))
     model_object = cnn.read_model(input_model_file_name)
-    # model_object = keras.models.clone_model(model_object)
+
+    print('INITIAL MODEL WEIGHTS:\n\n')
+    print(model_object.get_weights())
+    print(SEPARATOR_STRING)
+
+    # Reset weights.
+    K.get_session().close()
+    K.set_session(tensorflow.Session())
+    K.get_session().run(tensorflow.global_variables_initializer())
+
+    print('RE-INITIALIZED MODEL WEIGHTS:\n\n')
+    print(model_object.get_weights())
+    print(SEPARATOR_STRING)
 
     # TODO(thunderhoser): This is a HACK.
     model_object.compile(

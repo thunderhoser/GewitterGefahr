@@ -54,6 +54,7 @@ MODEL_FILE_ARG_NAME = 'model_file_name'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
+MULTIPLY_BY_INPUT_ARG_NAME = 'multiply_by_input'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -74,6 +75,11 @@ NUM_EXAMPLES_HELP_STRING = (
     'read all examples, make this non-positive.'
 ).format(STORM_METAFILE_ARG_NAME)
 
+MULTIPLY_BY_INPUT_HELP_STRING = (
+    'Boolean flag.  If 1, will multiply by input, yielding input * gradient '
+    'maps.  If 0, will not multiply by input, leaving saliency maps as saliency'
+    ' maps.'
+)
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by '
     '`saliency_maps.write_standard_file`).'
@@ -97,13 +103,17 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_EXAMPLES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + MULTIPLY_BY_INPUT_ARG_NAME, type=int, required=False, default=0,
+    help=MULTIPLY_BY_INPUT_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING
 )
 
 
 def _run(model_file_name, top_example_dir_name, storm_metafile_name,
-         num_examples, output_file_name):
+         num_examples, multiply_by_input, output_file_name):
     """Creates dummy saliency map for each storm object.
 
     This is effectively the main method.
@@ -112,6 +122,7 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
     :param top_example_dir_name: Same.
     :param storm_metafile_name: Same.
     :param num_examples: Same.
+    :param multiply_by_input: Same.
     :param output_file_name: Same.
     """
 
@@ -197,6 +208,16 @@ def _run(model_file_name, top_example_dir_name, storm_metafile_name,
         radar_saliency_matrix if k == 0 else predictor_matrices[k]
         for k in range(len(predictor_matrices))
     ]
+
+    if multiply_by_input:
+        for i in range(len(saliency_matrices)):
+            if saliency_matrices[i] is None:
+                continue
+
+            saliency_matrices[i] = (
+                saliency_matrices[i] * predictor_matrices[i]
+            )
+
     saliency_matrices = trainval_io.separate_shear_and_reflectivity(
         list_of_input_matrices=saliency_matrices,
         training_option_dict=training_option_dict
@@ -239,5 +260,8 @@ if __name__ == '__main__':
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
+        multiply_by_input=bool(
+            getattr(INPUT_ARG_OBJECT, MULTIPLY_BY_INPUT_ARG_NAME)
+        ),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
