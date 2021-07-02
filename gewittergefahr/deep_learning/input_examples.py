@@ -2094,6 +2094,14 @@ def read_example_file(
     # TODO(thunderhoser): Allow this method to read only soundings without radar
     # data.
 
+    if (
+            target_name ==
+            'tornado_lead-time=0000-3600sec_distance=00000-10000m'
+    ):
+        target_name = (
+            'tornado_lead-time=0000-3600sec_distance=00000-30000m_min-fujita=0'
+        )
+
     error_checking.assert_is_boolean(read_all_target_vars)
     error_checking.assert_is_boolean(include_soundings)
     error_checking.assert_is_boolean(metadata_only)
@@ -2236,6 +2244,14 @@ def read_specific_examples(
     :param num_columns_to_keep: Same.
     :return: example_dict: See doc for `write_example_file`.
     """
+
+    if (
+            target_name ==
+            'tornado_lead-time=0000-3600sec_distance=00000-10000m'
+    ):
+        target_name = (
+            'tornado_lead-time=0000-3600sec_distance=00000-30000m_min-fujita=0'
+        )
 
     error_checking.assert_is_boolean(read_all_target_vars)
     error_checking.assert_is_boolean(include_soundings)
