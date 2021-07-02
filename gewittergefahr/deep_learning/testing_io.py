@@ -121,6 +121,14 @@ def _find_examples_to_read(
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
     target_name = option_dict[trainval_io.TARGET_NAME_KEY]
 
+    if (
+            target_name ==
+            'tornado_lead-time=0000-3600sec_distance=00000-10000m'
+    ):
+        target_name = (
+            'tornado_lead-time=0000-3600sec_distance=00000-30000m_min-fujita=0'
+        )
+
     if desired_num_examples is None:
         first_storm_time_unix_sec = None
         last_storm_time_unix_sec = None
