@@ -396,6 +396,18 @@ def read_model_metadata(pickle_file_name):
     if len(missing_keys) == 0:
         return metadata_dict
 
+    training_option_dict = metadata_dict[TRAINING_OPTION_DICT_KEY]
+
+    if (
+            training_option_dict[trainval_io.TARGET_NAME_KEY] ==
+            'tornado_lead-time=0000-3600sec_distance=00000-10000m'
+    ):
+        training_option_dict[trainval_io.TARGET_NAME_KEY] = (
+            'tornado_lead-time=0000-3600sec_distance=00000-30000m_min-fujita=0'
+        )
+
+    metadata_dict[TRAINING_OPTION_DICT_KEY] = training_option_dict
+
     error_string = (
         '\n{0:s}\nKeys listed above were expected, but not found, in file '
         '"{1:s}".'
