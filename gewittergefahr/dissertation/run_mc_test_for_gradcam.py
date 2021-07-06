@@ -186,6 +186,19 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
         dummy_gradcam_dict[gradcam.STORM_TIMES_KEY]
     )
 
+    if smoothing_radius_grid_cells is not None:
+        actual_cam_matrices, actual_guided_cam_matrices = _smooth_maps(
+            cam_matrices=actual_cam_matrices,
+            guided_cam_matrices=actual_guided_cam_matrices,
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells
+        )
+
+        dummy_cam_matrices, dummy_guided_cam_matrices = _smooth_maps(
+            cam_matrices=dummy_cam_matrices,
+            guided_cam_matrices=dummy_guided_cam_matrices,
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells
+        )
+
     # Convert from absolute values to percentiles.
     num_matrices = len(actual_cam_matrices)
 
@@ -240,18 +253,12 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
                     dummy_guided_cam_matrices[j][i, ..., k].shape
                 )
 
-    if smoothing_radius_grid_cells is not None:
-        actual_cam_matrices, actual_guided_cam_matrices = _smooth_maps(
-            cam_matrices=actual_cam_matrices,
-            guided_cam_matrices=actual_guided_cam_matrices,
-            smoothing_radius_grid_cells=smoothing_radius_grid_cells
-        )
-
-        dummy_cam_matrices, dummy_guided_cam_matrices = _smooth_maps(
-            cam_matrices=dummy_cam_matrices,
-            guided_cam_matrices=dummy_guided_cam_matrices,
-            smoothing_radius_grid_cells=smoothing_radius_grid_cells
-        )
+        print(numpy.mean(actual_cam_matrices[j]))
+        print(numpy.median(actual_cam_matrices[j]))
+        print('\n\n')
+        print(numpy.mean(dummy_cam_matrices[j]))
+        print(numpy.median(dummy_cam_matrices[j]))
+        print('\n\n')
 
     # Do Monte Carlo test.
     actual_cam_matrices = [
