@@ -237,7 +237,9 @@ def run_monte_carlo_test(
                 shuffled_pmm_matrix = shuffled_pmm_matrix[..., this_index]
 
             p_values[linear_index] = 0.01 * percentileofscore(
-                a=numpy.ravel(shuffled_pmm_matrix), score=0., kind='mean'
+                a=numpy.ravel(shuffled_pmm_matrix),
+                score=trial_pmm_values[linear_index],
+                kind='mean'
             )
 
         bottom_indices = numpy.where(p_values < 0.5)[0]
