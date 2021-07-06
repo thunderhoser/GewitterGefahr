@@ -259,3 +259,53 @@ def run_monte_carlo_test(
         MAX_PMM_PERCENTILE_KEY: max_pmm_percentile_level,
         NUM_ITERATIONS_KEY: num_iterations
     }
+
+
+def find_sig_grid_points(p_value_matrix, max_false_discovery_rate):
+    """Finds grid points with statistically significant values.
+
+    This method implements Equation 3 of Wilks et al. (2016), which you can find
+    here:
+
+    https://journals.ametsoc.org/doi/full/10.1175/BAMS-D-15-00267.1
+
+    :param p_value_matrix: numpy array of p-values.
+    :param max_false_discovery_rate: Max false-discovery rate.
+    :return: significance_matrix: numpy array of Boolean flags, with same shape
+        as `p_value_matrix`.
+    """
+
+    error_checking.assert_is_greater(max_false_discovery_rate, 0.)
+    error_checking.assert_is_less_than(max_false_discovery_rate, 1.)
+
+    p_values_sorted = numpy.ravel(p_value_matrix)
+    p_values_sorted = p_values_sorted[
+        numpy.invert(numpy.isnan(p_values_sorted))
+    ]
+    p_values_sorted = numpy.sort(p_values_sorted)
+
+    num_grid_cells = len(p_values_sorted)
+    grid_cell_indices = numpy.linspace(
+        1, num_grid_cells, num_grid_cells, dtype=float
+    )
+
+    significant_flags = (
+        p_values_sorted <=
+        (grid_cell_indices / num_grid_cells) * max_false_discovery_rate
+    )
+    significant_indices = numpy.where(significant_flags)[0]
+
+    if len(significant_indices) == 0:
+        max_p_value = 0.
+    else:
+        max_p_value = p_values_sorted[significant_indices[-1]]
+
+    print('Max p-value for Wilks test = {0:.2e}'.format(max_p_value))
+
+    significance_matrix = p_value_matrix <= max_p_value
+    print('Number of significant grid points = {0:d}/{1:d}'.format(
+        numpy.sum(significance_matrix),
+        numpy.sum(numpy.invert(numpy.isnan(p_value_matrix)))
+    ))
+
+    return significance_matrix

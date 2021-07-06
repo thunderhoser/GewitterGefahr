@@ -60,6 +60,7 @@ COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_VALUES_ARG_NAME = 'max_colour_values'
 HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
+MAX_FDR_ARG_NAME = 'monte_carlo_max_fdr'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 SALIENCY_FILES_HELP_STRING = (
@@ -90,6 +91,11 @@ HALF_NUM_CONTOURS_HELP_STRING = (
 SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
     'want to smooth saliency maps, make this negative.'
+)
+MAX_FDR_HELP_STRING = (
+    'Max FDR (false-discovery rate) for field-based version of Monte Carlo '
+    'significance test.  If you do not want to use field-based version, leave '
+    'this argument alone.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).'
@@ -125,13 +131,17 @@ INPUT_ARG_PARSER.add_argument(
     default=1., help=SMOOTHING_RADIUS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_FDR_ARG_NAME, type=float, required=False, default=-1.,
+    help=MAX_FDR_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
 
 
 def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
-                        monte_carlo_file_name):
+                        monte_carlo_file_name, monte_carlo_max_fdr):
     """Reads saliency map for one composite.
 
     E = number of examples
@@ -146,6 +156,7 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
         for saliency map.
     :param monte_carlo_file_name: Path to Monte Carlo file (will be read by
         `_read_monte_carlo_file`).
+    :param monte_carlo_max_fdr: See documentation at top of file.
     :return: mean_radar_matrix: E-by-M-by-N-by-H-by-F numpy array with mean
         radar fields.
     :return: mean_saliency_matrix: E-by-M-by-N-by-H-by-F numpy array with mean
@@ -200,9 +211,16 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
         monte_carlo_dict = pickle.load(this_file_handle)
         this_file_handle.close()
 
-        significance_matrix = (
-            monte_carlo_dict[monte_carlo.P_VALUE_MATRICES_KEY][0] <= 0.05
-        )
+        p_value_matrix = monte_carlo_dict[monte_carlo.P_VALUE_MATRICES_KEY][0]
+
+        if monte_carlo_max_fdr is None:
+            significance_matrix = p_value_matrix <= 0.05
+        else:
+            significance_matrix = monte_carlo.find_sig_grid_points(
+                p_value_matrix=p_value_matrix,
+                max_false_discovery_rate=monte_carlo_max_fdr
+            )
+
         significance_matrix = numpy.expand_dims(significance_matrix, axis=0)
 
     print('Fraction of significant differences: {0:.4f}'.format(
@@ -275,7 +293,8 @@ def _overlay_text(
 def _plot_one_composite(
         saliency_file_name, monte_carlo_file_name, composite_name_abbrev,
         composite_name_verbose, colour_map_object, max_colour_value,
-        half_num_contours, smoothing_radius_grid_cells, output_dir_name):
+        half_num_contours, smoothing_radius_grid_cells, monte_carlo_max_fdr,
+        output_dir_name):
     """Plots saliency map for one composite.
 
     :param saliency_file_name: Path to saliency file (will be read by
@@ -290,6 +309,7 @@ def _plot_one_composite(
     :param max_colour_value: Max value in colour bar (may be NaN).
     :param half_num_contours: See documentation at top of file.
     :param smoothing_radius_grid_cells: Same.
+    :param monte_carlo_max_fdr: Same.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :return: main_figure_file_name: Path to main image file created by this
@@ -302,7 +322,9 @@ def _plot_one_composite(
     ) = _read_one_composite(
         saliency_file_name=saliency_file_name,
         smoothing_radius_grid_cells=smoothing_radius_grid_cells,
-        monte_carlo_file_name=monte_carlo_file_name)
+        monte_carlo_file_name=monte_carlo_file_name,
+        monte_carlo_max_fdr=monte_carlo_max_fdr
+    )
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
@@ -480,7 +502,7 @@ def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
 
 def _run(saliency_file_names, monte_carlo_file_names, composite_names,
          colour_map_name, max_colour_values, half_num_contours,
-         smoothing_radius_grid_cells, output_dir_name):
+         smoothing_radius_grid_cells, monte_carlo_max_fdr, output_dir_name):
     """Makes figure with sanity checks for saliency maps.
 
     This is effectively the main method.
@@ -492,6 +514,7 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
     :param max_colour_values: Same.
     :param half_num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
+    :param monte_carlo_max_fdr: Same.
     :param output_dir_name: Same.
     """
 
@@ -502,6 +525,8 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
 
     if smoothing_radius_grid_cells <= 0:
         smoothing_radius_grid_cells = None
+    if monte_carlo_max_fdr <= 0:
+        monte_carlo_max_fdr = None
 
     colour_map_object = pyplot.cm.get_cmap(colour_map_name)
     error_checking.assert_is_geq(half_num_contours, 5)
@@ -546,6 +571,7 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
             max_colour_value=max_colour_values[i],
             half_num_contours=half_num_contours,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells,
+            monte_carlo_max_fdr=monte_carlo_max_fdr,
             output_dir_name=output_dir_name
         )
 
@@ -598,5 +624,6 @@ if __name__ == '__main__':
         smoothing_radius_grid_cells=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
         ),
+        monte_carlo_max_fdr=getattr(INPUT_ARG_OBJECT, MAX_FDR_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
