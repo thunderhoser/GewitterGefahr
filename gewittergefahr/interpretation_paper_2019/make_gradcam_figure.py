@@ -195,11 +195,8 @@ def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells,
         monte_carlo_dict = pickle.load(this_file_handle)
         this_file_handle.close()
 
-        significance_matrix = numpy.logical_or(
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
-            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
-            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
-            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+        significance_matrix = (
+            monte_carlo_dict[monte_carlo.P_VALUE_MATRICES_KEY][0] <= 0.05
         )
         significance_matrix = numpy.expand_dims(significance_matrix, axis=0)
 

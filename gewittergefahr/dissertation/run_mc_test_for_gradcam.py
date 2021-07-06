@@ -19,7 +19,6 @@ DUMMY_FILE_ARG_NAME = 'dummy_gradcam_file_name'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 MAX_PERCENTILE_ARG_NAME = 'max_pmm_percentile_level'
 NUM_ITERATIONS_ARG_NAME = 'num_iterations'
-CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 ACTUAL_FILE_HELP_STRING = (
@@ -38,9 +37,6 @@ MAX_PERCENTILE_HELP_STRING = (
     'Max percentile level for probability-matched means (PMM).'
 )
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for Monte Carlo test.'
-CONFIDENCE_LEVEL_HELP_STRING = (
-    'Confidence level (in range 0...1) for Monte Carlo test.'
-)
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `_write_results`).'
 )
@@ -65,10 +61,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_ITERATIONS_ARG_NAME, type=int, required=False, default=20000,
     help=NUM_ITERATIONS_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
-    help=CONFIDENCE_LEVEL_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -142,8 +134,7 @@ def _smooth_maps(cam_matrices, guided_cam_matrices,
 
 
 def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
-         max_pmm_percentile_level, num_iterations, confidence_level,
-         output_file_name):
+         max_pmm_percentile_level, num_iterations, output_file_name):
     """Runs Monte Carlo test for class-activation maps (CAM).
 
     This is effectively the main method.
@@ -153,7 +144,6 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
     :param smoothing_radius_grid_cells: Same.
     :param max_pmm_percentile_level: Same.
     :param num_iterations: Same.
-    :param confidence_level: Same.
     :param output_file_name: Same.
     """
 
@@ -253,13 +243,6 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
                     dummy_guided_cam_matrices[j][i, ..., k].shape
                 )
 
-        print(numpy.mean(actual_cam_matrices[j]))
-        print(numpy.median(actual_cam_matrices[j]))
-        print('\n\n')
-        print(numpy.mean(dummy_cam_matrices[j]))
-        print(numpy.median(dummy_cam_matrices[j]))
-        print('\n\n')
-
     # Do Monte Carlo test.
     actual_cam_matrices = [
         None if a is None else numpy.expand_dims(a, axis=-1)
@@ -274,27 +257,23 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
         list_of_baseline_matrices=dummy_cam_matrices,
         list_of_trial_matrices=actual_cam_matrices,
         max_pmm_percentile_level=max_pmm_percentile_level,
-        num_iterations=num_iterations, confidence_level=confidence_level
+        num_iterations=num_iterations
     )
 
     monte_carlo_dict_unguided[monte_carlo.TRIAL_PMM_MATRICES_KEY] = [
         None if a is None else a[..., 0]
         for a in monte_carlo_dict_unguided[monte_carlo.TRIAL_PMM_MATRICES_KEY]
     ]
-    monte_carlo_dict_unguided[monte_carlo.MIN_MATRICES_KEY] = [
+    monte_carlo_dict_unguided[monte_carlo.P_VALUE_MATRICES_KEY] = [
         None if a is None else a[..., 0]
-        for a in monte_carlo_dict_unguided[monte_carlo.MIN_MATRICES_KEY]
-    ]
-    monte_carlo_dict_unguided[monte_carlo.MAX_MATRICES_KEY] = [
-        None if a is None else a[..., 0]
-        for a in monte_carlo_dict_unguided[monte_carlo.MAX_MATRICES_KEY]
+        for a in monte_carlo_dict_unguided[monte_carlo.P_VALUE_MATRICES_KEY]
     ]
 
     monte_carlo_dict_guided = monte_carlo.run_monte_carlo_test(
         list_of_baseline_matrices=dummy_guided_cam_matrices,
         list_of_trial_matrices=actual_guided_cam_matrices,
         max_pmm_percentile_level=max_pmm_percentile_level,
-        num_iterations=num_iterations, confidence_level=confidence_level
+        num_iterations=num_iterations
     )
 
     print('Writing results of Monte Carlo test to file: "{0:s}"...'.format(
@@ -318,6 +297,5 @@ if __name__ == '__main__':
         max_pmm_percentile_level=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
-        confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME),
     )

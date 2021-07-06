@@ -225,13 +225,9 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
         this_file_handle.close()
 
         for i in range(num_matrices):
-            significance_matrices[i] = numpy.logical_or(
-                monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] <
-                monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][i],
-                monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][i] >
-                monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][i]
+            significance_matrices[i] = (
+                monte_carlo_dict[monte_carlo.P_VALUE_MATRICES_KEY][i] <= 0.05
             )
-
             significance_matrices[i] = numpy.expand_dims(
                 significance_matrices[i], axis=0
             )

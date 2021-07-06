@@ -20,7 +20,6 @@ DUMMY_FILE_ARG_NAME = 'dummy_saliency_file_name'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 MAX_PERCENTILE_ARG_NAME = 'max_pmm_percentile_level'
 NUM_ITERATIONS_ARG_NAME = 'num_iterations'
-CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 ACTUAL_FILE_HELP_STRING = (
@@ -39,9 +38,6 @@ MAX_PERCENTILE_HELP_STRING = (
     'Max percentile level for probability-matched means (PMM).'
 )
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for Monte Carlo test.'
-CONFIDENCE_LEVEL_HELP_STRING = (
-    'Confidence level (in range 0...1) for Monte Carlo test.'
-)
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `_write_results`).'
 )
@@ -66,10 +62,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_ITERATIONS_ARG_NAME, type=int, required=False, default=20000,
     help=NUM_ITERATIONS_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
-    help=CONFIDENCE_LEVEL_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -128,8 +120,7 @@ def _smooth_maps(saliency_matrices, smoothing_radius_grid_cells):
 
 
 def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
-         max_pmm_percentile_level, num_iterations, confidence_level,
-         output_file_name):
+         max_pmm_percentile_level, num_iterations, output_file_name):
     """Runs Monte Carlo test for saliency maps.
 
     This is effectively the main method.
@@ -139,7 +130,6 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
     :param smoothing_radius_grid_cells: Same.
     :param max_pmm_percentile_level: Same.
     :param num_iterations: Same.
-    :param confidence_level: Same.
     :param output_file_name: Same.
     """
 
@@ -222,7 +212,7 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
         list_of_baseline_matrices=dummy_saliency_matrices,
         list_of_trial_matrices=actual_saliency_matrices,
         max_pmm_percentile_level=max_pmm_percentile_level,
-        num_iterations=num_iterations, confidence_level=confidence_level
+        num_iterations=num_iterations
     )
 
     print('Writing results of Monte Carlo test to file: "{0:s}"...'.format(
@@ -244,6 +234,5 @@ if __name__ == '__main__':
         max_pmm_percentile_level=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
-        confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME),
     )
