@@ -26,21 +26,14 @@ from gewittergefahr.scripts import plot_input_examples as plot_examples
 # make_saliency_figure.py.
 
 NONE_STRINGS = ['None', 'none']
-POSSIBLE_MAX_COLOUR_VALUES = numpy.array([
-    0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2
-])
 
 RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
-# RADAR_FIELD_NAMES = [
-#     radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
-#     radar_utils.SPECTRUM_WIDTH_NAME
-# ]
 RADAR_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
-    radar_utils.DIVERGENCE_NAME
+    radar_utils.SPECTRUM_WIDTH_NAME
 ]
 
-MIN_COLOUR_VALUE_LOG10 = -3.
+MAX_COLOUR_PERCENTILE = 99.
 
 COLOUR_BAR_LENGTH = 0.25
 PANEL_NAME_FONT_SIZE = 30
@@ -336,17 +329,6 @@ def _plot_one_composite(
         max_colour_value = numpy.percentile(
             numpy.absolute(mean_saliency_matrix[0, ...]), 99.
         )
-        these_indices = numpy.where(
-            max_colour_value <= POSSIBLE_MAX_COLOUR_VALUES
-        )[0]
-
-        if len(these_indices) == 0:
-            this_index = -1
-        else:
-            this_index = these_indices[0]
-
-        this_index -= 1
-        max_colour_value = POSSIBLE_MAX_COLOUR_VALUES[this_index]
 
     handle_dict = plot_examples.plot_one_example(
         list_of_predictor_matrices=[mean_radar_matrix],
@@ -457,11 +439,8 @@ def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
         colour_map_object=colour_map_object,
         min_value=0., max_value=max_colour_value,
         orientation_string='vertical', fraction_of_axis_length=1.25,
-        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE
-    )
-
-    colour_bar_object.set_label(
-        'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE
+        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE,
+        aspect_ratio=50.
     )
 
     tick_values = colour_bar_object.get_ticks()
@@ -596,7 +575,7 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
-        output_file_name=figure_file_name, border_width_pixels=100,
+        output_file_name=figure_file_name, border_width_pixels=25,
         num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
     )
     imagemagick_utils.trim_whitespace(

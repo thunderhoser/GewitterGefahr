@@ -11,7 +11,6 @@ from PIL import Image
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import monte_carlo
-from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -26,14 +25,7 @@ from gewittergefahr.scripts import plot_input_examples as plot_examples
 NONE_STRINGS = ['None', 'none']
 
 RADAR_HEIGHTS_M_AGL = numpy.array([2000, 6000, 10000], dtype=int)
-# RADAR_FIELD_NAMES = [
-#     radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
-#     radar_utils.SPECTRUM_WIDTH_NAME
-# ]
-RADAR_FIELD_NAMES = [
-    radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME,
-    radar_utils.DIVERGENCE_NAME
-]
+RADAR_FIELD_NAMES = [radar_utils.REFL_NAME, radar_utils.VORTICITY_NAME]
 
 COLOUR_BAR_LENGTH = 0.25
 PANEL_NAME_FONT_SIZE = 30
@@ -324,17 +316,10 @@ def _plot_one_composite(
         monte_carlo_max_fdr=monte_carlo_max_fdr
     )
 
-    print(numpy.percentile(mean_class_activn_matrix, 0.))
-    print(numpy.percentile(mean_class_activn_matrix, 1.))
-    print(numpy.percentile(mean_class_activn_matrix, 99.))
-    print(numpy.percentile(mean_class_activn_matrix, 100.))
-
     if numpy.isnan(min_colour_value) or numpy.isnan(max_colour_value):
-        min_colour_value_log10 = number_rounding.floor_to_nearest(
-            numpy.log10(numpy.percentile(mean_class_activn_matrix, 1.)), 0.1
-        )
-        max_colour_value_log10 = number_rounding.ceiling_to_nearest(
-            numpy.log10(numpy.percentile(mean_class_activn_matrix, 99.)), 0.1
+        min_colour_value_log10 = -2.
+        max_colour_value_log10 = numpy.log10(
+            numpy.percentile(mean_class_activn_matrix, 99.)
         )
 
         min_colour_value_log10 = max([min_colour_value_log10, -2.])
@@ -475,10 +460,8 @@ def _add_colour_bar(figure_file_name, colour_map_object, min_colour_value,
         min_value=numpy.log10(min_colour_value),
         max_value=numpy.log10(max_colour_value),
         orientation_string='vertical', fraction_of_axis_length=1.25,
-        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE)
-
-    colour_bar_object.set_label(
-        'Class activation', fontsize=COLOUR_BAR_FONT_SIZE
+        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE,
+        aspect_ratio=50.
     )
 
     tick_values = colour_bar_object.get_ticks()
@@ -626,7 +609,7 @@ def _run(gradcam_file_names, monte_carlo_file_names, composite_names,
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
-        output_file_name=figure_file_name, border_width_pixels=100,
+        output_file_name=figure_file_name, border_width_pixels=25,
         num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
     )
     imagemagick_utils.trim_whitespace(
