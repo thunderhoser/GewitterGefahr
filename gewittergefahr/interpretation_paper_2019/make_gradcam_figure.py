@@ -317,7 +317,9 @@ def _plot_one_composite(
     )
 
     if numpy.isnan(min_colour_value) or numpy.isnan(max_colour_value):
-        min_colour_value_log10 = -2.
+        min_colour_value_log10 = numpy.log10(
+            numpy.percentile(mean_class_activn_matrix, 1.)
+        )
         max_colour_value_log10 = numpy.log10(
             numpy.percentile(mean_class_activn_matrix, 99.)
         )
