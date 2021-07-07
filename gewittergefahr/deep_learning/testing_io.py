@@ -357,7 +357,7 @@ def generator_2d_or_3d(
             next_example_index=next_example_index)
 
         if batch_indices is None:
-            raise StopIteration
+            yield None
 
         next_example_index = numpy.max(batch_indices) + 1
         this_file_index = storm_to_file_indices[batch_indices[0]]
