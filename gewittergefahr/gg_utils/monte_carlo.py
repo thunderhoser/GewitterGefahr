@@ -8,6 +8,7 @@ from gewittergefahr.gg_utils import error_checking
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TRIAL_PMM_MATRICES_KEY = 'list_of_trial_pmm_matrices'
+PERCENTILE_MATRICES_KEY = 'list_of_percentile_matrices'
 P_VALUE_MATRICES_KEY = 'list_of_p_value_matrices'
 MAX_PMM_PERCENTILE_KEY = 'max_pmm_percentile_level'
 NUM_ITERATIONS_KEY = 'num_iterations'
@@ -145,6 +146,8 @@ def run_monte_carlo_test(
         axis.
     monte_carlo_dict['list_of_p_value_matrices']: Same as above but containing
         p-values.
+    monte_carlo_dict['list_of_percentile_matrices']: Same as above but
+        containing percentiles.
     monte_carlo_dict['max_pmm_percentile_level']: Same as input.
     monte_carlo_dict['num_iterations']: Same as input.
     """
@@ -208,6 +211,7 @@ def run_monte_carlo_test(
     print(SEPARATOR_STRING)
 
     list_of_trial_pmm_matrices = [None] * num_matrices
+    list_of_percentile_matrices = [None] * num_matrices
     list_of_p_value_matrices = [None] * num_matrices
 
     for j in range(num_matrices):
@@ -220,7 +224,7 @@ def run_monte_carlo_test(
         )
 
         trial_pmm_values = numpy.ravel(list_of_trial_pmm_matrices[j])
-        p_values = numpy.full(trial_pmm_values.shape, numpy.nan)
+        percentiles = numpy.full(trial_pmm_values.shape, numpy.nan)
 
         for linear_index in range(len(trial_pmm_values)):
             if numpy.mod(linear_index, 25) == 0:
@@ -236,12 +240,17 @@ def run_monte_carlo_test(
             for this_index in these_indices[::-1]:
                 shuffled_pmm_matrix = shuffled_pmm_matrix[..., this_index]
 
-            p_values[linear_index] = 0.01 * percentileofscore(
+            percentiles[linear_index] = 0.01 * percentileofscore(
                 a=numpy.ravel(shuffled_pmm_matrix),
                 score=trial_pmm_values[linear_index],
                 kind='mean'
             )
 
+        list_of_percentile_matrices[j] = numpy.reshape(
+            percentiles, list_of_trial_pmm_matrices[j].shape
+        )
+
+        p_values = percentiles + 0.
         bottom_indices = numpy.where(p_values < 0.5)[0]
         top_indices = numpy.where(p_values >= 0.5)[0]
         p_values[bottom_indices] = 2 * p_values[bottom_indices]
@@ -257,6 +266,7 @@ def run_monte_carlo_test(
 
     return {
         TRIAL_PMM_MATRICES_KEY: list_of_trial_pmm_matrices,
+        PERCENTILE_MATRICES_KEY: list_of_percentile_matrices,
         P_VALUE_MATRICES_KEY: list_of_p_value_matrices,
         MAX_PMM_PERCENTILE_KEY: max_pmm_percentile_level,
         NUM_ITERATIONS_KEY: num_iterations
