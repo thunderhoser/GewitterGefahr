@@ -708,7 +708,7 @@ def plot_colour_bar(
         axes_object_or_matrix, data_matrix, colour_map_object,
         colour_norm_object, orientation_string=DEFAULT_CBAR_ORIENTATION_STRING,
         padding=None, extend_min=True, extend_max=True,
-        fraction_of_axis_length=1., font_size=FONT_SIZE):
+        fraction_of_axis_length=1., font_size=FONT_SIZE, aspect_ratio=20.):
     """Plots colour bar.
 
     :param axes_object_or_matrix: Either one axis handle (instance of
@@ -733,6 +733,7 @@ def plot_colour_bar(
         the axis length (x-axis if orientation_string = "horizontal", y-axis if
         orientation_string = "vertical").
     :param font_size: Font size for tick marks on colour bar.
+    :param aspect_ratio: Ratio of length to width.
     :return: colour_bar_object: Colour-bar handle (instance of
         `matplotlib.pyplot.colorbar`).
     """
@@ -775,7 +776,8 @@ def plot_colour_bar(
     colour_bar_object = pyplot.colorbar(
         ax=axes_arg, mappable=scalar_mappable_object,
         orientation=orientation_string, pad=padding, extend=extend_arg,
-        shrink=fraction_of_axis_length)
+        shrink=fraction_of_axis_length, aspect=aspect_ratio
+    )
 
     colour_bar_object.ax.tick_params(labelsize=font_size)
 
@@ -791,7 +793,7 @@ def plot_linear_colour_bar(
         axes_object_or_matrix, data_matrix, colour_map_object, min_value,
         max_value, orientation_string=DEFAULT_CBAR_ORIENTATION_STRING,
         padding=None, extend_min=True, extend_max=True,
-        fraction_of_axis_length=1., font_size=FONT_SIZE):
+        fraction_of_axis_length=1., font_size=FONT_SIZE, aspect_ratio=20.):
     """Plots colour bar with linear scale.
 
     :param axes_object_or_matrix: See doc for `plot_colour_bar`.
@@ -805,6 +807,7 @@ def plot_linear_colour_bar(
     :param extend_max: Same.
     :param fraction_of_axis_length: Same.
     :param font_size: Same.
+    :param aspect_ratio: Same.
     :return: colour_bar_object: Same.
     """
 
@@ -818,4 +821,6 @@ def plot_linear_colour_bar(
         colour_norm_object=colour_norm_object,
         orientation_string=orientation_string, padding=padding,
         extend_min=extend_min, extend_max=extend_max,
-        fraction_of_axis_length=fraction_of_axis_length, font_size=font_size)
+        fraction_of_axis_length=fraction_of_axis_length, font_size=font_size,
+        aspect_ratio=aspect_ratio
+    )

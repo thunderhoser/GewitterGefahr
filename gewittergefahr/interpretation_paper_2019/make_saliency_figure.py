@@ -25,7 +25,7 @@ RADAR_FIELD_NAMES = [
     radar_utils.SPECTRUM_WIDTH_NAME
 ]
 
-MIN_COLOUR_VALUE_LOG10 = -3.
+MAX_COLOUR_PERCENTILE = 99.
 
 COLOUR_BAR_LENGTH = 0.25
 PANEL_NAME_FONT_SIZE = 30
@@ -59,7 +59,8 @@ COLOUR_MAP_HELP_STRING = (
     '`matplotlib.pyplot.get_cmap`.'
 )
 MAX_VALUES_HELP_STRING = (
-    'Max absolute saliency in each colour scheme (one per file).'
+    'Max absolute saliency in each colour scheme (one per file).  Use -1 to let'
+    ' max value to be determined on the fly.'
 )
 HALF_NUM_CONTOURS_HELP_STRING = (
     'Number of saliency contours on either side of zero (positive and '
@@ -234,6 +235,7 @@ def _plot_one_composite(
         here).
     :return: main_figure_file_name: Path to main image file created by this
         method.
+    :return: max_colour_value: See input doc.
     """
 
     mean_radar_matrix, mean_saliency_matrix, model_metadata_dict = (
@@ -241,6 +243,11 @@ def _plot_one_composite(
             saliency_file_name=saliency_file_name,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells)
     )
+
+    if numpy.isnan(max_colour_value):
+        max_colour_value = numpy.percentile(
+            mean_saliency_matrix, MAX_COLOUR_PERCENTILE
+        )
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
@@ -318,7 +325,7 @@ def _plot_one_composite(
         output_file_name=main_figure_file_name,
         border_width_pixels=10)
 
-    return main_figure_file_name
+    return main_figure_file_name, max_colour_value
 
 
 def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
@@ -350,11 +357,8 @@ def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
         colour_map_object=colour_map_object,
         min_value=0., max_value=max_colour_value,
         orientation_string='vertical', fraction_of_axis_length=1.25,
-        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE
-    )
-
-    colour_bar_object.set_label(
-        'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE
+        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE,
+        aspect_ratio=50.
     )
 
     tick_values = colour_bar_object.get_ticks()
@@ -426,7 +430,7 @@ def _run(saliency_file_names, composite_names, colour_map_name,
         numpy.array(composite_names), exact_dimensions=expected_dim
     )
 
-    error_checking.assert_is_greater_numpy_array(max_colour_values, 0.)
+    max_colour_values[max_colour_values <= 0] = numpy.nan
     error_checking.assert_is_numpy_array(
         max_colour_values, exact_dimensions=expected_dim
     )
@@ -444,7 +448,7 @@ def _run(saliency_file_names, composite_names, colour_map_name,
     panel_file_names = [None] * num_composites
 
     for i in range(num_composites):
-        panel_file_names[i] = _plot_one_composite(
+        panel_file_names[i], max_colour_values[i] = _plot_one_composite(
             saliency_file_name=saliency_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
