@@ -480,7 +480,7 @@ def _run(saliency_file_names, composite_names, colour_map_name,
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
-        output_file_name=figure_file_name, border_width_pixels=100,
+        output_file_name=figure_file_name, border_width_pixels=25,
         num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns
     )
     imagemagick_utils.trim_whitespace(
