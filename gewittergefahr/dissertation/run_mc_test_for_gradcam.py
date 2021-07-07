@@ -5,6 +5,7 @@ dummy CAMs may be produced by one of three "sanity checks": the edge-detector
 test, data-randomization test, or model-parameter-randomization test.
 """
 
+import copy
 import pickle
 import argparse
 import numpy
@@ -260,6 +261,8 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
         num_iterations=num_iterations
     )
 
+    monte_carlo_dict_guided = copy.deepcopy(monte_carlo_dict_unguided)
+
     monte_carlo_dict_unguided[monte_carlo.TRIAL_PMM_MATRICES_KEY] = [
         None if a is None else a[..., 0]
         for a in monte_carlo_dict_unguided[monte_carlo.TRIAL_PMM_MATRICES_KEY]
@@ -269,12 +272,12 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
         for a in monte_carlo_dict_unguided[monte_carlo.P_VALUE_MATRICES_KEY]
     ]
 
-    monte_carlo_dict_guided = monte_carlo.run_monte_carlo_test(
-        list_of_baseline_matrices=dummy_guided_cam_matrices,
-        list_of_trial_matrices=actual_guided_cam_matrices,
-        max_pmm_percentile_level=max_pmm_percentile_level,
-        num_iterations=num_iterations
-    )
+    # monte_carlo_dict_guided = monte_carlo.run_monte_carlo_test(
+    #     list_of_baseline_matrices=dummy_guided_cam_matrices,
+    #     list_of_trial_matrices=actual_guided_cam_matrices,
+    #     max_pmm_percentile_level=max_pmm_percentile_level,
+    #     num_iterations=num_iterations
+    # )
 
     print('Writing results of Monte Carlo test to file: "{0:s}"...'.format(
         output_file_name
