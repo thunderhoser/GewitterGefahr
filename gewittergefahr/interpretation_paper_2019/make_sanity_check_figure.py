@@ -569,7 +569,7 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
     num_panel_rows = int(numpy.ceil(
         numpy.sqrt(num_composites)
     ))
-    num_panel_columns = int(numpy.floor(
+    num_panel_columns = int(numpy.ceil(
         float(num_composites) / num_panel_rows
     ))
 
