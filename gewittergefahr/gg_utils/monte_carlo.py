@@ -83,10 +83,14 @@ def check_output(monte_carlo_dict):
         matrices = number of MAX matrices).
     """
 
-    error_checking.assert_is_greater(
-        monte_carlo_dict[MAX_PMM_PERCENTILE_KEY], 50.
-    )
-    error_checking.assert_is_leq(monte_carlo_dict[MAX_PMM_PERCENTILE_KEY], 100.)
+    if monte_carlo_dict[MAX_PMM_PERCENTILE_KEY] is not None:
+        error_checking.assert_is_greater(
+            monte_carlo_dict[MAX_PMM_PERCENTILE_KEY], 50.
+        )
+        error_checking.assert_is_leq(
+            monte_carlo_dict[MAX_PMM_PERCENTILE_KEY], 100.
+        )
+
     error_checking.assert_is_integer(monte_carlo_dict[NUM_ITERATIONS_KEY])
     error_checking.assert_is_geq(monte_carlo_dict[NUM_ITERATIONS_KEY], 100)
 
@@ -136,7 +140,8 @@ def run_monte_carlo_test(
     :param list_of_trial_matrices: See above.
     :param max_pmm_percentile_level: Max percentile for probability-matched
         means (PMM).  For more details, see documentation for
-        `pmm.run_pmm_many_variables`.
+        `pmm.run_pmm_many_variables`.  If you want to use pixelwise means, make
+        this None.
     :param num_iterations: Number of Monte Carlo iterations.
     :return: monte_carlo_dict: Dictionary with the following keys.
     monte_carlo_dict['list_of_trial_pmm_matrices']: length-T list of numpy
@@ -193,9 +198,15 @@ def run_monte_carlo_test(
                 list_of_trial_matrices[j][these_trial_indices, ...]
             ))
 
-            this_shuffled_pmm_matrix = pmm.run_pmm_many_variables(
-                input_matrix=this_shuffled_matrix,
-                max_percentile_level=max_pmm_percentile_level)
+            if max_pmm_percentile_level is None:
+                this_shuffled_pmm_matrix = numpy.mean(
+                    this_shuffled_matrix, axis=0
+                )
+            else:
+                this_shuffled_pmm_matrix = pmm.run_pmm_many_variables(
+                    input_matrix=this_shuffled_matrix,
+                    max_percentile_level=max_pmm_percentile_level
+                )
 
             if list_of_shuffled_pmm_matrices[j] is None:
                 dimensions = numpy.array(
@@ -218,10 +229,15 @@ def run_monte_carlo_test(
         if list_of_trial_matrices[j] is None:
             continue
 
-        list_of_trial_pmm_matrices[j] = pmm.run_pmm_many_variables(
-            input_matrix=list_of_trial_matrices[j],
-            max_percentile_level=max_pmm_percentile_level
-        )
+        if max_pmm_percentile_level is None:
+            list_of_trial_pmm_matrices[j] = numpy.mean(
+                list_of_trial_matrices[j], axis=0
+            )
+        else:
+            list_of_trial_pmm_matrices[j] = pmm.run_pmm_many_variables(
+                input_matrix=list_of_trial_matrices[j],
+                max_percentile_level=max_pmm_percentile_level
+            )
 
         trial_pmm_values = numpy.ravel(list_of_trial_pmm_matrices[j])
         percentiles = numpy.full(trial_pmm_values.shape, numpy.nan)

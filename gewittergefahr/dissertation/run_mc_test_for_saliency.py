@@ -36,7 +36,8 @@ SMOOTHING_RADIUS_HELP_STRING = (
     'want to smooth saliency maps, make this negative.'
 )
 MAX_PERCENTILE_HELP_STRING = (
-    'Max percentile level for probability-matched means (PMM).'
+    'Max percentile level for probability-matched means (PMM).  If you want to '
+    'use pixelwise means, make this negative.'
 )
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for Monte Carlo test.'
 COMPARE_RANKED_HELP_STRING = (
@@ -144,6 +145,8 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
     :param output_file_name: Same.
     """
 
+    if max_pmm_percentile_level <= 0:
+        max_pmm_percentile_level = None
     if smoothing_radius_grid_cells <= 0:
         smoothing_radius_grid_cells = None
 
