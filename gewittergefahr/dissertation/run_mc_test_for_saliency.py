@@ -20,6 +20,7 @@ DUMMY_FILE_ARG_NAME = 'dummy_saliency_file_name'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 MAX_PERCENTILE_ARG_NAME = 'max_pmm_percentile_level'
 NUM_ITERATIONS_ARG_NAME = 'num_iterations'
+COMPARE_RANKED_ARG_NAME = 'compare_ranked_values'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 ACTUAL_FILE_HELP_STRING = (
@@ -38,6 +39,10 @@ MAX_PERCENTILE_HELP_STRING = (
     'Max percentile level for probability-matched means (PMM).'
 )
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for Monte Carlo test.'
+COMPARE_RANKED_HELP_STRING = (
+    'Boolean flag.  If 1 (0), will compare spatially ranked (raw) class '
+    'activations.'
+)
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `_write_results`).'
 )
@@ -62,6 +67,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_ITERATIONS_ARG_NAME, type=int, required=False, default=20000,
     help=NUM_ITERATIONS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + COMPARE_RANKED_ARG_NAME, type=int, required=False, default=1,
+    help=COMPARE_RANKED_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -120,7 +129,8 @@ def _smooth_maps(saliency_matrices, smoothing_radius_grid_cells):
 
 
 def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
-         max_pmm_percentile_level, num_iterations, output_file_name):
+         max_pmm_percentile_level, num_iterations, compare_ranked_values,
+         output_file_name):
     """Runs Monte Carlo test for saliency maps.
 
     This is effectively the main method.
@@ -130,6 +140,7 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
     :param smoothing_radius_grid_cells: Same.
     :param max_pmm_percentile_level: Same.
     :param num_iterations: Same.
+    :param compare_ranked_values: Same.
     :param output_file_name: Same.
     """
 
@@ -175,37 +186,38 @@ def _run(actual_file_name, dummy_file_name, smoothing_radius_grid_cells,
         )
 
     # Convert saliency from absolute values to percentiles.
-    num_matrices = len(actual_saliency_matrices)
-    num_examples = actual_saliency_matrices[0].shape[0]
+    if compare_ranked_values:
+        num_matrices = len(actual_saliency_matrices)
+        num_examples = actual_saliency_matrices[0].shape[0]
 
-    for j in range(num_matrices):
-        for i in range(num_examples):
-            this_num_channels = actual_saliency_matrices[j].shape[-1]
+        for j in range(num_matrices):
+            for i in range(num_examples):
+                this_num_channels = actual_saliency_matrices[j].shape[-1]
 
-            for k in range(this_num_channels):
-                this_flat_array = numpy.ravel(
-                    actual_saliency_matrices[j][i, ..., k]
-                )
-                these_flat_ranks = (
-                    scipy.stats.rankdata(this_flat_array, method='average') /
-                    len(this_flat_array)
-                )
-                actual_saliency_matrices[j][i, ..., k] = numpy.reshape(
-                    these_flat_ranks,
-                    actual_saliency_matrices[j][i, ..., k].shape
-                )
+                for k in range(this_num_channels):
+                    this_flat_array = numpy.ravel(
+                        actual_saliency_matrices[j][i, ..., k]
+                    )
+                    these_flat_ranks = (
+                        scipy.stats.rankdata(this_flat_array, method='average')
+                        / len(this_flat_array)
+                    )
+                    actual_saliency_matrices[j][i, ..., k] = numpy.reshape(
+                        these_flat_ranks,
+                        actual_saliency_matrices[j][i, ..., k].shape
+                    )
 
-                this_flat_array = numpy.ravel(
-                    dummy_saliency_matrices[j][i, ..., k]
-                )
-                these_flat_ranks = (
-                    scipy.stats.rankdata(this_flat_array, method='average') /
-                    len(this_flat_array)
-                )
-                dummy_saliency_matrices[j][i, ..., k] = numpy.reshape(
-                    these_flat_ranks,
-                    dummy_saliency_matrices[j][i, ..., k].shape
-                )
+                    this_flat_array = numpy.ravel(
+                        dummy_saliency_matrices[j][i, ..., k]
+                    )
+                    these_flat_ranks = (
+                        scipy.stats.rankdata(this_flat_array, method='average')
+                        / len(this_flat_array)
+                    )
+                    dummy_saliency_matrices[j][i, ..., k] = numpy.reshape(
+                        these_flat_ranks,
+                        dummy_saliency_matrices[j][i, ..., k].shape
+                    )
 
     # Do Monte Carlo test.
     monte_carlo_dict = monte_carlo.run_monte_carlo_test(
@@ -234,5 +246,8 @@ if __name__ == '__main__':
         max_pmm_percentile_level=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
+        compare_ranked_values=bool(
+            getattr(INPUT_ARG_OBJECT, COMPARE_RANKED_ARG_NAME)
+        ),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME),
     )
