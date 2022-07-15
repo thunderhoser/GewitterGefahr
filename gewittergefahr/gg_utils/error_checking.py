@@ -17,6 +17,10 @@ BOOLEAN_TYPES = (bool, numpy.bool_)
 REAL_NUMBER_TYPES = (
     float, numpy.float16, numpy.float32, numpy.float64, numbers.Integral
 )
+INTEGER_TYPES = (
+    int, numpy.int, numpy.int_, numpy.int8, numpy.int16, numpy.int32,
+    numpy.int64
+)
 TREE_TYPES = (tuple, list)
 ARRAY_TYPES = (tuple, list, numpy.ndarray)
 
@@ -234,8 +238,10 @@ def assert_is_integer(input_variable):
     :raises: TypeError: if input variable is not integer.
     """
 
-    if (isinstance(input_variable, BOOLEAN_TYPES) or not isinstance(
-            input_variable, numbers.Integral)):
+    if (
+            isinstance(input_variable, BOOLEAN_TYPES) or
+            not isinstance(input_variable, INTEGER_TYPES)
+    ):
         error_string = ('\n' + str(input_variable) +
                         '\nInput variable (shown above) is not integer.')
         raise TypeError(error_string)
@@ -249,7 +255,11 @@ def assert_is_integer_numpy_array(input_variable):
     """
 
     assert_is_numpy_array(input_variable)
-    if not numpy.issubdtype(input_variable.dtype, int):
+
+    if not (
+            numpy.issubdtype(input_variable.dtype, int) or
+            input_variable.dtype in INTEGER_TYPES
+    ):
         error_string = (
             '\n' + str(input_variable) +
             '\nInput array (shown above) has type "' +
