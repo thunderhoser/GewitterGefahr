@@ -46,7 +46,7 @@ PACKAGE_REQUIREMENTS = [
     'scikit-learn',
     'scikit-image',
     'netCDF4',
-    'pyproj<3.0',
+    'pyproj',
     'opencv-python',
     'matplotlib',
     'pandas',
