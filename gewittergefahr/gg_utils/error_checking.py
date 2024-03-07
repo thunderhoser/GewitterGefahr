@@ -7,20 +7,14 @@ import copy
 import numbers
 import os.path
 import numpy
-import pandas
 
 # TODO(thunderhoser): Fix hack in `REAL_NUMBER_TYPES` (where I added a bunch of
 # numpy types).  There must be a better way to deal with all numpy float and int
 # types.
 
 BOOLEAN_TYPES = (bool, numpy.bool_)
-REAL_NUMBER_TYPES = (
-    float, numpy.float16, numpy.float32, numpy.float64, numbers.Integral
-)
-INTEGER_TYPES = (
-    int, numpy.int, numpy.int_, numpy.int8, numpy.int16, numpy.int32,
-    numpy.int64
-)
+REAL_NUMBER_TYPES = (float, numpy.float16, numpy.float32, numpy.float64,
+                     numbers.Integral)
 TREE_TYPES = (tuple, list)
 ARRAY_TYPES = (tuple, list, numpy.ndarray)
 
@@ -53,33 +47,6 @@ def _traverse_array(input_array):
 
     else:
         yield input_array
-
-
-def assert_columns_in_dataframe(input_table, column_names):
-    """Input variable must be pandas DataFrame with given columns.
-
-    :param input_table: pandas DataFrame.
-    :param column_names: 1-D list with names of desired columns.
-    :raises: TypeError: input is not pandas DataFrame.
-    :raises: KeyError: input_table is missing any of the desired columns.
-    """
-
-    if not isinstance(input_table, pandas.DataFrame):
-        error_string = (
-            '\n' + str(input_table) +
-            '\nInput variable (shown above) has type "' + str(type(input_table))
-            + '", which is not "pandas.DataFrame".')
-        raise TypeError(error_string)
-
-    for this_name in column_names:
-        if this_name in input_table:
-            continue
-
-        error_string = (
-            '\n' + str(input_table) +
-            '\npandas DataFrame (shown above) is missing column "' + this_name
-            + '".')
-        raise KeyError(error_string)
 
 
 def assert_is_array(input_variable):
@@ -154,7 +121,8 @@ def assert_is_numpy_array(input_variable, num_dimensions=None,
             error_string = (
                 '\nExpected dimensions: ' + str(exact_dimensions) +
                 '\nActual dimensions: ' + str(input_variable.shape) +
-                '\nAs shown above, input array has unexpected dimensions.')
+                '\nAs shown above, input array has unexpected dimensions.'
+            )
             raise TypeError(error_string)
 
     elif num_dimensions is not None:
@@ -165,7 +133,8 @@ def assert_is_numpy_array(input_variable, num_dimensions=None,
             error_string = (
                 'Input array should have ' + str(num_dimensions) +
                 ' dimensions.  Got ' + str(input_variable.ndim) +
-                ' dimensions.')
+                ' dimensions.'
+            )
             raise TypeError(error_string)
 
 
@@ -238,10 +207,8 @@ def assert_is_integer(input_variable):
     :raises: TypeError: if input variable is not integer.
     """
 
-    if (
-            isinstance(input_variable, BOOLEAN_TYPES) or
-            not isinstance(input_variable, INTEGER_TYPES)
-    ):
+    if (isinstance(input_variable, BOOLEAN_TYPES) or not isinstance(
+            input_variable, numbers.Integral)):
         error_string = ('\n' + str(input_variable) +
                         '\nInput variable (shown above) is not integer.')
         raise TypeError(error_string)
@@ -255,15 +222,15 @@ def assert_is_integer_numpy_array(input_variable):
     """
 
     assert_is_numpy_array(input_variable)
+    if 'int' in str(input_variable.dtype):
+        return
 
-    if not (
-            numpy.issubdtype(input_variable.dtype, int) or
-            input_variable.dtype in INTEGER_TYPES
-    ):
+    if not numpy.issubdtype(input_variable.dtype, int):
         error_string = (
             '\n' + str(input_variable) +
             '\nInput array (shown above) has type "' +
-            str(input_variable.dtype) + '", which is not integer.')
+            str(input_variable.dtype) + '", which is not integer.'
+        )
         raise TypeError(error_string)
 
 
@@ -292,7 +259,8 @@ def assert_is_boolean_numpy_array(input_variable):
         error_string = (
             '\n' + str(input_variable) +
             '\nInput array (shown above) has type "' +
-            str(input_variable.dtype) + '", which is not Boolean.')
+            str(input_variable.dtype) + '", which is not Boolean.'
+        )
         raise TypeError(error_string)
 
 
@@ -321,7 +289,8 @@ def assert_is_float_numpy_array(input_variable):
         error_string = (
             '\n' + str(input_variable) +
             '\nInput array (shown above) has type "' +
-            str(input_variable.dtype) + '", which is not float.')
+            str(input_variable.dtype) + '", which is not float.'
+        )
         raise TypeError(error_string)
 
 
@@ -332,14 +301,12 @@ def assert_is_real_number(input_variable):
     :raises: TypeError: if input variable is not real number.
     """
 
-    return
-
-    # if (isinstance(input_variable, BOOLEAN_TYPES) or not isinstance(
-    #         input_variable, REAL_NUMBER_TYPES)):
-    #     print(type(input_variable))
-    #     error_string = ('\n' + str(input_variable) +
-    #                     '\nInput variable (shown above) is not real number.')
-    #     raise TypeError(error_string)
+    if (isinstance(input_variable, BOOLEAN_TYPES) or not isinstance(
+            input_variable, REAL_NUMBER_TYPES)):
+        print(type(input_variable))
+        error_string = ('\n' + str(input_variable) +
+                        '\nInput variable (shown above) is not real number.')
+        raise TypeError(error_string)
 
 
 def assert_is_real_numpy_array(input_variable):
@@ -350,14 +317,19 @@ def assert_is_real_numpy_array(input_variable):
     """
 
     assert_is_numpy_array(input_variable)
+    if 'float' in str(input_variable.dtype):
+        return
+    if 'int' in str(input_variable.dtype):
+        return
 
-    # if not (numpy.issubdtype(input_variable.dtype, int) or numpy.issubdtype(
-    #         input_variable.dtype, float)):
-    #     error_string = (
-    #         '\n' + str(input_variable) +
-    #         '\nInput array (shown above) has type "' +
-    #         str(input_variable.dtype) + '", which is not a real number.')
-    #     raise TypeError(error_string)
+    if not (numpy.issubdtype(input_variable.dtype, int) or numpy.issubdtype(
+            input_variable.dtype, float)):
+        error_string = (
+            '\n' + str(input_variable) +
+            '\nInput array (shown above) has type "' +
+            str(input_variable.dtype) + '", which is not a real number.'
+        )
+        raise TypeError(error_string)
 
 
 def assert_is_not_nan(input_variable):
@@ -436,7 +408,8 @@ def assert_is_greater(input_variable, base_value, allow_nan=False):
     if input_variable <= base_value:
         error_string = (
             'Input value (' + str(input_variable) + ') should be > base value ('
-            + str(base_value) + ').')
+            + str(base_value) + ').'
+        )
         raise ValueError(error_string)
 
 
@@ -460,7 +433,8 @@ def assert_is_greater_numpy_array(input_variable, base_value, allow_nan=False):
     if numpy.any(input_variable <= base_value):
         error_string = (
             '\n' + str(input_variable) + '\nInput array (shown above) has ' +
-            'some elements not > base value (' + str(base_value) + ').')
+            'some elements not > base value (' + str(base_value) + ').'
+        )
         raise ValueError(error_string)
 
 
@@ -484,7 +458,8 @@ def assert_is_less_than(input_variable, base_value, allow_nan=False):
     if input_variable >= base_value:
         error_string = (
             'Input value (' + str(input_variable) + ') should be < base value ('
-            + str(base_value) + ').')
+            + str(base_value) + ').'
+        )
         raise ValueError(error_string)
 
 
@@ -509,7 +484,8 @@ def assert_is_less_than_numpy_array(input_variable, base_value,
     if numpy.any(input_variable >= base_value):
         error_string = (
             '\n' + str(input_variable) + '\nInput array (shown above) has ' +
-            'some elements not < base value (' + str(base_value) + ').')
+            'some elements not < base value (' + str(base_value) + ').'
+        )
         raise ValueError(error_string)
 
 
@@ -533,7 +509,8 @@ def assert_is_geq(input_variable, base_value, allow_nan=False):
     if input_variable < base_value:
         error_string = (
             'Input value (' + str(input_variable) +
-            ') should be >= base value (' + str(base_value) + ').')
+            ') should be >= base value (' + str(base_value) + ').'
+        )
         raise ValueError(error_string)
 
 
@@ -557,7 +534,8 @@ def assert_is_geq_numpy_array(input_variable, base_value, allow_nan=False):
     if numpy.any(input_variable < base_value):
         error_string = (
             '\n' + str(input_variable) + '\nInput array (shown above) has ' +
-            'some elements not >= base value (' + str(base_value) + ').')
+            'some elements not >= base value (' + str(base_value) + ').'
+        )
         raise ValueError(error_string)
 
 
@@ -581,7 +559,8 @@ def assert_is_leq(input_variable, base_value, allow_nan=False):
     if input_variable > base_value:
         error_string = (
             'Input value (' + str(input_variable) +
-            ') should be <= base value (' + str(base_value) + ').')
+            ') should be <= base value (' + str(base_value) + ').'
+        )
         raise ValueError(error_string)
 
 
@@ -605,7 +584,8 @@ def assert_is_leq_numpy_array(input_variable, base_value, allow_nan=False):
     if numpy.any(input_variable > base_value):
         error_string = (
             '\n' + str(input_variable) + '\nInput array (shown above) has ' +
-            'some elements not <= base value (' + str(base_value) + ').')
+            'some elements not <= base value (' + str(base_value) + ').'
+        )
         raise ValueError(error_string)
 
 
@@ -627,7 +607,8 @@ def assert_is_valid_latitude(latitude_deg, allow_nan=False):
     if latitude_deg < MIN_LATITUDE_DEG or latitude_deg > MAX_LATITUDE_DEG:
         error_string = (
             'Latitude (' + str(latitude_deg) + ' deg N) is not in range [' +
-            str(MIN_LATITUDE_DEG) + ', ' + str(MAX_LATITUDE_DEG) + '] deg N.')
+            str(MIN_LATITUDE_DEG) + ', ' + str(MAX_LATITUDE_DEG) + '] deg N.'
+        )
         raise ValueError(error_string)
 
 
@@ -672,7 +653,8 @@ def assert_is_valid_longitude(longitude_deg, positive_in_west_flag=False,
         error_string = (
             'Longitude (' + str(longitude_deg) + ' deg E) is not in range [' +
             str(this_min_longitude_deg) + ', ' + str(this_max_longitude_deg) +
-            '] deg E.')
+            '] deg E.'
+        )
         raise ValueError(error_string)
 
 
@@ -697,7 +679,8 @@ def assert_is_valid_lat_numpy_array(latitudes_deg, allow_nan=False):
         error_string = (
             '\n' + str(latitudes_deg) + '\nInput array (shown above) has ' +
             'some elements outside of [' + str(MIN_LATITUDE_DEG) + ', ' +
-            str(MAX_LATITUDE_DEG) + '] deg N.')
+            str(MAX_LATITUDE_DEG) + '] deg N.'
+        )
         raise ValueError(error_string)
 
 
@@ -744,5 +727,6 @@ def assert_is_valid_lng_numpy_array(longitudes_deg, positive_in_west_flag=False,
         error_string = (
             '\n' + str(longitudes_deg) + '\nInput array (shown above) has ' +
             'some elements outside of [' + str(this_min_longitude_deg) + ', ' +
-            str(this_max_longitude_deg) + '] deg E.')
+            str(this_max_longitude_deg) + '] deg E.'
+        )
         raise ValueError(error_string)
