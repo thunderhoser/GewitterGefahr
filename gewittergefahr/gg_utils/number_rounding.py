@@ -1,6 +1,5 @@
 """Methods for number-rounding."""
 
-import collections
 import numpy
 from gewittergefahr.gg_utils import error_checking
 
@@ -14,9 +13,10 @@ def round_to_nearest(input_value, rounding_base):
     :return: output_value: Same as input_value, except rounded.
     """
 
-    if isinstance(input_value, collections.Iterable):
+    try:
+        _ = len(input_value)
         error_checking.assert_is_real_numpy_array(input_value)
-    else:
+    except:
         error_checking.assert_is_real_number(input_value)
 
     error_checking.assert_is_greater(rounding_base, 0)
@@ -32,9 +32,10 @@ def ceiling_to_nearest(input_value, rounding_base):
     :return: output_value: Same as input_value, except rounded.
     """
 
-    if isinstance(input_value, collections.Iterable):
+    try:
+        _ = len(input_value)
         error_checking.assert_is_real_numpy_array(input_value)
-    else:
+    except:
         error_checking.assert_is_real_number(input_value)
 
     error_checking.assert_is_greater(rounding_base, 0)
@@ -50,9 +51,10 @@ def floor_to_nearest(input_value, rounding_base):
     :return: output_value: Same as input_value, except rounded.
     """
 
-    if isinstance(input_value, collections.Iterable):
+    try:
+        _ = len(input_value)
         error_checking.assert_is_real_numpy_array(input_value)
-    else:
+    except:
         error_checking.assert_is_real_number(input_value)
 
     error_checking.assert_is_greater(rounding_base, 0)
@@ -67,9 +69,10 @@ def round_to_half_integer(input_value):
     :return: output_value: Same as input_value, except rounded.
     """
 
-    if isinstance(input_value, collections.Iterable):
+    try:
+        _ = len(input_value)
         error_checking.assert_is_real_numpy_array(input_value)
-    else:
+    except:
         error_checking.assert_is_real_number(input_value)
 
     return numpy.round(input_value + 0.5) - 0.5
