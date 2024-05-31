@@ -2,7 +2,6 @@
 
 import copy
 import numpy
-from matplotlib import pyplot
 import matplotlib.colors
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import radar_utils
@@ -642,11 +641,12 @@ def plot_latlng_grid(
         min_colour_value = colour_norm_object.vmin
         max_colour_value = colour_norm_object.vmax
 
-    pyplot.pcolormesh(
+    axes_object.pcolormesh(
         grid_cell_edge_longitudes_deg, grid_cell_edge_latitudes_deg,
         field_matrix_at_edges, cmap=colour_map_object, norm=colour_norm_object,
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', axes=axes_object, zorder=-1e11)
+        edgecolors='None', zorder=-1e11
+    )
 
 
 def plot_2d_grid_without_coords(

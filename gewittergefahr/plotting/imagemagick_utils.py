@@ -178,6 +178,7 @@ def create_gif(input_file_names, output_file_name, num_seconds_per_frame,
 
     command_string += ' -resize {0:d}% "{1:s}"'.format(
         resize_percentage, output_file_name)
+    print(command_string)
 
     exit_code = os.system(command_string)
     if exit_code == 0:
