@@ -82,7 +82,7 @@ def check_input_args(input_matrix, max_percentile_level):
 
     error_checking.assert_is_numpy_array_without_nan(input_matrix)
     num_spatial_dimensions = len(input_matrix.shape) - 2
-    error_checking.assert_is_geq(num_spatial_dimensions, 1)
+    error_checking.assert_is_geq(num_spatial_dimensions, 0)
 
     error_checking.assert_is_geq(max_percentile_level, 90.)
     error_checking.assert_is_leq(max_percentile_level, 100.)

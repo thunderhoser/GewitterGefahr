@@ -465,7 +465,8 @@ def extract_latlng_subgrid(
 def count_events_on_equidistant_grid(
         event_x_coords_metres, event_y_coords_metres,
         grid_point_x_coords_metres, grid_point_y_coords_metres,
-        integer_event_ids=None, effective_radius_metres=None):
+        integer_event_ids=None, effective_radius_metres=None,
+        event_weights=None):
     """Counts number of events in, or near, each cell of an equidistant grid.
 
     M = number of rows (unique grid-point y-coordinates)
@@ -488,6 +489,8 @@ def count_events_on_equidistant_grid(
     :param effective_radius_metres: If None, will count the number of events
         inside each grid cell.  If specified, will count the number of events
         within `effective_radius_metres` of each grid point.
+    :param event_weights: length-K numpy array of positive weights.  If None,
+        each event will be given a weight of 1.0.
     :return: num_events_matrix:
         [if `effective_radius_metres is None`]
         M-by-N numpy array, where element [i, j] is the number of events in grid
@@ -505,79 +508,112 @@ def count_events_on_equidistant_grid(
     _check_input_events(
         event_x_coords_metres=event_x_coords_metres,
         event_y_coords_metres=event_y_coords_metres,
-        integer_event_ids=integer_event_ids)
+        integer_event_ids=integer_event_ids
+    )
 
     error_checking.assert_is_numpy_array_without_nan(grid_point_x_coords_metres)
     error_checking.assert_is_numpy_array(
-        grid_point_x_coords_metres, num_dimensions=1)
+        grid_point_x_coords_metres, num_dimensions=1
+    )
 
     error_checking.assert_is_numpy_array_without_nan(grid_point_y_coords_metres)
     error_checking.assert_is_numpy_array(
-        grid_point_y_coords_metres, num_dimensions=1)
+        grid_point_y_coords_metres, num_dimensions=1
+    )
+
+    num_events = len(event_x_coords_metres)
+    if event_weights is None:
+        event_weights = numpy.full(num_events, 1.)
+
+    error_checking.assert_is_numpy_array(
+        event_weights, exact_dimensions=numpy.array([num_events], dtype=int)
+    )
+    error_checking.assert_is_greater_numpy_array(event_weights, 0.)
 
     if effective_radius_metres is not None:
         error_checking.assert_is_greater(effective_radius_metres, 0.)
         effective_radius_metres2 = effective_radius_metres ** 2
 
-        (grid_point_x_matrix_metres, grid_point_y_matrix_metres
-        ) = xy_vectors_to_matrices(x_unique_metres=grid_point_x_coords_metres,
-                                   y_unique_metres=grid_point_y_coords_metres)
+        grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
+            xy_vectors_to_matrices(
+                x_unique_metres=grid_point_x_coords_metres,
+                y_unique_metres=grid_point_y_coords_metres
+            )
+        )
 
     num_grid_rows = len(grid_point_y_coords_metres)
     num_grid_columns = len(grid_point_x_coords_metres)
     num_events_matrix = numpy.full(
-        (num_grid_rows, num_grid_columns), 0, dtype=int)
+        (num_grid_rows, num_grid_columns), 0, dtype=float
+    )
 
     if integer_event_ids is None:
         event_ids_by_grid_cell_dict = None
     else:
         event_ids_by_grid_cell_dict = {}
+
         for i in range(num_grid_rows):
             for j in range(num_grid_columns):
                 event_ids_by_grid_cell_dict[i, j] = []
 
     num_events = len(event_x_coords_metres)
+
     for k in range(num_events):
         if numpy.mod(k, 1000) == 0:
             print('Have assigned {0:d} of {1:d} events to grid cells...'.format(
-                k, num_events))
+                k, num_events
+            ))
 
         if effective_radius_metres is None:
             _, this_row = general_utils.find_nearest_value(
-                grid_point_y_coords_metres, event_y_coords_metres[k])
+                grid_point_y_coords_metres, event_y_coords_metres[k]
+            )
             _, this_column = general_utils.find_nearest_value(
-                grid_point_x_coords_metres, event_x_coords_metres[k])
+                grid_point_x_coords_metres, event_x_coords_metres[k]
+            )
 
             if integer_event_ids is None:
-                num_events_matrix[this_row, this_column] += 1
+                num_events_matrix[this_row, this_column] += event_weights[k]
             else:
                 event_ids_by_grid_cell_dict[this_row, this_column].append(
-                    integer_event_ids[k])
+                    integer_event_ids[k]
+                )
 
             continue
 
-        these_rows_to_try = numpy.where(numpy.absolute(
-            grid_point_y_coords_metres - event_y_coords_metres[k]
-        ) <= effective_radius_metres)[0]
-        these_columns_to_try = numpy.where(numpy.absolute(
-            grid_point_x_coords_metres - event_x_coords_metres[k]
-        ) <= effective_radius_metres)[0]
+        these_rows_to_try = numpy.where(
+            numpy.absolute(
+                grid_point_y_coords_metres - event_y_coords_metres[k]
+            )
+            <= effective_radius_metres
+        )[0]
+
+        these_columns_to_try = numpy.where(
+            numpy.absolute(
+                grid_point_x_coords_metres - event_x_coords_metres[k]
+            )
+            <= effective_radius_metres
+        )[0]
 
         this_x_submatrix_metres = grid_point_x_matrix_metres[
-            these_rows_to_try[:, None], these_columns_to_try]
+            these_rows_to_try[:, None], these_columns_to_try
+        ]
         this_y_submatrix_metres = grid_point_y_matrix_metres[
-            these_rows_to_try[:, None], these_columns_to_try]
+            these_rows_to_try[:, None], these_columns_to_try
+        ]
         this_distance_submatrix_metres2 = (
             (this_x_submatrix_metres - event_x_coords_metres[k]) ** 2 +
-            (this_y_submatrix_metres - event_y_coords_metres[k]) ** 2)
+            (this_y_submatrix_metres - event_y_coords_metres[k]) ** 2
+        )
 
         these_subrows, these_subcolumns = numpy.where(
-            this_distance_submatrix_metres2 <= effective_radius_metres2)
+            this_distance_submatrix_metres2 <= effective_radius_metres2
+        )
         these_rows = these_rows_to_try[these_subrows]
         these_columns = these_columns_to_try[these_subcolumns]
 
         if integer_event_ids is None:
-            num_events_matrix[these_rows, these_columns] += 1
+            num_events_matrix[these_rows, these_columns] += event_weights[k]
         else:
             for m in range(len(these_rows)):
                 event_ids_by_grid_cell_dict[
@@ -590,7 +626,8 @@ def count_events_on_equidistant_grid(
         for i in range(num_grid_rows):
             for j in range(num_grid_columns):
                 event_ids_by_grid_cell_dict[i, j] = numpy.array(
-                    list(set(event_ids_by_grid_cell_dict[i, j])), dtype=int)
+                    list(set(event_ids_by_grid_cell_dict[i, j])), dtype=int
+                )
                 num_events_matrix[i, j] = len(event_ids_by_grid_cell_dict[i, j])
 
     return num_events_matrix, event_ids_by_grid_cell_dict

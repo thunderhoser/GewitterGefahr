@@ -3,8 +3,7 @@
 import os
 import numpy
 import srtm
-import geopy
-from geopy.distance import GeodesicDistance
+from pyproj import Geod
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -301,22 +300,18 @@ def start_points_and_displacements_to_endpoints(
         geodetic_bearings_deg,
         exact_dimensions=numpy.array(start_latitudes_deg.shape))
 
-    end_latitudes_deg = numpy.full(start_latitudes_deg.shape, numpy.nan)
-    end_longitudes_deg = numpy.full(start_latitudes_deg.shape, numpy.nan)
-    num_points = start_latitudes_deg.size
+    geod_object = Geod(ellps='sphere')
 
-    for i in range(num_points):
-        this_start_point_object = geopy.Point(
-            start_latitudes_deg.flat[i], start_longitudes_deg.flat[i])
-        this_end_point_object = GeodesicDistance(
-            meters=scalar_displacements_metres.flat[i]).destination(
-                this_start_point_object, geodetic_bearings_deg.flat[i])
-
-        end_latitudes_deg.flat[i] = this_end_point_object.latitude
-        end_longitudes_deg.flat[i] = this_end_point_object.longitude
+    end_longitudes_deg, end_latitudes_deg = geod_object.fwd(
+        lons=start_longitudes_deg, lats=start_latitudes_deg,
+        az=geodetic_bearings_deg, dist=scalar_displacements_metres,
+        radians=False
+    )[:2]
 
     end_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
-        end_longitudes_deg, allow_nan=False)
+        end_longitudes_deg, allow_nan=False
+    )
+
     return end_latitudes_deg, end_longitudes_deg
 
 
