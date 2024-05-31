@@ -26,8 +26,6 @@ WEIGHT_MATRIX = numpy.zeros((
     NUM_CHANNELS, NUM_CHANNELS
 ))
 
-numpy.repeat()
-
 for k in range(NUM_CHANNELS):
     WEIGHT_MATRIX[..., k, k] = SMALL_WEIGHT_MATRIX
 

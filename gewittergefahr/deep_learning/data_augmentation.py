@@ -6,10 +6,10 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 PADDING_VALUE = 0.
-MIN_ABSOLUTE_ROTATION_ANGLE_DEG = 1.
-MAX_ABSOLUTE_ROTATION_ANGLE_DEG = 90.
-MIN_NOISE_STANDARD_DEVIATION = 1e-9
-MAX_NOISE_STANDARD_DEVIATION = 0.25
+MIN_ABSOLUTE_ROTATION_ANGLE_DEG = 1e-6
+MAX_ABSOLUTE_ROTATION_ANGLE_DEG = 180.
+MIN_NOISE_STANDARD_DEVIATION = 1e-6
+MAX_NOISE_STANDARD_DEVIATION = 3.
 
 
 def get_translations(
