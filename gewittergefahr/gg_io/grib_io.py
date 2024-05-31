@@ -87,12 +87,85 @@ def file_name_to_type(grib_file_name):
         return GRIB1_FILE_TYPE
     if grib_file_name.endswith(GRIB2_FILE_EXTENSION):
         return GRIB2_FILE_TYPE
+    if grib_file_name.endswith('.grib2'):
+        return GRIB2_FILE_TYPE
+
+    # TODO(thunderhoser): Hack for GFS data on HPSS.
+    file_extension_string = os.path.splitext(grib_file_name)[1]
+    if file_extension_string == '':
+        return GRIB2_FILE_TYPE
+    if file_extension_string == '.gb2':
+        return GRIB2_FILE_TYPE
 
     error_string = (
         'File type should be either "{0:s}" or "{1:s}".  Instead, got: "{2:s}"'
     ).format(GRIB1_FILE_TYPE, GRIB2_FILE_TYPE, grib_file_name)
 
     raise ValueError(error_string)
+
+
+def rotate_winds_in_grib_file(
+        input_grib_file_name, output_grib_file_name,
+        grid_definition_file_name,
+        wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT, raise_error_if_fails=True):
+    """Rotates winds in grib file from grid-relative to Earth-relative.
+
+    :param input_grib_file_name: Path to input file.
+    :param output_grib_file_name: Path to output file.
+    :param grid_definition_file_name: Path to grid-definition file on local
+        machine.  You can download this Perl script from:
+        https://ftp.cpc.ncep.noaa.gov/wd51we/wgrib2.scripts/grid_defn.pl
+    :param wgrib2_exe_name: Path to wgrib2 executable.
+    :param raise_error_if_fails: Boolean flag.  If the rotation fails and
+        raise_error_if_fails = True, this method will error out.  If the
+        rotation fails and raise_error_if_fails = False, this method will
+        return False.
+    :return: success: Boolean flag.
+    """
+
+    # Error-checking.
+    error_checking.assert_file_exists(input_grib_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        file_name=output_grib_file_name
+    )
+    error_checking.assert_file_exists(grid_definition_file_name)
+    # error_checking.assert_file_exists(wgrib2_exe_name)
+    error_checking.assert_is_boolean(raise_error_if_fails)
+
+    assert file_name_to_type(input_grib_file_name) == GRIB2_FILE_TYPE
+
+    # Do actual stuff.
+    command_string = (
+        '"{0:s}" "{1:s}" -set_grib_type same -new_grid_winds earth '
+        '-new_grid_interpolation neighbor -new_grid `"{2:s}" "{1:s}"` "{3:s}"'
+    ).format(
+        wgrib2_exe_name,
+        input_grib_file_name,
+        grid_definition_file_name,
+        output_grib_file_name
+    )
+
+    print(command_string)
+
+    if os.path.isfile(output_grib_file_name):
+        os.remove(output_grib_file_name)
+
+    try:
+        subprocess.call(command_string, shell=True)
+        error_checking.assert_file_exists(output_grib_file_name)
+    except OSError as this_exception:
+        if raise_error_if_fails:
+            raise
+
+        warning_string = (
+            '\n\n{0:s}\n\nCommand (shown above) failed (details shown below).'
+            '\n\n{1:s}'
+        ).format(command_string, str(this_exception))
+
+        warnings.warn(warning_string)
+        return False
+
+    return True
 
 
 def read_field_from_grib_file(
@@ -145,6 +218,8 @@ def read_field_from_grib_file(
 
     # Housekeeping.
     grib_file_type = file_name_to_type(grib_file_name)
+    if wgrib2_exe_name is None:
+        grib_file_type = GRIB1_FILE_TYPE
 
     if temporary_dir_name is not None:
         file_system_utils.mkdir_recursive_if_necessary(
@@ -169,6 +244,8 @@ def read_field_from_grib_file(
             wgrib2_exe_name, grib_file_name,
             _field_name_grib1_to_grib2(field_name_grib1), temporary_file_name
         )
+
+    print(command_string)
 
     try:
         subprocess.call(command_string, shell=True)
