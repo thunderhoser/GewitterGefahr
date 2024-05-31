@@ -367,8 +367,10 @@ class GridsTests(unittest.TestCase):
             event_x_coords_metres=EVENT_X_COORDS_METRES,
             event_y_coords_metres=EVENT_Y_COORDS_METRES, integer_event_ids=None,
             grid_point_x_coords_metres=EVENT_GRID_POINTS_X_METRES,
-            grid_point_y_coords_metres=EVENT_GRID_POINTS_Y_METRES)
+            grid_point_y_coords_metres=EVENT_GRID_POINTS_Y_METRES
+        )
 
+        this_num_events_matrix = numpy.round(this_num_events_matrix).astype(int)
         self.assertTrue(numpy.array_equal(
             this_num_events_matrix, NUM_EVENTS_MATRIX
         ))
