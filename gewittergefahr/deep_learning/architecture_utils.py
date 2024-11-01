@@ -686,16 +686,24 @@ def get_dropout_layer(dropout_fraction, layer_name=None):
     return keras.layers.Dropout(rate=dropout_fraction, name=layer_name)
 
 
-def get_batch_norm_layer(layer_name=None):
+def get_batch_norm_layer(momentum=0.99, synchronized=False, layer_name=None):
     """Creates batch-normalization layer.
 
+    :param momentum: Momentum for moving mean and variance.  See documentation
+        for `keras.layers.BatchNormalization` for details.
+    :param synchronized: Boolean flag.  See documentation for
+        `keras.layers.BatchNormalization` for details.
     :param layer_name: See doc for `get_dropout_layer`.
     :return: Instance of `keras.layers.BatchNormalization`.
     """
 
+    error_checking.assert_is_greater(momentum, 0.)
+    error_checking.assert_is_less_than(momentum, 1.)
+    error_checking.assert_is_boolean(synchronized)
+
     return keras.layers.BatchNormalization(
-        axis=-1, momentum=0.99, epsilon=0.001, center=True, scale=True,
-        name=layer_name
+        axis=-1, momentum=momentum, epsilon=0.001, center=True, scale=True,
+        synchronized=synchronized, name=layer_name
     )
 
 
