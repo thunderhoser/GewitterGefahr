@@ -397,6 +397,55 @@ def get_2d_conv_layer(
     )
 
 
+def get_2d_depthwise_conv_layer(
+        num_kernel_rows, num_kernel_columns, num_rows_per_stride,
+        num_columns_per_stride, num_filters,
+        padding_type_string=NO_PADDING_STRING, weight_regularizer=None,
+        layer_name=None, kernel_init_name=KERNEL_INITIALIZER_NAME,
+        bias_init_name=BIAS_INITIALIZER_NAME):
+    """Creates layer for 2-D convolution.
+
+    :param num_kernel_rows: See doc for `_check_convolution_options`.
+    :param num_kernel_columns: Same.
+    :param num_rows_per_stride: Same.
+    :param num_columns_per_stride: Same.
+    :param num_filters: Same.
+    :param padding_type_string: Same.
+    :param weight_regularizer: See doc for `get_1d_conv_layer`.
+    :param layer_name: Same.
+    :param kernel_init_name: Same.
+    :param bias_init_name: Same.
+    :return: layer_object: Instance of `keras.layers.Conv2D`.
+    """
+
+    error_checking.assert_is_string(kernel_init_name)
+    error_checking.assert_is_string(bias_init_name)
+
+    _check_convolution_options(
+        num_kernel_rows=num_kernel_rows, num_kernel_columns=num_kernel_columns,
+        num_rows_per_stride=num_rows_per_stride,
+        num_columns_per_stride=num_columns_per_stride,
+        padding_type_string=padding_type_string,
+        num_filters=num_filters, num_kernel_dimensions=2
+    )
+
+    return keras.layers.DepthwiseConv2D(
+        kernel_size=(num_kernel_rows, num_kernel_columns),
+        strides=(num_rows_per_stride, num_columns_per_stride),
+        padding=padding_type_string,
+        data_format='channels_last',
+        depth_multiplier=1,
+        dilation_rate=(1, 1),
+        activation=None,
+        use_bias=True,
+        depthwise_initializer=kernel_init_name,
+        bias_initializer=bias_init_name,
+        depthwise_regularizer=weight_regularizer,
+        bias_regularizer=weight_regularizer,
+        name=layer_name
+    )
+
+
 def get_2d_separable_conv_layer(
         num_kernel_rows, num_kernel_columns, num_rows_per_stride,
         num_columns_per_stride, num_spatial_filters, num_non_spatial_filters,
