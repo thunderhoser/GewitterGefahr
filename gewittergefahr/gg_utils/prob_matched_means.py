@@ -36,38 +36,51 @@ def _run_pmm_one_variable(
 
     # Pool values over all dimensions and remove extremes.
     pooled_values = numpy.ravel(input_matrix)
-    pooled_values = numpy.sort(pooled_values)
+    pooled_values = numpy.sort(
+        pooled_values[numpy.isnan(pooled_values) == False]
+    )
 
     max_pooled_value = numpy.percentile(pooled_values, max_percentile_level)
     pooled_values = pooled_values[pooled_values <= max_pooled_value]
 
     min_pooled_value = numpy.percentile(
-        pooled_values, 100 - max_percentile_level)
+        pooled_values, 100 - max_percentile_level
+    )
     pooled_values = pooled_values[pooled_values >= min_pooled_value]
 
     # Find ensemble mean at each grid point.
-    mean_field_matrix = numpy.mean(input_matrix, axis=0)
+    mean_field_matrix = numpy.nanmean(input_matrix, axis=0)
     mean_field_flattened = numpy.ravel(mean_field_matrix)
+    real_mean_field_flattened = mean_field_flattened[
+        numpy.isnan(mean_field_flattened) == False
+    ]
 
     # At each grid point, replace ensemble mean with the same percentile from
     # pooled array.
     pooled_value_percentiles = numpy.linspace(
-        0, 100, num=len(pooled_values), dtype=float)
+        0, 100, num=len(pooled_values), dtype=float
+    )
     mean_value_percentiles = numpy.linspace(
-        0, 100, num=len(mean_field_flattened), dtype=float)
+        0, 100, num=len(real_mean_field_flattened), dtype=float
+    )
 
-    sort_indices = numpy.argsort(mean_field_flattened)
+    sort_indices = numpy.argsort(real_mean_field_flattened)
     unsort_indices = numpy.argsort(sort_indices)
 
     interp_object = interp1d(
         pooled_value_percentiles, pooled_values, kind='linear',
-        bounds_error=True, assume_sorted=True)
+        bounds_error=True, assume_sorted=True
+    )
 
-    mean_field_flattened = interp_object(mean_value_percentiles)
-    mean_field_flattened = mean_field_flattened[unsort_indices]
+    real_mean_field_flattened = interp_object(mean_value_percentiles)
+    real_mean_field_flattened = real_mean_field_flattened[unsort_indices]
+    mean_field_flattened[
+        numpy.isnan(mean_field_flattened) == False
+    ] = real_mean_field_flattened
+
     mean_field_matrix = numpy.reshape(
-        mean_field_flattened, mean_field_matrix.shape)
-
+        mean_field_flattened, mean_field_matrix.shape
+    )
     return mean_field_matrix
 
 
@@ -80,7 +93,7 @@ def check_input_args(input_matrix, max_percentile_level):
     metadata_dict['max_percentile_level']: See input doc.
     """
 
-    error_checking.assert_is_numpy_array_without_nan(input_matrix)
+    assert not numpy.all(numpy.isnan(input_matrix))
     num_spatial_dimensions = len(input_matrix.shape) - 2
     error_checking.assert_is_geq(num_spatial_dimensions, 0)
 
@@ -111,8 +124,8 @@ def run_pmm_many_variables(
     """
 
     metadata_dict = check_input_args(
-        input_matrix=input_matrix, max_percentile_level=max_percentile_level)
-
+        input_matrix=input_matrix, max_percentile_level=max_percentile_level
+    )
     max_percentile_level = metadata_dict[MAX_PERCENTILE_KEY]
 
     num_variables = input_matrix.shape[-1]
