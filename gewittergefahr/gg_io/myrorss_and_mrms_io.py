@@ -476,10 +476,7 @@ def find_many_raw_files(
         numpy.reshape(desired_times_unix_sec, (num_times, 1)),
         numpy.reshape(spc_dates_unix_sec, (num_times, 1))
     ))
-
-    unique_time_matrix = numpy.vstack(
-        {tuple(this_row) for this_row in time_matrix}
-    ).astype(int)
+    unique_time_matrix = numpy.unique(time_matrix, axis=0)
 
     unique_times_unix_sec = unique_time_matrix[:, 0]
     spc_dates_at_unique_times_unix_sec = unique_time_matrix[:, 1]
@@ -804,7 +801,7 @@ def write_field_to_myrorss_file(
             LATLNG_MULTIPLE_DEG))
     netcdf_dataset.setncattr(
         HEIGHT_COLUMN_ORIG,
-        METRES_TO_KM * numpy.float(radar_height_m_asl))
+        METRES_TO_KM * float(radar_height_m_asl))
     netcdf_dataset.setncattr(
         UNIX_TIME_COLUMN_ORIG,
         numpy.int32(metadata_dict[radar_utils.UNIX_TIME_COLUMN]))
@@ -814,7 +811,7 @@ def write_field_to_myrorss_file(
     netcdf_dataset.setncattr('ColorMap-unit', 'dimensionless')
     netcdf_dataset.setncattr('ColorMap-value', '')
     netcdf_dataset.setncattr('SubType-unit', 'dimensionless')
-    netcdf_dataset.setncattr('SubType-value', numpy.float(radar_height_m_asl))
+    netcdf_dataset.setncattr('SubType-value', float(radar_height_m_asl))
     netcdf_dataset.setncattr('Unit-unit', 'dimensionless')
     netcdf_dataset.setncattr('Unit-value', 'dimensionless')
 

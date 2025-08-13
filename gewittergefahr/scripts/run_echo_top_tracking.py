@@ -1,5 +1,6 @@
 """Tracks storms based on echo top."""
 
+import time
 import argparse
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_utils import radar_utils
@@ -176,6 +177,7 @@ def _run(top_radar_dir_name, top_radar_dir_name_tarred,
     if top_echo_classifn_dir_name in ['', 'None']:
         top_echo_classifn_dir_name = None
 
+    exec_start_time_unix_sec = time.time()
     echo_top_tracking.run_tracking(
         top_radar_dir_name=top_radar_dir_name,
         top_output_dir_name=top_output_dir_name,
@@ -188,7 +190,11 @@ def _run(top_radar_dir_name, top_radar_dir_name_tarred,
         min_polygon_size_pixels=min_size_pixels,
         max_velocity_diff_m_s01=max_velocity_diff_m_s01,
         max_link_distance_m_s01=max_link_distance_m_s01,
-        min_track_duration_seconds=0)
+        min_track_duration_seconds=0
+    )
+    print('Elapsed time = {0:.4f} seconds'.format(
+        time.time() - exec_start_time_unix_sec
+    ))
 
     print(SEPARATOR_STRING)
 

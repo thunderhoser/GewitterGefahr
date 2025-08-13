@@ -643,9 +643,8 @@ def plot_latlng_grid(
 
     axes_object.pcolormesh(
         grid_cell_edge_longitudes_deg, grid_cell_edge_latitudes_deg,
-        field_matrix_at_edges, cmap=colour_map_object, norm=colour_norm_object,
-        vmin=min_colour_value, vmax=max_colour_value, shading='flat',
-        edgecolors='None', zorder=-1e11
+        field_matrix, cmap=colour_map_object, norm=colour_norm_object,
+        shading='flat', edgecolors='None', zorder=-1e11
     )
 
 
