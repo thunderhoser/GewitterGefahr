@@ -898,7 +898,8 @@ def write_classifications(convective_flag_matrix, grid_metadata_dict,
 
     netcdf_dataset.createVariable(
         FLAG_MATRIX_KEY, datatype=numpy.int32,
-        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY),
+        zlib=True, complevel=4
     )
     netcdf_dataset.variables[FLAG_MATRIX_KEY][:] = convective_flag_matrix
 

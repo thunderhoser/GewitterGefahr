@@ -105,54 +105,7 @@ INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
-INPUT_ARG_PARSER.add_argument(
-    '--' + PEAKEDNESS_NEIGH_ARG_NAME, type=float, required=False,
-    default=
-    echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.PEAKEDNESS_NEIGH_KEY],
-    help=PEAKEDNESS_NEIGH_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_PEAKEDNESS_HEIGHT_ARG_NAME, type=float, required=False,
-    default=
-    echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.MAX_PEAKEDNESS_HEIGHT_KEY],
-    help=MAX_PEAKEDNESS_HEIGHT_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_ECHO_TOP_ARG_NAME, type=int, required=False,
-    default=echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.MIN_ECHO_TOP_KEY],
-    help=MIN_ECHO_TOP_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + ECHO_TOP_LEVEL_ARG_NAME, type=float, required=False,
-    default=echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.ECHO_TOP_LEVEL_KEY],
-    help=ECHO_TOP_LEVEL_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_SIZE_ARG_NAME, type=int, required=False,
-    default=echo_classifn.DEFAULT_OPTION_DICT[echo_classifn.MIN_SIZE_KEY],
-    help=MIN_SIZE_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_COMPOSITE_REFL_CRITERION1_ARG_NAME, type=float, required=False,
-    default=echo_classifn.DEFAULT_OPTION_DICT[
-        echo_classifn.MIN_COMPOSITE_REFL_CRITERION1_KEY
-    ],
-    help=MIN_COMPOSITE_REFL_CRITERION1_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_COMPOSITE_REFL_CRITERION5_ARG_NAME, type=float, required=False,
-    default=echo_classifn.DEFAULT_OPTION_DICT[
-        echo_classifn.MIN_COMPOSITE_REFL_CRITERION5_KEY
-    ],
-    help=MIN_COMPOSITE_REFL_CRITERION5_HELP_STRING
-)
-INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_COMPOSITE_REFL_AML_ARG_NAME, type=float, required=False,
-    default=echo_classifn.DEFAULT_OPTION_DICT[
-        echo_classifn.MIN_COMPOSITE_REFL_AML_KEY
-    ],
-    help=MIN_COMPOSITE_REFL_AML_HELP_STRING
-)
+
 
 
 def _run_for_gridrad(
