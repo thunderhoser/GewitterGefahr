@@ -841,7 +841,7 @@ def write_classifications(convective_flag_matrix, grid_metadata_dict,
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     netcdf_dataset = netCDF4.Dataset(
-        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
+        netcdf_file_name, 'w', format='NETCDF4'
     )
 
     netcdf_dataset.setncattr(PEAKEDNESS_NEIGH_KEY, peakedness_neigh_metres)
@@ -898,7 +898,8 @@ def write_classifications(convective_flag_matrix, grid_metadata_dict,
 
     netcdf_dataset.createVariable(
         FLAG_MATRIX_KEY, datatype=numpy.int32,
-        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY),
+        zlib=True, complevel=4
     )
     netcdf_dataset.variables[FLAG_MATRIX_KEY][:] = convective_flag_matrix
 

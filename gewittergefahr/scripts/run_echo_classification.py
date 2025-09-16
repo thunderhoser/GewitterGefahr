@@ -1,5 +1,6 @@
 """Runs echo classification (convective vs. non-convective)."""
 
+import time
 import os.path
 import argparse
 import numpy
@@ -493,11 +494,16 @@ def _run(radar_source_name, spc_date_string, top_radar_dir_name_tarred,
             top_radar_dir_name=top_radar_dir_name,
             top_output_dir_name=top_output_dir_name, option_dict=option_dict)
     else:
+        exec_start_time_unix_sec = time.time()
         _run_for_myrorss(
             spc_date_string=spc_date_string,
             top_radar_dir_name_tarred=top_radar_dir_name_tarred,
             top_radar_dir_name_untarred=top_radar_dir_name,
-            top_output_dir_name=top_output_dir_name, option_dict=option_dict)
+            top_output_dir_name=top_output_dir_name, option_dict=option_dict
+        )
+        print('Elapsed time = {0:.4f} seconds'.format(
+            time.time() - exec_start_time_unix_sec
+        ))
 
 
 if __name__ == '__main__':

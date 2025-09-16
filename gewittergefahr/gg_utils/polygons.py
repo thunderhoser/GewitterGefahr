@@ -332,9 +332,9 @@ def _vertices_from_grid_points_to_edges(row_indices_orig, column_indices_orig):
     # Handle case of only one unique vertex.
     rowcol_matrix_orig = numpy.hstack((
         numpy.reshape(row_indices_orig, (num_vertices_orig, 1)),
-        numpy.reshape(column_indices_orig, (num_vertices_orig, 1))))
-    unique_rowcol_matrix_orig = numpy.vstack(
-        {tuple(this_row) for this_row in rowcol_matrix_orig}).astype(int)
+        numpy.reshape(column_indices_orig, (num_vertices_orig, 1))
+    ))
+    unique_rowcol_matrix_orig = numpy.unique(rowcol_matrix_orig, axis=0)
 
     if unique_rowcol_matrix_orig.shape[0] == 1:
         row_indices = row_indices_orig[0] + numpy.array(
