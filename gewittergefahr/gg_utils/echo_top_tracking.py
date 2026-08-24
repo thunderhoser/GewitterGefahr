@@ -609,8 +609,17 @@ def _make_regions_contiguous(
                     else:
                         these_region_indices.append(numpy.nan)
 
-            these_region_indices = numpy.array(these_region_indices)
+            these_region_indices = numpy.array(
+                these_region_indices, dtype=float
+            )
             these_region_indices[these_region_indices == k] = numpy.nan
+
+            # No neighbouring region to absorb this cell, so drop it rather
+            # than leave region k discontiguous.
+            if numpy.all(numpy.isnan(these_region_indices)):
+                radar_to_region_matrix[i, j] = -1
+                continue
+
             this_mode_object = scipy_mode(
                 these_region_indices, axis=None, nan_policy='omit')
 
