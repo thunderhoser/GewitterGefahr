@@ -2229,15 +2229,41 @@ def get_storm_velocities(
                     this_end_latitude_deg - this_start_latitude_deg
                 )
             else:
-                these_east_displacements_metres[j] = geodesic(
-                    (this_start_latitude_deg, this_start_longitude_deg),
-                    (this_start_latitude_deg, this_end_longitude_deg)
-                ).meters
 
-                these_north_displacements_metres[j] = geodesic(
-                    (this_start_latitude_deg, this_start_longitude_deg),
-                    (this_end_latitude_deg, this_start_longitude_deg)
-                ).meters
+                # `geodesic(...).meters` is a DISTANCE and is therefore never
+                # negative, so it cannot be used as a displacement on its own:
+                # doing so makes every storm appear to move northeast.  The
+                # magnitude is correct, so it is signed here by the coordinate
+                # difference.  (The `test_mode` branch above was always signed,
+                # which is why this only ever showed up in production.)
+                this_east_diff_deg = (
+                    this_end_longitude_deg - this_start_longitude_deg
+                )
+
+                # Longitudes may be stored in [0, 360) or [-180, 180), so wrap
+                # the difference into [-180, 180] before taking its sign.
+                if this_east_diff_deg > 180.:
+                    this_east_diff_deg -= 360.
+                elif this_east_diff_deg < -180.:
+                    this_east_diff_deg += 360.
+
+                these_east_displacements_metres[j] = (
+                    numpy.sign(this_east_diff_deg) *
+                    geodesic(
+                        (this_start_latitude_deg, this_start_longitude_deg),
+                        (this_start_latitude_deg, this_end_longitude_deg)
+                    ).meters
+                )
+
+                these_north_displacements_metres[j] = (
+                    numpy.sign(
+                        this_end_latitude_deg - this_start_latitude_deg
+                    ) *
+                    geodesic(
+                        (this_start_latitude_deg, this_start_longitude_deg),
+                        (this_end_latitude_deg, this_start_longitude_deg)
+                    ).meters
+                )
 
         east_velocities_m_s01[i] = numpy.mean(
             these_east_displacements_metres / these_time_diffs_seconds
