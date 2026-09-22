@@ -1396,6 +1396,10 @@ def run_tracking(
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_velocity_diff_m_s01=DEFAULT_MAX_VELOCITY_DIFF_M_S01,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
+        min_velocity_time_seconds=
+        temporal_tracking.DEFAULT_MIN_VELOCITY_TIME_SEC,
+        max_velocity_time_seconds=
+        temporal_tracking.DEFAULT_MAX_VELOCITY_TIME_SEC,
         min_track_duration_seconds=0, recompute_centroids=True):
     """Runs echo-top-tracking.  This is effectively the main method.
 
@@ -1426,6 +1430,11 @@ def run_tracking(
         `temporal_tracking.link_local_maxima_in_time`.
     :param max_velocity_diff_m_s01: Same.
     :param max_link_distance_m_s01: Same.
+    :param min_velocity_time_seconds: See doc for
+        `temporal_tracking.get_storm_velocities`.  This window must contain at
+        least one multiple of the data's sampling interval, or no storm object
+        can be given a velocity and all of them end up with the default (zero).
+    :param max_velocity_time_seconds: Same.
     :param min_track_duration_seconds: See doc for
         `temporal_tracking.remove_short_lived_storms`.
     :param recompute_centroids: Boolean flag.  If True, storm centroids will be
@@ -1650,7 +1659,9 @@ def run_tracking(
 
     print('Computing storm velocities...')
     storm_object_table = temporal_tracking.get_storm_velocities(
-        storm_object_table=storm_object_table)
+        storm_object_table=storm_object_table,
+        min_time_difference_sec=min_velocity_time_seconds,
+        max_time_difference_sec=max_velocity_time_seconds)
 
     print(SEPARATOR_STRING)
     _write_new_tracks(
@@ -1667,6 +1678,10 @@ def reanalyze_across_spc_dates(
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_join_time_seconds=DEFAULT_MAX_JOIN_TIME_SEC,
         max_join_error_m_s01=DEFAULT_MAX_JOIN_ERROR_M_S01,
+        min_velocity_time_seconds=
+        temporal_tracking.DEFAULT_MIN_VELOCITY_TIME_SEC,
+        max_velocity_time_seconds=
+        temporal_tracking.DEFAULT_MAX_VELOCITY_TIME_SEC,
         min_track_duration_seconds=DEFAULT_MIN_REANALYZED_DURATION_SEC):
     """Reanalyzes tracks across SPC dates.
 
@@ -1689,6 +1704,11 @@ def reanalyze_across_spc_dates(
     :param max_join_time_seconds: See doc for
         `track_reanalysis.join_collinear_tracks`.
     :param max_join_error_m_s01: Same.
+    :param min_velocity_time_seconds: See doc for
+        `temporal_tracking.get_storm_velocities`.  This window must contain at
+        least one multiple of the data's sampling interval, or no storm object
+        can be given a velocity and all of them end up with the default (zero).
+    :param max_velocity_time_seconds: Same.
     :param min_track_duration_seconds: See doc for
         `temporal_tracking.remove_short_lived_storms`.
     """
@@ -1762,7 +1782,9 @@ def reanalyze_across_spc_dates(
 
         print('Computing storm velocities...')
         storm_object_table = temporal_tracking.get_storm_velocities(
-            storm_object_table=storm_object_table)
+            storm_object_table=storm_object_table,
+            min_time_difference_sec=min_velocity_time_seconds,
+            max_time_difference_sec=max_velocity_time_seconds)
 
         print(SEPARATOR_STRING)
         _write_new_tracks(
@@ -1894,7 +1916,9 @@ def reanalyze_across_spc_dates(
 
         print('Computing storm velocities...')
         concat_storm_object_table = temporal_tracking.get_storm_velocities(
-            storm_object_table=concat_storm_object_table)
+            storm_object_table=concat_storm_object_table,
+            min_time_difference_sec=min_velocity_time_seconds,
+            max_time_difference_sec=max_velocity_time_seconds)
 
         storm_object_table_by_date[i] = concat_storm_object_table.loc[
             concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==

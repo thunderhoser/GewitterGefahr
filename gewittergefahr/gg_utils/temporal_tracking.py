@@ -991,6 +991,29 @@ def _get_storm_velocities_missing(
     if not numpy.any(numpy.isnan(east_velocities_m_s01)):
         return storm_object_table
 
+    # Every branch below fills a missing velocity with an average of
+    # NON-missing neighbouring velocities, so if *nothing* was estimated by
+    # `get_storm_velocities` there is nothing to average and all four loops
+    # below are guaranteed to fall through to the default fill.  Short-circuit
+    # to that fill, because the loops are not cheap: the last two are
+    # O(num_times * num_storm_objects^2), which at 8-minute sampling (~540
+    # times and ~60k objects in one 3-date reanalysis window) is hours of
+    # spinning to produce exactly the defaults.
+    #
+    # This case is not hypothetical: the differencing window
+    # (`min_time_difference_sec`...`max_time_difference_sec`) must contain at
+    # least one multiple of the data's sampling interval, or *no* storm object
+    # can ever be given a velocity.
+    if numpy.all(numpy.isnan(east_velocities_m_s01)):
+        return storm_object_table.assign(**{
+            tracking_utils.EAST_VELOCITY_COLUMN:
+                numpy.full(len(east_velocities_m_s01),
+                           DEFAULT_EAST_VELOCITY_M_S01),
+            tracking_utils.NORTH_VELOCITY_COLUMN:
+                numpy.full(len(north_velocities_m_s01),
+                           DEFAULT_NORTH_VELOCITY_M_S01)
+        })
+
     unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
         storm_object_table[tracking_utils.VALID_TIME_COLUMN].values,
         return_inverse=True)
@@ -1044,24 +1067,24 @@ def _get_storm_velocities_missing(
         })
 
     # Use neighbouring storms at all times to estimate missing velocities.
-    for j in range(num_times):
-        these_indices = numpy.where(orig_to_unique_indices == j)[0]
-        if not numpy.any(numpy.isnan(east_velocities_m_s01[these_indices])):
-            continue
-
-        these_east_velocities_m_s01, these_north_velocities_m_s01 = (
-            _estimate_velocity_by_neigh(
-                x_coords_metres=storm_object_table[CENTROID_X_COLUMN].values,
-                y_coords_metres=storm_object_table[CENTROID_Y_COLUMN].values,
-                x_velocities_m_s01=east_velocities_m_s01 + 0.,
-                y_velocities_m_s01=north_velocities_m_s01 + 0.,
-                e_folding_radius_metres=e_folding_radius_metres)
-        )
-
-        east_velocities_m_s01[these_indices] = these_east_velocities_m_s01[
-            these_indices]
-        north_velocities_m_s01[these_indices] = these_north_velocities_m_s01[
-            these_indices]
+    #
+    # This estimate spans the whole table, so it does not depend on the time
+    # being filled and is computed once, rather than once per time step as it
+    # used to be.  The old per-time loop threw away all but one time step's
+    # worth of each call, making this stage O(num_times * num_objects^2) for a
+    # result that O(num_objects^2) gets.  It also fed velocities filled at time
+    # j back in as "neighbours" when filling time j+1, so the answer depended
+    # on the order of the time steps; averaging only over velocities that were
+    # actually estimated (never over ones this same stage synthesized) is both
+    # the evident intent and order-independent.
+    east_velocities_m_s01, north_velocities_m_s01 = (
+        _estimate_velocity_by_neigh(
+            x_coords_metres=storm_object_table[CENTROID_X_COLUMN].values,
+            y_coords_metres=storm_object_table[CENTROID_Y_COLUMN].values,
+            x_velocities_m_s01=east_velocities_m_s01,
+            y_velocities_m_s01=north_velocities_m_s01,
+            e_folding_radius_metres=e_folding_radius_metres)
+    )
 
     if not numpy.any(numpy.isnan(east_velocities_m_s01)):
         return storm_object_table.assign(**{
@@ -1069,25 +1092,16 @@ def _get_storm_velocities_missing(
             tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01
         })
 
-    # Use all storms at all times to estimate missing velocities.
-    for j in range(num_times):
-        these_indices = numpy.where(orig_to_unique_indices == j)[0]
-        if not numpy.any(numpy.isnan(east_velocities_m_s01[these_indices])):
-            continue
-
-        these_east_velocities_m_s01, these_north_velocities_m_s01 = (
-            _estimate_velocity_by_neigh(
-                x_coords_metres=storm_object_table[CENTROID_X_COLUMN].values,
-                y_coords_metres=storm_object_table[CENTROID_Y_COLUMN].values,
-                x_velocities_m_s01=east_velocities_m_s01 + 0.,
-                y_velocities_m_s01=north_velocities_m_s01 + 0.,
-                e_folding_radius_metres=numpy.nan)
-        )
-
-        east_velocities_m_s01[these_indices] = these_east_velocities_m_s01[
-            these_indices]
-        north_velocities_m_s01[these_indices] = these_north_velocities_m_s01[
-            these_indices]
+    # Use all storms at all times to estimate missing velocities.  Computed
+    # once, for the same reason as the stage above.
+    east_velocities_m_s01, north_velocities_m_s01 = (
+        _estimate_velocity_by_neigh(
+            x_coords_metres=storm_object_table[CENTROID_X_COLUMN].values,
+            y_coords_metres=storm_object_table[CENTROID_Y_COLUMN].values,
+            x_velocities_m_s01=east_velocities_m_s01,
+            y_velocities_m_s01=north_velocities_m_s01,
+            e_folding_radius_metres=numpy.nan)
+    )
 
     if not numpy.any(numpy.isnan(east_velocities_m_s01)):
         return storm_object_table.assign(**{
